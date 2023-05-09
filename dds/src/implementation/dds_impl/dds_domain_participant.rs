@@ -97,7 +97,7 @@ use super::{
     dds_data_writer::DdsDataWriter,
     dds_publisher::DdsPublisher,
     message_receiver::MessageReceiver,
-    node_listener_data_writer::ListenerDataWriterNode,
+    node_user_defined_data_writer::UserDefinedDataWriterNode,
     status_condition_impl::StatusConditionImpl,
     status_listener::{ListenerTriggerKind, StatusListener},
 };
@@ -815,16 +815,16 @@ impl DdsDomainParticipant {
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) {
         self.ignored_subcriptions.write_lock().insert(handle);
-        for publisher in self.user_defined_publisher_list() {
-            for data_writer in publisher.stateful_data_writer_list() {
-                remove_writer_matched_reader(
-                    data_writer,
-                    handle,
-                    &mut publisher.get_status_listener_lock(),
-                    &mut self.status_listener.write_lock(),
-                )
-            }
-        }
+        // for publisher in self.user_defined_publisher_list() {
+        //     for data_writer in publisher.stateful_data_writer_list() {
+        //         remove_writer_matched_reader(
+        //             data_writer,
+        //             handle,
+        //             &mut publisher.get_status_listener_lock(),
+        //             &mut self.status_listener.write_lock(),
+        //         )
+        //     }
+        // }
     }
 
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
@@ -1088,7 +1088,10 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn discover_matched_readers(&self) -> DdsResult<()> {
+    pub fn discover_matched_readers(
+        &self,
+        listener_sender: &Sender<ListenerTriggerKind>,
+    ) -> DdsResult<()> {
         let samples = self
             .get_builtin_subscriber()
             .stateful_data_reader_list()
@@ -1172,9 +1175,10 @@ impl DdsDomainParticipant {
                                                 discovered_participant_data
                                                     .participant_proxy()
                                                     .default_multicast_locator_list(),
-                                                &mut publisher.get_status_listener_lock(),
-                                                &mut self.get_status_listener_lock(),
                                                 &publisher.get_qos(),
+                                                publisher.guid(),
+                                                self.guid(),
+                                                listener_sender,
                                             )
                                         }
                                     }
@@ -1189,8 +1193,9 @@ impl DdsDomainParticipant {
                             remove_writer_matched_reader(
                                 data_writer,
                                 discovered_reader_data_sample.sample_info.instance_handle,
-                                &mut publisher.get_status_listener_lock(),
-                                &mut self.status_listener.write_lock(),
+                                publisher.guid(),
+                                self.guid(),
+                                listener_sender,
                             )
                         }
                     }
@@ -1266,9 +1271,10 @@ fn add_matched_reader(
     discovered_reader_data: &DiscoveredReaderData,
     default_unicast_locator_list: &[Locator],
     default_multicast_locator_list: &[Locator],
-    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
-    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
     publisher_qos: &PublisherQos,
+    parent_publisher_guid: Guid,
+    parent_participant_guid: Guid,
+    listener_sender: &Sender<ListenerTriggerKind>,
 ) {
     let is_matched_topic_name = discovered_reader_data
         .subscription_builtin_topic_data()
@@ -1359,8 +1365,9 @@ fn add_matched_reader(
                 );
                 on_writer_publication_matched(
                     writer,
-                    publisher_status_listener,
-                    participant_status_listener,
+                    parent_publisher_guid,
+                    parent_participant_guid,
+                    listener_sender,
                 )
             }
         } else {
@@ -1368,8 +1375,9 @@ fn add_matched_reader(
                 writer,
                 instance_handle,
                 incompatible_qos_policy_list,
-                publisher_status_listener,
-                participant_status_listener,
+                parent_publisher_guid,
+                parent_participant_guid,
+                listener_sender,
             );
         }
     }
@@ -1412,44 +1420,27 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 
 fn on_writer_publication_matched(
     writer: &DdsDataWriter<RtpsStatefulWriter>,
-    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
-    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+    parent_publisher_guid: Guid,
+    parent_participant_guid: Guid,
+    listener_sender: &Sender<ListenerTriggerKind>,
 ) {
-    writer.add_communication_state(StatusKind::PublicationMatched);
-
-    let publication_matched_status_kind = &StatusKind::PublicationMatched;
-
-    if writer.is_listener_enabled(publication_matched_status_kind) {
-        writer.trigger_on_publication_matched(
-            ListenerDataWriterNode::new(),
-            writer.get_publication_matched_status(),
-        )
-    } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
-        publisher_status_listener
-            .listener_mut()
-            .as_mut()
-            .expect("Listener should be some")
-            .on_publication_matched(
-                &ListenerDataWriterNode::new(),
-                writer.get_publication_matched_status(),
-            )
-    } else if participant_status_listener.is_enabled(publication_matched_status_kind) {
-        participant_status_listener
-            .listener_mut()
-            .as_mut()
-            .expect("Listener should be some")
-            .on_publication_matched(
-                &ListenerDataWriterNode::new(),
-                writer.get_publication_matched_status(),
-            )
-    }
+    listener_sender
+        .send(ListenerTriggerKind::PublicationMatched(
+            UserDefinedDataWriterNode::new(
+                writer.guid(),
+                parent_publisher_guid,
+                parent_participant_guid,
+            ),
+        ))
+        .ok();
 }
 
 pub fn remove_writer_matched_reader(
     writer: &DdsDataWriter<RtpsStatefulWriter>,
     discovered_reader_handle: InstanceHandle,
-    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
-    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+    parent_publisher_guid: Guid,
+    parent_participant_guid: Guid,
+    listener_sender: &Sender<ListenerTriggerKind>,
 ) {
     if let Some(r) = writer.get_matched_subscription_data(discovered_reader_handle) {
         let handle = r.key().value.into();
@@ -1458,8 +1449,9 @@ pub fn remove_writer_matched_reader(
 
         on_writer_publication_matched(
             writer,
-            publisher_status_listener,
-            participant_status_listener,
+            parent_publisher_guid,
+            parent_participant_guid,
+            listener_sender,
         )
     }
 }
@@ -1468,39 +1460,21 @@ fn writer_on_offered_incompatible_qos(
     writer: &DdsDataWriter<RtpsStatefulWriter>,
     handle: InstanceHandle,
     incompatible_qos_policy_list: Vec<QosPolicyId>,
-    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
-    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+    parent_publisher_guid: Guid,
+    parent_participant_guid: Guid,
+    listener_sender: &Sender<ListenerTriggerKind>,
 ) {
     if !writer.get_incompatible_subscriptions().contains(&handle) {
         writer.add_offered_incompatible_qos(handle, incompatible_qos_policy_list);
-
-        let offerered_incompatible_qos_status_kind = &StatusKind::OfferedIncompatibleQos;
-        if writer.is_listener_enabled(offerered_incompatible_qos_status_kind) {
-            writer.trigger_on_offered_incompatible_qos(
-                ListenerDataWriterNode::new(),
-                writer.get_offered_incompatible_qos_status(),
-            )
-        } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
-            publisher_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_offered_incompatible_qos(
-                    &ListenerDataWriterNode::new(),
-                    writer.get_offered_incompatible_qos_status(),
-                )
-        } else if participant_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_offered_incompatible_qos(
-                    &ListenerDataWriterNode::new(),
-                    writer.get_offered_incompatible_qos_status(),
-                )
-        }
-
-        writer.add_communication_state(StatusKind::OfferedIncompatibleQos);
+        listener_sender
+            .send(ListenerTriggerKind::OfferedIncompatibleQos(
+                UserDefinedDataWriterNode::new(
+                    writer.guid(),
+                    parent_publisher_guid,
+                    parent_participant_guid,
+                ),
+            ))
+            .ok();
     }
 }
 

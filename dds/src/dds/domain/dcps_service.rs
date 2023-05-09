@@ -33,6 +33,7 @@ use crate::{
             message_receiver::MessageReceiver,
             node_kind::SubscriberNodeKind,
             node_user_defined_data_reader::UserDefinedDataReaderNode,
+            node_user_defined_data_writer::UserDefinedDataWriterNode,
             node_user_defined_subscriber::UserDefinedSubscriberNode,
             participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
@@ -66,8 +67,8 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         status::{
-            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, StatusKind,
-            SubscriptionMatchedStatus,
+            OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedIncompatibleQosStatus,
+            SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
     },
@@ -354,6 +355,12 @@ impl DcpsService {
                         }
                         ListenerTriggerKind::OnSampleLost(dr) => {
                             on_sample_lost_communication_change(dr)
+                        }
+                        ListenerTriggerKind::OfferedIncompatibleQos(dw) => {
+                            on_offered_incompatible_qos_communication_change(dw)
+                        }
+                        ListenerTriggerKind::PublicationMatched(dw) => {
+                            on_publication_matched_communication_change(dw)
                         }
                     }
                 }
@@ -732,6 +739,139 @@ fn on_sample_lost_communication_change(data_reader_node: UserDefinedDataReaderNo
         &data_reader_node.guid(),
         |data_reader_listener| {
             if let Some(l) = data_reader_listener {
+                l.add_communication_state(status_kind);
+            }
+        },
+    )
+}
+
+fn on_offered_incompatible_qos_communication_change(data_writer_node: UserDefinedDataWriterNode) {
+    fn get_offered_incompatible_qos_status(
+        data_writer_node: &UserDefinedDataWriterNode,
+    ) -> DdsResult<OfferedIncompatibleQosStatus> {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+            &data_writer_node.parent_participant().prefix(),
+            |dp| {
+                data_writer_node
+                    .get_offered_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+            },
+        )
+    }
+
+    let status_kind = StatusKind::OfferedIncompatibleQos;
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+        &data_writer_node.guid(),
+        |data_writer_listener| match data_writer_listener {
+            Some(l) if l.is_enabled(&status_kind) => {
+                if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
+                    l.listener_mut()
+                        .as_mut()
+                        .expect("Listener should be some")
+                        .trigger_on_offered_incompatible_qos(data_writer_node, status)
+                }
+            }
+            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
+                &data_writer_node.parent_publisher(),
+                |publisher_listener| match publisher_listener {
+                    Some(l) if l.is_enabled(&status_kind) => {
+                        if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
+                            l.listener_mut()
+                                .as_mut()
+                                .expect("Listener should be some")
+                                .on_offered_incompatible_qos(&data_writer_node, status)
+                        }
+                    }
+                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                        &data_writer_node.parent_participant(),
+                        |participant_listener| match participant_listener {
+                            Some(l) if l.is_enabled(&status_kind) => {
+                                if let Ok(status) =
+                                    get_offered_incompatible_qos_status(&data_writer_node)
+                                {
+                                    l.listener_mut()
+                                        .as_mut()
+                                        .expect("Listener should be some")
+                                        .on_offered_incompatible_qos(&data_writer_node, status)
+                                }
+                            }
+                            _ => (),
+                        },
+                    ),
+                },
+            ),
+        },
+    );
+
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+        &data_writer_node.guid(),
+        |data_writer_listener| {
+            if let Some(l) = data_writer_listener {
+                l.add_communication_state(status_kind);
+            }
+        },
+    )
+}
+
+fn on_publication_matched_communication_change(data_writer_node: UserDefinedDataWriterNode) {
+    fn get_publication_matched_status(
+        data_writer_node: &UserDefinedDataWriterNode,
+    ) -> DdsResult<PublicationMatchedStatus> {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+            &data_writer_node.parent_participant().prefix(),
+            |dp| {
+                data_writer_node.get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+            },
+        )
+    }
+
+    let status_kind = StatusKind::PublicationMatched;
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+        &data_writer_node.guid(),
+        |data_writer_listener| match data_writer_listener {
+            Some(l) if l.is_enabled(&status_kind) => {
+                if let Ok(status) = get_publication_matched_status(&data_writer_node) {
+                    l.listener_mut()
+                        .as_mut()
+                        .expect("Listener should be some")
+                        .trigger_on_publication_matched(data_writer_node, status)
+                }
+            }
+            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
+                &data_writer_node.parent_publisher(),
+                |publisher_listener| match publisher_listener {
+                    Some(l) if l.is_enabled(&status_kind) => {
+                        if let Ok(status) = get_publication_matched_status(&data_writer_node) {
+                            l.listener_mut()
+                                .as_mut()
+                                .expect("Listener should be some")
+                                .on_publication_matched(&data_writer_node, status)
+                        }
+                    }
+                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                        &data_writer_node.parent_participant(),
+                        |participant_listener| match participant_listener {
+                            Some(l) if l.is_enabled(&status_kind) => {
+                                if let Ok(status) =
+                                    get_publication_matched_status(&data_writer_node)
+                                {
+                                    l.listener_mut()
+                                        .as_mut()
+                                        .expect("Listener should be some")
+                                        .on_publication_matched(&data_writer_node, status)
+                                }
+                            }
+                            _ => (),
+                        },
+                    ),
+                },
+            ),
+        },
+    );
+
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+        &data_writer_node.guid(),
+        |data_writer_listener| {
+            if let Some(l) = data_writer_listener {
                 l.add_communication_state(status_kind);
             }
         },
@@ -1717,7 +1857,9 @@ fn receive_builtin_message(
         .ok();
 
     discover_matched_participants(domain_participant, sedp_condvar).ok();
-    domain_participant.discover_matched_readers().ok();
+    domain_participant
+        .discover_matched_readers(listener_sender)
+        .ok();
     discover_matched_writers(domain_participant, listener_sender).ok();
     domain_participant.discover_matched_topics().ok();
 }

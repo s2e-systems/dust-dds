@@ -17,6 +17,7 @@ use crate::{
         },
         time::Time,
     },
+    publication::data_writer::AnyDataWriter,
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
@@ -26,7 +27,7 @@ use super::{
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
 };
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub struct UserDefinedDataWriterNode {
     this: Guid,
     parent_publisher: Guid,
@@ -44,6 +45,14 @@ impl UserDefinedDataWriterNode {
 
     pub fn guid(&self) -> Guid {
         self.this
+    }
+
+    pub fn parent_publisher(&self) -> Guid {
+        self.parent_publisher
+    }
+
+    pub fn parent_participant(&self) -> Guid {
+        self.parent_participant
     }
 
     pub fn register_instance_w_timestamp(
@@ -182,9 +191,16 @@ impl UserDefinedDataWriterNode {
         todo!()
     }
 
-    pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        // Ok(self.0.get()?.get_offered_incompatible_qos_status())
-        todo!()
+    pub fn get_offered_incompatible_qos_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<OfferedIncompatibleQosStatus> {
+        Ok(domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_offered_incompatible_qos_status())
     }
 
     pub fn get_publication_matched_status(
@@ -503,3 +519,5 @@ fn get_data_writer_status_condition(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_statuscondition())
 }
+
+impl AnyDataWriter for UserDefinedDataWriterNode {}

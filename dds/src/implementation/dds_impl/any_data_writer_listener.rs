@@ -7,27 +7,29 @@ use crate::{
     topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
-use super::{node_kind::DataWriterNodeKind, node_listener_data_writer::ListenerDataWriterNode};
+use super::{
+    node_kind::DataWriterNodeKind, node_user_defined_data_writer::UserDefinedDataWriterNode,
+};
 
 pub trait AnyDataWriterListener {
     fn trigger_on_liveliness_lost(
         &mut self,
-        _the_writer: ListenerDataWriterNode,
+        _the_writer: UserDefinedDataWriterNode,
         status: LivelinessLostStatus,
     );
     fn trigger_on_offered_deadline_missed(
         &mut self,
-        _the_writer: ListenerDataWriterNode,
+        _the_writer: UserDefinedDataWriterNode,
         status: OfferedDeadlineMissedStatus,
     );
     fn trigger_on_offered_incompatible_qos(
         &mut self,
-        _the_writer: ListenerDataWriterNode,
+        _the_writer: UserDefinedDataWriterNode,
         status: OfferedIncompatibleQosStatus,
     );
     fn trigger_on_publication_matched(
         &mut self,
-        _the_writer: ListenerDataWriterNode,
+        _the_writer: UserDefinedDataWriterNode,
         status: PublicationMatchedStatus,
     );
 }
@@ -38,7 +40,7 @@ where
 {
     fn trigger_on_liveliness_lost(
         &mut self,
-        the_writer: ListenerDataWriterNode,
+        the_writer: UserDefinedDataWriterNode,
         status: LivelinessLostStatus,
     ) {
         self.on_liveliness_lost(
@@ -49,7 +51,7 @@ where
 
     fn trigger_on_offered_deadline_missed(
         &mut self,
-        the_writer: ListenerDataWriterNode,
+        the_writer: UserDefinedDataWriterNode,
         status: OfferedDeadlineMissedStatus,
     ) {
         self.on_offered_deadline_missed(
@@ -60,7 +62,7 @@ where
 
     fn trigger_on_offered_incompatible_qos(
         &mut self,
-        the_writer: ListenerDataWriterNode,
+        the_writer: UserDefinedDataWriterNode,
         status: OfferedIncompatibleQosStatus,
     ) {
         self.on_offered_incompatible_qos(
@@ -71,7 +73,7 @@ where
 
     fn trigger_on_publication_matched(
         &mut self,
-        the_writer: ListenerDataWriterNode,
+        the_writer: UserDefinedDataWriterNode,
         status: PublicationMatchedStatus,
     ) {
         self.on_publication_matched(

@@ -407,7 +407,10 @@ impl<Foo> DataWriter<Foo> {
     /// This operation allows access to the [`OfferedIncompatibleQosStatus`].
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_offered_incompatible_qos_status(),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.guid().prefix(), |dp| {
+                    w.get_offered_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }

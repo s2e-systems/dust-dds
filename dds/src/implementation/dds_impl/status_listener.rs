@@ -5,6 +5,7 @@ use crate::{
 
 use super::{
     node_user_defined_data_reader::UserDefinedDataReaderNode,
+    node_user_defined_data_writer::UserDefinedDataWriterNode,
     status_condition_impl::StatusConditionImpl,
 };
 
@@ -59,4 +60,6 @@ pub enum ListenerTriggerKind {
     RequestedIncompatibleQos(UserDefinedDataReaderNode),
     OnSampleRejected(UserDefinedDataReaderNode),
     OnSampleLost(UserDefinedDataReaderNode),
+    OfferedIncompatibleQos(UserDefinedDataWriterNode),
+    PublicationMatched(UserDefinedDataWriterNode),
 }
