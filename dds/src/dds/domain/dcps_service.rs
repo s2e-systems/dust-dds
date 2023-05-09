@@ -275,6 +275,18 @@ impl DcpsService {
                         },
                     );
                 }
+                // let data_reader_node =
+                //     UserDefinedDataReaderNode::new(GUID_UNKNOWN, GUID_UNKNOWN, GUID_UNKNOWN);
+                // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+                //     &data_reader_node.guid().unwrap(),
+                //     move |l| {
+                //         if let Some(l) = l {
+                //             l.trigger_on_data_available(todo!())
+                //         } else {
+                //             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener()
+                //         }
+                //     },
+                // )
             }));
         }
 

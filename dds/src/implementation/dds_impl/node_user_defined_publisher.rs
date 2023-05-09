@@ -42,6 +42,10 @@ impl UserDefinedPublisherNode {
         Self { this, parent }
     }
 
+    pub fn guid(&self) -> Guid {
+        self.this
+    }
+
     pub fn create_datawriter<Foo>(
         &self,
         domain_participant: &mut DdsDomainParticipant,
@@ -68,7 +72,7 @@ impl UserDefinedPublisherNode {
     pub fn delete_datawriter(
         &self,
         domain_participant: &mut DdsDomainParticipant,
-        data_writer_handle: InstanceHandle,
+        data_writer_guid: Guid,
     ) -> DdsResult<()> {
         let data_writer = domain_participant
             .user_defined_publisher_list_mut()
@@ -77,7 +81,7 @@ impl UserDefinedPublisherNode {
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_writer_list()
             .iter()
-            .find(|x| InstanceHandle::from(x.guid()) == data_writer_handle)
+            .find(|x| x.guid() == data_writer_guid)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Data writer can only be deleted from its parent publisher".to_string(),
@@ -288,10 +292,6 @@ impl UserDefinedPublisherNode {
 
     pub fn parent(&self) -> Guid {
         self.parent
-    }
-
-    pub fn this(&self) -> Guid {
-        self.this
     }
 }
 

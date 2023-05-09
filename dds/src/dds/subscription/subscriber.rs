@@ -40,6 +40,14 @@ impl Subscriber {
     }
 }
 
+impl Drop for Subscriber {
+    fn drop(&mut self) {
+        if let Ok(dp) = self.get_participant() {
+            dp.delete_subscriber(self).ok();
+        }
+    }
+}
+
 impl Subscriber {
     /// This operation creates a [`DataReader`]. The returned [`DataReader`] will be attached and belong to the [`Subscriber`].
     /// The [`DataReader`] returned by this operation has an associated [`Topic`] and a type `Foo`.
@@ -69,22 +77,34 @@ impl Subscriber {
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&s.guid()?.prefix(), |dp| {
-                    let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-                    #[allow(clippy::redundant_closure)]
-                    s.create_datareader::<Foo>(
-                        dp,
-                        a_topic.get_type_name()?,
-                        a_topic.get_name()?,
-                        qos,
-                        a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| {
-                            Box::new(x)
-                        }),
-                        mask,
-                    )
-                    .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))
-                }),
+            SubscriberNodeKind::UserDefined(s) => {
+                let type_name = a_topic.get_type_name()?;
+                let topic_name = a_topic.get_name()?;
+                let reader = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+                    &s.guid().prefix(),
+                    |dp| {
+                        let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+                        s.create_datareader::<Foo>(
+                            dp,
+                            type_name,
+                            topic_name,
+                            qos,
+                            a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(
+                                |x| Box::new(x),
+                            ),
+                            mask,
+                        )
+                    },
+                )?;
+
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_reader_listener(
+                    reader.guid(),
+                    None,
+                    mask,
+                );
+
+                Ok(DataReader::new(DataReaderNodeKind::UserDefined(reader)))
+            }
 
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
@@ -93,19 +113,27 @@ impl Subscriber {
     /// This operation deletes a [`DataReader`] that belongs to the [`Subscriber`]. This operation must be called on the
     /// same [`Subscriber`] object used to create the [`DataReader`]. If [`Subscriber::delete_datareader`] is called on a
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
-    pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()>
-    where
-        Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
-    {
+    pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&s.guid()?.prefix(), |dp| {
-                    s.delete_datareader(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        a_datareader.get_instance_handle()?,
-                    )
-                }),
+            SubscriberNodeKind::UserDefined(s) => match &a_datareader.0 {
+                DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
+                DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+                DataReaderNodeKind::UserDefined(dr) => {
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+                        &s.guid().prefix(),
+                        |dp| {
+                            s.delete_datareader(
+                                dp.ok_or(DdsError::AlreadyDeleted)?,
+                                a_datareader.get_instance_handle()?,
+                            )
+                        },
+                    )?;
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_data_reader_listener(&dr.guid());
+                    Ok(())
+                }
+                DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+            },
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
@@ -121,7 +149,7 @@ impl Subscriber {
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid()?.prefix(), |dp| {
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid().prefix(), |dp| {
                     Ok(
                         s.lookup_datareader::<Foo>(
                             dp.ok_or(DdsError::AlreadyDeleted)?,
@@ -132,7 +160,7 @@ impl Subscriber {
                 })
             }
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid()?.prefix(), |dp| {
+                .get_participant(&s.guid().prefix(), |dp| {
                     Ok(s.lookup_datareader(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         Foo::type_name(),
@@ -184,7 +212,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&s.guid()?.prefix(), |dp| {
+                .get_participant_mut(&s.guid().prefix(), |dp| {
                     s.delete_contained_entities(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
@@ -201,7 +229,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid()?.prefix(), |dp| {
+                .get_participant(&s.guid().prefix(), |dp| {
                     s.set_default_datareader_qos(dp.ok_or(DdsError::AlreadyDeleted)?, qos)
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
@@ -216,7 +244,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid()?.prefix(), |dp| {
+                .get_participant(&s.guid().prefix(), |dp| {
                     s.get_default_datareader_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
@@ -252,7 +280,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid()?.prefix(), |dp| {
+                .get_participant(&s.guid().prefix(), |dp| {
                     s.set_qos(dp.ok_or(DdsError::AlreadyDeleted)?, qos)
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
@@ -263,11 +291,11 @@ impl Subscriber {
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid()?.prefix(), |dp| {
+                .get_participant(&s.guid().prefix(), |dp| {
                     s.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid()?.prefix(), |dp| {
+                .get_participant(&s.guid().prefix(), |dp| {
                     s.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
@@ -299,7 +327,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => s.get_statuscondition(),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid()?.prefix(), |dp| {
+                .get_participant(&s.guid().prefix(), |dp| {
                     s.get_statuscondition(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
@@ -316,7 +344,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => s.get_status_changes(),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid()?.prefix(), |dp| {
+                .get_participant(&s.guid().prefix(), |dp| {
                     s.get_status_changes(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
@@ -347,7 +375,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid()?.prefix(), |dp| {
+                .get_participant(&s.guid().prefix(), |dp| {
                     let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
                     s.enable(dp)
                 }),

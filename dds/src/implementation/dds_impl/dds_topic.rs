@@ -88,6 +88,10 @@ impl DdsShared<DdsTopic> {
         self.topic_name.clone()
     }
 
+    pub fn guid(&self) -> Guid {
+        self.guid
+    }
+
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),

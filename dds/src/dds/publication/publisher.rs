@@ -36,6 +36,14 @@ impl Publisher {
     }
 }
 
+impl Drop for Publisher {
+    fn drop(&mut self) {
+        if let Ok(dp) = self.get_participant() {
+            dp.delete_publisher(self).ok();
+        }
+    }
+}
+
 impl Publisher {
     /// This operation creates a [`DataWriter`]. The returned [`DataWriter`] will be attached and belongs to the [`Publisher`].
     /// The [`DataWriter`] returned by this operation has an associated [`Topic`] and a type `Foo`.
@@ -64,13 +72,16 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
+        let type_name = a_topic.get_type_name()?;
+        let topic_name = a_topic.get_name()?;
+
         self.call_participant_mut_method(|dp| {
             #[allow(clippy::redundant_closure)]
             self.0
                 .create_datawriter::<Foo>(
                     dp,
-                    a_topic.get_type_name()?,
-                    a_topic.get_name()?,
+                    type_name,
+                    topic_name,
                     qos,
                     a_listener
                         .map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
@@ -86,14 +97,15 @@ impl Publisher {
     /// The deletion of the [`DataWriter`] will automatically unregister all instances. Depending on the settings of the
     /// [`WriterDataLifecycleQosPolicy`](crate::infrastructure::qos_policy::WriterDataLifecycleQosPolicy), the deletion of the
     /// [`DataWriter`].
-    pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()>
-    where
-        Foo: DdsType + DdsSerialize + 'static,
-    {
-        self.call_participant_mut_method(|dp| {
-            self.0
-                .delete_datawriter(dp, a_datawriter.get_instance_handle()?)
-        })
+    pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
+        match &a_datawriter.0 {
+            DataWriterNodeKind::UserDefined(dw) => {
+                self.call_participant_mut_method(|dp| self.0.delete_datawriter(dp, dw.guid()))?
+            }
+            DataWriterNodeKind::Listener(_) => (),
+        }
+
+        Ok(())
     }
 
     /// This operation retrieves a previously created [`DataWriter`] belonging to the [`Publisher`] that is attached to a [`Topic`] with a matching

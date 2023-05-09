@@ -42,6 +42,10 @@ impl UserDefinedDataWriterNode {
         }
     }
 
+    pub fn guid(&self) -> Guid {
+        self.this
+    }
+
     pub fn register_instance_w_timestamp(
         &self,
         _instance_serialized_key: DdsSerializedKey,
@@ -389,10 +393,6 @@ impl UserDefinedDataWriterNode {
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(self.this.into())
-    }
-
-    pub fn this(&self) -> Guid {
-        self.this
     }
 }
 

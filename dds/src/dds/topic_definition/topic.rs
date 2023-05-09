@@ -1,7 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::{
-    domain::domain_participant::DomainParticipant,
+    domain::{
+        domain_participant::DomainParticipant,
+        domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    },
     implementation::dds_impl::{any_topic_listener::AnyTopicListener, node_kind::TopicNodeKind},
     infrastructure::{
         condition::StatusCondition,
@@ -31,11 +34,22 @@ impl<Foo> Topic<Foo> {
     }
 }
 
+impl<Foo> Drop for Topic<Foo> {
+    fn drop(&mut self) {
+        if let Ok(dp) = self.get_participant() {
+            dp.delete_topic(self).ok();
+        }
+    }
+}
+
 impl<Foo> Topic<Foo> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.get_inconsistent_topic_status(),
+            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&t.guid().prefix(), |dp| {
+                    t.get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             TopicNodeKind::Listener(_) => todo!(),
         }
     }
@@ -54,7 +68,10 @@ impl<Foo> Topic<Foo> {
     /// The name of the type used to create the [`Topic`]
     pub fn get_type_name(&self) -> DdsResult<&'static str> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.get_type_name(),
+            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&t.guid().prefix(), |dp| {
+                    t.get_type_name(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             TopicNodeKind::Listener(_) => todo!(),
         }
     }
@@ -62,7 +79,10 @@ impl<Foo> Topic<Foo> {
     /// The name used to create the [`Topic`]
     pub fn get_name(&self) -> DdsResult<String> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.get_name(),
+            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&t.guid().prefix(), |dp| {
+                    t.get_name(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             TopicNodeKind::Listener(_) => todo!(),
         }
     }
@@ -84,7 +104,10 @@ impl<Foo> Topic<Foo> {
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.set_qos(qos),
+            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&t.guid().prefix(), |dp| {
+                    t.set_qos(dp.ok_or(DdsError::AlreadyDeleted)?, qos)
+                }),
             TopicNodeKind::Listener(_) => todo!(),
         }
         // self.node.upgrade()?.set_qos(qos)
@@ -93,7 +116,10 @@ impl<Foo> Topic<Foo> {
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.get_qos(),
+            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&t.guid().prefix(), |dp| {
+                    t.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             TopicNodeKind::Listener(_) => todo!(),
         }
         // Ok(self.node.upgrade()?.get_qos())
@@ -104,7 +130,10 @@ impl<Foo> Topic<Foo> {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.get_statuscondition(),
+            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&t.guid().prefix(), |dp| {
+                    t.get_statuscondition(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             TopicNodeKind::Listener(_) => todo!(),
         }
     }
@@ -117,7 +146,10 @@ impl<Foo> Topic<Foo> {
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.get_status_changes(),
+            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&t.guid().prefix(), |dp| {
+                    t.get_status_changes(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             TopicNodeKind::Listener(_) => todo!(),
         }
     }
@@ -144,7 +176,10 @@ impl<Foo> Topic<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.enable(),
+            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&t.guid().prefix(), |dp| {
+                    t.enable(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             TopicNodeKind::Listener(_) => todo!(),
         }
     }

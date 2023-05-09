@@ -1,8 +1,8 @@
 use crate::{
-    implementation::{rtps::types::Guid, utils::node::ChildNode},
+    implementation::rtps::types::Guid,
     infrastructure::{
         condition::StatusCondition,
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
@@ -10,70 +10,138 @@ use crate::{
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, dds_topic::DdsTopic,
+    any_topic_listener::AnyTopicListener, dds_domain_participant::DdsDomainParticipant,
     node_domain_participant::DomainParticipantNode,
 };
 
-#[derive(PartialEq, Debug)]
-pub struct UserDefinedTopicNode(ChildNode<DdsTopic, Guid>);
+#[derive(PartialEq, Eq, Debug)]
+pub struct UserDefinedTopicNode {
+    this: Guid,
+    parent: Guid,
+}
 
 impl UserDefinedTopicNode {
-    pub fn new(node: ChildNode<DdsTopic, Guid>) -> Self {
-        Self(node)
+    pub fn new(this: Guid, parent: Guid) -> Self {
+        Self { this, parent }
     }
 
-    pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        Ok(self.0.get()?.get_inconsistent_topic_status())
+    pub fn guid(&self) -> Guid {
+        self.this
+    }
+
+    pub fn get_inconsistent_topic_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<InconsistentTopicStatus> {
+        Ok(domain_participant
+            .topic_list()
+            .iter()
+            .find(|t| t.guid() == self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_inconsistent_topic_status())
     }
 
     pub fn get_participant(&self) -> DomainParticipantNode {
-        DomainParticipantNode::new(*self.0.parent())
+        DomainParticipantNode::new(self.parent)
     }
 
-    pub fn get_type_name(&self) -> DdsResult<&'static str> {
-        Ok(self.0.get()?.get_type_name())
+    pub fn get_type_name(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<&'static str> {
+        Ok(domain_participant
+            .topic_list()
+            .iter()
+            .find(|t| t.guid() == self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_type_name())
     }
 
-    pub fn get_name(&self) -> DdsResult<String> {
-        Ok(self.0.get()?.get_name())
+    pub fn get_name(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<String> {
+        Ok(domain_participant
+            .topic_list()
+            .iter()
+            .find(|t| t.guid() == self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_name())
     }
 
-    pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.0.get()?.set_qos(qos)
+    pub fn set_qos(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+        qos: QosKind<TopicQos>,
+    ) -> DdsResult<()> {
+        domain_participant
+            .topic_list()
+            .iter()
+            .find(|t| t.guid() == self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .set_qos(qos)
     }
 
-    pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self.0.get()?.get_qos())
+    pub fn get_qos(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<TopicQos> {
+        Ok(domain_participant
+            .topic_list()
+            .iter()
+            .find(|t| t.guid() == self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos())
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(self.0.get()?.get_statuscondition()))
+    pub fn get_statuscondition(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<StatusCondition> {
+        Ok(StatusCondition::new(
+            domain_participant
+                .topic_list()
+                .iter()
+                .find(|t| t.guid() == self.this)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_statuscondition(),
+        ))
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self.0.get()?.get_status_changes())
+    pub fn get_status_changes(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<Vec<StatusKind>> {
+        Ok(domain_participant
+            .topic_list()
+            .iter()
+            .find(|t| t.guid() == self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_status_changes())
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
         // if !self.node.upgrade()?.get_participant().is_enabled() {
         //     return Err(DdsError::PreconditionNotMet(
         //         "Parent participant is disabled".to_string(),
         //     ));
         // }
 
-        self.0.get()?.enable()
+        domain_participant
+            .topic_list()
+            .iter()
+            .find(|t| t.guid() == self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .enable()?;
+
+        Ok(())
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.0.get()?.get_instance_handle())
+        Ok(self.this.into())
     }
 
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.get()?.set_listener(a_listener, mask);
-        Ok(())
+        todo!()
+        // self.0.get()?.set_listener(a_listener, mask);
+        // Ok(())
     }
 }

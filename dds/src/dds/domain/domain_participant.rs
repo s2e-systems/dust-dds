@@ -20,7 +20,9 @@ use crate::{
 };
 
 use super::{
-    domain_participant_factory::{DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY},
+    domain_participant_factory::{
+        DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY, THE_PARTICIPANT_FACTORY,
+    },
     domain_participant_listener::DomainParticipantListener,
 };
 
@@ -51,6 +53,12 @@ impl DomainParticipant {
     }
 }
 
+impl Drop for DomainParticipant {
+    fn drop(&mut self) {
+        THE_PARTICIPANT_FACTORY.delete_participant(self).ok();
+    }
+}
+
 impl DomainParticipant {
     /// This operation creates a [`Publisher`] with the desired QoS policies and attaches to it the specified [`PublisherListener`].
     /// If the specified QoS policies are not consistent, the operation will fail and no [`Publisher`] will be created.
@@ -65,11 +73,12 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        self.call_participant_mut_method(|dp| {
-            Ok(Publisher::new(
-                self.0.create_publisher(dp, qos, a_listener, mask)?,
-            ))
-        })
+        let publisher = self
+            .call_participant_mut_method(|dp| self.0.create_publisher(dp, qos, a_listener, mask))?;
+
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_publisher_listener(publisher.guid(), None, mask);
+
+        Ok(Publisher::new(publisher))
     }
 
     /// This operation deletes an existing [`Publisher`].
@@ -80,10 +89,11 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            self.0.delete_publisher(dp, a_publisher.0.this())?;
-            Ok(())
-        })
+        self.call_participant_mut_method(|dp| self.0.delete_publisher(dp, a_publisher.0.guid()))?;
+
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_publisher_listener(&a_publisher.0.guid());
+
+        Ok(())
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
@@ -100,11 +110,13 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        self.call_participant_mut_method(|dp| {
-            Ok(Subscriber::new(SubscriberNodeKind::UserDefined(
-                self.0.create_subscriber(dp, qos, a_listener, mask)?,
-            )))
-        })
+        let subscriber = self.call_participant_mut_method(|dp| {
+            self.0.create_subscriber(dp, qos, a_listener, mask)
+        })?;
+
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_subscriber_listener(subscriber.guid(), None, mask);
+
+        Ok(Subscriber::new(SubscriberNodeKind::UserDefined(subscriber)))
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -117,7 +129,10 @@ impl DomainParticipant {
         self.call_participant_mut_method(|dp| {
             match &a_subscriber.0 {
                 SubscriberNodeKind::Builtin(_) => todo!(),
-                SubscriberNodeKind::UserDefined(s) => self.0.delete_subscriber(dp, s.guid()?)?,
+                SubscriberNodeKind::UserDefined(s) => {
+                    self.0.delete_subscriber(dp, s.guid())?;
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_subscriber_listener(&s.guid());
+                }
                 SubscriberNodeKind::Listener(_) => todo!(),
             }
 
@@ -144,18 +159,20 @@ impl DomainParticipant {
     where
         Foo: DdsType + 'static,
     {
-        self.call_participant_mut_method(|dp| {
-            Ok(Topic::new(TopicNodeKind::UserDefined(
-                self.0.create_topic(
-                    dp,
-                    topic_name,
-                    Foo::type_name(),
-                    qos,
-                    a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
-                    mask,
-                )?,
-            )))
-        })
+        let topic = self.call_participant_mut_method(|dp| {
+            self.0.create_topic(
+                dp,
+                topic_name,
+                Foo::type_name(),
+                qos,
+                a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+                mask,
+            )
+        })?;
+
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_topic_listener(topic.guid(), None, mask);
+
+        Ok(Topic::new(TopicNodeKind::UserDefined(topic)))
     }
 
     /// This operation deletes a [`Topic`].
@@ -165,10 +182,15 @@ impl DomainParticipant {
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_topic<Foo>(&self, a_topic: &Topic<Foo>) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            self.0.delete_topic(dp, a_topic.get_instance_handle()?)?;
-            Ok(())
-        })
+        match &a_topic.node {
+            TopicNodeKind::UserDefined(t) => {
+                self.call_participant_mut_method(|dp| self.0.delete_topic(dp, t.guid()))?;
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_topic_listener(&t.guid());
+            }
+            TopicNodeKind::Listener(_) => todo!(),
+        }
+
+        Ok(())
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes

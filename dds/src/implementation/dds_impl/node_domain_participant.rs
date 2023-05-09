@@ -4,7 +4,7 @@ use crate::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
     },
-    implementation::{rtps::types::Guid, utils::node::ChildNode},
+    implementation::rtps::types::Guid,
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -84,15 +84,15 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedTopicNode> {
         domain_participant
             .create_topic(topic_name, type_name, qos, a_listener, mask)
-            .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0)))
+            .map(|x| UserDefinedTopicNode::new(x.guid(), self.0))
     }
 
     pub fn delete_topic(
         &self,
         domain_participant: &mut DdsDomainParticipant,
-        topic_handle: InstanceHandle,
+        topic_guid: Guid,
     ) -> DdsResult<()> {
-        domain_participant.delete_topic(topic_handle)
+        domain_participant.delete_topic(topic_guid)
     }
 
     pub fn find_topic(
@@ -104,7 +104,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedTopicNode> {
         domain_participant
             .find_topic(topic_name, type_name, timeout)
-            .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0)))
+            .map(|x| UserDefinedTopicNode::new(x.guid(), self.0))
     }
 
     pub fn lookup_topicdescription(
@@ -117,7 +117,7 @@ impl DomainParticipantNode {
             .topic_list()
             .iter()
             .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
-            .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0))))
+            .map(|x| UserDefinedTopicNode::new(x.guid(), self.0)))
     }
 
     pub fn get_builtin_subscriber(
