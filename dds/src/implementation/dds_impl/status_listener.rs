@@ -44,4 +44,5 @@ impl<T: ?Sized> StatusListener<T> {
 
 pub enum ListenerTriggerKind {
     RequestedDeadlineMissed(UserDefinedDataReaderNode),
+    OnDataAvailable(UserDefinedDataReaderNode),
 }

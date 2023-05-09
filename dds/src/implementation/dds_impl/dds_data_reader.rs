@@ -836,46 +836,19 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
 
     pub fn on_data_available(
         &self,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_subcriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
-        self.trigger_on_data_available_listener(
-            &mut self.status_listener.write_lock(),
-            participant_status_listener,
-        );
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::DataAvailable);
-    }
-
-    fn trigger_on_data_available_listener(
-        &self,
-        reader_status_listener: &mut StatusListener<dyn AnyDataReaderListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let on_data_available_status_kind = &StatusKind::DataAvailable;
-        todo!()
-        // if reader_status_listener.is_enabled(on_data_available_status_kind) {
-        //     reader_status_listener
-        //         .listener_mut()
-        //         .as_mut()
-        //         .expect("Listener should be some")
-        //         .trigger_on_data_available(ListenerDataReaderNode::new(RootNode::new(
-        //             self.downgrade(),
-        //         )))
-        // } else if participant_status_listener.is_enabled(on_data_available_status_kind) {
-        //     participant_status_listener
-        //         .listener_mut()
-        //         .as_mut()
-        //         .expect("Listener should be some")
-        //         .on_data_available(&ListenerDataReaderNode::new(RootNode::new(
-        //             self.downgrade(),
-        //         )))
-        // }
+        listener_sender
+            .send(ListenerTriggerKind::OnDataAvailable(
+                UserDefinedDataReaderNode::new(
+                    self.guid(),
+                    parent_subcriber_guid,
+                    parent_participant_guid,
+                ),
+            ))
+            .unwrap();
     }
 
     fn on_sample_lost(

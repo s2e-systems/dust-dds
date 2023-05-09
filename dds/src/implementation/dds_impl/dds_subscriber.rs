@@ -238,10 +238,16 @@ impl DdsSubscriber {
         participant_status_listener: &mut StatusListener<
             dyn DomainParticipantListener + Send + Sync,
         >,
+        parent_subcriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         self.trigger_on_data_on_readers_listener(
             &mut self.status_listener.write_lock(),
             participant_status_listener,
+            parent_subcriber_guid,
+            parent_participant_guid,
+            listener_sender,
         );
 
         self.status_condition
@@ -255,6 +261,9 @@ impl DdsSubscriber {
         participant_status_listener: &mut StatusListener<
             dyn DomainParticipantListener + Send + Sync,
         >,
+        parent_subcriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         let data_on_readers_status_kind = &StatusKind::DataOnReaders;
 
@@ -276,7 +285,11 @@ impl DdsSubscriber {
                 )))
         } else {
             for data_reader in self.stateful_data_reader_list.iter() {
-                data_reader.on_data_available(participant_status_listener);
+                data_reader.on_data_available(
+                    parent_subcriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
             }
         }
     }
@@ -311,6 +324,9 @@ impl DdsSubscriber {
         participant_status_listener: &mut StatusListener<
             dyn DomainParticipantListener + Send + Sync,
         >,
+        parent_subcriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         for stateless_data_reader in self.stateless_data_reader_list.iter() {
             stateless_data_reader.on_data_submessage_received(data_submessage, message_receiver);
@@ -331,7 +347,12 @@ impl DdsSubscriber {
             }
         }
         if *self.data_on_readers_status_changed_flag.read_lock() {
-            self.on_data_on_readers(participant_status_listener);
+            self.on_data_on_readers(
+                participant_status_listener,
+                parent_subcriber_guid,
+                parent_participant_guid,
+                listener_sender,
+            );
         }
     }
 
@@ -342,6 +363,9 @@ impl DdsSubscriber {
         participant_status_listener: &mut StatusListener<
             dyn DomainParticipantListener + Send + Sync,
         >,
+        parent_subcriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         for data_reader in self.stateful_data_reader_list.iter() {
             let data_submessage_received_result = data_reader.on_data_frag_submessage_received(
@@ -358,7 +382,12 @@ impl DdsSubscriber {
             }
         }
         if *self.data_on_readers_status_changed_flag.read_lock() {
-            self.on_data_on_readers(participant_status_listener);
+            self.on_data_on_readers(
+                participant_status_listener,
+                parent_subcriber_guid,
+                parent_participant_guid,
+                listener_sender,
+            );
         }
     }
 

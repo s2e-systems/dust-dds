@@ -2,7 +2,7 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4, UdpSocket},
     sync::{
         atomic::{self, AtomicBool},
-        mpsc::{self, Receiver, SyncSender},
+        mpsc::{self, Receiver, Sender, SyncSender},
         Arc,
     },
     thread::JoinHandle,
@@ -150,6 +150,7 @@ impl DcpsService {
         // //////////// Notification thread
         {
             let task_quit = quit.clone();
+            let listener_sender_clone = listener_sender.clone();
 
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
@@ -160,7 +161,7 @@ impl DcpsService {
                     &participant_guid_prefix,
                     |dp| {
                         if let Some(dp) = dp {
-                            dp.update_communication_status(&listener_sender).ok();
+                            dp.update_communication_status(&listener_sender_clone).ok();
                         }
                     },
                 );
@@ -174,6 +175,7 @@ impl DcpsService {
         {
             let sedp_condvar_clone = sedp_condvar.clone();
             let task_quit = quit.clone();
+            let listener_sender_clone = listener_sender.clone();
 
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
@@ -185,7 +187,13 @@ impl DcpsService {
                         &participant_guid_prefix,
                         |dp| {
                             if let Some(dp) = dp {
-                                receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
+                                receive_builtin_message(
+                                    dp,
+                                    message,
+                                    locator,
+                                    &sedp_condvar_clone,
+                                    &listener_sender_clone,
+                                )
                             }
                         },
                     )
@@ -219,6 +227,7 @@ impl DcpsService {
         {
             let sedp_condvar_clone = sedp_condvar.clone();
             let task_quit = quit.clone();
+            let listener_sender_clone = listener_sender.clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
@@ -229,7 +238,13 @@ impl DcpsService {
                         &participant_guid_prefix,
                         |dp| {
                             if let Some(dp) = dp {
-                                receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
+                                receive_builtin_message(
+                                    dp,
+                                    message,
+                                    locator,
+                                    &sedp_condvar_clone,
+                                    &listener_sender_clone,
+                                )
                             }
                         },
                     )
@@ -273,7 +288,8 @@ impl DcpsService {
                         &participant_guid_prefix,
                         |dp| {
                             if let Some(dp) = dp {
-                                dp.receive_user_defined_data(locator, message).ok();
+                                dp.receive_user_defined_data(locator, message, &listener_sender)
+                                    .ok();
                             }
                         },
                     );
@@ -364,6 +380,7 @@ impl DcpsService {
                                 },
                             )
                         }
+                        ListenerTriggerKind::OnDataAvailable(_) => (),
                     }
                 }
             }));
@@ -1357,15 +1374,17 @@ fn receive_builtin_message(
     message: RtpsMessage,
     locator: Locator,
     sedp_condvar: &DdsCondvar,
+    listener_sender: &Sender<ListenerTriggerKind>,
 ) {
     MessageReceiver::new(domain_participant.get_current_time())
         .process_message(
-            domain_participant.guid().prefix(),
+            domain_participant.guid(),
             core::slice::from_ref(domain_participant.get_builtin_publisher()),
             core::slice::from_ref(domain_participant.get_builtin_subscriber()),
             locator,
             &message,
             &mut domain_participant.get_status_listener_lock(),
+            listener_sender,
         )
         .ok();
 

@@ -1093,14 +1093,16 @@ impl DdsDomainParticipant {
         &self,
         source_locator: Locator,
         message: RtpsMessage,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         MessageReceiver::new(self.get_current_time()).process_message(
-            self.rtps_participant.guid().prefix(),
+            self.rtps_participant.guid(),
             self.user_defined_publisher_list.as_slice(),
             self.user_defined_subscriber_list.as_slice(),
             source_locator,
             &message,
             &mut self.status_listener.write_lock(),
+            listener_sender,
         )?;
         self.user_defined_data_send_condvar.notify_all();
         Ok(())
