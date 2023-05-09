@@ -284,7 +284,11 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                 self.instance_reception_time
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
-
+                self.on_data_available(
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
@@ -293,6 +297,11 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
                 self.on_sample_lost(
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
+                self.on_data_available(
                     parent_subscriber_guid,
                     parent_participant_guid,
                     listener_sender,
@@ -340,6 +349,11 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
+                self.on_data_available(
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
@@ -348,6 +362,11 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
                 self.on_sample_lost(
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
+                self.on_data_available(
                     parent_subscriber_guid,
                     parent_participant_guid,
                     listener_sender,

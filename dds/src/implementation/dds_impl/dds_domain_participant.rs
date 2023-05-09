@@ -68,12 +68,8 @@ use crate::{
         time::{DurationKind, DURATION_ZERO},
     },
     publication::publisher_listener::PublisherListener,
-    subscription::{
-        sample_info::{
-            InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-        },
-        subscriber_listener::SubscriberListener,
+    subscription::sample_info::{
+        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType},
     {
@@ -287,8 +283,6 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_READER_GROUP),
             )),
-            None,
-            NO_STATUS,
         );
         builtin_subscriber.stateless_data_reader_add(spdp_builtin_participant_reader);
         builtin_subscriber.stateful_data_reader_add(sedp_builtin_topics_reader);
@@ -562,12 +556,7 @@ impl DdsDomainParticipant {
             .find(|p| p.guid() == publisher_guid)
     }
 
-    pub fn create_subscriber(
-        &mut self,
-        qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) -> DdsResult<Guid> {
+    pub fn create_subscriber(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<Guid> {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
@@ -581,7 +570,7 @@ impl DdsDomainParticipant {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, a_listener, mask);
+        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group);
         if *self.enabled.read_lock()
             && self
                 .qos
@@ -1093,7 +1082,6 @@ impl DdsDomainParticipant {
             self.user_defined_subscriber_list.as_slice(),
             source_locator,
             &message,
-            &mut self.status_listener.write_lock(),
             listener_sender,
         )?;
         self.user_defined_data_send_condvar.notify_all();

@@ -1545,7 +1545,6 @@ fn receive_builtin_message(
             core::slice::from_ref(domain_participant.get_builtin_subscriber()),
             locator,
             &message,
-            &mut domain_participant.get_status_listener_lock(),
             listener_sender,
         )
         .ok();

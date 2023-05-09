@@ -9,7 +9,6 @@ use crate::{
         },
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
@@ -284,16 +283,6 @@ impl UserDefinedSubscriberNode {
         // Ok(())
     }
 
-    pub fn get_status_changes(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<Vec<StatusKind>> {
-        Ok(domain_participant
-            .get_subscriber(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_status_changes())
-    }
-
     pub fn enable(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
         let is_parent_enabled = domain_participant.is_enabled();
         if !is_parent_enabled {
@@ -362,17 +351,5 @@ impl UserDefinedSubscriberNode {
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(self.this.into())
-    }
-
-    pub fn get_statuscondition(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(
-            domain_participant
-                .get_subscriber(self.this)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_statuscondition(),
-        ))
     }
 }

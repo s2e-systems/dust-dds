@@ -14,7 +14,6 @@ use crate::{
         time::{Duration, Time},
     },
     publication::publisher_listener::PublisherListener,
-    subscription::subscriber_listener::SubscriberListener,
 };
 
 use super::{
@@ -57,11 +56,9 @@ impl DomainParticipantNode {
         &self,
         domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: &[StatusKind],
     ) -> DdsResult<UserDefinedSubscriberNode> {
         domain_participant
-            .create_subscriber(qos, a_listener, mask)
+            .create_subscriber(qos)
             .map(|x| UserDefinedSubscriberNode::new(x, self.0))
     }
 

@@ -115,7 +115,7 @@ impl DomainParticipant {
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
         let subscriber =
-            self.call_participant_mut_method(|dp| self.0.create_subscriber(dp, qos, None, mask))?;
+            self.call_participant_mut_method(|dp| self.0.create_subscriber(dp, qos))?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_subscriber_listener(
             subscriber.guid(),

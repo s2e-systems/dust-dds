@@ -319,8 +319,8 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => s.get_statuscondition(),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid().prefix(), |dp| {
-                    s.get_statuscondition(dp.ok_or(DdsError::AlreadyDeleted)?)
+                .get_subscriber_listener(&s.guid(), |s| {
+                    Ok(s.ok_or(DdsError::AlreadyDeleted)?.get_status_condition())
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
         }
@@ -336,8 +336,8 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => s.get_status_changes(),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid().prefix(), |dp| {
-                    s.get_status_changes(dp.ok_or(DdsError::AlreadyDeleted)?)
+                .get_subscriber_listener(&s.guid(), |s| {
+                    Ok(s.ok_or(DdsError::AlreadyDeleted)?.get_status_changes())
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
         }

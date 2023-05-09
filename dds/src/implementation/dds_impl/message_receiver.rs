@@ -1,7 +1,6 @@
 use std::sync::mpsc::Sender;
 
 use crate::{
-    domain::domain_participant_listener::DomainParticipantListener,
     implementation::rtps::{
         messages::{
             submessages::{
@@ -21,9 +20,8 @@ use crate::{
 };
 
 use super::{
-    dds_publisher::DdsPublisher,
-    dds_subscriber::DdsSubscriber,
-    status_listener::{ListenerTriggerKind, StatusListener},
+    dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
+    status_listener::ListenerTriggerKind,
 };
 
 pub struct MessageReceiver {
@@ -60,9 +58,6 @@ impl MessageReceiver {
         subscriber_list: &[DdsSubscriber],
         source_locator: Locator,
         message: &RtpsMessage<'_>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
         listener_sender: &Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         self.dest_guid_prefix = participant_guid.prefix();
@@ -95,7 +90,6 @@ impl MessageReceiver {
                         subscriber.on_data_submessage_received(
                             data_submessage,
                             self,
-                            participant_status_listener,
                             participant_guid,
                             listener_sender,
                         )
@@ -106,8 +100,6 @@ impl MessageReceiver {
                         subscriber.on_data_frag_submessage_received(
                             data_frag_submessage,
                             self,
-                            participant_status_listener,
-                            subscriber.guid(),
                             participant_guid,
                             listener_sender,
                         )

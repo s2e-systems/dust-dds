@@ -15,7 +15,6 @@ pub mod node_builtin_subscriber;
 pub mod node_domain_participant;
 pub mod node_kind;
 pub mod node_listener_data_writer;
-pub mod node_listener_subscriber;
 pub mod node_listener_topic;
 pub mod node_user_defined_data_reader;
 pub mod node_user_defined_data_writer;
