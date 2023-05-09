@@ -374,16 +374,129 @@ where
     }
 }
 
+#[derive(Debug, PartialEq)]
+struct DefaultParameter<const PID: u16, T>(T);
+
+
+impl<'de, const PID: u16, T> serde::Deserialize<'de> for DefaultParameter<PID, T>
+where
+    T: serde::Deserialize<'de> + Default,
+{
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor<'de, const PID: u16, T>
+        where
+            T: serde::Deserialize<'de>,
+        {
+            marker: PhantomData<DefaultParameter<PID, T>>,
+            lifetime: PhantomData<&'de ()>,
+        }
+        impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
+        where
+            T: serde::Deserialize<'de> + Default,
+        {
+            type Value = DefaultParameter<PID, T>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct DefaultParameter")
+            }
+
+            fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                const PL_CDR_BE: &[u8] = &[0x00, 0x02];
+                const PL_CDR_LE: &[u8] = &[0x00, 0x03];
+
+                let (representation_identifier, v) = v.split_at(2);
+                if representation_identifier != PL_CDR_BE && representation_identifier != PL_CDR_LE
+                {
+                    return Err(serde::de::Error::invalid_value(
+                        serde::de::Unexpected::Bytes(representation_identifier),
+                        &"PL_CDR_BE or PL_CDR_LE",
+                    ));
+                }
+                let (_representation_options, mut reader) = v.split_at(2);
+                loop {
+                    let mut deserializer_be =
+                        cdr::Deserializer::<_, _, byteorder::BigEndian>::new(reader, cdr::Infinite);
+                    let mut deserializer_le =
+                        cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(
+                            reader,
+                            cdr::Infinite,
+                        );
+                    let pid: u16 = if representation_identifier == PL_CDR_BE {
+                        serde::Deserialize::deserialize(&mut deserializer_be)
+                    } else {
+                        serde::Deserialize::deserialize(&mut deserializer_le)
+                    }
+                    .map_err(|_err| serde::de::Error::missing_field("PID"))?;
+                    let length: u16 = if representation_identifier == PL_CDR_BE {
+                        serde::Deserialize::deserialize(&mut deserializer_be)
+                    } else {
+                        serde::Deserialize::deserialize(&mut deserializer_le)
+                    }
+                    .map_err(|_err| serde::de::Error::missing_field("length"))?;
+
+                    if pid == PID {
+                        let value: T = if representation_identifier == PL_CDR_BE {
+                            serde::Deserialize::deserialize(&mut deserializer_be)
+                        } else {
+                            serde::Deserialize::deserialize(&mut deserializer_le)
+                        }
+                        .map_err(|_err| serde::de::Error::missing_field("value"))?;
+                        return Ok(DefaultParameter(value));
+                    } else if pid == PID_SENTINEL {
+                        return Ok(DefaultParameter(T::default()));
+                    } else {
+                        let skip_bytes = length as usize + 4 /*number of bytes of pid and length */;
+                        reader = &reader[skip_bytes..];
+                    }
+                }
+            }
+        }
+        deserializer.deserialize_newtype_struct(
+            "DefaultParameter",
+            Visitor {
+                marker: PhantomData::<DefaultParameter<PID, T>>,
+                lifetime: PhantomData,
+            },
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct InnerWithDefault {
+        id: Parameter<71, u8>,
+        n: DefaultParameter<72, u8>,
+    }
+
+    #[test]
+    fn deserialize_with_default() {
+        let expected = InnerWithDefault {
+            id: Parameter(21),
+            n: DefaultParameter(0),
+        };
+        let data = &[
+            0x00, 0x03, 0, 0, // representation identifier
+            71, 0x00, 4, 0, // id | Length (incl padding)
+            21, 0, 0, 0, // u8
+            1, 0, 0, 0, // Sentinel
+        ][..];
+        let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
+        let result: InnerWithDefault = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+        assert_eq!(result, expected)
+    }
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct Inner {
         id: Parameter<71, u8>,
         n: Parameter<72, u8>,
     }
-
     #[test]
     fn deserialize_simple() {
         let expected = Inner {
