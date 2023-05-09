@@ -31,6 +31,7 @@ use crate::{
             },
             dds_subscriber::DdsSubscriber,
             message_receiver::MessageReceiver,
+            node_user_defined_data_reader::UserDefinedDataReaderNode,
             participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
         },
@@ -339,45 +340,24 @@ impl DcpsService {
 
                 if let Ok(l) = listener_receiver.recv() {
                     match l {
-                        ListenerTriggerKind::RequestedDeadlineMissed(data_reader_node) => {
-                            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-                                &data_reader_node.guid(),
-                                |data_reader_listener| {
-                                    if let Some(l) = data_reader_listener {
-                                        if l.is_enabled(&StatusKind::RequestedDeadlineMissed) {
-                                            let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                                                .get_participant(
-                                                    &data_reader_node.parent_participant().prefix(),
-                                                    |dp| {
-                                                        data_reader_node
-                                                            .get_requested_deadline_missed_status(
-                                                                dp.unwrap(),
-                                                            )
-                                                    },
-                                                )
-                                                .unwrap();
-
-                                            l.listener_mut()
-                                                .as_mut()
-                                                .expect("Listener should be some")
-                                                .trigger_on_requested_deadline_missed(
-                                                    data_reader_node,
-                                                    status,
-                                                )
-                                        }
-
-                                        l.add_communication_state(
-                                            StatusKind::RequestedDeadlineMissed,
-                                        );
-                                    }
-                                },
-                            )
+                        ListenerTriggerKind::RequestedDeadlineMissed(dr) => {
+                            on_requested_deadline_missed_communication_change(dr)
                         }
-                        ListenerTriggerKind::OnDataAvailable(_) => (),
-                        ListenerTriggerKind::SubscriptionMatched(_) => (),
-                        ListenerTriggerKind::RequestedIncompatibleQos(_) => (),
-                        ListenerTriggerKind::OnSampleRejected(_) => (),
-                        ListenerTriggerKind::OnSampleLost(_) => (),
+                        ListenerTriggerKind::OnDataAvailable(dr) => {
+                            on_data_available_communication_change(dr)
+                        }
+                        ListenerTriggerKind::SubscriptionMatched(dr) => {
+                            on_subscription_matched_communication_change(dr)
+                        }
+                        ListenerTriggerKind::RequestedIncompatibleQos(dr) => {
+                            on_requested_incompatible_qos_communication_change(dr)
+                        }
+                        ListenerTriggerKind::OnSampleRejected(dr) => {
+                            on_sample_rejected_communication_change(dr)
+                        }
+                        ListenerTriggerKind::OnSampleLost(dr) => {
+                            on_sample_lost_communication_change(dr)
+                        }
                     }
                 }
             }));
@@ -411,6 +391,143 @@ impl DcpsService {
     pub fn announce_sender(&self) -> &SyncSender<AnnounceKind> {
         &self.announce_sender
     }
+}
+
+fn on_requested_deadline_missed_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+        &data_reader_node.guid(),
+        |data_reader_listener| {
+            if let Some(l) = data_reader_listener {
+                if l.is_enabled(&StatusKind::RequestedDeadlineMissed) {
+                    let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .get_participant(&data_reader_node.parent_participant().prefix(), |dp| {
+                            data_reader_node.get_requested_deadline_missed_status(dp.unwrap())
+                        })
+                        .unwrap();
+
+                    l.listener_mut()
+                        .as_mut()
+                        .expect("Listener should be some")
+                        .trigger_on_requested_deadline_missed(data_reader_node, status)
+                }
+
+                l.add_communication_state(StatusKind::RequestedDeadlineMissed);
+            }
+        },
+    )
+}
+
+fn on_data_available_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+        &data_reader_node.guid(),
+        |data_reader_listener| {
+            if let Some(l) = data_reader_listener {
+                if l.is_enabled(&StatusKind::DataAvailable) {
+                    l.listener_mut()
+                        .as_mut()
+                        .expect("Listener should be some")
+                        .trigger_on_data_available(data_reader_node)
+                }
+
+                l.add_communication_state(StatusKind::DataAvailable);
+            }
+        },
+    )
+}
+fn on_subscription_matched_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+        &data_reader_node.guid(),
+        |data_reader_listener| {
+            if let Some(l) = data_reader_listener {
+                if l.is_enabled(&StatusKind::SubscriptionMatched) {
+                    let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .get_participant(&data_reader_node.parent_participant().prefix(), |dp| {
+                            data_reader_node.get_subscription_matched_status(dp.unwrap())
+                        })
+                        .unwrap();
+
+                    l.listener_mut()
+                        .as_mut()
+                        .expect("Listener should be some")
+                        .trigger_on_subscription_matched(data_reader_node, status)
+                }
+
+                l.add_communication_state(StatusKind::SubscriptionMatched);
+            }
+        },
+    )
+}
+
+fn on_requested_incompatible_qos_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+        &data_reader_node.guid(),
+        |data_reader_listener| {
+            if let Some(l) = data_reader_listener {
+                if l.is_enabled(&StatusKind::RequestedIncompatibleQos) {
+                    let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .get_participant(&data_reader_node.parent_participant().prefix(), |dp| {
+                            data_reader_node.get_requested_incompatible_qos_status(dp.unwrap())
+                        })
+                        .unwrap();
+
+                    l.listener_mut()
+                        .as_mut()
+                        .expect("Listener should be some")
+                        .trigger_on_requested_incompatible_qos(data_reader_node, status)
+                }
+
+                l.add_communication_state(StatusKind::RequestedIncompatibleQos);
+            }
+        },
+    )
+}
+
+fn on_sample_rejected_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+        &data_reader_node.guid(),
+        |data_reader_listener| {
+            if let Some(l) = data_reader_listener {
+                if l.is_enabled(&StatusKind::SampleRejected) {
+                    let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .get_participant(&data_reader_node.parent_participant().prefix(), |dp| {
+                            data_reader_node.get_sample_rejected_status(dp.unwrap())
+                        })
+                        .unwrap();
+
+                    l.listener_mut()
+                        .as_mut()
+                        .expect("Listener should be some")
+                        .trigger_on_sample_rejected(data_reader_node, status)
+                }
+
+                l.add_communication_state(StatusKind::SampleRejected);
+            }
+        },
+    )
+}
+
+fn on_sample_lost_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+        &data_reader_node.guid(),
+        |data_reader_listener| {
+            if let Some(l) = data_reader_listener {
+                if l.is_enabled(&StatusKind::SampleLost) {
+                    let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .get_participant(&data_reader_node.parent_participant().prefix(), |dp| {
+                            data_reader_node.get_sample_lost_status(dp.unwrap())
+                        })
+                        .unwrap();
+
+                    l.listener_mut()
+                        .as_mut()
+                        .expect("Listener should be some")
+                        .trigger_on_sample_lost(data_reader_node, status)
+                }
+
+                l.add_communication_state(StatusKind::SampleLost);
+            }
+        },
+    )
 }
 
 fn announce_created_data_reader(

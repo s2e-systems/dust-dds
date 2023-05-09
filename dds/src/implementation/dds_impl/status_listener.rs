@@ -37,6 +37,12 @@ impl<T: ?Sized> StatusListener<T> {
             .add_communication_state(state)
     }
 
+    pub fn remove_communication_state(&self, state: StatusKind) {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(state)
+    }
+
     pub fn get_status_condition(&self) -> StatusCondition {
         StatusCondition::new(self.status_condition.clone())
     }
