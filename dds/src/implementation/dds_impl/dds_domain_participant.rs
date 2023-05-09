@@ -821,15 +821,15 @@ impl DdsDomainParticipant {
     pub fn ignore_publication(&self, handle: InstanceHandle) {
         self.ignored_publications.write_lock().insert(handle);
 
-        for subscriber in self.user_defined_subscriber_list() {
-            for data_reader in subscriber.stateful_data_reader_list() {
-                data_reader.remove_matched_writer(
-                    handle,
-                    &mut subscriber.get_status_listener_lock(),
-                    &mut self.get_status_listener_lock(),
-                )
-            }
-        }
+        // for subscriber in self.user_defined_subscriber_list() {
+        //     for data_reader in subscriber.stateful_data_reader_list() {
+        //         data_reader.remove_matched_writer(
+        //             handle,
+        //             &mut subscriber.get_status_listener_lock(),
+        //             &mut self.get_status_listener_lock(),
+        //         )
+        //     }
+        // }
     }
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) {

@@ -324,7 +324,6 @@ impl DdsSubscriber {
         participant_status_listener: &mut StatusListener<
             dyn DomainParticipantListener + Send + Sync,
         >,
-        parent_subcriber_guid: Guid,
         parent_participant_guid: Guid,
         listener_sender: &Sender<ListenerTriggerKind>,
     ) {
@@ -336,8 +335,9 @@ impl DdsSubscriber {
             let data_submessage_received_result = data_reader.on_data_submessage_received(
                 data_submessage,
                 message_receiver,
-                &mut self.status_listener.write_lock(),
-                participant_status_listener,
+                self.guid(),
+                parent_participant_guid,
+                listener_sender,
             );
             match data_submessage_received_result {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange => (),
@@ -349,7 +349,7 @@ impl DdsSubscriber {
         if *self.data_on_readers_status_changed_flag.read_lock() {
             self.on_data_on_readers(
                 participant_status_listener,
-                parent_subcriber_guid,
+                self.guid(),
                 parent_participant_guid,
                 listener_sender,
             );
@@ -371,8 +371,9 @@ impl DdsSubscriber {
             let data_submessage_received_result = data_reader.on_data_frag_submessage_received(
                 data_frag_submessage,
                 message_receiver,
-                &mut self.status_listener.write_lock(),
-                participant_status_listener,
+                self.guid(),
+                parent_participant_guid,
+                listener_sender,
             );
             match data_submessage_received_result {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange => (),

@@ -45,4 +45,8 @@ impl<T: ?Sized> StatusListener<T> {
 pub enum ListenerTriggerKind {
     RequestedDeadlineMissed(UserDefinedDataReaderNode),
     OnDataAvailable(UserDefinedDataReaderNode),
+    SubscriptionMatched(UserDefinedDataReaderNode),
+    RequestedIncompatibleQos(UserDefinedDataReaderNode),
+    OnSampleRejected(UserDefinedDataReaderNode),
+    OnSampleLost(UserDefinedDataReaderNode),
 }

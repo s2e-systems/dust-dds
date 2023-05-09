@@ -96,7 +96,6 @@ impl MessageReceiver {
                             data_submessage,
                             self,
                             participant_status_listener,
-                            subscriber.guid(),
                             participant_guid,
                             listener_sender,
                         )

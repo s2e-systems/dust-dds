@@ -11,10 +11,7 @@ use std::{
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
-    domain::{
-        domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
@@ -35,7 +32,7 @@ use crate::{
             dds_subscriber::DdsSubscriber,
             message_receiver::MessageReceiver,
             participant_discovery::ParticipantDiscovery,
-            status_listener::{ListenerTriggerKind, StatusListener},
+            status_listener::ListenerTriggerKind,
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
@@ -381,6 +378,10 @@ impl DcpsService {
                             )
                         }
                         ListenerTriggerKind::OnDataAvailable(_) => (),
+                        ListenerTriggerKind::SubscriptionMatched(_) => (),
+                        ListenerTriggerKind::RequestedIncompatibleQos(_) => (),
+                        ListenerTriggerKind::OnSampleRejected(_) => (),
+                        ListenerTriggerKind::OnSampleLost(_) => (),
                     }
                 }
             }));
@@ -924,7 +925,10 @@ fn user_defined_stateful_writer_send_message(
     }
 }
 
-fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
+fn discover_matched_writers(
+    domain_participant: &DdsDomainParticipant,
+    listener_sender: &Sender<ListenerTriggerKind>,
+) -> DdsResult<()> {
     let samples = domain_participant
         .get_builtin_subscriber()
         .stateful_data_reader_list()
@@ -973,7 +977,8 @@ fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsRes
                                     discovered_participant_data
                                         .participant_proxy()
                                         .default_multicast_locator_list(),
-                                    &mut domain_participant.get_status_listener_lock(),
+                                    domain_participant.guid(),
+                                    listener_sender,
                                 );
                             }
                         }
@@ -985,8 +990,9 @@ fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsRes
                     for data_reader in subscriber.stateful_data_reader_list() {
                         data_reader.remove_matched_writer(
                             discovered_writer_data_sample.sample_info.instance_handle,
-                            &mut subscriber.get_status_listener_lock(),
-                            &mut domain_participant.get_status_listener_lock(),
+                            domain_participant.guid(),
+                            subscriber.guid(),
+                            listener_sender,
                         )
                     }
                 }
@@ -1003,7 +1009,8 @@ pub fn subscriber_add_matched_writer(
     discovered_writer_data: &DiscoveredWriterData,
     default_unicast_locator_list: &[Locator],
     default_multicast_locator_list: &[Locator],
-    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+    parent_participant_guid: Guid,
+    listener_sender: &Sender<ListenerTriggerKind>,
 ) {
     let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
         &discovered_writer_data
@@ -1046,9 +1053,10 @@ pub fn subscriber_add_matched_writer(
                 discovered_writer_data,
                 default_unicast_locator_list,
                 default_multicast_locator_list,
-                &mut user_defined_subscriber.get_status_listener_lock(),
-                participant_status_listener,
                 &user_defined_subscriber.get_qos(),
+                user_defined_subscriber.guid(),
+                parent_participant_guid,
+                listener_sender,
             )
         }
     }
@@ -1390,7 +1398,7 @@ fn receive_builtin_message(
 
     discover_matched_participants(domain_participant, sedp_condvar).ok();
     domain_participant.discover_matched_readers().ok();
-    discover_matched_writers(domain_participant).ok();
+    discover_matched_writers(domain_participant, listener_sender).ok();
     domain_participant.discover_matched_topics().ok();
 }
 
