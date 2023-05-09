@@ -814,7 +814,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                         parent_participant_guid,
                     ),
                 ))
-                .unwrap();
+                .ok();
         }
     }
 

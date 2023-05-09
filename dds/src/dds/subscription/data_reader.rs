@@ -61,8 +61,16 @@ impl<Foo> DataReader<Foo> {
 
 impl<Foo> Drop for DataReader<Foo> {
     fn drop(&mut self) {
-        if let Ok(s) = self.get_subscriber() {
-            s.delete_datareader(self).ok();
+        match self.0 {
+            DataReaderNodeKind::BuiltinStateful(_)
+            | DataReaderNodeKind::BuiltinStateless(_)
+            | DataReaderNodeKind::Listener(_) => (),
+
+            DataReaderNodeKind::UserDefined(_) => {
+                if let Ok(s) = self.get_subscriber() {
+                    s.delete_datareader(self).ok();
+                }
+            }
         }
     }
 }

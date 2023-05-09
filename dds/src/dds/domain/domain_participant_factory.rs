@@ -257,8 +257,6 @@ impl DomainParticipantFactory {
             domain_id,
             configuration.domain_tag,
             domain_participant_qos,
-            None,
-            mask,
             &spdp_discovery_locator_list,
             user_defined_data_send_condvar.clone(),
             configuration.fragment_size,
@@ -306,7 +304,7 @@ impl DomainParticipantFactory {
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         let is_participant_empty = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-            &participant.0 .0.prefix(),
+            &participant.0.guid().prefix(),
             |dp| {
                 let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
                 Ok(dp.user_defined_publisher_list().iter().count() == 0
@@ -321,7 +319,7 @@ impl DomainParticipantFactory {
             let object = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .domain_participant_list
                 .write_lock()
-                .remove(&participant.0 .0.prefix());
+                .remove(&participant.0.guid().prefix());
             std::mem::drop(object);
 
             Ok(())

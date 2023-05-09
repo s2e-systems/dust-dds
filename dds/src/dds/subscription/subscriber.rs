@@ -42,8 +42,13 @@ impl Subscriber {
 
 impl Drop for Subscriber {
     fn drop(&mut self) {
-        if let Ok(dp) = self.get_participant() {
-            dp.delete_subscriber(self).ok();
+        match self.0 {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => (),
+            SubscriberNodeKind::UserDefined(_) => {
+                if let Ok(dp) = self.get_participant() {
+                    dp.delete_subscriber(self).ok();
+                }
+            }
         }
     }
 }

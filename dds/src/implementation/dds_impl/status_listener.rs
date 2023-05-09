@@ -6,7 +6,7 @@ use crate::{
 use super::{
     node_user_defined_data_reader::UserDefinedDataReaderNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
-    status_condition_impl::StatusConditionImpl,
+    status_condition_impl::StatusConditionImpl, node_user_defined_topic::UserDefinedTopicNode,
 };
 
 pub struct StatusListener<T: ?Sized> {
@@ -62,4 +62,5 @@ pub enum ListenerTriggerKind {
     OnSampleLost(UserDefinedDataReaderNode),
     OfferedIncompatibleQos(UserDefinedDataWriterNode),
     PublicationMatched(UserDefinedDataWriterNode),
+    InconsistentTopic(UserDefinedTopicNode),
 }

@@ -5,10 +5,7 @@ use crate::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
         SubscriptionBuiltinTopicData,
     },
-    domain::{
-        domain_participant_factory::DomainId,
-        domain_participant_listener::DomainParticipantListener, timer_factory::Timer,
-    },
+    domain::{domain_participant_factory::DomainId, timer_factory::Timer},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
@@ -64,10 +61,8 @@ use crate::{
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
-        status::{StatusKind, NO_STATUS},
         time::{DurationKind, DURATION_ZERO},
     },
-    publication::publisher_listener::PublisherListener,
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
@@ -87,19 +82,13 @@ use std::{
     sync::{
         atomic::{AtomicU8, Ordering},
         mpsc::{Sender, SyncSender},
-        RwLockWriteGuard,
     },
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener,
-    dds_data_writer::DdsDataWriter,
-    dds_publisher::DdsPublisher,
-    message_receiver::MessageReceiver,
-    node_user_defined_data_writer::UserDefinedDataWriterNode,
-    status_condition_impl::StatusConditionImpl,
-    status_listener::{ListenerTriggerKind, StatusListener},
+    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
+    node_user_defined_data_writer::UserDefinedDataWriterNode, status_listener::ListenerTriggerKind,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -156,7 +145,6 @@ pub struct DdsDomainParticipant {
     discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, SpdpDiscoveredParticipantData>>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
     enabled: DdsRwLock<bool>,
-    status_listener: DdsRwLock<StatusListener<dyn DomainParticipantListener + Send + Sync>>,
     user_defined_data_send_condvar: DdsCondvar,
     topic_find_condvar: DdsCondvar,
     ignored_participants: DdsRwLock<HashSet<InstanceHandle>>,
@@ -164,7 +152,6 @@ pub struct DdsDomainParticipant {
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
     data_max_size_serialized: usize,
     timer: DdsShared<DdsRwLock<Timer>>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     announce_sender: SyncSender<AnnounceKind>,
 }
 
@@ -181,8 +168,6 @@ impl DdsDomainParticipant {
         domain_id: DomainId,
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
-        listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: &[StatusKind],
         spdp_discovery_locator_list: &[Locator],
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
@@ -199,8 +184,6 @@ impl DdsDomainParticipant {
             TopicQos::default(),
             SpdpDiscoveredParticipantData::type_name(),
             DCPS_PARTICIPANT,
-            None,
-            &[],
             announce_sender.clone(),
         );
 
@@ -211,8 +194,6 @@ impl DdsDomainParticipant {
             TopicQos::default(),
             DiscoveredTopicData::type_name(),
             DCPS_TOPIC,
-            None,
-            &[],
             announce_sender.clone(),
         );
 
@@ -223,8 +204,6 @@ impl DdsDomainParticipant {
             TopicQos::default(),
             DiscoveredWriterData::type_name(),
             DCPS_PUBLICATION,
-            None,
-            &[],
             announce_sender.clone(),
         );
 
@@ -235,8 +214,6 @@ impl DdsDomainParticipant {
             TopicQos::default(),
             DiscoveredReaderData::type_name(),
             DCPS_SUBSCRIPTION,
-            None,
-            &[],
             announce_sender.clone(),
         );
 
@@ -339,8 +316,6 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_WRITER_GROUP),
             )),
-            None,
-            NO_STATUS,
         );
         builtin_publisher.stateless_datawriter_add(spdp_builtin_participant_writer);
         builtin_publisher.stateful_datawriter_add(sedp_builtin_topics_writer);
@@ -369,14 +344,12 @@ impl DdsDomainParticipant {
             discovered_topic_list: HashMap::new(),
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
-            status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             topic_find_condvar: DdsCondvar::new(),
             ignored_participants: DdsRwLock::new(HashSet::new()),
             ignored_publications: DdsRwLock::new(HashSet::new()),
             ignored_subcriptions: DdsRwLock::new(HashSet::new()),
             data_max_size_serialized,
             timer,
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
         }
     }
@@ -449,12 +422,6 @@ impl DdsDomainParticipant {
         &self.domain_tag
     }
 
-    pub fn get_status_listener_lock(
-        &self,
-    ) -> RwLockWriteGuard<StatusListener<dyn DomainParticipantListener + Send + Sync>> {
-        self.status_listener.write_lock()
-    }
-
     pub fn discovered_participant_add(
         &self,
         handle: InstanceHandle,
@@ -477,12 +444,7 @@ impl DdsDomainParticipant {
         DdsMapIntoIterator::new(self.discovered_participant_list.read_lock())
     }
 
-    pub fn create_publisher(
-        &mut self,
-        qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) -> DdsResult<Guid> {
+    pub fn create_publisher(&mut self, qos: QosKind<PublisherQos>) -> DdsResult<Guid> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
@@ -496,7 +458,7 @@ impl DdsDomainParticipant {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let publisher = DdsPublisher::new(publisher_qos, rtps_group, a_listener, mask);
+        let publisher = DdsPublisher::new(publisher_qos, rtps_group);
         if self.is_enabled() && self.get_qos().entity_factory.autoenable_created_entities {
             publisher.enable();
         }
@@ -627,8 +589,6 @@ impl DdsDomainParticipant {
         topic_name: &str,
         type_name: &'static str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
-        mask: &[StatusKind],
     ) -> DdsResult<DdsShared<DdsTopic>> {
         let topic_counter = self
             .user_defined_topic_counter
@@ -648,8 +608,6 @@ impl DdsDomainParticipant {
             qos,
             type_name,
             topic_name,
-            a_listener,
-            mask,
             self.announce_sender.clone(),
         );
 
@@ -770,8 +728,6 @@ impl DdsDomainParticipant {
                     discovered_topic_info.name(),
                     type_name,
                     QosKind::Specific(qos),
-                    None,
-                    NO_STATUS,
                 );
             }
             // Block until timeout unless new topic is found or created
@@ -921,14 +877,6 @@ impl DdsDomainParticipant {
         self.announce_participant().ok();
 
         Ok(())
-    }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
-    }
-
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn enable(&self) -> DdsResult<()> {
@@ -1200,7 +1148,10 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn discover_matched_topics(&mut self) -> DdsResult<()> {
+    pub fn discover_matched_topics(
+        &mut self,
+        listener_sender: &Sender<ListenerTriggerKind>,
+    ) -> DdsResult<()> {
         while let Ok(samples) = self
             .get_builtin_subscriber()
             .stateful_data_reader_list()
@@ -1218,10 +1169,7 @@ impl DdsDomainParticipant {
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {
                     for topic in self.topic_list() {
-                        topic.process_discovered_topic(
-                            topic_data,
-                            &mut self.get_status_listener_lock(),
-                        );
+                        topic.process_discovered_topic(topic_data, self.guid(), listener_sender);
                     }
 
                     self.discovered_topic_list.insert(

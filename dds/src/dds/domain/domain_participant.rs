@@ -73,8 +73,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher =
-            self.call_participant_mut_method(|dp| self.0.create_publisher(dp, qos, None, mask))?;
+        let publisher = self.call_participant_mut_method(|dp| self.0.create_publisher(dp, qos))?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_publisher_listener(
             publisher.guid(),
@@ -167,8 +166,7 @@ impl DomainParticipant {
         Foo: DdsType + 'static,
     {
         let topic = self.call_participant_mut_method(|dp| {
-            self.0
-                .create_topic(dp, topic_name, Foo::type_name(), qos, None, mask)
+            self.0.create_topic(dp, topic_name, Foo::type_name(), qos)
         })?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_topic_listener(
@@ -483,7 +481,14 @@ impl DomainParticipant {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.call_participant_method(|dp| self.0.get_statuscondition(dp))
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+            &self.0.guid(),
+            |domain_participant_listener| {
+                Ok(domain_participant_listener
+                    .ok_or(DdsError::AlreadyDeleted)?
+                    .get_status_condition())
+            },
+        )
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -493,7 +498,14 @@ impl DomainParticipant {
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        self.call_participant_method(|dp| self.0.get_status_changes(dp))
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+            &self.0.guid(),
+            |domain_participant_listener| {
+                Ok(domain_participant_listener
+                    .ok_or(DdsError::AlreadyDeleted)?
+                    .get_status_changes())
+            },
+        )
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -529,7 +541,7 @@ impl DomainParticipant {
     where
         F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0 .0.prefix(), |dp| {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.guid().prefix(), |dp| {
             f(dp.ok_or(DdsError::AlreadyDeleted)?)
         })
     }
@@ -538,7 +550,7 @@ impl DomainParticipant {
     where
         F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0 .0.prefix(), |dp| {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
             f(dp.ok_or(DdsError::AlreadyDeleted)?)
         })
     }

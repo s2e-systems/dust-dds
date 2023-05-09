@@ -35,6 +35,7 @@ use crate::{
             node_user_defined_data_reader::UserDefinedDataReaderNode,
             node_user_defined_data_writer::UserDefinedDataWriterNode,
             node_user_defined_subscriber::UserDefinedSubscriberNode,
+            node_user_defined_topic::UserDefinedTopicNode,
             participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
         },
@@ -67,8 +68,9 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         status::{
-            OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedIncompatibleQosStatus,
-            SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
+            InconsistentTopicStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, StatusKind,
+            SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
     },
@@ -361,6 +363,9 @@ impl DcpsService {
                         }
                         ListenerTriggerKind::PublicationMatched(dw) => {
                             on_publication_matched_communication_change(dw)
+                        }
+                        ListenerTriggerKind::InconsistentTopic(t) => {
+                            on_inconsistent_topic_communication_change(t)
                         }
                     }
                 }
@@ -876,6 +881,51 @@ fn on_publication_matched_communication_change(data_writer_node: UserDefinedData
             }
         },
     )
+}
+
+fn on_inconsistent_topic_communication_change(topic_node: UserDefinedTopicNode) {
+    fn get_inconsistent_topic_status(
+        topic_node: &UserDefinedTopicNode,
+    ) -> DdsResult<InconsistentTopicStatus> {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant(&topic_node.parent_participant().prefix(), |dp| {
+                topic_node.get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+            })
+    }
+
+    let status_kind = StatusKind::InconsistentTopic;
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&topic_node.guid(), |topic_listener| {
+        match topic_listener {
+            Some(l) if l.is_enabled(&status_kind) => {
+                if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
+                    l.listener_mut()
+                        .as_mut()
+                        .expect("Listener should be some")
+                        .trigger_on_inconsistent_topic(topic_node, status)
+                }
+            }
+            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                &topic_node.parent_participant(),
+                |participant_listener| match participant_listener {
+                    Some(l) if l.is_enabled(&status_kind) => {
+                        if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
+                            l.listener_mut()
+                                .as_mut()
+                                .expect("Listener should be some")
+                                .on_inconsistent_topic(&topic_node, status)
+                        }
+                    }
+                    _ => (),
+                },
+            ),
+        }
+    });
+
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&topic_node.guid(), |topic_listener| {
+        if let Some(l) = topic_listener {
+            l.add_communication_state(status_kind);
+        }
+    })
 }
 
 fn announce_created_data_reader(
@@ -1861,7 +1911,9 @@ fn receive_builtin_message(
         .discover_matched_readers(listener_sender)
         .ok();
     discover_matched_writers(domain_participant, listener_sender).ok();
-    domain_participant.discover_matched_topics().ok();
+    domain_participant
+        .discover_matched_topics(listener_sender)
+        .ok();
 }
 
 fn send_user_defined_message(

@@ -34,8 +34,13 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> Drop for DataWriter<Foo> {
     fn drop(&mut self) {
-        if let Ok(p) = self.get_publisher() {
-            p.delete_datawriter(self).ok();
+        match self.0 {
+            DataWriterNodeKind::Listener(_) => (),
+            DataWriterNodeKind::UserDefined(_) => {
+                if let Ok(p) = self.get_publisher() {
+                    p.delete_datawriter(self).ok();
+                }
+            }
         }
     }
 }
