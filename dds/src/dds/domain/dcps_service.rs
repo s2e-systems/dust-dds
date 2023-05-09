@@ -69,8 +69,8 @@ use crate::{
         instance::InstanceHandle,
         status::{
             InconsistentTopicStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, StatusKind,
-            SubscriptionMatchedStatus,
+            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+            SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
     },
@@ -403,24 +403,68 @@ impl DcpsService {
 }
 
 fn on_requested_deadline_missed_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+    fn get_requested_deadline_missed_status(
+        data_reader_node: &UserDefinedDataReaderNode,
+    ) -> DdsResult<RequestedDeadlineMissedStatus> {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+            &data_reader_node.parent_participant().prefix(),
+            |dp| {
+                data_reader_node
+                    .get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+            },
+        )
+    }
+
+    let status_kind = StatusKind::RequestedDeadlineMissed;
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                if l.is_enabled(&StatusKind::RequestedDeadlineMissed) {
-                    let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .get_participant(&data_reader_node.parent_participant().prefix(), |dp| {
-                            data_reader_node.get_requested_deadline_missed_status(dp.unwrap())
-                        })
-                        .unwrap();
-
+        |data_reader_listener| match data_reader_listener {
+            Some(l) if l.is_enabled(&status_kind) => {
+                if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node) {
                     l.listener_mut()
                         .as_mut()
                         .expect("Listener should be some")
                         .trigger_on_requested_deadline_missed(data_reader_node, status)
                 }
+            }
+            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+                &data_reader_node.parent_subscriber(),
+                |subscriber_listener| match subscriber_listener {
+                    Some(l) if l.is_enabled(&status_kind) => {
+                        if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node)
+                        {
+                            l.listener_mut()
+                                .as_mut()
+                                .expect("Listener should be some")
+                                .on_requested_deadline_missed(&data_reader_node, status)
+                        }
+                    }
+                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                        &data_reader_node.parent_participant(),
+                        |participant_listener| match participant_listener {
+                            Some(l) if l.is_enabled(&status_kind) => {
+                                if let Ok(status) =
+                                    get_requested_deadline_missed_status(&data_reader_node)
+                                {
+                                    l.listener_mut()
+                                        .as_mut()
+                                        .expect("Listener should be some")
+                                        .on_requested_deadline_missed(&data_reader_node, status)
+                                }
+                            }
+                            _ => (),
+                        },
+                    ),
+                },
+            ),
+        },
+    );
 
-                l.add_communication_state(StatusKind::RequestedDeadlineMissed);
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+        &data_reader_node.guid(),
+        |data_reader_listener| {
+            if let Some(l) = data_reader_listener {
+                l.add_communication_state(status_kind);
             }
         },
     )

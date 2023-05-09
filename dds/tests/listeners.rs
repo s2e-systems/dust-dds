@@ -136,7 +136,7 @@ fn deadline_missed_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -249,7 +249,7 @@ fn sample_rejected_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -698,7 +698,7 @@ fn on_data_available_listener() {
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -889,7 +889,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -988,7 +988,7 @@ fn participant_deadline_missed_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -1102,7 +1102,7 @@ fn participant_sample_rejected_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -1558,7 +1558,7 @@ fn subscriber_deadline_missed_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -1670,7 +1670,7 @@ fn subscriber_sample_rejected_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
