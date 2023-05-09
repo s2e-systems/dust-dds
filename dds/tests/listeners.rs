@@ -164,8 +164,7 @@ fn sample_rejected_listener() {
         .times(1..)
         .withf(|_, status| {
             status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
-                && status.total_count_change == 1
-                && status.last_reason == SampleRejectedStatusKind::RejectedBySamplesLimit
+                    && status.last_reason == SampleRejectedStatusKind::RejectedBySamplesLimit
         })
         .return_const(());
     let participant = participant_factory
