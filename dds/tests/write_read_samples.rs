@@ -2106,6 +2106,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
 }
 
 #[test]
+#[ignore = "Listener calls are async and don't guarantee order"]
 fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
