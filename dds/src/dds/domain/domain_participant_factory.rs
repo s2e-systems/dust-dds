@@ -257,7 +257,7 @@ impl DomainParticipantFactory {
             domain_id,
             configuration.domain_tag,
             domain_participant_qos,
-            a_listener,
+            None,
             mask,
             &spdp_discovery_locator_list,
             user_defined_data_send_condvar.clone(),
@@ -279,6 +279,8 @@ impl DomainParticipantFactory {
             announce_sender,
             announce_receiver,
         )?;
+
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_domain_participant_listener(guid, a_listener, mask);
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_participant(
             guid_prefix,

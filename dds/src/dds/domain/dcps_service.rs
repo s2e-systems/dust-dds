@@ -63,7 +63,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        status::StatusKind,
+        status::{RequestedIncompatibleQosStatus, StatusKind},
         time::{Duration, DurationKind, Time},
     },
     subscription::sample_info::{
@@ -459,24 +459,65 @@ fn on_subscription_matched_communication_change(data_reader_node: UserDefinedDat
 }
 
 fn on_requested_incompatible_qos_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+    fn get_requested_incompatible_qos_status(
+        data_reader_node: &UserDefinedDataReaderNode,
+    ) -> DdsResult<RequestedIncompatibleQosStatus> {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant(&data_reader_node.parent_participant().prefix(), |dp| {
+                data_reader_node.get_requested_incompatible_qos_status(dp.unwrap())
+            })
+    }
+
+    let status_kind = StatusKind::RequestedIncompatibleQos;
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                if l.is_enabled(&StatusKind::RequestedIncompatibleQos) {
-                    let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .get_participant(&data_reader_node.parent_participant().prefix(), |dp| {
-                            data_reader_node.get_requested_incompatible_qos_status(dp.unwrap())
-                        })
-                        .unwrap();
-
+        |data_reader_listener| match data_reader_listener {
+            Some(l) if l.is_enabled(&status_kind) => {
+                if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node) {
                     l.listener_mut()
                         .as_mut()
                         .expect("Listener should be some")
                         .trigger_on_requested_incompatible_qos(data_reader_node, status)
                 }
+            }
+            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+                &data_reader_node.parent_subscriber(),
+                |subscriber_listener| match subscriber_listener {
+                    Some(l) if l.is_enabled(&status_kind) => {
+                        if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node)
+                        {
+                            l.listener_mut()
+                                .as_mut()
+                                .expect("Listener should be some")
+                                .on_requested_incompatible_qos(&data_reader_node, status)
+                        }
+                    }
+                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                        &data_reader_node.parent_participant(),
+                        |participant_listener| match participant_listener {
+                            Some(l) if l.is_enabled(&status_kind) => {
+                                if let Ok(status) =
+                                    get_requested_incompatible_qos_status(&data_reader_node)
+                                {
+                                    l.listener_mut()
+                                        .as_mut()
+                                        .expect("Listener should be some")
+                                        .on_requested_incompatible_qos(&data_reader_node, status)
+                                }
+                            }
+                            _ => (),
+                        },
+                    ),
+                },
+            ),
+        },
+    );
 
-                l.add_communication_state(StatusKind::RequestedIncompatibleQos);
+    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+        &data_reader_node.guid(),
+        |data_reader_listener| {
+            if let Some(l) = data_reader_listener {
+                l.add_communication_state(status_kind);
             }
         },
     )

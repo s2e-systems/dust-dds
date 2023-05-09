@@ -75,20 +75,19 @@ impl Publisher {
         let type_name = a_topic.get_type_name()?;
         let topic_name = a_topic.get_name()?;
 
-        self.call_participant_mut_method(|dp| {
+        let datawriter = self.call_participant_mut_method(|dp| {
             #[allow(clippy::redundant_closure)]
             self.0
-                .create_datawriter::<Foo>(
-                    dp,
-                    type_name,
-                    topic_name,
-                    qos,
-                    a_listener
-                        .map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
-                    mask,
-                )
-                .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x)))
-        })
+                .create_datawriter::<Foo>(dp, type_name, topic_name, qos, None, mask)
+        })?;
+
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_writer_listener(
+            datawriter.guid(),
+            a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
+            mask,
+        );
+
+        Ok(DataWriter::new(DataWriterNodeKind::UserDefined(datawriter)))
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -100,7 +99,9 @@ impl Publisher {
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
         match &a_datawriter.0 {
             DataWriterNodeKind::UserDefined(dw) => {
-                self.call_participant_mut_method(|dp| self.0.delete_datawriter(dp, dw.guid()))?
+                self.call_participant_mut_method(|dp| self.0.delete_datawriter(dp, dw.guid()))?;
+
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_data_writer_listener(&dw.guid());
             }
             DataWriterNodeKind::Listener(_) => (),
         }

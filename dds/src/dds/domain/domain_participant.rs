@@ -73,10 +73,14 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher = self
-            .call_participant_mut_method(|dp| self.0.create_publisher(dp, qos, a_listener, mask))?;
+        let publisher =
+            self.call_participant_mut_method(|dp| self.0.create_publisher(dp, qos, None, mask))?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_publisher_listener(publisher.guid(), None, mask);
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_publisher_listener(
+            publisher.guid(),
+            a_listener,
+            mask,
+        );
 
         Ok(Publisher::new(publisher))
     }
@@ -110,11 +114,14 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber = self.call_participant_mut_method(|dp| {
-            self.0.create_subscriber(dp, qos, a_listener, mask)
-        })?;
+        let subscriber =
+            self.call_participant_mut_method(|dp| self.0.create_subscriber(dp, qos, None, mask))?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_subscriber_listener(subscriber.guid(), None, mask);
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_subscriber_listener(
+            subscriber.guid(),
+            a_listener,
+            mask,
+        );
 
         Ok(Subscriber::new(SubscriberNodeKind::UserDefined(subscriber)))
     }
@@ -160,17 +167,15 @@ impl DomainParticipant {
         Foo: DdsType + 'static,
     {
         let topic = self.call_participant_mut_method(|dp| {
-            self.0.create_topic(
-                dp,
-                topic_name,
-                Foo::type_name(),
-                qos,
-                a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
-                mask,
-            )
+            self.0
+                .create_topic(dp, topic_name, Foo::type_name(), qos, None, mask)
         })?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_topic_listener(topic.guid(), None, mask);
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_topic_listener(
+            topic.guid(),
+            a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+            mask,
+        );
 
         Ok(Topic::new(TopicNodeKind::UserDefined(topic)))
     }
