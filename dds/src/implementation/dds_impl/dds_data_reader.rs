@@ -409,6 +409,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
             .on_heartbeat_frag_submessage_received(heartbeat_frag_submessage, source_guid_prefix);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn add_matched_writer(
         &self,
         discovered_writer_data: &DiscoveredWriterData,

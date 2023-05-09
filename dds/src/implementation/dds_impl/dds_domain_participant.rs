@@ -1206,6 +1206,7 @@ impl DdsDomainParticipant {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn add_matched_reader(
     writer: &DdsDataWriter<RtpsStatefulWriter>,
     discovered_reader_data: &DiscoveredReaderData,
