@@ -62,7 +62,14 @@ impl UserDefinedPublisherNode {
         &self,
         domain_participant: &mut DdsDomainParticipant,
         data_writer_guid: Guid,
+        data_writer_parent_publisher_guid: Guid,
     ) -> DdsResult<()> {
+        if self.guid() != data_writer_parent_publisher_guid {
+            return Err(DdsError::PreconditionNotMet(
+                "Data writer can only be deleted from its parent publisher".to_string(),
+            ));
+        }
+
         let data_writer_guid = domain_participant
             .user_defined_publisher_list_mut()
             .iter_mut()
@@ -71,19 +78,8 @@ impl UserDefinedPublisherNode {
             .stateful_data_writer_list()
             .iter()
             .find(|x| x.guid() == data_writer_guid)
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(
-                    "Data writer can only be deleted from its parent publisher".to_string(),
-                )
-            })?
-            .guid();
-
-        domain_participant
-            .user_defined_publisher_list_mut()
-            .iter_mut()
-            .find(|p| p.guid() == self.this)
             .ok_or(DdsError::AlreadyDeleted)?
-            .stateful_datawriter_delete(InstanceHandle::from(data_writer_guid));
+            .guid();
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if domain_participant
@@ -106,6 +102,13 @@ impl UserDefinedPublisherNode {
                 .send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
                 .ok();
         }
+
+        domain_participant
+            .user_defined_publisher_list_mut()
+            .iter_mut()
+            .find(|p| p.guid() == self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .stateful_datawriter_delete(InstanceHandle::from(data_writer_guid));
 
         Ok(())
     }

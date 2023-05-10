@@ -98,7 +98,10 @@ impl Publisher {
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
         match &a_datawriter.0 {
             DataWriterNodeKind::UserDefined(dw) => {
-                self.call_participant_mut_method(|dp| self.0.delete_datawriter(dp, dw.guid()))?;
+                self.call_participant_mut_method(|dp| {
+                    self.0
+                        .delete_datawriter(dp, dw.guid(), dw.parent_publisher())
+                })?;
 
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_data_writer_listener(&dw.guid());
             }
