@@ -132,18 +132,17 @@ impl DomainParticipant {
     /// it is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            match &a_subscriber.0 {
-                SubscriberNodeKind::Builtin(_) => todo!(),
-                SubscriberNodeKind::UserDefined(s) => {
-                    self.0.delete_subscriber(dp, s.guid())?;
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_subscriber_listener(&s.guid());
-                }
-                SubscriberNodeKind::Listener(_) => todo!(),
-            }
+        match &a_subscriber.0 {
+            SubscriberNodeKind::Builtin(_) => (),
+            SubscriberNodeKind::UserDefined(s) => {
+                self.call_participant_mut_method(|dp| self.0.delete_subscriber(dp, s.guid()))?;
 
-            Ok(())
-        })
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_subscriber_listener(&s.guid());
+            }
+            SubscriberNodeKind::Listener(_) => (),
+        }
+
+        Ok(())
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
@@ -264,7 +263,7 @@ impl DomainParticipant {
     /// [`DataReader`](crate::subscription::data_reader::DataReader) is read with the same read/take operations used for any DataReader.
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_method(|dp| self.0.ignore_participant(dp, handle))
+        self.call_participant_mut_method(|dp| self.0.ignore_participant(dp, handle))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote topic. This means it will locally ignore any
@@ -275,7 +274,7 @@ impl DomainParticipant {
     /// reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSTopic” topic.
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_method(|dp| self.0.ignore_topic(dp, handle))
+        self.call_participant_mut_method(|dp| self.0.ignore_topic(dp, handle))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote publication; a publication is defined by
@@ -284,7 +283,7 @@ impl DomainParticipant {
     /// when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSPublication” topic.
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_method(|dp| self.0.ignore_publication(dp, handle))
+        self.call_participant_mut_method(|dp| self.0.ignore_publication(dp, handle))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote subscription; a subscription is defined by
@@ -294,7 +293,7 @@ impl DomainParticipant {
     /// retrieved when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSSubscription” topic.
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_method(|dp| self.0.ignore_subscription(dp, handle))
+        self.call_participant_mut_method(|dp| self.0.ignore_subscription(dp, handle))
     }
 
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
@@ -335,7 +334,7 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values the default values of [`PublisherQos`].
     pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        self.call_participant_method(|dp| self.0.set_default_publisher_qos(dp, qos))
+        self.call_participant_mut_method(|dp| self.0.set_default_publisher_qos(dp, qos))
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -353,7 +352,7 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the default values of [`SubscriberQos`].
     pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        self.call_participant_method(|dp| self.0.set_default_subscriber_qos(dp, qos))
+        self.call_participant_mut_method(|dp| self.0.set_default_subscriber_qos(dp, qos))
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -371,7 +370,7 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
     pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.call_participant_method(|dp| self.0.set_default_topic_qos(dp, qos))
+        self.call_participant_mut_method(|dp| self.0.set_default_topic_qos(dp, qos))
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created [`Topic`]
@@ -455,7 +454,7 @@ impl DomainParticipant {
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        self.call_participant_method(|dp| self.0.set_qos(dp, qos))
+        self.call_participant_mut_method(|dp| self.0.set_qos(dp, qos))
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
@@ -529,7 +528,7 @@ impl DomainParticipant {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.call_participant_method(|dp| self.0.enable(dp))
+        self.call_participant_mut_method(|dp| self.0.enable(dp))
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.

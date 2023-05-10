@@ -54,8 +54,8 @@ impl MessageReceiver {
     pub fn process_message(
         &mut self,
         participant_guid: Guid,
-        publisher_list: &[DdsPublisher],
-        subscriber_list: &[DdsSubscriber],
+        publisher_list: &mut [DdsPublisher],
+        subscriber_list: &mut [DdsSubscriber],
         source_locator: Locator,
         message: &RtpsMessage<'_>,
         listener_sender: &Sender<ListenerTriggerKind>,
@@ -78,15 +78,17 @@ impl MessageReceiver {
         for submessage in message.submessages() {
             match submessage {
                 RtpsSubmessageKind::AckNack(acknack_submessage) => {
-                    for publisher in publisher_list {
-                        for stateful_data_writer in publisher.stateful_data_writer_list().iter() {
+                    for publisher in publisher_list.iter_mut() {
+                        for stateful_data_writer in
+                            publisher.stateful_data_writer_list_mut().iter_mut()
+                        {
                             stateful_data_writer
                                 .on_acknack_submessage_received(acknack_submessage, self);
                         }
                     }
                 }
                 RtpsSubmessageKind::Data(data_submessage) => {
-                    for subscriber in subscriber_list {
+                    for subscriber in subscriber_list.iter_mut() {
                         subscriber.on_data_submessage_received(
                             data_submessage,
                             self,
@@ -96,7 +98,7 @@ impl MessageReceiver {
                     }
                 }
                 RtpsSubmessageKind::DataFrag(data_frag_submessage) => {
-                    for subscriber in subscriber_list {
+                    for subscriber in subscriber_list.iter_mut() {
                         subscriber.on_data_frag_submessage_received(
                             data_frag_submessage,
                             self,
@@ -106,12 +108,12 @@ impl MessageReceiver {
                     }
                 }
                 RtpsSubmessageKind::Gap(gap_submessage) => {
-                    for subscriber in subscriber_list {
+                    for subscriber in subscriber_list.iter_mut() {
                         subscriber.on_gap_submessage_received(gap_submessage, self)
                     }
                 }
                 RtpsSubmessageKind::Heartbeat(heartbeat_submessage) => {
-                    for subscriber in subscriber_list {
+                    for subscriber in subscriber_list.iter_mut() {
                         subscriber.on_heartbeat_submessage_received(
                             heartbeat_submessage,
                             self.source_guid_prefix,
@@ -119,7 +121,7 @@ impl MessageReceiver {
                     }
                 }
                 RtpsSubmessageKind::HeartbeatFrag(heartbeat_frag) => {
-                    for subscriber in subscriber_list {
+                    for subscriber in subscriber_list.iter_mut() {
                         subscriber.on_heartbeat_frag_submessage_received(
                             heartbeat_frag,
                             self.source_guid_prefix,
@@ -137,8 +139,10 @@ impl MessageReceiver {
                     self.process_info_timestamp_submessage(info_timestamp)
                 }
                 RtpsSubmessageKind::NackFrag(nack_frag_submessage) => {
-                    for publisher in publisher_list {
-                        for stateful_data_writer in publisher.stateful_data_writer_list().iter() {
+                    for publisher in publisher_list.iter_mut() {
+                        for stateful_data_writer in
+                            publisher.stateful_data_writer_list_mut().iter_mut()
+                        {
                             stateful_data_writer
                                 .on_nack_frag_submessage_received(nack_frag_submessage, self);
                         }

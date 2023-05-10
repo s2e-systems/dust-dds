@@ -9,15 +9,14 @@ use crate::{
         rtps::{
             history_cache::{RtpsParameter, RtpsWriterCacheChange},
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
-            reader_locator::RtpsReaderLocator,
-            reader_proxy::RtpsReaderProxy,
+            reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
+            reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
             types::{
                 ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
         },
-        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -39,13 +38,7 @@ use crate::{
     },
 };
 
-use super::{
-    iterators::{
-        ReaderLocatorListIntoIter, ReaderProxyListIntoIter, StatelessWriterChangeListIntoIter,
-        WriterChangeListIntoIter,
-    },
-    message_receiver::MessageReceiver,
-};
+use super::message_receiver::MessageReceiver;
 
 struct MatchedSubscriptions {
     matched_subscription_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
@@ -178,52 +171,46 @@ impl IncompatibleSubscriptions {
 }
 
 pub struct DdsDataWriter<T> {
-    rtps_writer: DdsRwLock<T>,
+    rtps_writer: T,
     type_name: &'static str,
     topic_name: String,
-    matched_subscriptions: DdsRwLock<MatchedSubscriptions>,
-    incompatible_subscriptions: DdsRwLock<IncompatibleSubscriptions>,
-    enabled: DdsRwLock<bool>,
+    matched_subscriptions: MatchedSubscriptions,
+    incompatible_subscriptions: IncompatibleSubscriptions,
+    enabled: bool,
 }
 
 impl<T> DdsDataWriter<T> {
-    pub fn new(rtps_writer: T, type_name: &'static str, topic_name: String) -> DdsShared<Self> {
-        DdsShared::new(DdsDataWriter {
-            rtps_writer: DdsRwLock::new(rtps_writer),
+    pub fn new(rtps_writer: T, type_name: &'static str, topic_name: String) -> Self {
+        DdsDataWriter {
+            rtps_writer,
             type_name,
             topic_name,
-            matched_subscriptions: DdsRwLock::new(MatchedSubscriptions::new()),
-            incompatible_subscriptions: DdsRwLock::new(IncompatibleSubscriptions::new()),
-            enabled: DdsRwLock::new(false),
-        })
+            matched_subscriptions: MatchedSubscriptions::new(),
+            incompatible_subscriptions: IncompatibleSubscriptions::new(),
+            enabled: false,
+        }
     }
 
-    pub fn get_publication_matched_status(&self) -> PublicationMatchedStatus {
-        self.matched_subscriptions
-            .write_lock()
-            .get_publication_matched_status()
+    pub fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
+        self.matched_subscriptions.get_publication_matched_status()
     }
 
     pub fn add_matched_publication(
-        &self,
+        &mut self,
         handle: InstanceHandle,
         subscription_data: SubscriptionBuiltinTopicData,
     ) {
         self.matched_subscriptions
-            .write_lock()
             .add_matched_subscription(handle, subscription_data)
     }
 
-    pub fn remove_matched_subscription(&self, handle: InstanceHandle) {
+    pub fn remove_matched_subscription(&mut self, handle: InstanceHandle) {
         self.matched_subscriptions
-            .write_lock()
             .remove_matched_subscription(handle)
     }
 
     pub fn get_matched_subscriptions(&self) -> Vec<InstanceHandle> {
-        self.matched_subscriptions
-            .read_lock()
-            .get_matched_subscriptions()
+        self.matched_subscriptions.get_matched_subscriptions()
     }
 
     pub fn get_matched_subscription_data(
@@ -231,24 +218,21 @@ impl<T> DdsDataWriter<T> {
         handle: InstanceHandle,
     ) -> Option<SubscriptionBuiltinTopicData> {
         self.matched_subscriptions
-            .read_lock()
             .get_matched_subscription_data(handle)
             .cloned()
     }
 
     pub fn add_offered_incompatible_qos(
-        &self,
+        &mut self,
         handle: InstanceHandle,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
     ) {
         self.incompatible_subscriptions
-            .write_lock()
             .add_offered_incompatible_qos(handle, incompatible_qos_policy_list)
     }
 
-    pub fn get_offered_incompatible_qos_status(&self) -> OfferedIncompatibleQosStatus {
+    pub fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
         self.incompatible_subscriptions
-            .write_lock()
             .get_offered_incompatible_qos_status()
     }
 
@@ -262,16 +246,15 @@ impl<T> DdsDataWriter<T> {
 
     pub fn get_incompatible_subscriptions(&self) -> Vec<InstanceHandle> {
         self.incompatible_subscriptions
-            .read_lock()
             .get_incompatible_subscriptions()
     }
 
-    pub fn enable(&self) {
-        *self.enabled.write_lock() = true;
+    pub fn enable(&mut self) {
+        self.enabled = true;
     }
 
     pub fn is_enabled(&self) -> bool {
-        *self.enabled.read_lock()
+        self.enabled
     }
 
     pub fn get_topic_name(&self) -> &str {
@@ -285,30 +268,27 @@ impl<T> DdsDataWriter<T> {
 
 impl DdsDataWriter<RtpsStatefulWriter> {
     pub fn guid(&self) -> Guid {
-        self.rtps_writer.read_lock().guid()
+        self.rtps_writer.guid()
     }
 
     pub fn _unicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_writer.read_lock().unicast_locator_list().to_vec()
+        self.rtps_writer.unicast_locator_list().to_vec()
     }
 
     pub fn _multicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_writer
-            .read_lock()
-            .multicast_locator_list()
-            .to_vec()
+        self.rtps_writer.multicast_locator_list().to_vec()
     }
 
     pub fn _push_mode(&self) -> bool {
-        self.rtps_writer.read_lock().push_mode()
+        self.rtps_writer.push_mode()
     }
 
     pub fn heartbeat_period(&self) -> Duration {
-        self.rtps_writer.read_lock().heartbeat_period()
+        self.rtps_writer.heartbeat_period()
     }
 
     pub fn data_max_size_serialized(&self) -> usize {
-        self.rtps_writer.read_lock().data_max_size_serialized()
+        self.rtps_writer.data_max_size_serialized()
     }
 
     pub fn _new_change(
@@ -320,113 +300,98 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         timestamp: Time,
     ) -> RtpsWriterCacheChange {
         self.rtps_writer
-            .write_lock()
             .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
-    pub fn change_list(&self) -> WriterChangeListIntoIter {
-        WriterChangeListIntoIter::new(self.rtps_writer.read_lock())
+    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+        self.rtps_writer.change_list()
     }
 
-    pub fn _add_change(&self, change: RtpsWriterCacheChange) {
-        self.rtps_writer.write_lock().add_change(change)
+    pub fn _add_change(&mut self, change: RtpsWriterCacheChange) {
+        self.rtps_writer.add_change(change)
     }
 
-    pub fn remove_change<F>(&self, f: F)
+    pub fn remove_change<F>(&mut self, f: F)
     where
         F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
-        self.rtps_writer.write_lock().remove_change(f)
+        self.rtps_writer.remove_change(f)
     }
 
-    pub fn matched_reader_add(&self, a_reader_proxy: RtpsReaderProxy) {
-        self.rtps_writer
-            .write_lock()
-            .matched_reader_add(a_reader_proxy)
+    pub fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
+        self.rtps_writer.matched_reader_add(a_reader_proxy)
     }
 
-    pub fn matched_reader_remove(&self, a_reader_guid: Guid) {
-        self.rtps_writer
-            .write_lock()
-            .matched_reader_remove(a_reader_guid)
+    pub fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
+        self.rtps_writer.matched_reader_remove(a_reader_guid)
     }
 
-    pub fn matched_reader_list(&self) -> ReaderProxyListIntoIter {
-        ReaderProxyListIntoIter::new(self.rtps_writer.write_lock())
+    pub fn matched_reader_list(&mut self) -> Vec<WriterAssociatedReaderProxy> {
+        self.rtps_writer.matched_reader_list()
     }
 
     pub fn _is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
-        self.rtps_writer.read_lock().is_acked_by_all(a_change)
+        self.rtps_writer.is_acked_by_all(a_change)
     }
 
     pub fn get_qos(&self) -> DataWriterQos {
-        self.rtps_writer.read_lock().get_qos().clone()
+        self.rtps_writer.get_qos().clone()
     }
 
-    pub fn set_qos(&self, qos: DataWriterQos) {
-        self.rtps_writer.write_lock().set_qos(qos);
+    pub fn set_qos(&mut self, qos: DataWriterQos) {
+        self.rtps_writer.set_qos(qos);
     }
 
     pub fn on_acknack_submessage_received(
-        &self,
+        &mut self,
         acknack_submessage: &AckNackSubmessage,
         message_receiver: &MessageReceiver,
     ) {
-        if self.rtps_writer.read_lock().get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::Reliable
-        {
-            self.rtps_writer
-                .write_lock()
-                .on_acknack_submessage_received(
-                    acknack_submessage,
-                    message_receiver.source_guid_prefix(),
-                );
+        if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            self.rtps_writer.on_acknack_submessage_received(
+                acknack_submessage,
+                message_receiver.source_guid_prefix(),
+            );
         }
     }
 
     pub fn on_nack_frag_submessage_received(
-        &self,
+        &mut self,
         nackfrag_submessage: &NackFragSubmessage,
         message_receiver: &MessageReceiver,
     ) {
-        if self.rtps_writer.read_lock().get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::Reliable
-        {
-            self.rtps_writer
-                .write_lock()
-                .on_nack_frag_submessage_received(
-                    nackfrag_submessage,
-                    message_receiver.source_guid_prefix(),
-                );
+        if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            self.rtps_writer.on_nack_frag_submessage_received(
+                nackfrag_submessage,
+                message_receiver.source_guid_prefix(),
+            );
         }
     }
 
     pub fn register_instance_w_timestamp(
-        &self,
+        &mut self,
         instance_serialized_key: DdsSerializedKey,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
-        if !*self.enabled.read_lock() {
+        if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
         self.rtps_writer
-            .write_lock()
             .register_instance_w_timestamp(instance_serialized_key, timestamp)
     }
 
     pub fn unregister_instance_w_timestamp(
-        &self,
+        &mut self,
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
+        if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
         self.rtps_writer
-            .write_lock()
             .unregister_instance_w_timestamp(instance_serialized_key, handle, timestamp)
     }
 
@@ -434,13 +399,12 @@ impl DdsDataWriter<RtpsStatefulWriter> {
     where
         Foo: DdsType,
     {
-        if !*self.enabled.read_lock() {
+        if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
         key_holder.set_key_fields_from_serialized_key(
             self.rtps_writer
-                .write_lock()
                 .get_key_value(handle)
                 .ok_or(DdsError::BadParameter)?,
         )
@@ -450,24 +414,21 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         &self,
         instance_serialized_key: DdsSerializedKey,
     ) -> DdsResult<Option<InstanceHandle>> {
-        if !*self.enabled.read_lock() {
+        if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(self
-            .rtps_writer
-            .write_lock()
-            .lookup_instance(instance_serialized_key))
+        Ok(self.rtps_writer.lookup_instance(instance_serialized_key))
     }
 
     pub fn write_w_timestamp(
-        &self,
+        &mut self,
         serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.rtps_writer.write_lock().write_w_timestamp(
+        self.rtps_writer.write_w_timestamp(
             serialized_data,
             instance_serialized_key,
             handle,
@@ -478,29 +439,25 @@ impl DdsDataWriter<RtpsStatefulWriter> {
     }
 
     pub fn dispose_w_timestamp(
-        &self,
+        &mut self,
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
+        if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer.write_lock().dispose_w_timestamp(
-            instance_serialized_key,
-            handle,
-            timestamp,
-        )
+        self.rtps_writer
+            .dispose_w_timestamp(instance_serialized_key, handle, timestamp)
     }
 
     pub fn are_all_changes_acknowledge(&self) -> bool {
-        let rtps_writer_lock = self.rtps_writer.write_lock();
-        let changes = rtps_writer_lock.change_list();
+        let changes = self.rtps_writer.change_list();
 
         changes
             .iter()
-            .map(|c| rtps_writer_lock.is_acked_by_all(c))
+            .map(|c| self.rtps_writer.is_acked_by_all(c))
             .all(|r| r)
     }
 
@@ -509,11 +466,11 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         topic_qos: &TopicQos,
         publisher_qos: &PublisherQos,
     ) -> DiscoveredWriterData {
-        let writer_qos = self.rtps_writer.read_lock().get_qos().clone();
+        let writer_qos = self.rtps_writer.get_qos().clone();
         DiscoveredWriterData::new(
             PublicationBuiltinTopicData::new(
                 BuiltInTopicKey {
-                    value: self.rtps_writer.read_lock().guid().into(),
+                    value: self.rtps_writer.guid().into(),
                 },
                 BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
@@ -535,13 +492,10 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 publisher_qos.group_data.clone(),
             ),
             WriterProxy::new(
-                self.rtps_writer.read_lock().guid(),
+                self.rtps_writer.guid(),
                 EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
-                self.rtps_writer.read_lock().unicast_locator_list().to_vec(),
-                self.rtps_writer
-                    .read_lock()
-                    .multicast_locator_list()
-                    .to_vec(),
+                self.rtps_writer.unicast_locator_list().to_vec(),
+                self.rtps_writer.multicast_locator_list().to_vec(),
                 None,
             ),
         )
@@ -550,34 +504,31 @@ impl DdsDataWriter<RtpsStatefulWriter> {
 
 impl DdsDataWriter<RtpsStatelessWriter> {
     pub fn guid(&self) -> Guid {
-        self.rtps_writer.read_lock().guid()
+        self.rtps_writer.guid()
     }
 
     pub fn _unicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_writer.read_lock().unicast_locator_list().to_vec()
+        self.rtps_writer.unicast_locator_list().to_vec()
     }
 
     pub fn _multicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_writer
-            .read_lock()
-            .multicast_locator_list()
-            .to_vec()
+        self.rtps_writer.multicast_locator_list().to_vec()
     }
 
     pub fn _push_mode(&self) -> bool {
-        self.rtps_writer.read_lock().push_mode()
+        self.rtps_writer.push_mode()
     }
 
     pub fn _heartbeat_period(&self) -> Duration {
-        self.rtps_writer.read_lock().heartbeat_period()
+        self.rtps_writer.heartbeat_period()
     }
 
     pub fn _data_max_size_serialized(&self) -> usize {
-        self.rtps_writer.read_lock().data_max_size_serialized()
+        self.rtps_writer.data_max_size_serialized()
     }
 
     pub fn _new_change(
-        &self,
+        &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
@@ -585,47 +536,40 @@ impl DdsDataWriter<RtpsStatelessWriter> {
         timestamp: Time,
     ) -> RtpsWriterCacheChange {
         self.rtps_writer
-            .write_lock()
             .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
-    pub fn _change_list(&self) -> StatelessWriterChangeListIntoIter {
-        StatelessWriterChangeListIntoIter::new(self.rtps_writer.read_lock())
+    pub fn _add_change(&mut self, change: RtpsWriterCacheChange) {
+        self.rtps_writer.add_change(change);
     }
 
-    pub fn _add_change(&self, change: RtpsWriterCacheChange) {
-        self.rtps_writer.write_lock().add_change(change);
-    }
-
-    pub fn _remove_change<F>(&self, f: F)
+    pub fn _remove_change<F>(&mut self, f: F)
     where
         F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
-        self.rtps_writer.write_lock().remove_change(f)
+        self.rtps_writer.remove_change(f)
     }
 
-    pub fn reader_locator_add(&self, a_locator: RtpsReaderLocator) {
-        self.rtps_writer.write_lock().reader_locator_add(a_locator)
+    pub fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
+        self.rtps_writer.reader_locator_add(a_locator)
     }
 
-    pub fn _reader_locator_remove(&self, a_locator: Locator) {
-        self.rtps_writer
-            .write_lock()
-            .reader_locator_remove(a_locator)
+    pub fn _reader_locator_remove(&mut self, a_locator: Locator) {
+        self.rtps_writer.reader_locator_remove(a_locator)
     }
 
-    pub fn reader_locator_list(&self) -> ReaderLocatorListIntoIter {
-        ReaderLocatorListIntoIter::new(self.rtps_writer.write_lock())
+    pub fn reader_locator_list(&mut self) -> Vec<WriterAssociatedReaderLocator> {
+        self.rtps_writer.reader_locator_list()
     }
 
     pub fn write_w_timestamp(
-        &self,
+        &mut self,
         serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.rtps_writer.write_lock().write_w_timestamp(
+        self.rtps_writer.write_w_timestamp(
             serialized_data,
             instance_serialized_key,
             handle,
@@ -693,7 +637,7 @@ mod test {
         }
     }
 
-    fn create_data_writer_test_fixture() -> DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
+    fn create_data_writer_test_fixture() -> DdsDataWriter<RtpsStatefulWriter> {
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             true,
@@ -704,14 +648,14 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let data_writer = DdsDataWriter::new(rtps_writer, "", String::from(""));
-        *data_writer.enabled.write_lock() = true;
+        let mut data_writer = DdsDataWriter::new(rtps_writer, "", String::from(""));
+        data_writer.enabled = true;
         data_writer
     }
 
     #[test]
     fn get_key_value_known_instance() {
-        let data_writer = create_data_writer_test_fixture();
+        let mut data_writer = create_data_writer_test_fixture();
 
         let instance_handle = data_writer
             .register_instance_w_timestamp(
@@ -730,7 +674,7 @@ mod test {
 
     #[test]
     fn get_key_value_unknown_instance() {
-        let data_writer = create_data_writer_test_fixture();
+        let mut data_writer = create_data_writer_test_fixture();
         let not_registered_foo = MockKeyedFoo { key: vec![1, 16] };
         let registered_foo = MockKeyedFoo { key: vec![1, 2] };
         data_writer

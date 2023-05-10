@@ -35,11 +35,11 @@ impl UserDefinedTopicNode {
 
     pub fn get_inconsistent_topic_status(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
     ) -> DdsResult<InconsistentTopicStatus> {
         Ok(domain_participant
-            .topic_list()
-            .iter()
+            .topic_list_mut()
+            .iter_mut()
             .find(|t| t.guid() == self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_inconsistent_topic_status())
@@ -72,12 +72,12 @@ impl UserDefinedTopicNode {
 
     pub fn set_qos(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<TopicQos>,
     ) -> DdsResult<()> {
         domain_participant
-            .topic_list()
-            .iter()
+            .topic_list_mut()
+            .iter_mut()
             .find(|t| t.guid() == self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .set_qos(qos)
@@ -92,7 +92,7 @@ impl UserDefinedTopicNode {
             .get_qos())
     }
 
-    pub fn enable(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
+    pub fn enable(&self, domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
         // if !self.node.upgrade()?.get_participant().is_enabled() {
         //     return Err(DdsError::PreconditionNotMet(
         //         "Parent participant is disabled".to_string(),
@@ -100,8 +100,8 @@ impl UserDefinedTopicNode {
         // }
 
         domain_participant
-            .topic_list()
-            .iter()
+            .topic_list_mut()
+            .iter_mut()
             .find(|t| t.guid() == self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .enable()?;

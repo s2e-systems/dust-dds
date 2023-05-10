@@ -78,7 +78,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedTopicNode> {
         domain_participant
             .create_topic(topic_name, type_name, qos)
-            .map(|x| UserDefinedTopicNode::new(x.guid(), self.0))
+            .map(|x| UserDefinedTopicNode::new(x, self.0))
     }
 
     pub fn delete_topic(
@@ -98,7 +98,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedTopicNode> {
         domain_participant
             .find_topic(topic_name, type_name, timeout)
-            .map(|x| UserDefinedTopicNode::new(x.guid(), self.0))
+            .map(|x| UserDefinedTopicNode::new(x, self.0))
     }
 
     pub fn lookup_topicdescription(
@@ -125,7 +125,7 @@ impl DomainParticipantNode {
 
     pub fn ignore_participant(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         handle: InstanceHandle,
     ) -> DdsResult<()> {
         domain_participant.ignore_participant(handle);
@@ -134,7 +134,7 @@ impl DomainParticipantNode {
 
     pub fn ignore_topic(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         handle: InstanceHandle,
     ) -> DdsResult<()> {
         domain_participant.ignore_topic(handle);
@@ -143,7 +143,7 @@ impl DomainParticipantNode {
 
     pub fn ignore_publication(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         handle: InstanceHandle,
     ) -> DdsResult<()> {
         if !domain_participant.is_enabled() {
@@ -156,7 +156,7 @@ impl DomainParticipantNode {
 
     pub fn ignore_subscription(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         handle: InstanceHandle,
     ) -> DdsResult<()> {
         domain_participant.ignore_subscription(handle);
@@ -180,7 +180,7 @@ impl DomainParticipantNode {
 
     pub fn set_default_publisher_qos(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<PublisherQos>,
     ) -> DdsResult<()> {
         domain_participant.set_default_publisher_qos(qos)
@@ -195,7 +195,7 @@ impl DomainParticipantNode {
 
     pub fn set_default_subscriber_qos(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<SubscriberQos>,
     ) -> DdsResult<()> {
         domain_participant.set_default_subscriber_qos(qos)
@@ -210,7 +210,7 @@ impl DomainParticipantNode {
 
     pub fn set_default_topic_qos(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<TopicQos>,
     ) -> DdsResult<()> {
         domain_participant.set_default_topic_qos(qos)
@@ -278,7 +278,7 @@ impl DomainParticipantNode {
 
     pub fn set_qos(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<DomainParticipantQos>,
     ) -> DdsResult<()> {
         domain_participant.set_qos(qos)
@@ -299,7 +299,7 @@ impl DomainParticipantNode {
         todo!()
     }
 
-    pub fn enable(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
+    pub fn enable(&self, domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
         domain_participant.enable()
     }
 

@@ -5,7 +5,6 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
-        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::DdsResult,
@@ -35,38 +34,37 @@ impl InconsistentTopicStatus {
 
 pub struct DdsTopic {
     guid: Guid,
-    qos: DdsRwLock<TopicQos>,
+    qos: TopicQos,
     type_name: &'static str,
     topic_name: String,
-    enabled: DdsRwLock<bool>,
-    inconsistent_topic_status: DdsRwLock<InconsistentTopicStatus>,
+    enabled: bool,
+    inconsistent_topic_status: InconsistentTopicStatus,
     announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl DdsTopic {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         guid: Guid,
         qos: TopicQos,
         type_name: &'static str,
         topic_name: &str,
         announce_sender: SyncSender<AnnounceKind>,
-    ) -> DdsShared<Self> {
-        DdsShared::new(Self {
+    ) -> Self {
+        Self {
             guid,
-            qos: DdsRwLock::new(qos),
+            qos,
             type_name,
             topic_name: topic_name.to_string(),
-            enabled: DdsRwLock::new(false),
-            inconsistent_topic_status: DdsRwLock::new(InconsistentTopicStatus::default()),
+            enabled: false,
+            inconsistent_topic_status: InconsistentTopicStatus::default(),
             announce_sender,
-        })
+        }
     }
 }
 
-impl DdsShared<DdsTopic> {
-    pub fn get_inconsistent_topic_status(&self) -> InconsistentTopicStatus {
-        self.inconsistent_topic_status.write_lock().read_and_reset()
+impl DdsTopic {
+    pub fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
+        self.inconsistent_topic_status.read_and_reset()
     }
 
     pub fn get_type_name(&self) -> &'static str {
@@ -81,32 +79,32 @@ impl DdsShared<DdsTopic> {
         self.guid
     }
 
-    pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
+    pub fn set_qos(&mut self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
         };
 
         qos.is_consistent()?;
-        if *self.enabled.read_lock() {
-            self.qos.read_lock().check_immutability(&qos)?;
+        if self.enabled {
+            self.qos.check_immutability(&qos)?;
         }
 
-        *self.qos.write_lock() = qos;
+        self.qos = qos;
 
         Ok(())
     }
 
     pub fn get_qos(&self) -> TopicQos {
-        self.qos.read_lock().clone()
+        self.qos.clone()
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&mut self) -> DdsResult<()> {
         self.announce_sender
             .send(AnnounceKind::CratedTopic(self.as_discovered_topic_data()))
             .ok();
 
-        *self.enabled.write_lock() = true;
+        self.enabled = true;
         Ok(())
     }
 
@@ -115,7 +113,7 @@ impl DdsShared<DdsTopic> {
     }
 
     pub fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
-        let qos = self.qos.read_lock();
+        let qos = &self.qos;
         DiscoveredTopicData::new(TopicBuiltinTopicData::new(
             BuiltInTopicKey {
                 value: self.guid.into(),
@@ -138,7 +136,7 @@ impl DdsShared<DdsTopic> {
     }
 
     pub fn process_discovered_topic(
-        &self,
+        &mut self,
         discovered_topic_data: &DiscoveredTopicData,
         parent_participant_guid: Guid,
         listener_sender: &Sender<ListenerTriggerKind>,
@@ -148,9 +146,9 @@ impl DdsShared<DdsTopic> {
             .get_type_name()
             == self.get_type_name()
             && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
-            && !is_discovered_topic_consistent(&self.qos.read_lock(), discovered_topic_data)
+            && !is_discovered_topic_consistent(&self.qos, discovered_topic_data)
         {
-            self.inconsistent_topic_status.write_lock().increment();
+            self.inconsistent_topic_status.increment();
             listener_sender
                 .send(ListenerTriggerKind::InconsistentTopic(
                     UserDefinedTopicNode::new(self.guid(), parent_participant_guid),
@@ -218,8 +216,8 @@ mod tests {
             EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
         let (announce_sender, _) = std::sync::mpsc::sync_channel(1);
-        let topic = DdsTopic::new(guid, TopicQos::default(), "", "", announce_sender);
-        *topic.enabled.write_lock() = true;
+        let mut topic = DdsTopic::new(guid, TopicQos::default(), "", "", announce_sender);
+        topic.enabled = true;
 
         let expected_instance_handle: InstanceHandle = guid.into();
         let instance_handle = topic.get_instance_handle();
