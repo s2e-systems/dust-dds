@@ -599,7 +599,7 @@ impl DdsDomainParticipant {
         };
 
         // /////// Create topic
-        let topic = DdsTopic::new(
+        let mut topic = DdsTopic::new(
             topic_guid,
             qos,
             type_name,
@@ -657,6 +657,10 @@ impl DdsDomainParticipant {
 
     pub fn topic_list(&self) -> &[DdsTopic] {
         &self.topic_list
+    }
+
+    pub fn topic_list_mut(&mut self) -> &mut [DdsTopic] {
+        &mut self.topic_list
     }
 
     pub fn get_topic(&self, topic_name: &str, type_name: &str) -> Option<&DdsTopic> {
@@ -896,7 +900,7 @@ impl DdsDomainParticipant {
                     subscriber.enable()?;
                 }
 
-                for topic in self.topic_list.iter() {
+                for topic in self.topic_list.iter_mut() {
                     topic.enable()?;
                 }
             }
@@ -1148,10 +1152,11 @@ impl DdsDomainParticipant {
                 None,
             )
         {
+            let guid = self.guid();
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {
-                    for topic in self.topic_list() {
-                        topic.process_discovered_topic(topic_data, self.guid(), listener_sender);
+                    for topic in self.topic_list_mut() {
+                        topic.process_discovered_topic(topic_data, guid, listener_sender);
                     }
 
                     self.discovered_topic_list.insert(

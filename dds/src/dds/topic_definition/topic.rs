@@ -53,7 +53,7 @@ impl<Foo> Topic<Foo> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => {
                 let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant(&t.guid().prefix(), |dp| {
+                    .get_participant_mut(&t.guid().prefix(), |dp| {
                         t.get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?)
                     })?;
 
@@ -123,7 +123,7 @@ impl<Foo> Topic<Foo> {
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&t.guid().prefix(), |dp| {
+                .get_participant_mut(&t.guid().prefix(), |dp| {
                     t.set_qos(dp.ok_or(DdsError::AlreadyDeleted)?, qos)
                 }),
             TopicNodeKind::Listener(_) => todo!(),
@@ -201,7 +201,7 @@ impl<Foo> Topic<Foo> {
     pub fn enable(&self) -> DdsResult<()> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&t.guid().prefix(), |dp| {
+                .get_participant_mut(&t.guid().prefix(), |dp| {
                     t.enable(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             TopicNodeKind::Listener(_) => todo!(),
