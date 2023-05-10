@@ -67,15 +67,15 @@ impl UserDefinedDataWriterNode {
 
     pub fn unregister_instance_w_timestamp(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<()> {
         domain_participant
-            .get_publisher(self.parent_publisher)
+            .get_publisher_mut(self.parent_publisher)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
+            .get_data_writer_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .unregister_instance_w_timestamp(instance_serialized_key, handle, timestamp)
     }
@@ -107,7 +107,7 @@ impl UserDefinedDataWriterNode {
 
     pub fn write_w_timestamp(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
@@ -123,9 +123,9 @@ impl UserDefinedDataWriterNode {
         }
 
         domain_participant
-            .get_publisher(self.parent_publisher)
+            .get_publisher_mut(self.parent_publisher)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
+            .get_data_writer_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .write_w_timestamp(serialized_data, instance_serialized_key, handle, timestamp)?;
 
@@ -138,15 +138,15 @@ impl UserDefinedDataWriterNode {
 
     pub fn dispose_w_timestamp(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<()> {
         domain_participant
-            .get_publisher(self.parent_publisher)
+            .get_publisher_mut(self.parent_publisher)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
+            .get_data_writer_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .dispose_w_timestamp(instance_serialized_key, handle, timestamp)
     }
@@ -208,24 +208,24 @@ impl UserDefinedDataWriterNode {
 
     pub fn get_offered_incompatible_qos_status(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
     ) -> DdsResult<OfferedIncompatibleQosStatus> {
         Ok(domain_participant
-            .get_publisher(self.parent_publisher)
+            .get_publisher_mut(self.parent_publisher)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
+            .get_data_writer_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_offered_incompatible_qos_status())
     }
 
     pub fn get_publication_matched_status(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
     ) -> DdsResult<PublicationMatchedStatus> {
         Ok(domain_participant
-            .get_publisher(self.parent_publisher)
+            .get_publisher_mut(self.parent_publisher)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
+            .get_data_writer_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_publication_matched_status())
     }
@@ -313,7 +313,7 @@ impl UserDefinedDataWriterNode {
 
     pub fn set_qos(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<DataWriterQos>,
     ) -> DdsResult<()> {
         let qos = match qos {
@@ -340,9 +340,9 @@ impl UserDefinedDataWriterNode {
         }
 
         domain_participant
-            .get_publisher(self.parent_publisher)
+            .get_publisher_mut(self.parent_publisher)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
+            .get_data_writer_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .set_qos(qos);
 
@@ -413,9 +413,9 @@ fn enable_data_writer(
         ));
     }
     domain_participant
-        .get_publisher(publisher_guid)
+        .get_publisher_mut(publisher_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .get_data_writer(data_writer_guid)
+        .get_data_writer_mut(data_writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
         .enable();
 
@@ -452,7 +452,7 @@ fn enable_data_writer(
 }
 
 fn announce_created_data_writer(
-    domain_participant: &DdsDomainParticipant,
+    domain_participant: &mut DdsDomainParticipant,
     discovered_writer_data: DiscoveredWriterData,
 ) {
     let writer_data = &DiscoveredWriterData::new(
@@ -478,9 +478,9 @@ fn announce_created_data_writer(
     let timestamp = domain_participant.get_current_time();
 
     domain_participant
-        .get_builtin_publisher()
-        .stateful_data_writer_list()
-        .iter()
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list_mut()
+        .iter_mut()
         .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
         .unwrap()
         .write_w_timestamp(

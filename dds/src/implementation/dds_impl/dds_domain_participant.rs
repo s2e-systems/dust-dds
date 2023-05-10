@@ -266,7 +266,7 @@ impl DdsDomainParticipant {
         builtin_subscriber.stateful_data_reader_add(sedp_builtin_subscriptions_reader);
 
         // Built-in publisher creation
-        let spdp_builtin_participant_writer = DdsDataWriter::new(
+        let mut spdp_builtin_participant_writer = DdsDataWriter::new(
             create_builtin_stateless_writer(Guid::new(
                 guid_prefix,
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
@@ -892,13 +892,16 @@ impl DdsDomainParticipant {
 
             for builtin_stateless_writer in self
                 .builtin_publisher
-                .stateless_data_writer_list()
-                .into_iter()
+                .stateless_data_writer_list_mut()
+                .iter_mut()
             {
                 builtin_stateless_writer.enable();
             }
 
-            for builtin_stateful_writer in self.builtin_publisher.stateful_data_writer_list().iter()
+            for builtin_stateful_writer in self
+                .builtin_publisher
+                .stateful_data_writer_list_mut()
+                .iter_mut()
             {
                 builtin_stateful_writer.enable()
             }
@@ -930,7 +933,7 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    fn announce_participant(&self) -> DdsResult<()> {
+    fn announce_participant(&mut self) -> DdsResult<()> {
         let spdp_discovered_participant_data = SpdpDiscoveredParticipantData::new(
             ParticipantBuiltinTopicData::new(
                 BuiltInTopicKey {
@@ -965,17 +968,17 @@ impl DdsDomainParticipant {
         );
         let mut serialized_data = Vec::new();
         spdp_discovered_participant_data.dds_serialize(&mut serialized_data)?;
-
+        let current_time = self.get_current_time();
         self.builtin_publisher
-            .stateless_data_writer_list()
-            .into_iter()
+            .stateless_data_writer_list_mut()
+            .iter_mut()
             .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
             .unwrap()
             .write_w_timestamp(
                 serialized_data,
                 spdp_discovered_participant_data.get_serialized_key(),
                 None,
-                self.get_current_time(),
+                current_time,
             )
     }
 
@@ -1080,11 +1083,29 @@ impl DdsDomainParticipant {
                             let reader_parent_participant_guid =
                                 Guid::new(remote_reader_guid_prefix, ENTITYID_PARTICIPANT);
 
-                            if let Some(discovered_participant_data) = self
+                            let participant_guid = self.guid();
+                            if let Some((
+                                default_unicast_locator_list,
+                                default_multicast_locator_list,
+                            )) = self
                                 .discovered_participant_list
                                 .get(&reader_parent_participant_guid.into())
+                                .map(|discovered_participant_data| {
+                                    (
+                                        discovered_participant_data
+                                            .participant_proxy()
+                                            .default_unicast_locator_list()
+                                            .to_vec(),
+                                        discovered_participant_data
+                                            .participant_proxy()
+                                            .default_multicast_locator_list()
+                                            .to_vec(),
+                                    )
+                                })
                             {
-                                for publisher in self.user_defined_publisher_list() {
+                                for publisher in self.user_defined_publisher_list_mut() {
+                                    let publisher_qos = publisher.get_qos();
+                                    let publisher_guid = publisher.guid();
                                     let is_discovered_reader_regex_matched_to_publisher =
                                         if let Ok(d) = glob_to_regex(
                                             &discovered_reader_data
@@ -1121,19 +1142,16 @@ impl DdsDomainParticipant {
                                         || is_publisher_regex_matched_to_discovered_reader
                                         || is_partition_string_matched
                                     {
-                                        for data_writer in publisher.stateful_data_writer_list() {
+                                        for data_writer in publisher.stateful_data_writer_list_mut()
+                                        {
                                             add_matched_reader(
                                                 data_writer,
                                                 &discovered_reader_data,
-                                                discovered_participant_data
-                                                    .participant_proxy()
-                                                    .default_unicast_locator_list(),
-                                                discovered_participant_data
-                                                    .participant_proxy()
-                                                    .default_multicast_locator_list(),
-                                                &publisher.get_qos(),
-                                                publisher.guid(),
-                                                self.guid(),
+                                                &default_unicast_locator_list,
+                                                &default_multicast_locator_list,
+                                                &publisher_qos,
+                                                publisher_guid,
+                                                participant_guid,
                                                 listener_sender,
                                             )
                                         }
@@ -1144,13 +1162,15 @@ impl DdsDomainParticipant {
                     }
                 }
                 InstanceStateKind::NotAliveDisposed => {
-                    for publisher in self.user_defined_publisher_list() {
-                        for data_writer in publisher.stateful_data_writer_list() {
+                    let participant_guid = self.guid();
+                    for publisher in self.user_defined_publisher_list_mut() {
+                        let publisher_guid = publisher.guid();
+                        for data_writer in publisher.stateful_data_writer_list_mut() {
                             remove_writer_matched_reader(
                                 data_writer,
                                 discovered_reader_data_sample.sample_info.instance_handle,
-                                publisher.guid(),
-                                self.guid(),
+                                publisher_guid,
+                                participant_guid,
                                 listener_sender,
                             )
                         }
@@ -1226,7 +1246,7 @@ impl DdsDomainParticipant {
 
 #[allow(clippy::too_many_arguments)]
 fn add_matched_reader(
-    writer: &DdsDataWriter<RtpsStatefulWriter>,
+    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     discovered_reader_data: &DiscoveredReaderData,
     default_unicast_locator_list: &[Locator],
     default_multicast_locator_list: &[Locator],
@@ -1395,7 +1415,7 @@ fn on_writer_publication_matched(
 }
 
 pub fn remove_writer_matched_reader(
-    writer: &DdsDataWriter<RtpsStatefulWriter>,
+    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     discovered_reader_handle: InstanceHandle,
     parent_publisher_guid: Guid,
     parent_participant_guid: Guid,
@@ -1416,7 +1436,7 @@ pub fn remove_writer_matched_reader(
 }
 
 fn writer_on_offered_incompatible_qos(
-    writer: &DdsDataWriter<RtpsStatefulWriter>,
+    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     handle: InstanceHandle,
     incompatible_qos_policy_list: Vec<QosPolicyId>,
     parent_publisher_guid: Guid,

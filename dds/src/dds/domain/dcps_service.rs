@@ -220,7 +220,7 @@ impl DcpsService {
                 }
 
                 if let Ok(announce_kind) = announce_receiver.recv() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
                         &participant_guid_prefix,
                         |dp| {
                             if let Some(dp) = dp {
@@ -857,7 +857,7 @@ fn on_offered_incompatible_qos_communication_change(data_writer_node: UserDefine
     fn get_offered_incompatible_qos_status(
         data_writer_node: &UserDefinedDataWriterNode,
     ) -> DdsResult<OfferedIncompatibleQosStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_writer_node.parent_participant().prefix(),
             |dp| {
                 data_writer_node
@@ -930,7 +930,7 @@ fn on_publication_matched_communication_change(data_writer_node: UserDefinedData
     fn get_publication_matched_status(
         data_writer_node: &UserDefinedDataWriterNode,
     ) -> DdsResult<PublicationMatchedStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_writer_node.parent_participant().prefix(),
             |dp| {
                 data_writer_node.get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
@@ -1049,7 +1049,7 @@ fn on_inconsistent_topic_communication_change(topic_node: UserDefinedTopicNode) 
 }
 
 fn announce_created_data_reader(
-    domain_participant: &DdsDomainParticipant,
+    domain_participant: &mut DdsDomainParticipant,
     discovered_reader_data: DiscoveredReaderData,
 ) {
     let reader_proxy = ReaderProxy::new(
@@ -1075,9 +1075,9 @@ fn announce_created_data_reader(
 
     let timestamp = domain_participant.get_current_time();
     domain_participant
-        .get_builtin_publisher()
-        .stateful_data_writer_list()
-        .iter()
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list_mut()
+        .iter_mut()
         .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
         .unwrap()
         .write_w_timestamp(
@@ -1090,7 +1090,7 @@ fn announce_created_data_reader(
 }
 
 fn announce_created_data_writer(
-    domain_participant: &DdsDomainParticipant,
+    domain_participant: &mut DdsDomainParticipant,
     discovered_writer_data: DiscoveredWriterData,
 ) {
     let writer_data = &DiscoveredWriterData::new(
@@ -1116,9 +1116,9 @@ fn announce_created_data_writer(
     let timestamp = domain_participant.get_current_time();
 
     domain_participant
-        .get_builtin_publisher()
-        .stateful_data_writer_list()
-        .iter()
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list_mut()
+        .iter_mut()
         .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
         .unwrap()
         .write_w_timestamp(
@@ -1131,7 +1131,7 @@ fn announce_created_data_writer(
 }
 
 fn announce_created_topic(
-    domain_participant: &DdsDomainParticipant,
+    domain_participant: &mut DdsDomainParticipant,
     discovered_topic: DiscoveredTopicData,
 ) {
     let mut serialized_data = Vec::new();
@@ -1142,9 +1142,9 @@ fn announce_created_topic(
     let timestamp = domain_participant.get_current_time();
 
     domain_participant
-        .get_builtin_publisher()
-        .stateful_data_writer_list()
-        .iter()
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list_mut()
+        .iter_mut()
         .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
         .unwrap()
         .write_w_timestamp(
@@ -1157,7 +1157,7 @@ fn announce_created_topic(
 }
 
 fn announce_deleted_reader(
-    domain_participant: &DdsDomainParticipant,
+    domain_participant: &mut DdsDomainParticipant,
     reader_handle: InstanceHandle,
 ) {
     let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
@@ -1169,9 +1169,9 @@ fn announce_deleted_reader(
     let timestamp = domain_participant.get_current_time();
 
     domain_participant
-        .get_builtin_publisher()
-        .stateful_data_writer_list()
-        .iter()
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list_mut()
+        .iter_mut()
         .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
         .unwrap()
         .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
@@ -1179,7 +1179,7 @@ fn announce_deleted_reader(
 }
 
 fn announce_deleted_writer(
-    domain_participant: &DdsDomainParticipant,
+    domain_participant: &mut DdsDomainParticipant,
     writer_handle: InstanceHandle,
 ) {
     let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
@@ -1191,16 +1191,16 @@ fn announce_deleted_writer(
     let timestamp = domain_participant.get_current_time();
 
     domain_participant
-        .get_builtin_publisher()
-        .stateful_data_writer_list()
-        .iter()
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list_mut()
+        .iter_mut()
         .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
         .unwrap()
         .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
         .expect("Should not fail to write built-in message");
 }
 
-fn remove_stale_writer_changes(writer: &DdsDataWriter<RtpsStatefulWriter>, now: Time) {
+fn remove_stale_writer_changes(writer: &mut DdsDataWriter<RtpsStatefulWriter>, now: Time) {
     let timespan_duration = writer.get_qos().lifespan.duration;
     writer.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
 }
@@ -1504,7 +1504,7 @@ fn directly_send_data_frag(
 }
 
 fn stateless_writer_send_message(
-    writer: &DdsDataWriter<RtpsStatelessWriter>,
+    writer: &mut DdsDataWriter<RtpsStatelessWriter>,
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
 ) {
@@ -1515,7 +1515,7 @@ fn stateless_writer_send_message(
 }
 
 fn user_defined_stateful_writer_send_message(
-    writer: &DdsDataWriter<RtpsStatefulWriter>,
+    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
 ) {
@@ -1754,9 +1754,9 @@ fn add_discovered_participant(
     {
         add_matched_publications_detector(
             domain_participant
-                .get_builtin_publisher()
-                .stateful_data_writer_list()
-                .iter()
+                .get_builtin_publisher_mut()
+                .stateful_data_writer_list_mut()
+                .iter_mut()
                 .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
                 .unwrap(),
             &discovered_participant_data,
@@ -1774,9 +1774,9 @@ fn add_discovered_participant(
 
         add_matched_subscriptions_detector(
             domain_participant
-                .get_builtin_publisher()
-                .stateful_data_writer_list()
-                .iter()
+                .get_builtin_publisher_mut()
+                .stateful_data_writer_list_mut()
+                .iter_mut()
                 .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
                 .unwrap(),
             &discovered_participant_data,
@@ -1794,9 +1794,9 @@ fn add_discovered_participant(
 
         add_matched_topics_detector(
             domain_participant
-                .get_builtin_publisher()
-                .stateful_data_writer_list()
-                .iter()
+                .get_builtin_publisher_mut()
+                .stateful_data_writer_list_mut()
+                .iter_mut()
                 .find(|x| x.get_topic_name() == DCPS_TOPIC)
                 .unwrap(),
             &discovered_participant_data,
@@ -1853,7 +1853,7 @@ fn add_matched_subscriptions_announcer(
 }
 
 fn add_matched_subscriptions_detector(
-    writer: &DdsDataWriter<RtpsStatefulWriter>,
+    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -1922,7 +1922,7 @@ fn add_matched_publications_announcer(
 }
 
 fn add_matched_publications_detector(
-    writer: &DdsDataWriter<RtpsStatefulWriter>,
+    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -1990,7 +1990,7 @@ fn add_matched_topics_announcer(
 }
 
 fn add_matched_topics_detector(
-    writer: &DdsDataWriter<RtpsStatefulWriter>,
+    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -2059,9 +2059,9 @@ fn send_user_defined_message(
     let _now = domain_participant.get_current_time();
     stateless_writer_send_message(
         domain_participant
-            .get_builtin_publisher()
-            .stateless_data_writer_list()
-            .into_iter()
+            .get_builtin_publisher_mut()
+            .stateless_data_writer_list_mut()
+            .iter_mut()
             .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
             .unwrap(),
         header,
@@ -2070,9 +2070,9 @@ fn send_user_defined_message(
 
     user_defined_stateful_writer_send_message(
         domain_participant
-            .get_builtin_publisher()
-            .stateful_data_writer_list()
-            .iter()
+            .get_builtin_publisher_mut()
+            .stateful_data_writer_list_mut()
+            .iter_mut()
             .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
             .unwrap(),
         header,
@@ -2081,9 +2081,9 @@ fn send_user_defined_message(
 
     user_defined_stateful_writer_send_message(
         domain_participant
-            .get_builtin_publisher()
-            .stateful_data_writer_list()
-            .iter()
+            .get_builtin_publisher_mut()
+            .stateful_data_writer_list_mut()
+            .iter_mut()
             .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
             .unwrap(),
         header,
@@ -2092,9 +2092,9 @@ fn send_user_defined_message(
 
     user_defined_stateful_writer_send_message(
         domain_participant
-            .get_builtin_publisher()
-            .stateful_data_writer_list()
-            .iter()
+            .get_builtin_publisher_mut()
+            .stateful_data_writer_list_mut()
+            .iter_mut()
             .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
             .unwrap(),
         header,
@@ -2109,7 +2109,7 @@ fn send_user_defined_message(
     }
 }
 
-fn announce_entity(domain_participant: &DdsDomainParticipant, announce_kind: AnnounceKind) {
+fn announce_entity(domain_participant: &mut DdsDomainParticipant, announce_kind: AnnounceKind) {
     match announce_kind {
         AnnounceKind::CreatedDataReader(discovered_reader_data) => {
             announce_created_data_reader(domain_participant, discovered_reader_data)
@@ -2142,8 +2142,8 @@ fn user_defined_communication_send(
     };
     let now = domain_participant.get_current_time();
 
-    for publisher in domain_participant.user_defined_publisher_list() {
-        for data_writer in publisher.stateful_data_writer_list() {
+    for publisher in domain_participant.user_defined_publisher_list_mut() {
+        for data_writer in publisher.stateful_data_writer_list_mut() {
             let writer_id = data_writer.guid().entity_id();
             let data_max_size_serialized = data_writer.data_max_size_serialized();
             let heartbeat_period = data_writer.heartbeat_period();

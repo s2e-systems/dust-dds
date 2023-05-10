@@ -132,18 +132,17 @@ impl DomainParticipant {
     /// it is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            match &a_subscriber.0 {
-                SubscriberNodeKind::Builtin(_) => todo!(),
-                SubscriberNodeKind::UserDefined(s) => {
-                    self.0.delete_subscriber(dp, s.guid())?;
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_subscriber_listener(&s.guid());
-                }
-                SubscriberNodeKind::Listener(_) => todo!(),
-            }
+        match &a_subscriber.0 {
+            SubscriberNodeKind::Builtin(_) => (),
+            SubscriberNodeKind::UserDefined(s) => {
+                self.call_participant_mut_method(|dp| self.0.delete_subscriber(dp, s.guid()))?;
 
-            Ok(())
-        })
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_subscriber_listener(&s.guid());
+            }
+            SubscriberNodeKind::Listener(_) => (),
+        }
+
+        Ok(())
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].

@@ -79,7 +79,9 @@ impl MessageReceiver {
             match submessage {
                 RtpsSubmessageKind::AckNack(acknack_submessage) => {
                     for publisher in publisher_list.iter_mut() {
-                        for stateful_data_writer in publisher.stateful_data_writer_list().iter() {
+                        for stateful_data_writer in
+                            publisher.stateful_data_writer_list_mut().iter_mut()
+                        {
                             stateful_data_writer
                                 .on_acknack_submessage_received(acknack_submessage, self);
                         }
@@ -138,7 +140,9 @@ impl MessageReceiver {
                 }
                 RtpsSubmessageKind::NackFrag(nack_frag_submessage) => {
                     for publisher in publisher_list.iter_mut() {
-                        for stateful_data_writer in publisher.stateful_data_writer_list().iter() {
+                        for stateful_data_writer in
+                            publisher.stateful_data_writer_list_mut().iter_mut()
+                        {
                             stateful_data_writer
                                 .on_nack_frag_submessage_received(nack_frag_submessage, self);
                         }

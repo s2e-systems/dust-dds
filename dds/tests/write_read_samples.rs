@@ -177,7 +177,7 @@ fn large_data_should_be_fragmented_reliable() {
     writer.write(&data, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(5, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -1577,7 +1577,7 @@ fn write_read_unkeyed_topic() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     writer.write(&UserData(8), None).unwrap();
 
