@@ -36,7 +36,7 @@ impl BuiltinDataReaderStatelessNode {
 
     pub fn read<Foo>(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
@@ -47,8 +47,8 @@ impl BuiltinDataReaderStatelessNode {
         Foo: for<'de> DdsDeserialize<'de>,
     {
         domain_participant
-            .get_builtin_subscriber()
-            .get_stateless_data_reader(self.this)
+            .get_builtin_subscriber_mut()
+            .get_stateless_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .read(
                 max_samples,
@@ -61,7 +61,7 @@ impl BuiltinDataReaderStatelessNode {
 
     pub fn read_next_instance<Foo>(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
         sample_states: &[SampleStateKind],
@@ -72,8 +72,8 @@ impl BuiltinDataReaderStatelessNode {
         Foo: for<'de> DdsDeserialize<'de>,
     {
         domain_participant
-            .get_builtin_subscriber()
-            .get_stateless_data_reader(self.this)
+            .get_builtin_subscriber_mut()
+            .get_stateless_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .read_next_instance(
                 max_samples,

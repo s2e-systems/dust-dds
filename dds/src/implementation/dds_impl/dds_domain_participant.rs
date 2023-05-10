@@ -385,8 +385,16 @@ impl DdsDomainParticipant {
         &self.builtin_subscriber
     }
 
+    pub fn get_builtin_subscriber_mut(&mut self) -> &mut DdsSubscriber {
+        &mut self.builtin_subscriber
+    }
+
     pub fn get_builtin_publisher(&self) -> &DdsPublisher {
         &self.builtin_publisher
+    }
+
+    pub fn get_builtin_publisher_mut(&mut self) -> &mut DdsPublisher {
+        &mut self.builtin_publisher
     }
 
     pub fn get_current_time(&self) -> Time {
@@ -566,6 +574,10 @@ impl DdsDomainParticipant {
 
     pub fn user_defined_subscriber_list(&self) -> &[DdsSubscriber] {
         &self.user_defined_subscriber_list
+    }
+
+    pub fn user_defined_subscriber_list_mut(&mut self) -> &mut [DdsSubscriber] {
+        &mut self.user_defined_subscriber_list
     }
 
     pub fn get_subscriber(&self, subscriber_guid: Guid) -> Option<&DdsSubscriber> {
@@ -997,16 +1009,34 @@ impl DdsDomainParticipant {
     //     self.discovered_participant_remove(participant_handle);
     // }
 
-    pub fn receive_user_defined_data(
-        &self,
+    pub fn receive_builtin_data(
+        &mut self,
         source_locator: Locator,
         message: RtpsMessage,
         listener_sender: &Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         MessageReceiver::new(self.get_current_time()).process_message(
             self.rtps_participant.guid(),
-            self.user_defined_publisher_list.as_slice(),
-            self.user_defined_subscriber_list.as_slice(),
+            core::slice::from_mut(&mut self.builtin_publisher),
+            core::slice::from_mut(&mut self.builtin_subscriber),
+            source_locator,
+            &message,
+            listener_sender,
+        )?;
+        self.user_defined_data_send_condvar.notify_all();
+        Ok(())
+    }
+
+    pub fn receive_user_defined_data(
+        &mut self,
+        source_locator: Locator,
+        message: RtpsMessage,
+        listener_sender: &Sender<ListenerTriggerKind>,
+    ) -> DdsResult<()> {
+        MessageReceiver::new(self.get_current_time()).process_message(
+            self.rtps_participant.guid(),
+            self.user_defined_publisher_list.as_mut_slice(),
+            self.user_defined_subscriber_list.as_mut_slice(),
             source_locator,
             &message,
             listener_sender,
@@ -1016,13 +1046,13 @@ impl DdsDomainParticipant {
     }
 
     pub fn discover_matched_readers(
-        &self,
+        &mut self,
         listener_sender: &Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         let samples = self
-            .get_builtin_subscriber()
-            .stateful_data_reader_list()
-            .iter()
+            .get_builtin_subscriber_mut()
+            .stateful_data_reader_list_mut()
+            .iter_mut()
             .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
             .unwrap()
             .read::<DiscoveredReaderData>(
@@ -1139,9 +1169,9 @@ impl DdsDomainParticipant {
         listener_sender: &Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         while let Ok(samples) = self
-            .get_builtin_subscriber()
-            .stateful_data_reader_list()
-            .iter()
+            .get_builtin_subscriber_mut()
+            .stateful_data_reader_list_mut()
+            .iter_mut()
             .find(|x| x.get_topic_name() == DCPS_TOPIC)
             .unwrap()
             .read::<DiscoveredTopicData>(
@@ -1173,12 +1203,13 @@ impl DdsDomainParticipant {
     }
 
     pub fn update_communication_status(
-        &self,
+        &mut self,
         listener_sender: &Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         let now = self.get_current_time();
-        for subscriber in self.user_defined_subscriber_list.iter() {
-            subscriber.update_communication_status(now, self.guid(), listener_sender);
+        let guid = self.guid();
+        for subscriber in self.user_defined_subscriber_list.iter_mut() {
+            subscriber.update_communication_status(now, guid, listener_sender);
         }
 
         Ok(())

@@ -85,12 +85,25 @@ impl DdsSubscriber {
         &self.stateless_data_reader_list
     }
 
+    pub fn stateless_data_reader_list_mut(&mut self) -> &mut [DdsDataReader<RtpsStatelessReader>] {
+        &mut self.stateless_data_reader_list
+    }
+
     pub fn get_stateless_data_reader(
         &self,
         data_reader: Guid,
     ) -> Option<&DdsDataReader<RtpsStatelessReader>> {
         self.stateless_data_reader_list
             .iter()
+            .find(|s| s.guid() == data_reader)
+    }
+
+    pub fn get_stateless_data_reader_mut(
+        &mut self,
+        data_reader: Guid,
+    ) -> Option<&mut DdsDataReader<RtpsStatelessReader>> {
+        self.stateless_data_reader_list
+            .iter_mut()
             .find(|s| s.guid() == data_reader)
     }
 
@@ -107,12 +120,25 @@ impl DdsSubscriber {
         &self.stateful_data_reader_list
     }
 
+    pub fn stateful_data_reader_list_mut(&mut self) -> &mut [DdsDataReader<RtpsStatefulReader>] {
+        &mut self.stateful_data_reader_list
+    }
+
     pub fn get_stateful_data_reader(
         &self,
         data_reader: Guid,
     ) -> Option<&DdsDataReader<RtpsStatefulReader>> {
         self.stateful_data_reader_list
             .iter()
+            .find(|s| s.guid() == data_reader)
+    }
+
+    pub fn get_stateful_data_reader_mut(
+        &mut self,
+        data_reader: Guid,
+    ) -> Option<&mut DdsDataReader<RtpsStatefulReader>> {
+        self.stateful_data_reader_list
+            .iter_mut()
             .find(|s| s.guid() == data_reader)
     }
 
@@ -138,16 +164,17 @@ impl DdsSubscriber {
     }
 
     pub fn update_communication_status(
-        &self,
+        &mut self,
         now: Time,
         parent_participant_guid: Guid,
         listener_sender: &Sender<ListenerTriggerKind>,
     ) {
-        for data_reader in self.stateful_data_reader_list.iter() {
+        let guid = self.guid();
+        for data_reader in self.stateful_data_reader_list.iter_mut() {
             data_reader.update_communication_status(
                 now,
                 parent_participant_guid,
-                self.guid(),
+                guid,
                 listener_sender,
             );
         }
@@ -172,7 +199,7 @@ impl DdsSubscriber {
         self.enabled = true;
 
         if self.qos.entity_factory.autoenable_created_entities {
-            for data_reader in self.stateful_data_reader_list.iter() {
+            for data_reader in self.stateful_data_reader_list.iter_mut() {
                 data_reader.enable()?;
             }
         }
@@ -185,21 +212,21 @@ impl DdsSubscriber {
     }
 
     pub fn on_heartbeat_submessage_received(
-        &self,
+        &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        for data_reader in self.stateful_data_reader_list.iter() {
+        for data_reader in self.stateful_data_reader_list.iter_mut() {
             data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
         }
     }
 
     pub fn on_heartbeat_frag_submessage_received(
-        &self,
+        &mut self,
         heartbeat_frag_submessage: &HeartbeatFragSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        for data_reader in self.stateful_data_reader_list.iter() {
+        for data_reader in self.stateful_data_reader_list.iter_mut() {
             data_reader.on_heartbeat_frag_submessage_received(
                 heartbeat_frag_submessage,
                 source_guid_prefix,
@@ -208,21 +235,22 @@ impl DdsSubscriber {
     }
 
     pub fn on_data_submessage_received(
-        &self,
+        &mut self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
         parent_participant_guid: Guid,
         listener_sender: &Sender<ListenerTriggerKind>,
     ) {
-        for stateless_data_reader in self.stateless_data_reader_list.iter() {
+        let guid = self.guid();
+        for stateless_data_reader in self.stateless_data_reader_list.iter_mut() {
             stateless_data_reader.on_data_submessage_received(data_submessage, message_receiver);
         }
 
-        for data_reader in self.stateful_data_reader_list.iter() {
+        for data_reader in self.stateful_data_reader_list.iter_mut() {
             data_reader.on_data_submessage_received(
                 data_submessage,
                 message_receiver,
-                self.guid(),
+                guid,
                 parent_participant_guid,
                 listener_sender,
             );
@@ -230,17 +258,18 @@ impl DdsSubscriber {
     }
 
     pub fn on_data_frag_submessage_received(
-        &self,
+        &mut self,
         data_frag_submessage: &DataFragSubmessage<'_>,
         message_receiver: &MessageReceiver,
         parent_participant_guid: Guid,
         listener_sender: &Sender<ListenerTriggerKind>,
     ) {
-        for data_reader in self.stateful_data_reader_list.iter() {
+        let guid = self.guid();
+        for data_reader in self.stateful_data_reader_list.iter_mut() {
             data_reader.on_data_frag_submessage_received(
                 data_frag_submessage,
                 message_receiver,
-                self.guid(),
+                guid,
                 parent_participant_guid,
                 listener_sender,
             );
@@ -248,11 +277,11 @@ impl DdsSubscriber {
     }
 
     pub fn on_gap_submessage_received(
-        &self,
+        &mut self,
         gap_submessage: &GapSubmessage,
         message_receiver: &MessageReceiver,
     ) {
-        for data_reader in self.stateful_data_reader_list.iter() {
+        for data_reader in self.stateful_data_reader_list.iter_mut() {
             data_reader
                 .on_gap_submessage_received(gap_submessage, message_receiver.source_guid_prefix());
         }

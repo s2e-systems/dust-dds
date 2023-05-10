@@ -308,9 +308,9 @@ impl UserDefinedSubscriberNode {
                 .autoenable_created_entities
             {
                 for data_reader in domain_participant
-                    .get_subscriber(self.this)
+                    .get_subscriber_mut(self.this)
                     .ok_or(DdsError::AlreadyDeleted)?
-                    .stateful_data_reader_list()
+                    .stateful_data_reader_list_mut()
                 {
                     data_reader.enable()?;
                     // let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(

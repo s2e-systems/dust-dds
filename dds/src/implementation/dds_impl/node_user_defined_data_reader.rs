@@ -54,7 +54,7 @@ impl UserDefinedDataReaderNode {
 
     pub fn read<Foo>(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
@@ -65,9 +65,9 @@ impl UserDefinedDataReaderNode {
         Foo: for<'de> DdsDeserialize<'de>,
     {
         domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .read(
                 max_samples,
@@ -80,7 +80,7 @@ impl UserDefinedDataReaderNode {
 
     pub fn take<Foo>(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
@@ -91,9 +91,9 @@ impl UserDefinedDataReaderNode {
         Foo: for<'de> DdsDeserialize<'de>,
     {
         domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .take(
                 max_samples,
@@ -106,7 +106,7 @@ impl UserDefinedDataReaderNode {
 
     pub fn read_next_instance<Foo>(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
         sample_states: &[SampleStateKind],
@@ -117,9 +117,9 @@ impl UserDefinedDataReaderNode {
         Foo: for<'de> DdsDeserialize<'de>,
     {
         domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .read_next_instance(
                 max_samples,
@@ -132,7 +132,7 @@ impl UserDefinedDataReaderNode {
 
     pub fn take_next_instance<Foo>(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
         sample_states: &[SampleStateKind],
@@ -143,9 +143,9 @@ impl UserDefinedDataReaderNode {
         Foo: for<'de> DdsDeserialize<'de>,
     {
         domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .take_next_instance(
                 max_samples,
@@ -185,72 +185,72 @@ impl UserDefinedDataReaderNode {
 
     pub fn get_liveliness_changed_status(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
     ) -> DdsResult<LivelinessChangedStatus> {
         Ok(domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_liveliness_changed_status())
     }
 
     pub fn get_requested_deadline_missed_status(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
     ) -> DdsResult<RequestedDeadlineMissedStatus> {
         Ok(domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_requested_deadline_missed_status())
     }
 
     pub fn get_requested_incompatible_qos_status(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
         Ok(domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_requested_incompatible_qos_status())
     }
 
     pub fn get_sample_lost_status(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
     ) -> DdsResult<SampleLostStatus> {
         Ok(domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_sample_lost_status())
     }
 
     pub fn get_sample_rejected_status(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
     ) -> DdsResult<SampleRejectedStatus> {
         Ok(domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_sample_rejected_status())
     }
 
     pub fn get_subscription_matched_status(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
     ) -> DdsResult<SubscriptionMatchedStatus> {
         Ok(domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_subscription_matched_status())
     }
@@ -322,13 +322,13 @@ impl UserDefinedDataReaderNode {
 
     pub fn set_qos(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<DataReaderQos>,
     ) -> DdsResult<()> {
         domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .set_qos(qos)?;
 
@@ -402,9 +402,9 @@ impl UserDefinedDataReaderNode {
         }
 
         domain_participant
-            .get_subscriber(self.parent_subcriber)
+            .get_subscriber_mut(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
+            .get_stateful_data_reader_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .enable()?;
 
