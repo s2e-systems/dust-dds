@@ -363,7 +363,6 @@ impl UserDefinedDataWriterNode {
 
             let topic = domain_participant
                 .get_topic(topic_name, type_name)
-                .cloned()
                 .expect("Topic must exist");
             let publisher_qos = domain_participant
                 .get_publisher(self.parent_publisher)
@@ -436,7 +435,6 @@ fn enable_data_writer(
 
     let topic = domain_participant
         .get_topic(topic_name, type_name)
-        .cloned()
         .expect("Topic must exist");
     let publisher_qos = domain_participant
         .get_publisher(publisher_guid)

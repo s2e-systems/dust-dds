@@ -136,7 +136,7 @@ pub struct DdsDomainParticipant {
     user_defined_publisher_list: Vec<DdsPublisher>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    topic_list: Vec<DdsShared<DdsTopic>>,
+    topic_list: Vec<DdsTopic>,
     user_defined_topic_counter: AtomicU8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
@@ -579,7 +579,7 @@ impl DdsDomainParticipant {
         topic_name: &str,
         type_name: &'static str,
         qos: QosKind<TopicQos>,
-    ) -> DdsResult<DdsShared<DdsTopic>> {
+    ) -> DdsResult<Guid> {
         let topic_counter = self
             .user_defined_topic_counter
             .fetch_add(1, Ordering::Relaxed);
@@ -593,7 +593,7 @@ impl DdsDomainParticipant {
         };
 
         // /////// Create topic
-        let topic_shared = DdsTopic::new(
+        let topic = DdsTopic::new(
             topic_guid,
             qos,
             type_name,
@@ -601,14 +601,14 @@ impl DdsDomainParticipant {
             self.announce_sender.clone(),
         );
 
-        self.topic_list.push(topic_shared.clone());
-        self.topic_find_condvar.notify_all();
-
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-            topic_shared.enable()?;
+            topic.enable()?;
         }
 
-        Ok(topic_shared)
+        self.topic_list.push(topic);
+        self.topic_find_condvar.notify_all();
+
+        Ok(topic_guid)
     }
 
     pub fn delete_topic(&mut self, topic_guid: Guid) -> DdsResult<()> {
@@ -649,11 +649,11 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn topic_list(&self) -> &[DdsShared<DdsTopic>] {
+    pub fn topic_list(&self) -> &[DdsTopic] {
         &self.topic_list
     }
 
-    pub fn get_topic(&self, topic_name: &str, type_name: &str) -> Option<&DdsShared<DdsTopic>> {
+    pub fn get_topic(&self, topic_name: &str, type_name: &str) -> Option<&DdsTopic> {
         self.topic_list()
             .iter()
             .find(|t| t.get_name() == topic_name && t.get_type_name() == type_name)
@@ -672,7 +672,7 @@ impl DdsDomainParticipant {
         topic_name: &str,
         type_name: &'static str,
         timeout: Duration,
-    ) -> DdsResult<DdsShared<DdsTopic>> {
+    ) -> DdsResult<Guid> {
         let start_time = self.get_current_time();
 
         while self.get_current_time() - start_time < timeout {
@@ -683,7 +683,7 @@ impl DdsDomainParticipant {
                 .iter()
                 .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
             {
-                return Ok(topic.clone());
+                return Ok(topic.guid());
             }
 
             // NOTE: Do not make this an else with the previous if because the topic_list read_lock is

@@ -4,8 +4,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        rtps::types::Guid,
-        utils::shared_object::{DdsRwLock, DdsShared},
+        rtps::types::Guid, utils::shared_object::DdsRwLock,
     },
     infrastructure::{
         error::DdsResult,
@@ -51,8 +50,8 @@ impl DdsTopic {
         type_name: &'static str,
         topic_name: &str,
         announce_sender: SyncSender<AnnounceKind>,
-    ) -> DdsShared<Self> {
-        DdsShared::new(Self {
+    ) -> Self {
+        Self {
             guid,
             qos: DdsRwLock::new(qos),
             type_name,
@@ -60,11 +59,11 @@ impl DdsTopic {
             enabled: DdsRwLock::new(false),
             inconsistent_topic_status: DdsRwLock::new(InconsistentTopicStatus::default()),
             announce_sender,
-        })
+        }
     }
 }
 
-impl DdsShared<DdsTopic> {
+impl DdsTopic {
     pub fn get_inconsistent_topic_status(&self) -> InconsistentTopicStatus {
         self.inconsistent_topic_status.write_lock().read_and_reset()
     }

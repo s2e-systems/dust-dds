@@ -78,7 +78,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedTopicNode> {
         domain_participant
             .create_topic(topic_name, type_name, qos)
-            .map(|x| UserDefinedTopicNode::new(x.guid(), self.0))
+            .map(|x| UserDefinedTopicNode::new(x, self.0))
     }
 
     pub fn delete_topic(
@@ -98,7 +98,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedTopicNode> {
         domain_participant
             .find_topic(topic_name, type_name, timeout)
-            .map(|x| UserDefinedTopicNode::new(x.guid(), self.0))
+            .map(|x| UserDefinedTopicNode::new(x, self.0))
     }
 
     pub fn lookup_topicdescription(

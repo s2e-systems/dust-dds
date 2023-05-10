@@ -271,7 +271,6 @@ impl UserDefinedDataReaderNode {
                 t.get_name() == data_reader.get_topic_name()
                     && t.get_type_name() == data_reader.get_type_name()
             })
-            .cloned()
             .expect("Topic must exist");
 
         Ok(UserDefinedTopicNode::new(
@@ -352,7 +351,6 @@ impl UserDefinedDataReaderNode {
                     t.get_name() == data_reader.get_topic_name()
                         && t.get_type_name() == data_reader.get_type_name()
                 })
-                .cloned()
                 .expect("Topic must exist");
             let subscriber_qos = domain_participant
                 .get_subscriber(self.parent_subcriber)
@@ -422,7 +420,6 @@ impl UserDefinedDataReaderNode {
                 t.get_name() == data_reader.get_topic_name()
                     && t.get_type_name() == data_reader.get_type_name()
             })
-            .cloned()
             .expect("Topic must exist");
         let subscriber_qos = domain_participant
             .get_subscriber(self.parent_subcriber)
