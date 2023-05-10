@@ -1689,7 +1689,7 @@ pub fn subscriber_add_matched_writer(
 }
 
 fn discover_matched_participants(
-    domain_participant: &DdsDomainParticipant,
+    domain_participant: &mut DdsDomainParticipant,
     sedp_condvar: &DdsCondvar,
 ) -> DdsResult<()> {
     let spdp_builtin_participant_data_reader = domain_participant
@@ -1719,7 +1719,7 @@ fn discover_matched_participants(
 }
 
 fn add_discovered_participant(
-    domain_participant: &DdsDomainParticipant,
+    domain_participant: &mut DdsDomainParticipant,
     discovered_participant_data: SpdpDiscoveredParticipantData,
 ) {
     if ParticipantDiscovery::new(
