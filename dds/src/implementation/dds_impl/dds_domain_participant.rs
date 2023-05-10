@@ -454,7 +454,7 @@ impl DdsDomainParticipant {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let publisher = DdsPublisher::new(publisher_qos, rtps_group);
+        let mut publisher = DdsPublisher::new(publisher_qos, rtps_group);
         if self.is_enabled() && self.get_qos().entity_factory.autoenable_created_entities {
             publisher.enable();
         }
@@ -503,6 +503,12 @@ impl DdsDomainParticipant {
     pub fn get_publisher(&self, publisher_guid: Guid) -> Option<&DdsPublisher> {
         self.user_defined_publisher_list()
             .iter()
+            .find(|p| p.guid() == publisher_guid)
+    }
+
+    pub fn get_publisher_mut(&mut self, publisher_guid: Guid) -> Option<&mut DdsPublisher> {
+        self.user_defined_publisher_list_mut()
+            .iter_mut()
             .find(|p| p.guid() == publisher_guid)
     }
 
@@ -882,7 +888,7 @@ impl DdsDomainParticipant {
             }
 
             if self.qos.entity_factory.autoenable_created_entities {
-                for publisher in self.user_defined_publisher_list() {
+                for publisher in self.user_defined_publisher_list_mut() {
                     publisher.enable();
                 }
 

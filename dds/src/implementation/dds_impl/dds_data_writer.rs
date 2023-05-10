@@ -17,7 +17,7 @@ use crate::{
                 ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
         },
-        utils::shared_object::{DdsRwLock, DdsShared},
+        utils::shared_object::DdsRwLock,
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -187,15 +187,15 @@ pub struct DdsDataWriter<T> {
 }
 
 impl<T> DdsDataWriter<T> {
-    pub fn new(rtps_writer: T, type_name: &'static str, topic_name: String) -> DdsShared<Self> {
-        DdsShared::new(DdsDataWriter {
+    pub fn new(rtps_writer: T, type_name: &'static str, topic_name: String) -> Self {
+        DdsDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
             type_name,
             topic_name,
             matched_subscriptions: DdsRwLock::new(MatchedSubscriptions::new()),
             incompatible_subscriptions: DdsRwLock::new(IncompatibleSubscriptions::new()),
             enabled: DdsRwLock::new(false),
-        })
+        }
     }
 
     pub fn get_publication_matched_status(&self) -> PublicationMatchedStatus {
@@ -693,7 +693,7 @@ mod test {
         }
     }
 
-    fn create_data_writer_test_fixture() -> DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
+    fn create_data_writer_test_fixture() -> DdsDataWriter<RtpsStatefulWriter> {
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             true,

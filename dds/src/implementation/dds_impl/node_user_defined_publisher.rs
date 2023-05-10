@@ -63,7 +63,7 @@ impl UserDefinedPublisherNode {
         domain_participant: &mut DdsDomainParticipant,
         data_writer_guid: Guid,
     ) -> DdsResult<()> {
-        let data_writer = domain_participant
+        let data_writer_guid = domain_participant
             .user_defined_publisher_list_mut()
             .iter_mut()
             .find(|p| p.guid() == self.this)
@@ -76,20 +76,34 @@ impl UserDefinedPublisherNode {
                     "Data writer can only be deleted from its parent publisher".to_string(),
                 )
             })?
-            .clone();
+            .guid();
 
         domain_participant
             .user_defined_publisher_list_mut()
             .iter_mut()
             .find(|p| p.guid() == self.this)
             .ok_or(DdsError::AlreadyDeleted)?
-            .stateful_datawriter_delete(InstanceHandle::from(data_writer.guid()));
+            .stateful_datawriter_delete(InstanceHandle::from(data_writer_guid));
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
-        if data_writer.is_enabled() {
+        if domain_participant
+            .user_defined_publisher_list_mut()
+            .iter_mut()
+            .find(|p| p.guid() == self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .stateful_data_writer_list()
+            .iter()
+            .find(|x| x.guid() == data_writer_guid)
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(
+                    "Data writer can only be deleted from its parent publisher".to_string(),
+                )
+            })?
+            .is_enabled()
+        {
             domain_participant
                 .announce_sender()
-                .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+                .send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
                 .ok();
         }
 
@@ -162,11 +176,11 @@ impl UserDefinedPublisherNode {
 
     pub fn set_default_datawriter_qos(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<DataWriterQos>,
     ) -> DdsResult<()> {
         domain_participant
-            .get_publisher(self.this)
+            .get_publisher_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .set_default_datawriter_qos(qos)
     }
@@ -348,10 +362,10 @@ where
 
     let data_writer = DdsDataWriter::new(rtps_writer_impl, type_name, topic_name);
 
-    publisher.stateful_datawriter_add(data_writer.clone());
-
     let data_writer_node =
         UserDefinedDataWriterNode::new(data_writer.guid(), publisher_guid, domain_participant_guid);
+
+    publisher.stateful_datawriter_add(data_writer);
 
     if publisher.is_enabled()
         && publisher
