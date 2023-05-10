@@ -1692,21 +1692,20 @@ fn discover_matched_participants(
     domain_participant: &mut DdsDomainParticipant,
     sedp_condvar: &DdsCondvar,
 ) -> DdsResult<()> {
-    let spdp_builtin_participant_data_reader = domain_participant
+    while let Ok(samples) = domain_participant
         .get_builtin_subscriber()
         .stateless_data_reader_list()
         .iter()
         .find(|x| x.get_topic_name() == DCPS_PARTICIPANT)
         .unwrap()
-        .clone();
-
-    while let Ok(samples) = spdp_builtin_participant_data_reader.read(
-        1,
-        &[SampleStateKind::NotRead],
-        ANY_VIEW_STATE,
-        ANY_INSTANCE_STATE,
-        None,
-    ) {
+        .read(
+            1,
+            &[SampleStateKind::NotRead],
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+            None,
+        )
+    {
         for discovered_participant_data_sample in samples.into_iter() {
             if let Some(discovered_participant_data) = discovered_participant_data_sample.data {
                 add_discovered_participant(domain_participant, discovered_participant_data);

@@ -1,18 +1,15 @@
 use std::sync::mpsc::Sender;
 
 use crate::{
-    implementation::{
-        rtps::{
-            group::RtpsGroup,
-            messages::submessages::{
-                DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
-                HeartbeatSubmessage,
-            },
-            stateful_reader::RtpsStatefulReader,
-            stateless_reader::RtpsStatelessReader,
-            types::{Guid, GuidPrefix},
+    implementation::rtps::{
+        group::RtpsGroup,
+        messages::submessages::{
+            DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
+            HeartbeatSubmessage,
         },
-        utils::shared_object::{DdsRwLock, DdsShared},
+        stateful_reader::RtpsStatefulReader,
+        stateless_reader::RtpsStatelessReader,
+        types::{Guid, GuidPrefix},
     },
     infrastructure::{
         error::DdsResult,
@@ -28,25 +25,25 @@ use super::{
 };
 
 pub struct DdsSubscriber {
-    qos: DdsRwLock<SubscriberQos>,
+    qos: SubscriberQos,
     rtps_group: RtpsGroup,
-    stateless_data_reader_list: Vec<DdsShared<DdsDataReader<RtpsStatelessReader>>>,
-    stateful_data_reader_list: Vec<DdsShared<DdsDataReader<RtpsStatefulReader>>>,
-    enabled: DdsRwLock<bool>,
-    user_defined_data_reader_counter: DdsRwLock<u8>,
-    default_data_reader_qos: DdsRwLock<DataReaderQos>,
+    stateless_data_reader_list: Vec<DdsDataReader<RtpsStatelessReader>>,
+    stateful_data_reader_list: Vec<DdsDataReader<RtpsStatefulReader>>,
+    enabled: bool,
+    user_defined_data_reader_counter: u8,
+    default_data_reader_qos: DataReaderQos,
 }
 
 impl DdsSubscriber {
     pub fn new(qos: SubscriberQos, rtps_group: RtpsGroup) -> Self {
         DdsSubscriber {
-            qos: DdsRwLock::new(qos),
+            qos,
             rtps_group,
             stateless_data_reader_list: Vec::new(),
             stateful_data_reader_list: Vec::new(),
-            enabled: DdsRwLock::new(false),
-            user_defined_data_reader_counter: DdsRwLock::new(0),
-            default_data_reader_qos: DdsRwLock::new(Default::default()),
+            enabled: false,
+            user_defined_data_reader_counter: 0,
+            default_data_reader_qos: Default::default(),
         }
     }
 
@@ -62,24 +59,20 @@ impl DdsSubscriber {
     }
 
     pub fn is_enabled(&self) -> bool {
-        *self.enabled.read_lock()
+        self.enabled
     }
 
     pub fn get_qos(&self) -> SubscriberQos {
-        self.qos.read_lock().clone()
+        self.qos.clone()
     }
 
-    pub fn get_unique_reader_id(&self) -> u8 {
-        let mut counter_lock = self.user_defined_data_reader_counter.write_lock();
-        let counter = *counter_lock;
-        *counter_lock += 1;
+    pub fn get_unique_reader_id(&mut self) -> u8 {
+        let counter = self.user_defined_data_reader_counter;
+        self.user_defined_data_reader_counter += 1;
         counter
     }
 
-    pub fn stateless_data_reader_add(
-        &mut self,
-        data_reader: DdsShared<DdsDataReader<RtpsStatelessReader>>,
-    ) {
+    pub fn stateless_data_reader_add(&mut self, data_reader: DdsDataReader<RtpsStatelessReader>) {
         self.stateless_data_reader_list.push(data_reader)
     }
 
@@ -88,23 +81,20 @@ impl DdsSubscriber {
             .retain(|x| x._get_instance_handle() != a_datareader_handle)
     }
 
-    pub fn stateless_data_reader_list(&self) -> &[DdsShared<DdsDataReader<RtpsStatelessReader>>] {
+    pub fn stateless_data_reader_list(&self) -> &[DdsDataReader<RtpsStatelessReader>] {
         &self.stateless_data_reader_list
     }
 
     pub fn get_stateless_data_reader(
         &self,
         data_reader: Guid,
-    ) -> Option<&DdsShared<DdsDataReader<RtpsStatelessReader>>> {
+    ) -> Option<&DdsDataReader<RtpsStatelessReader>> {
         self.stateless_data_reader_list
             .iter()
             .find(|s| s.guid() == data_reader)
     }
 
-    pub fn stateful_data_reader_add(
-        &mut self,
-        data_reader: DdsShared<DdsDataReader<RtpsStatefulReader>>,
-    ) {
+    pub fn stateful_data_reader_add(&mut self, data_reader: DdsDataReader<RtpsStatefulReader>) {
         self.stateful_data_reader_list.push(data_reader)
     }
 
@@ -113,14 +103,14 @@ impl DdsSubscriber {
             .retain(|x| x.get_instance_handle() != a_datareader_handle)
     }
 
-    pub fn stateful_data_reader_list(&self) -> &[DdsShared<DdsDataReader<RtpsStatefulReader>>] {
+    pub fn stateful_data_reader_list(&self) -> &[DdsDataReader<RtpsStatefulReader>] {
         &self.stateful_data_reader_list
     }
 
     pub fn get_stateful_data_reader(
         &self,
         data_reader: Guid,
-    ) -> Option<&DdsShared<DdsDataReader<RtpsStatefulReader>>> {
+    ) -> Option<&DdsDataReader<RtpsStatefulReader>> {
         self.stateful_data_reader_list
             .iter()
             .find(|s| s.guid() == data_reader)
@@ -128,25 +118,23 @@ impl DdsSubscriber {
 
     pub fn stateful_data_reader_drain(
         &mut self,
-    ) -> std::vec::Drain<DdsShared<DdsDataReader<RtpsStatefulReader>>> {
+    ) -> std::vec::Drain<DdsDataReader<RtpsStatefulReader>> {
         self.stateful_data_reader_list.drain(..)
     }
 
-    pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+    pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match qos {
-            QosKind::Default => {
-                *self.default_data_reader_qos.write_lock() = DataReaderQos::default()
-            }
+            QosKind::Default => self.default_data_reader_qos = DataReaderQos::default(),
             QosKind::Specific(q) => {
                 q.is_consistent()?;
-                *self.default_data_reader_qos.write_lock() = q;
+                self.default_data_reader_qos = q;
             }
         }
         Ok(())
     }
 
     pub fn get_default_datareader_qos(&self) -> DataReaderQos {
-        self.default_data_reader_qos.read_lock().clone()
+        self.default_data_reader_qos.clone()
     }
 
     pub fn update_communication_status(
@@ -165,30 +153,25 @@ impl DdsSubscriber {
         }
     }
 
-    pub fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
+    pub fn set_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
         };
 
-        if *self.enabled.read_lock() {
-            self.qos.read_lock().check_immutability(&qos)?;
+        if self.enabled {
+            self.qos.check_immutability(&qos)?;
         }
 
-        *self.qos.write_lock() = qos;
+        self.qos = qos;
 
         Ok(())
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
-        *self.enabled.write_lock() = true;
+    pub fn enable(&mut self) -> DdsResult<()> {
+        self.enabled = true;
 
-        if self
-            .qos
-            .read_lock()
-            .entity_factory
-            .autoenable_created_entities
-        {
+        if self.qos.entity_factory.autoenable_created_entities {
             for data_reader in self.stateful_data_reader_list.iter() {
                 data_reader.enable()?;
             }

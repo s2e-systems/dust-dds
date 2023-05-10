@@ -80,7 +80,7 @@ impl UserDefinedSubscriberNode {
                     .entity_key(),
             )[0],
             domain_participant
-                .get_subscriber(self.this)
+                .get_subscriber_mut(self.this)
                 .ok_or(DdsError::AlreadyDeleted)?
                 .get_unique_reader_id(),
             0,
@@ -156,13 +156,7 @@ impl UserDefinedSubscriberNode {
                 DdsError::PreconditionNotMet(
                     "Data reader can only be deleted from its parent subscriber".to_string(),
                 )
-            })?
-            .clone();
-
-        domain_participant
-            .get_subscriber_mut(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .stateful_data_reader_delete(a_datareader_handle);
+            })?;
 
         if data_reader.is_enabled() {
             domain_participant
@@ -173,6 +167,11 @@ impl UserDefinedSubscriberNode {
                 .ok();
         }
 
+        domain_participant
+            .get_subscriber_mut(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .stateful_data_reader_delete(a_datareader_handle);
+
         Ok(())
     }
 
@@ -182,7 +181,7 @@ impl UserDefinedSubscriberNode {
         type_name: &str,
         topic_name: &str,
     ) -> DdsResult<Option<UserDefinedDataReaderNode>> {
-        let reader = domain_participant
+        let reader_guid = domain_participant
             .get_subscriber(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_list()
@@ -191,10 +190,10 @@ impl UserDefinedSubscriberNode {
                 data_reader.get_topic_name() == topic_name
                     && data_reader.get_type_name() == type_name
             })
-            .cloned()
-            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?;
+            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?
+            .guid();
         Ok(Some(UserDefinedDataReaderNode::new(
-            reader.guid(),
+            reader_guid,
             self.this,
             self.parent,
         )))
@@ -236,11 +235,11 @@ impl UserDefinedSubscriberNode {
 
     pub fn set_default_datareader_qos(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<DataReaderQos>,
     ) -> DdsResult<()> {
         domain_participant
-            .get_subscriber(self.this)
+            .get_subscriber_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .set_default_datareader_qos(qos)
     }
@@ -257,11 +256,11 @@ impl UserDefinedSubscriberNode {
 
     pub fn set_qos(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<SubscriberQos>,
     ) -> DdsResult<()> {
         domain_participant
-            .get_subscriber(self.this)
+            .get_subscriber_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .set_qos(qos)
     }
@@ -283,7 +282,7 @@ impl UserDefinedSubscriberNode {
         // Ok(())
     }
 
-    pub fn enable(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
+    pub fn enable(&self, domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
         let is_parent_enabled = domain_participant.is_enabled();
         if !is_parent_enabled {
             return Err(DdsError::PreconditionNotMet(
@@ -297,7 +296,7 @@ impl UserDefinedSubscriberNode {
             .is_enabled()
         {
             domain_participant
-                .get_subscriber(self.this)
+                .get_subscriber_mut(self.this)
                 .ok_or(DdsError::AlreadyDeleted)?
                 .enable()?;
 

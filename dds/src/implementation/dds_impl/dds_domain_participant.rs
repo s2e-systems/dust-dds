@@ -526,7 +526,7 @@ impl DdsDomainParticipant {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group);
+        let mut subscriber = DdsSubscriber::new(subscriber_qos, rtps_group);
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
             subscriber.enable()?;
         }
@@ -892,7 +892,7 @@ impl DdsDomainParticipant {
                     publisher.enable();
                 }
 
-                for subscriber in self.user_defined_subscriber_list.iter() {
+                for subscriber in self.user_defined_subscriber_list.iter_mut() {
                     subscriber.enable()?;
                 }
 

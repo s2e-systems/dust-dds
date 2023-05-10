@@ -25,7 +25,7 @@ use crate::{
             types::{Guid, GuidPrefix, Locator, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
-        utils::shared_object::{DdsRwLock, DdsShared},
+        utils::shared_object::DdsRwLock,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -188,8 +188,8 @@ pub struct DdsDataReader<T> {
 }
 
 impl<T> DdsDataReader<T> {
-    pub fn new(rtps_reader: T, type_name: &'static str, topic_name: String) -> DdsShared<Self> {
-        DdsShared::new(DdsDataReader {
+    pub fn new(rtps_reader: T, type_name: &'static str, topic_name: String) -> Self {
+        DdsDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             type_name,
             topic_name,
@@ -208,7 +208,7 @@ impl<T> DdsDataReader<T> {
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
             incompatible_writer_list: DdsRwLock::new(HashSet::new()),
-        })
+        }
     }
 
     pub fn get_type_name(&self) -> &'static str {
@@ -259,7 +259,7 @@ impl<T> DdsDataReader<T> {
     }
 }
 
-impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
+impl DdsDataReader<RtpsStatefulReader> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
