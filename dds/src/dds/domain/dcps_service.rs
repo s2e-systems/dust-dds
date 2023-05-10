@@ -1523,27 +1523,27 @@ fn user_defined_stateful_writer_send_message(
     let writer_id = writer.guid().entity_id();
     let first_sn = writer
         .change_list()
-        .into_iter()
+        .iter()
         .map(|x| x.sequence_number())
         .min()
         .unwrap_or_else(|| SequenceNumber::new(1));
     let last_sn = writer
         .change_list()
-        .into_iter()
+        .iter()
         .map(|x| x.sequence_number())
         .max()
         .unwrap_or_else(|| SequenceNumber::new(0));
     let heartbeat_period = writer.heartbeat_period();
-    for mut reader_proxy in &mut writer.matched_reader_list() {
+    for reader_proxy in &mut writer.matched_reader_list() {
         match reader_proxy.reliability() {
             ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
-                &mut reader_proxy,
+                reader_proxy,
                 data_max_size_serialized,
                 header,
                 transport,
             ),
             ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
-                &mut reader_proxy,
+                reader_proxy,
                 data_max_size_serialized,
                 header,
                 transport,
@@ -1694,7 +1694,7 @@ pub fn subscriber_add_matched_writer(
         || is_subscriber_regex_matched_to_discovered_writer
         || is_partition_string_matched
     {
-        let user_defined_subscriber_qos = user_defined_subscriber.get_qos().clone();
+        let user_defined_subscriber_qos = user_defined_subscriber.get_qos();
         let user_defined_subscriber_guid = user_defined_subscriber.guid();
         for data_reader in user_defined_subscriber.stateful_data_reader_list_mut() {
             data_reader.add_matched_writer(
@@ -2149,27 +2149,27 @@ fn user_defined_communication_send(
             let heartbeat_period = data_writer.heartbeat_period();
             let first_sn = data_writer
                 .change_list()
-                .into_iter()
+                .iter()
                 .map(|x| x.sequence_number())
                 .min()
                 .unwrap_or(SequenceNumber::new(1));
             let last_sn = data_writer
                 .change_list()
-                .into_iter()
+                .iter()
                 .map(|x| x.sequence_number())
                 .max()
                 .unwrap_or_else(|| SequenceNumber::new(0));
             remove_stale_writer_changes(data_writer, now);
-            for mut reader_proxy in &mut data_writer.matched_reader_list() {
+            for reader_proxy in &mut data_writer.matched_reader_list() {
                 match reader_proxy.reliability() {
                     ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
-                        &mut reader_proxy,
+                        reader_proxy,
                         data_max_size_serialized,
                         header,
                         default_unicast_transport_send,
                     ),
                     ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
-                        &mut reader_proxy,
+                        reader_proxy,
                         data_max_size_serialized,
                         header,
                         default_unicast_transport_send,

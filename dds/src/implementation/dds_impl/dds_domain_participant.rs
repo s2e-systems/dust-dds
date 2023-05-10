@@ -640,8 +640,7 @@ impl DdsDomainParticipant {
             .topic_list
             .iter()
             .find(|&topic| topic.guid() == topic_guid)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .clone();
+            .ok_or(DdsError::AlreadyDeleted)?;
 
         for publisher in self.user_defined_publisher_list() {
             if publisher.stateful_data_writer_list().iter().any(|w| {
