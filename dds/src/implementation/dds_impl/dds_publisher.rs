@@ -1,5 +1,3 @@
-use std::sync::RwLockWriteGuard;
-
 use crate::{
     implementation::{
         rtps::{
@@ -15,15 +13,10 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
-        status::StatusKind,
     },
-    publication::publisher_listener::PublisherListener,
 };
 
-use super::{
-    dds_data_writer::DdsDataWriter, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener,
-};
+use super::dds_data_writer::DdsDataWriter;
 
 pub struct DdsPublisher {
     qos: DdsRwLock<PublisherQos>,
@@ -31,27 +24,18 @@ pub struct DdsPublisher {
     stateless_data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatelessWriter>>>>,
     stateful_data_writer_list: Vec<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>,
     enabled: DdsRwLock<bool>,
-    status_listener: DdsRwLock<StatusListener<dyn PublisherListener + Send + Sync>>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     user_defined_data_writer_counter: DdsRwLock<u8>,
     default_datawriter_qos: DdsRwLock<DataWriterQos>,
 }
 
 impl DdsPublisher {
-    pub fn new(
-        qos: PublisherQos,
-        rtps_group: RtpsGroup,
-        listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) -> Self {
+    pub fn new(qos: PublisherQos, rtps_group: RtpsGroup) -> Self {
         Self {
             qos: DdsRwLock::new(qos),
             rtps_group,
             stateless_data_writer_list: DdsRwLock::new(Vec::new()),
             stateful_data_writer_list: Vec::new(),
             enabled: DdsRwLock::new(false),
-            status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             user_defined_data_writer_counter: DdsRwLock::new(0),
             default_datawriter_qos: DdsRwLock::new(DataWriterQos::default()),
         }
@@ -130,12 +114,6 @@ impl DdsPublisher {
             .find(|dw| dw.guid() == data_writer_guid)
     }
 
-    pub fn get_status_listener_lock(
-        &self,
-    ) -> RwLockWriteGuard<StatusListener<dyn PublisherListener + Send + Sync>> {
-        self.status_listener.write_lock()
-    }
-
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         match qos {
             QosKind::Default => {
@@ -170,14 +148,6 @@ impl DdsPublisher {
 
     pub fn get_qos(&self) -> PublisherQos {
         self.qos.read_lock().clone()
-    }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
-    }
-
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn guid(&self) -> Guid {

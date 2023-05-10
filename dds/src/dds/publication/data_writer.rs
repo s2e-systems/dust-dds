@@ -3,10 +3,7 @@ use std::{marker::PhantomData, time::Instant};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    implementation::dds_impl::{
-        any_data_writer_listener::AnyDataWriterListener,
-        node_kind::{DataWriterNodeKind, TopicNodeKind},
-    },
+    implementation::dds_impl::node_kind::{DataWriterNodeKind, TopicNodeKind},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -37,8 +34,13 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> Drop for DataWriter<Foo> {
     fn drop(&mut self) {
-        if let Ok(p) = self.get_publisher() {
-            p.delete_datawriter(self).ok();
+        match self.0 {
+            DataWriterNodeKind::Listener(_) => (),
+            DataWriterNodeKind::UserDefined(_) => {
+                if let Ok(p) = self.get_publisher() {
+                    p.delete_datawriter(self).ok();
+                }
+            }
         }
     }
 }
@@ -391,7 +393,21 @@ impl<Foo> DataWriter<Foo> {
     /// This operation allows access to the [`LivelinessLostStatus`].
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_liveliness_lost_status(),
+            DataWriterNodeKind::UserDefined(w) => {
+                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                    .get_participant_mut(&w.guid().prefix(), |dp| {
+                        w.get_liveliness_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                    })?;
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+                    &w.guid(),
+                    |data_writer_listener| {
+                        if let Some(l) = data_writer_listener {
+                            l.remove_communication_state(StatusKind::LivelinessLost);
+                        }
+                    },
+                );
+                Ok(status)
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -399,7 +415,21 @@ impl<Foo> DataWriter<Foo> {
     /// This operation allows access to the [`OfferedDeadlineMissedStatus`].
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_offered_deadline_missed_status(),
+            DataWriterNodeKind::UserDefined(w) => {
+                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                    .get_participant_mut(&w.guid().prefix(), |dp| {
+                        w.get_offered_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                    })?;
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+                    &w.guid(),
+                    |data_writer_listener| {
+                        if let Some(l) = data_writer_listener {
+                            l.remove_communication_state(StatusKind::OfferedDeadlineMissed);
+                        }
+                    },
+                );
+                Ok(status)
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -407,7 +437,21 @@ impl<Foo> DataWriter<Foo> {
     /// This operation allows access to the [`OfferedIncompatibleQosStatus`].
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_offered_incompatible_qos_status(),
+            DataWriterNodeKind::UserDefined(w) => {
+                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                    .get_participant_mut(&w.guid().prefix(), |dp| {
+                        w.get_offered_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                    })?;
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+                    &w.guid(),
+                    |data_writer_listener| {
+                        if let Some(l) = data_writer_listener {
+                            l.remove_communication_state(StatusKind::OfferedIncompatibleQos);
+                        }
+                    },
+                );
+                Ok(status)
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -415,10 +459,22 @@ impl<Foo> DataWriter<Foo> {
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.guid().prefix(), |dp| {
-                    w.get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
-                }),
+            DataWriterNodeKind::UserDefined(w) => {
+                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                    .get_participant_mut(&w.guid().prefix(), |dp| {
+                        w.get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                    })?;
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+                    &w.guid(),
+                    |data_writer_listener| {
+                        if let Some(l) = data_writer_listener {
+                            l.remove_communication_state(StatusKind::PublicationMatched);
+                        }
+                    },
+                );
+
+                Ok(status)
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -541,21 +597,22 @@ where
     /// will be removed.
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
-        match &self.0 {
-            DataWriterNodeKind::UserDefined(w) =>
-            {
-                #[allow(clippy::redundant_closure)]
-                w.set_listener(
-                    a_listener
-                        .map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|l| Box::new(l)),
-                    mask,
-                )
-            }
-            DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        }
+        todo!()
+        // match &self.0 {
+        //     DataWriterNodeKind::UserDefined(w) =>
+        //     {
+        //         #[allow(clippy::redundant_closure)]
+        //         w.set_listener(
+        //             a_listener
+        //                 .map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|l| Box::new(l)),
+        //             mask,
+        //         )
+        //     }
+        //     DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+        // }
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -564,10 +621,10 @@ where
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.guid().prefix(), |dp| {
-                    Ok(StatusCondition::new(w.get_statuscondition(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                    )?))
+                .get_data_writer_listener(&w.guid(), |data_writer_listener| {
+                    Ok(data_writer_listener
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .get_status_condition())
                 }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
@@ -581,7 +638,12 @@ where
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_status_changes(),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_data_writer_listener(&w.guid(), |data_writer_listener| {
+                    Ok(data_writer_listener
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .get_status_changes())
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }

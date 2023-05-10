@@ -1,11 +1,10 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::RwLockWriteGuard,
+    sync::mpsc::Sender,
 };
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -26,10 +25,7 @@ use crate::{
             types::{Guid, GuidPrefix, Locator, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
-        utils::{
-            node::RootNode,
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -43,22 +39,20 @@ use crate::{
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
+            SampleRejectedStatusKind, SubscriptionMatchedStatus,
         },
         time::{DurationKind, Time},
     },
     subscription::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
-        subscriber_listener::SubscriberListener,
     },
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, message_receiver::MessageReceiver,
-    node_listener_data_reader::ListenerDataReaderNode, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener,
+    message_receiver::MessageReceiver, node_user_defined_data_reader::UserDefinedDataReaderNode,
+    status_listener::ListenerTriggerKind,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -180,7 +174,6 @@ pub struct DdsDataReader<T> {
     rtps_reader: DdsRwLock<T>,
     type_name: &'static str,
     topic_name: String,
-    status_listener: DdsRwLock<StatusListener<dyn AnyDataReaderListener + Send + Sync>>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
@@ -189,25 +182,17 @@ pub struct DdsDataReader<T> {
     subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
     matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
     data_available_status_changed_flag: DdsRwLock<bool>,
     incompatible_writer_list: DdsRwLock<HashSet<InstanceHandle>>,
 }
 
 impl<T> DdsDataReader<T> {
-    pub fn new(
-        rtps_reader: T,
-        type_name: &'static str,
-        topic_name: String,
-        listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) -> DdsShared<Self> {
+    pub fn new(rtps_reader: T, type_name: &'static str, topic_name: String) -> DdsShared<Self> {
         DdsShared::new(DdsDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             type_name,
             topic_name,
-            status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus::default()),
             requested_deadline_missed_status: DdsRwLock::new(
                 RequestedDeadlineMissedStatus::default(),
@@ -220,17 +205,10 @@ impl<T> DdsDataReader<T> {
             subscription_matched_status: DdsRwLock::new(SubscriptionMatchedStatus::default()),
             matched_publication_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
             incompatible_writer_list: DdsRwLock::new(HashSet::new()),
         })
-    }
-
-    pub fn get_status_listener_lock(
-        &self,
-    ) -> RwLockWriteGuard<StatusListener<dyn AnyDataReaderListener + Send + Sync>> {
-        self.status_listener.write_lock()
     }
 
     pub fn get_type_name(&self) -> &'static str {
@@ -262,27 +240,13 @@ impl<T> DdsDataReader<T> {
     }
 
     pub fn get_sample_rejected_status(&self) -> SampleRejectedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SampleRejected);
         self.sample_rejected_status.write_lock().read_and_reset()
     }
 
     pub fn get_subscription_matched_status(&self) -> SubscriptionMatchedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SubscriptionMatched);
         self.subscription_matched_status
             .write_lock()
             .read_and_reset(self.matched_publication_list.read_lock().len() as i32)
-    }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
-    }
-
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -300,10 +264,9 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_subscriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
         let data_submessage_received_result = self
             .rtps_reader
@@ -321,7 +284,11 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                 self.instance_reception_time
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
-
+                self.on_data_available(
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
@@ -329,15 +296,25 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
-                self.on_sample_lost(subscriber_status_listener, participant_status_listener);
+                self.on_sample_lost(
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
+                self.on_data_available(
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
                 self.on_sample_rejected(
                     instance_handle,
                     rejected_reason,
-                    subscriber_status_listener,
-                    participant_status_listener,
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
@@ -351,10 +328,9 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         &self,
         data_frag_submessage: &DataFragSubmessage<'_>,
         message_receiver: &MessageReceiver,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_subscriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
         let data_submessage_received_result = self
             .rtps_reader
@@ -373,6 +349,11 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
+                self.on_data_available(
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
@@ -380,15 +361,25 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
-                self.on_sample_lost(subscriber_status_listener, participant_status_listener);
+                self.on_sample_lost(
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
+                self.on_data_available(
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
                 self.on_sample_rejected(
                     instance_handle,
                     rejected_reason,
-                    subscriber_status_listener,
-                    participant_status_listener,
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
@@ -418,16 +409,16 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
             .on_heartbeat_frag_submessage_received(heartbeat_frag_submessage, source_guid_prefix);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn add_matched_writer(
         &self,
         discovered_writer_data: &DiscoveredWriterData,
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
         subscriber_qos: &SubscriberQos,
+        parent_subscriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
@@ -485,13 +476,15 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                     Some(value) if &value != publication_builtin_topic_data => self
                         .on_subscription_matched(
                             instance_handle,
-                            subscriber_status_listener,
-                            participant_status_listener,
+                            parent_subscriber_guid,
+                            parent_participant_guid,
+                            listener_sender,
                         ),
                     None => self.on_subscription_matched(
                         instance_handle,
-                        subscriber_status_listener,
-                        participant_status_listener,
+                        parent_subscriber_guid,
+                        parent_participant_guid,
+                        listener_sender,
                     ),
                     _ => (),
                 }
@@ -502,8 +495,9 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
             {
                 self.on_requested_incompatible_qos(
                     incompatible_qos_policy_list,
-                    subscriber_status_listener,
-                    participant_status_listener,
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                    listener_sender,
                 );
             }
         }
@@ -552,10 +546,9 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
     pub fn remove_matched_writer(
         &self,
         discovered_writer_handle: InstanceHandle,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_subscriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         let matched_publication = self
             .matched_publication_list
@@ -568,8 +561,9 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
 
             self.on_subscription_matched(
                 discovered_writer_handle,
-                subscriber_status_listener,
-                participant_status_listener,
+                parent_subscriber_guid,
+                parent_participant_guid,
+                listener_sender,
             )
         }
     }
@@ -793,10 +787,9 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
     pub fn update_communication_status(
         &self,
         now: Time,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_participant_guid: Guid,
+        parent_subcriber_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         let (missed_deadline_instances, instance_reception_time) = self
             .instance_reception_time
@@ -810,11 +803,19 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         *self.instance_reception_time.write_lock() = instance_reception_time;
 
         for (missed_deadline_instance, _) in missed_deadline_instances {
-            self.on_requested_deadline_missed(
-                missed_deadline_instance,
-                subscriber_status_listener,
-                participant_status_listener,
-            );
+            self.requested_deadline_missed_status
+                .write_lock()
+                .increment(missed_deadline_instance);
+
+            listener_sender
+                .send(ListenerTriggerKind::RequestedDeadlineMissed(
+                    UserDefinedDataReaderNode::new(
+                        self.guid(),
+                        parent_subcriber_guid,
+                        parent_participant_guid,
+                    ),
+                ))
+                .ok();
         }
     }
 
@@ -830,353 +831,105 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
 
     pub fn on_data_available(
         &self,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_subcriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
-        self.trigger_on_data_available_listener(
-            &mut self.status_listener.write_lock(),
-            participant_status_listener,
-        );
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::DataAvailable);
-    }
-
-    fn trigger_on_data_available_listener(
-        &self,
-        reader_status_listener: &mut StatusListener<dyn AnyDataReaderListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let on_data_available_status_kind = &StatusKind::DataAvailable;
-        if reader_status_listener.is_enabled(on_data_available_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_data_available(ListenerDataReaderNode::new(RootNode::new(
-                    self.downgrade(),
-                )))
-        } else if participant_status_listener.is_enabled(on_data_available_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_data_available(&ListenerDataReaderNode::new(RootNode::new(
-                    self.downgrade(),
-                )))
-        }
+        listener_sender
+            .send(ListenerTriggerKind::OnDataAvailable(
+                UserDefinedDataReaderNode::new(
+                    self.guid(),
+                    parent_subcriber_guid,
+                    parent_participant_guid,
+                ),
+            ))
+            .unwrap();
     }
 
     fn on_sample_lost(
         &self,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_subscriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         self.sample_lost_status.write_lock().increment();
 
-        self.trigger_on_sample_lost_listener(
-            &mut self.status_listener.write_lock(),
-            subscriber_status_listener,
-            participant_status_listener,
-        );
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SampleLost);
-    }
-
-    fn trigger_on_sample_lost_listener(
-        &self,
-        reader_status_listener: &mut StatusListener<dyn AnyDataReaderListener + Send + Sync>,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let sample_lost_status_kind = &StatusKind::SampleLost;
-        if reader_status_listener.is_enabled(sample_lost_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_sample_lost(
-                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_lost_status(),
-                )
-        } else if subscriber_status_listener.is_enabled(sample_lost_status_kind) {
-            subscriber_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_sample_lost(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_lost_status(),
-                )
-        } else if participant_status_listener.is_enabled(sample_lost_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_sample_lost(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_lost_status(),
-                )
-        }
+        listener_sender
+            .send(ListenerTriggerKind::OnSampleLost(
+                UserDefinedDataReaderNode::new(
+                    self.guid(),
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                ),
+            ))
+            .ok();
     }
 
     fn on_subscription_matched(
         &self,
         instance_handle: InstanceHandle,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_subscriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         self.subscription_matched_status
             .write_lock()
             .increment(instance_handle);
 
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SubscriptionMatched);
-
-        self.trigger_on_subscription_matched_listener(
-            &mut self.get_status_listener_lock(),
-            subscriber_status_listener,
-            participant_status_listener,
-        );
-    }
-
-    fn trigger_on_subscription_matched_listener(
-        &self,
-        reader_status_listener: &mut StatusListener<dyn AnyDataReaderListener + Send + Sync>,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let subscription_matched_status_kind = &StatusKind::SubscriptionMatched;
-        if reader_status_listener.is_enabled(subscription_matched_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_subscription_matched(
-                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_subscription_matched_status(),
-                )
-        } else if subscriber_status_listener.is_enabled(subscription_matched_status_kind) {
-            subscriber_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_subscription_matched(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_subscription_matched_status(),
-                )
-        } else if participant_status_listener.is_enabled(subscription_matched_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_subscription_matched(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_subscription_matched_status(),
-                )
-        }
+        listener_sender
+            .send(ListenerTriggerKind::SubscriptionMatched(
+                UserDefinedDataReaderNode::new(
+                    self.guid(),
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                ),
+            ))
+            .ok();
     }
 
     fn on_sample_rejected(
         &self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_subscriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         self.sample_rejected_status
             .write_lock()
             .increment(instance_handle, rejected_reason);
 
-        self.trigger_on_sample_rejected_listener(
-            &mut self.status_listener.write_lock(),
-            subscriber_status_listener,
-            participant_status_listener,
-        );
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SampleRejected);
-    }
-
-    fn trigger_on_sample_rejected_listener(
-        &self,
-        reader_status_listener: &mut StatusListener<dyn AnyDataReaderListener + Send + Sync>,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let sample_rejected_status_kind = &StatusKind::SampleRejected;
-        if reader_status_listener.is_enabled(sample_rejected_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_sample_rejected(
-                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_rejected_status(),
-                )
-        } else if subscriber_status_listener.is_enabled(sample_rejected_status_kind) {
-            subscriber_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_sample_rejected(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_rejected_status(),
-                )
-        } else if participant_status_listener.is_enabled(sample_rejected_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_sample_rejected(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_rejected_status(),
-                )
-        }
-    }
-
-    fn on_requested_deadline_missed(
-        &self,
-        instance_handle: InstanceHandle,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        self.requested_deadline_missed_status
-            .write_lock()
-            .increment(instance_handle);
-
-        self.trigger_on_requested_deadline_missed_listener(
-            &mut self.status_listener.write_lock(),
-            subscriber_status_listener,
-            participant_status_listener,
-        );
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::RequestedDeadlineMissed);
-    }
-
-    fn trigger_on_requested_deadline_missed_listener(
-        &self,
-        reader_status_listener: &mut StatusListener<dyn AnyDataReaderListener + Send + Sync>,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let requested_deadline_missed_status_kind = &StatusKind::RequestedDeadlineMissed;
-        if reader_status_listener.is_enabled(requested_deadline_missed_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_requested_deadline_missed(
-                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_deadline_missed_status(),
-                )
-        } else if subscriber_status_listener.is_enabled(requested_deadline_missed_status_kind) {
-            subscriber_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_requested_deadline_missed(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_deadline_missed_status(),
-                )
-        } else if participant_status_listener.is_enabled(requested_deadline_missed_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_requested_deadline_missed(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_deadline_missed_status(),
-                )
-        }
+        listener_sender
+            .send(ListenerTriggerKind::OnSampleRejected(
+                UserDefinedDataReaderNode::new(
+                    self.guid(),
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                ),
+            ))
+            .ok();
     }
 
     fn on_requested_incompatible_qos(
         &self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_subscriber_guid: Guid,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         self.requested_incompatible_qos_status
             .write_lock()
             .increment(incompatible_qos_policy_list);
 
-        self.trigger_on_requested_incompatible_qos_listener(
-            &mut self.status_listener.write_lock(),
-            subscriber_status_listener,
-            participant_status_listener,
-        );
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::RequestedIncompatibleQos);
-    }
-
-    fn trigger_on_requested_incompatible_qos_listener(
-        &self,
-        reader_status_listener: &mut StatusListener<dyn AnyDataReaderListener + Send + Sync>,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let requested_incompatible_qos_status_kind = &StatusKind::RequestedIncompatibleQos;
-        if reader_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_requested_incompatible_qos(
-                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_incompatible_qos_status(),
-                )
-        } else if subscriber_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
-            subscriber_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_requested_incompatible_qos(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_incompatible_qos_status(),
-                )
-        } else if participant_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_requested_incompatible_qos(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_incompatible_qos_status(),
-                )
-        }
+        listener_sender
+            .send(ListenerTriggerKind::RequestedIncompatibleQos(
+                UserDefinedDataReaderNode::new(
+                    self.guid(),
+                    parent_subscriber_guid,
+                    parent_participant_guid,
+                ),
+            ))
+            .ok();
     }
 }
 

@@ -5,7 +5,6 @@ use crate::{
             DiscoveredWriterData, WriterProxy,
         },
         rtps::types::Guid,
-        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -13,20 +12,21 @@ use crate::{
         qos::{DataWriterQos, QosKind},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus, StatusKind,
+            PublicationMatchedStatus,
         },
         time::Time,
     },
+    publication::data_writer::AnyDataWriter,
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, dds_domain_participant::DdsDomainParticipant,
+    dds_domain_participant::DdsDomainParticipant,
     node_user_defined_publisher::UserDefinedPublisherNode,
-    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
+    node_user_defined_topic::UserDefinedTopicNode,
 };
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub struct UserDefinedDataWriterNode {
     this: Guid,
     parent_publisher: Guid,
@@ -44,6 +44,14 @@ impl UserDefinedDataWriterNode {
 
     pub fn guid(&self) -> Guid {
         self.this
+    }
+
+    pub fn parent_publisher(&self) -> Guid {
+        self.parent_publisher
+    }
+
+    pub fn parent_participant(&self) -> Guid {
+        self.parent_participant
     }
 
     pub fn register_instance_w_timestamp(
@@ -174,29 +182,46 @@ impl UserDefinedDataWriterNode {
         }
     }
 
-    pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        todo!()
+    pub fn get_liveliness_lost_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<LivelinessLostStatus> {
+        Ok(domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_liveliness_lost_status())
     }
 
-    pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        todo!()
+    pub fn get_offered_deadline_missed_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<OfferedDeadlineMissedStatus> {
+        Ok(domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_offered_deadline_missed_status())
     }
 
-    pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        // Ok(self.0.get()?.get_offered_incompatible_qos_status())
-        todo!()
+    pub fn get_offered_incompatible_qos_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<OfferedIncompatibleQosStatus> {
+        Ok(domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_offered_incompatible_qos_status())
     }
 
     pub fn get_publication_matched_status(
         &self,
         domain_participant: &DdsDomainParticipant,
     ) -> DdsResult<PublicationMatchedStatus> {
-        domain_participant
-            .get_publisher(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .remove_communication_state(StatusKind::PublicationMatched);
         Ok(domain_participant
             .get_publisher(self.parent_publisher)
             .ok_or(DdsError::AlreadyDeleted)?
@@ -365,28 +390,6 @@ impl UserDefinedDataWriterNode {
             .get_qos())
     }
 
-    pub fn set_listener(
-        &self,
-        _a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        _mask: &[StatusKind],
-    ) -> DdsResult<()> {
-        // self.0.get()?.set_listener(a_listener, mask);
-        // Ok(())
-        todo!()
-    }
-
-    pub fn get_statuscondition(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-    ) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
-        get_data_writer_status_condition(domain_participant, self.parent_publisher, self.this)
-    }
-
-    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        // Ok(self.0.get()?.get_status_changes())
-        todo!()
-    }
-
     pub fn enable(&self, domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
         enable_data_writer(domain_participant, self.parent_publisher, self.this)
     }
@@ -491,15 +494,4 @@ fn announce_created_data_writer(
         .expect("Should not fail to write built-in message");
 }
 
-fn get_data_writer_status_condition(
-    domain_participant: &DdsDomainParticipant,
-    publisher_guid: Guid,
-    data_writer_guid: Guid,
-) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
-    Ok(domain_participant
-        .get_publisher(publisher_guid)
-        .ok_or(DdsError::AlreadyDeleted)?
-        .get_data_writer(data_writer_guid)
-        .ok_or(DdsError::AlreadyDeleted)?
-        .get_statuscondition())
-}
+impl AnyDataWriter for UserDefinedDataWriterNode {}

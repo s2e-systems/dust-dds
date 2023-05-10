@@ -42,8 +42,13 @@ impl Subscriber {
 
 impl Drop for Subscriber {
     fn drop(&mut self) {
-        if let Ok(dp) = self.get_participant() {
-            dp.delete_subscriber(self).ok();
+        match self.0 {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => (),
+            SubscriberNodeKind::UserDefined(_) => {
+                if let Ok(dp) = self.get_participant() {
+                    dp.delete_subscriber(self).ok();
+                }
+            }
         }
     }
 }
@@ -84,22 +89,14 @@ impl Subscriber {
                     &s.guid().prefix(),
                     |dp| {
                         let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-                        s.create_datareader::<Foo>(
-                            dp,
-                            type_name,
-                            topic_name,
-                            qos,
-                            a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(
-                                |x| Box::new(x),
-                            ),
-                            mask,
-                        )
+                        s.create_datareader::<Foo>(dp, type_name, topic_name, qos)
                     },
                 )?;
 
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_reader_listener(
                     reader.guid(),
-                    None,
+                    a_listener
+                        .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
                     mask,
                 );
 
@@ -327,8 +324,8 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => s.get_statuscondition(),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid().prefix(), |dp| {
-                    s.get_statuscondition(dp.ok_or(DdsError::AlreadyDeleted)?)
+                .get_subscriber_listener(&s.guid(), |s| {
+                    Ok(s.ok_or(DdsError::AlreadyDeleted)?.get_status_condition())
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
         }
@@ -344,8 +341,8 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => s.get_status_changes(),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid().prefix(), |dp| {
-                    s.get_status_changes(dp.ok_or(DdsError::AlreadyDeleted)?)
+                .get_subscriber_listener(&s.guid(), |s| {
+                    Ok(s.ok_or(DdsError::AlreadyDeleted)?.get_status_changes())
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
         }

@@ -6,42 +6,40 @@ use crate::{
     },
     implementation::rtps::types::Guid,
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::{Duration, Time},
     },
-    publication::publisher_listener::PublisherListener,
-    subscription::subscriber_listener::SubscriberListener,
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, dds_domain_participant::DdsDomainParticipant,
-    node_builtin_subscriber::BuiltinSubscriberNode,
+    dds_domain_participant::DdsDomainParticipant, node_builtin_subscriber::BuiltinSubscriberNode,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode,
 };
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct DomainParticipantNode(pub(crate) Guid);
+pub struct DomainParticipantNode(Guid);
 
 impl DomainParticipantNode {
     pub fn new(node: Guid) -> Self {
         Self(node)
     }
 
+    pub fn guid(&self) -> Guid {
+        self.0
+    }
+
     pub fn create_publisher(
         &self,
         domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: &[StatusKind],
     ) -> DdsResult<UserDefinedPublisherNode> {
         domain_participant
-            .create_publisher(qos, a_listener, mask)
+            .create_publisher(qos)
             .map(|x| UserDefinedPublisherNode::new(x, self.0))
     }
 
@@ -57,11 +55,9 @@ impl DomainParticipantNode {
         &self,
         domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: &[StatusKind],
     ) -> DdsResult<UserDefinedSubscriberNode> {
         domain_participant
-            .create_subscriber(qos, a_listener, mask)
+            .create_subscriber(qos)
             .map(|x| UserDefinedSubscriberNode::new(x, self.0))
     }
 
@@ -79,11 +75,9 @@ impl DomainParticipantNode {
         topic_name: &str,
         type_name: &'static str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
-        mask: &[StatusKind],
     ) -> DdsResult<UserDefinedTopicNode> {
         domain_participant
-            .create_topic(topic_name, type_name, qos, a_listener, mask)
+            .create_topic(topic_name, type_name, qos)
             .map(|x| UserDefinedTopicNode::new(x.guid(), self.0))
     }
 
@@ -303,22 +297,6 @@ impl DomainParticipantNode {
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
-    }
-
-    pub fn get_statuscondition(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(
-            domain_participant.get_statuscondition(),
-        ))
-    }
-
-    pub fn get_status_changes(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<Vec<StatusKind>> {
-        Ok(domain_participant.get_status_changes())
     }
 
     pub fn enable(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<()> {

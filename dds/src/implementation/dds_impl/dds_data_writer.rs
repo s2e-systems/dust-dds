@@ -25,7 +25,7 @@ use crate::{
         qos_policy::{QosPolicyId, ReliabilityQosPolicyKind, INVALID_QOS_POLICY_ID},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus, QosPolicyCount, StatusKind,
+            PublicationMatchedStatus, QosPolicyCount,
         },
     },
     topic_definition::type_support::{DdsSerializedKey, DdsType},
@@ -40,15 +40,11 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
     iterators::{
         ReaderLocatorListIntoIter, ReaderProxyListIntoIter, StatelessWriterChangeListIntoIter,
         WriterChangeListIntoIter,
     },
     message_receiver::MessageReceiver,
-    node_listener_data_writer::ListenerDataWriterNode,
-    status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener,
 };
 
 struct MatchedSubscriptions {
@@ -188,18 +184,10 @@ pub struct DdsDataWriter<T> {
     matched_subscriptions: DdsRwLock<MatchedSubscriptions>,
     incompatible_subscriptions: DdsRwLock<IncompatibleSubscriptions>,
     enabled: DdsRwLock<bool>,
-    status_listener: DdsRwLock<StatusListener<dyn AnyDataWriterListener + Send + Sync>>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl<T> DdsDataWriter<T> {
-    pub fn new(
-        rtps_writer: T,
-        listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        mask: &[StatusKind],
-        type_name: &'static str,
-        topic_name: String,
-    ) -> DdsShared<Self> {
+    pub fn new(rtps_writer: T, type_name: &'static str, topic_name: String) -> DdsShared<Self> {
         DdsShared::new(DdsDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
             type_name,
@@ -207,65 +195,7 @@ impl<T> DdsDataWriter<T> {
             matched_subscriptions: DdsRwLock::new(MatchedSubscriptions::new()),
             incompatible_subscriptions: DdsRwLock::new(IncompatibleSubscriptions::new()),
             enabled: DdsRwLock::new(false),
-            status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
-    }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
-    }
-
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
-    }
-
-    pub fn is_listener_enabled(&self, status_kind: &StatusKind) -> bool {
-        self.status_listener.read_lock().is_enabled(status_kind)
-    }
-
-    pub fn _trigger_on_liveliness_lost(
-        &self,
-        the_writer: ListenerDataWriterNode,
-        status: LivelinessLostStatus,
-    ) {
-        if let Some(l) = self.status_listener.write_lock().listener_mut() {
-            l.trigger_on_liveliness_lost(the_writer, status)
-        }
-    }
-
-    pub fn _trigger_on_offered_deadline_missed(
-        &self,
-        the_writer: ListenerDataWriterNode,
-        status: OfferedDeadlineMissedStatus,
-    ) {
-        if let Some(l) = self.status_listener.write_lock().listener_mut() {
-            l.trigger_on_offered_deadline_missed(the_writer, status)
-        }
-    }
-
-    pub fn trigger_on_offered_incompatible_qos(
-        &self,
-        the_writer: ListenerDataWriterNode,
-        status: OfferedIncompatibleQosStatus,
-    ) {
-        if let Some(l) = self.status_listener.write_lock().listener_mut() {
-            l.trigger_on_offered_incompatible_qos(the_writer, status)
-        }
-    }
-
-    pub fn trigger_on_publication_matched(
-        &self,
-        the_writer: ListenerDataWriterNode,
-        status: PublicationMatchedStatus,
-    ) {
-        if let Some(l) = self.status_listener.write_lock().listener_mut() {
-            l.trigger_on_publication_matched(the_writer, status)
-        }
     }
 
     pub fn get_publication_matched_status(&self) -> PublicationMatchedStatus {
@@ -322,26 +252,18 @@ impl<T> DdsDataWriter<T> {
             .get_offered_incompatible_qos_status()
     }
 
+    pub fn get_offered_deadline_missed_status(&self) -> OfferedDeadlineMissedStatus {
+        todo!()
+    }
+
+    pub fn get_liveliness_lost_status(&self) -> LivelinessLostStatus {
+        todo!()
+    }
+
     pub fn get_incompatible_subscriptions(&self) -> Vec<InstanceHandle> {
         self.incompatible_subscriptions
             .read_lock()
             .get_incompatible_subscriptions()
-    }
-
-    pub fn add_communication_state(&self, state: StatusKind) {
-        self.status_condition
-            .write_lock()
-            .add_communication_state(state)
-    }
-
-    pub fn remove_communication_state(&self, state: StatusKind) {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(state)
-    }
-
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn enable(&self) {
@@ -782,7 +704,7 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let data_writer = DdsDataWriter::new(rtps_writer, None, &[], "", String::from(""));
+        let data_writer = DdsDataWriter::new(rtps_writer, "", String::from(""));
         *data_writer.enabled.write_lock() = true;
         data_writer
     }

@@ -1,12 +1,12 @@
 use crate::{
     implementation::rtps::types::Guid,
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
+    topic_definition::topic::AnyTopic,
 };
 
 use super::{
@@ -14,7 +14,7 @@ use super::{
     node_domain_participant::DomainParticipantNode,
 };
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct UserDefinedTopicNode {
     this: Guid,
     parent: Guid,
@@ -27,6 +27,10 @@ impl UserDefinedTopicNode {
 
     pub fn guid(&self) -> Guid {
         self.this
+    }
+
+    pub fn parent_participant(&self) -> Guid {
+        self.parent
     }
 
     pub fn get_inconsistent_topic_status(
@@ -88,32 +92,6 @@ impl UserDefinedTopicNode {
             .get_qos())
     }
 
-    pub fn get_statuscondition(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(
-            domain_participant
-                .topic_list()
-                .iter()
-                .find(|t| t.guid() == self.this)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_statuscondition(),
-        ))
-    }
-
-    pub fn get_status_changes(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<Vec<StatusKind>> {
-        Ok(domain_participant
-            .topic_list()
-            .iter()
-            .find(|t| t.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_status_changes())
-    }
-
     pub fn enable(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
         // if !self.node.upgrade()?.get_participant().is_enabled() {
         //     return Err(DdsError::PreconditionNotMet(
@@ -145,3 +123,5 @@ impl UserDefinedTopicNode {
         // Ok(())
     }
 }
+
+impl AnyTopic for UserDefinedTopicNode {}

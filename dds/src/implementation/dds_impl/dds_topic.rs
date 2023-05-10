@@ -1,8 +1,7 @@
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::{Sender, SyncSender};
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
-    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
@@ -12,14 +11,13 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{QosKind, TopicQos},
-        status::{InconsistentTopicStatus, StatusKind},
+        status::InconsistentTopicStatus,
     },
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, dds_domain_participant::AnnounceKind,
-    node_listener_topic::ListenerTopicNode, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener,
+    dds_domain_participant::AnnounceKind, node_user_defined_topic::UserDefinedTopicNode,
+    status_listener::ListenerTriggerKind,
 };
 
 impl InconsistentTopicStatus {
@@ -41,9 +39,7 @@ pub struct DdsTopic {
     type_name: &'static str,
     topic_name: String,
     enabled: DdsRwLock<bool>,
-    status_listener: DdsRwLock<StatusListener<dyn AnyTopicListener + Send + Sync>>,
     inconsistent_topic_status: DdsRwLock<InconsistentTopicStatus>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     announce_sender: SyncSender<AnnounceKind>,
 }
 
@@ -54,8 +50,6 @@ impl DdsTopic {
         qos: TopicQos,
         type_name: &'static str,
         topic_name: &str,
-        listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
-        mask: &[StatusKind],
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(Self {
@@ -64,9 +58,7 @@ impl DdsTopic {
             type_name,
             topic_name: topic_name.to_string(),
             enabled: DdsRwLock::new(false),
-            status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             inconsistent_topic_status: DdsRwLock::new(InconsistentTopicStatus::default()),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
         })
     }
@@ -74,9 +66,6 @@ impl DdsTopic {
 
 impl DdsShared<DdsTopic> {
     pub fn get_inconsistent_topic_status(&self) -> InconsistentTopicStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::InconsistentTopic);
         self.inconsistent_topic_status.write_lock().read_and_reset()
     }
 
@@ -110,22 +99,6 @@ impl DdsShared<DdsTopic> {
 
     pub fn get_qos(&self) -> TopicQos {
         self.qos.read_lock().clone()
-    }
-
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
-    }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
-    }
-
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn enable(&self) -> DdsResult<()> {
@@ -167,9 +140,8 @@ impl DdsShared<DdsTopic> {
     pub fn process_discovered_topic(
         &self,
         discovered_topic_data: &DiscoveredTopicData,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         if discovered_topic_data
             .topic_builtin_topic_data()
@@ -179,42 +151,11 @@ impl DdsShared<DdsTopic> {
             && !is_discovered_topic_consistent(&self.qos.read_lock(), discovered_topic_data)
         {
             self.inconsistent_topic_status.write_lock().increment();
-
-            self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::InconsistentTopic);
-
-            self.trigger_on_inconsistent_topic_listener(
-                &mut self.status_listener.write_lock(),
-                participant_status_listener,
-            );
-        }
-    }
-
-    fn trigger_on_inconsistent_topic_listener(
-        &self,
-        topic_status_listener: &mut StatusListener<dyn AnyTopicListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let inconsistent_topic_status_kind = &StatusKind::InconsistentTopic;
-
-        if topic_status_listener.is_enabled(inconsistent_topic_status_kind) {
-            topic_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_inconsistent_topic(
-                    ListenerTopicNode,
-                    self.get_inconsistent_topic_status(),
-                )
-        } else if participant_status_listener.is_enabled(inconsistent_topic_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_inconsistent_topic(&ListenerTopicNode, self.get_inconsistent_topic_status())
+            listener_sender
+                .send(ListenerTriggerKind::InconsistentTopic(
+                    UserDefinedTopicNode::new(self.guid(), parent_participant_guid),
+                ))
+                .ok();
         }
     }
 }
@@ -277,15 +218,7 @@ mod tests {
             EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
         let (announce_sender, _) = std::sync::mpsc::sync_channel(1);
-        let topic = DdsTopic::new(
-            guid,
-            TopicQos::default(),
-            "",
-            "",
-            None,
-            &[],
-            announce_sender,
-        );
+        let topic = DdsTopic::new(guid, TopicQos::default(), "", "", announce_sender);
         *topic.enabled.write_lock() = true;
 
         let expected_instance_handle: InstanceHandle = guid.into();

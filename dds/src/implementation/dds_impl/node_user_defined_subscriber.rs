@@ -9,7 +9,6 @@ use crate::{
         },
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
@@ -21,7 +20,6 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
     dds_data_reader::DdsDataReader,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
@@ -49,8 +47,6 @@ impl UserDefinedSubscriberNode {
         type_name: &'static str,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        mask: &[StatusKind],
     ) -> DdsResult<UserDefinedDataReaderNode>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -119,7 +115,7 @@ impl UserDefinedSubscriberNode {
             qos,
         ));
 
-        let data_reader = DdsDataReader::new(rtps_reader, type_name, topic_name, a_listener, mask);
+        let data_reader = DdsDataReader::new(rtps_reader, type_name, topic_name);
 
         domain_participant
             .get_subscriber_mut(self.this)
@@ -287,16 +283,6 @@ impl UserDefinedSubscriberNode {
         // Ok(())
     }
 
-    pub fn get_status_changes(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<Vec<StatusKind>> {
-        Ok(domain_participant
-            .get_subscriber(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_status_changes())
-    }
-
     pub fn enable(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
         let is_parent_enabled = domain_participant.is_enabled();
         if !is_parent_enabled {
@@ -365,17 +351,5 @@ impl UserDefinedSubscriberNode {
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(self.this.into())
-    }
-
-    pub fn get_statuscondition(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(
-            domain_participant
-                .get_subscriber(self.this)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_statuscondition(),
-        ))
     }
 }

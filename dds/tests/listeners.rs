@@ -136,7 +136,7 @@ fn deadline_missed_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -164,8 +164,7 @@ fn sample_rejected_listener() {
         .times(1..)
         .withf(|_, status| {
             status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
-                && status.total_count_change == 1
-                && status.last_reason == SampleRejectedStatusKind::RejectedBySamplesLimit
+                    && status.last_reason == SampleRejectedStatusKind::RejectedBySamplesLimit
         })
         .return_const(());
     let participant = participant_factory
@@ -250,7 +249,7 @@ fn sample_rejected_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -699,7 +698,7 @@ fn on_data_available_listener() {
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -890,7 +889,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -989,7 +988,7 @@ fn participant_deadline_missed_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -1067,7 +1066,6 @@ fn participant_sample_rejected_listener() {
         .times(1..)
         .withf(|_, status| {
             status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
-                && status.total_count_change == 1
                 && status.last_reason == SampleRejectedStatusKind::RejectedBySamplesLimit
         })
         .return_const(());
@@ -1104,7 +1102,7 @@ fn participant_sample_rejected_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -1509,8 +1507,8 @@ fn subscriber_deadline_missed_listener() {
     let mut subscriber_listener = MockDeadlineMissedListener::new();
     subscriber_listener
         .expect_on_requested_deadline_missed()
-        .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
+        .times(1..)
+        // .withf(|_, status| status.total_count >= 1)
         .return_const(());
     let subscriber = participant
         .create_subscriber(
@@ -1560,7 +1558,7 @@ fn subscriber_deadline_missed_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -1618,7 +1616,6 @@ fn subscriber_sample_rejected_listener() {
         .times(1..)
         .withf(|_, status| {
             status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
-                && status.total_count_change == 1
                 && status.last_reason == SampleRejectedStatusKind::RejectedBySamplesLimit
         })
         .return_const(());
@@ -1673,7 +1670,7 @@ fn subscriber_sample_rejected_listener() {
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]

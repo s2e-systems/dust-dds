@@ -7,49 +7,55 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
-use super::{node_kind::DataReaderNodeKind, node_listener_data_reader::ListenerDataReaderNode};
+use super::{
+    node_kind::DataReaderNodeKind, node_user_defined_data_reader::UserDefinedDataReaderNode,
+};
 
 pub trait AnyDataReaderListener {
-    fn trigger_on_data_available(&mut self, reader: ListenerDataReaderNode);
+    fn trigger_on_data_available(&mut self, reader: UserDefinedDataReaderNode);
     fn trigger_on_sample_rejected(
         &mut self,
-        reader: ListenerDataReaderNode,
+        reader: UserDefinedDataReaderNode,
         status: SampleRejectedStatus,
     );
     fn trigger_on_liveliness_changed(
         &mut self,
-        reader: ListenerDataReaderNode,
+        reader: UserDefinedDataReaderNode,
         status: LivelinessChangedStatus,
     );
     fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: ListenerDataReaderNode,
+        reader: UserDefinedDataReaderNode,
         status: RequestedDeadlineMissedStatus,
     );
     fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: ListenerDataReaderNode,
+        reader: UserDefinedDataReaderNode,
         status: RequestedIncompatibleQosStatus,
     );
     fn trigger_on_subscription_matched(
         &mut self,
-        reader: ListenerDataReaderNode,
+        reader: UserDefinedDataReaderNode,
         status: SubscriptionMatchedStatus,
     );
-    fn trigger_on_sample_lost(&mut self, reader: ListenerDataReaderNode, status: SampleLostStatus);
+    fn trigger_on_sample_lost(
+        &mut self,
+        reader: UserDefinedDataReaderNode,
+        status: SampleLostStatus,
+    );
 }
 
 impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
 where
     Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
 {
-    fn trigger_on_data_available(&mut self, reader: ListenerDataReaderNode) {
+    fn trigger_on_data_available(&mut self, reader: UserDefinedDataReaderNode) {
         self.on_data_available(&DataReader::new(DataReaderNodeKind::Listener(reader)))
     }
 
     fn trigger_on_sample_rejected(
         &mut self,
-        reader: ListenerDataReaderNode,
+        reader: UserDefinedDataReaderNode,
         status: SampleRejectedStatus,
     ) {
         self.on_sample_rejected(
@@ -60,7 +66,7 @@ where
 
     fn trigger_on_liveliness_changed(
         &mut self,
-        reader: ListenerDataReaderNode,
+        reader: UserDefinedDataReaderNode,
         status: LivelinessChangedStatus,
     ) {
         self.on_liveliness_changed(
@@ -71,7 +77,7 @@ where
 
     fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: ListenerDataReaderNode,
+        reader: UserDefinedDataReaderNode,
         status: RequestedDeadlineMissedStatus,
     ) {
         self.on_requested_deadline_missed(
@@ -82,7 +88,7 @@ where
 
     fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: ListenerDataReaderNode,
+        reader: UserDefinedDataReaderNode,
         status: RequestedIncompatibleQosStatus,
     ) {
         self.on_requested_incompatible_qos(
@@ -93,7 +99,7 @@ where
 
     fn trigger_on_subscription_matched(
         &mut self,
-        reader: ListenerDataReaderNode,
+        reader: UserDefinedDataReaderNode,
         status: SubscriptionMatchedStatus,
     ) {
         self.on_subscription_matched(
@@ -102,7 +108,11 @@ where
         )
     }
 
-    fn trigger_on_sample_lost(&mut self, reader: ListenerDataReaderNode, status: SampleLostStatus) {
+    fn trigger_on_sample_lost(
+        &mut self,
+        reader: UserDefinedDataReaderNode,
+        status: SampleLostStatus,
+    ) {
         self.on_sample_lost(
             &DataReader::new(DataReaderNodeKind::Listener(reader)),
             status,
