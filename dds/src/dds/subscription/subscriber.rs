@@ -47,6 +47,7 @@ impl Drop for Subscriber {
             SubscriberNodeKind::UserDefined(_) => {
                 if let Ok(dp) = self.get_participant() {
                     dp.delete_subscriber(self).ok();
+                    std::mem::forget(dp);
                 }
             }
         }

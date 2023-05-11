@@ -115,26 +115,20 @@ impl UserDefinedPublisherNode {
 
     pub fn lookup_datawriter(
         &self,
-        _type_name: &'static str,
-        _topic_name: &str,
-    ) -> DdsResult<UserDefinedDataWriterNode> {
-        todo!()
-        // let writer = self
-        //     .0
-        //     .get()?
-        //     .stateful_data_writer_list()
-        //     .into_iter()
-        //     .find(|data_writer| {
-        //         data_writer.get_topic_name() == topic_name
-        //             && data_writer.get_type_name() == type_name
-        //     })
-        //     .cloned()
-        //     .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?;
-
-        // Ok(UserDefinedDataWriterNode::new(ChildNode::new(
-        //     writer.downgrade(),
-        //     self.this.clone(),
-        // )))
+        domain_participant: &DdsDomainParticipant,
+        type_name: &'static str,
+        topic_name: &str,
+    ) -> DdsResult<Option<UserDefinedDataWriterNode>> {
+        Ok(domain_participant
+            .get_publisher(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .stateful_data_writer_list()
+            .iter()
+            .find(|data_reader| {
+                data_reader.get_topic_name() == topic_name
+                    && data_reader.get_type_name() == type_name
+            })
+            .map(|x| UserDefinedDataWriterNode::new(x.guid(), self.this, self.parent)))
     }
 
     pub fn suspend_publications(&self) -> DdsResult<()> {

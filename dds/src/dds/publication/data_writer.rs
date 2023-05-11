@@ -39,6 +39,7 @@ impl<Foo> Drop for DataWriter<Foo> {
             DataWriterNodeKind::UserDefined(_) => {
                 if let Ok(p) = self.get_publisher() {
                     p.delete_datawriter(self).ok();
+                    std::mem::forget(p);
                 }
             }
         }

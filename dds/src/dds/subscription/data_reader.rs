@@ -69,6 +69,7 @@ impl<Foo> Drop for DataReader<Foo> {
             DataReaderNodeKind::UserDefined(_) => {
                 if let Ok(s) = self.get_subscriber() {
                     s.delete_datareader(self).ok();
+                    std::mem::forget(s);
                 }
             }
         }

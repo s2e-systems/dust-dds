@@ -181,7 +181,7 @@ impl UserDefinedSubscriberNode {
         type_name: &str,
         topic_name: &str,
     ) -> DdsResult<Option<UserDefinedDataReaderNode>> {
-        let reader_guid = domain_participant
+        Ok(domain_participant
             .get_subscriber(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_list()
@@ -190,13 +190,7 @@ impl UserDefinedSubscriberNode {
                 data_reader.get_topic_name() == topic_name
                     && data_reader.get_type_name() == type_name
             })
-            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?
-            .guid();
-        Ok(Some(UserDefinedDataReaderNode::new(
-            reader_guid,
-            self.this,
-            self.parent,
-        )))
+            .map(|x| UserDefinedDataReaderNode::new(x.guid(), self.this, self.parent)))
     }
 
     pub fn notify_datareaders(&self) -> DdsResult<()> {

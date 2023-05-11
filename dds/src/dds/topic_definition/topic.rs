@@ -41,6 +41,7 @@ impl<Foo> Drop for Topic<Foo> {
             TopicNodeKind::UserDefined(_) => {
                 if let Ok(dp) = self.get_participant() {
                     dp.delete_topic(self).ok();
+                    std::mem::forget(dp);
                 }
             }
         }

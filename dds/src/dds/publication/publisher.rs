@@ -40,6 +40,7 @@ impl Drop for Publisher {
     fn drop(&mut self) {
         if let Ok(dp) = self.get_participant() {
             dp.delete_publisher(self).ok();
+            std::mem::forget(dp);
         }
     }
 }
@@ -115,13 +116,16 @@ impl Publisher {
     /// `topic_name`. If no such [`DataWriter`] exists, the operation will succeed but return [`None`].
     /// If multiple [`DataWriter`] attached to the [`Publisher`] satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<Foo>(&self, topic: &Topic<Foo>) -> DdsResult<Option<DataWriter<Foo>>>
+    pub fn lookup_datawriter<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>>
     where
-        Foo: DdsType + DdsSerialize,
+        Foo: DdsType,
     {
-        self.0
-            .lookup_datawriter(topic.get_type_name()?, &topic.get_name()?)
-            .map(|x| Some(DataWriter::new(DataWriterNodeKind::UserDefined(x))))
+        self.call_participant_mut_method(|dp| {
+            Ok(self
+                .0
+                .lookup_datawriter(dp, Foo::type_name(), topic_name)?
+                .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x))))
+        })
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using [`DataWriter`] objects

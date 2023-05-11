@@ -239,12 +239,12 @@ fn objects_are_correctly_dropped() {
                     }
 
                     assert!(publisher
-                        .lookup_datawriter::<KeyedData>(&topic)
+                        .lookup_datawriter::<KeyedData>(topic_name)
                         .unwrap()
                         .is_some(),);
                 }
                 assert!(publisher
-                    .lookup_datawriter::<KeyedData>(&topic)
+                    .lookup_datawriter::<KeyedData>(topic_name)
                     .unwrap()
                     .is_none(),);
             }
