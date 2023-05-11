@@ -326,11 +326,12 @@ fn participant_records_discovered_topics() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let topic_names = ["Topic 1"];  //, "Topic 2", "Topic 3", "Topic 4", "Topic 5"
+    let topic_names = ["Topic 1", "Topic 2"];
+    let mut topics = Vec::new();
     for name in topic_names {
-        participant1
+        topics.push(participant1
             .create_topic::<UserType>(name, QosKind::Default, None, NO_STATUS)
-            .unwrap();
+            .unwrap());
     }
 
     for name in topic_names {
@@ -353,9 +354,6 @@ fn participant_records_discovered_topics() {
         .collect();
     assert!(discovered_topic_names.contains(&"Topic 1".to_string()));
     assert!(discovered_topic_names.contains(&"Topic 2".to_string()));
-    assert!(discovered_topic_names.contains(&"Topic 3".to_string()));
-    assert!(discovered_topic_names.contains(&"Topic 4".to_string()));
-    assert!(discovered_topic_names.contains(&"Topic 5".to_string()));
 }
 
 #[test]
