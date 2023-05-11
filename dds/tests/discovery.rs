@@ -334,10 +334,11 @@ fn participant_records_discovered_topics() {
             .unwrap());
     }
 
+    let mut found_topics = Vec::new();
     for name in topic_names {
-        participant2
+        found_topics.push(participant2
             .find_topic::<UserType>(name, Duration::new(10, 0))
-            .unwrap();
+            .unwrap());
     }
 
     let discovered_topic_names: Vec<String> = participant2
@@ -352,6 +353,7 @@ fn participant_records_discovered_topics() {
                 .to_string()
         })
         .collect();
+
     assert!(discovered_topic_names.contains(&"Topic 1".to_string()));
     assert!(discovered_topic_names.contains(&"Topic 2".to_string()));
 }
