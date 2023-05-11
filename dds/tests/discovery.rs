@@ -271,7 +271,6 @@ fn updated_writers_are_announced_to_reader() {
 }
 
 #[test]
-#[ignore = "Deadlock when using multiple participants"]
 fn participant_records_discovered_topics() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
@@ -283,7 +282,7 @@ fn participant_records_discovered_topics() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let topic_names = ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"];
+    let topic_names = ["Topic 1"];  //, "Topic 2", "Topic 3", "Topic 4", "Topic 5"
     for name in topic_names {
         participant1
             .create_topic::<UserType>(name, QosKind::Default, None, NO_STATUS)

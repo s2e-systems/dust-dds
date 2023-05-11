@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::dds_impl::{
@@ -210,11 +212,17 @@ impl DomainParticipant {
     where
         Foo: DdsType,
     {
-        self.call_participant_mut_method(|dp| {
-            self.0
-                .find_topic(dp, topic_name, Foo::type_name(), timeout)
-                .map(|x| Topic::new(TopicNodeKind::UserDefined(x)))
-        })
+        let start_time = Instant::now();
+
+        while start_time.elapsed() < std::time::Duration::from(timeout) {
+            if let Some(topic) = self.call_participant_mut_method(|dp| {
+                Ok(self.0.find_topic(dp, topic_name, Foo::type_name()))
+            })? {
+                return Ok(Topic::new(TopicNodeKind::UserDefined(topic)));
+            }
+        }
+
+        Err(DdsError::Timeout)
     }
 
     /// This operation gives access to an existing locally-created [`Topic`], based on its name and type. The

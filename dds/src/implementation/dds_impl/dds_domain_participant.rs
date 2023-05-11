@@ -688,60 +688,46 @@ impl DdsDomainParticipant {
         self.data_max_size_serialized
     }
 
-    pub fn find_topic(
-        &mut self,
-        topic_name: &str,
-        type_name: &'static str,
-        timeout: Duration,
-    ) -> DdsResult<Guid> {
-        let start_time = self.get_current_time();
-
-        while self.get_current_time() - start_time < timeout {
-            // Check if a topic exists locally. If topic doesn't exist locally check if it has already been
-            // discovered and, if so, create a new local topic representing the discovered topic
-            if let Some(topic) = self
-                .topic_list
-                .iter()
-                .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
-            {
-                return Ok(topic.guid());
-            }
-
-            // NOTE: Do not make this an else with the previous if because the topic_list read_lock is
-            // kept and this enters a deadlock
-            if let Some(discovered_topic_info) = self
-                .discovered_topic_list
-                .values()
-                .find(|t| t.name() == topic_name && t.get_type_name() == type_name)
-                .cloned()
-            {
-                let qos = TopicQos {
-                    topic_data: discovered_topic_info.topic_data().clone(),
-                    durability: discovered_topic_info.durability().clone(),
-                    deadline: discovered_topic_info.deadline().clone(),
-                    latency_budget: discovered_topic_info.latency_budget().clone(),
-                    liveliness: discovered_topic_info.liveliness().clone(),
-                    reliability: discovered_topic_info.reliability().clone(),
-                    destination_order: discovered_topic_info.destination_order().clone(),
-                    history: discovered_topic_info.history().clone(),
-                    resource_limits: discovered_topic_info.resource_limits().clone(),
-                    transport_priority: discovered_topic_info.transport_priority().clone(),
-                    lifespan: discovered_topic_info.lifespan().clone(),
-                    ownership: discovered_topic_info.ownership().clone(),
-                };
-                return self.create_topic(
+    pub fn find_topic(&mut self, topic_name: &str, type_name: &'static str) -> Option<Guid> {
+        // Check if a topic exists locally. If topic doesn't exist locally check if it has already been
+        // discovered and, if so, create a new local topic representing the discovered topic
+        if let Some(topic) = self
+            .topic_list
+            .iter()
+            .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
+        {
+            return Some(topic.guid());
+        } else if let Some(discovered_topic_info) = self
+            .discovered_topic_list
+            .values()
+            .find(|t| t.name() == topic_name && t.get_type_name() == type_name)
+            .cloned()
+        {
+            let qos = TopicQos {
+                topic_data: discovered_topic_info.topic_data().clone(),
+                durability: discovered_topic_info.durability().clone(),
+                deadline: discovered_topic_info.deadline().clone(),
+                latency_budget: discovered_topic_info.latency_budget().clone(),
+                liveliness: discovered_topic_info.liveliness().clone(),
+                reliability: discovered_topic_info.reliability().clone(),
+                destination_order: discovered_topic_info.destination_order().clone(),
+                history: discovered_topic_info.history().clone(),
+                resource_limits: discovered_topic_info.resource_limits().clone(),
+                transport_priority: discovered_topic_info.transport_priority().clone(),
+                lifespan: discovered_topic_info.lifespan().clone(),
+                ownership: discovered_topic_info.ownership().clone(),
+            };
+            Some(
+                self.create_topic(
                     discovered_topic_info.name(),
                     type_name,
                     QosKind::Specific(qos),
-                );
-            }
-            // Block until timeout unless new topic is found or created
-            let duration_until_timeout = (self.get_current_time() - start_time) - timeout;
-            self.topic_find_condvar
-                .wait_timeout(duration_until_timeout)
-                .ok();
+                )
+                .unwrap(),
+            )
+        } else {
+            None
         }
-        Err(DdsError::Timeout)
     }
 
     pub fn ignore_participant(&mut self, handle: InstanceHandle) {
