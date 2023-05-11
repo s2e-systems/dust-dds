@@ -10,7 +10,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
-        time::{Duration, Time},
+        time::Time,
     },
 };
 
@@ -94,10 +94,9 @@ impl DomainParticipantNode {
         domain_participant: &mut DdsDomainParticipant,
         topic_name: &str,
         type_name: &'static str,
-        timeout: Duration,
-    ) -> DdsResult<UserDefinedTopicNode> {
+    ) -> Option<UserDefinedTopicNode> {
         domain_participant
-            .find_topic(topic_name, type_name, timeout)
+            .find_topic(topic_name, type_name)
             .map(|x| UserDefinedTopicNode::new(x, self.0))
     }
 
