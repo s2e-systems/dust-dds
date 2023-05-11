@@ -1,10 +1,15 @@
-use std::{self, marker::PhantomData, io::Read};
+use std::{self, io::Read, marker::PhantomData};
 
 use byteorder::{ByteOrder, ReadBytesExt};
 use serde::de::{self};
 
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
-use cdr::{Error, Result};
+use cdr::{Error};
+
+//use serde::de::value::Error;
+// use std::io::Error;
+
+// type Result<T> = std::result::Result<T, std::fmt::Error>;
 
 
 pub struct ParameterListDeserializer<'a> {
@@ -13,7 +18,7 @@ pub struct ParameterListDeserializer<'a> {
     is_big_endian: bool,
 }
 
-impl<'a> ParameterListDeserializer<'a>{
+impl<'a> ParameterListDeserializer<'a> {
     pub fn new(reader: &'a [u8]) -> Self {
         let byteorder = match reader[1] {
             0 | 2 => false,
@@ -27,16 +32,16 @@ impl<'a> ParameterListDeserializer<'a>{
         }
     }
 
-    fn read_size(&mut self, size: u64) -> Result<()> {
+    fn read_size(&mut self, size: u64) -> Result<(), Error> {
         self.pos += size;
         Ok(())
     }
 
-    fn read_size_of<T>(&mut self) -> Result<()> {
+    fn read_size_of<T>(&mut self) -> Result<(), Error> {
         self.read_size(std::mem::size_of::<T>() as u64)
     }
 
-    fn read_padding_of<T>(&mut self) -> Result<()> {
+    fn read_padding_of<T>(&mut self) -> Result<(), Error> {
         // Calculate the required padding to align with 1-byte, 2-byte, 4-byte, 8-byte boundaries
         // Instead of using the slow modulo operation '%', the faster bit-masking is used
         let alignment = std::mem::size_of::<T>();
@@ -56,17 +61,17 @@ impl<'a> ParameterListDeserializer<'a>{
     }
 }
 
-impl<'de, 'a:'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'a> {
+impl<'de, 'a: 'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'a> {
     type Error = Error;
 
-    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
-        V: de::Visitor<'de>,
+        V: serde::de::Visitor<'de>,
     {
-        Err(Error::DeserializeAnyNotSupported)
+        Err(serde::de::Error::custom("deserialize_any not implemented"))
     }
 
-    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
@@ -74,11 +79,11 @@ impl<'de, 'a:'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserialize
         match value {
             1 => visitor.visit_bool(true),
             0 => visitor.visit_bool(false),
-            value => Err(Error::InvalidBoolEncoding(value)),
+            value => Err(serde::de::Error::custom("invalid bool encoding")),
         }
     }
 
-    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
@@ -86,7 +91,7 @@ impl<'de, 'a:'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserialize
         visitor.visit_u8(self.data.read_u8()?)
     }
 
-    fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
@@ -100,7 +105,7 @@ impl<'de, 'a:'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserialize
         visitor.visit_u16(v)
     }
 
-    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
@@ -114,127 +119,128 @@ impl<'de, 'a:'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserialize
         visitor.visit_u32(v)
     }
 
-    fn deserialize_u64<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_u64<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_i8<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_i8<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_i16<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_i16<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_i32<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_i32<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_i64<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_i64<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_str<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_str<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_string<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_string<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         visitor.visit_borrowed_bytes(self.data)
     }
 
-    fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         visitor.visit_borrowed_bytes(&self.data)
         // visitor.visit_newtype_struct(self)
+        // visitor.visit_map(visitor)
     }
 
-    fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_tuple<V>(self, _len: usize, _visitor: V) -> Result<V::Value>
+    fn deserialize_tuple<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
@@ -246,14 +252,14 @@ impl<'de, 'a:'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserialize
         _name: &'static str,
         _len: usize,
         _visitor: V,
-    ) -> Result<V::Value>
+    ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
@@ -265,21 +271,19 @@ impl<'de, 'a:'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserialize
         _name: &'static str,
         fields: &'static [&'static str],
         visitor: V,
-    ) -> Result<V::Value>
+    ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        struct Access<'c, 'd>
-        {
+        struct Access<'c, 'd> {
             deserializer: &'c mut ParameterListDeserializer<'d>,
             len: usize,
         }
 
-        impl<'de, 'c, 'd:'de> de::SeqAccess<'de> for Access<'c, 'd>
-        {
+        impl<'de, 'c, 'd: 'de> de::SeqAccess<'de> for Access<'c, 'd> {
             type Error = Error;
 
-            fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
+            fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
             where
                 T: de::DeserializeSeed<'de>,
             {
@@ -308,21 +312,21 @@ impl<'de, 'a:'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserialize
         _name: &'static str,
         _variants: &'static [&'static str],
         _visitor: V,
-    ) -> Result<V::Value>
+    ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_identifier<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_identifier<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
@@ -330,6 +334,75 @@ impl<'de, 'a:'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserialize
     }
 }
 
+
+// In order to handle commas correctly when deserializing a JSON array or map,
+// we need to track whether we are on the first element or past the first
+// element.
+struct CommaSeparated<'a, 'de: 'a> {
+    de: &'a mut ParameterListDeserializer<'de>,
+}
+
+impl<'a, 'de> CommaSeparated<'a, 'de> {
+    fn new(de: &'a mut ParameterListDeserializer<'de>) -> Self {
+        CommaSeparated {
+            de,
+        }
+    }
+}
+
+impl<'de, 'a> serde::de::MapAccess<'de> for CommaSeparated<'a, 'de> {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> std::result::Result<Option<K::Value>, Self::Error>
+    where
+        K: serde::de::DeserializeSeed<'de>,
+    {
+        loop {
+            let pid: u16 = serde::Deserialize::deserialize(&mut *self.de)?;
+            let length: i16 = serde::Deserialize::deserialize(&mut *self.de)?;
+        }
+        // Deserialize a map key.
+        seed.deserialize(&mut *self.de).map(Some)
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
+    where
+        V: serde::de::DeserializeSeed<'de>,
+    {
+
+        seed.deserialize(&mut *self.de)
+    }
+}
+
+// struct MyMapVisitor<const PID: u16, T> {
+//     marker: PhantomData<fn() -> Parameter<PID, T>>
+// }
+
+// impl<const PID: u16, T> MyMapVisitor<PID, T> {
+//     fn new() -> Self {
+//         MyMapVisitor {
+//             marker: PhantomData
+//         }
+//     }
+// }
+
+// impl<'de, const PID: u16, T> serde::de::Visitor<'de> for MyMapVisitor<PID, T>
+// where
+//     T: serde::Deserialize<'de>,
+// {
+//     type Value = Parameter<PID, T>;
+
+//     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         formatter.write_str("a very special map")
+//     }
+
+//     fn visit_map<M>(self, mut access: M) -> std::result::Result<Self::Value, M::Error>
+//     where
+//         M: serde::de::MapAccess<'de>,
+//     {
+//         todo!()
+//     }
+// }
 
 #[derive(serde::Deserialize)]
 struct ParameterX<const PID: u16, T>(T);
@@ -359,6 +432,28 @@ where
             type Value = Parameter<PID, T>;
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("struct Parameter")
+            }
+            fn visit_newtype_struct<E>(
+                self,
+                deserializer: E,
+            ) -> std::result::Result<Self::Value, E::Error>
+            where
+                E: serde::Deserializer<'de>,
+            {
+                Ok(Parameter(serde::Deserialize::deserialize(deserializer)?))
+            }
+
+            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                loop {
+                    if let Some(key) = map.next_key::<u16>()? {
+                        if key == PID {
+                            return Ok(Parameter(map.next_value()?));
+                        }
+                    }
+                }
             }
 
             fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> std::result::Result<Self::Value, E>
@@ -425,7 +520,6 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -462,7 +556,8 @@ mod tests {
         ][..];
         let expected: Parameter<71, u32> = Parameter(21);
         let mut deserializer = ParameterListDeserializer::new(data);
-        let result: Parameter<71, u32> = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+        let result: Parameter<71, u32> =
+            serde::Deserialize::deserialize(&mut deserializer).unwrap();
         assert_eq!(result, expected)
     }
 
@@ -497,10 +592,7 @@ mod tests {
     }
     #[test]
     fn deserialize_cdr_simple() {
-        let expected = UserInner {
-            id: 21,
-            n: 34,
-        };
+        let expected = UserInner { id: 21, n: 34 };
         let data = &[
             0x00, 0x01, 0, 0, // representation identifier
             21, 0, 0, 0, // id
