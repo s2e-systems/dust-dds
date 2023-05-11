@@ -145,7 +145,6 @@ pub struct DdsDomainParticipant {
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
     enabled: bool,
     user_defined_data_send_condvar: DdsCondvar,
-    topic_find_condvar: DdsCondvar,
     ignored_participants: HashSet<InstanceHandle>,
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
@@ -343,7 +342,6 @@ impl DdsDomainParticipant {
             discovered_topic_list: HashMap::new(),
             enabled: false,
             user_defined_data_send_condvar,
-            topic_find_condvar: DdsCondvar::new(),
             ignored_participants: HashSet::new(),
             ignored_publications: HashSet::new(),
             ignored_subcriptions: HashSet::new(),
@@ -624,7 +622,6 @@ impl DdsDomainParticipant {
         }
 
         self.topic_list.push(topic);
-        self.topic_find_condvar.notify_all();
 
         Ok(topic_guid)
     }
@@ -696,7 +693,7 @@ impl DdsDomainParticipant {
             .iter()
             .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
         {
-            return Some(topic.guid());
+            Some(topic.guid())
         } else if let Some(discovered_topic_info) = self
             .discovered_topic_list
             .values()
@@ -1198,8 +1195,6 @@ impl DdsDomainParticipant {
                         topic_data.get_serialized_key().into(),
                         topic_data.topic_builtin_topic_data().clone(),
                     );
-
-                    self.topic_find_condvar.notify_all();
                 }
             }
         }
