@@ -31,8 +31,7 @@ use crate::{
             },
             dds_subscriber::DdsSubscriber,
             node_user_defined_data_writer::UserDefinedDataWriterNode,
-            node_user_defined_topic::UserDefinedTopicNode,
-            nodes::{DataReaderNode, SubscriberNode, SubscriberNodeKind},
+            nodes::{DataReaderNode, SubscriberNode, SubscriberNodeKind, TopicNode},
             participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
         },
@@ -989,10 +988,8 @@ fn on_publication_matched_communication_change(data_writer_node: UserDefinedData
     )
 }
 
-fn on_inconsistent_topic_communication_change(topic_node: UserDefinedTopicNode) {
-    fn get_inconsistent_topic_status(
-        topic_node: &UserDefinedTopicNode,
-    ) -> DdsResult<InconsistentTopicStatus> {
+fn on_inconsistent_topic_communication_change(topic_node: TopicNode) {
+    fn get_inconsistent_topic_status(topic_node: &TopicNode) -> DdsResult<InconsistentTopicStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&topic_node.parent_participant().prefix(), |dp| {
                 crate::implementation::dds_impl::node_user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, topic_node.guid())

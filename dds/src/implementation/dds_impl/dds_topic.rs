@@ -15,8 +15,7 @@ use crate::{
 };
 
 use super::{
-    dds_domain_participant::AnnounceKind, node_user_defined_topic::UserDefinedTopicNode,
-    status_listener::ListenerTriggerKind,
+    dds_domain_participant::AnnounceKind, nodes::TopicNode, status_listener::ListenerTriggerKind,
 };
 
 impl InconsistentTopicStatus {
@@ -150,9 +149,10 @@ impl DdsTopic {
         {
             self.inconsistent_topic_status.increment();
             listener_sender
-                .send(ListenerTriggerKind::InconsistentTopic(
-                    UserDefinedTopicNode::new(self.guid(), parent_participant_guid),
-                ))
+                .send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
+                    self.guid(),
+                    parent_participant_guid,
+                )))
                 .ok();
         }
     }

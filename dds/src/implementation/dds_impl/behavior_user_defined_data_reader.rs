@@ -19,8 +19,7 @@ use crate::{
 
 use super::{
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    node_user_defined_topic::UserDefinedTopicNode,
-    nodes::SubscriberNode,
+    nodes::{SubscriberNode, TopicNode},
 };
 
 pub fn read<Foo>(
@@ -242,7 +241,7 @@ pub fn get_topicdescription(
     domain_participant: &DdsDomainParticipant,
     reader_guid: Guid,
     subscriber_guid: Guid,
-) -> DdsResult<UserDefinedTopicNode> {
+) -> DdsResult<TopicNode> {
     let data_reader = domain_participant
         .get_subscriber(subscriber_guid)
         .ok_or(DdsError::AlreadyDeleted)?
@@ -257,10 +256,7 @@ pub fn get_topicdescription(
         })
         .expect("Topic must exist");
 
-    Ok(UserDefinedTopicNode::new(
-        topic.guid(),
-        domain_participant.guid(),
-    ))
+    Ok(TopicNode::new(topic.guid(), domain_participant.guid()))
 }
 
 pub fn get_subscriber(

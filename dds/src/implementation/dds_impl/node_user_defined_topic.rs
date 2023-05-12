@@ -6,34 +6,11 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::InconsistentTopicStatus,
     },
-    topic_definition::topic::AnyTopic,
 };
 
 use super::{
     dds_domain_participant::DdsDomainParticipant, node_domain_participant::DomainParticipantNode,
 };
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub struct UserDefinedTopicNode {
-    this: Guid,
-    parent: Guid,
-}
-
-impl UserDefinedTopicNode {
-    pub fn new(this: Guid, parent: Guid) -> Self {
-        Self { this, parent }
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.this
-    }
-
-    pub fn parent_participant(&self) -> Guid {
-        self.parent
-    }
-}
-
-impl AnyTopic for UserDefinedTopicNode {}
 
 pub fn get_inconsistent_topic_status(
     domain_participant: &mut DdsDomainParticipant,

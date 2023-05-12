@@ -4,8 +4,9 @@ use crate::{
 };
 
 use super::{
-    nodes::DataReaderNode, node_user_defined_data_writer::UserDefinedDataWriterNode,
-    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
+    node_user_defined_data_writer::UserDefinedDataWriterNode,
+    nodes::{DataReaderNode, TopicNode},
+    status_condition_impl::StatusConditionImpl,
 };
 
 pub struct StatusListener<T: ?Sized> {
@@ -61,5 +62,5 @@ pub enum ListenerTriggerKind {
     OnSampleLost(DataReaderNode),
     OfferedIncompatibleQos(UserDefinedDataWriterNode),
     PublicationMatched(UserDefinedDataWriterNode),
-    InconsistentTopic(UserDefinedTopicNode),
+    InconsistentTopic(TopicNode),
 }

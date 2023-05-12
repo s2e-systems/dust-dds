@@ -17,7 +17,7 @@ use crate::{
 use super::{
     dds_domain_participant::DdsDomainParticipant,
     node_user_defined_publisher::UserDefinedPublisherNode,
-    node_user_defined_topic::UserDefinedTopicNode, nodes::SubscriberNode,
+    nodes::{SubscriberNode, TopicNode},
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -74,10 +74,10 @@ impl DomainParticipantNode {
         topic_name: &str,
         type_name: &'static str,
         qos: QosKind<TopicQos>,
-    ) -> DdsResult<UserDefinedTopicNode> {
+    ) -> DdsResult<TopicNode> {
         domain_participant
             .create_topic(topic_name, type_name, qos)
-            .map(|x| UserDefinedTopicNode::new(x, self.0))
+            .map(|x| TopicNode::new(x, self.0))
     }
 
     pub fn delete_topic(
@@ -93,10 +93,10 @@ impl DomainParticipantNode {
         domain_participant: &mut DdsDomainParticipant,
         topic_name: &str,
         type_name: &'static str,
-    ) -> Option<UserDefinedTopicNode> {
+    ) -> Option<TopicNode> {
         domain_participant
             .find_topic(topic_name, type_name)
-            .map(|x| UserDefinedTopicNode::new(x, self.0))
+            .map(|x| TopicNode::new(x, self.0))
     }
 
     pub fn lookup_topicdescription(
@@ -104,12 +104,12 @@ impl DomainParticipantNode {
         domain_participant: &DdsDomainParticipant,
         topic_name: &str,
         type_name: &str,
-    ) -> DdsResult<Option<UserDefinedTopicNode>> {
+    ) -> DdsResult<Option<TopicNode>> {
         Ok(domain_participant
             .topic_list()
             .iter()
             .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
-            .map(|x| UserDefinedTopicNode::new(x.guid(), self.0)))
+            .map(|x| TopicNode::new(x.guid(), self.0)))
     }
 
     pub fn get_builtin_subscriber(

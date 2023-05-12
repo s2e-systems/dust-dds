@@ -22,8 +22,7 @@ use crate::{
 
 use super::{
     dds_domain_participant::DdsDomainParticipant,
-    node_user_defined_publisher::UserDefinedPublisherNode,
-    node_user_defined_topic::UserDefinedTopicNode,
+    node_user_defined_publisher::UserDefinedPublisherNode, nodes::TopicNode,
 };
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
@@ -230,7 +229,7 @@ impl UserDefinedDataWriterNode {
             .get_publication_matched_status())
     }
 
-    pub fn get_topic(&self) -> DdsResult<UserDefinedTopicNode> {
+    pub fn get_topic(&self) -> DdsResult<TopicNode> {
         // let data_writer = self.0.get()?;
 
         // let topic =
