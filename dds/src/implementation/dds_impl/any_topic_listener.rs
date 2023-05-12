@@ -3,7 +3,7 @@ use crate::{
     topic_definition::{topic::Topic, topic_listener::TopicListener},
 };
 
-use super::{node_kind::TopicNodeKind, node_user_defined_topic::UserDefinedTopicNode};
+use super::{nodes::TopicNodeKind, node_user_defined_topic::UserDefinedTopicNode};
 
 pub trait AnyTopicListener {
     fn trigger_on_inconsistent_topic(

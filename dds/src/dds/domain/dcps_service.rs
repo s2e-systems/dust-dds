@@ -30,7 +30,7 @@ use crate::{
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
             dds_subscriber::DdsSubscriber,
-            node_kind::{SubscriberNodeKind, DataReaderNode},
+            nodes::{SubscriberNodeKind, DataReaderNode},
             node_user_defined_data_writer::UserDefinedDataWriterNode,
             node_user_defined_subscriber::UserDefinedSubscriberNode,
             node_user_defined_topic::UserDefinedTopicNode,
@@ -412,7 +412,7 @@ fn on_requested_deadline_missed_communication_change(data_reader_node: DataReade
     ) -> DdsResult<RequestedDeadlineMissedStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                crate::implementation::dds_impl::node_user_defined_data_reader::get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
+                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
             })
     }
 
@@ -569,7 +569,7 @@ fn on_subscription_matched_communication_change(data_reader_node: DataReaderNode
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_reader_node.parent_participant().prefix(),
             |dp| {
-                crate::implementation::dds_impl::node_user_defined_data_reader::get_subscription_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
+                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_subscription_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
             },
         )
     }
@@ -641,7 +641,7 @@ fn on_requested_incompatible_qos_communication_change(data_reader_node: DataRead
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_reader_node.parent_participant().prefix(),
             |dp| {
-                crate::implementation::dds_impl::node_user_defined_data_reader::get_requested_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
+                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_requested_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
             },
         )
     }
@@ -713,7 +713,7 @@ fn on_sample_rejected_communication_change(data_reader_node: DataReaderNode) {
     ) -> DdsResult<SampleRejectedStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                crate::implementation::dds_impl::node_user_defined_data_reader::get_sample_rejected_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
+                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_sample_rejected_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
             })
     }
 
@@ -783,7 +783,7 @@ fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
     ) -> DdsResult<SampleLostStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                crate::implementation::dds_impl::node_user_defined_data_reader::get_sample_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
+                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_sample_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
             })
     }
 

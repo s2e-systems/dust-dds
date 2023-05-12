@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     dds_domain_participant::DdsDomainParticipant,
-    node_kind::{DataReaderNodeKind, DataReaderNode},
+    nodes::{DataReaderNodeKind, DataReaderNode},
 };
 
 #[derive(PartialEq, Eq, Debug)]

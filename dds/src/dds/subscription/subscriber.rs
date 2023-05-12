@@ -6,7 +6,7 @@ use crate::{
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
         dds_subscriber::DdsSubscriber,
-        node_kind::{DataReaderNodeKind, SubscriberNodeKind},
+        nodes::{DataReaderNodeKind, SubscriberNodeKind},
     },
     infrastructure::{
         condition::StatusCondition,

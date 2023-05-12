@@ -4,7 +4,7 @@ use crate::{
 };
 
 use super::{
-    node_kind::DataReaderNode, node_user_defined_data_writer::UserDefinedDataWriterNode,
+    nodes::DataReaderNode, node_user_defined_data_writer::UserDefinedDataWriterNode,
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
 };
 

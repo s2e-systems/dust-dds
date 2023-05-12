@@ -6,7 +6,7 @@ use crate::{
         any_topic_listener::AnyTopicListener,
         dds_domain_participant::DdsDomainParticipant,
         node_domain_participant::DomainParticipantNode,
-        node_kind::{SubscriberNodeKind, TopicNodeKind},
+        nodes::{SubscriberNodeKind, TopicNodeKind},
     },
     infrastructure::{
         condition::StatusCondition,

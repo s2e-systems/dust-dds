@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    node_kind::DataWriterNodeKind, node_user_defined_data_writer::UserDefinedDataWriterNode,
+    nodes::DataWriterNodeKind, node_user_defined_data_writer::UserDefinedDataWriterNode,
 };
 
 pub trait AnyDataWriterListener {

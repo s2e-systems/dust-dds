@@ -23,7 +23,7 @@ use super::{
     dds_data_reader::DdsDataReader,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
-    node_kind::DataReaderNode,
+    nodes::DataReaderNode,
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -135,7 +135,7 @@ impl UserDefinedSubscriberNode {
                 .entity_factory
                 .autoenable_created_entities
         {
-            super::node_user_defined_data_reader::enable(domain_participant, guid, self.this)?;
+            super::behavior_user_defined_data_reader::enable(domain_participant, guid, self.this)?;
         }
 
         Ok(node)
