@@ -79,7 +79,7 @@ impl DomainParticipant {
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
         let publisher = self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::create_publisher(dp, qos)
+            crate::implementation::dds_impl::behavior_domain_participant::create_publisher(dp, qos)
         })?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_publisher_listener(
@@ -100,7 +100,7 @@ impl DomainParticipant {
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::delete_publisher(
+            crate::implementation::dds_impl::behavior_domain_participant::delete_publisher(
                 dp,
                 a_publisher.node().guid(),
             )
@@ -126,7 +126,7 @@ impl DomainParticipant {
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
         let subscriber = self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::create_subscriber(dp, qos)
+            crate::implementation::dds_impl::behavior_domain_participant::create_subscriber(dp, qos)
         })?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_subscriber_listener(
@@ -149,7 +149,7 @@ impl DomainParticipant {
             SubscriberNodeKind::Builtin(_) => (),
             SubscriberNodeKind::UserDefined(s) => {
                 self.call_participant_mut_method(|dp| {
-                    crate::implementation::dds_impl::node_domain_participant::delete_subscriber(
+                    crate::implementation::dds_impl::behavior_domain_participant::delete_subscriber(
                         dp,
                         s.guid(),
                     )
@@ -183,7 +183,7 @@ impl DomainParticipant {
         Foo: DdsType + 'static,
     {
         let topic = self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::create_topic(
+            crate::implementation::dds_impl::behavior_domain_participant::create_topic(
                 dp,
                 topic_name,
                 Foo::type_name(),
@@ -210,7 +210,7 @@ impl DomainParticipant {
         match &a_topic.node() {
             TopicNodeKind::UserDefined(t) => {
                 self.call_participant_mut_method(|dp| {
-                    crate::implementation::dds_impl::node_domain_participant::delete_topic(
+                    crate::implementation::dds_impl::behavior_domain_participant::delete_topic(
                         dp,
                         t.guid(),
                     )
@@ -243,7 +243,7 @@ impl DomainParticipant {
         while start_time.elapsed() < std::time::Duration::from(timeout) {
             if let Some(topic) = self.call_participant_mut_method(|dp| {
                 Ok(
-                    crate::implementation::dds_impl::node_domain_participant::find_topic(
+                    crate::implementation::dds_impl::behavior_domain_participant::find_topic(
                         dp,
                         topic_name,
                         Foo::type_name(),
@@ -273,7 +273,7 @@ impl DomainParticipant {
     {
         self.call_participant_method(|dp| {
             Ok(
-                crate::implementation::dds_impl::node_domain_participant::lookup_topicdescription(
+                crate::implementation::dds_impl::behavior_domain_participant::lookup_topicdescription(
                     dp,
                     topic_name,
                     Foo::type_name(),
@@ -289,7 +289,7 @@ impl DomainParticipant {
     /// objects.
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::get_builtin_subscriber(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::get_builtin_subscriber(dp)
                 .map(|x| Subscriber::new(SubscriberNodeKind::Builtin(x)))
         })
     }
@@ -307,7 +307,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::ignore_participant(dp, handle)
+            crate::implementation::dds_impl::behavior_domain_participant::ignore_participant(dp, handle)
         })
     }
 
@@ -320,7 +320,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::ignore_topic(dp, handle)
+            crate::implementation::dds_impl::behavior_domain_participant::ignore_topic(dp, handle)
         })
     }
 
@@ -331,7 +331,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::ignore_publication(dp, handle)
+            crate::implementation::dds_impl::behavior_domain_participant::ignore_publication(dp, handle)
         })
     }
 
@@ -343,7 +343,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::ignore_subscription(
+            crate::implementation::dds_impl::behavior_domain_participant::ignore_subscription(
                 dp, handle,
             )
         })
@@ -353,7 +353,7 @@ impl DomainParticipant {
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::get_domain_id(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::get_domain_id(dp)
         })
     }
 
@@ -369,7 +369,7 @@ impl DomainParticipant {
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::delete_contained_entities(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::delete_contained_entities(dp)
         })
     }
 
@@ -382,7 +382,7 @@ impl DomainParticipant {
     /// [`DomainParticipant`]. Consequently the use of this operation is only needed if the application is not writing data regularly.
     pub fn assert_liveliness(&self) -> DdsResult<()> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::assert_liveliness(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::assert_liveliness(dp)
         })
     }
 
@@ -394,7 +394,7 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the values the default values of [`PublisherQos`].
     pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::set_default_publisher_qos(
+            crate::implementation::dds_impl::behavior_domain_participant::set_default_publisher_qos(
                 dp, qos,
             )
         })
@@ -406,7 +406,7 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::get_default_publisher_qos(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::get_default_publisher_qos(dp)
         })
     }
 
@@ -418,7 +418,7 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the default values of [`SubscriberQos`].
     pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::set_default_subscriber_qos(
+            crate::implementation::dds_impl::behavior_domain_participant::set_default_subscriber_qos(
                 dp, qos,
             )
         })
@@ -430,7 +430,7 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_subscriber_qos()`], or else, if the call was never made, the default values of [`SubscriberQos`].
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::get_default_subscriber_qos(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::get_default_subscriber_qos(dp)
         })
     }
 
@@ -442,7 +442,7 @@ impl DomainParticipant {
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
     pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::set_default_topic_qos(dp, qos)
+            crate::implementation::dds_impl::behavior_domain_participant::set_default_topic_qos(dp, qos)
         })
     }
 
@@ -452,7 +452,7 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::get_default_topic_qos(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::get_default_topic_qos(dp)
         })
     }
 
@@ -460,7 +460,7 @@ impl DomainParticipant {
     /// indicated should be “ignored” by means of the [`DomainParticipant::ignore_participant()`] operation.
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::get_discovered_participants(
+            crate::implementation::dds_impl::behavior_domain_participant::get_discovered_participants(
                 dp,
             )
         })
@@ -477,7 +477,7 @@ impl DomainParticipant {
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
         self.call_participant_method(|dp| {
-                crate::implementation::dds_impl::node_domain_participant::get_discovered_participant_data(dp, participant_handle)
+                crate::implementation::dds_impl::behavior_domain_participant::get_discovered_participant_data(dp, participant_handle)
         })
     }
 
@@ -485,7 +485,7 @@ impl DomainParticipant {
     /// should be “ignored” by means of the [`DomainParticipant::ignore_topic()`] operation.
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::get_discovered_topics(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::get_discovered_topics(dp)
         })
     }
 
@@ -500,7 +500,7 @@ impl DomainParticipant {
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::get_discovered_topic_data(
+            crate::implementation::dds_impl::behavior_domain_participant::get_discovered_topic_data(
                 dp,
                 topic_handle,
             )
@@ -515,7 +515,7 @@ impl DomainParticipant {
     /// `get_instance_handle`.
     pub fn contains_entity(&self, a_handle: InstanceHandle) -> DdsResult<bool> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::contains_entity(dp, a_handle)
+            crate::implementation::dds_impl::behavior_domain_participant::contains_entity(dp, a_handle)
         })
     }
 
@@ -523,7 +523,7 @@ impl DomainParticipant {
     /// for the data-updates it receives.
     pub fn get_current_time(&self) -> DdsResult<Time> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::get_current_time(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::get_current_time(dp)
         })
     }
 }
@@ -544,14 +544,14 @@ impl DomainParticipant {
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::set_qos(dp, qos)
+            crate::implementation::dds_impl::behavior_domain_participant::set_qos(dp, qos)
         })
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::get_qos(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::get_qos(dp)
         })
     }
 
@@ -566,7 +566,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        crate::implementation::dds_impl::node_domain_participant::set_listener(a_listener, mask)
+        crate::implementation::dds_impl::behavior_domain_participant::set_listener(a_listener, mask)
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -622,13 +622,13 @@ impl DomainParticipant {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::node_domain_participant::enable(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::enable(dp)
         })
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        crate::implementation::dds_impl::node_domain_participant::get_instance_handle(self.0.guid())
+        crate::implementation::dds_impl::behavior_domain_participant::get_instance_handle(self.0.guid())
     }
 
     fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
