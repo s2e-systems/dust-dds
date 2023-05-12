@@ -47,11 +47,15 @@ use super::{
 /// [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
 #[derive(PartialEq, Eq, Debug)]
-pub struct DomainParticipant(pub(crate) DomainParticipantNode);
+pub struct DomainParticipant(DomainParticipantNode);
 
 impl DomainParticipant {
     pub(crate) fn new(node: DomainParticipantNode) -> Self {
         Self(node)
+    }
+
+    pub(crate) fn node(&self) -> &DomainParticipantNode {
+        &self.0
     }
 }
 
@@ -94,9 +98,11 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| self.0.delete_publisher(dp, a_publisher.0.guid()))?;
+        self.call_participant_mut_method(|dp| {
+            self.0.delete_publisher(dp, a_publisher.node().guid())
+        })?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_publisher_listener(&a_publisher.0.guid());
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_publisher_listener(&a_publisher.node().guid());
 
         Ok(())
     }
@@ -134,7 +140,7 @@ impl DomainParticipant {
     /// it is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        match &a_subscriber.0 {
+        match a_subscriber.node() {
             SubscriberNodeKind::Builtin(_) => (),
             SubscriberNodeKind::UserDefined(s) => {
                 self.call_participant_mut_method(|dp| self.0.delete_subscriber(dp, s.guid()))?;
@@ -186,7 +192,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_topic<Foo>(&self, a_topic: &Topic<Foo>) -> DdsResult<()> {
-        match &a_topic.node {
+        match &a_topic.node() {
             TopicNodeKind::UserDefined(t) => {
                 self.call_participant_mut_method(|dp| self.0.delete_topic(dp, t.guid()))?;
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_topic_listener(&t.guid());

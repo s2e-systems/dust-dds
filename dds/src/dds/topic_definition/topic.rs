@@ -21,7 +21,7 @@ use super::topic_listener::TopicListener;
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
 pub struct Topic<Foo> {
-    pub(crate) node: TopicNodeKind,
+    node: TopicNodeKind,
     phantom: PhantomData<Foo>,
 }
 
@@ -31,6 +31,10 @@ impl<Foo> Topic<Foo> {
             node,
             phantom: PhantomData,
         }
+    }
+
+    pub(crate) fn node(&self) -> &TopicNodeKind {
+        &self.node
     }
 }
 

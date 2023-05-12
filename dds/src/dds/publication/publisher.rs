@@ -28,11 +28,15 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
 #[derive(Eq, PartialEq, Debug)]
-pub struct Publisher(pub(crate) UserDefinedPublisherNode);
+pub struct Publisher(UserDefinedPublisherNode);
 
 impl Publisher {
     pub(crate) fn new(publisher: UserDefinedPublisherNode) -> Self {
         Self(publisher)
+    }
+
+    pub(crate) fn node(&self) -> &UserDefinedPublisherNode {
+        &self.0
     }
 }
 
@@ -97,7 +101,7 @@ impl Publisher {
     /// [`WriterDataLifecycleQosPolicy`](crate::infrastructure::qos_policy::WriterDataLifecycleQosPolicy), the deletion of the
     /// [`DataWriter`].
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
-        match &a_datawriter.0 {
+        match a_datawriter.node() {
             DataWriterNodeKind::UserDefined(dw) => {
                 self.call_participant_mut_method(|dp| {
                     self.0

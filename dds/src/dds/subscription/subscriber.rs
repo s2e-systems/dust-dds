@@ -32,11 +32,15 @@ use super::{
 /// other parts of the system), it builds the list of concerned [`DataReader`] objects, and then indicates to the application that data is
 /// available, through its listener or by enabling related conditions.
 #[derive(PartialEq, Eq, Debug)]
-pub struct Subscriber(pub(crate) SubscriberNodeKind);
+pub struct Subscriber(SubscriberNodeKind);
 
 impl Subscriber {
     pub(crate) fn new(subscriber: SubscriberNodeKind) -> Self {
         Self(subscriber)
+    }
+
+    pub(crate) fn node(&self) -> &SubscriberNodeKind {
+        &self.0
     }
 }
 
@@ -114,7 +118,7 @@ impl Subscriber {
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(s) => match &a_datareader.0 {
+            SubscriberNodeKind::UserDefined(s) => match a_datareader.node() {
                 DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
                 DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
                 DataReaderNodeKind::UserDefined(dr) => {

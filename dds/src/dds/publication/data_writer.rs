@@ -24,11 +24,15 @@ use crate::{
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
-pub struct DataWriter<Foo>(pub(crate) DataWriterNodeKind, PhantomData<Foo>);
+pub struct DataWriter<Foo>(DataWriterNodeKind, PhantomData<Foo>);
 
 impl<Foo> DataWriter<Foo> {
     pub(crate) fn new(data_writer: DataWriterNodeKind) -> Self {
         Self(data_writer, PhantomData)
+    }
+
+    pub(crate) fn node(&self) -> &DataWriterNodeKind {
+        &self.0
     }
 }
 

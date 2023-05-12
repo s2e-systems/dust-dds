@@ -51,11 +51,15 @@ pub struct Sample<Foo> {
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<Foo>(pub(crate) DataReaderNodeKind, PhantomData<Foo>);
+pub struct DataReader<Foo>(DataReaderNodeKind, PhantomData<Foo>);
 
 impl<Foo> DataReader<Foo> {
     pub(crate) fn new(data_reader: DataReaderNodeKind) -> Self {
         Self(data_reader, PhantomData)
+    }
+
+    pub(crate) fn node(&self) -> &DataReaderNodeKind {
+        &self.0
     }
 }
 
