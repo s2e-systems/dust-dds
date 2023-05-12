@@ -19,7 +19,7 @@ use crate::{
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
-use super::{dds_domain_participant::DdsDomainParticipant, nodes::PublisherNode};
+use super::dds_domain_participant::DdsDomainParticipant;
 
 pub fn unregister_instance_w_timestamp(
     domain_participant: &mut DdsDomainParticipant,
@@ -183,10 +183,6 @@ pub fn get_publication_matched_status(
         .get_publication_matched_status())
 }
 
-pub fn get_publisher(publisher_guid: Guid, participant_guid: Guid) -> PublisherNode {
-    PublisherNode::new(publisher_guid, participant_guid)
-}
-
 pub fn get_matched_subscription_data(
     domain_participant: &DdsDomainParticipant,
     writer_guid: Guid,
@@ -324,10 +320,6 @@ pub fn enable(
     publisher_guid: Guid,
 ) -> DdsResult<()> {
     enable_data_writer(domain_participant, publisher_guid, writer_guid)
-}
-
-pub fn get_instance_handle(writer_guid: Guid) -> DdsResult<InstanceHandle> {
-    Ok(writer_guid.into())
 }
 
 fn enable_data_writer(

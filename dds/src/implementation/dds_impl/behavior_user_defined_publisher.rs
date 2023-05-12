@@ -20,7 +20,7 @@ use crate::{
 use super::{
     dds_data_writer::DdsDataWriter,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    nodes::{DataWriterNode, DomainParticipantNode},
+    nodes::DataWriterNode,
 };
 
 pub fn create_datawriter<Foo>(
@@ -176,10 +176,6 @@ pub fn lookup_datawriter(
         .map(|x| DataWriterNode::new(x.guid(), publisher_guid, domain_participant.guid())))
 }
 
-pub fn get_participant(participant_guid: Guid) -> DdsResult<DomainParticipantNode> {
-    Ok(DomainParticipantNode::new(participant_guid))
-}
-
 pub fn delete_contained_entities() -> DdsResult<()> {
     todo!()
     // for data_writer in self.this.get()?.stateful_datawriter_drain().into_iter() {
@@ -279,8 +275,4 @@ pub fn enable() -> DdsResult<()> {
 
     // Ok(())
     todo!()
-}
-
-pub fn get_instance_handle(publisher_guid: Guid) -> DdsResult<InstanceHandle> {
-    Ok(InstanceHandle::from(publisher_guid))
 }

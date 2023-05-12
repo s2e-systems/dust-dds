@@ -2,13 +2,12 @@ use crate::{
     implementation::rtps::types::Guid,
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
         qos::{QosKind, TopicQos},
         status::InconsistentTopicStatus,
     },
 };
 
-use super::{dds_domain_participant::DdsDomainParticipant, nodes::DomainParticipantNode};
+use super::dds_domain_participant::DdsDomainParticipant;
 
 pub fn get_inconsistent_topic_status(
     domain_participant: &mut DdsDomainParticipant,
@@ -20,10 +19,6 @@ pub fn get_inconsistent_topic_status(
         .find(|t| t.guid() == topic_guid)
         .ok_or(DdsError::AlreadyDeleted)?
         .get_inconsistent_topic_status())
-}
-
-pub fn get_participant(participant_guid: Guid) -> DomainParticipantNode {
-    DomainParticipantNode::new(participant_guid)
 }
 
 pub fn get_type_name(
@@ -84,8 +79,4 @@ pub fn enable(domain_participant: &mut DdsDomainParticipant, topic_guid: Guid) -
         .enable()?;
 
     Ok(())
-}
-
-pub fn get_instance_handle(topic_guid: Guid) -> DdsResult<InstanceHandle> {
-    Ok(topic_guid.into())
 }

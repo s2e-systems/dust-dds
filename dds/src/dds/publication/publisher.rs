@@ -6,7 +6,7 @@ use crate::{
     implementation::dds_impl::{
         any_data_writer_listener::AnyDataWriterListener,
         dds_domain_participant::DdsDomainParticipant,
-        nodes::{DataWriterNodeKind, PublisherNode},
+        nodes::{DataWriterNodeKind, DomainParticipantNode, PublisherNode},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -207,11 +207,9 @@ impl Publisher {
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(
-            crate::implementation::dds_impl::behavior_user_defined_publisher::get_participant(
-                self.0.parent_participant(),
-            )?,
-        ))
+        Ok(DomainParticipant::new(DomainParticipantNode::new(
+            self.0.parent_participant(),
+        )))
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.
@@ -343,9 +341,7 @@ impl Publisher {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        crate::implementation::dds_impl::behavior_user_defined_publisher::get_instance_handle(
-            self.0.guid(),
-        )
+        Ok(self.0.guid().into())
     }
 
     fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>

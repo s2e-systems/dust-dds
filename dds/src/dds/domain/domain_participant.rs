@@ -307,7 +307,9 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::behavior_domain_participant::ignore_participant(dp, handle)
+            crate::implementation::dds_impl::behavior_domain_participant::ignore_participant(
+                dp, handle,
+            )
         })
     }
 
@@ -331,7 +333,9 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::behavior_domain_participant::ignore_publication(dp, handle)
+            crate::implementation::dds_impl::behavior_domain_participant::ignore_publication(
+                dp, handle,
+            )
         })
     }
 
@@ -369,7 +373,9 @@ impl DomainParticipant {
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::behavior_domain_participant::delete_contained_entities(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::delete_contained_entities(
+                dp,
+            )
         })
     }
 
@@ -406,7 +412,9 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::behavior_domain_participant::get_default_publisher_qos(dp)
+            crate::implementation::dds_impl::behavior_domain_participant::get_default_publisher_qos(
+                dp,
+            )
         })
     }
 
@@ -442,7 +450,9 @@ impl DomainParticipant {
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
     pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::dds_impl::behavior_domain_participant::set_default_topic_qos(dp, qos)
+            crate::implementation::dds_impl::behavior_domain_participant::set_default_topic_qos(
+                dp, qos,
+            )
         })
     }
 
@@ -515,7 +525,9 @@ impl DomainParticipant {
     /// `get_instance_handle`.
     pub fn contains_entity(&self, a_handle: InstanceHandle) -> DdsResult<bool> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::behavior_domain_participant::contains_entity(dp, a_handle)
+            crate::implementation::dds_impl::behavior_domain_participant::contains_entity(
+                dp, a_handle,
+            )
         })
     }
 
@@ -563,10 +575,10 @@ impl DomainParticipant {
     /// will be removed.
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
-        crate::implementation::dds_impl::behavior_domain_participant::set_listener(a_listener, mask)
+        todo!()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -628,7 +640,7 @@ impl DomainParticipant {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        crate::implementation::dds_impl::behavior_domain_participant::get_instance_handle(self.0.guid())
+        Ok(self.0.guid().into())
     }
 
     fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>

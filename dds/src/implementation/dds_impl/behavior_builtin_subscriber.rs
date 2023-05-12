@@ -1,6 +1,6 @@
 use crate::{
     implementation::rtps::types::Guid,
-    infrastructure::{error::DdsResult, instance::InstanceHandle, qos::SubscriberQos},
+    infrastructure::{error::DdsResult, qos::SubscriberQos},
     topic_definition::type_support::DdsType,
 };
 
@@ -42,8 +42,4 @@ where
 
 pub fn get_qos(domain_participant: &DdsDomainParticipant) -> DdsResult<SubscriberQos> {
     Ok(domain_participant.get_builtin_subscriber().get_qos())
-}
-
-pub fn get_instance_handle(subscriber_guid: Guid) -> DdsResult<InstanceHandle> {
-    Ok(subscriber_guid.into())
 }

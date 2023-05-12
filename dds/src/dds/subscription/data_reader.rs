@@ -954,14 +954,10 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => crate::implementation::dds_impl::behavior_builtin_data_reader_stateless::get_instance_handle(r.guid()),
-            DataReaderNodeKind::BuiltinStateful(r) => crate::implementation::dds_impl::behavior_builtin_data_reader_stateful::get_instance_handle(r.guid()),
-            DataReaderNodeKind::UserDefined(r) => {
-                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_instance_handle(
-                    r.guid(),
-                )
-            }
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateless(r)
+            | DataReaderNodeKind::BuiltinStateful(r)
+            | DataReaderNodeKind::UserDefined(r)
+            | DataReaderNodeKind::Listener(r) => Ok(r.guid().into()),
         }
     }
 }

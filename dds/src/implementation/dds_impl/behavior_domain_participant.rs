@@ -1,15 +1,11 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::{
-        domain_participant_factory::DomainId,
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_factory::DomainId,
     implementation::rtps::types::Guid,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
-        status::StatusKind,
         time::Time,
     },
 };
@@ -246,17 +242,6 @@ pub fn get_qos(domain_participant: &DdsDomainParticipant) -> DdsResult<DomainPar
     Ok(domain_participant.get_qos())
 }
 
-pub fn set_listener(
-    _a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-    _mask: &[StatusKind],
-) -> DdsResult<()> {
-    todo!()
-}
-
 pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
     domain_participant.enable()
-}
-
-pub fn get_instance_handle(domain_participant_guid: Guid) -> DdsResult<InstanceHandle> {
-    Ok(domain_participant_guid.into())
 }

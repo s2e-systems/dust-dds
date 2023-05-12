@@ -417,12 +417,9 @@ impl Subscriber {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(s) | SubscriberNodeKind::UserDefined(s) => {
-                crate::implementation::dds_impl::behavior_builtin_subscriber::get_instance_handle(
-                    s.guid(),
-                )
-            }
-            SubscriberNodeKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Builtin(s)
+            | SubscriberNodeKind::UserDefined(s)
+            | SubscriberNodeKind::Listener(s) => Ok(s.guid().into()),
         }
     }
 }

@@ -3,7 +3,7 @@ use std::{marker::PhantomData, time::Instant};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    implementation::dds_impl::nodes::DataWriterNodeKind,
+    implementation::dds_impl::nodes::{DataWriterNodeKind, PublisherNode},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -509,12 +509,10 @@ impl<Foo> DataWriter<Foo> {
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => Ok(Publisher::new(
-                crate::implementation::dds_impl::behavior_user_defined_data_writer::get_publisher(
-                    w.parent_publisher(),
-                    w.parent_participant(),
-                ),
-            )),
+            DataWriterNodeKind::UserDefined(w) => Ok(Publisher::new(PublisherNode::new(
+                w.parent_publisher(),
+                w.parent_participant(),
+            ))),
             DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
@@ -719,12 +717,9 @@ where
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                crate::implementation::dds_impl::behavior_user_defined_data_writer::get_instance_handle(
-                    w.guid(),
-                )
+            DataWriterNodeKind::UserDefined(w) | DataWriterNodeKind::Listener(w) => {
+                Ok(w.guid().into())
             }
-            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 }

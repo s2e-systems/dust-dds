@@ -5,7 +5,7 @@ use crate::{
         domain_participant::DomainParticipant,
         domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     },
-    implementation::dds_impl::nodes::TopicNodeKind,
+    implementation::dds_impl::nodes::{DomainParticipantNode, TopicNodeKind},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -88,11 +88,9 @@ impl<Foo> Topic<Foo> {
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => Ok(DomainParticipant::new(
-                crate::implementation::dds_impl::behavior_user_defined_topic::get_participant(
-                    t.parent_participant(),
-                ),
+                DomainParticipantNode::new(t.parent_participant()),
             )),
-            TopicNodeKind::Listener(_) => todo!(),
+            TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
@@ -243,12 +241,7 @@ impl<Foo> Topic<Foo> {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                crate::implementation::dds_impl::behavior_user_defined_topic::get_instance_handle(
-                    t.guid(),
-                )
-            }
-            TopicNodeKind::Listener(_) => todo!(),
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => Ok(t.guid().into()),
         }
     }
 }

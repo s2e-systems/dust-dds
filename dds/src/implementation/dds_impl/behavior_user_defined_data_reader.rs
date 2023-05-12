@@ -423,7 +423,3 @@ pub fn enable(
 
     Ok(())
 }
-
-pub fn get_instance_handle(reader_guid: Guid) -> DdsResult<InstanceHandle> {
-    Ok(reader_guid.into())
-}
