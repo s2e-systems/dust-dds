@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     dds_domain_participant::DdsDomainParticipant,
-    node_kind::{DataReaderNodeKind, UserDefinedDataReaderNode},
+    node_kind::{DataReaderNodeKind, DataReaderNode},
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -42,7 +42,7 @@ impl BuiltinSubscriberNode {
             .find(|x| x.get_type_name() == Foo::type_name() && x.get_topic_name() == topic_name)
         {
             Ok(Some(DataReaderNodeKind::BuiltinStateful(
-                UserDefinedDataReaderNode::new(r.guid(), self.this, self.parent),
+                DataReaderNode::new(r.guid(), self.this, self.parent),
             )))
         } else if let Some(r) = domain_participant
             .get_builtin_subscriber()
@@ -51,7 +51,7 @@ impl BuiltinSubscriberNode {
             .find(|x| x.get_type_name() == Foo::type_name() && x.get_topic_name() == topic_name)
         {
             Ok(Some(DataReaderNodeKind::BuiltinStateless(
-                UserDefinedDataReaderNode::new(r.guid(), self.this, self.parent),
+                DataReaderNode::new(r.guid(), self.this, self.parent),
             )))
         } else {
             Ok(None)

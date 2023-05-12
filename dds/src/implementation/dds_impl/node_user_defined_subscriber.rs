@@ -23,7 +23,7 @@ use super::{
     dds_data_reader::DdsDataReader,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
-    node_kind::UserDefinedDataReaderNode,
+    node_kind::DataReaderNode,
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -47,7 +47,7 @@ impl UserDefinedSubscriberNode {
         type_name: &'static str,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-    ) -> DdsResult<UserDefinedDataReaderNode>
+    ) -> DdsResult<DataReaderNode>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -122,7 +122,7 @@ impl UserDefinedSubscriberNode {
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_add(data_reader);
 
-        let node = UserDefinedDataReaderNode::new(guid, self.this, self.parent);
+        let node = DataReaderNode::new(guid, self.this, self.parent);
 
         if domain_participant
             .get_subscriber(self.this)
@@ -180,7 +180,7 @@ impl UserDefinedSubscriberNode {
         domain_participant: &DdsDomainParticipant,
         type_name: &str,
         topic_name: &str,
-    ) -> DdsResult<Option<UserDefinedDataReaderNode>> {
+    ) -> DdsResult<Option<DataReaderNode>> {
         Ok(domain_participant
             .get_subscriber(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
@@ -190,7 +190,7 @@ impl UserDefinedSubscriberNode {
                 data_reader.get_topic_name() == topic_name
                     && data_reader.get_type_name() == type_name
             })
-            .map(|x| UserDefinedDataReaderNode::new(x.guid(), self.this, self.parent)))
+            .map(|x| DataReaderNode::new(x.guid(), self.this, self.parent)))
     }
 
     pub fn notify_datareaders(&self) -> DdsResult<()> {

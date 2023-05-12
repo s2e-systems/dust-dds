@@ -7,38 +7,38 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
-use super::node_kind::{DataReaderNodeKind, UserDefinedDataReaderNode};
+use super::node_kind::{DataReaderNodeKind, DataReaderNode};
 
 pub trait AnyDataReaderListener {
-    fn trigger_on_data_available(&mut self, reader: UserDefinedDataReaderNode);
+    fn trigger_on_data_available(&mut self, reader: DataReaderNode);
     fn trigger_on_sample_rejected(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: SampleRejectedStatus,
     );
     fn trigger_on_liveliness_changed(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: LivelinessChangedStatus,
     );
     fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: RequestedDeadlineMissedStatus,
     );
     fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: RequestedIncompatibleQosStatus,
     );
     fn trigger_on_subscription_matched(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: SubscriptionMatchedStatus,
     );
     fn trigger_on_sample_lost(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: SampleLostStatus,
     );
 }
@@ -47,13 +47,13 @@ impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send
 where
     Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
 {
-    fn trigger_on_data_available(&mut self, reader: UserDefinedDataReaderNode) {
+    fn trigger_on_data_available(&mut self, reader: DataReaderNode) {
         self.on_data_available(&DataReader::new(DataReaderNodeKind::Listener(reader)))
     }
 
     fn trigger_on_sample_rejected(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: SampleRejectedStatus,
     ) {
         self.on_sample_rejected(
@@ -64,7 +64,7 @@ where
 
     fn trigger_on_liveliness_changed(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: LivelinessChangedStatus,
     ) {
         self.on_liveliness_changed(
@@ -75,7 +75,7 @@ where
 
     fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: RequestedDeadlineMissedStatus,
     ) {
         self.on_requested_deadline_missed(
@@ -86,7 +86,7 @@ where
 
     fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: RequestedIncompatibleQosStatus,
     ) {
         self.on_requested_incompatible_qos(
@@ -97,7 +97,7 @@ where
 
     fn trigger_on_subscription_matched(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: SubscriptionMatchedStatus,
     ) {
         self.on_subscription_matched(
@@ -108,7 +108,7 @@ where
 
     fn trigger_on_sample_lost(
         &mut self,
-        reader: UserDefinedDataReaderNode,
+        reader: DataReaderNode,
         status: SampleLostStatus,
     ) {
         self.on_sample_lost(

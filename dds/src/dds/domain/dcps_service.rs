@@ -30,7 +30,7 @@ use crate::{
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
             dds_subscriber::DdsSubscriber,
-            node_kind::{SubscriberNodeKind, UserDefinedDataReaderNode},
+            node_kind::{SubscriberNodeKind, DataReaderNode},
             node_user_defined_data_writer::UserDefinedDataWriterNode,
             node_user_defined_subscriber::UserDefinedSubscriberNode,
             node_user_defined_topic::UserDefinedTopicNode,
@@ -406,9 +406,9 @@ impl DcpsService {
     }
 }
 
-fn on_requested_deadline_missed_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_requested_deadline_missed_communication_change(data_reader_node: DataReaderNode) {
     fn get_requested_deadline_missed_status(
-        data_reader_node: &UserDefinedDataReaderNode,
+        data_reader_node: &DataReaderNode,
     ) -> DdsResult<RequestedDeadlineMissedStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
@@ -479,7 +479,7 @@ fn on_requested_deadline_missed_communication_change(data_reader_node: UserDefin
     )
 }
 
-fn on_data_available_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_data_available_communication_change(data_reader_node: DataReaderNode) {
     let data_on_reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
         &data_reader_node.parent_subscriber(),
         |subscriber_listener| match subscriber_listener {
@@ -562,9 +562,9 @@ fn on_data_available_communication_change(data_reader_node: UserDefinedDataReade
     )
 }
 
-fn on_subscription_matched_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_subscription_matched_communication_change(data_reader_node: DataReaderNode) {
     fn get_subscription_matched_status(
-        data_reader_node: &UserDefinedDataReaderNode,
+        data_reader_node: &DataReaderNode,
     ) -> DdsResult<SubscriptionMatchedStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_reader_node.parent_participant().prefix(),
@@ -634,9 +634,9 @@ fn on_subscription_matched_communication_change(data_reader_node: UserDefinedDat
     )
 }
 
-fn on_requested_incompatible_qos_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_requested_incompatible_qos_communication_change(data_reader_node: DataReaderNode) {
     fn get_requested_incompatible_qos_status(
-        data_reader_node: &UserDefinedDataReaderNode,
+        data_reader_node: &DataReaderNode,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_reader_node.parent_participant().prefix(),
@@ -707,9 +707,9 @@ fn on_requested_incompatible_qos_communication_change(data_reader_node: UserDefi
     )
 }
 
-fn on_sample_rejected_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_sample_rejected_communication_change(data_reader_node: DataReaderNode) {
     fn get_sample_rejected_status(
-        data_reader_node: &UserDefinedDataReaderNode,
+        data_reader_node: &DataReaderNode,
     ) -> DdsResult<SampleRejectedStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
@@ -777,9 +777,9 @@ fn on_sample_rejected_communication_change(data_reader_node: UserDefinedDataRead
     )
 }
 
-fn on_sample_lost_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
     fn get_sample_lost_status(
-        data_reader_node: &UserDefinedDataReaderNode,
+        data_reader_node: &DataReaderNode,
     ) -> DdsResult<SampleLostStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {

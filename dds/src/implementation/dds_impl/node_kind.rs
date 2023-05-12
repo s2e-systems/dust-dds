@@ -22,10 +22,10 @@ pub enum DataWriterNodeKind {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum DataReaderNodeKind {
-    BuiltinStateful(UserDefinedDataReaderNode),
-    BuiltinStateless(UserDefinedDataReaderNode),
-    UserDefined(UserDefinedDataReaderNode),
-    Listener(UserDefinedDataReaderNode),
+    BuiltinStateful(DataReaderNode),
+    BuiltinStateless(DataReaderNode),
+    UserDefined(DataReaderNode),
+    Listener(DataReaderNode),
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -35,13 +35,13 @@ pub enum TopicNodeKind {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub struct UserDefinedDataReaderNode {
+pub struct DataReaderNode {
     this: Guid,
     parent_subcriber: Guid,
     parent_participant: Guid,
 }
 
-impl UserDefinedDataReaderNode {
+impl DataReaderNode {
     pub fn new(this: Guid, parent_subcriber: Guid, parent_participant: Guid) -> Self {
         Self {
             this,
@@ -63,4 +63,4 @@ impl UserDefinedDataReaderNode {
     }
 }
 
-impl AnyDataReader for UserDefinedDataReaderNode {}
+impl AnyDataReader for DataReaderNode {}
