@@ -11,7 +11,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
+        qos::{DataWriterQos, PublisherQos, QosKind},
         time::{Duration, DURATION_ZERO},
     },
     topic_definition::type_support::DdsType,
@@ -39,217 +39,17 @@ impl UserDefinedPublisherNode {
         self.this
     }
 
-    pub fn create_datawriter<Foo>(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-        type_name: &'static str,
-        topic_name: String,
-        qos: QosKind<DataWriterQos>,
-    ) -> DdsResult<DataWriterNode>
-    where
-        Foo: DdsType,
-    {
-        create_datawriter::<Foo>(domain_participant, self.this, qos, type_name, topic_name)
-    }
-
-    pub fn delete_datawriter(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-        data_writer_guid: Guid,
-        data_writer_parent_publisher_guid: Guid,
-    ) -> DdsResult<()> {
-        if self.guid() != data_writer_parent_publisher_guid {
-            return Err(DdsError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher".to_string(),
-            ));
-        }
-
-        let data_writer_guid = domain_participant
-            .user_defined_publisher_list_mut()
-            .iter_mut()
-            .find(|p| p.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .stateful_data_writer_list()
-            .iter()
-            .find(|x| x.guid() == data_writer_guid)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .guid();
-
-        // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
-        if domain_participant
-            .user_defined_publisher_list_mut()
-            .iter_mut()
-            .find(|p| p.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .stateful_data_writer_list()
-            .iter()
-            .find(|x| x.guid() == data_writer_guid)
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(
-                    "Data writer can only be deleted from its parent publisher".to_string(),
-                )
-            })?
-            .is_enabled()
-        {
-            domain_participant
-                .announce_sender()
-                .send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
-                .ok();
-        }
-
-        domain_participant
-            .user_defined_publisher_list_mut()
-            .iter_mut()
-            .find(|p| p.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .stateful_datawriter_delete(InstanceHandle::from(data_writer_guid));
-
-        Ok(())
-    }
-
-    pub fn lookup_datawriter(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-        type_name: &'static str,
-        topic_name: &str,
-    ) -> DdsResult<Option<DataWriterNode>> {
-        Ok(domain_participant
-            .get_publisher(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .stateful_data_writer_list()
-            .iter()
-            .find(|data_reader| {
-                data_reader.get_topic_name() == topic_name
-                    && data_reader.get_type_name() == type_name
-            })
-            .map(|x| DataWriterNode::new(x.guid(), self.this, self.parent)))
-    }
-
-    pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {
-        Ok(DomainParticipantNode::new(self.parent))
-    }
-
-    pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        todo!()
-        // for data_writer in self.this.get()?.stateful_datawriter_drain().into_iter() {
-        //     if data_writer.is_enabled() {
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.this.parent(), |dp| {
-        //             dp.unwrap()
-        //                 .announce_sender()
-        //                 .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
-        //                 .ok()
-        //         });
-        //     }
-        // }
-
-        // Ok(())
-    }
-
-    pub fn set_default_datawriter_qos(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-        qos: QosKind<DataWriterQos>,
-    ) -> DdsResult<()> {
-        domain_participant
-            .get_publisher_mut(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .set_default_datawriter_qos(qos)
-    }
-
-    pub fn get_default_datawriter_qos(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<DataWriterQos> {
-        Ok(domain_participant
-            .get_publisher(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_default_datawriter_qos())
-    }
-
-    pub fn copy_from_topic_qos(
-        &self,
-        _a_datawriter_qos: &mut DataWriterQos,
-        _a_topic_qos: &TopicQos,
-    ) -> DdsResult<()> {
-        todo!()
-    }
-
-    pub fn get_qos(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<PublisherQos> {
-        Ok(domain_participant
-            .user_defined_publisher_list()
-            .iter()
-            .find(|p| p.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_qos())
-    }
-
-    pub fn enable(&self) -> DdsResult<()> {
-        // let is_parent_enabled = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //     .get_participant(self.this.parent(), |dp| dp.unwrap().is_enabled());
-        // if !is_parent_enabled {
-        //     return Err(DdsError::PreconditionNotMet(
-        //         "Parent participant is disabled".to_string(),
-        //     ));
-        // }
-
-        // if !self.this.get()?.is_enabled() {
-        //     self.this.get()?.enable();
-
-        //     if self
-        //         .0
-        //         .get()?
-        //         .get_qos()
-        //         .entity_factory
-        //         .autoenable_created_entities
-        //     {
-        //         for data_writer in &self.this.get()?.stateful_data_writer_list() {
-        //             data_writer.enable();
-        //             let topic =
-        //                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.this.parent(), |dp| {
-        //                     dp.unwrap()
-        //                         .topic_list()
-        //                         .into_iter()
-        //                         .find(|t| {
-        //                             t.get_name() == data_writer.get_topic_name()
-        //                                 && t.get_type_name() == data_writer.get_type_name()
-        //                         })
-        //                         .cloned()
-        //                         .expect("Topic must exist")
-        //                 });
-
-        //             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.this.parent(), |dcps| {
-        //                 let discovered_writer_data = data_writer.as_discovered_writer_data(
-        //                     &topic.get_qos(),
-        //                     &self.this.get().unwrap().get_qos(),
-        //                 );
-        //                 dcps.unwrap()
-        //                     .announce_sender()
-        //                     .send(AnnounceKind::CreatedDataWriter(discovered_writer_data))
-        //                     .ok()
-        //             });
-        //         }
-        //     }
-        // }
-
-        // Ok(())
-        todo!()
-    }
-
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(InstanceHandle::from(self.this))
-    }
-
-    pub fn parent(&self) -> Guid {
+    pub fn parent_participant(&self) -> Guid {
         self.parent
     }
 }
 
-fn create_datawriter<Foo>(
+pub fn create_datawriter<Foo>(
     domain_participant: &mut DdsDomainParticipant,
     publisher_guid: Guid,
-    qos: QosKind<DataWriterQos>,
     type_name: &'static str,
     topic_name: String,
+    qos: QosKind<DataWriterQos>,
 ) -> DdsResult<DataWriterNode>
 where
     Foo: DdsType,
@@ -323,4 +123,185 @@ where
     }
 
     Ok(data_writer_node)
+}
+
+pub fn delete_datawriter(
+    domain_participant: &mut DdsDomainParticipant,
+    publisher_guid: Guid,
+    data_writer_guid: Guid,
+    data_writer_parent_publisher_guid: Guid,
+) -> DdsResult<()> {
+    if publisher_guid != data_writer_parent_publisher_guid {
+        return Err(DdsError::PreconditionNotMet(
+            "Data writer can only be deleted from its parent publisher".to_string(),
+        ));
+    }
+
+    let data_writer_guid = domain_participant
+        .user_defined_publisher_list_mut()
+        .iter_mut()
+        .find(|p| p.guid() == publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .stateful_data_writer_list()
+        .iter()
+        .find(|x| x.guid() == data_writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .guid();
+
+    // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
+    if domain_participant
+        .user_defined_publisher_list_mut()
+        .iter_mut()
+        .find(|p| p.guid() == publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .stateful_data_writer_list()
+        .iter()
+        .find(|x| x.guid() == data_writer_guid)
+        .ok_or_else(|| {
+            DdsError::PreconditionNotMet(
+                "Data writer can only be deleted from its parent publisher".to_string(),
+            )
+        })?
+        .is_enabled()
+    {
+        domain_participant
+            .announce_sender()
+            .send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
+            .ok();
+    }
+
+    domain_participant
+        .user_defined_publisher_list_mut()
+        .iter_mut()
+        .find(|p| p.guid() == publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .stateful_datawriter_delete(InstanceHandle::from(data_writer_guid));
+
+    Ok(())
+}
+
+pub fn lookup_datawriter(
+    domain_participant: &DdsDomainParticipant,
+    publisher_guid: Guid,
+    type_name: &'static str,
+    topic_name: &str,
+) -> DdsResult<Option<DataWriterNode>> {
+    Ok(domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .stateful_data_writer_list()
+        .iter()
+        .find(|data_reader| {
+            data_reader.get_topic_name() == topic_name && data_reader.get_type_name() == type_name
+        })
+        .map(|x| DataWriterNode::new(x.guid(), publisher_guid, domain_participant.guid())))
+}
+
+pub fn get_participant(participant_guid: Guid) -> DdsResult<DomainParticipantNode> {
+    Ok(DomainParticipantNode::new(participant_guid))
+}
+
+pub fn delete_contained_entities() -> DdsResult<()> {
+    todo!()
+    // for data_writer in self.this.get()?.stateful_datawriter_drain().into_iter() {
+    //     if data_writer.is_enabled() {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.this.parent(), |dp| {
+    //             dp.unwrap()
+    //                 .announce_sender()
+    //                 .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+    //                 .ok()
+    //         });
+    //     }
+    // }
+
+    // Ok(())
+}
+
+pub fn set_default_datawriter_qos(
+    domain_participant: &mut DdsDomainParticipant,
+    publisher_guid: Guid,
+    qos: QosKind<DataWriterQos>,
+) -> DdsResult<()> {
+    domain_participant
+        .get_publisher_mut(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .set_default_datawriter_qos(qos)
+}
+
+pub fn get_default_datawriter_qos(
+    domain_participant: &DdsDomainParticipant,
+    publisher_guid: Guid,
+) -> DdsResult<DataWriterQos> {
+    Ok(domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_default_datawriter_qos())
+}
+
+pub fn get_qos(
+    domain_participant: &DdsDomainParticipant,
+    publisher_guid: Guid,
+) -> DdsResult<PublisherQos> {
+    Ok(domain_participant
+        .user_defined_publisher_list()
+        .iter()
+        .find(|p| p.guid() == publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_qos())
+}
+
+pub fn enable() -> DdsResult<()> {
+    // let is_parent_enabled = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+    //     .get_participant(self.this.parent(), |dp| dp.unwrap().is_enabled());
+    // if !is_parent_enabled {
+    //     return Err(DdsError::PreconditionNotMet(
+    //         "Parent participant is disabled".to_string(),
+    //     ));
+    // }
+
+    // if !self.this.get()?.is_enabled() {
+    //     self.this.get()?.enable();
+
+    //     if self
+    //         .0
+    //         .get()?
+    //         .get_qos()
+    //         .entity_factory
+    //         .autoenable_created_entities
+    //     {
+    //         for data_writer in &self.this.get()?.stateful_data_writer_list() {
+    //             data_writer.enable();
+    //             let topic =
+    //                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.this.parent(), |dp| {
+    //                     dp.unwrap()
+    //                         .topic_list()
+    //                         .into_iter()
+    //                         .find(|t| {
+    //                             t.get_name() == data_writer.get_topic_name()
+    //                                 && t.get_type_name() == data_writer.get_type_name()
+    //                         })
+    //                         .cloned()
+    //                         .expect("Topic must exist")
+    //                 });
+
+    //             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.this.parent(), |dcps| {
+    //                 let discovered_writer_data = data_writer.as_discovered_writer_data(
+    //                     &topic.get_qos(),
+    //                     &self.this.get().unwrap().get_qos(),
+    //                 );
+    //                 dcps.unwrap()
+    //                     .announce_sender()
+    //                     .send(AnnounceKind::CreatedDataWriter(discovered_writer_data))
+    //                     .ok()
+    //             });
+    //         }
+    //     }
+    // }
+
+    // Ok(())
+    todo!()
+}
+
+pub fn get_instance_handle(publisher_guid: Guid) -> DdsResult<InstanceHandle> {
+    Ok(InstanceHandle::from(publisher_guid))
 }

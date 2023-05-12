@@ -81,8 +81,13 @@ impl Publisher {
         let topic_name = a_topic.get_name()?;
 
         let datawriter = self.call_participant_mut_method(|dp| {
-            self.0
-                .create_datawriter::<Foo>(dp, type_name, topic_name, qos)
+            crate::implementation::dds_impl::node_user_defined_publisher::create_datawriter::<Foo>(
+                dp,
+                self.0.guid(),
+                type_name,
+                topic_name,
+                qos,
+            )
         })?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_writer_listener(
@@ -104,8 +109,12 @@ impl Publisher {
         match a_datawriter.node() {
             DataWriterNodeKind::UserDefined(dw) => {
                 self.call_participant_mut_method(|dp| {
-                    self.0
-                        .delete_datawriter(dp, dw.guid(), dw.parent_publisher())
+                    crate::implementation::dds_impl::node_user_defined_publisher::delete_datawriter(
+                        dp,
+                        self.0.guid(),
+                        dw.guid(),
+                        dw.parent_publisher(),
+                    )
                 })?;
 
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_data_writer_listener(&dw.guid());
@@ -125,10 +134,15 @@ impl Publisher {
         Foo: DdsType,
     {
         self.call_participant_mut_method(|dp| {
-            Ok(self
-                .0
-                .lookup_datawriter(dp, Foo::type_name(), topic_name)?
-                .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x))))
+            Ok(
+                crate::implementation::dds_impl::node_user_defined_publisher::lookup_datawriter(
+                    dp,
+                    self.0.guid(),
+                    Foo::type_name(),
+                    topic_name,
+                )?
+                .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x))),
+            )
         })
     }
 
@@ -188,7 +202,11 @@ impl Publisher {
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(self.0.get_participant()?))
+        Ok(DomainParticipant::new(
+            crate::implementation::dds_impl::node_user_defined_publisher::get_participant(
+                self.0.parent_participant(),
+            )?,
+        ))
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.
@@ -198,7 +216,7 @@ impl Publisher {
     /// Once this operation returns successfully, the application may delete the [`Publisher`] knowing that it has no
     /// contained [`DataWriter`] objects
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.delete_contained_entities()
+        crate::implementation::dds_impl::node_user_defined_publisher::delete_contained_entities()
     }
 
     /// This operation sets the default value of the [`DataWriterQos`] which will be used for newly created [`DataWriter`] entities in
@@ -208,7 +226,7 @@ impl Publisher {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataWriterQos`].
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| self.0.set_default_datawriter_qos(dp, qos))
+        self.call_participant_mut_method(|dp| crate::implementation::dds_impl::node_user_defined_publisher::set_default_datawriter_qos(dp, self.0.guid(), qos))
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created
@@ -216,7 +234,7 @@ impl Publisher {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Publisher::set_default_datawriter_qos`], or else, if the call was never made, the default values of [`DataWriterQos`].
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        self.call_participant_method(|dp| self.0.get_default_datawriter_qos(dp))
+        self.call_participant_method(|dp| crate::implementation::dds_impl::node_user_defined_publisher::get_default_datawriter_qos(dp, self.0.guid(),))
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datawriter_qos`.
@@ -227,10 +245,10 @@ impl Publisher {
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the [`DataWriter`].
     pub fn copy_from_topic_qos(
         &self,
-        a_datawriter_qos: &mut DataWriterQos,
-        a_topic_qos: &TopicQos,
+        _a_datawriter_qos: &mut DataWriterQos,
+        _a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
-        self.0.copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
+        todo!()
     }
 }
 
@@ -254,7 +272,9 @@ impl Publisher {
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        self.call_participant_method(|dp| self.0.get_qos(dp))
+        self.call_participant_method(|dp| {
+            crate::implementation::dds_impl::node_user_defined_publisher::get_qos(dp, self.0.guid())
+        })
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -309,19 +329,21 @@ impl Publisher {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.0.enable()
+        crate::implementation::dds_impl::node_user_defined_publisher::enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.get_instance_handle()
+        crate::implementation::dds_impl::node_user_defined_publisher::get_instance_handle(
+            self.0.guid(),
+        )
     }
 
     fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
     where
         F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.parent().prefix(), |dp| {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.guid().prefix(), |dp| {
             f(dp.ok_or(DdsError::AlreadyDeleted)?)
         })
     }
@@ -330,7 +352,7 @@ impl Publisher {
     where
         F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.parent().prefix(), |dp| {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
             f(dp.ok_or(DdsError::AlreadyDeleted)?)
         })
     }
