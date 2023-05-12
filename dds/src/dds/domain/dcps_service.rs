@@ -30,8 +30,9 @@ use crate::{
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
             dds_subscriber::DdsSubscriber,
-            node_user_defined_data_writer::UserDefinedDataWriterNode,
-            nodes::{DataReaderNode, SubscriberNode, SubscriberNodeKind, TopicNode},
+            nodes::{
+                DataReaderNode, DataWriterNode, SubscriberNode, SubscriberNodeKind, TopicNode,
+            },
             participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
         },
@@ -843,9 +844,9 @@ fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
     )
 }
 
-fn on_offered_incompatible_qos_communication_change(data_writer_node: UserDefinedDataWriterNode) {
+fn on_offered_incompatible_qos_communication_change(data_writer_node: DataWriterNode) {
     fn get_offered_incompatible_qos_status(
-        data_writer_node: &UserDefinedDataWriterNode,
+        data_writer_node: &DataWriterNode,
     ) -> DdsResult<OfferedIncompatibleQosStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_writer_node.parent_participant().prefix(),
@@ -919,9 +920,9 @@ fn on_offered_incompatible_qos_communication_change(data_writer_node: UserDefine
     )
 }
 
-fn on_publication_matched_communication_change(data_writer_node: UserDefinedDataWriterNode) {
+fn on_publication_matched_communication_change(data_writer_node: DataWriterNode) {
     fn get_publication_matched_status(
-        data_writer_node: &UserDefinedDataWriterNode,
+        data_writer_node: &DataWriterNode,
     ) -> DdsResult<PublicationMatchedStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_writer_node.parent_participant().prefix(),

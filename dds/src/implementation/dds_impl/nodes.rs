@@ -1,9 +1,7 @@
 use crate::{
-    implementation::rtps::types::Guid, subscription::data_reader::AnyDataReader,
-    topic_definition::topic::AnyTopic,
+    implementation::rtps::types::Guid, publication::data_writer::AnyDataWriter,
+    subscription::data_reader::AnyDataReader, topic_definition::topic::AnyTopic,
 };
-
-use super::node_user_defined_data_writer::UserDefinedDataWriterNode;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum SubscriberNodeKind {
@@ -14,8 +12,8 @@ pub enum SubscriberNodeKind {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum DataWriterNodeKind {
-    UserDefined(UserDefinedDataWriterNode),
-    Listener(UserDefinedDataWriterNode),
+    UserDefined(DataWriterNode),
+    Listener(DataWriterNode),
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -104,3 +102,34 @@ impl TopicNode {
 }
 
 impl AnyTopic for TopicNode {}
+
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+pub struct DataWriterNode {
+    this: Guid,
+    parent_publisher: Guid,
+    parent_participant: Guid,
+}
+
+impl DataWriterNode {
+    pub fn new(this: Guid, parent_publisher: Guid, parent_participant: Guid) -> Self {
+        Self {
+            this,
+            parent_publisher,
+            parent_participant,
+        }
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.this
+    }
+
+    pub fn parent_publisher(&self) -> Guid {
+        self.parent_publisher
+    }
+
+    pub fn parent_participant(&self) -> Guid {
+        self.parent_participant
+    }
+}
+
+impl AnyDataWriter for DataWriterNode {}

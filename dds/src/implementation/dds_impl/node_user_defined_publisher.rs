@@ -26,7 +26,7 @@ use super::{
     dds_data_writer::DdsDataWriter,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
-    node_user_defined_data_writer::UserDefinedDataWriterNode,
+    nodes::DataWriterNode,
     status_condition_impl::StatusConditionImpl,
 };
 
@@ -51,7 +51,7 @@ impl UserDefinedPublisherNode {
         type_name: &'static str,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-    ) -> DdsResult<UserDefinedDataWriterNode>
+    ) -> DdsResult<DataWriterNode>
     where
         Foo: DdsType,
     {
@@ -118,7 +118,7 @@ impl UserDefinedPublisherNode {
         domain_participant: &DdsDomainParticipant,
         type_name: &'static str,
         topic_name: &str,
-    ) -> DdsResult<Option<UserDefinedDataWriterNode>> {
+    ) -> DdsResult<Option<DataWriterNode>> {
         Ok(domain_participant
             .get_publisher(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
@@ -128,7 +128,7 @@ impl UserDefinedPublisherNode {
                 data_reader.get_topic_name() == topic_name
                     && data_reader.get_type_name() == type_name
             })
-            .map(|x| UserDefinedDataWriterNode::new(x.guid(), self.this, self.parent)))
+            .map(|x| DataWriterNode::new(x.guid(), self.this, self.parent)))
     }
 
     pub fn suspend_publications(&self) -> DdsResult<()> {
@@ -301,7 +301,7 @@ fn create_datawriter<Foo>(
     qos: QosKind<DataWriterQos>,
     type_name: &'static str,
     topic_name: String,
-) -> DdsResult<UserDefinedDataWriterNode>
+) -> DdsResult<DataWriterNode>
 where
     Foo: DdsType,
 {
@@ -360,7 +360,7 @@ where
     let data_writer = DdsDataWriter::new(rtps_writer_impl, type_name, topic_name);
 
     let data_writer_node =
-        UserDefinedDataWriterNode::new(data_writer.guid(), publisher_guid, domain_participant_guid);
+        DataWriterNode::new(data_writer.guid(), publisher_guid, domain_participant_guid);
 
     publisher.stateful_datawriter_add(data_writer);
 

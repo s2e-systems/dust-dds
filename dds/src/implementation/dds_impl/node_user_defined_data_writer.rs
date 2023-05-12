@@ -16,7 +16,6 @@ use crate::{
         },
         time::Time,
     },
-    publication::data_writer::AnyDataWriter,
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
@@ -24,35 +23,6 @@ use super::{
     dds_domain_participant::DdsDomainParticipant,
     node_user_defined_publisher::UserDefinedPublisherNode,
 };
-
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
-pub struct UserDefinedDataWriterNode {
-    this: Guid,
-    parent_publisher: Guid,
-    parent_participant: Guid,
-}
-
-impl UserDefinedDataWriterNode {
-    pub fn new(this: Guid, parent_publisher: Guid, parent_participant: Guid) -> Self {
-        Self {
-            this,
-            parent_publisher,
-            parent_participant,
-        }
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.this
-    }
-
-    pub fn parent_publisher(&self) -> Guid {
-        self.parent_publisher
-    }
-
-    pub fn parent_participant(&self) -> Guid {
-        self.parent_participant
-    }
-}
 
 pub fn unregister_instance_w_timestamp(
     domain_participant: &mut DdsDomainParticipant,
@@ -456,5 +426,3 @@ fn announce_created_data_writer(
         )
         .expect("Should not fail to write built-in message");
 }
-
-impl AnyDataWriter for UserDefinedDataWriterNode {}
