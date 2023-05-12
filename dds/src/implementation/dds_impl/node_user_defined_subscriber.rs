@@ -135,7 +135,7 @@ impl UserDefinedSubscriberNode {
                 .entity_factory
                 .autoenable_created_entities
         {
-            node.enable(domain_participant)?;
+            super::node_user_defined_data_reader::enable(domain_participant, guid, self.this)?;
         }
 
         Ok(node)
