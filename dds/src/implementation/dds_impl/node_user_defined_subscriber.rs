@@ -23,7 +23,7 @@ use super::{
     dds_data_reader::DdsDataReader,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
-    node_user_defined_data_reader::UserDefinedDataReaderNode,
+    node_kind::UserDefinedDataReaderNode,
 };
 
 #[derive(PartialEq, Eq, Debug)]

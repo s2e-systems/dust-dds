@@ -50,7 +50,7 @@ use crate::{
 };
 
 use super::{
-    message_receiver::MessageReceiver, node_user_defined_data_reader::UserDefinedDataReaderNode,
+    message_receiver::MessageReceiver, node_kind::UserDefinedDataReaderNode,
     status_listener::ListenerTriggerKind,
 };
 

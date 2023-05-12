@@ -7,9 +7,7 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
-use super::{
-    node_kind::DataReaderNodeKind, node_user_defined_data_reader::UserDefinedDataReaderNode,
-};
+use super::node_kind::{DataReaderNodeKind, UserDefinedDataReaderNode};
 
 pub trait AnyDataReaderListener {
     fn trigger_on_data_available(&mut self, reader: UserDefinedDataReaderNode);
