@@ -7,29 +7,27 @@ use crate::{
     topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
-use super::{
-    node_kind::DataWriterNodeKind, node_user_defined_data_writer::UserDefinedDataWriterNode,
-};
+use super::nodes::{DataWriterNode, DataWriterNodeKind};
 
 pub trait AnyDataWriterListener {
     fn trigger_on_liveliness_lost(
         &mut self,
-        _the_writer: UserDefinedDataWriterNode,
+        _the_writer: DataWriterNode,
         status: LivelinessLostStatus,
     );
     fn trigger_on_offered_deadline_missed(
         &mut self,
-        _the_writer: UserDefinedDataWriterNode,
+        _the_writer: DataWriterNode,
         status: OfferedDeadlineMissedStatus,
     );
     fn trigger_on_offered_incompatible_qos(
         &mut self,
-        _the_writer: UserDefinedDataWriterNode,
+        _the_writer: DataWriterNode,
         status: OfferedIncompatibleQosStatus,
     );
     fn trigger_on_publication_matched(
         &mut self,
-        _the_writer: UserDefinedDataWriterNode,
+        _the_writer: DataWriterNode,
         status: PublicationMatchedStatus,
     );
 }
@@ -40,7 +38,7 @@ where
 {
     fn trigger_on_liveliness_lost(
         &mut self,
-        the_writer: UserDefinedDataWriterNode,
+        the_writer: DataWriterNode,
         status: LivelinessLostStatus,
     ) {
         self.on_liveliness_lost(
@@ -51,7 +49,7 @@ where
 
     fn trigger_on_offered_deadline_missed(
         &mut self,
-        the_writer: UserDefinedDataWriterNode,
+        the_writer: DataWriterNode,
         status: OfferedDeadlineMissedStatus,
     ) {
         self.on_offered_deadline_missed(
@@ -62,7 +60,7 @@ where
 
     fn trigger_on_offered_incompatible_qos(
         &mut self,
-        the_writer: UserDefinedDataWriterNode,
+        the_writer: DataWriterNode,
         status: OfferedIncompatibleQosStatus,
     ) {
         self.on_offered_incompatible_qos(
@@ -73,7 +71,7 @@ where
 
     fn trigger_on_publication_matched(
         &mut self,
-        the_writer: UserDefinedDataWriterNode,
+        the_writer: DataWriterNode,
         status: PublicationMatchedStatus,
     ) {
         self.on_publication_matched(

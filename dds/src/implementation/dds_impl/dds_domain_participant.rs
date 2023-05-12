@@ -87,7 +87,7 @@ use std::{
 
 use super::{
     dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
-    node_user_defined_data_writer::UserDefinedDataWriterNode, status_listener::ListenerTriggerKind,
+    nodes::DataWriterNode, status_listener::ListenerTriggerKind,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -1385,7 +1385,7 @@ fn on_writer_publication_matched(
 ) {
     listener_sender
         .send(ListenerTriggerKind::PublicationMatched(
-            UserDefinedDataWriterNode::new(
+            DataWriterNode::new(
                 writer.guid(),
                 parent_publisher_guid,
                 parent_participant_guid,
@@ -1427,7 +1427,7 @@ fn writer_on_offered_incompatible_qos(
         writer.add_offered_incompatible_qos(handle, incompatible_qos_policy_list);
         listener_sender
             .send(ListenerTriggerKind::OfferedIncompatibleQos(
-                UserDefinedDataWriterNode::new(
+                DataWriterNode::new(
                     writer.guid(),
                     parent_publisher_guid,
                     parent_participant_guid,

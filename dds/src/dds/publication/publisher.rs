@@ -5,8 +5,8 @@ use crate::{
     },
     implementation::dds_impl::{
         any_data_writer_listener::AnyDataWriterListener,
-        dds_domain_participant::DdsDomainParticipant, node_kind::DataWriterNodeKind,
-        node_user_defined_publisher::UserDefinedPublisherNode,
+        dds_domain_participant::DdsDomainParticipant,
+        nodes::{DataWriterNodeKind, DomainParticipantNode, PublisherNode},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -28,19 +28,29 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
 #[derive(Eq, PartialEq, Debug)]
-pub struct Publisher(pub(crate) UserDefinedPublisherNode);
+pub struct Publisher(PublisherNode);
 
 impl Publisher {
-    pub(crate) fn new(publisher: UserDefinedPublisherNode) -> Self {
+    pub(crate) fn new(publisher: PublisherNode) -> Self {
         Self(publisher)
+    }
+
+    pub(crate) fn node(&self) -> &PublisherNode {
+        &self.0
     }
 }
 
 impl Drop for Publisher {
     fn drop(&mut self) {
-        if let Ok(dp) = self.get_participant() {
-            dp.delete_publisher(self).ok();
-        }
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
+            if let Some(dp) = dp {
+                crate::implementation::dds_impl::behavior_domain_participant::delete_publisher(
+                    dp,
+                    self.0.guid(),
+                )
+                .ok();
+            }
+        })
     }
 }
 
@@ -76,8 +86,13 @@ impl Publisher {
         let topic_name = a_topic.get_name()?;
 
         let datawriter = self.call_participant_mut_method(|dp| {
-            self.0
-                .create_datawriter::<Foo>(dp, type_name, topic_name, qos)
+            crate::implementation::dds_impl::behavior_user_defined_publisher::create_datawriter::<Foo>(
+                dp,
+                self.0.guid(),
+                type_name,
+                topic_name,
+                qos,
+            )
         })?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_writer_listener(
@@ -96,11 +111,15 @@ impl Publisher {
     /// [`WriterDataLifecycleQosPolicy`](crate::infrastructure::qos_policy::WriterDataLifecycleQosPolicy), the deletion of the
     /// [`DataWriter`].
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
-        match &a_datawriter.0 {
+        match a_datawriter.node() {
             DataWriterNodeKind::UserDefined(dw) => {
                 self.call_participant_mut_method(|dp| {
-                    self.0
-                        .delete_datawriter(dp, dw.guid(), dw.parent_publisher())
+                    crate::implementation::dds_impl::behavior_user_defined_publisher::delete_datawriter(
+                        dp,
+                        self.0.guid(),
+                        dw.guid(),
+                        dw.parent_publisher(),
+                    )
                 })?;
 
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_data_writer_listener(&dw.guid());
@@ -115,13 +134,21 @@ impl Publisher {
     /// `topic_name`. If no such [`DataWriter`] exists, the operation will succeed but return [`None`].
     /// If multiple [`DataWriter`] attached to the [`Publisher`] satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<Foo>(&self, topic: &Topic<Foo>) -> DdsResult<Option<DataWriter<Foo>>>
+    pub fn lookup_datawriter<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>>
     where
-        Foo: DdsType + DdsSerialize,
+        Foo: DdsType,
     {
-        self.0
-            .lookup_datawriter(topic.get_type_name()?, &topic.get_name()?)
-            .map(|x| Some(DataWriter::new(DataWriterNodeKind::UserDefined(x))))
+        self.call_participant_mut_method(|dp| {
+            Ok(
+                crate::implementation::dds_impl::behavior_user_defined_publisher::lookup_datawriter(
+                    dp,
+                    self.0.guid(),
+                    Foo::type_name(),
+                    topic_name,
+                )?
+                .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x))),
+            )
+        })
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using [`DataWriter`] objects
@@ -131,7 +158,7 @@ impl Publisher {
     /// modifications has completed. If the [`Publisher`] is deleted before [`Publisher::resume_publications`] is called, any suspended updates yet to
     /// be published will be discarded.
     pub fn suspend_publications(&self) -> DdsResult<()> {
-        self.0.suspend_publications()
+        todo!()
     }
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
@@ -140,7 +167,7 @@ impl Publisher {
     /// The call to [`Publisher::resume_publications`] must match a previous call to [`Publisher::suspend_publications`] otherwise
     /// the operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn resume_publications(&self) -> DdsResult<()> {
-        self.0.resume_publications()
+        todo!()
     }
 
     /// This operation requests that the application will begin a *coherent set* of modifications using [`DataWriter`] objects attached to
@@ -160,13 +187,13 @@ impl Publisher {
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
     pub fn begin_coherent_changes(&self) -> DdsResult<()> {
-        self.0.begin_coherent_changes()
+        todo!()
     }
 
     /// This operation terminates the *coherent set* initiated by the matching call to [`Publisher::begin_coherent_changes`]. If there is no matching
     /// call to [`Publisher::begin_coherent_changes`], the operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn end_coherent_changes(&self) -> DdsResult<()> {
-        self.0.end_coherent_changes()
+        todo!()
     }
 
     /// This operation blocks the calling thread until either all data written by the reliable [`DataWriter`] entities is acknowledged by all
@@ -174,13 +201,15 @@ impl Publisher {
     /// the `max_wait` parameter elapses, whichever happens first. A return value of [`Ok`] indicates that all the samples written
     /// have been acknowledged by all reliable matched data readers; a return value of [`DdsError::Timeout`](crate::infrastructure::error::DdsError)
     /// indicates that `max_wait` elapsed before all the data was acknowledged.
-    pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        self.0.wait_for_acknowledgments(max_wait)
+    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
+        todo!()
     }
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(self.0.get_participant()?))
+        Ok(DomainParticipant::new(DomainParticipantNode::new(
+            self.0.parent_participant(),
+        )))
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.
@@ -190,7 +219,8 @@ impl Publisher {
     /// Once this operation returns successfully, the application may delete the [`Publisher`] knowing that it has no
     /// contained [`DataWriter`] objects
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.delete_contained_entities()
+        crate::implementation::dds_impl::behavior_user_defined_publisher::delete_contained_entities(
+        )
     }
 
     /// This operation sets the default value of the [`DataWriterQos`] which will be used for newly created [`DataWriter`] entities in
@@ -200,7 +230,7 @@ impl Publisher {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataWriterQos`].
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| self.0.set_default_datawriter_qos(dp, qos))
+        self.call_participant_mut_method(|dp| crate::implementation::dds_impl::behavior_user_defined_publisher::set_default_datawriter_qos(dp, self.0.guid(), qos))
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created
@@ -208,7 +238,7 @@ impl Publisher {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Publisher::set_default_datawriter_qos`], or else, if the call was never made, the default values of [`DataWriterQos`].
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        self.call_participant_method(|dp| self.0.get_default_datawriter_qos(dp))
+        self.call_participant_method(|dp| crate::implementation::dds_impl::behavior_user_defined_publisher::get_default_datawriter_qos(dp, self.0.guid(),))
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datawriter_qos`.
@@ -219,10 +249,10 @@ impl Publisher {
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the [`DataWriter`].
     pub fn copy_from_topic_qos(
         &self,
-        a_datawriter_qos: &mut DataWriterQos,
-        a_topic_qos: &TopicQos,
+        _a_datawriter_qos: &mut DataWriterQos,
+        _a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
-        self.0.copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
+        todo!()
     }
 }
 
@@ -240,13 +270,18 @@ impl Publisher {
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        self.0.set_qos(qos)
+    pub fn set_qos(&self, _qos: QosKind<PublisherQos>) -> DdsResult<()> {
+        todo!()
     }
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        self.call_participant_method(|dp| self.0.get_qos(dp))
+        self.call_participant_method(|dp| {
+            crate::implementation::dds_impl::behavior_user_defined_publisher::get_qos(
+                dp,
+                self.0.guid(),
+            )
+        })
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -257,17 +292,17 @@ impl Publisher {
     /// will be removed.
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.set_listener(a_listener, mask)
+        todo!()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(self.0.get_statuscondition()?))
+        todo!()
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -277,7 +312,7 @@ impl Publisher {
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        self.0.get_status_changes()
+        todo!()
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -301,19 +336,19 @@ impl Publisher {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.0.enable()
+        crate::implementation::dds_impl::behavior_user_defined_publisher::enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.get_instance_handle()
+        Ok(self.0.guid().into())
     }
 
     fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
     where
         F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.parent().prefix(), |dp| {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.guid().prefix(), |dp| {
             f(dp.ok_or(DdsError::AlreadyDeleted)?)
         })
     }
@@ -322,7 +357,7 @@ impl Publisher {
     where
         F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.parent().prefix(), |dp| {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
             f(dp.ok_or(DdsError::AlreadyDeleted)?)
         })
     }

@@ -50,7 +50,7 @@ use crate::{
 };
 
 use super::{
-    message_receiver::MessageReceiver, node_user_defined_data_reader::UserDefinedDataReaderNode,
+    message_receiver::MessageReceiver, nodes::DataReaderNode,
     status_listener::ListenerTriggerKind,
 };
 
@@ -772,7 +772,7 @@ impl DdsDataReader<RtpsStatefulReader> {
 
             listener_sender
                 .send(ListenerTriggerKind::RequestedDeadlineMissed(
-                    UserDefinedDataReaderNode::new(
+                    DataReaderNode::new(
                         self.guid(),
                         parent_subcriber_guid,
                         parent_participant_guid,
@@ -799,7 +799,7 @@ impl DdsDataReader<RtpsStatefulReader> {
     ) {
         listener_sender
             .send(ListenerTriggerKind::OnDataAvailable(
-                UserDefinedDataReaderNode::new(
+                DataReaderNode::new(
                     self.guid(),
                     parent_subcriber_guid,
                     parent_participant_guid,
@@ -818,7 +818,7 @@ impl DdsDataReader<RtpsStatefulReader> {
 
         listener_sender
             .send(ListenerTriggerKind::OnSampleLost(
-                UserDefinedDataReaderNode::new(
+                DataReaderNode::new(
                     self.guid(),
                     parent_subscriber_guid,
                     parent_participant_guid,
@@ -838,7 +838,7 @@ impl DdsDataReader<RtpsStatefulReader> {
 
         listener_sender
             .send(ListenerTriggerKind::SubscriptionMatched(
-                UserDefinedDataReaderNode::new(
+                DataReaderNode::new(
                     self.guid(),
                     parent_subscriber_guid,
                     parent_participant_guid,
@@ -860,7 +860,7 @@ impl DdsDataReader<RtpsStatefulReader> {
 
         listener_sender
             .send(ListenerTriggerKind::OnSampleRejected(
-                UserDefinedDataReaderNode::new(
+                DataReaderNode::new(
                     self.guid(),
                     parent_subscriber_guid,
                     parent_participant_guid,
@@ -881,7 +881,7 @@ impl DdsDataReader<RtpsStatefulReader> {
 
         listener_sender
             .send(ListenerTriggerKind::RequestedIncompatibleQos(
-                UserDefinedDataReaderNode::new(
+                DataReaderNode::new(
                     self.guid(),
                     parent_subscriber_guid,
                     parent_participant_guid,

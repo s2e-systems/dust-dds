@@ -196,3 +196,72 @@ fn all_objects_are_dropped() {
         .lookup_participant(domain_id)
         .is_none());
 }
+
+#[test]
+fn objects_are_correctly_dropped() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let topic_name = "MyTopic";
+    {
+        let participant = domain_participant_factory
+            .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+            .unwrap();
+        {
+            let topic = participant
+                .create_topic::<KeyedData>(topic_name, QosKind::Default, None, NO_STATUS)
+                .unwrap();
+            {
+                let publisher = participant
+                    .create_publisher(QosKind::Default, None, NO_STATUS)
+                    .unwrap();
+                {
+                    let _writer = publisher
+                        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+                        .unwrap();
+                    {
+                        let subscriber = participant
+                            .create_subscriber(QosKind::Default, None, NO_STATUS)
+                            .unwrap();
+                        {
+                            let _reader = subscriber
+                                .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
+                                .unwrap();
+
+                            assert!(subscriber
+                                .lookup_datareader::<KeyedData>(topic_name)
+                                .unwrap()
+                                .is_some(),);
+                        }
+                        assert!(subscriber
+                            .lookup_datareader::<KeyedData>(topic_name)
+                            .unwrap()
+                            .is_none(),);
+                    }
+
+                    assert!(publisher
+                        .lookup_datawriter::<KeyedData>(topic_name)
+                        .unwrap()
+                        .is_some(),);
+                }
+                assert!(publisher
+                    .lookup_datawriter::<KeyedData>(topic_name)
+                    .unwrap()
+                    .is_none(),);
+            }
+            assert!(participant
+                .lookup_topicdescription::<KeyedData>(topic_name)
+                .unwrap()
+                .is_some());
+        }
+        assert!(participant
+            .lookup_topicdescription::<KeyedData>(topic_name)
+            .unwrap()
+            .is_none());
+        assert!(domain_participant_factory
+            .lookup_participant(domain_id)
+            .is_some());
+    }
+    assert!(domain_participant_factory
+        .lookup_participant(domain_id)
+        .is_none());
+}

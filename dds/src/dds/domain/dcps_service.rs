@@ -30,11 +30,9 @@ use crate::{
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
             dds_subscriber::DdsSubscriber,
-            node_kind::SubscriberNodeKind,
-            node_user_defined_data_reader::UserDefinedDataReaderNode,
-            node_user_defined_data_writer::UserDefinedDataWriterNode,
-            node_user_defined_subscriber::UserDefinedSubscriberNode,
-            node_user_defined_topic::UserDefinedTopicNode,
+            nodes::{
+                DataReaderNode, DataWriterNode, SubscriberNode, SubscriberNodeKind, TopicNode,
+            },
             participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
         },
@@ -407,17 +405,14 @@ impl DcpsService {
     }
 }
 
-fn on_requested_deadline_missed_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_requested_deadline_missed_communication_change(data_reader_node: DataReaderNode) {
     fn get_requested_deadline_missed_status(
-        data_reader_node: &UserDefinedDataReaderNode,
+        data_reader_node: &DataReaderNode,
     ) -> DdsResult<RequestedDeadlineMissedStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_reader_node.parent_participant().prefix(),
-            |dp| {
-                data_reader_node
-                    .get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?)
-            },
-        )
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
+                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
+            })
     }
 
     let status_kind = StatusKind::RequestedDeadlineMissed;
@@ -483,7 +478,7 @@ fn on_requested_deadline_missed_communication_change(data_reader_node: UserDefin
     )
 }
 
-fn on_data_available_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_data_available_communication_change(data_reader_node: DataReaderNode) {
     let data_on_reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
         &data_reader_node.parent_subscriber(),
         |subscriber_listener| match subscriber_listener {
@@ -492,7 +487,7 @@ fn on_data_available_communication_change(data_reader_node: UserDefinedDataReade
                     .as_mut()
                     .expect("Listener should be some")
                     .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
-                        UserDefinedSubscriberNode::new(
+                        SubscriberNode::new(
                             data_reader_node.parent_subscriber(),
                             data_reader_node.parent_participant(),
                         ),
@@ -566,15 +561,14 @@ fn on_data_available_communication_change(data_reader_node: UserDefinedDataReade
     )
 }
 
-fn on_subscription_matched_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_subscription_matched_communication_change(data_reader_node: DataReaderNode) {
     fn get_subscription_matched_status(
-        data_reader_node: &UserDefinedDataReaderNode,
+        data_reader_node: &DataReaderNode,
     ) -> DdsResult<SubscriptionMatchedStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_reader_node.parent_participant().prefix(),
             |dp| {
-                data_reader_node
-                    .get_subscription_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_subscription_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
             },
         )
     }
@@ -639,15 +633,14 @@ fn on_subscription_matched_communication_change(data_reader_node: UserDefinedDat
     )
 }
 
-fn on_requested_incompatible_qos_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_requested_incompatible_qos_communication_change(data_reader_node: DataReaderNode) {
     fn get_requested_incompatible_qos_status(
-        data_reader_node: &UserDefinedDataReaderNode,
+        data_reader_node: &DataReaderNode,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_reader_node.parent_participant().prefix(),
             |dp| {
-                data_reader_node
-                    .get_requested_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_requested_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
             },
         )
     }
@@ -713,13 +706,13 @@ fn on_requested_incompatible_qos_communication_change(data_reader_node: UserDefi
     )
 }
 
-fn on_sample_rejected_communication_change(data_reader_node: UserDefinedDataReaderNode) {
+fn on_sample_rejected_communication_change(data_reader_node: DataReaderNode) {
     fn get_sample_rejected_status(
-        data_reader_node: &UserDefinedDataReaderNode,
+        data_reader_node: &DataReaderNode,
     ) -> DdsResult<SampleRejectedStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                data_reader_node.get_sample_rejected_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_sample_rejected_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
             })
     }
 
@@ -783,13 +776,11 @@ fn on_sample_rejected_communication_change(data_reader_node: UserDefinedDataRead
     )
 }
 
-fn on_sample_lost_communication_change(data_reader_node: UserDefinedDataReaderNode) {
-    fn get_sample_lost_status(
-        data_reader_node: &UserDefinedDataReaderNode,
-    ) -> DdsResult<SampleLostStatus> {
+fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
+    fn get_sample_lost_status(data_reader_node: &DataReaderNode) -> DdsResult<SampleLostStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                data_reader_node.get_sample_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                crate::implementation::dds_impl::behavior_user_defined_data_reader::get_sample_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
             })
     }
 
@@ -853,15 +844,18 @@ fn on_sample_lost_communication_change(data_reader_node: UserDefinedDataReaderNo
     )
 }
 
-fn on_offered_incompatible_qos_communication_change(data_writer_node: UserDefinedDataWriterNode) {
+fn on_offered_incompatible_qos_communication_change(data_writer_node: DataWriterNode) {
     fn get_offered_incompatible_qos_status(
-        data_writer_node: &UserDefinedDataWriterNode,
+        data_writer_node: &DataWriterNode,
     ) -> DdsResult<OfferedIncompatibleQosStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_writer_node.parent_participant().prefix(),
             |dp| {
-                data_writer_node
-                    .get_offered_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                crate::implementation::dds_impl::behavior_user_defined_data_writer::get_offered_incompatible_qos_status(
+                    dp.ok_or(DdsError::AlreadyDeleted)?,
+                    data_writer_node.guid(),
+                    data_writer_node.parent_publisher(),
+                )
             },
         )
     }
@@ -926,14 +920,15 @@ fn on_offered_incompatible_qos_communication_change(data_writer_node: UserDefine
     )
 }
 
-fn on_publication_matched_communication_change(data_writer_node: UserDefinedDataWriterNode) {
+fn on_publication_matched_communication_change(data_writer_node: DataWriterNode) {
     fn get_publication_matched_status(
-        data_writer_node: &UserDefinedDataWriterNode,
+        data_writer_node: &DataWriterNode,
     ) -> DdsResult<PublicationMatchedStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_writer_node.parent_participant().prefix(),
             |dp| {
-                data_writer_node.get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                crate::implementation::dds_impl::behavior_user_defined_data_writer::get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?,data_writer_node.guid(),
+                data_writer_node.parent_publisher(),)
             },
         )
     }
@@ -998,13 +993,11 @@ fn on_publication_matched_communication_change(data_writer_node: UserDefinedData
     )
 }
 
-fn on_inconsistent_topic_communication_change(topic_node: UserDefinedTopicNode) {
-    fn get_inconsistent_topic_status(
-        topic_node: &UserDefinedTopicNode,
-    ) -> DdsResult<InconsistentTopicStatus> {
+fn on_inconsistent_topic_communication_change(topic_node: TopicNode) {
+    fn get_inconsistent_topic_status(topic_node: &TopicNode) -> DdsResult<InconsistentTopicStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&topic_node.parent_participant().prefix(), |dp| {
-                topic_node.get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                crate::implementation::dds_impl::behavior_user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, topic_node.guid())
             })
     }
 
