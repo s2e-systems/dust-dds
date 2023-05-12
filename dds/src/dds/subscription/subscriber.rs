@@ -159,7 +159,7 @@ impl Subscriber {
             SubscriberNodeKind::Builtin(s) => {
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid().prefix(), |dp| {
                     Ok(
-                        crate::implementation::dds_impl::node_builtin_subscriber::lookup_datareader::<Foo>(
+                        crate::implementation::dds_impl::behavior_builtin_subscriber::lookup_datareader::<Foo>(
                             dp.ok_or(DdsError::AlreadyDeleted)?,
                             s.guid(),
                             topic_name,
@@ -310,7 +310,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => {
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::node_builtin_subscriber::get_qos(
+                    crate::implementation::dds_impl::behavior_builtin_subscriber::get_qos(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                     )
                 })
@@ -413,7 +413,7 @@ impl Subscriber {
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) | SubscriberNodeKind::UserDefined(s) => {
-                crate::implementation::dds_impl::node_builtin_subscriber::get_instance_handle(
+                crate::implementation::dds_impl::behavior_builtin_subscriber::get_instance_handle(
                     s.guid(),
                 )
             }
