@@ -6,6 +6,7 @@ use crate::{
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
         dds_subscriber::DdsSubscriber,
+        node_builtin_subscriber::get_instance_handle,
         nodes::{DataReaderNodeKind, SubscriberNodeKind},
     },
     infrastructure::{
@@ -153,8 +154,9 @@ impl Subscriber {
             SubscriberNodeKind::Builtin(s) => {
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid().prefix(), |dp| {
                     Ok(
-                        s.lookup_datareader::<Foo>(
+                        crate::implementation::dds_impl::node_builtin_subscriber::lookup_datareader::<Foo>(
                             dp.ok_or(DdsError::AlreadyDeleted)?,
+                            s.guid(),
                             topic_name,
                         )?
                         .map(|x| DataReader::new(x)),
@@ -292,10 +294,13 @@ impl Subscriber {
     /// This operation allows access to the existing set of [`SubscriberQos`] policies.
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid().prefix(), |dp| {
-                    s.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
-                }),
+            SubscriberNodeKind::Builtin(s) => {
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid().prefix(), |dp| {
+                    crate::implementation::dds_impl::node_builtin_subscriber::get_qos(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                    )
+                })
+            }
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&s.guid().prefix(), |dp| {
                     s.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
@@ -327,7 +332,7 @@ impl Subscriber {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(s) => s.get_statuscondition(),
+            SubscriberNodeKind::Builtin(_) => todo!(),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_subscriber_listener(&s.guid(), |s| {
                     Ok(s.ok_or(DdsError::AlreadyDeleted)?.get_status_condition())
@@ -344,7 +349,7 @@ impl Subscriber {
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(s) => s.get_status_changes(),
+            SubscriberNodeKind::Builtin(_) => todo!(),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_subscriber_listener(&s.guid(), |s| {
                     Ok(s.ok_or(DdsError::AlreadyDeleted)?.get_status_changes())
@@ -388,7 +393,7 @@ impl Subscriber {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(s) => s.get_instance_handle(),
+            SubscriberNodeKind::Builtin(s) => get_instance_handle(s.guid()),
             SubscriberNodeKind::UserDefined(s) => s.get_instance_handle(),
             SubscriberNodeKind::Listener(_) => todo!(),
         }
