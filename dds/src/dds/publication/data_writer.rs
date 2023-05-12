@@ -508,8 +508,8 @@ impl<Foo> DataWriter<Foo> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => Ok(Publisher::new(
                 crate::implementation::dds_impl::behavior_user_defined_data_writer::get_publisher(
-                    w.guid(),
                     w.parent_publisher(),
+                    w.parent_participant(),
                 ),
             )),
             DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),

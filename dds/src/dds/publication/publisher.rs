@@ -5,8 +5,8 @@ use crate::{
     },
     implementation::dds_impl::{
         any_data_writer_listener::AnyDataWriterListener,
-        dds_domain_participant::DdsDomainParticipant, nodes::DataWriterNodeKind,
-        node_user_defined_publisher::UserDefinedPublisherNode,
+        dds_domain_participant::DdsDomainParticipant,
+        node_user_defined_publisher::UserDefinedPublisherNode, nodes::DataWriterNodeKind,
     },
     infrastructure::{
         condition::StatusCondition,
