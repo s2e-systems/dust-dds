@@ -992,7 +992,7 @@ fn on_inconsistent_topic_communication_change(topic_node: TopicNode) {
     fn get_inconsistent_topic_status(topic_node: &TopicNode) -> DdsResult<InconsistentTopicStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&topic_node.parent_participant().prefix(), |dp| {
-                crate::implementation::dds_impl::node_user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, topic_node.guid())
+                crate::implementation::dds_impl::behavior_user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, topic_node.guid())
             })
     }
 
