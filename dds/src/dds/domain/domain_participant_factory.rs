@@ -14,8 +14,8 @@ use crate::{
         dds_impl::{
             any_data_reader_listener::AnyDataReaderListener,
             any_data_writer_listener::AnyDataWriterListener, any_topic_listener::AnyTopicListener,
-            dds_domain_participant::DdsDomainParticipant,
-            node_domain_participant::DomainParticipantNode, status_listener::StatusListener,
+            dds_domain_participant::DdsDomainParticipant, nodes::DomainParticipantNode,
+            status_listener::StatusListener,
         },
         rtps::{
             participant::RtpsParticipant,

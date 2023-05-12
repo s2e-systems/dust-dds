@@ -5,8 +5,7 @@ use crate::{
     implementation::dds_impl::{
         any_topic_listener::AnyTopicListener,
         dds_domain_participant::DdsDomainParticipant,
-        node_domain_participant::DomainParticipantNode,
-        nodes::{SubscriberNodeKind, TopicNodeKind},
+        nodes::{DomainParticipantNode, SubscriberNodeKind, TopicNodeKind},
     },
     infrastructure::{
         condition::StatusCondition,

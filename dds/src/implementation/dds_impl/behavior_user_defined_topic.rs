@@ -8,9 +8,7 @@ use crate::{
     },
 };
 
-use super::{
-    dds_domain_participant::DdsDomainParticipant, node_domain_participant::DomainParticipantNode,
-};
+use super::{dds_domain_participant::DdsDomainParticipant, nodes::DomainParticipantNode};
 
 pub fn get_inconsistent_topic_status(
     domain_participant: &mut DdsDomainParticipant,

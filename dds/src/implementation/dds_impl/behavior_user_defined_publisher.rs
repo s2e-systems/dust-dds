@@ -20,8 +20,7 @@ use crate::{
 use super::{
     dds_data_writer::DdsDataWriter,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    node_domain_participant::DomainParticipantNode,
-    nodes::DataWriterNode,
+    nodes::{DataWriterNode, DomainParticipantNode},
 };
 
 pub fn create_datawriter<Foo>(

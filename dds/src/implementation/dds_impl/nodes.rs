@@ -153,3 +153,16 @@ impl PublisherNode {
         self.parent
     }
 }
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct DomainParticipantNode(Guid);
+
+impl DomainParticipantNode {
+    pub fn new(node: Guid) -> Self {
+        Self(node)
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.0
+    }
+}

@@ -19,19 +19,6 @@ use super::{
     nodes::{PublisherNode, SubscriberNode, TopicNode},
 };
 
-#[derive(PartialEq, Eq, Debug)]
-pub struct DomainParticipantNode(Guid);
-
-impl DomainParticipantNode {
-    pub fn new(node: Guid) -> Self {
-        Self(node)
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.0
-    }
-}
-
 pub fn create_publisher(
     domain_participant: &mut DdsDomainParticipant,
     qos: QosKind<PublisherQos>,
