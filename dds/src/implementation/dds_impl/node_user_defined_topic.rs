@@ -4,14 +4,13 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{QosKind, TopicQos},
-        status::{InconsistentTopicStatus, StatusKind},
+        status::InconsistentTopicStatus,
     },
     topic_definition::topic::AnyTopic,
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, dds_domain_participant::DdsDomainParticipant,
-    node_domain_participant::DomainParticipantNode,
+    dds_domain_participant::DdsDomainParticipant, node_domain_participant::DomainParticipantNode,
 };
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -32,96 +31,86 @@ impl UserDefinedTopicNode {
     pub fn parent_participant(&self) -> Guid {
         self.parent
     }
-
-    pub fn get_inconsistent_topic_status(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-    ) -> DdsResult<InconsistentTopicStatus> {
-        Ok(domain_participant
-            .topic_list_mut()
-            .iter_mut()
-            .find(|t| t.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_inconsistent_topic_status())
-    }
-
-    pub fn get_participant(&self) -> DomainParticipantNode {
-        DomainParticipantNode::new(self.parent)
-    }
-
-    pub fn get_type_name(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<&'static str> {
-        Ok(domain_participant
-            .topic_list()
-            .iter()
-            .find(|t| t.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_type_name())
-    }
-
-    pub fn get_name(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<String> {
-        Ok(domain_participant
-            .topic_list()
-            .iter()
-            .find(|t| t.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_name())
-    }
-
-    pub fn set_qos(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-        qos: QosKind<TopicQos>,
-    ) -> DdsResult<()> {
-        domain_participant
-            .topic_list_mut()
-            .iter_mut()
-            .find(|t| t.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .set_qos(qos)
-    }
-
-    pub fn get_qos(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<TopicQos> {
-        Ok(domain_participant
-            .topic_list()
-            .iter()
-            .find(|t| t.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_qos())
-    }
-
-    pub fn enable(&self, domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
-        // if !self.node.upgrade()?.get_participant().is_enabled() {
-        //     return Err(DdsError::PreconditionNotMet(
-        //         "Parent participant is disabled".to_string(),
-        //     ));
-        // }
-
-        domain_participant
-            .topic_list_mut()
-            .iter_mut()
-            .find(|t| t.guid() == self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .enable()?;
-
-        Ok(())
-    }
-
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.this.into())
-    }
-
-    pub fn set_listener(
-        &self,
-        _a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
-        _mask: &[StatusKind],
-    ) -> DdsResult<()> {
-        todo!()
-        // self.0.get()?.set_listener(a_listener, mask);
-        // Ok(())
-    }
 }
 
 impl AnyTopic for UserDefinedTopicNode {}
+
+pub fn get_inconsistent_topic_status(
+    domain_participant: &mut DdsDomainParticipant,
+    topic_guid: Guid,
+) -> DdsResult<InconsistentTopicStatus> {
+    Ok(domain_participant
+        .topic_list_mut()
+        .iter_mut()
+        .find(|t| t.guid() == topic_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_inconsistent_topic_status())
+}
+
+pub fn get_participant(participant_guid: Guid) -> DomainParticipantNode {
+    DomainParticipantNode::new(participant_guid)
+}
+
+pub fn get_type_name(
+    domain_participant: &DdsDomainParticipant,
+    topic_guid: Guid,
+) -> DdsResult<&'static str> {
+    Ok(domain_participant
+        .topic_list()
+        .iter()
+        .find(|t| t.guid() == topic_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_type_name())
+}
+
+pub fn get_name(domain_participant: &DdsDomainParticipant, topic_guid: Guid) -> DdsResult<String> {
+    Ok(domain_participant
+        .topic_list()
+        .iter()
+        .find(|t| t.guid() == topic_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_name())
+}
+
+pub fn set_qos(
+    domain_participant: &mut DdsDomainParticipant,
+    topic_guid: Guid,
+    qos: QosKind<TopicQos>,
+) -> DdsResult<()> {
+    domain_participant
+        .topic_list_mut()
+        .iter_mut()
+        .find(|t| t.guid() == topic_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .set_qos(qos)
+}
+
+pub fn get_qos(domain_participant: &DdsDomainParticipant, topic_guid: Guid) -> DdsResult<TopicQos> {
+    Ok(domain_participant
+        .topic_list()
+        .iter()
+        .find(|t| t.guid() == topic_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_qos())
+}
+
+pub fn enable(domain_participant: &mut DdsDomainParticipant, topic_guid: Guid) -> DdsResult<()> {
+    // if !self.node.upgrade()?.get_participant().is_enabled() {
+    //     return Err(DdsError::PreconditionNotMet(
+    //         "Parent participant is disabled".to_string(),
+    //     ));
+    // }
+
+    domain_participant
+        .topic_list_mut()
+        .iter_mut()
+        .find(|t| t.guid() == topic_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .enable()?;
+
+    Ok(())
+}
+
+pub fn get_instance_handle(topic_guid: Guid) -> DdsResult<InstanceHandle> {
+    Ok(topic_guid.into())
+}

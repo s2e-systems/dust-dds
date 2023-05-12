@@ -5,7 +5,7 @@ use crate::{
         domain_participant::DomainParticipant,
         domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     },
-    implementation::dds_impl::{any_topic_listener::AnyTopicListener, nodes::TopicNodeKind},
+    implementation::dds_impl::nodes::TopicNodeKind,
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -59,7 +59,7 @@ impl<Foo> Topic<Foo> {
             TopicNodeKind::UserDefined(t) => {
                 let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                     .get_participant_mut(&t.guid().prefix(), |dp| {
-                        t.get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                        crate::implementation::dds_impl::node_user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, t.guid())
                     })?;
 
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(
@@ -83,7 +83,11 @@ impl<Foo> Topic<Foo> {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => Ok(DomainParticipant::new(t.get_participant())),
+            TopicNodeKind::UserDefined(t) => Ok(DomainParticipant::new(
+                crate::implementation::dds_impl::node_user_defined_topic::get_participant(
+                    t.parent_participant(),
+                ),
+            )),
             TopicNodeKind::Listener(_) => todo!(),
         }
     }
@@ -91,10 +95,14 @@ impl<Foo> Topic<Foo> {
     /// The name of the type used to create the [`Topic`]
     pub fn get_type_name(&self) -> DdsResult<&'static str> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&t.guid().prefix(), |dp| {
-                    t.get_type_name(dp.ok_or(DdsError::AlreadyDeleted)?)
-                }),
+            TopicNodeKind::UserDefined(t) => {
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
+                    crate::implementation::dds_impl::node_user_defined_topic::get_type_name(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        t.guid(),
+                    )
+                })
+            }
             TopicNodeKind::Listener(_) => todo!(),
         }
     }
@@ -102,10 +110,14 @@ impl<Foo> Topic<Foo> {
     /// The name used to create the [`Topic`]
     pub fn get_name(&self) -> DdsResult<String> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&t.guid().prefix(), |dp| {
-                    t.get_name(dp.ok_or(DdsError::AlreadyDeleted)?)
-                }),
+            TopicNodeKind::UserDefined(t) => {
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
+                    crate::implementation::dds_impl::node_user_defined_topic::get_name(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        t.guid(),
+                    )
+                })
+            }
             TopicNodeKind::Listener(_) => todo!(),
         }
     }
@@ -129,7 +141,11 @@ impl<Foo> Topic<Foo> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&t.guid().prefix(), |dp| {
-                    t.set_qos(dp.ok_or(DdsError::AlreadyDeleted)?, qos)
+                    crate::implementation::dds_impl::node_user_defined_topic::set_qos(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        t.guid(),
+                        qos,
+                    )
                 }),
             TopicNodeKind::Listener(_) => todo!(),
         }
@@ -139,10 +155,14 @@ impl<Foo> Topic<Foo> {
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&t.guid().prefix(), |dp| {
-                    t.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
-                }),
+            TopicNodeKind::UserDefined(t) => {
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
+                    crate::implementation::dds_impl::node_user_defined_topic::get_qos(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        t.guid(),
+                    )
+                })
+            }
             TopicNodeKind::Listener(_) => todo!(),
         }
         // Ok(self.node.upgrade()?.get_qos())
@@ -207,7 +227,10 @@ impl<Foo> Topic<Foo> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&t.guid().prefix(), |dp| {
-                    t.enable(dp.ok_or(DdsError::AlreadyDeleted)?)
+                    crate::implementation::dds_impl::node_user_defined_topic::enable(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        t.guid(),
+                    )
                 }),
             TopicNodeKind::Listener(_) => todo!(),
         }
@@ -216,7 +239,11 @@ impl<Foo> Topic<Foo> {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.get_instance_handle(),
+            TopicNodeKind::UserDefined(t) => {
+                crate::implementation::dds_impl::node_user_defined_topic::get_instance_handle(
+                    t.guid(),
+                )
+            }
             TopicNodeKind::Listener(_) => todo!(),
         }
     }
@@ -234,15 +261,11 @@ where
     /// will be removed.
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         match &self.node {
-            #[allow(clippy::redundant_closure)]
-            TopicNodeKind::UserDefined(t) => t.set_listener(
-                a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
-                mask,
-            ),
+            TopicNodeKind::UserDefined(_) => todo!(),
             TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
