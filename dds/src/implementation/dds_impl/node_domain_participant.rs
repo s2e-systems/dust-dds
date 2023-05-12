@@ -15,9 +15,9 @@ use crate::{
 };
 
 use super::{
-    dds_domain_participant::DdsDomainParticipant, node_builtin_subscriber::BuiltinSubscriberNode,
+    dds_domain_participant::DdsDomainParticipant,
     node_user_defined_publisher::UserDefinedPublisherNode,
-    node_user_defined_subscriber::UserDefinedSubscriberNode,
+    node_user_defined_subscriber::SubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode,
 };
 
@@ -55,10 +55,10 @@ impl DomainParticipantNode {
         &self,
         domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<SubscriberQos>,
-    ) -> DdsResult<UserDefinedSubscriberNode> {
+    ) -> DdsResult<SubscriberNode> {
         domain_participant
             .create_subscriber(qos)
-            .map(|x| UserDefinedSubscriberNode::new(x, self.0))
+            .map(|x| SubscriberNode::new(x, self.0))
     }
 
     pub fn delete_subscriber(
@@ -116,10 +116,13 @@ impl DomainParticipantNode {
     pub fn get_builtin_subscriber(
         &self,
         domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<BuiltinSubscriberNode> {
+    ) -> DdsResult<SubscriberNode> {
         let builtin_subcriber = Ok(domain_participant.get_builtin_subscriber())?;
 
-        Ok(BuiltinSubscriberNode::new(builtin_subcriber.guid(), self.0))
+        Ok(SubscriberNode::new(
+            builtin_subcriber.guid(),
+            self.0,
+        ))
     }
 
     pub fn ignore_participant(

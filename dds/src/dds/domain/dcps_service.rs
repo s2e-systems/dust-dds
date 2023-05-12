@@ -32,7 +32,7 @@ use crate::{
             dds_subscriber::DdsSubscriber,
             nodes::{SubscriberNodeKind, DataReaderNode},
             node_user_defined_data_writer::UserDefinedDataWriterNode,
-            node_user_defined_subscriber::UserDefinedSubscriberNode,
+            node_user_defined_subscriber::SubscriberNode,
             node_user_defined_topic::UserDefinedTopicNode,
             participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
@@ -488,7 +488,7 @@ fn on_data_available_communication_change(data_reader_node: DataReaderNode) {
                     .as_mut()
                     .expect("Listener should be some")
                     .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
-                        UserDefinedSubscriberNode::new(
+                        SubscriberNode::new(
                             data_reader_node.parent_subscriber(),
                             data_reader_node.parent_participant(),
                         ),

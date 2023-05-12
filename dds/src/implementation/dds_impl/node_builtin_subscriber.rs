@@ -9,22 +9,6 @@ use super::{
     nodes::{DataReaderNode, DataReaderNodeKind},
 };
 
-#[derive(PartialEq, Eq, Debug)]
-pub struct BuiltinSubscriberNode {
-    this: Guid,
-    parent: Guid,
-}
-
-impl BuiltinSubscriberNode {
-    pub fn new(this: Guid, parent: Guid) -> Self {
-        Self { this, parent }
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.this
-    }
-}
-
 pub fn lookup_datareader<Foo>(
     domain_participant: &DdsDomainParticipant,
     subscriber_guid: Guid,

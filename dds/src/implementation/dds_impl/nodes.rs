@@ -1,17 +1,16 @@
 use crate::{implementation::rtps::types::Guid, subscription::data_reader::AnyDataReader};
 
 use super::{
-    node_builtin_subscriber::BuiltinSubscriberNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
-    node_user_defined_subscriber::UserDefinedSubscriberNode,
+    node_user_defined_subscriber::SubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode,
 };
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum SubscriberNodeKind {
-    Builtin(BuiltinSubscriberNode),
-    UserDefined(UserDefinedSubscriberNode),
-    Listener(UserDefinedSubscriberNode),
+    Builtin(SubscriberNode),
+    UserDefined(SubscriberNode),
+    Listener(SubscriberNode),
 }
 
 #[derive(PartialEq, Eq, Debug)]

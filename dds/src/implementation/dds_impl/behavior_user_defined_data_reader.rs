@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    node_user_defined_subscriber::UserDefinedSubscriberNode,
+    node_user_defined_subscriber::SubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode,
 };
 
@@ -266,8 +266,8 @@ pub fn get_topicdescription(
 pub fn get_subscriber(
     domain_participant: &DdsDomainParticipant,
     subscriber_guid: Guid,
-) -> UserDefinedSubscriberNode {
-    UserDefinedSubscriberNode::new(subscriber_guid, domain_participant.guid())
+) -> SubscriberNode {
+    SubscriberNode::new(subscriber_guid, domain_participant.guid())
 }
 
 pub fn is_historical_data_received(

@@ -27,12 +27,12 @@ use super::{
 };
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct UserDefinedSubscriberNode {
+pub struct SubscriberNode {
     this: Guid,
     parent: Guid,
 }
 
-impl UserDefinedSubscriberNode {
+impl SubscriberNode {
     pub fn new(this: Guid, parent: Guid) -> Self {
         Self { this, parent }
     }
