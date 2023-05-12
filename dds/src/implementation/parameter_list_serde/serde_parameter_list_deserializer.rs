@@ -1,6 +1,6 @@
 use std::{self, io::Read, marker::PhantomData};
 
-use byteorder::ReadBytesExt;
+use byteorder::{ByteOrder, ReadBytesExt};
 use serde::de::{self};
 
 use cdr::Error;
@@ -8,30 +8,18 @@ use cdr::Error;
 //use serde::de::value::Error;
 // use std::io::Error;
 
-pub struct ParameterListDeserializer<'a> {
+pub struct ParameterListDeserializer<'a, E> {
     data: &'a [u8],
     pos: u64,
-    is_big_endian: bool,
-    is_pl: bool,
+    endianness: PhantomData<E>,
 }
 
-impl<'a> ParameterListDeserializer<'a> {
-    pub fn new(reader: &'a [u8]) -> Self {
-        let is_big_endian = match reader[1] {
-            0 | 2 => true,
-            1 | 3 => false,
-            _ => todo!(),
-        };
-        let is_pl = match reader[1] {
-            2 | 3 => true,
-            0 | 1 => false,
-            _ => todo!(),
-        };
+impl<'a, E> ParameterListDeserializer<'a, E> {
+    pub fn new(data: &'a [u8]) -> Self {
         Self {
-            data: &reader[4..],
+            data,
             pos: 0,
-            is_big_endian,
-            is_pl,
+            endianness: PhantomData,
         }
     }
 
@@ -64,7 +52,10 @@ impl<'a> ParameterListDeserializer<'a> {
     }
 }
 
-impl<'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'de> {
+impl<'de, 'b, E> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'de, E>
+where
+    E: byteorder::ByteOrder,
+{
     type Error = Error;
 
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -100,12 +91,7 @@ impl<'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'de> {
     {
         self.read_padding_of::<u16>()?;
         self.read_size_of::<u16>()?;
-        let v = if self.is_big_endian {
-            self.data.read_u16::<byteorder::BigEndian>()?
-        } else {
-            self.data.read_u16::<byteorder::LittleEndian>()?
-        };
-        visitor.visit_u16(v)
+        visitor.visit_u16(self.data.read_u16::<E>()?)
     }
 
     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -114,12 +100,7 @@ impl<'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'de> {
     {
         self.read_padding_of::<u32>()?;
         self.read_size_of::<u32>()?;
-        let v = if self.is_big_endian {
-            self.data.read_u32::<byteorder::BigEndian>()?
-        } else {
-            self.data.read_u32::<byteorder::LittleEndian>()?
-        };
-        visitor.visit_u32(v)
+        visitor.visit_u32(self.data.read_u32::<E>()?)
     }
 
     fn deserialize_u64<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -142,12 +123,7 @@ impl<'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'de> {
     {
         self.read_padding_of::<i16>()?;
         self.read_size_of::<i16>()?;
-        let v = if self.is_big_endian {
-            self.data.read_i16::<byteorder::BigEndian>()
-        } else {
-            self.data.read_i16::<byteorder::LittleEndian>()
-        }?;
-        visitor.visit_i16(v)
+        visitor.visit_i16(self.data.read_i16::<E>()?)
     }
 
     fn deserialize_i32<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -246,11 +222,7 @@ impl<'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        if self.is_pl {
-            visitor.visit_map(PidSeparated::new(self))
-        } else {
-            visitor.visit_newtype_struct(self)
-        }
+        visitor.visit_map(PidSeparated::new(self))
     }
 
     fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -295,12 +267,15 @@ impl<'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        struct Access<'c, 'de: 'c> {
-            deserializer: &'c mut ParameterListDeserializer<'de>,
+        struct Access<'c, 'de: 'c, E> {
+            deserializer: &'c mut ParameterListDeserializer<'de, E>,
             len: usize,
         }
 
-        impl<'de, 'd> de::SeqAccess<'de> for Access<'d, 'de> {
+        impl<'de, 'd, E> de::SeqAccess<'de> for Access<'d, 'de, E>
+        where
+            E: ByteOrder,
+        {
             type Error = Error;
 
             fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -354,26 +329,24 @@ impl<'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'de> {
     }
 }
 
-struct PidSeparated<'de> {
-    de: ParameterListDeserializer<'de>,
+struct PidSeparated<'de, E> {
+    de: ParameterListDeserializer<'de, E>,
     skip_length: usize,
 }
 
-impl<'a> PidSeparated<'a> {
-    fn new(de: &ParameterListDeserializer<'a>) -> Self {
+impl<'a, E> PidSeparated<'a, E> {
+    fn new(de: &ParameterListDeserializer<'a, E>) -> Self {
         PidSeparated {
-            de: ParameterListDeserializer {
-                data: de.data,
-                pos: 0,
-                is_big_endian: de.is_big_endian,
-                is_pl: de.is_pl,
-            },
+            de: ParameterListDeserializer::new(de.data),
             skip_length: 0,
         }
     }
 }
 
-impl<'de> serde::de::MapAccess<'de> for PidSeparated<'de> {
+impl<'de, E> serde::de::MapAccess<'de> for PidSeparated<'de, E>
+where
+    E: byteorder::ByteOrder,
+{
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> std::result::Result<Option<K::Value>, Self::Error>
@@ -462,6 +435,46 @@ where
     }
 }
 
+type RepresentationType = [u8; 2];
+type RepresentationOptions = [u8; 2];
+
+pub const CDR_BE: RepresentationType = [0x00, 0x00];
+pub const CDR_LE: RepresentationType = [0x00, 0x01];
+pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
+pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
+
+fn dds_deserialize<'de, T>(mut data: &'de [u8]) -> Result<T, Error>
+where
+    T: serde::Deserialize<'de>,
+{
+    let mut representation_identifier: RepresentationType = [0, 0];
+    data.read_exact(&mut representation_identifier)?;
+
+    let mut representation_option: RepresentationOptions = [0, 0];
+    data.read_exact(&mut representation_option)?;
+
+    match representation_identifier {
+        CDR_BE => {
+            let mut deserializer =
+                cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
+            serde::Deserialize::deserialize(&mut deserializer)
+        }
+        CDR_LE => {
+            let mut deserializer =
+                cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(data, cdr::Infinite);
+            serde::Deserialize::deserialize(&mut deserializer)
+        }
+        PL_CDR_BE => {
+            let mut deserializer = ParameterListDeserializer::<byteorder::BigEndian>::new(data);
+            serde::Deserialize::deserialize(&mut deserializer)
+        }
+        PL_CDR_LE => {
+            let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
+            serde::Deserialize::deserialize(&mut deserializer)
+        }
+        _ => Err(Error::InvalidEncapsulation),
+    }
+}
 #[cfg(test)]
 mod tests {
 
@@ -470,12 +483,11 @@ mod tests {
     #[test]
     fn deserialize_one_parameter_le() {
         let data = &[
-            0x00, 0x03, 0, 0, // representation identifier
             71, 0x00, 4, 0, // pid | Length (incl padding)
             21, 0, 0, 0, // u8
         ][..];
         let expected: Parameter<71, u8> = Parameter(21);
-        let mut deserializer = ParameterListDeserializer::new(data);
+        let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
         let result: Parameter<71, u8> = serde::Deserialize::deserialize(&mut deserializer).unwrap();
         assert_eq!(result, expected)
     }
@@ -483,12 +495,11 @@ mod tests {
     #[test]
     fn deserialize_one_parameter_be() {
         let data = &[
-            0x00, 0x02, 0, 0, // representation identifier
             0, 71, 0, 4, // pid | Length (incl padding)
             0, 0, 0, 21, // u32
         ][..];
         let expected: Parameter<71, u32> = Parameter(21);
-        let mut deserializer = ParameterListDeserializer::new(data);
+        let mut deserializer = ParameterListDeserializer::<byteorder::BigEndian>::new(data);
         let result: Parameter<71, u32> =
             serde::Deserialize::deserialize(&mut deserializer).unwrap();
         assert_eq!(result, expected)
@@ -506,6 +517,23 @@ mod tests {
             n: Parameter(34),
         };
         let data = &[
+            72, 0x00, 4, 0, // n | Length (incl padding)
+            34, 0, 0, 0, // u8
+            71, 0x00, 4, 0, // id | Length (incl padding)
+            21, 0, 0, 0, // u8
+            1, 0, 0, 0, // Sentinel
+        ][..];
+        let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
+        let result: PlInner = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+        assert_eq!(result, expected)
+    }
+    #[test]
+    fn deserialize_dds_deserialize() {
+        let expected = PlInner {
+            id: Parameter(21),
+            n: Parameter(34),
+        };
+        let data = &[
             0x00, 0x03, 0, 0, // representation identifier
             72, 0x00, 4, 0, // n | Length (incl padding)
             34, 0, 0, 0, // u8
@@ -513,11 +541,10 @@ mod tests {
             21, 0, 0, 0, // u8
             1, 0, 0, 0, // Sentinel
         ][..];
-        let mut deserializer = ParameterListDeserializer::new(data);
-        let result: PlInner = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+
+        let result: PlInner = dds_deserialize(data).unwrap();
         assert_eq!(result, expected)
     }
-
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct UserInner {
         id: u8,
@@ -531,8 +558,7 @@ mod tests {
             21, 0, 0, 0, // id
             34, 0, 0, 0, // n
         ][..];
-        let mut deserializer = ParameterListDeserializer::new(data);
-        let result: UserInner = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+        let result: UserInner = dds_deserialize(data).unwrap();
         assert_eq!(result, expected)
     }
 }
