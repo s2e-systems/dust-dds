@@ -11,7 +11,6 @@ pub mod dds_domain_participant;
 pub mod dds_publisher;
 pub mod dds_subscriber;
 pub mod dds_topic;
-pub mod iterators;
 pub mod message_receiver;
 pub mod node_builtin_subscriber;
 pub mod node_domain_participant;
