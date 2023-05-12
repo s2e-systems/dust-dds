@@ -370,7 +370,7 @@ where
             .entity_factory
             .autoenable_created_entities
     {
-        super::node_user_defined_data_writer::enable(domain_participant, guid, publisher_guid)?;
+        super::behavior_user_defined_data_writer::enable(domain_participant, guid, publisher_guid)?;
     }
 
     Ok(data_writer_node)

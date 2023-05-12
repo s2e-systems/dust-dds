@@ -15,7 +15,7 @@ pub mod dds_subscriber;
 pub mod dds_topic;
 pub mod message_receiver;
 pub mod node_domain_participant;
-pub mod node_user_defined_data_writer;
+pub mod behavior_user_defined_data_writer;
 pub mod node_user_defined_publisher;
 pub mod nodes;
 pub mod participant_discovery;
