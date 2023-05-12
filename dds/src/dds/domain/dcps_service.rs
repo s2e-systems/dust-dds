@@ -850,8 +850,11 @@ fn on_offered_incompatible_qos_communication_change(data_writer_node: UserDefine
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_writer_node.parent_participant().prefix(),
             |dp| {
-                data_writer_node
-                    .get_offered_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                crate::implementation::dds_impl::node_user_defined_data_writer::get_offered_incompatible_qos_status(
+                    dp.ok_or(DdsError::AlreadyDeleted)?,
+                    data_writer_node.guid(),
+                    data_writer_node.parent_publisher(),
+                )
             },
         )
     }
@@ -923,7 +926,8 @@ fn on_publication_matched_communication_change(data_writer_node: UserDefinedData
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
             &data_writer_node.parent_participant().prefix(),
             |dp| {
-                data_writer_node.get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                crate::implementation::dds_impl::node_user_defined_data_writer::get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?,data_writer_node.guid(),
+                data_writer_node.parent_publisher(),)
             },
         )
     }

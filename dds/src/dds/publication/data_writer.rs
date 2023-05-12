@@ -3,7 +3,7 @@ use std::{marker::PhantomData, time::Instant};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    implementation::dds_impl::nodes::{DataWriterNodeKind, TopicNodeKind},
+    implementation::dds_impl::nodes::DataWriterNodeKind,
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -82,13 +82,11 @@ where
     /// For details see [`DestinationOrderQosPolicy`](crate::infrastructure::qos_policy::DestinationOrderQosPolicy).
     pub fn register_instance_w_timestamp(
         &self,
-        instance: &Foo,
-        timestamp: Time,
+        _instance: &Foo,
+        _timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                w.register_instance_w_timestamp(instance.get_serialized_key(), timestamp)
-            }
+            DataWriterNodeKind::UserDefined(_) => todo!(),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -178,8 +176,10 @@ where
             match &self.0 {
                 DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                     .get_participant_mut(&w.guid().prefix(), |dp| {
-                        w.unregister_instance_w_timestamp(
+                        crate::implementation::dds_impl::node_user_defined_data_writer::unregister_instance_w_timestamp(
                             dp.ok_or(DdsError::AlreadyDeleted)?,
+                            w.guid(),
+                            w.parent_publisher(),
                             serialized_key,
                             instance_handle,
                             timestamp,
@@ -196,9 +196,9 @@ where
     /// fields that form the key inside the `key_holder` instance.
     /// This operation returns [`DdsError::BadParameter`](crate::infrastructure::error::DdsError) if the `handle` does not
     /// correspond to an existing data object known to the [`DataWriter`].
-    pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
+    pub fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_key_value(key_holder, handle),
+            DataWriterNodeKind::UserDefined(_) => todo!(),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -212,8 +212,10 @@ where
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&w.guid().prefix(), |dp| {
-                    w.lookup_instance(
+                    crate::implementation::dds_impl::node_user_defined_data_writer::lookup_instance(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
+                        w.guid(),
+                        w.parent_publisher(),
                         instance.get_serialized_key(),
                     )
                 }),
@@ -278,8 +280,10 @@ where
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&w.guid().prefix(), |dp| {
-                    w.write_w_timestamp(
+                    crate::implementation::dds_impl::node_user_defined_data_writer::write_w_timestamp(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
+                        w.guid(),
+                            w.parent_publisher(),
                         serialized_data,
                         data.get_serialized_key(),
                         handle,
@@ -353,8 +357,10 @@ where
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&w.guid().prefix(), |dp| {
-                    w.dispose_w_timestamp(
+                    crate::implementation::dds_impl::node_user_defined_data_writer::dispose_w_timestamp(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
+                        w.guid(),
+                        w.parent_publisher(),
                         serialized_key,
                         instance_handle,
                         timestamp,
@@ -382,7 +388,8 @@ impl<Foo> DataWriter<Foo> {
                 while start_time.elapsed() < std::time::Duration::from(max_wait) {
                     if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                         .get_participant(&w.guid().prefix(), |dp| {
-                            w.are_all_changes_acknowledge(dp.ok_or(DdsError::AlreadyDeleted)?)
+                            crate::implementation::dds_impl::node_user_defined_data_writer::are_all_changes_acknowledge(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
+                            w.parent_publisher(),)
                         })?
                     {
                         return Ok(());
@@ -401,7 +408,8 @@ impl<Foo> DataWriter<Foo> {
             DataWriterNodeKind::UserDefined(w) => {
                 let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                     .get_participant_mut(&w.guid().prefix(), |dp| {
-                        w.get_liveliness_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                        crate::implementation::dds_impl::node_user_defined_data_writer::get_liveliness_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?,w.guid(),
+                        w.parent_publisher(),)
                     })?;
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
                     &w.guid(),
@@ -423,7 +431,8 @@ impl<Foo> DataWriter<Foo> {
             DataWriterNodeKind::UserDefined(w) => {
                 let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                     .get_participant_mut(&w.guid().prefix(), |dp| {
-                        w.get_offered_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                        crate::implementation::dds_impl::node_user_defined_data_writer::get_offered_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
+                        w.parent_publisher(),)
                     })?;
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
                     &w.guid(),
@@ -445,7 +454,8 @@ impl<Foo> DataWriter<Foo> {
             DataWriterNodeKind::UserDefined(w) => {
                 let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                     .get_participant_mut(&w.guid().prefix(), |dp| {
-                        w.get_offered_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                        crate::implementation::dds_impl::node_user_defined_data_writer::get_offered_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
+                        w.parent_publisher(),)
                     })?;
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
                     &w.guid(),
@@ -467,7 +477,8 @@ impl<Foo> DataWriter<Foo> {
             DataWriterNodeKind::UserDefined(w) => {
                 let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                     .get_participant_mut(&w.guid().prefix(), |dp| {
-                        w.get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                        crate::implementation::dds_impl::node_user_defined_data_writer::get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
+                        w.parent_publisher(),)
                     })?;
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
                     &w.guid(),
@@ -487,9 +498,7 @@ impl<Foo> DataWriter<Foo> {
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     pub fn get_topic(&self) -> DdsResult<Topic<Foo>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                Ok(Topic::new(TopicNodeKind::UserDefined(w.get_topic()?)))
-            }
+            DataWriterNodeKind::UserDefined(_) => todo!(),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -497,7 +506,12 @@ impl<Foo> DataWriter<Foo> {
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => Ok(Publisher::new(w.get_publisher())),
+            DataWriterNodeKind::UserDefined(w) => Ok(Publisher::new(
+                crate::implementation::dds_impl::node_user_defined_data_writer::get_publisher(
+                    w.guid(),
+                    w.parent_publisher(),
+                ),
+            )),
             DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
@@ -512,7 +526,7 @@ impl<Foo> DataWriter<Foo> {
     /// if the application is not writing data regularly.
     pub fn assert_liveliness(&self) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.assert_liveliness(),
+            DataWriterNodeKind::UserDefined(_) => todo!(),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -530,8 +544,10 @@ impl<Foo> DataWriter<Foo> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&w.guid().prefix(), |dp| {
-                    w.get_matched_subscription_data(
+                    crate::implementation::dds_impl::node_user_defined_data_writer::get_matched_subscription_data(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
+                        w.guid(),
+                            w.parent_publisher(),
                         subscription_handle,
                     )
                 }),
@@ -549,7 +565,8 @@ impl<Foo> DataWriter<Foo> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&w.guid().prefix(), |dp| {
-                    w.get_matched_subscriptions(dp.ok_or(DdsError::AlreadyDeleted)?)
+                    crate::implementation::dds_impl::node_user_defined_data_writer::get_matched_subscriptions(dp.ok_or(DdsError::AlreadyDeleted)?,w.guid(),
+                    w.parent_publisher(),)
                 }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
@@ -577,7 +594,12 @@ where
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&w.guid().prefix(), |dp| {
-                    w.set_qos(dp.ok_or(DdsError::AlreadyDeleted)?, qos)
+                    crate::implementation::dds_impl::node_user_defined_data_writer::set_qos(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        w.guid(),
+                        w.parent_publisher(),
+                        qos,
+                    )
                 }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
@@ -588,7 +610,11 @@ where
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&w.guid().prefix(), |dp| {
-                    w.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
+                    crate::implementation::dds_impl::node_user_defined_data_writer::get_qos(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        w.guid(),
+                        w.parent_publisher(),
+                    )
                 }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
@@ -677,7 +703,11 @@ where
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&w.guid().prefix(), |dp| {
-                    w.enable(dp.ok_or(DdsError::AlreadyDeleted)?)
+                    crate::implementation::dds_impl::node_user_defined_data_writer::enable(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        w.guid(),
+                        w.parent_publisher(),
+                    )
                 }),
             DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
@@ -686,7 +716,11 @@ where
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_instance_handle(),
+            DataWriterNodeKind::UserDefined(w) => {
+                crate::implementation::dds_impl::node_user_defined_data_writer::get_instance_handle(
+                    w.guid(),
+                )
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }

@@ -22,7 +22,7 @@ use crate::{
 
 use super::{
     dds_domain_participant::DdsDomainParticipant,
-    node_user_defined_publisher::UserDefinedPublisherNode, nodes::TopicNode,
+    node_user_defined_publisher::UserDefinedPublisherNode,
 };
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
@@ -52,349 +52,315 @@ impl UserDefinedDataWriterNode {
     pub fn parent_participant(&self) -> Guid {
         self.parent_participant
     }
+}
 
-    pub fn register_instance_w_timestamp(
-        &self,
-        _instance_serialized_key: DdsSerializedKey,
-        _timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>> {
-        // self.0
-        //     .get()?
-        //     .register_instance_w_timestamp(instance_serialized_key, timestamp)
-        todo!()
+pub fn unregister_instance_w_timestamp(
+    domain_participant: &mut DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+    instance_serialized_key: Vec<u8>,
+    handle: InstanceHandle,
+    timestamp: Time,
+) -> DdsResult<()> {
+    domain_participant
+        .get_publisher_mut(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer_mut(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .unregister_instance_w_timestamp(instance_serialized_key, handle, timestamp)
+}
+
+pub fn lookup_instance(
+    domain_participant: &DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+    instance_serialized_key: DdsSerializedKey,
+) -> DdsResult<Option<InstanceHandle>> {
+    domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .lookup_instance(instance_serialized_key)
+}
+
+pub fn write_w_timestamp(
+    domain_participant: &mut DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+    serialized_data: Vec<u8>,
+    instance_serialized_key: DdsSerializedKey,
+    handle: Option<InstanceHandle>,
+    timestamp: Time,
+) -> DdsResult<()> {
+    let is_parent_enabled = domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .is_enabled();
+
+    if !is_parent_enabled {
+        return Err(DdsError::NotEnabled);
     }
 
-    pub fn unregister_instance_w_timestamp(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-        instance_serialized_key: Vec<u8>,
-        handle: InstanceHandle,
-        timestamp: Time,
-    ) -> DdsResult<()> {
-        domain_participant
-            .get_publisher_mut(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer_mut(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .unregister_instance_w_timestamp(instance_serialized_key, handle, timestamp)
+    domain_participant
+        .get_publisher_mut(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer_mut(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .write_w_timestamp(serialized_data, instance_serialized_key, handle, timestamp)?;
+
+    domain_participant
+        .user_defined_data_send_condvar()
+        .notify_all();
+
+    Ok(())
+}
+
+pub fn dispose_w_timestamp(
+    domain_participant: &mut DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+    instance_serialized_key: Vec<u8>,
+    handle: InstanceHandle,
+    timestamp: Time,
+) -> DdsResult<()> {
+    domain_participant
+        .get_publisher_mut(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer_mut(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .dispose_w_timestamp(instance_serialized_key, handle, timestamp)
+}
+
+pub fn are_all_changes_acknowledge(
+    domain_participant: &DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+) -> DdsResult<bool> {
+    let is_parent_enabled = domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .is_enabled();
+
+    if !is_parent_enabled {
+        return Err(DdsError::NotEnabled);
     }
 
-    pub fn get_key_value<Foo>(
-        &self,
-        _key_holder: &mut Foo,
-        _handle: InstanceHandle,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType,
+    if domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .is_enabled()
     {
-        // self.0.get()?.get_key_value(key_holder, handle)
-        todo!()
-    }
-
-    pub fn lookup_instance(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-        instance_serialized_key: DdsSerializedKey,
-    ) -> DdsResult<Option<InstanceHandle>> {
-        domain_participant
-            .get_publisher(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .lookup_instance(instance_serialized_key)
-    }
-
-    pub fn write_w_timestamp(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-        serialized_data: Vec<u8>,
-        instance_serialized_key: DdsSerializedKey,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
-    ) -> DdsResult<()> {
-        let is_parent_enabled = domain_participant
-            .get_publisher(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .is_enabled();
-
-        if !is_parent_enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        domain_participant
-            .get_publisher_mut(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer_mut(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .write_w_timestamp(serialized_data, instance_serialized_key, handle, timestamp)?;
-
-        domain_participant
-            .user_defined_data_send_condvar()
-            .notify_all();
-
-        Ok(())
-    }
-
-    pub fn dispose_w_timestamp(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-        instance_serialized_key: Vec<u8>,
-        handle: InstanceHandle,
-        timestamp: Time,
-    ) -> DdsResult<()> {
-        domain_participant
-            .get_publisher_mut(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer_mut(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .dispose_w_timestamp(instance_serialized_key, handle, timestamp)
-    }
-
-    pub fn are_all_changes_acknowledge(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<bool> {
-        let is_parent_enabled = domain_participant
-            .get_publisher(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .is_enabled();
-
-        if !is_parent_enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        if domain_participant
-            .get_publisher(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .is_enabled()
-        {
-            Ok(domain_participant
-                .get_publisher(self.parent_publisher)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_data_writer(self.this)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .are_all_changes_acknowledge())
-        } else {
-            Err(DdsError::NotEnabled)
-        }
-    }
-
-    pub fn get_liveliness_lost_status(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<LivelinessLostStatus> {
         Ok(domain_participant
-            .get_publisher(self.parent_publisher)
+            .get_publisher(publisher_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
+            .get_data_writer(writer_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_liveliness_lost_status())
+            .are_all_changes_acknowledge())
+    } else {
+        Err(DdsError::NotEnabled)
+    }
+}
+
+pub fn get_liveliness_lost_status(
+    domain_participant: &DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+) -> DdsResult<LivelinessLostStatus> {
+    Ok(domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_liveliness_lost_status())
+}
+
+pub fn get_offered_deadline_missed_status(
+    domain_participant: &DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+) -> DdsResult<OfferedDeadlineMissedStatus> {
+    Ok(domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_offered_deadline_missed_status())
+}
+
+pub fn get_offered_incompatible_qos_status(
+    domain_participant: &mut DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+) -> DdsResult<OfferedIncompatibleQosStatus> {
+    Ok(domain_participant
+        .get_publisher_mut(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer_mut(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_offered_incompatible_qos_status())
+}
+
+pub fn get_publication_matched_status(
+    domain_participant: &mut DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+) -> DdsResult<PublicationMatchedStatus> {
+    Ok(domain_participant
+        .get_publisher_mut(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer_mut(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_publication_matched_status())
+}
+
+pub fn get_publisher(publisher_guid: Guid, participant_guid: Guid) -> UserDefinedPublisherNode {
+    UserDefinedPublisherNode::new(publisher_guid, participant_guid)
+}
+
+pub fn get_matched_subscription_data(
+    domain_participant: &DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+    subscription_handle: InstanceHandle,
+) -> DdsResult<SubscriptionBuiltinTopicData> {
+    let is_parent_enabled = domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .is_enabled();
+    if !is_parent_enabled {
+        return Err(DdsError::PreconditionNotMet(
+            "Parent publisher disabled".to_string(),
+        ));
     }
 
-    pub fn get_offered_deadline_missed_status(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<OfferedDeadlineMissedStatus> {
-        Ok(domain_participant
-            .get_publisher(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_offered_deadline_missed_status())
+    domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_matched_subscription_data(subscription_handle)
+        .ok_or(DdsError::BadParameter)
+}
+
+pub fn get_matched_subscriptions(
+    domain_participant: &DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+) -> DdsResult<Vec<InstanceHandle>> {
+    let is_parent_enabled = domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .is_enabled();
+    if !is_parent_enabled {
+        return Err(DdsError::PreconditionNotMet(
+            "Parent publisher disabled".to_string(),
+        ));
     }
 
-    pub fn get_offered_incompatible_qos_status(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-    ) -> DdsResult<OfferedIncompatibleQosStatus> {
-        Ok(domain_participant
-            .get_publisher_mut(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer_mut(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_offered_incompatible_qos_status())
-    }
+    Ok(domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_matched_subscriptions())
+}
 
-    pub fn get_publication_matched_status(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-    ) -> DdsResult<PublicationMatchedStatus> {
-        Ok(domain_participant
-            .get_publisher_mut(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer_mut(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_publication_matched_status())
-    }
+pub fn set_qos(
+    domain_participant: &mut DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+    qos: QosKind<DataWriterQos>,
+) -> DdsResult<()> {
+    let qos = match qos {
+        QosKind::Default => Default::default(),
+        QosKind::Specific(q) => q,
+    };
+    qos.is_consistent()?;
 
-    pub fn get_topic(&self) -> DdsResult<TopicNode> {
-        // let data_writer = self.0.get()?;
+    let is_data_writer_enabled = domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .is_enabled();
 
-        // let topic =
-        //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.parent().prefix(), |dp| {
-        //         dp.unwrap()
-        //             .topic_list()
-        //             .into_iter()
-        //             .find(|t| {
-        //                 t.get_name() == data_writer.get_topic_name()
-        //                     && t.get_type_name() == data_writer.get_type_name()
-        //             })
-        //             .cloned()
-        //             .expect("Topic must exist")
-        //     });
-
-        // Ok(UserDefinedTopicNode::new(ChildNode::new(
-        //     topic.downgrade(),
-        //     *self.0.parent(),
-        // )))
-        todo!()
-    }
-
-    pub fn get_publisher(&self) -> UserDefinedPublisherNode {
-        UserDefinedPublisherNode::new(self.parent_publisher, self.parent_participant)
-    }
-
-    pub fn assert_liveliness(&self) -> DdsResult<()> {
-        // if !self.0.get()?.is_enabled() {
-        //     return Err(DdsError::NotEnabled);
-        // }
-
-        todo!()
-    }
-
-    pub fn get_matched_subscription_data(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-        subscription_handle: InstanceHandle,
-    ) -> DdsResult<SubscriptionBuiltinTopicData> {
-        let is_parent_enabled = domain_participant
-            .get_publisher(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .is_enabled();
-        if !is_parent_enabled {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent publisher disabled".to_string(),
-            ));
-        }
-
+    if is_data_writer_enabled {
         domain_participant
-            .get_publisher(self.parent_publisher)
+            .get_publisher(publisher_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
+            .get_data_writer(writer_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_matched_subscription_data(subscription_handle)
-            .ok_or(DdsError::BadParameter)
+            .get_qos()
+            .check_immutability(&qos)?;
     }
 
-    pub fn get_matched_subscriptions(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<Vec<InstanceHandle>> {
-        let is_parent_enabled = domain_participant
-            .get_publisher(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .is_enabled();
-        if !is_parent_enabled {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent publisher disabled".to_string(),
-            ));
-        }
+    domain_participant
+        .get_publisher_mut(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer_mut(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .set_qos(qos);
 
-        Ok(domain_participant
-            .get_publisher(self.parent_publisher)
+    if is_data_writer_enabled {
+        let type_name = domain_participant
+            .get_publisher(publisher_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
+            .get_data_writer(writer_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_matched_subscriptions())
+            .get_type_name();
+
+        let topic_name = domain_participant
+            .get_publisher(publisher_guid)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(writer_guid)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_topic_name();
+
+        let topic = domain_participant
+            .get_topic(topic_name, type_name)
+            .expect("Topic must exist");
+        let publisher_qos = domain_participant
+            .get_publisher(publisher_guid)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos();
+        let discovered_writer_data = domain_participant
+            .get_publisher(publisher_guid)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(writer_guid)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .as_discovered_writer_data(&topic.get_qos(), &publisher_qos);
+        announce_created_data_writer(domain_participant, discovered_writer_data);
     }
 
-    pub fn set_qos(
-        &self,
-        domain_participant: &mut DdsDomainParticipant,
-        qos: QosKind<DataWriterQos>,
-    ) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => Default::default(),
-            QosKind::Specific(q) => q,
-        };
-        qos.is_consistent()?;
+    Ok(())
+}
 
-        let is_data_writer_enabled = domain_participant
-            .get_publisher(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .is_enabled();
+pub fn get_qos(
+    domain_participant: &DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+) -> DdsResult<DataWriterQos> {
+    Ok(domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_qos())
+}
 
-        if is_data_writer_enabled {
-            domain_participant
-                .get_publisher(self.parent_publisher)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_data_writer(self.this)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_qos()
-                .check_immutability(&qos)?;
-        }
+pub fn enable(
+    domain_participant: &mut DdsDomainParticipant,
+    writer_guid: Guid,
+    publisher_guid: Guid,
+) -> DdsResult<()> {
+    enable_data_writer(domain_participant, publisher_guid, writer_guid)
+}
 
-        domain_participant
-            .get_publisher_mut(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer_mut(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .set_qos(qos);
-
-        if is_data_writer_enabled {
-            let type_name = domain_participant
-                .get_publisher(self.parent_publisher)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_data_writer(self.this)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_type_name();
-
-            let topic_name = domain_participant
-                .get_publisher(self.parent_publisher)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_data_writer(self.this)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_topic_name();
-
-            let topic = domain_participant
-                .get_topic(topic_name, type_name)
-                .expect("Topic must exist");
-            let publisher_qos = domain_participant
-                .get_publisher(self.parent_publisher)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_qos();
-            let discovered_writer_data = domain_participant
-                .get_publisher(self.parent_publisher)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .get_data_writer(self.this)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .as_discovered_writer_data(&topic.get_qos(), &publisher_qos);
-            announce_created_data_writer(domain_participant, discovered_writer_data);
-        }
-
-        Ok(())
-    }
-
-    pub fn get_qos(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<DataWriterQos> {
-        Ok(domain_participant
-            .get_publisher(self.parent_publisher)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_qos())
-    }
-
-    pub fn enable(&self, domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
-        enable_data_writer(domain_participant, self.parent_publisher, self.this)
-    }
-
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.this.into())
-    }
+pub fn get_instance_handle(writer_guid: Guid) -> DdsResult<InstanceHandle> {
+    Ok(writer_guid.into())
 }
 
 fn enable_data_writer(
