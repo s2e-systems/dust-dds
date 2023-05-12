@@ -73,7 +73,7 @@ impl<Foo> Drop for DataReader<Foo> {
                         crate::implementation::dds_impl::behavior_user_defined_subscriber::delete_datareader(
                             dp,
                             dr.parent_subscriber(),
-                            dr.guid().into(),
+                            dr.guid(),
                         )
                         .ok();
                     }

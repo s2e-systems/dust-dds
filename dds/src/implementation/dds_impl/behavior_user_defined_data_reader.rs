@@ -22,6 +22,7 @@ use super::{
     nodes::{SubscriberNode, TopicNode},
 };
 
+#[allow(clippy::too_many_arguments)]
 pub fn read<Foo>(
     domain_participant: &mut DdsDomainParticipant,
     reader_guid: Guid,
@@ -49,6 +50,7 @@ where
         )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn take<Foo>(
     domain_participant: &mut DdsDomainParticipant,
     reader_guid: Guid,
@@ -76,6 +78,7 @@ where
         )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn read_next_instance<Foo>(
     domain_participant: &mut DdsDomainParticipant,
     reader_guid: Guid,
@@ -103,6 +106,7 @@ where
         )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn take_next_instance<Foo>(
     domain_participant: &mut DdsDomainParticipant,
     reader_guid: Guid,
