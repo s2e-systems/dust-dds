@@ -40,14 +40,18 @@ impl<Foo> Topic<Foo> {
 
 impl<Foo> Drop for Topic<Foo> {
     fn drop(&mut self) {
-        match self.node {
+        match &self.node {
             TopicNodeKind::Listener(_) => (),
-            TopicNodeKind::UserDefined(_) => {
-                if let Ok(dp) = self.get_participant() {
-                    dp.delete_topic(self).ok();
-                    std::mem::forget(dp);
-                }
-            }
+            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&t.guid().prefix(), |dp| {
+                    if let Some(dp) = dp {
+                        crate::implementation::dds_impl::behavior_domain_participant::delete_topic(
+                            dp,
+                            t.guid(),
+                        )
+                        .ok();
+                    }
+                }),
         }
     }
 }

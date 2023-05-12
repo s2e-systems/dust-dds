@@ -40,12 +40,15 @@ impl<Foo> Drop for DataWriter<Foo> {
     fn drop(&mut self) {
         match self.0 {
             DataWriterNodeKind::Listener(_) => (),
-            DataWriterNodeKind::UserDefined(_) => {
-                if let Ok(p) = self.get_publisher() {
-                    p.delete_datawriter(self).ok();
-                    std::mem::forget(p);
-                }
-            }
+            DataWriterNodeKind::UserDefined(dw) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&dw.guid().prefix(), |dp| if let Some(dp) = dp {
+                    crate::implementation::dds_impl::behavior_user_defined_publisher::delete_datawriter(
+                        dp,
+                        dw.parent_publisher(),
+                        dw.guid(),
+                        dw.parent_publisher(),
+                    ).ok();
+                }),
         }
     }
 }

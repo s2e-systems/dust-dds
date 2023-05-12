@@ -42,10 +42,15 @@ impl Publisher {
 
 impl Drop for Publisher {
     fn drop(&mut self) {
-        if let Ok(dp) = self.get_participant() {
-            dp.delete_publisher(self).ok();
-            std::mem::forget(dp);
-        }
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
+            if let Some(dp) = dp {
+                crate::implementation::dds_impl::behavior_domain_participant::delete_publisher(
+                    dp,
+                    self.0.guid(),
+                )
+                .ok();
+            }
+        })
     }
 }
 
@@ -216,7 +221,8 @@ impl Publisher {
     /// Once this operation returns successfully, the application may delete the [`Publisher`] knowing that it has no
     /// contained [`DataWriter`] objects
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        crate::implementation::dds_impl::behavior_user_defined_publisher::delete_contained_entities()
+        crate::implementation::dds_impl::behavior_user_defined_publisher::delete_contained_entities(
+        )
     }
 
     /// This operation sets the default value of the [`DataWriterQos`] which will be used for newly created [`DataWriter`] entities in
@@ -273,7 +279,10 @@ impl Publisher {
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
         self.call_participant_method(|dp| {
-            crate::implementation::dds_impl::behavior_user_defined_publisher::get_qos(dp, self.0.guid())
+            crate::implementation::dds_impl::behavior_user_defined_publisher::get_qos(
+                dp,
+                self.0.guid(),
+            )
         })
     }
 

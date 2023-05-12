@@ -46,13 +46,18 @@ impl Subscriber {
 
 impl Drop for Subscriber {
     fn drop(&mut self) {
-        match self.0 {
+        match &self.0 {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => (),
-            SubscriberNodeKind::UserDefined(_) => {
-                if let Ok(dp) = self.get_participant() {
-                    dp.delete_subscriber(self).ok();
-                    std::mem::forget(dp);
-                }
+            SubscriberNodeKind::UserDefined(s) => {
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&s.guid().prefix(), |dp| {
+                    if let Some(dp) = dp {
+                        crate::implementation::dds_impl::behavior_domain_participant::delete_subscriber(
+                            dp,
+                            s.guid(),
+                        )
+                        .ok();
+                    }
+                })
             }
         }
     }
