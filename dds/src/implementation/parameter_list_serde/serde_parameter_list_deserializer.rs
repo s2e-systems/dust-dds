@@ -1,34 +1,37 @@
 use std::{self, io::Read, marker::PhantomData};
 
-use byteorder::{ByteOrder, ReadBytesExt};
+use byteorder::ReadBytesExt;
 use serde::de::{self};
 
-use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
-use cdr::{Error};
+use cdr::Error;
 
 //use serde::de::value::Error;
 // use std::io::Error;
-
-// type Result<T> = std::result::Result<T, std::fmt::Error>;
-
 
 pub struct ParameterListDeserializer<'a> {
     data: &'a [u8],
     pos: u64,
     is_big_endian: bool,
+    is_pl: bool,
 }
 
 impl<'a> ParameterListDeserializer<'a> {
     pub fn new(reader: &'a [u8]) -> Self {
-        let byteorder = match reader[1] {
-            0 | 2 => false,
-            1 | 3 => true,
+        let is_big_endian = match reader[1] {
+            0 | 2 => true,
+            1 | 3 => false,
+            _ => todo!(),
+        };
+        let is_pl = match reader[1] {
+            2 | 3 => true,
+            0 | 1 => false,
             _ => todo!(),
         };
         Self {
-            data: reader,
+            data: &reader[4..],
             pos: 0,
-            is_big_endian: byteorder,
+            is_big_endian,
+            is_pl,
         }
     }
 
@@ -61,7 +64,7 @@ impl<'a> ParameterListDeserializer<'a> {
     }
 }
 
-impl<'de, 'a: 'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'a> {
+impl<'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -79,7 +82,7 @@ impl<'de, 'a: 'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializ
         match value {
             1 => visitor.visit_bool(true),
             0 => visitor.visit_bool(false),
-            value => Err(serde::de::Error::custom("invalid bool encoding")),
+            _ => Err(serde::de::Error::custom("invalid bool encoding")),
         }
     }
 
@@ -133,11 +136,18 @@ impl<'de, 'a: 'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializ
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_i16<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(Error::TypeNotSupported)
+        self.read_padding_of::<i16>()?;
+        self.read_size_of::<i16>()?;
+        let v = if self.is_big_endian {
+            self.data.read_i16::<byteorder::BigEndian>()
+        } else {
+            self.data.read_i16::<byteorder::LittleEndian>()
+        }?;
+        visitor.visit_i16(v)
     }
 
     fn deserialize_i32<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -217,20 +227,30 @@ impl<'de, 'a: 'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializ
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_unit_struct<V>(
+        self,
+        _name: &'static str,
+        _visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_newtype_struct<V>(
+        self,
+        _name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_borrowed_bytes(&self.data)
-        // visitor.visit_newtype_struct(self)
-        // visitor.visit_map(visitor)
+        if self.is_pl {
+            visitor.visit_map(PidSeparated::new(self))
+        } else {
+            visitor.visit_newtype_struct(self)
+        }
     }
 
     fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -275,12 +295,12 @@ impl<'de, 'a: 'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializ
     where
         V: de::Visitor<'de>,
     {
-        struct Access<'c, 'd> {
-            deserializer: &'c mut ParameterListDeserializer<'d>,
+        struct Access<'c, 'de: 'c> {
+            deserializer: &'c mut ParameterListDeserializer<'de>,
             len: usize,
         }
 
-        impl<'de, 'c, 'd: 'de> de::SeqAccess<'de> for Access<'c, 'd> {
+        impl<'de, 'd> de::SeqAccess<'de> for Access<'d, 'de> {
             type Error = Error;
 
             fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -334,78 +354,54 @@ impl<'de, 'a: 'de, 'b> de::Deserializer<'de> for &'b mut ParameterListDeserializ
     }
 }
 
-
-// In order to handle commas correctly when deserializing a JSON array or map,
-// we need to track whether we are on the first element or past the first
-// element.
-struct CommaSeparated<'a, 'de: 'a> {
-    de: &'a mut ParameterListDeserializer<'de>,
+struct PidSeparated<'de> {
+    de: ParameterListDeserializer<'de>,
+    skip_length: usize,
 }
 
-impl<'a, 'de> CommaSeparated<'a, 'de> {
-    fn new(de: &'a mut ParameterListDeserializer<'de>) -> Self {
-        CommaSeparated {
-            de,
+impl<'a> PidSeparated<'a> {
+    fn new(de: &ParameterListDeserializer<'a>) -> Self {
+        PidSeparated {
+            de: ParameterListDeserializer {
+                data: de.data,
+                pos: 0,
+                is_big_endian: de.is_big_endian,
+                is_pl: de.is_pl,
+            },
+            skip_length: 0,
         }
     }
 }
 
-impl<'de, 'a> serde::de::MapAccess<'de> for CommaSeparated<'a, 'de> {
+impl<'de> serde::de::MapAccess<'de> for PidSeparated<'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> std::result::Result<Option<K::Value>, Self::Error>
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        loop {
-            let pid: u16 = serde::Deserialize::deserialize(&mut *self.de)?;
-            let length: i16 = serde::Deserialize::deserialize(&mut *self.de)?;
-        }
-        // Deserialize a map key.
-        seed.deserialize(&mut *self.de).map(Some)
+        self.de.data = &self.de.data[self.skip_length as usize..];
+
+        let pid = seed.deserialize(&mut self.de).map(Some);
+        let length: i16 = serde::Deserialize::deserialize(&mut self.de)?;
+        self.skip_length = length as usize;
+        pid
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
     where
         V: serde::de::DeserializeSeed<'de>,
     {
+        let length_before_deserialization = self.de.data.len();
+        let value = seed.deserialize(&mut self.de);
+        let length_deserialized = length_before_deserialization - self.de.data.len();
 
-        seed.deserialize(&mut *self.de)
+        let padding_length = self.skip_length - length_deserialized;
+        self.de.data = &self.de.data[padding_length as usize..];
+        self.skip_length = 0;
+        value
     }
 }
-
-// struct MyMapVisitor<const PID: u16, T> {
-//     marker: PhantomData<fn() -> Parameter<PID, T>>
-// }
-
-// impl<const PID: u16, T> MyMapVisitor<PID, T> {
-//     fn new() -> Self {
-//         MyMapVisitor {
-//             marker: PhantomData
-//         }
-//     }
-// }
-
-// impl<'de, const PID: u16, T> serde::de::Visitor<'de> for MyMapVisitor<PID, T>
-// where
-//     T: serde::Deserialize<'de>,
-// {
-//     type Value = Parameter<PID, T>;
-
-//     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         formatter.write_str("a very special map")
-//     }
-
-//     fn visit_map<M>(self, mut access: M) -> std::result::Result<Self::Value, M::Error>
-//     where
-//         M: serde::de::MapAccess<'de>,
-//     {
-//         todo!()
-//     }
-// }
-
-#[derive(serde::Deserialize)]
-struct ParameterX<const PID: u16, T>(T);
 
 #[derive(Debug, PartialEq)]
 struct Parameter<const PID: u16, T>(T);
@@ -455,60 +451,6 @@ where
                     }
                 }
             }
-
-            fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                const PL_CDR_BE: &[u8] = &[0x00, 0x02];
-                const PL_CDR_LE: &[u8] = &[0x00, 0x03];
-
-                let (representation_identifier, v) = v.split_at(2);
-                if representation_identifier != PL_CDR_BE && representation_identifier != PL_CDR_LE
-                {
-                    return Err(serde::de::Error::invalid_value(
-                        serde::de::Unexpected::Bytes(representation_identifier),
-                        &"PL_CDR_BE or PL_CDR_LE",
-                    ));
-                }
-                let (_representation_options, mut reader) = v.split_at(2);
-                loop {
-                    let mut deserializer_be =
-                        cdr::Deserializer::<_, _, byteorder::BigEndian>::new(reader, cdr::Infinite);
-                    let mut deserializer_le =
-                        cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(
-                            reader,
-                            cdr::Infinite,
-                        );
-                    let pid: u16 = if representation_identifier == PL_CDR_BE {
-                        serde::Deserialize::deserialize(&mut deserializer_be)
-                    } else {
-                        serde::Deserialize::deserialize(&mut deserializer_le)
-                    }
-                    .map_err(|_err| serde::de::Error::missing_field("PID"))?;
-                    let length: u16 = if representation_identifier == PL_CDR_BE {
-                        serde::Deserialize::deserialize(&mut deserializer_be)
-                    } else {
-                        serde::Deserialize::deserialize(&mut deserializer_le)
-                    }
-                    .map_err(|_err| serde::de::Error::missing_field("length"))?;
-
-                    if pid == PID {
-                        let value: T = if representation_identifier == PL_CDR_BE {
-                            serde::Deserialize::deserialize(&mut deserializer_be)
-                        } else {
-                            serde::Deserialize::deserialize(&mut deserializer_le)
-                        }
-                        .map_err(|_err| serde::de::Error::missing_field("value"))?;
-                        return Ok(Parameter(value));
-                    } else if pid == PID_SENTINEL {
-                        return Err(serde::de::Error::missing_field("PID missing"));
-                    } else {
-                        let skip_bytes = length as usize + 4 /*number of bytes of pid and length */;
-                        reader = &reader[skip_bytes..];
-                    }
-                }
-            }
         }
         deserializer.deserialize_newtype_struct(
             "Parameter",
@@ -524,15 +466,6 @@ where
 mod tests {
 
     use super::*;
-
-    #[test]
-    fn deserialize_bytes_test() {
-        let data = &[0u8, 1, 2, 3][..];
-        let expected = &[0u8, 1, 2, 3];
-        let mut deserializer = ParameterListDeserializer::new(data);
-        let result: &[u8] = serde::Deserialize::deserialize(&mut deserializer).unwrap();
-        assert_eq!(result, expected)
-    }
 
     #[test]
     fn deserialize_one_parameter_le() {

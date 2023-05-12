@@ -1,7 +1,8 @@
-use std::{self, io::Write, marker::PhantomData};
+use std::{self};
 
-use byteorder::ByteOrder;
-use serde::ser::{SerializeSeq, SerializeTuple};
+
+use serde::ser::{SerializeTuple};
+use serde::ser::SerializeSeq;
 
 // pub struct ParameterListSerializer<W, E> {
 //     writer: W,
