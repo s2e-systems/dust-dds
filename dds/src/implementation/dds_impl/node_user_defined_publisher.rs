@@ -1,24 +1,19 @@
 use crate::{
-    implementation::{
-        rtps::{
-            endpoint::RtpsEndpoint,
-            stateful_writer::RtpsStatefulWriter,
-            types::{
-                EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-                USER_DEFINED_WRITER_WITH_KEY,
-            },
-            writer::RtpsWriter,
+    implementation::rtps::{
+        endpoint::RtpsEndpoint,
+        stateful_writer::RtpsStatefulWriter,
+        types::{
+            EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            USER_DEFINED_WRITER_WITH_KEY,
         },
-        utils::shared_object::{DdsRwLock, DdsShared},
+        writer::RtpsWriter,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
-        status::StatusKind,
         time::{Duration, DURATION_ZERO},
     },
-    publication::publisher_listener::PublisherListener,
     topic_definition::type_support::DdsType,
 };
 
@@ -27,7 +22,6 @@ use super::{
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
     nodes::DataWriterNode,
-    status_condition_impl::StatusConditionImpl,
 };
 
 #[derive(Eq, PartialEq, Debug)]
@@ -131,26 +125,6 @@ impl UserDefinedPublisherNode {
             .map(|x| DataWriterNode::new(x.guid(), self.this, self.parent)))
     }
 
-    pub fn suspend_publications(&self) -> DdsResult<()> {
-        todo!()
-    }
-
-    pub fn resume_publications(&self) -> DdsResult<()> {
-        todo!()
-    }
-
-    pub fn begin_coherent_changes(&self) -> DdsResult<()> {
-        todo!()
-    }
-
-    pub fn end_coherent_changes(&self) -> DdsResult<()> {
-        todo!()
-    }
-
-    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
-        todo!()
-    }
-
     pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {
         Ok(DomainParticipantNode::new(self.parent))
     }
@@ -200,11 +174,6 @@ impl UserDefinedPublisherNode {
         todo!()
     }
 
-    pub fn set_qos(&self, _qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        todo!()
-        // self.this.get()?.set_qos(qos)
-    }
-
     pub fn get_qos(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<PublisherQos> {
         Ok(domain_participant
             .user_defined_publisher_list()
@@ -212,26 +181,6 @@ impl UserDefinedPublisherNode {
             .find(|p| p.guid() == self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_qos())
-    }
-
-    pub fn set_listener(
-        &self,
-        _a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        _mask: &[StatusKind],
-    ) -> DdsResult<()> {
-        todo!()
-        // *self.this.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
-        // Ok(())
-    }
-
-    pub fn get_statuscondition(&self) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
-        // Ok(self.this.get()?.get_statuscondition())
-        todo!()
-    }
-
-    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        // Ok(self.this.get()?.get_status_changes())
-        todo!()
     }
 
     pub fn enable(&self) -> DdsResult<()> {

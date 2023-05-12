@@ -139,7 +139,7 @@ impl Publisher {
     /// modifications has completed. If the [`Publisher`] is deleted before [`Publisher::resume_publications`] is called, any suspended updates yet to
     /// be published will be discarded.
     pub fn suspend_publications(&self) -> DdsResult<()> {
-        self.0.suspend_publications()
+        todo!()
     }
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
@@ -148,7 +148,7 @@ impl Publisher {
     /// The call to [`Publisher::resume_publications`] must match a previous call to [`Publisher::suspend_publications`] otherwise
     /// the operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn resume_publications(&self) -> DdsResult<()> {
-        self.0.resume_publications()
+        todo!()
     }
 
     /// This operation requests that the application will begin a *coherent set* of modifications using [`DataWriter`] objects attached to
@@ -168,13 +168,13 @@ impl Publisher {
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
     pub fn begin_coherent_changes(&self) -> DdsResult<()> {
-        self.0.begin_coherent_changes()
+        todo!()
     }
 
     /// This operation terminates the *coherent set* initiated by the matching call to [`Publisher::begin_coherent_changes`]. If there is no matching
     /// call to [`Publisher::begin_coherent_changes`], the operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn end_coherent_changes(&self) -> DdsResult<()> {
-        self.0.end_coherent_changes()
+        todo!()
     }
 
     /// This operation blocks the calling thread until either all data written by the reliable [`DataWriter`] entities is acknowledged by all
@@ -182,8 +182,8 @@ impl Publisher {
     /// the `max_wait` parameter elapses, whichever happens first. A return value of [`Ok`] indicates that all the samples written
     /// have been acknowledged by all reliable matched data readers; a return value of [`DdsError::Timeout`](crate::infrastructure::error::DdsError)
     /// indicates that `max_wait` elapsed before all the data was acknowledged.
-    pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        self.0.wait_for_acknowledgments(max_wait)
+    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
+        todo!()
     }
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
@@ -248,8 +248,8 @@ impl Publisher {
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        self.0.set_qos(qos)
+    pub fn set_qos(&self, _qos: QosKind<PublisherQos>) -> DdsResult<()> {
+        todo!()
     }
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
@@ -265,17 +265,17 @@ impl Publisher {
     /// will be removed.
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.set_listener(a_listener, mask)
+        todo!()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(self.0.get_statuscondition()?))
+        todo!()
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -285,7 +285,7 @@ impl Publisher {
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        self.0.get_status_changes()
+        todo!()
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
