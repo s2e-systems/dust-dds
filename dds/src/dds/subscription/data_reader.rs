@@ -131,8 +131,9 @@ where
         match &self.0 {
             DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&r.guid().prefix(), |dp| {
-                    r.read(
+                    crate::implementation::dds_impl::node_builtin_data_reader_stateless::read(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
+                        r.guid(),
                         max_samples,
                         sample_states,
                         view_states,
@@ -210,8 +211,9 @@ where
         let mut samples = match &self.0 {
             DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&r.guid().prefix(), |dp| {
-                    r.read(
+                    crate::implementation::dds_impl::node_builtin_data_reader_stateless::read(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
+                        r.guid(),
                         1,
                         &[SampleStateKind::NotRead],
                         ANY_VIEW_STATE,
@@ -303,8 +305,9 @@ where
         match &self.0 {
             DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&r.guid().prefix(), |dp| {
-                    r.read(
+                    crate::implementation::dds_impl::node_builtin_data_reader_stateless::read(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
+                        r.guid(),
                         max_samples,
                         sample_states,
                         view_states,
@@ -411,8 +414,9 @@ where
         match &self.0 {
             DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&r.guid().prefix(), |dp| {
-                    r.read_next_instance(
+                    crate::implementation::dds_impl::node_builtin_data_reader_stateless::read_next_instance(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
+                        r.guid(),
                         max_samples,
                         previous_handle,
                         sample_states,
@@ -833,7 +837,10 @@ impl<Foo> DataReader<Foo> {
         match &self.0 {
             DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&r.guid().prefix(), |dp| {
-                    r.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
+                    crate::implementation::dds_impl::node_builtin_data_reader_stateless::get_qos(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        r.guid(),
+                    )
                 }),
             DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&r.guid().prefix(), |dp| {
@@ -941,7 +948,7 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => r.get_instance_handle(),
+            DataReaderNodeKind::BuiltinStateless(r) => crate::implementation::dds_impl::node_builtin_data_reader_stateless::get_instance_handle(r.guid()),
             DataReaderNodeKind::BuiltinStateful(r) => crate::implementation::dds_impl::node_builtin_data_reader_stateful::get_instance_handle(r.guid()),
             DataReaderNodeKind::UserDefined(r) => {
                 crate::implementation::dds_impl::node_user_defined_data_reader::get_instance_handle(
