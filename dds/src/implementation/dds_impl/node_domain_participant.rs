@@ -17,8 +17,7 @@ use crate::{
 use super::{
     dds_domain_participant::DdsDomainParticipant,
     node_user_defined_publisher::UserDefinedPublisherNode,
-    node_user_defined_subscriber::SubscriberNode,
-    node_user_defined_topic::UserDefinedTopicNode,
+    node_user_defined_topic::UserDefinedTopicNode, nodes::SubscriberNode,
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -119,10 +118,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<SubscriberNode> {
         let builtin_subcriber = Ok(domain_participant.get_builtin_subscriber())?;
 
-        Ok(SubscriberNode::new(
-            builtin_subcriber.guid(),
-            self.0,
-        ))
+        Ok(SubscriberNode::new(builtin_subcriber.guid(), self.0))
     }
 
     pub fn ignore_participant(

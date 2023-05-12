@@ -2,7 +2,6 @@ use crate::{implementation::rtps::types::Guid, subscription::data_reader::AnyDat
 
 use super::{
     node_user_defined_data_writer::UserDefinedDataWriterNode,
-    node_user_defined_subscriber::SubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode,
 };
 
@@ -31,6 +30,26 @@ pub enum DataReaderNodeKind {
 pub enum TopicNodeKind {
     UserDefined(UserDefinedTopicNode),
     Listener(UserDefinedTopicNode),
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct SubscriberNode {
+    this: Guid,
+    parent: Guid,
+}
+
+impl SubscriberNode {
+    pub fn new(this: Guid, parent: Guid) -> Self {
+        Self { this, parent }
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.this
+    }
+
+    pub fn parent_participant(&self) -> Guid {
+        self.parent
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]

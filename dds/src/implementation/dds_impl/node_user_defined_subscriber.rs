@@ -24,26 +24,6 @@ use super::{
     nodes::DataReaderNode,
 };
 
-#[derive(PartialEq, Eq, Debug)]
-pub struct SubscriberNode {
-    this: Guid,
-    parent: Guid,
-}
-
-impl SubscriberNode {
-    pub fn new(this: Guid, parent: Guid) -> Self {
-        Self { this, parent }
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.this
-    }
-
-    pub fn parent_participant(&self) -> Guid {
-        self.parent
-    }
-}
-
 pub fn create_datareader<Foo>(
     domain_participant: &mut DdsDomainParticipant,
     subscriber_guid: Guid,
@@ -333,8 +313,4 @@ pub fn enable(
     }
 
     Ok(())
-}
-
-pub fn get_instance_handle(subscriber_guid: Guid) -> DdsResult<InstanceHandle> {
-    Ok(subscriber_guid.into())
 }

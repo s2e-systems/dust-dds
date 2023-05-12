@@ -30,10 +30,9 @@ use crate::{
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
             dds_subscriber::DdsSubscriber,
-            nodes::{SubscriberNodeKind, DataReaderNode},
             node_user_defined_data_writer::UserDefinedDataWriterNode,
-            node_user_defined_subscriber::SubscriberNode,
             node_user_defined_topic::UserDefinedTopicNode,
+            nodes::{DataReaderNode, SubscriberNode, SubscriberNodeKind},
             participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
         },
@@ -778,9 +777,7 @@ fn on_sample_rejected_communication_change(data_reader_node: DataReaderNode) {
 }
 
 fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
-    fn get_sample_lost_status(
-        data_reader_node: &DataReaderNode,
-    ) -> DdsResult<SampleLostStatus> {
+    fn get_sample_lost_status(data_reader_node: &DataReaderNode) -> DdsResult<SampleLostStatus> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
                 crate::implementation::dds_impl::behavior_user_defined_data_reader::get_sample_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
