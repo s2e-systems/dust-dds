@@ -1,5 +1,4 @@
 use super::{
-    node_builtin_data_reader_stateful::BuiltinDataReaderStatefulNode,
     node_builtin_data_reader_stateless::BuiltinDataReaderStatelessNode,
     node_builtin_subscriber::BuiltinSubscriberNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode,
@@ -23,7 +22,7 @@ pub enum DataWriterNodeKind {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum DataReaderNodeKind {
-    BuiltinStateful(BuiltinDataReaderStatefulNode),
+    BuiltinStateful(UserDefinedDataReaderNode),
     BuiltinStateless(BuiltinDataReaderStatelessNode),
     UserDefined(UserDefinedDataReaderNode),
     Listener(UserDefinedDataReaderNode),

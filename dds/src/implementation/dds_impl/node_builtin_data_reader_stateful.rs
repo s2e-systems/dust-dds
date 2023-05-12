@@ -14,27 +14,6 @@ use crate::{
 
 use super::dds_domain_participant::DdsDomainParticipant;
 
-#[derive(PartialEq, Eq, Debug)]
-pub struct BuiltinDataReaderStatefulNode {
-    this: Guid,
-    parent_subcriber: Guid,
-    parent_participant: Guid,
-}
-
-impl BuiltinDataReaderStatefulNode {
-    pub fn new(this: Guid, parent_subcriber: Guid, parent_participant: Guid) -> Self {
-        Self {
-            this,
-            parent_subcriber,
-            parent_participant,
-        }
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.this
-    }
-}
-
 pub fn read<Foo>(
     domain_participant: &mut DdsDomainParticipant,
     reader_guid: Guid,
