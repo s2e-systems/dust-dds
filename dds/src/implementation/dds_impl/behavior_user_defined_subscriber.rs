@@ -10,7 +10,6 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
         time::DURATION_ZERO,
     },
@@ -129,14 +128,14 @@ where
 pub fn delete_datareader(
     domain_participant: &mut DdsDomainParticipant,
     subscriber_guid: Guid,
-    a_datareader_handle: InstanceHandle,
+    datareader_guid: Guid,
 ) -> DdsResult<()> {
     let data_reader = domain_participant
         .get_subscriber(subscriber_guid)
         .ok_or(DdsError::AlreadyDeleted)?
         .stateful_data_reader_list()
         .iter()
-        .find(|x| x.get_instance_handle() == a_datareader_handle)
+        .find(|x| x.guid() == datareader_guid)
         .ok_or_else(|| {
             DdsError::PreconditionNotMet(
                 "Data reader can only be deleted from its parent subscriber".to_string(),
@@ -155,7 +154,7 @@ pub fn delete_datareader(
     domain_participant
         .get_subscriber_mut(subscriber_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .stateful_data_reader_delete(a_datareader_handle);
+        .stateful_data_reader_delete(datareader_guid);
 
     Ok(())
 }

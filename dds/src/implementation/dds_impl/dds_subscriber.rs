@@ -111,9 +111,9 @@ impl DdsSubscriber {
         self.stateful_data_reader_list.push(data_reader)
     }
 
-    pub fn stateful_data_reader_delete(&mut self, a_datareader_handle: InstanceHandle) {
+    pub fn stateful_data_reader_delete(&mut self, datareader_guid: Guid) {
         self.stateful_data_reader_list
-            .retain(|x| x.get_instance_handle() != a_datareader_handle)
+            .retain(|x| x.guid() != datareader_guid)
     }
 
     pub fn stateful_data_reader_list(&self) -> &[DdsDataReader<RtpsStatefulReader>] {

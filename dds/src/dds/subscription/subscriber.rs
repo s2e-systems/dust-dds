@@ -138,7 +138,7 @@ impl Subscriber {
                             crate::implementation::dds_impl::behavior_user_defined_subscriber::delete_datareader(
                                 dp.ok_or(DdsError::AlreadyDeleted)?,
                                 s.guid(),
-                                a_datareader.get_instance_handle()?,
+                                dr.guid(),
                             )
                         },
                     )?;

@@ -70,9 +70,10 @@ impl<Foo> Drop for DataReader<Foo> {
             DataReaderNodeKind::UserDefined(dr) => {
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&dr.guid().prefix(), |dp| {
                     if let Some(dp) = dp {
-                        crate::implementation::dds_impl::behavior_domain_participant::delete_subscriber(
+                        crate::implementation::dds_impl::behavior_user_defined_subscriber::delete_datareader(
                             dp,
-                            dr.guid(),
+                            dr.parent_subscriber(),
+                            dr.guid().into(),
                         )
                         .ok();
                     }
