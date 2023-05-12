@@ -16,8 +16,7 @@ use crate::{
 
 use super::{
     dds_domain_participant::DdsDomainParticipant,
-    node_user_defined_publisher::UserDefinedPublisherNode,
-    nodes::{SubscriberNode, TopicNode},
+    nodes::{PublisherNode, SubscriberNode, TopicNode},
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -36,10 +35,10 @@ impl DomainParticipantNode {
         &self,
         domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<PublisherQos>,
-    ) -> DdsResult<UserDefinedPublisherNode> {
+    ) -> DdsResult<PublisherNode> {
         domain_participant
             .create_publisher(qos)
-            .map(|x| UserDefinedPublisherNode::new(x, self.0))
+            .map(|x| PublisherNode::new(x, self.0))
     }
 
     pub fn delete_publisher(

@@ -133,3 +133,23 @@ impl DataWriterNode {
 }
 
 impl AnyDataWriter for DataWriterNode {}
+
+#[derive(Eq, PartialEq, Debug)]
+pub struct PublisherNode {
+    this: Guid,
+    parent: Guid,
+}
+
+impl PublisherNode {
+    pub fn new(this: Guid, parent: Guid) -> Self {
+        Self { this, parent }
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.this
+    }
+
+    pub fn parent_participant(&self) -> Guid {
+        self.parent
+    }
+}

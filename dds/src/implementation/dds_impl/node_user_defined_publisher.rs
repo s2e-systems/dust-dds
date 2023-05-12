@@ -24,26 +24,6 @@ use super::{
     nodes::DataWriterNode,
 };
 
-#[derive(Eq, PartialEq, Debug)]
-pub struct UserDefinedPublisherNode {
-    this: Guid,
-    parent: Guid,
-}
-
-impl UserDefinedPublisherNode {
-    pub fn new(this: Guid, parent: Guid) -> Self {
-        Self { this, parent }
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.this
-    }
-
-    pub fn parent_participant(&self) -> Guid {
-        self.parent
-    }
-}
-
 pub fn create_datawriter<Foo>(
     domain_participant: &mut DdsDomainParticipant,
     publisher_guid: Guid,
