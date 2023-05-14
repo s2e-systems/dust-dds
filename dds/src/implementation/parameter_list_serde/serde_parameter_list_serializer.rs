@@ -3,12 +3,9 @@ use std::marker::PhantomData;
 use std::{self};
 
 use byteorder::{ByteOrder, WriteBytesExt};
-use serde::ser::SerializeSeq;
 use serde::ser::SerializeTuple;
 
 use cdr::Error;
-
-use crate::topic_definition::type_support::DdsSerialize;
 
 pub struct ParameterListSerializer<W, E> {
     ser: cdr::Serializer<W, E>,
@@ -418,14 +415,17 @@ where
     }
 }
 
-type RepresentationType = [u8; 2];
-type RepresentationOptions = [u8; 2];
+pub type RepresentationType = [u8; 2];
+pub type RepresentationOptions = [u8; 2];
 pub const CDR_BE: RepresentationType = [0x00, 0x00];
 pub const CDR_LE: RepresentationType = [0x00, 0x01];
 pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
 pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
 pub const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
-trait RepresentationFormat {
+
+const PID_SENTINEL: u16 = 1;
+
+pub trait RepresentationFormat {
     const REPRESENTATION_IDENTIFIER: RepresentationType;
 }
 impl<T: serde::Serialize + DdsSerde> RepresentationFormat for T {
@@ -434,12 +434,19 @@ impl<T: serde::Serialize + DdsSerde> RepresentationFormat for T {
 
 trait DdsSerde {}
 
-fn dds_serialize<T>(value: &T) -> Result<Vec<u8>, Error>
+pub fn dds_serialize<T>(value: &T) -> Result<Vec<u8>, Error>
 where
     T: serde::Serialize + RepresentationFormat,
 {
     let mut writer = vec![];
     match T::REPRESENTATION_IDENTIFIER {
+        CDR_BE => {
+            writer.write_all(&CDR_BE)?;
+            writer.write_all(&REPRESENTATION_OPTIONS)?;
+            let mut serializer =
+                cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
+            serde::Serialize::serialize(value, &mut serializer)?;
+        }
         CDR_LE => {
             writer.write_all(&CDR_LE)?;
             writer.write_all(&REPRESENTATION_OPTIONS)?;
@@ -447,13 +454,22 @@ where
                 cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
             serde::Serialize::serialize(value, &mut serializer)?;
         }
+        PL_CDR_BE => {
+            writer.write_all(&PL_CDR_BE)?;
+            writer.write_all(&REPRESENTATION_OPTIONS)?;
+            let mut serializer =
+                ParameterListSerializer::<_, byteorder::BigEndian>::new(&mut writer);
+            serde::Serialize::serialize(value, &mut serializer).unwrap();
+            writer.write_u16::<byteorder::BigEndian>(PID_SENTINEL)?;
+            writer.write_i16::<byteorder::BigEndian>(0)?;
+        }
         PL_CDR_LE => {
             writer.write_all(&PL_CDR_LE)?;
             writer.write_all(&REPRESENTATION_OPTIONS)?;
             let mut serializer =
                 ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut writer);
             serde::Serialize::serialize(value, &mut serializer).unwrap();
-            writer.write_u16::<byteorder::LittleEndian>(1)?;
+            writer.write_u16::<byteorder::LittleEndian>(PID_SENTINEL)?;
             writer.write_i16::<byteorder::LittleEndian>(0)?;
         }
         _ => todo!(),
@@ -474,7 +490,7 @@ mod tests {
         const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
     }
     #[test]
-    fn serialize_simple() {
+    fn serialize_pl_le() {
         let data = Inner {
             id: Parameter(21),
             n: Parameter(34),
@@ -490,6 +506,40 @@ mod tests {
         let result = dds_serialize(&data).unwrap();
         assert_eq!(result, expected)
     }
+
+    #[derive(Debug, PartialEq, serde::Serialize)]
+    struct PlOuter {
+        outer: Parameter<2, u8>,
+        inner: Inner,
+    }
+    impl RepresentationFormat for PlOuter {
+        const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    }
+
+    #[test]
+    fn serialize_compound() {
+        let data = PlOuter {
+            outer: Parameter(7),
+            inner: Inner {
+                id: Parameter(21),
+                n: Parameter(34),
+            },
+        };
+
+        let expected = &[
+            0x00, 0x03, 0, 0, // representation identifier
+            2, 0x00, 4, 0, // n | Length (incl padding)
+            7, 0, 0, 0, // u8
+            71, 0x00, 4, 0, // id | Length (incl padding)
+            21, 0, 0, 0, // u16
+            72, 0x00, 4, 0, // n | Length (incl padding)
+            34, 0, 0, 0, // u8
+            1, 0, 0, 0, // Sentinel
+        ][..];
+        let result = dds_serialize(&data).unwrap();
+        assert_eq!(result, expected)
+    }
+
     #[derive(Debug, PartialEq, serde::Serialize)]
     struct UserData {
         id: u8,
