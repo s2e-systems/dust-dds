@@ -5,9 +5,6 @@ use serde::de::{self};
 
 use cdr::Error;
 
-//use serde::de::value::Error;
-// use std::io::Error;
-
 pub struct ParameterListDeserializer<'a, E> {
     data: &'a [u8],
     pos: u64,
@@ -402,15 +399,6 @@ where
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("struct Parameter")
             }
-            fn visit_newtype_struct<E>(
-                self,
-                deserializer: E,
-            ) -> std::result::Result<Self::Value, E::Error>
-            where
-                E: serde::Deserializer<'de>,
-            {
-                Ok(Parameter(serde::Deserialize::deserialize(deserializer)?))
-            }
 
             fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
             where
@@ -435,6 +423,57 @@ where
     }
 }
 
+#[derive(Debug, PartialEq)]
+struct ParameterWithDefault<const PID: u16, T>(T);
+
+impl<'de, const PID: u16, T> serde::Deserialize<'de> for ParameterWithDefault<PID, T>
+where
+    T: serde::Deserialize<'de> + Default,
+{
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor<'de, const PID: u16, T>
+        where
+            T: serde::Deserialize<'de>,
+        {
+            marker: PhantomData<ParameterWithDefault<PID, T>>,
+            lifetime: PhantomData<&'de ()>,
+        }
+        impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
+        where
+            T: serde::Deserialize<'de> + Default,
+        {
+            type Value = ParameterWithDefault<PID, T>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct ParameterWithDefault")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                while let Some(key) = map.next_key::<u16>()? {
+                    if key == PID {
+                        return Ok(ParameterWithDefault(map.next_value()?));
+                    } else if key == PID_SENTINEL {
+                        break;
+                    }
+                }
+                Ok(ParameterWithDefault(T::default()))
+            }
+        }
+        deserializer.deserialize_newtype_struct(
+            "ParameterWithDefault",
+            Visitor {
+                marker: PhantomData::<ParameterWithDefault<PID, T>>,
+                lifetime: PhantomData,
+            },
+        )
+    }
+}
+
 type RepresentationType = [u8; 2];
 type RepresentationOptions = [u8; 2];
 
@@ -442,6 +481,8 @@ pub const CDR_BE: RepresentationType = [0x00, 0x00];
 pub const CDR_LE: RepresentationType = [0x00, 0x01];
 pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
 pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
+
+const PID_SENTINEL: u16 = 1;
 
 fn dds_deserialize<'de, T>(mut data: &'de [u8]) -> Result<T, Error>
 where
@@ -527,24 +568,57 @@ mod tests {
         let result: PlInner = serde::Deserialize::deserialize(&mut deserializer).unwrap();
         assert_eq!(result, expected)
     }
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct PlWithDefault {
+        id: Parameter<71, u8>,
+        n: ParameterWithDefault<72, u8>,
+    }
     #[test]
-    fn deserialize_dds_deserialize() {
-        let expected = PlInner {
+    fn deserialize_pl_with_default() {
+        let expected = PlWithDefault {
             id: Parameter(21),
-            n: Parameter(34),
+            n: ParameterWithDefault(0),
+        };
+        let data = &[
+            71, 0x00, 4, 0, // n | Length (incl padding)
+            21, 0, 0, 0, // u8
+            1, 0, 0, 0, // Sentinel
+        ][..];
+        let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
+        let result: PlWithDefault = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+        assert_eq!(result, expected)
+    }
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct PlOuter {
+        outer: Parameter<2, u8>,
+        inner: PlInner,
+    }
+    #[test]
+    fn deserialize_dds_deserialize_compound() {
+        let expected = PlOuter {
+            outer: Parameter(7),
+            inner: PlInner {
+                id: Parameter(21),
+                n: Parameter(34),
+            },
         };
         let data = &[
             0x00, 0x03, 0, 0, // representation identifier
             72, 0x00, 4, 0, // n | Length (incl padding)
             34, 0, 0, 0, // u8
+            2, 0x00, 4, 0, // outer | Length (incl padding)
+            7, 0, 0, 0, // u8
             71, 0x00, 4, 0, // id | Length (incl padding)
             21, 0, 0, 0, // u8
             1, 0, 0, 0, // Sentinel
         ][..];
 
-        let result: PlInner = dds_deserialize(data).unwrap();
+        let result: PlOuter = dds_deserialize(data).unwrap();
         assert_eq!(result, expected)
     }
+
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct UserInner {
         id: u8,
