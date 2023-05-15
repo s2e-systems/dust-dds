@@ -7,7 +7,7 @@ use crate::{
     implementation::{
         parameter_list_serde::{
             parameter_list_deserializer::ParameterListDeserializer,
-            parameter_list_serializer::ParameterListSerializer,
+            parameter_list_serializer::ParameterListSerializer, parameter::{Parameter, ParameterVector, ParameterWithDefault},
         },
         rtps::types::{EntityId, Guid, Locator},
     },
@@ -21,14 +21,15 @@ use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_ENDPOINT_GUID, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
     PID_UNICAST_LOCATOR,
 };
-
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WriterProxy {
-    remote_writer_guid: Guid,
-    remote_group_entity_id: EntityId,
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
-    data_max_size_serialized: Option<i32>,
+    // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
+    #[serde(skip_serializing)]
+    remote_writer_guid: Parameter<PID_GROUP_ENTITYID, Guid>,
+    remote_group_entity_id: Parameter<PID_GROUP_ENTITYID, EntityId>,
+    unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
+    multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
+    data_max_size_serialized: ParameterWithDefault<PID_DATA_MAX_SIZE_SERIALIZED, Option<i32>>,
 }
 
 impl WriterProxy {
@@ -40,32 +41,32 @@ impl WriterProxy {
         data_max_size_serialized: Option<i32>,
     ) -> Self {
         Self {
-            remote_writer_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            data_max_size_serialized,
+            remote_writer_guid: remote_writer_guid.into(),
+            remote_group_entity_id: remote_group_entity_id.into(),
+            unicast_locator_list: unicast_locator_list.into(),
+            multicast_locator_list: multicast_locator_list.into(),
+            data_max_size_serialized: data_max_size_serialized.into(),
         }
     }
 
     pub fn remote_writer_guid(&self) -> Guid {
-        self.remote_writer_guid
+        self.remote_writer_guid.0
     }
 
     pub fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id
+        self.remote_group_entity_id.0
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.unicast_locator_list.as_ref()
+        self.unicast_locator_list.0.as_ref()
     }
 
     pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.multicast_locator_list.as_ref()
+        self.multicast_locator_list.0.as_ref()
     }
 
     pub fn data_max_size_serialized(&self) -> Option<i32> {
-        self.data_max_size_serialized
+        self.data_max_size_serialized.0
     }
 }
 

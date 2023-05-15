@@ -302,7 +302,7 @@ fn announce_created_data_reader(
             .clone(),
     );
 
-    let mut serialized_data = dds_serialize(reader_data)
+    let serialized_data = dds_serialize(reader_data)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
@@ -336,7 +336,7 @@ fn announce_created_data_writer(
         ),
     );
 
-    let mut serialized_data = dds_serialize(writer_data)
+    let serialized_data = dds_serialize(writer_data)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();

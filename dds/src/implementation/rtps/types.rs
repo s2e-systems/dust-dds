@@ -87,6 +87,7 @@ impl From<Guid> for [u8; 16] {
     Eq,
     Hash,
     Debug,
+    Default,
     derive_more::From,
     derive_more::Into,
     serde::Serialize,

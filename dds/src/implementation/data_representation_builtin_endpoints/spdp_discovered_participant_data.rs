@@ -1,17 +1,17 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
-    implementation::rtps::{
+    implementation::{rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
         types::{Count, ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
-    },
+    }, parameter_list_serde::parameter::{ParameterWithDefault, Parameter, ParameterVector}},
     infrastructure::{error::DdsResult, time::Duration},
     topic_definition::type_support::{
         DdsSerializedKey, DdsType, RepresentationFormat, RepresentationType, PL_CDR_LE,
     },
 };
 
-use super::parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION};
+use super::parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_PROTOCOL_VERSION, PID_VENDORID, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_UNICAST_LOCATOR, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR, PID_DEFAULT_MULTICAST_LOCATOR, PID_BUILTIN_ENDPOINT_SET, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_BUILTIN_ENDPOINT_QOS, PID_PARTICIPANT_LEASE_DURATION};
 
 #[derive(
     Debug, PartialEq, Eq, derive_more::Into, derive_more::From, serde::Serialize, serde::Deserialize,
@@ -35,21 +35,23 @@ impl Default for LeaseDuration {
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
+
 #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantProxy {
-    domain_id: DomainId,
-    domain_tag: DomainTag,
-    protocol_version: ProtocolVersion,
+    domain_id: Parameter<PID_DOMAIN_ID, DomainId>,
+    domain_tag: ParameterWithDefault<PID_DOMAIN_TAG, DomainTag>,
+    protocol_version: Parameter<PID_PROTOCOL_VERSION, ProtocolVersion>,
+    #[serde(skip)]
     guid_prefix: GuidPrefix,
-    vendor_id: VendorId,
-    expects_inline_qos: ExpectsInlineQos,
-    metatraffic_unicast_locator_list: Vec<Locator>,
-    metatraffic_multicast_locator_list: Vec<Locator>,
-    default_unicast_locator_list: Vec<Locator>,
-    default_multicast_locator_list: Vec<Locator>,
-    available_builtin_endpoints: BuiltinEndpointSet,
-    manual_liveliness_count: Count,
-    builtin_endpoint_qos: BuiltinEndpointQos,
+    vendor_id: Parameter<PID_VENDORID, VendorId>,
+    expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
+    metatraffic_unicast_locator_list: ParameterVector<PID_METATRAFFIC_UNICAST_LOCATOR, Locator>,
+    metatraffic_multicast_locator_list: ParameterVector<PID_METATRAFFIC_MULTICAST_LOCATOR, Locator>,
+    default_unicast_locator_list: ParameterVector<PID_DEFAULT_UNICAST_LOCATOR, Locator>,
+    default_multicast_locator_list: ParameterVector<PID_DEFAULT_MULTICAST_LOCATOR, Locator>,
+    available_builtin_endpoints: Parameter<PID_BUILTIN_ENDPOINT_SET, BuiltinEndpointSet>,
+    manual_liveliness_count: Parameter<PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Count>,
+    builtin_endpoint_qos: Parameter<PID_BUILTIN_ENDPOINT_QOS, BuiltinEndpointQos>,
 }
 
 impl ParticipantProxy {
@@ -70,32 +72,32 @@ impl ParticipantProxy {
         builtin_endpoint_qos: BuiltinEndpointQos,
     ) -> Self {
         Self {
-            domain_id,
-            domain_tag: domain_tag.into(),
-            protocol_version,
-            guid_prefix,
-            vendor_id,
-            expects_inline_qos: expects_inline_qos.into(),
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            available_builtin_endpoints,
-            manual_liveliness_count,
-            builtin_endpoint_qos,
+            domain_id: domain_id.into(),
+            domain_tag: DomainTag::from(domain_tag).into(),
+            protocol_version: protocol_version.into(),
+            guid_prefix: guid_prefix.into(),
+            vendor_id: vendor_id.into(),
+            expects_inline_qos: ExpectsInlineQos::from(expects_inline_qos).into(),
+            metatraffic_unicast_locator_list: metatraffic_unicast_locator_list.into(),
+            metatraffic_multicast_locator_list: metatraffic_multicast_locator_list.into(),
+            default_unicast_locator_list: default_unicast_locator_list.into(),
+            default_multicast_locator_list: default_multicast_locator_list.into(),
+            available_builtin_endpoints: available_builtin_endpoints.into(),
+            manual_liveliness_count: manual_liveliness_count.into(),
+            builtin_endpoint_qos: builtin_endpoint_qos.into(),
         }
     }
 
     pub fn domain_id(&self) -> i32 {
-        self.domain_id
+        self.domain_id.0
     }
 
     pub fn domain_tag(&self) -> &str {
-        &self.domain_tag.0
+        &self.domain_tag.0.0
     }
 
     pub fn _protocol_version(&self) -> ProtocolVersion {
-        self.protocol_version
+        self.protocol_version.0
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
@@ -103,39 +105,39 @@ impl ParticipantProxy {
     }
 
     pub fn _vendor_id(&self) -> VendorId {
-        self.vendor_id
+        self.vendor_id.0
     }
 
     pub fn _expects_inline_qos(&self) -> ExpectsInlineQos {
-        self.expects_inline_qos
+        self.expects_inline_qos.0
     }
 
     pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
-        self.metatraffic_unicast_locator_list.as_ref()
+        self.metatraffic_unicast_locator_list.0.as_ref()
     }
 
     pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
-        self.metatraffic_multicast_locator_list.as_ref()
+        self.metatraffic_multicast_locator_list.0.as_ref()
     }
 
     pub fn default_unicast_locator_list(&self) -> &[Locator] {
-        self.default_unicast_locator_list.as_ref()
+        self.default_unicast_locator_list.0.as_ref()
     }
 
     pub fn default_multicast_locator_list(&self) -> &[Locator] {
-        self.default_multicast_locator_list.as_ref()
+        self.default_multicast_locator_list.0.as_ref()
     }
 
     pub fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
-        self.available_builtin_endpoints
+        self.available_builtin_endpoints.0
     }
 
     pub fn _manual_liveliness_count(&self) -> Count {
-        self.manual_liveliness_count
+        self.manual_liveliness_count.0
     }
 
     pub fn _builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
-        self.builtin_endpoint_qos
+        self.builtin_endpoint_qos.0
     }
 }
 
@@ -143,7 +145,7 @@ impl ParticipantProxy {
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
-    lease_duration: LeaseDuration,
+    lease_duration: Parameter<PID_PARTICIPANT_LEASE_DURATION, LeaseDuration>,
 }
 impl RepresentationFormat for SpdpDiscoveredParticipantData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
@@ -158,7 +160,7 @@ impl SpdpDiscoveredParticipantData {
         Self {
             dds_participant_data,
             participant_proxy,
-            lease_duration: lease_duration.into(),
+            lease_duration: LeaseDuration::from(lease_duration).into(),
         }
     }
 
@@ -171,7 +173,7 @@ impl SpdpDiscoveredParticipantData {
     }
 
     pub fn _lease_duration(&self) -> &Duration {
-        &self.lease_duration.0
+        &self.lease_duration.0.0
     }
 }
 

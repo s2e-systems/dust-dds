@@ -20,7 +20,7 @@ use crate::{
         time::DURATION_ZERO,
     },
     subscription::subscriber_listener::SubscriberListener,
-    topic_definition::type_support::{DdsDeserialize, DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 use super::{
