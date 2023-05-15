@@ -331,15 +331,20 @@ where
 }
 
 struct PidSeparated<'de, E> {
-    de: ParameterListDeserializer<'de, E>,
+    data: &'de [u8],
     skip_length: usize,
+    byteorder: PhantomData<E>,
 }
 
 impl<'a, E> PidSeparated<'a, E> {
-    fn new(de: &ParameterListDeserializer<'a, E>) -> Self {
+    fn new(de: &ParameterListDeserializer<'a, E>) -> Self
+    where
+        E: byteorder::ByteOrder,
+    {
         PidSeparated {
-            de: ParameterListDeserializer::new(de.data),
+            data: de.data,
             skip_length: 0,
+            byteorder: PhantomData,
         }
     }
 }
@@ -354,13 +359,13 @@ where
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        self.de.data = &self.de.data[self.skip_length as usize..];
+        self.data = &self.data[self.skip_length as usize..];
 
-        let mut cdr_deserializer = cdr::Deserializer::<_,_,E>::new(self.de.data, cdr::Infinite);
+        let mut cdr_deserializer = cdr::Deserializer::<_, _, E>::new(self.data, cdr::Infinite);
         let pid = seed.deserialize(&mut cdr_deserializer).map(Some);
         let length: i16 = serde::Deserialize::deserialize(&mut cdr_deserializer)?;
         self.skip_length = length as usize;
-        self.de.data = &self.de.data[4 as usize..];
+        self.data = &self.data[4 as usize..];
         pid
     }
 
@@ -368,14 +373,9 @@ where
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        let mut cdr_deserializer = cdr::Deserializer::<_,_,E>::new(self.de.data, cdr::Infinite);
-
-        let length_before_deserialization = self.de.data.len();
+        let mut cdr_deserializer = cdr::Deserializer::<_, _, E>::new(self.data, cdr::Infinite);
         let value = seed.deserialize(&mut cdr_deserializer);
-        let length_deserialized = length_before_deserialization - self.de.data.len();
-
-        let padding_length = self.skip_length - length_deserialized;
-        self.de.data = &self.de.data[padding_length as usize..];
+        self.data = &self.data[self.skip_length..];
         self.skip_length = 0;
         value
     }
@@ -423,7 +423,7 @@ mod tests {
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct CdrParameterType {
-        i: u32
+        i: u32,
     }
 
     #[test]
@@ -432,12 +432,12 @@ mod tests {
             71, 0x00, 4, 0, // pid | Length (incl padding)
             21, 0, 0, 0, // CdrParameterType
         ][..];
-        let expected: Parameter<71, CdrParameterType> = Parameter(CdrParameterType{i:21});
+        let expected: Parameter<71, CdrParameterType> = Parameter(CdrParameterType { i: 21 });
         let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
-        let result: Parameter<71, CdrParameterType> = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+        let result: Parameter<71, CdrParameterType> =
+            serde::Deserialize::deserialize(&mut deserializer).unwrap();
         assert_eq!(result, expected)
     }
-
 
     #[test]
     fn deserialize_one_parameter_be() {
