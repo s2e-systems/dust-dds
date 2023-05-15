@@ -2,9 +2,12 @@ use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::dds_impl::{
-        any_data_writer_listener::AnyDataWriterListener,
-        node_kind::{DataWriterNodeKind, TopicNodeKind},
+    implementation::{
+        dds_impl::{
+            any_data_writer_listener::AnyDataWriterListener,
+            node_kind::{DataWriterNodeKind, TopicNodeKind},
+        },
+        parameter_list_serde::serde_parameter_list_serializer::dds_serialize,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -154,10 +157,8 @@ where
                 }
             }?;
 
-            let mut serialized_key = Vec::new();
-            instance
-                .get_serialized_key()
-                .dds_serialize(&mut serialized_key)?;
+            let serialized_key =
+                dds_serialize(&instance.get_serialized_key()).map_err(|_err| DdsError::Error)?;
 
             match &self.0 {
                 DataWriterNodeKind::UserDefined(w) => {
@@ -244,18 +245,18 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let mut serialized_data = Vec::new();
-        data.dds_serialize(&mut serialized_data)?;
+        // let serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
 
-        match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.write_w_timestamp(
-                serialized_data,
-                data.get_serialized_key(),
-                handle,
-                timestamp,
-            ),
-            DataWriterNodeKind::Listener(_) => todo!(),
-        }
+        // match &self.0 {
+        //     DataWriterNodeKind::UserDefined(w) => w.write_w_timestamp(
+        //         serialized_data,
+        //         data.get_serialized_key(),
+        //         handle,
+        //         timestamp,
+        //     ),
+        //     DataWriterNodeKind::Listener(_) => todo!(),
+        // }
+        todo!()
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -314,9 +315,8 @@ where
             }
         }?;
 
-        let mut serialized_key = Vec::new();
-        data.get_serialized_key()
-            .dds_serialize(&mut serialized_key)?;
+        let serialized_key =
+            dds_serialize(&data.get_serialized_key()).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => {
