@@ -47,6 +47,7 @@ pub struct ParticipantProxy {
     domain_id: Parameter<PID_DOMAIN_ID, DomainId>,
     domain_tag: ParameterWithDefault<PID_DOMAIN_TAG, DomainTag>,
     protocol_version: Parameter<PID_PROTOCOL_VERSION, ProtocolVersion>,
+    // guid_prefix omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
     #[serde(skip_serializing)]
     guid_prefix: Parameter<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
     vendor_id: Parameter<PID_VENDORID, VendorId>,
@@ -57,7 +58,8 @@ pub struct ParticipantProxy {
     default_multicast_locator_list: ParameterVector<PID_DEFAULT_MULTICAST_LOCATOR, Locator>,
     available_builtin_endpoints: Parameter<PID_BUILTIN_ENDPOINT_SET, BuiltinEndpointSet>,
     manual_liveliness_count: Parameter<PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Count>,
-    builtin_endpoint_qos: Parameter<PID_BUILTIN_ENDPOINT_QOS, BuiltinEndpointQos>,
+    // Default value is a deviation from the standard and is used for interoperability reasons:
+    builtin_endpoint_qos: ParameterWithDefault<PID_BUILTIN_ENDPOINT_QOS, BuiltinEndpointQos>,
 }
 
 impl ParticipantProxy {
