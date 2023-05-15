@@ -1,19 +1,11 @@
-use byteorder::ByteOrder;
-
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
-        parameter_list_serde::{
-            parameter::{Parameter, ParameterVector, ParameterWithDefault},
-            parameter_list_deserializer::ParameterListDeserializer,
-        },
+        parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, ExpectsInlineQos, Guid, Locator},
     },
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{
-        DdsDeserialize, DdsSerializedKey, DdsType, RepresentationFormat, RepresentationType,
-        PL_CDR_LE,
-    },
+    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
 };
 
 use super::parameter_id_values::{
@@ -77,10 +69,6 @@ pub struct DiscoveredReaderData {
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
 }
 
-impl RepresentationFormat for DiscoveredReaderData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-}
-
 impl DiscoveredReaderData {
     pub fn new(
         reader_proxy: ReaderProxy,
@@ -102,6 +90,8 @@ impl DiscoveredReaderData {
 }
 
 impl DdsType for DiscoveredReaderData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
     fn type_name() -> &'static str {
         "DiscoveredReaderData"
     }
@@ -272,8 +262,6 @@ mod tests {
         assert_eq!(result, expected);
     }
 
-
-
     #[test]
     fn deserialize_reader_proxy() {
         let expected = ReaderProxy::new(
@@ -289,15 +277,14 @@ mod tests {
 
         let mut data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length (SubscriptionBuiltinTopicData::key) used for remote_reader_guid
+            0x5a, 0x00, 16,
+            0, //PID_ENDPOINT_GUID, length (SubscriptionBuiltinTopicData::key) used for remote_reader_guid
             1, 0, 0, 0, // ,
             2, 0, 0, 0, // ,
             3, 0, 0, 0, // ,
             4, 0, 0, 0, // ,
-
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID (remote_group_entity_id)
             21, 22, 23, 0xc2, // u8[3], u8
-
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
         let result: ReaderProxy = dds_deserialize(&mut data).unwrap();

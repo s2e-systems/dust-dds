@@ -4,7 +4,7 @@ use std::{self};
 
 use byteorder::{ByteOrder, WriteBytesExt};
 
-use crate::topic_definition::type_support::RepresentationFormat;
+use crate::topic_definition::type_support::DdsType;
 use cdr::Error;
 
 use super::parameter::{
@@ -356,7 +356,7 @@ impl<'a, W, E> serde::ser::SerializeStructVariant for Compound<'a, W, E> {
 
 pub fn dds_serialize<T>(value: &T) -> Result<Vec<u8>, Error>
 where
-    T: serde::Serialize + RepresentationFormat,
+    T: serde::Serialize + DdsType,
 {
     let mut writer = vec![];
     match T::REPRESENTATION_IDENTIFIER {
@@ -402,7 +402,6 @@ mod tests {
         implementation::parameter_list_serde::parameter::{
             Parameter, ParameterVector, ParameterWithDefault, RepresentationType, PL_CDR_LE,
         },
-        topic_definition::type_support::{DdsSerde, RepresentationFormat},
     };
 
     use super::*;
@@ -412,8 +411,11 @@ mod tests {
         id: Parameter<71, u8>,
         n: Parameter<72, u16>,
     }
-    impl RepresentationFormat for Inner {
+    impl DdsType for Inner {
         const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+        fn type_name() -> &'static str {
+            todo!()
+        }
     }
     #[test]
     fn serialize_pl_le() {
@@ -438,8 +440,12 @@ mod tests {
         id: Parameter<71, u8>,
         values: ParameterVector<93, u16>,
     }
-    impl RepresentationFormat for PlWithList {
+    impl DdsType for PlWithList {
         const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+        fn type_name() -> &'static str {
+            todo!()
+        }
     }
 
     #[test]
@@ -467,8 +473,12 @@ mod tests {
         outer: Parameter<2, u8>,
         inner: Inner,
     }
-    impl RepresentationFormat for PlOuter {
+    impl DdsType for PlOuter {
         const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+        fn type_name() -> &'static str {
+            todo!()
+        }
     }
 
     #[test]
@@ -500,7 +510,11 @@ mod tests {
         id: u8,
         n: i32,
     }
-    impl DdsSerde for UserData {}
+    impl DdsType for UserData {
+        fn type_name() -> &'static str {
+            todo!()
+        }
+    }
 
     #[test]
     fn cdr_simple() {
@@ -518,8 +532,12 @@ mod tests {
         id: Parameter<71, u8>,
         n: ParameterWithDefault<72, u8>,
     }
-    impl RepresentationFormat for InnerWithDefault {
+    impl DdsType for InnerWithDefault {
         const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+        fn type_name() -> &'static str {
+            todo!()
+        }
     }
 
     #[test]

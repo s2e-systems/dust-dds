@@ -1,12 +1,7 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    implementation::parameter_list_serde::{
-        parameter_list_deserializer::ParameterListDeserializer,
-    },
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{
-        DdsDeserialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE, RepresentationFormat,
-    },
+    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
@@ -14,9 +9,6 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredTopicData {
     topic_builtin_topic_data: TopicBuiltinTopicData,
-}
-impl RepresentationFormat for DiscoveredTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }
 
 impl DiscoveredTopicData {
@@ -32,6 +24,8 @@ impl DiscoveredTopicData {
 }
 
 impl DdsType for DiscoveredTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
     fn type_name() -> &'static str {
         "DiscoveredTopicData"
     }

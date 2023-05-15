@@ -1,14 +1,5 @@
-use std::io::{Read, Write};
+use crate::infrastructure::error::DdsResult;
 
-use crate::{
-    implementation::parameter_list_serde::{
-        parameter_list_deserializer::ParameterListDeserializer,
-        parameter_list_serializer::ParameterListSerializer,
-    },
-    infrastructure::error::{DdsError, DdsResult},
-};
-
-use byteorder::ByteOrder;
 pub use dust_dds_derive::{DdsSerde, DdsType};
 
 pub type RepresentationType = [u8; 2];
@@ -19,6 +10,8 @@ pub const CDR_LE: RepresentationType = [0x00, 0x01];
 pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
 pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
 pub const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
+
+pub trait DdsSerde {}
 
 #[derive(Debug, PartialEq, Clone, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DdsSerializedKey(Vec<u8>);
@@ -43,7 +36,15 @@ impl AsRef<[u8]> for DdsSerializedKey {
 
 impl DdsSerde for DdsSerializedKey {}
 
+impl DdsType for DdsSerializedKey {
+    fn type_name() -> &'static str {
+        "DdsSerializedKey"
+    }
+}
+
 pub trait DdsType {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
+
     fn type_name() -> &'static str;
 
     fn has_key() -> bool {
@@ -66,20 +67,10 @@ pub trait DdsType {
     }
 }
 
-pub trait RepresentationFormat {
-    const REPRESENTATION_IDENTIFIER: RepresentationType;
-}
-
-pub trait DdsSerde {}
-
-impl<T: serde::Serialize + DdsSerde> RepresentationFormat for T {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
-}
-
 pub trait DdsSerialize: serde::Serialize {}
 
 impl<Foo> DdsSerialize for Foo where Foo: serde::Serialize {}
 
-pub trait DdsDeserialize<'de>: serde::Deserialize<'de> + Sized {}
+pub trait DdsDeserialize<'de>: serde::Deserialize<'de> {}
 
 impl<'de, Foo> DdsDeserialize<'de> for Foo where Foo: serde::Deserialize<'de> {}

@@ -1,20 +1,11 @@
-use std::io::Write;
-
-use byteorder::ByteOrder;
-
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        parameter_list_serde::{
-            parameter_list_deserializer::ParameterListDeserializer,
-            parameter_list_serializer::ParameterListSerializer, parameter::{Parameter, ParameterVector, ParameterWithDefault},
-        },
+        parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE, RepresentationFormat,
-    },
+    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
 };
 
 use super::parameter_id_values::{
@@ -70,15 +61,12 @@ impl WriterProxy {
     }
 }
 
-
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,
 }
-impl RepresentationFormat for DiscoveredWriterData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-}
+
 impl DiscoveredWriterData {
     pub fn new(
         dds_publication_data: PublicationBuiltinTopicData,
@@ -102,6 +90,8 @@ impl DiscoveredWriterData {
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
 impl DdsType for DiscoveredWriterData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
     fn type_name() -> &'static str {
         "DiscoveredWriterData"
     }
@@ -121,7 +111,6 @@ impl DdsType for DiscoveredWriterData {
         Ok(())
     }
 }
-
 
 #[cfg(test)]
 mod tests {

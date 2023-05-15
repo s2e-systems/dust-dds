@@ -19,6 +19,7 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
+        parameter_list_serde::serde_parameter_list_serializer::dds_serialize,
         rtps::{
             discovery_types::BuiltinEndpointSet,
             history_cache::RtpsWriterCacheChange,
@@ -42,7 +43,7 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransport,
-        utils::{condvar::DdsCondvar, shared_object::DdsRwLock}, parameter_list_serde::serde_parameter_list_serializer::dds_serialize,
+        utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -52,7 +53,7 @@ use crate::{
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{DdsSerializedKey, DdsType},
 };
 
 use super::{
@@ -302,8 +303,7 @@ fn announce_created_data_reader(
             .clone(),
     );
 
-    let serialized_data = dds_serialize(reader_data)
-        .expect("Failed to serialize data");
+    let serialized_data = dds_serialize(reader_data).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
     domain_participant
@@ -329,15 +329,18 @@ fn announce_created_data_writer(
         discovered_writer_data.dds_publication_data().clone(),
         WriterProxy::new(
             discovered_writer_data.writer_proxy().remote_writer_guid(),
-            discovered_writer_data.writer_proxy().remote_group_entity_id(),
+            discovered_writer_data
+                .writer_proxy()
+                .remote_group_entity_id(),
             domain_participant.default_unicast_locator_list().to_vec(),
             domain_participant.default_multicast_locator_list().to_vec(),
-            discovered_writer_data.writer_proxy().data_max_size_serialized(),
+            discovered_writer_data
+                .writer_proxy()
+                .data_max_size_serialized(),
         ),
     );
 
-    let serialized_data = dds_serialize(writer_data)
-        .expect("Failed to serialize data");
+    let serialized_data = dds_serialize(writer_data).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
 
@@ -360,8 +363,7 @@ fn announce_created_topic(
     domain_participant: &DdsDomainParticipant,
     discovered_topic: DiscoveredTopicData,
 ) {
-    let serialized_data = dds_serialize(&discovered_topic)
-        .expect("Failed to serialize data");
+    let serialized_data = dds_serialize(&discovered_topic).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
 
@@ -799,11 +801,16 @@ fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsRes
         match discovered_writer_data_sample.sample_info.instance_state {
             InstanceStateKind::Alive => {
                 if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                    if !domain_participant
-                        .is_publication_ignored(discovered_writer_data.writer_proxy().remote_writer_guid().into())
-                    {
-                        let remote_writer_guid_prefix =
-                            discovered_writer_data.writer_proxy().remote_writer_guid().prefix();
+                    if !domain_participant.is_publication_ignored(
+                        discovered_writer_data
+                            .writer_proxy()
+                            .remote_writer_guid()
+                            .into(),
+                    ) {
+                        let remote_writer_guid_prefix = discovered_writer_data
+                            .writer_proxy()
+                            .remote_writer_guid()
+                            .prefix();
                         let writer_parent_participant_guid =
                             Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
 

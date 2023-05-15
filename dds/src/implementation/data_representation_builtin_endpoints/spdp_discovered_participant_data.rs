@@ -5,15 +5,11 @@ use crate::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-            types::{
-                Count, ExpectsInlineQos, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId,
-            },
+            types::{Count, ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
         },
     },
     infrastructure::{error::DdsResult, time::Duration},
-    topic_definition::type_support::{
-        DdsSerializedKey, DdsType, RepresentationFormat, RepresentationType, PL_CDR_LE,
-    },
+    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
 };
 
 use super::parameter_id_values::{
@@ -168,9 +164,6 @@ pub struct SpdpDiscoveredParticipantData {
     participant_proxy: ParticipantProxy,
     lease_duration: Parameter<PID_PARTICIPANT_LEASE_DURATION, LeaseDuration>,
 }
-impl RepresentationFormat for SpdpDiscoveredParticipantData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-}
 
 impl SpdpDiscoveredParticipantData {
     pub fn new(
@@ -199,6 +192,8 @@ impl SpdpDiscoveredParticipantData {
 }
 
 impl DdsType for SpdpDiscoveredParticipantData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
     fn type_name() -> &'static str {
         "SpdpDiscoveredParticipantData"
     }

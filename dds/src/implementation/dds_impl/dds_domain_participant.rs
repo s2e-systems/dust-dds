@@ -21,6 +21,7 @@ use crate::{
         dds_impl::{
             dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
         },
+        parameter_list_serde::serde_parameter_list_serializer::dds_serialize,
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
@@ -54,7 +55,7 @@ use crate::{
             iterator::{DdsListIntoIterator, DdsMapIntoIterator},
             shared_object::{DdsRwLock, DdsShared},
             timer_factory::{Timer, TimerFactory},
-        }, parameter_list_serde::serde_parameter_list_serializer::dds_serialize,
+        },
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -76,7 +77,7 @@ use crate::{
         },
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType},
+    topic_definition::type_support::DdsType,
     {
         builtin_topics::TopicBuiltinTopicData,
         infrastructure::{
@@ -1033,7 +1034,8 @@ impl DdsDomainParticipant {
             ),
             self.lease_duration,
         );
-        let serialized_data = dds_serialize(&spdp_discovered_participant_data).map_err(|_err|DdsError::Error)?;
+        let serialized_data =
+            dds_serialize(&spdp_discovered_participant_data).map_err(|_err| DdsError::Error)?;
 
         self.builtin_publisher
             .stateless_data_writer_list()

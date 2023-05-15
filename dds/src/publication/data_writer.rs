@@ -245,18 +245,17 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        // let serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
+        let serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
 
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) => w.write_w_timestamp(
-        //         serialized_data,
-        //         data.get_serialized_key(),
-        //         handle,
-        //         timestamp,
-        //     ),
-        //     DataWriterNodeKind::Listener(_) => todo!(),
-        // }
-        todo!()
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.write_w_timestamp(
+                serialized_data,
+                data.get_serialized_key(),
+                handle,
+                timestamp,
+            ),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
