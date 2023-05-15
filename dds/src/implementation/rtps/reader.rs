@@ -12,7 +12,7 @@ use crate::{
                 STATUS_INFO_UNREGISTERED,
             },
         },
-        dds_impl::status_condition_impl::StatusConditionImpl,
+        dds::status_condition_impl::StatusConditionImpl,
     },
     infrastructure::{
         error::{DdsError, DdsResult},

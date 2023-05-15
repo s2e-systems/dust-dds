@@ -156,7 +156,7 @@ fn not_allowed_to_delete_topic_from_different_participant() {
     assert_eq!(
         other_participant.delete_topic(&topic),
         Err(DdsError::PreconditionNotMet(
-            "Topic can only be deleted from its parent publisher".to_string()
+            "Topic can only be deleted from its parent participant".to_string()
         ))
     );
 }

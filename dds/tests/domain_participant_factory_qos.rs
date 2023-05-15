@@ -32,7 +32,7 @@ fn create_not_enabled_entities() {
         .unwrap();
 
     // Call an operation that should return a NotEnabled error as a check the QoS is taken
-    let result = participant.ignore_topic(HANDLE_NIL);
+    let result = participant.ignore_publication(HANDLE_NIL);
 
     // Teardown before assert: Set qos back to original to prevent it affecting other test
     domain_participant_factory

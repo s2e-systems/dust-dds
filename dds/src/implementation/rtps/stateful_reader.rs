@@ -1,5 +1,5 @@
 use crate::{
-    implementation::dds_impl::message_receiver::MessageReceiver,
+    implementation::dds::message_receiver::MessageReceiver,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,

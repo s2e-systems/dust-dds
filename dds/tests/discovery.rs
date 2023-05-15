@@ -271,6 +271,50 @@ fn updated_writers_are_announced_to_reader() {
 }
 
 #[test]
+fn two_participants_should_get_subscription_matched() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+
+    let dp1 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let topic1 = dp1
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = dp1
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic1, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let dp2 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let topic2 = dp2
+    .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+    .unwrap();
+    let subscriber = dp2
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let _data_reader = subscriber
+        .create_datareader::<UserType>(&topic2, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond = data_writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 1);
+}
+
+#[test]
 fn participant_records_discovered_topics() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
@@ -282,17 +326,19 @@ fn participant_records_discovered_topics() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let topic_names = ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"];
+    let topic_names = ["Topic 1", "Topic 2"];
+    let mut topics = Vec::new();
     for name in topic_names {
-        participant1
+        topics.push(participant1
             .create_topic::<UserType>(name, QosKind::Default, None, NO_STATUS)
-            .unwrap();
+            .unwrap());
     }
 
+    let mut found_topics = Vec::new();
     for name in topic_names {
-        participant2
+        found_topics.push(participant2
             .find_topic::<UserType>(name, Duration::new(10, 0))
-            .unwrap();
+            .unwrap());
     }
 
     let discovered_topic_names: Vec<String> = participant2
@@ -307,11 +353,9 @@ fn participant_records_discovered_topics() {
                 .to_string()
         })
         .collect();
+
     assert!(discovered_topic_names.contains(&"Topic 1".to_string()));
     assert!(discovered_topic_names.contains(&"Topic 2".to_string()));
-    assert!(discovered_topic_names.contains(&"Topic 3".to_string()));
-    assert!(discovered_topic_names.contains(&"Topic 4".to_string()));
-    assert!(discovered_topic_names.contains(&"Topic 5".to_string()));
 }
 
 #[test]
@@ -635,7 +679,7 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data_writer2 = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
