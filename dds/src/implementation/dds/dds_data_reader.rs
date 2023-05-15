@@ -770,14 +770,14 @@ impl DdsDataReader<RtpsStatefulReader> {
                 .increment(missed_deadline_instance);
 
             listener_sender
-                .blocking_send(ListenerTriggerKind::RequestedDeadlineMissed(
+                .try_send(ListenerTriggerKind::RequestedDeadlineMissed(
                     DataReaderNode::new(
                         self.guid(),
                         parent_subcriber_guid,
                         parent_participant_guid,
                     ),
                 ))
-                .ok();
+                .unwrap();
         }
     }
 
