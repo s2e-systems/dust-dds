@@ -12,7 +12,8 @@ use crate::{
                 STATUS_INFO_UNREGISTERED,
             },
         },
-        dds_impl::status_condition_impl::StatusConditionImpl, parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize,
+        dds_impl::status_condition_impl::StatusConditionImpl,
+        parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -146,7 +147,7 @@ impl InstanceHandleBuilder {
                 .find(|&x| x.parameter_id() == ParameterId(PID_KEY_HASH))
             {
                 Some(p) => InstanceHandle::new(p.value().try_into().unwrap()),
-                None => DdsSerializedKey::dds_deserialize(&mut data)
+                None => dds_deserialize::<DdsSerializedKey>(&mut data)
                     .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize key"))?
                     .into(),
             },
@@ -575,9 +576,10 @@ impl RtpsReader {
 
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (
-                    Some(DdsDeserialize::dds_deserialize(
-                        &mut cache_change.data.as_slice(),
-                    )?),
+                    Some(
+                        dds_deserialize(&cache_change.data.as_slice())
+                            .map_err(|_err| DdsError::Error)?,
+                    ),
                     true,
                 ),
                 ChangeKind::NotAliveDisposed

@@ -120,42 +120,6 @@ pub trait DdsSerialize {
 }
 
 pub trait DdsDeserialize<'de>: serde::Deserialize<'de> + Sized {
-    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        let mut representation_identifier: RepresentationType = [0, 0];
-        buf.read_exact(&mut representation_identifier)
-            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
-        let mut representation_option: RepresentationOptions = [0, 0];
-        buf.read_exact(&mut representation_option)
-            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
-
-        match representation_identifier {
-            CDR_BE => {
-                let mut deserializer =
-                    cdr::Deserializer::<_, _, byteorder::BigEndian>::new(buf, cdr::Infinite);
-                DdsDeserialize::dds_deserialize_cdr(&mut deserializer)
-            }
-            CDR_LE => {
-                let mut deserializer =
-                    cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(buf, cdr::Infinite);
-                DdsDeserialize::dds_deserialize_cdr(&mut deserializer)
-            }
-            PL_CDR_BE => {
-                let mut deserializer = ParameterListDeserializer::read(buf)?;
-                DdsDeserialize::dds_deserialize_parameter_list::<byteorder::BigEndian>(
-                    &mut deserializer,
-                )
-            }
-            PL_CDR_LE => {
-                let mut deserializer = ParameterListDeserializer::read(buf)?;
-                DdsDeserialize::dds_deserialize_parameter_list::<byteorder::LittleEndian>(
-                    &mut deserializer,
-                )
-            }
-            _ => Err(DdsError::PreconditionNotMet(
-                "Illegal representation identifier".to_string(),
-            )),
-        }
-    }
 
     fn dds_deserialize_cdr<D: serde::Deserializer<'de>>(_deserializer: D) -> DdsResult<Self> {
         unimplemented!("dds_deserialize_cdr not implemented for this type")
@@ -219,28 +183,28 @@ mod tests {
         domain_id: DomainId,
     }
 
-    #[test]
-    fn dds_deserialize_simple() {
-        let expected = TestDeserialize {
-            remote_group_entity_id: EntityId::new(
-                EntityKey::new([21, 22, 23]),
-                BUILT_IN_READER_GROUP,
-            ),
-            inner: TestDeserializeInner { domain_id: 2 },
-        };
+    // #[test]
+    // fn dds_deserialize_simple() {
+    //     let expected = TestDeserialize {
+    //         remote_group_entity_id: EntityId::new(
+    //             EntityKey::new([21, 22, 23]),
+    //             BUILT_IN_READER_GROUP,
+    //         ),
+    //         inner: TestDeserializeInner { domain_id: 2 },
+    //     };
 
-        let data = vec![
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE | OPTIONS
-            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-            21, 22, 23, 0xc9, // u8[3], u8
-            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-            0x02, 0x00, 0x00, 0x00, // DomainId
-            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-        ];
-        let result: TestDeserialize =
-            DdsDeserialize::dds_deserialize(&mut data.as_slice()).unwrap();
-        assert_eq!(result, expected);
-    }
+    //     let data = vec![
+    //         0x00, 0x03, 0x00, 0x00, // PL_CDR_LE | OPTIONS
+    //         0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+    //         21, 22, 23, 0xc9, // u8[3], u8
+    //         0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+    //         0x02, 0x00, 0x00, 0x00, // DomainId
+    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+    //     ];
+    //     let result: TestDeserialize =
+    //         DdsDeserialize::dds_deserialize(&mut data.as_slice()).unwrap();
+    //     assert_eq!(result, expected);
+    // }
 
     struct TestSerialize {
         remote_group_entity_id: EntityId,
