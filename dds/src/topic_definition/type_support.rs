@@ -66,6 +66,14 @@ pub trait DdsType {
     }
 }
 
+pub trait RepresentationFormat {
+    const REPRESENTATION_IDENTIFIER: RepresentationType;
+}
+
+impl<T: serde::Serialize + DdsSerde> RepresentationFormat for T {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
+}
+
 pub trait DdsSerialize {
     const REPRESENTATION_IDENTIFIER: RepresentationType;
     fn dds_serialize<W: Write>(&self, mut writer: W) -> DdsResult<()> {

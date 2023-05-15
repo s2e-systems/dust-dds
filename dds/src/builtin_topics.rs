@@ -11,7 +11,7 @@ use crate::{
         },
         parameter_list_serde::{
             parameter_list_deserializer::ParameterListDeserializer,
-            parameter_list_serializer::ParameterListSerializer,
+            parameter_list_serializer::ParameterListSerializer, serde_parameter_list_serializer::{Parameter, ParameterWithDefault},
         },
     },
     infrastructure::{
@@ -505,27 +505,29 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct SubscriptionBuiltinTopicData {
-    key: BuiltInTopicKey,
-    participant_key: BuiltInTopicKey,
-    topic_name: String,
-    type_name: String,
+    #[serde(skip)]
+    key: Parameter<PID_ENDPOINT_GUID, BuiltInTopicKey>,
+    // Default value is a deviation from the standard and is used for interoperability reasons:
+    participant_key: ParameterWithDefault<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
+    topic_name: Parameter<PID_TOPIC_NAME, String>,
+    type_name: Parameter<PID_TYPE_NAME, String>,
 
-    durability: DurabilityQosPolicy,
-    deadline: DeadlineQosPolicy,
-    latency_budget: LatencyBudgetQosPolicy,
-    liveliness: LivelinessQosPolicy,
-    reliability: ReliabilityQosPolicyDataReader,
-    ownership: OwnershipQosPolicy,
-    destination_order: DestinationOrderQosPolicy,
-    user_data: UserDataQosPolicy,
-    time_based_filter: TimeBasedFilterQosPolicy,
+    durability: ParameterWithDefault<PID_DURABILITY, DurabilityQosPolicy>,
+    deadline: ParameterWithDefault<PID_DEADLINE, DeadlineQosPolicy>,
+    latency_budget: ParameterWithDefault<PID_LATENCY_BUDGET, LatencyBudgetQosPolicy>,
+    liveliness: ParameterWithDefault<PID_LIVELINESS, LivelinessQosPolicy>,
+    reliability: ParameterWithDefault<PID_RELIABILITY, ReliabilityQosPolicyDataReader>,
+    ownership: ParameterWithDefault<PID_OWNERSHIP, OwnershipQosPolicy>,
+    destination_order: ParameterWithDefault<PID_DESTINATION_ORDER, DestinationOrderQosPolicy>,
+    user_data: ParameterWithDefault<PID_USER_DATA, UserDataQosPolicy>,
+    time_based_filter: ParameterWithDefault<PID_TIME_BASED_FILTER, TimeBasedFilterQosPolicy>,
 
-    presentation: PresentationQosPolicy,
-    partition: PartitionQosPolicy,
-    topic_data: TopicDataQosPolicy,
-    group_data: GroupDataQosPolicy,
+    presentation: ParameterWithDefault<PID_PRESENTATION, PresentationQosPolicy>,
+    partition: ParameterWithDefault<PID_PARTITION, PartitionQosPolicy>,
+    topic_data: ParameterWithDefault<PID_TOPIC_DATA, TopicDataQosPolicy>,
+    group_data: ParameterWithDefault<PID_GROUP_DATA, GroupDataQosPolicy>,
 }
 
 impl SubscriptionBuiltinTopicData {
@@ -550,92 +552,92 @@ impl SubscriptionBuiltinTopicData {
         group_data: GroupDataQosPolicy,
     ) -> Self {
         Self {
-            key,
-            participant_key,
-            topic_name,
-            type_name,
-            durability,
-            deadline,
-            latency_budget,
-            liveliness,
-            reliability: reliability.into(),
-            ownership,
-            destination_order,
-            user_data,
-            time_based_filter,
-            presentation,
-            partition,
-            topic_data,
-            group_data,
+            key: key.into(),
+            participant_key: participant_key.into(),
+            topic_name: topic_name.into(),
+            type_name: type_name.into(),
+            durability: durability.into(),
+            deadline: deadline.into(),
+            latency_budget: latency_budget.into(),
+            liveliness: liveliness.into(),
+            reliability: ReliabilityQosPolicyDataReader::from(reliability).into(),
+            ownership: ownership.into(),
+            destination_order: destination_order.into(),
+            user_data: user_data.into(),
+            time_based_filter: time_based_filter.into(),
+            presentation: presentation.into(),
+            partition: partition.into(),
+            topic_data: topic_data.into(),
+            group_data: group_data.into(),
         }
     }
 
     pub fn key(&self) -> &BuiltInTopicKey {
-        &self.key
+        &self.key.0
     }
 
     pub fn participant_key(&self) -> &BuiltInTopicKey {
-        &self.participant_key
+        &self.participant_key.0
     }
 
     pub fn topic_name(&self) -> &str {
-        self.topic_name.as_ref()
+        self.topic_name.0.as_ref()
     }
 
     pub fn get_type_name(&self) -> &str {
-        self.type_name.as_ref()
+        self.type_name.0.as_ref()
     }
 
     pub fn durability(&self) -> &DurabilityQosPolicy {
-        &self.durability
+        &self.durability.0
     }
 
     pub fn deadline(&self) -> &DeadlineQosPolicy {
-        &self.deadline
+        &self.deadline.0
     }
 
     pub fn latency_budget(&self) -> &LatencyBudgetQosPolicy {
-        &self.latency_budget
+        &self.latency_budget.0
     }
 
     pub fn liveliness(&self) -> &LivelinessQosPolicy {
-        &self.liveliness
+        &self.liveliness.0
     }
 
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
-        &self.reliability.0
+        &self.reliability.0.0
     }
 
     pub fn ownership(&self) -> &OwnershipQosPolicy {
-        &self.ownership
+        &self.ownership.0
     }
 
     pub fn destination_order(&self) -> &DestinationOrderQosPolicy {
-        &self.destination_order
+        &self.destination_order.0
     }
 
     pub fn user_data(&self) -> &UserDataQosPolicy {
-        &self.user_data
+        &self.user_data.0
     }
 
     pub fn time_based_filter(&self) -> &TimeBasedFilterQosPolicy {
-        &self.time_based_filter
+        &self.time_based_filter.0
     }
 
     pub fn presentation(&self) -> &PresentationQosPolicy {
-        &self.presentation
+        &self.presentation.0
     }
 
     pub fn partition(&self) -> &PartitionQosPolicy {
-        &self.partition
+        &self.partition.0
     }
 
     pub fn topic_data(&self) -> &TopicDataQosPolicy {
-        &self.topic_data
+        &self.topic_data.0
     }
 
     pub fn group_data(&self) -> &GroupDataQosPolicy {
-        &self.group_data
+        &self.group_data.0
     }
 }
 
@@ -651,52 +653,33 @@ impl DdsSerialize for SubscriptionBuiltinTopicData {
         &self,
         serializer: &mut ParameterListSerializer<W>,
     ) -> DdsResult<()> {
-        serializer.serialize_parameter(PID_ENDPOINT_GUID, self.key())?;
-        // Default value is a deviation from the standard and is used for interoperability reasons:
-        serializer
-            .serialize_parameter_if_not_default(PID_PARTICIPANT_GUID, &self.participant_key)?;
-        serializer.serialize_parameter(PID_TOPIC_NAME, &self.topic_name)?;
-        serializer.serialize_parameter(PID_TYPE_NAME, &self.type_name)?;
-        serializer.serialize_parameter_if_not_default(PID_DURABILITY, &self.durability)?;
-        serializer.serialize_parameter_if_not_default(PID_DEADLINE, &self.deadline)?;
-        serializer.serialize_parameter_if_not_default(PID_LATENCY_BUDGET, &self.latency_budget)?;
-        serializer.serialize_parameter_if_not_default(PID_DURABILITY, &self.liveliness)?;
-        serializer.serialize_parameter_if_not_default(PID_RELIABILITY, &self.reliability)?;
-        serializer.serialize_parameter_if_not_default(PID_OWNERSHIP, &self.ownership)?;
-        serializer
-            .serialize_parameter_if_not_default(PID_DESTINATION_ORDER, &self.destination_order)?;
-        serializer.serialize_parameter_if_not_default(PID_USER_DATA, &self.user_data)?;
-        serializer
-            .serialize_parameter_if_not_default(PID_TIME_BASED_FILTER, &self.time_based_filter)?;
-        serializer.serialize_parameter_if_not_default(PID_PRESENTATION, &self.presentation)?;
-        serializer.serialize_parameter_if_not_default(PID_PARTITION, &self.partition)?;
-        serializer.serialize_parameter_if_not_default(PID_TOPIC_DATA, &self.topic_data)?;
-        serializer.serialize_parameter_if_not_default(PID_GROUP_DATA, &self.group_data)
+        todo!()
     }
 }
 impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
     fn dds_deserialize_parameter_list<E: ByteOrder>(
         deserializer: &mut ParameterListDeserializer<'de, E>,
     ) -> DdsResult<Self> {
-        Ok(Self {
-            key: deserializer.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?,
-            // Default value is a deviation from the standard and is used for interoperability reasons
-            participant_key: deserializer.get_or_default(PID_PARTICIPANT_GUID)?,
-            topic_name: deserializer.get(PID_TOPIC_NAME)?,
-            type_name: deserializer.get(PID_TYPE_NAME)?,
-            durability: deserializer.get_or_default(PID_DURABILITY)?,
-            deadline: deserializer.get_or_default(PID_DEADLINE)?,
-            latency_budget: deserializer.get_or_default(PID_LATENCY_BUDGET)?,
-            liveliness: deserializer.get_or_default(PID_LIVELINESS)?,
-            reliability: deserializer.get_or_default(PID_RELIABILITY)?,
-            user_data: deserializer.get_or_default(PID_USER_DATA)?,
-            ownership: deserializer.get_or_default(PID_OWNERSHIP)?,
-            destination_order: deserializer.get_or_default(PID_DESTINATION_ORDER)?,
-            time_based_filter: deserializer.get_or_default(PID_TIME_BASED_FILTER)?,
-            presentation: deserializer.get_or_default(PID_PRESENTATION)?,
-            partition: deserializer.get_or_default(PID_PARTITION)?,
-            topic_data: deserializer.get_or_default(PID_TOPIC_DATA)?,
-            group_data: deserializer.get_or_default(PID_GROUP_DATA)?,
-        })
+        // Ok(Self {
+        //     key: deserializer.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?,
+        //     // Default value is a deviation from the standard and is used for interoperability reasons
+        //     participant_key: deserializer.get_or_default(PID_PARTICIPANT_GUID)?,
+        //     topic_name: deserializer.get(PID_TOPIC_NAME)?,
+        //     type_name: deserializer.get(PID_TYPE_NAME)?,
+        //     durability: deserializer.get_or_default(PID_DURABILITY)?,
+        //     deadline: deserializer.get_or_default(PID_DEADLINE)?,
+        //     latency_budget: deserializer.get_or_default(PID_LATENCY_BUDGET)?,
+        //     liveliness: deserializer.get_or_default(PID_LIVELINESS)?,
+        //     reliability: deserializer.get_or_default(PID_RELIABILITY)?,
+        //     user_data: deserializer.get_or_default(PID_USER_DATA)?,
+        //     ownership: deserializer.get_or_default(PID_OWNERSHIP)?,
+        //     destination_order: deserializer.get_or_default(PID_DESTINATION_ORDER)?,
+        //     time_based_filter: deserializer.get_or_default(PID_TIME_BASED_FILTER)?,
+        //     presentation: deserializer.get_or_default(PID_PRESENTATION)?,
+        //     partition: deserializer.get_or_default(PID_PARTITION)?,
+        //     topic_data: deserializer.get_or_default(PID_TOPIC_DATA)?,
+        //     group_data: deserializer.get_or_default(PID_GROUP_DATA)?,
+        // })
+        todo!()
     }
 }

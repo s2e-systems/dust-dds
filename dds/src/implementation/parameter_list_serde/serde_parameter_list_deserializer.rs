@@ -484,7 +484,7 @@ pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
 
 const PID_SENTINEL: u16 = 1;
 
-fn dds_deserialize<'de, T>(mut data: &'de [u8]) -> Result<T, Error>
+pub fn dds_deserialize<'de, T>(mut data: &'de [u8]) -> Result<T, Error>
 where
     T: serde::Deserialize<'de>,
 {

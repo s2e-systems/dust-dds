@@ -7,6 +7,8 @@ use serde::ser::SerializeTuple;
 
 use cdr::Error;
 
+use crate::topic_definition::type_support::RepresentationFormat;
+
 pub struct ParameterListSerializer<W, E> {
     ser: cdr::Serializer<W, E>,
     phantom: PhantomData<E>,
@@ -353,8 +355,19 @@ impl<'a, W, E> serde::ser::SerializeStructVariant for Compound<'a, W, E> {
 #[derive(Debug, PartialEq, serde::Serialize)]
 struct XParameter<const PID: u16, T>(T);
 
-#[derive(Debug, PartialEq)]
-struct Parameter<const PID: u16, T>(T);
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Parameter<const PID: u16, T>(pub T);
+
+impl<const PID: u16, T> From<T> for Parameter<PID, T> {
+    fn from(v: T) -> Self {
+        Parameter(v)
+    }
+}
+// impl<const PID: u16, T> Into<T> for Parameter<PID, T> {
+//     fn into(self) -> T {
+//         todo!()
+//     }
+// }
 
 impl<const PID: u16, T> serde::Serialize for Parameter<PID, T>
 where
@@ -382,9 +395,13 @@ where
     }
 }
 
-#[derive(Debug, PartialEq)]
-struct ParameterWithDefault<const PID: u16, T>(T);
-
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ParameterWithDefault<const PID: u16, T>(pub T);
+impl<const PID: u16, T> From<T> for ParameterWithDefault<PID, T> {
+    fn from(v: T) -> Self {
+        ParameterWithDefault(v)
+    }
+}
 impl<const PID: u16, T> serde::Serialize for ParameterWithDefault<PID, T>
 where
     T: serde::Serialize + Default + PartialEq,
@@ -415,6 +432,45 @@ where
     }
 }
 
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ParameterVector<const PID: u16, T>(pub Vec<T>);
+impl<const PID: u16, T> From<Vec<T>> for ParameterVector<PID, T> {
+    fn from(v: Vec<T>) -> Self {
+        ParameterVector(v)
+    }
+}
+impl<const PID: u16, T> serde::Serialize for ParameterVector<PID, T>
+where
+    T: serde::Serialize + Default + PartialEq,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if self.0.len() == 0 {
+            return serializer.serialize_tuple(0)?.end();
+        }
+        let length_without_padding = cdr::size::calc_serialized_data_size(&self.0[0]) as i16;
+        let padding_length = (4 - length_without_padding) & 3;
+        let length = length_without_padding + padding_length;
+
+        let mut s = serializer.serialize_tuple(4)?;
+        for value in &self.0 {
+            s.serialize_element(&PID)?;
+            s.serialize_element(&length)?;
+            s.serialize_element(value)?;
+            match padding_length {
+                1 => s.serialize_element(&[0u8; 1])?,
+                2 => s.serialize_element(&[0u8; 2])?,
+                3 => s.serialize_element(&[0u8; 3])?,
+                _ => s.serialize_element(&[0u8; 0])?,
+            }
+        }
+        s.end()
+    }
+}
+
 pub type RepresentationType = [u8; 2];
 pub type RepresentationOptions = [u8; 2];
 pub const CDR_BE: RepresentationType = [0x00, 0x00];
@@ -425,15 +481,6 @@ pub const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 const PID_SENTINEL: u16 = 1;
 
-pub trait RepresentationFormat {
-    const REPRESENTATION_IDENTIFIER: RepresentationType;
-}
-impl<T: serde::Serialize + DdsSerde> RepresentationFormat for T {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
-}
-
-trait DdsSerde {}
-
 pub fn dds_serialize<T>(value: &T) -> Result<Vec<u8>, Error>
 where
     T: serde::Serialize + RepresentationFormat,
@@ -443,8 +490,7 @@ where
         CDR_BE => {
             writer.write_all(&CDR_BE)?;
             writer.write_all(&REPRESENTATION_OPTIONS)?;
-            let mut serializer =
-                cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
+            let mut serializer = cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
             serde::Serialize::serialize(value, &mut serializer)?;
         }
         CDR_LE => {
@@ -479,6 +525,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::topic_definition::type_support::DdsSerde;
+
     use super::*;
 
     #[derive(Debug, PartialEq, serde::Serialize)]
@@ -501,6 +549,35 @@ mod tests {
             21, 0, 0, 0, // u16
             72, 0x00, 4, 0, // n | Length (incl padding)
             34, 0, 0, 0, // u8
+            1, 0, 0, 0, // Sentinel
+        ][..];
+        let result = dds_serialize(&data).unwrap();
+        assert_eq!(result, expected)
+    }
+
+    #[derive(Debug, PartialEq, serde::Serialize)]
+    struct PlWithList {
+        id: Parameter<71, u8>,
+        values: ParameterVector<93, u16>,
+    }
+    impl RepresentationFormat for PlWithList {
+        const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    }
+
+    #[test]
+    fn serialize_pl_vec_le() {
+        let data = PlWithList {
+            id: Parameter(21),
+            values: ParameterVector(vec![34, 35]),
+        };
+        let expected = &[
+            0x00, 0x03, 0, 0, // representation identifier
+            71, 0x00, 4, 0, // id | Length (incl padding)
+            21, 0, 0, 0, // u8
+            93, 0x00, 4, 0, // values | Length (incl padding)
+            34, 0, 0, 0, // u16
+            93, 0x00, 4, 0, // values | Length (incl padding)
+            35, 0, 0, 0, // u16
             1, 0, 0, 0, // Sentinel
         ][..];
         let result = dds_serialize(&data).unwrap();
