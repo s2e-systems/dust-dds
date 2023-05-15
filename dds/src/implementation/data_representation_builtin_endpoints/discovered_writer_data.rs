@@ -25,7 +25,7 @@ use super::parameter_id_values::{
 pub struct WriterProxy {
     // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
     #[serde(skip_serializing)]
-    remote_writer_guid: Parameter<PID_GROUP_ENTITYID, Guid>,
+    remote_writer_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
     remote_group_entity_id: Parameter<PID_GROUP_ENTITYID, EntityId>,
     unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
     multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,

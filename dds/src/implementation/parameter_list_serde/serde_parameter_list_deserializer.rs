@@ -1,6 +1,6 @@
 use std::{self, io::Read, marker::PhantomData};
 
-use byteorder::{ByteOrder, ReadBytesExt};
+use byteorder::ByteOrder;
 use serde::de::{self};
 
 use cdr::Error;
@@ -11,7 +11,6 @@ use super::parameter::{
 
 pub struct ParameterListDeserializer<'a, E> {
     data: &'a [u8],
-    pos: u64,
     endianness: PhantomData<E>,
 }
 
@@ -19,36 +18,7 @@ impl<'a, E> ParameterListDeserializer<'a, E> {
     pub fn new(data: &'a [u8]) -> Self {
         Self {
             data,
-            pos: 0,
             endianness: PhantomData,
-        }
-    }
-
-    fn read_size(&mut self, size: u64) -> Result<(), Error> {
-        self.pos += size;
-        Ok(())
-    }
-
-    fn read_size_of<T>(&mut self) -> Result<(), Error> {
-        self.read_size(std::mem::size_of::<T>() as u64)
-    }
-
-    fn read_padding_of<T>(&mut self) -> Result<(), Error> {
-        // Calculate the required padding to align with 1-byte, 2-byte, 4-byte, 8-byte boundaries
-        // Instead of using the slow modulo operation '%', the faster bit-masking is used
-        let alignment = std::mem::size_of::<T>();
-        let rem_mask = alignment - 1; // mask like 0x0, 0x1, 0x3, 0x7
-        let mut padding: [u8; 8] = [0; 8];
-        match (self.pos as usize) & rem_mask {
-            0 => Ok(()),
-            n @ 1..=7 => {
-                let amt = alignment - n;
-                self.read_size(amt as u64)?;
-                self.data
-                    .read_exact(&mut padding[..amt])
-                    .map_err(Into::into)
-            }
-            _ => unreachable!(),
         }
     }
 }
@@ -63,45 +33,35 @@ where
     where
         V: serde::de::Visitor<'de>,
     {
-        Err(serde::de::Error::custom("deserialize_any not implemented"))
+        Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        let value: u8 = de::Deserialize::deserialize(self)?;
-        match value {
-            1 => visitor.visit_bool(true),
-            0 => visitor.visit_bool(false),
-            _ => Err(serde::de::Error::custom("invalid bool encoding")),
-        }
+        Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_u8<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        self.read_size_of::<u8>()?;
-        visitor.visit_u8(self.data.read_u8()?)
+        Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_u16<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        self.read_padding_of::<u16>()?;
-        self.read_size_of::<u16>()?;
-        visitor.visit_u16(self.data.read_u16::<E>()?)
+        Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_u32<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        self.read_padding_of::<u32>()?;
-        self.read_size_of::<u32>()?;
-        visitor.visit_u32(self.data.read_u32::<E>()?)
+        Err(Error::TypeNotSupported)
     }
 
     fn deserialize_u64<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -118,13 +78,11 @@ where
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_i16<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        self.read_padding_of::<i16>()?;
-        self.read_size_of::<i16>()?;
-        visitor.visit_i16(self.data.read_i16::<E>()?)
+        Err(Error::TypeNotSupported)
     }
 
     fn deserialize_i32<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -176,11 +134,11 @@ where
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_borrowed_bytes(self.data)
+        Err(Error::TypeNotSupported)
     }
 
     fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
