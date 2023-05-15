@@ -1,29 +1,17 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
-    implementation::{
-        parameter_list_serde::{
-            parameter_list_deserializer::ParameterListDeserializer,
-            parameter_list_serializer::ParameterListSerializer,
-        },
-        rtps::{
-            discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-            types::{Count, ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
-        },
+    implementation::rtps::{
+        discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+        types::{Count, ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
     infrastructure::{error::DdsResult, time::Duration},
     topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE, RepresentationFormat,
+        DdsSerializedKey, DdsType, RepresentationFormat, RepresentationType, PL_CDR_LE,
     },
 };
 
-use super::parameter_id_values::{
-    DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
-    PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
-    PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
-    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
-};
+use super::parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION};
 
 #[derive(
     Debug, PartialEq, Eq, derive_more::Into, derive_more::From, serde::Serialize, serde::Deserialize,
@@ -151,76 +139,6 @@ impl ParticipantProxy {
     }
 }
 
-impl DdsSerialize for ParticipantProxy {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-    fn dds_serialize_parameter_list<W: std::io::Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        serializer.serialize_parameter(PID_DOMAIN_ID, &self.domain_id)?;
-        serializer.serialize_parameter_if_not_default(PID_DOMAIN_TAG, &self.domain_tag)?;
-        serializer.serialize_parameter(PID_PROTOCOL_VERSION, &self.protocol_version)?;
-        // guid_prefix omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
-        serializer.serialize_parameter(PID_VENDORID, &self.vendor_id)?;
-        serializer
-            .serialize_parameter_if_not_default(PID_EXPECTS_INLINE_QOS, &self.expects_inline_qos)?;
-        serializer.serialize_parameter_vector(
-            PID_METATRAFFIC_UNICAST_LOCATOR,
-            &self.metatraffic_unicast_locator_list,
-        )?;
-        serializer.serialize_parameter_vector(
-            PID_METATRAFFIC_MULTICAST_LOCATOR,
-            &self.metatraffic_multicast_locator_list,
-        )?;
-        serializer.serialize_parameter_vector(
-            PID_DEFAULT_UNICAST_LOCATOR,
-            &self.default_unicast_locator_list,
-        )?;
-        serializer.serialize_parameter_vector(
-            PID_DEFAULT_MULTICAST_LOCATOR,
-            &self.default_multicast_locator_list,
-        )?;
-        serializer
-            .serialize_parameter(PID_BUILTIN_ENDPOINT_SET, &self.available_builtin_endpoints)?;
-        serializer.serialize_parameter_if_not_default(
-            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-            &self.manual_liveliness_count,
-        )?;
-        // Default value is a deviation from the standard and is used for interoperability reasons:
-        serializer.serialize_parameter_if_not_default(
-            PID_BUILTIN_ENDPOINT_QOS,
-            &self.builtin_endpoint_qos,
-        )
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for ParticipantProxy {
-    fn dds_deserialize_parameter_list<E: byteorder::ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            domain_id: deserializer.get(PID_DOMAIN_ID)?,
-            domain_tag: deserializer.get_or_default(PID_DOMAIN_TAG)?,
-            protocol_version: deserializer.get(PID_PROTOCOL_VERSION)?,
-            guid_prefix: deserializer.get(PID_PARTICIPANT_GUID)?,
-            vendor_id: deserializer.get(PID_VENDORID)?,
-            expects_inline_qos: deserializer.get_or_default(PID_EXPECTS_INLINE_QOS)?,
-            metatraffic_unicast_locator_list: deserializer
-                .get_list(PID_METATRAFFIC_UNICAST_LOCATOR)?,
-            metatraffic_multicast_locator_list: deserializer
-                .get_list(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
-            default_unicast_locator_list: deserializer.get_list(PID_DEFAULT_UNICAST_LOCATOR)?,
-            default_multicast_locator_list: deserializer.get_list(PID_DEFAULT_MULTICAST_LOCATOR)?,
-            available_builtin_endpoints: deserializer.get(PID_BUILTIN_ENDPOINT_SET)?,
-            manual_liveliness_count: deserializer
-                .get_or_default(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?,
-            // Default value is a deviation from the standard and is used for interoperability reasons:
-            builtin_endpoint_qos: deserializer.get_or_default(PID_BUILTIN_ENDPOINT_QOS)?,
-        })
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
@@ -277,19 +195,6 @@ impl DdsType for SpdpDiscoveredParticipantData {
         Ok(())
     }
 }
-
-impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
-    fn dds_deserialize_parameter_list<E: byteorder::ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            dds_participant_data: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
-            participant_proxy: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
-            lease_duration: deserializer.get(PID_PARTICIPANT_LEASE_DURATION)?,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -298,12 +203,6 @@ mod tests {
     use crate::implementation::parameter_list_serde::serde_parameter_list_serializer::dds_serialize;
     use crate::implementation::rtps::types::{LocatorAddress, LocatorKind, LocatorPort};
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
-
-    fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
-        let mut writer = Vec::<u8>::new();
-        value.dds_serialize(&mut writer).unwrap();
-        writer
-    }
 
     #[test]
     fn deserialize_spdp_discovered_participant_data() {
@@ -425,8 +324,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result: SpdpDiscoveredParticipantData =
-            dds_deserialize(&mut data).unwrap();
+        let result: SpdpDiscoveredParticipantData = dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 

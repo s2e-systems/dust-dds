@@ -71,21 +71,6 @@ impl ReaderProxy {
     }
 }
 
-impl<'de> DdsDeserialize<'de> for ReaderProxy {
-    fn dds_deserialize_parameter_list<E: ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        // Ok(Self {
-        //     remote_reader_guid: deserializer.get(PID_ENDPOINT_GUID)?,
-        //     remote_group_entity_id: deserializer.get_or_default(PID_GROUP_ENTITYID)?,
-        //     unicast_locator_list: deserializer.get_list(PID_UNICAST_LOCATOR)?,
-        //     multicast_locator_list: deserializer.get_list(PID_MULTICAST_LOCATOR)?,
-        //     expects_inline_qos: deserializer.get_or_default(PID_MULTICAST_LOCATOR)?,
-        // })
-        todo!()
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredReaderData {
     reader_proxy: ReaderProxy,
@@ -138,19 +123,6 @@ impl DdsType for DiscoveredReaderData {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
         }
         Ok(())
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
-    fn dds_deserialize_parameter_list<E: ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            reader_proxy: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
-            subscription_builtin_topic_data: DdsDeserialize::dds_deserialize_parameter_list(
-                deserializer,
-            )?,
-        })
     }
 }
 

@@ -52,16 +52,6 @@ impl DdsType for DiscoveredTopicData {
     }
 }
 
-impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
-    fn dds_deserialize_parameter_list<E: byteorder::ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            topic_builtin_topic_data: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::builtin_topics::BuiltInTopicKey;

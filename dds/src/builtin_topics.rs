@@ -78,16 +78,6 @@ impl DdsType for ParticipantBuiltinTopicData {
     }
 }
 
-impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
-    fn dds_deserialize_parameter_list<E: ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            key: deserializer.get(PID_PARTICIPANT_GUID)?,
-            user_data: deserializer.get_or_default(PID_USER_DATA)?,
-        })
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TopicBuiltinTopicData {
@@ -210,30 +200,6 @@ impl TopicBuiltinTopicData {
 impl DdsType for TopicBuiltinTopicData {
     fn type_name() -> &'static str {
         "TopicBuiltinTopicData"
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
-    fn dds_deserialize_parameter_list<E: byteorder::ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            key: deserializer.get(PID_ENDPOINT_GUID)?,
-            name: deserializer.get(PID_TOPIC_NAME)?,
-            type_name: deserializer.get(PID_TYPE_NAME)?,
-            durability: deserializer.get_or_default(PID_DURABILITY)?,
-            deadline: deserializer.get_or_default(PID_DEADLINE)?,
-            latency_budget: deserializer.get_or_default(PID_LATENCY_BUDGET)?,
-            liveliness: deserializer.get_or_default(PID_LIVELINESS)?,
-            reliability: deserializer.get_or_default(PID_RELIABILITY)?,
-            transport_priority: deserializer.get_or_default(PID_TRANSPORT_PRIORITY)?,
-            lifespan: deserializer.get_or_default(PID_LIFESPAN)?,
-            ownership: deserializer.get_or_default(PID_OWNERSHIP)?,
-            destination_order: deserializer.get_or_default(PID_DESTINATION_ORDER)?,
-            history: deserializer.get_or_default(PID_HISTORY)?,
-            resource_limits: deserializer.get_or_default(PID_RESOURCE_LIMITS)?,
-            topic_data: deserializer.get_or_default(PID_TOPIC_DATA)?,
-        })
     }
 }
 
@@ -409,33 +375,6 @@ impl DdsType for PublicationBuiltinTopicData {
     }
 }
 
-impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
-    fn dds_deserialize_parameter_list<E: ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            key: deserializer.get(PID_ENDPOINT_GUID)?,
-            // Default value is a deviation from the standard and is used for interoperability reasons:
-            participant_key: deserializer.get_or_default(PID_PARTICIPANT_GUID)?,
-            topic_name: deserializer.get(PID_TOPIC_NAME)?,
-            type_name: deserializer.get(PID_TYPE_NAME)?,
-            durability: deserializer.get_or_default(PID_DURABILITY)?,
-            deadline: deserializer.get_or_default(PID_DEADLINE)?,
-            latency_budget: deserializer.get_or_default(PID_LATENCY_BUDGET)?,
-            liveliness: deserializer.get_or_default(PID_LIVELINESS)?,
-            reliability: deserializer.get_or_default(PID_RELIABILITY)?,
-            lifespan: deserializer.get_or_default(PID_LIFESPAN)?,
-            user_data: deserializer.get_or_default(PID_USER_DATA)?,
-            ownership: deserializer.get_or_default(PID_OWNERSHIP)?,
-            destination_order: deserializer.get_or_default(PID_DESTINATION_ORDER)?,
-            presentation: deserializer.get_or_default(PID_PRESENTATION)?,
-            partition: deserializer.get_or_default(PID_PARTITION)?,
-            topic_data: deserializer.get_or_default(PID_TOPIC_DATA)?,
-            group_data: deserializer.get_or_default(PID_GROUP_DATA)?,
-        })
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SubscriptionBuiltinTopicData {
     key: Parameter<PID_ENDPOINT_GUID, BuiltInTopicKey>,
@@ -574,33 +513,5 @@ impl SubscriptionBuiltinTopicData {
 impl DdsType for SubscriptionBuiltinTopicData {
     fn type_name() -> &'static str {
         "SubscriptionBuiltinTopicData"
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
-    fn dds_deserialize_parameter_list<E: ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        // Ok(Self {
-        //     key: deserializer.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?,
-        //     // Default value is a deviation from the standard and is used for interoperability reasons
-        //     participant_key: deserializer.get_or_default(PID_PARTICIPANT_GUID)?,
-        //     topic_name: deserializer.get(PID_TOPIC_NAME)?,
-        //     type_name: deserializer.get(PID_TYPE_NAME)?,
-        //     durability: deserializer.get_or_default(PID_DURABILITY)?,
-        //     deadline: deserializer.get_or_default(PID_DEADLINE)?,
-        //     latency_budget: deserializer.get_or_default(PID_LATENCY_BUDGET)?,
-        //     liveliness: deserializer.get_or_default(PID_LIVELINESS)?,
-        //     reliability: deserializer.get_or_default(PID_RELIABILITY)?,
-        //     user_data: deserializer.get_or_default(PID_USER_DATA)?,
-        //     ownership: deserializer.get_or_default(PID_OWNERSHIP)?,
-        //     destination_order: deserializer.get_or_default(PID_DESTINATION_ORDER)?,
-        //     time_based_filter: deserializer.get_or_default(PID_TIME_BASED_FILTER)?,
-        //     presentation: deserializer.get_or_default(PID_PRESENTATION)?,
-        //     partition: deserializer.get_or_default(PID_PARTITION)?,
-        //     topic_data: deserializer.get_or_default(PID_TOPIC_DATA)?,
-        //     group_data: deserializer.get_or_default(PID_GROUP_DATA)?,
-        // })
-        todo!()
     }
 }

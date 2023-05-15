@@ -69,38 +69,6 @@ impl WriterProxy {
     }
 }
 
-impl DdsSerialize for WriterProxy {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-    fn dds_serialize_parameter_list<W: Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
-        serializer
-            .serialize_parameter_if_not_default(PID_GROUP_ENTITYID, &self.remote_group_entity_id)?;
-        serializer.serialize_parameter_vector(PID_UNICAST_LOCATOR, &self.unicast_locator_list)?;
-        serializer
-            .serialize_parameter_vector(PID_MULTICAST_LOCATOR, &self.multicast_locator_list)?;
-        serializer.serialize_parameter_if_not_default(
-            PID_DATA_MAX_SIZE_SERIALIZED,
-            &self.data_max_size_serialized,
-        )
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for WriterProxy {
-    fn dds_deserialize_parameter_list<E: ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            remote_writer_guid: deserializer.get(PID_ENDPOINT_GUID)?,
-            remote_group_entity_id: deserializer.get_or_default(PID_GROUP_ENTITYID)?,
-            unicast_locator_list: deserializer.get_list(PID_UNICAST_LOCATOR)?,
-            multicast_locator_list: deserializer.get_list(PID_MULTICAST_LOCATOR)?,
-            data_max_size_serialized: deserializer.get_or_default(PID_DATA_MAX_SIZE_SERIALIZED)?,
-        })
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredWriterData {
@@ -153,17 +121,6 @@ impl DdsType for DiscoveredWriterData {
     }
 }
 
-
-impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
-    fn dds_deserialize_parameter_list<E: ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            dds_publication_data: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
-            writer_proxy: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
-        })
-    }
-}
 
 #[cfg(test)]
 mod tests {

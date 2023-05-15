@@ -119,7 +119,7 @@ pub trait DdsSerialize {
     }
 }
 
-pub trait DdsDeserialize<'de>: Sized {
+pub trait DdsDeserialize<'de>: serde::Deserialize<'de> + Sized {
     fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let mut representation_identifier: RepresentationType = [0, 0];
         buf.read_exact(&mut representation_identifier)
@@ -185,7 +185,7 @@ where
 
 impl<'de, Foo> DdsDeserialize<'de> for Foo
 where
-    Foo: serde::Deserialize<'de> + DdsSerde,
+    Foo: serde::Deserialize<'de>,
 {
     fn dds_deserialize_cdr<D: serde::Deserializer<'de>>(deserializer: D) -> DdsResult<Self> {
         serde::Deserialize::deserialize(deserializer)
@@ -207,34 +207,16 @@ mod tests {
 
     use super::*;
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, serde::Deserialize)]
     struct TestDeserialize {
         remote_group_entity_id: EntityId,
         inner: TestDeserializeInner,
     }
-    impl<'de> DdsDeserialize<'de> for TestDeserialize {
-        fn dds_deserialize_parameter_list<E: ByteOrder>(
-            deserializer: &mut ParameterListDeserializer<'de, E>,
-        ) -> DdsResult<Self> {
-            Ok(Self {
-                remote_group_entity_id: deserializer.get(PID_GROUP_ENTITYID)?,
-                inner: TestDeserializeInner::dds_deserialize_parameter_list(deserializer)?,
-            })
-        }
-    }
 
-    #[derive(Debug, PartialEq)]
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
     struct TestDeserializeInner {
         domain_id: DomainId,
-    }
-    impl<'de> DdsDeserialize<'de> for TestDeserializeInner {
-        fn dds_deserialize_parameter_list<E: ByteOrder>(
-            deserializer: &mut ParameterListDeserializer<'de, E>,
-        ) -> DdsResult<Self> {
-            Ok(Self {
-                domain_id: deserializer.get(PID_DOMAIN_ID)?,
-            })
-        }
     }
 
     #[test]
