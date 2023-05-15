@@ -5,7 +5,7 @@ use crate::{
         domain_participant::DomainParticipant,
         domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     },
-    implementation::dds_impl::nodes::{DomainParticipantNode, TopicNodeKind},
+    implementation::dds::nodes::{DomainParticipantNode, TopicNodeKind},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},

@@ -3,7 +3,7 @@ use crate::{
         domain_participant::DomainParticipant,
         domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     },
-    implementation::dds_impl::{
+    implementation::dds::{
         any_data_reader_listener::AnyDataReaderListener,
         dds_subscriber::DdsSubscriber,
         nodes::{DataReaderNodeKind, SubscriberNodeKind},

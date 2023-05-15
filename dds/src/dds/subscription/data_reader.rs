@@ -1,6 +1,6 @@
 use crate::{
     domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    implementation::dds_impl::nodes::{DataReaderNodeKind, SubscriberNodeKind, TopicNodeKind},
+    implementation::dds::nodes::{DataReaderNodeKind, SubscriberNodeKind, TopicNodeKind},
     infrastructure::{
         error::DdsError, instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration,
     },

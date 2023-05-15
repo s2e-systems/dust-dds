@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     implementation::{
-        dds_impl::dds_domain_participant::DdsDomainParticipant,
+        dds::dds_domain_participant::DdsDomainParticipant,
         rtps::types::GuidPrefix,
         utils::{
             condvar::DdsCondvar,

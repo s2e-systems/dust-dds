@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        dds_impl::{
+        dds::{
             dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
             nodes::{SubscriberNode, TopicNode},
         },

@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    implementation::dds_impl::{
+    implementation::dds::{
         any_topic_listener::AnyTopicListener,
         dds_domain_participant::DdsDomainParticipant,
         nodes::{DomainParticipantNode, SubscriberNodeKind, TopicNodeKind},

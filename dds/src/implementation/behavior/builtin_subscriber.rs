@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        dds_impl::{
+        dds::{
             dds_domain_participant::DdsDomainParticipant,
             nodes::{DataReaderNode, DataReaderNodeKind},
         },

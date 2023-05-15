@@ -11,7 +11,7 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         configuration::DustDdsConfiguration,
-        dds_impl::{
+        dds::{
             any_data_reader_listener::AnyDataReaderListener,
             any_data_writer_listener::AnyDataWriterListener, any_topic_listener::AnyTopicListener,
             dds_domain_participant::DdsDomainParticipant, nodes::DomainParticipantNode,

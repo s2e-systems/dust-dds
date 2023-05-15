@@ -4,7 +4,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::{
             DiscoveredWriterData, WriterProxy,
         },
-        dds_impl::dds_domain_participant::DdsDomainParticipant,
+        dds::dds_domain_participant::DdsDomainParticipant,
         rtps::types::Guid,
     },
     infrastructure::{

@@ -1,5 +1,5 @@
 use crate::{
-    implementation::{dds_impl::dds_domain_participant::DdsDomainParticipant, rtps::types::Guid},
+    implementation::{dds::dds_domain_participant::DdsDomainParticipant, rtps::types::Guid},
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{QosKind, TopicQos},

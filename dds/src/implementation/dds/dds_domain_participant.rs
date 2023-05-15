@@ -15,7 +15,7 @@ use crate::{
                 ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
             },
         },
-        dds_impl::{
+        dds::{
             dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
         },
         rtps::{

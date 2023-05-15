@@ -3,7 +3,7 @@ use std::{marker::PhantomData, time::Instant};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    implementation::dds_impl::nodes::{DataWriterNodeKind, PublisherNode},
+    implementation::dds::nodes::{DataWriterNodeKind, PublisherNode},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},

@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        dds_impl::{
+        dds::{
             dds_data_writer::DdsDataWriter,
             dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
             nodes::DataWriterNode,

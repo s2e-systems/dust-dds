@@ -19,7 +19,7 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
-        dds_impl::{
+        dds::{
             dds_data_reader::DdsDataReader,
             dds_data_writer::DdsDataWriter,
             dds_domain_participant::{
