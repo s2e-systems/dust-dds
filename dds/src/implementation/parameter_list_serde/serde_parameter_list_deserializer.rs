@@ -474,6 +474,61 @@ where
     }
 }
 
+
+
+#[derive(Debug, PartialEq)]
+pub struct ParameterVector<const PID: u16, T>(pub Vec<T>);
+
+impl<'de, const PID: u16, T> serde::Deserialize<'de> for ParameterVector<PID, T>
+where
+    T: serde::Deserialize<'de> + Default,
+{
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor<'de, const PID: u16, T>
+        where
+            T: serde::Deserialize<'de>,
+        {
+            marker: PhantomData<ParameterVector<PID, T>>,
+            lifetime: PhantomData<&'de ()>,
+        }
+        impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
+        where
+            T: serde::Deserialize<'de> + Default,
+        {
+            type Value = ParameterVector<PID, T>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct ParameterVector")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                let mut values = vec![];
+                while let Some(key) = map.next_key::<u16>()? {
+                    if key == PID {
+                        values.push(map.next_value()?);
+                    } else if key == PID_SENTINEL {
+                        break;
+                    }
+                }
+                Ok(ParameterVector(values))
+            }
+        }
+        deserializer.deserialize_newtype_struct(
+            "ParameterVector",
+            Visitor {
+                marker: PhantomData::<ParameterVector<PID, T>>,
+                lifetime: PhantomData,
+            },
+        )
+    }
+}
+
+
 type RepresentationType = [u8; 2];
 type RepresentationOptions = [u8; 2];
 
@@ -518,7 +573,6 @@ where
 }
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
@@ -587,6 +641,31 @@ mod tests {
         ][..];
         let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
         let result: PlWithDefault = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+        assert_eq!(result, expected)
+    }
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct PlWithList {
+        id: Parameter<71, u8>,
+        values: ParameterVector<93, u16>,
+    }
+
+    #[test]
+    fn deserialize_pl_vec_le() {
+        let expected = PlWithList {
+            id: Parameter(21),
+            values: ParameterVector(vec![34, 35]),
+        };
+        let data = &[
+            0x00, 0x03, 0, 0, // representation identifier
+            71, 0x00, 4, 0, // id | Length (incl padding)
+            21, 0, 0, 0, // u8
+            93, 0x00, 4, 0, // values | Length (incl padding)
+            34, 0, 0, 0, // u16
+            93, 0x00, 4, 0, // values | Length (incl padding)
+            35, 0, 0, 0, // u16
+            1, 0, 0, 0, // Sentinel
+        ][..];
+        let result: PlWithList = dds_deserialize(&data).unwrap();
         assert_eq!(result, expected)
     }
 
