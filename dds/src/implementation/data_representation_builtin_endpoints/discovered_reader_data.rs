@@ -1,19 +1,16 @@
-use std::io::Write;
-
 use byteorder::ByteOrder;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         parameter_list_serde::{
-            parameter_list_deserializer::ParameterListDeserializer,
-            parameter_list_serializer::ParameterListSerializer, serde_parameter_list_serializer::{Parameter, ParameterWithDefault},
+            parameter_list_deserializer::ParameterListDeserializer, parameter::{Parameter, ParameterVector, ParameterWithDefault},
         },
         rtps::types::{EntityId, ExpectsInlineQos, Guid, Locator},
     },
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE, DdsSerde, RepresentationFormat,
+        DdsDeserialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE, RepresentationFormat,
     },
 };
 
@@ -24,13 +21,13 @@ use super::parameter_id_values::{
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ReaderProxy {
-    #[serde(skip)]
+    #[serde(skip_serializing)]
     remote_reader_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
     remote_group_entity_id: Parameter<PID_GROUP_ENTITYID, EntityId>,
-    unicast_locator_list: Parameter<PID_UNICAST_LOCATOR, Vec<Locator>>,
-    multicast_locator_list: Parameter<PID_MULTICAST_LOCATOR, Vec<Locator>>,
+    unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
+    multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
     expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
 }
 
@@ -72,21 +69,6 @@ impl ReaderProxy {
     }
 }
 
-impl DdsSerialize for ReaderProxy {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-    fn dds_serialize_parameter_list<W: Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        // serializer.serialize_parameter_vector(PID_UNICAST_LOCATOR, &self.unicast_locator_list)?;
-        // serializer
-        //     .serialize_parameter_vector(PID_MULTICAST_LOCATOR, &self.multicast_locator_list)?;
-        // serializer.serialize_parameter(PID_GROUP_ENTITYID, &self.remote_group_entity_id)?;
-        // serializer
-        //     .serialize_parameter_if_not_default(PID_EXPECTS_INLINE_QOS, &self.expects_inline_qos)
-        todo!()
-    }
-}
 
 impl<'de> DdsDeserialize<'de> for ReaderProxy {
     fn dds_deserialize_parameter_list<E: ByteOrder>(
@@ -103,7 +85,7 @@ impl<'de> DdsDeserialize<'de> for ReaderProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredReaderData {
     reader_proxy: ReaderProxy,
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
@@ -158,17 +140,6 @@ impl DdsType for DiscoveredReaderData {
     }
 }
 
-impl DdsSerialize for DiscoveredReaderData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-    fn dds_serialize_parameter_list<W: Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        self.reader_proxy.dds_serialize_parameter_list(serializer)?;
-        self.subscription_builtin_topic_data
-            .dds_serialize_parameter_list(serializer)
-    }
-}
 
 impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
     fn dds_deserialize_parameter_list<E: ByteOrder>(
@@ -198,11 +169,7 @@ mod tests {
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::RepresentationFormat;
 
-    fn to_bytes_le<S: serde::Serialize + RepresentationFormat>(value: &S) -> Vec<u8> {
-        dds_serialize(value).unwrap()
-    }
     #[test]
     fn serialize_all_default() {
         let data = DiscoveredReaderData{
@@ -266,7 +233,8 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(to_bytes_le(&data), expected);
+        let result = dds_serialize(&data).unwrap();
+        assert_eq!(result, expected);
     }
 
     #[test]

@@ -10,8 +10,7 @@ use crate::{
             PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
         },
         parameter_list_serde::{
-            parameter_list_deserializer::ParameterListDeserializer,
-            parameter_list_serializer::ParameterListSerializer, serde_parameter_list_serializer::{Parameter, ParameterWithDefault},
+            parameter_list_deserializer::ParameterListDeserializer, parameter::{Parameter, ParameterWithDefault},
         },
     },
     infrastructure::{
@@ -72,17 +71,7 @@ impl ParticipantBuiltinTopicData {
         &self.user_data
     }
 }
-impl DdsSerialize for ParticipantBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
-    fn dds_serialize_parameter_list<W: std::io::Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        serializer.serialize_parameter(PID_PARTICIPANT_GUID, &self.key)?;
-        serializer.serialize_parameter_if_not_default(PID_USER_DATA, &self.user_data)
-    }
-}
 impl DdsType for ParticipantBuiltinTopicData {
     fn type_name() -> &'static str {
         "ParticipantBuiltinTopicData"
@@ -100,7 +89,7 @@ impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TopicBuiltinTopicData {
     key: BuiltInTopicKey,
     name: String,
@@ -224,34 +213,6 @@ impl DdsType for TopicBuiltinTopicData {
     }
 }
 
-impl DdsSerialize for TopicBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-    fn dds_serialize_parameter_list<W: std::io::Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        serializer.serialize_parameter(PID_ENDPOINT_GUID, &self.key)?;
-        serializer.serialize_parameter(PID_TOPIC_NAME, &self.name)?;
-        serializer.serialize_parameter(PID_TYPE_NAME, &self.type_name)?;
-        serializer.serialize_parameter_if_not_default(PID_DURABILITY, &self.durability)?;
-        serializer.serialize_parameter_if_not_default(PID_DEADLINE, &self.deadline)?;
-        serializer.serialize_parameter_if_not_default(PID_LATENCY_BUDGET, &self.latency_budget)?;
-        serializer.serialize_parameter_if_not_default(PID_LIVELINESS, &self.liveliness)?;
-        serializer.serialize_parameter_if_not_default(PID_RELIABILITY, &self.reliability)?;
-        serializer
-            .serialize_parameter_if_not_default(PID_TRANSPORT_PRIORITY, &self.transport_priority)?;
-        serializer.serialize_parameter_if_not_default(PID_LIFESPAN, &self.lifespan)?;
-        serializer
-            .serialize_parameter_if_not_default(PID_DESTINATION_ORDER, &self.destination_order)?;
-        serializer.serialize_parameter_if_not_default(PID_HISTORY, &self.history)?;
-        serializer
-            .serialize_parameter_if_not_default(PID_RESOURCE_LIMITS, &self.resource_limits)?;
-        serializer.serialize_parameter_if_not_default(PID_OWNERSHIP, &self.ownership)?;
-        serializer.serialize_parameter_if_not_default(PID_TOPIC_DATA, &self.topic_data)
-    }
-}
-
 impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
     fn dds_deserialize_parameter_list<E: byteorder::ByteOrder>(
         deserializer: &mut ParameterListDeserializer<'de, E>,
@@ -310,7 +271,7 @@ impl Default for ReliabilityQosPolicyDataReader {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PublicationBuiltinTopicData {
     key: BuiltInTopicKey,
     participant_key: BuiltInTopicKey,
@@ -448,36 +409,6 @@ impl DdsType for PublicationBuiltinTopicData {
     }
 }
 
-impl DdsSerialize for PublicationBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-    fn dds_serialize_parameter_list<W: std::io::Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        serializer.serialize_parameter(PID_ENDPOINT_GUID, &self.key)?;
-        // Default value is a deviation from the standard and is used for interoperability reasons:
-        serializer
-            .serialize_parameter_if_not_default(PID_PARTICIPANT_GUID, &self.participant_key)?;
-        serializer.serialize_parameter(PID_TOPIC_NAME, &self.topic_name)?;
-        serializer.serialize_parameter(PID_TYPE_NAME, &self.type_name)?;
-        serializer.serialize_parameter_if_not_default(PID_DURABILITY, &self.durability)?;
-        serializer.serialize_parameter_if_not_default(PID_DEADLINE, &self.deadline)?;
-        serializer.serialize_parameter_if_not_default(PID_LATENCY_BUDGET, &self.latency_budget)?;
-        serializer.serialize_parameter_if_not_default(PID_LIVELINESS, &self.liveliness)?;
-        serializer.serialize_parameter_if_not_default(PID_RELIABILITY, &self.reliability)?;
-        serializer.serialize_parameter_if_not_default(PID_LIFESPAN, &self.lifespan)?;
-        serializer.serialize_parameter_if_not_default(PID_USER_DATA, &self.user_data)?;
-        serializer.serialize_parameter_if_not_default(PID_OWNERSHIP, &self.ownership)?;
-        serializer
-            .serialize_parameter_if_not_default(PID_DESTINATION_ORDER, &self.destination_order)?;
-        serializer.serialize_parameter_if_not_default(PID_PRESENTATION, &self.presentation)?;
-        serializer.serialize_parameter_if_not_default(PID_PARTITION, &self.partition)?;
-        serializer.serialize_parameter_if_not_default(PID_TOPIC_DATA, &self.topic_data)?;
-        serializer.serialize_parameter_if_not_default(PID_GROUP_DATA, &self.group_data)
-    }
-}
-
 impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
     fn dds_deserialize_parameter_list<E: ByteOrder>(
         deserializer: &mut ParameterListDeserializer<'de, E>,
@@ -505,9 +436,8 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SubscriptionBuiltinTopicData {
-    #[serde(skip)]
     key: Parameter<PID_ENDPOINT_GUID, BuiltInTopicKey>,
     // Default value is a deviation from the standard and is used for interoperability reasons:
     participant_key: ParameterWithDefault<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
@@ -552,7 +482,7 @@ impl SubscriptionBuiltinTopicData {
         group_data: GroupDataQosPolicy,
     ) -> Self {
         Self {
-            key: key.into(),
+            key: Parameter(key),
             participant_key: participant_key.into(),
             topic_name: topic_name.into(),
             type_name: type_name.into(),
@@ -646,16 +576,7 @@ impl DdsType for SubscriptionBuiltinTopicData {
         "SubscriptionBuiltinTopicData"
     }
 }
-impl DdsSerialize for SubscriptionBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
-    fn dds_serialize_parameter_list<W: std::io::Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        todo!()
-    }
-}
 impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
     fn dds_deserialize_parameter_list<E: ByteOrder>(
         deserializer: &mut ParameterListDeserializer<'de, E>,

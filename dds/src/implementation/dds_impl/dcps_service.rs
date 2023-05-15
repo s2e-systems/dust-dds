@@ -42,7 +42,7 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransport,
-        utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
+        utils::{condvar::DdsCondvar, shared_object::DdsRwLock}, parameter_list_serde::serde_parameter_list_serializer::dds_serialize,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -302,9 +302,7 @@ fn announce_created_data_reader(
             .clone(),
     );
 
-    let mut serialized_data = Vec::new();
-    reader_data
-        .dds_serialize(&mut serialized_data)
+    let mut serialized_data = dds_serialize(reader_data)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
@@ -338,9 +336,7 @@ fn announce_created_data_writer(
         ),
     );
 
-    let mut serialized_data = Vec::new();
-    writer_data
-        .dds_serialize(&mut serialized_data)
+    let mut serialized_data = dds_serialize(writer_data)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
@@ -364,9 +360,7 @@ fn announce_created_topic(
     domain_participant: &DdsDomainParticipant,
     discovered_topic: DiscoveredTopicData,
 ) {
-    let mut serialized_data = Vec::new();
-    discovered_topic
-        .dds_serialize(&mut serialized_data)
+    let mut serialized_data = dds_serialize(&discovered_topic)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();

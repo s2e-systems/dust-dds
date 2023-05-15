@@ -5,6 +5,8 @@ use serde::de::{self};
 
 use cdr::Error;
 
+use super::parameter::{RepresentationType, RepresentationOptions};
+
 pub struct ParameterListDeserializer<'a, E> {
     data: &'a [u8],
     pos: u64,
@@ -373,171 +375,6 @@ where
     }
 }
 
-#[derive(Debug, PartialEq)]
-struct Parameter<const PID: u16, T>(T);
-
-impl<'de, const PID: u16, T> serde::Deserialize<'de> for Parameter<PID, T>
-where
-    T: serde::Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct Visitor<'de, const PID: u16, T>
-        where
-            T: serde::Deserialize<'de>,
-        {
-            marker: PhantomData<Parameter<PID, T>>,
-            lifetime: PhantomData<&'de ()>,
-        }
-        impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
-        where
-            T: serde::Deserialize<'de>,
-        {
-            type Value = Parameter<PID, T>;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("struct Parameter")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: de::MapAccess<'de>,
-            {
-                loop {
-                    if let Some(key) = map.next_key::<u16>()? {
-                        if key == PID {
-                            return Ok(Parameter(map.next_value()?));
-                        }
-                    }
-                }
-            }
-        }
-        deserializer.deserialize_newtype_struct(
-            "Parameter",
-            Visitor {
-                marker: PhantomData::<Parameter<PID, T>>,
-                lifetime: PhantomData,
-            },
-        )
-    }
-}
-
-#[derive(Debug, PartialEq)]
-struct ParameterWithDefault<const PID: u16, T>(T);
-
-impl<'de, const PID: u16, T> serde::Deserialize<'de> for ParameterWithDefault<PID, T>
-where
-    T: serde::Deserialize<'de> + Default,
-{
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct Visitor<'de, const PID: u16, T>
-        where
-            T: serde::Deserialize<'de>,
-        {
-            marker: PhantomData<ParameterWithDefault<PID, T>>,
-            lifetime: PhantomData<&'de ()>,
-        }
-        impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
-        where
-            T: serde::Deserialize<'de> + Default,
-        {
-            type Value = ParameterWithDefault<PID, T>;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("struct ParameterWithDefault")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: de::MapAccess<'de>,
-            {
-                while let Some(key) = map.next_key::<u16>()? {
-                    if key == PID {
-                        return Ok(ParameterWithDefault(map.next_value()?));
-                    } else if key == PID_SENTINEL {
-                        break;
-                    }
-                }
-                Ok(ParameterWithDefault(T::default()))
-            }
-        }
-        deserializer.deserialize_newtype_struct(
-            "ParameterWithDefault",
-            Visitor {
-                marker: PhantomData::<ParameterWithDefault<PID, T>>,
-                lifetime: PhantomData,
-            },
-        )
-    }
-}
-
-
-
-#[derive(Debug, PartialEq)]
-pub struct ParameterVector<const PID: u16, T>(pub Vec<T>);
-
-impl<'de, const PID: u16, T> serde::Deserialize<'de> for ParameterVector<PID, T>
-where
-    T: serde::Deserialize<'de> + Default,
-{
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct Visitor<'de, const PID: u16, T>
-        where
-            T: serde::Deserialize<'de>,
-        {
-            marker: PhantomData<ParameterVector<PID, T>>,
-            lifetime: PhantomData<&'de ()>,
-        }
-        impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
-        where
-            T: serde::Deserialize<'de> + Default,
-        {
-            type Value = ParameterVector<PID, T>;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("struct ParameterVector")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: de::MapAccess<'de>,
-            {
-                let mut values = vec![];
-                while let Some(key) = map.next_key::<u16>()? {
-                    if key == PID {
-                        values.push(map.next_value()?);
-                    } else if key == PID_SENTINEL {
-                        break;
-                    }
-                }
-                Ok(ParameterVector(values))
-            }
-        }
-        deserializer.deserialize_newtype_struct(
-            "ParameterVector",
-            Visitor {
-                marker: PhantomData::<ParameterVector<PID, T>>,
-                lifetime: PhantomData,
-            },
-        )
-    }
-}
-
-
-type RepresentationType = [u8; 2];
-type RepresentationOptions = [u8; 2];
-
-pub const CDR_BE: RepresentationType = [0x00, 0x00];
-pub const CDR_LE: RepresentationType = [0x00, 0x01];
-pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
-pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
-
-const PID_SENTINEL: u16 = 1;
 
 pub fn dds_deserialize<'de, T>(mut data: &'de [u8]) -> Result<T, Error>
 where
@@ -573,6 +410,8 @@ where
 }
 #[cfg(test)]
 mod tests {
+    use crate::implementation::parameter_list_serde::parameter::{Parameter, ParameterWithDefault, ParameterVector};
+
     use super::*;
 
     #[test]

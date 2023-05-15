@@ -13,7 +13,7 @@ use crate::{
     },
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE, RepresentationFormat,
     },
 };
 
@@ -22,7 +22,7 @@ use super::parameter_id_values::{
     PID_UNICAST_LOCATOR,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WriterProxy {
     remote_writer_guid: Guid,
     remote_group_entity_id: EntityId,
@@ -102,12 +102,14 @@ impl<'de> DdsDeserialize<'de> for WriterProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,
 }
-
+impl RepresentationFormat for DiscoveredWriterData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+}
 impl DiscoveredWriterData {
     pub fn new(
         dds_publication_data: PublicationBuiltinTopicData,
@@ -151,18 +153,6 @@ impl DdsType for DiscoveredWriterData {
     }
 }
 
-impl DdsSerialize for DiscoveredWriterData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-    fn dds_serialize_parameter_list<W: Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        self.dds_publication_data
-            .dds_serialize_parameter_list(serializer)?;
-        self.writer_proxy.dds_serialize_parameter_list(serializer)
-    }
-}
 
 impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
     fn dds_deserialize_parameter_list<E: ByteOrder>(
@@ -178,6 +168,7 @@ impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
 #[cfg(test)]
 mod tests {
     use crate::builtin_topics::BuiltInTopicKey;
+    use crate::implementation::parameter_list_serde::serde_parameter_list_serializer::dds_serialize;
     use crate::implementation::rtps::types::{
         EntityKey, GuidPrefix, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP,
         BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_UNKNOWN,
@@ -191,11 +182,6 @@ mod tests {
 
     use super::*;
 
-    fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
-        let mut writer = Vec::<u8>::new();
-        value.dds_serialize(&mut writer).unwrap();
-        writer
-    }
     #[test]
     fn serialize_all_default() {
         let data = DiscoveredWriterData::new(
@@ -256,7 +242,8 @@ mod tests {
             21, 22, 23, 0xc9, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(to_bytes_le(&data), expected);
+        let result = dds_serialize(&data).unwrap();
+        assert_eq!(result, expected);
     }
 
     #[test]

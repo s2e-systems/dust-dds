@@ -54,7 +54,7 @@ use crate::{
             iterator::{DdsListIntoIterator, DdsMapIntoIterator},
             shared_object::{DdsRwLock, DdsShared},
             timer_factory::{Timer, TimerFactory},
-        },
+        }, parameter_list_serde::serde_parameter_list_serializer::dds_serialize,
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -1033,8 +1033,7 @@ impl DdsDomainParticipant {
             ),
             self.lease_duration,
         );
-        let mut serialized_data = Vec::new();
-        spdp_discovered_participant_data.dds_serialize(&mut serialized_data)?;
+        let mut serialized_data = dds_serialize(&spdp_discovered_participant_data).map_err(|err|DdsError::Error)?;
 
         self.builtin_publisher
             .stateless_data_writer_list()

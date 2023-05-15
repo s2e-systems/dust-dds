@@ -13,7 +13,7 @@ use crate::{
     },
     infrastructure::{error::DdsResult, time::Duration},
     topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE, RepresentationFormat,
     },
 };
 
@@ -47,7 +47,7 @@ impl Default for LeaseDuration {
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantProxy {
     domain_id: DomainId,
     domain_tag: DomainTag,
@@ -221,11 +221,14 @@ impl<'de> DdsDeserialize<'de> for ParticipantProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
     lease_duration: LeaseDuration,
+}
+impl RepresentationFormat for SpdpDiscoveredParticipantData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }
 
 impl SpdpDiscoveredParticipantData {
@@ -275,21 +278,6 @@ impl DdsType for SpdpDiscoveredParticipantData {
     }
 }
 
-impl DdsSerialize for SpdpDiscoveredParticipantData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-    fn dds_serialize_parameter_list<W: std::io::Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        self.dds_participant_data
-            .dds_serialize_parameter_list(serializer)?;
-        self.participant_proxy
-            .dds_serialize_parameter_list(serializer)?;
-        serializer.serialize_parameter(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)
-    }
-}
-
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn dds_deserialize_parameter_list<E: byteorder::ByteOrder>(
         deserializer: &mut ParameterListDeserializer<'de, E>,
@@ -306,6 +294,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::builtin_topics::BuiltInTopicKey;
+    use crate::implementation::parameter_list_serde::serde_parameter_list_serializer::dds_serialize;
     use crate::implementation::rtps::types::{LocatorAddress, LocatorKind, LocatorPort};
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
 
@@ -560,6 +549,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        assert_eq!(to_bytes_le(&data), expected);
+        let result = dds_serialize(&data).unwrap();
+        assert_eq!(result, expected);
     }
 }
