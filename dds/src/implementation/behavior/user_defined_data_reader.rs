@@ -1,6 +1,12 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    implementation::rtps::types::Guid,
+    implementation::{
+        dds::{
+            dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+            nodes::{SubscriberNode, TopicNode},
+        },
+        rtps::types::Guid,
+    },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -15,11 +21,6 @@ use crate::{
         sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     },
     topic_definition::type_support::DdsDeserialize,
-};
-
-use super::{
-    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    nodes::{SubscriberNode, TopicNode},
 };
 
 #[allow(clippy::too_many_arguments)]

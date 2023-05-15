@@ -5,7 +5,7 @@ use crate::{
         domain_participant::DomainParticipant,
         domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     },
-    implementation::dds_impl::nodes::{DomainParticipantNode, TopicNodeKind},
+    implementation::dds::nodes::{DomainParticipantNode, TopicNodeKind},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -45,7 +45,7 @@ impl<Foo> Drop for Topic<Foo> {
             TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&t.guid().prefix(), |dp| {
                     if let Some(dp) = dp {
-                        crate::implementation::dds_impl::behavior_domain_participant::delete_topic(
+                        crate::implementation::behavior::domain_participant::delete_topic(
                             dp,
                             t.guid(),
                         )
@@ -63,7 +63,7 @@ impl<Foo> Topic<Foo> {
             TopicNodeKind::UserDefined(t) => {
                 let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                     .get_participant_mut(&t.guid().prefix(), |dp| {
-                        crate::implementation::dds_impl::behavior_user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, t.guid())
+                        crate::implementation::behavior::user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, t.guid())
                     })?;
 
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(
@@ -99,7 +99,7 @@ impl<Foo> Topic<Foo> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => {
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_topic::get_type_name(
+                    crate::implementation::behavior::user_defined_topic::get_type_name(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         t.guid(),
                     )
@@ -114,7 +114,7 @@ impl<Foo> Topic<Foo> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => {
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_topic::get_name(
+                    crate::implementation::behavior::user_defined_topic::get_name(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         t.guid(),
                     )
@@ -143,7 +143,7 @@ impl<Foo> Topic<Foo> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&t.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_topic::set_qos(
+                    crate::implementation::behavior::user_defined_topic::set_qos(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         t.guid(),
                         qos,
@@ -159,7 +159,7 @@ impl<Foo> Topic<Foo> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => {
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_topic::get_qos(
+                    crate::implementation::behavior::user_defined_topic::get_qos(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         t.guid(),
                     )
@@ -229,7 +229,7 @@ impl<Foo> Topic<Foo> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&t.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_topic::enable(
+                    crate::implementation::behavior::user_defined_topic::enable(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         t.guid(),
                     )

@@ -1,13 +1,11 @@
 use crate::{
-    implementation::rtps::types::Guid,
+    implementation::{dds::dds_domain_participant::DdsDomainParticipant, rtps::types::Guid},
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{QosKind, TopicQos},
         status::InconsistentTopicStatus,
     },
 };
-
-use super::dds_domain_participant::DdsDomainParticipant;
 
 pub fn get_inconsistent_topic_status(
     domain_participant: &mut DdsDomainParticipant,

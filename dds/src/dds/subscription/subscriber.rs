@@ -3,7 +3,7 @@ use crate::{
         domain_participant::DomainParticipant,
         domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     },
-    implementation::dds_impl::{
+    implementation::dds::{
         any_data_reader_listener::AnyDataReaderListener,
         dds_subscriber::DdsSubscriber,
         nodes::{DataReaderNodeKind, SubscriberNodeKind},
@@ -51,7 +51,7 @@ impl Drop for Subscriber {
             SubscriberNodeKind::UserDefined(s) => {
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&s.guid().prefix(), |dp| {
                     if let Some(dp) = dp {
-                        crate::implementation::dds_impl::behavior_domain_participant::delete_subscriber(
+                        crate::implementation::behavior::domain_participant::delete_subscriber(
                             dp,
                             s.guid(),
                         )
@@ -98,7 +98,7 @@ impl Subscriber {
                 let reader = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
                     &s.guid().prefix(),
                     |dp| {
-                        crate::implementation::dds_impl::behavior_user_defined_subscriber::create_datareader::<Foo>(
+                        crate::implementation::behavior::user_defined_subscriber::create_datareader::<Foo>(
                             dp.ok_or(DdsError::AlreadyDeleted)?,
                             s.guid(),
                             type_name,
@@ -135,7 +135,7 @@ impl Subscriber {
                     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
                         &s.guid().prefix(),
                         |dp| {
-                            crate::implementation::dds_impl::behavior_user_defined_subscriber::delete_datareader(
+                            crate::implementation::behavior::user_defined_subscriber::delete_datareader(
                                 dp.ok_or(DdsError::AlreadyDeleted)?,
                                 s.guid(),
                                 dr.guid(),
@@ -164,7 +164,7 @@ impl Subscriber {
             SubscriberNodeKind::Builtin(s) => {
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid().prefix(), |dp| {
                     Ok(
-                        crate::implementation::dds_impl::behavior_builtin_subscriber::lookup_datareader::<Foo>(
+                        crate::implementation::behavior::builtin_subscriber::lookup_datareader::<Foo>(
                             dp.ok_or(DdsError::AlreadyDeleted)?,
                             s.guid(),
                             topic_name,
@@ -175,7 +175,7 @@ impl Subscriber {
             }
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&s.guid().prefix(), |dp| {
-                    Ok(crate::implementation::dds_impl::behavior_user_defined_subscriber::lookup_datareader(
+                    Ok(crate::implementation::behavior::user_defined_subscriber::lookup_datareader(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         s.guid(),
                         Foo::type_name(),
@@ -204,7 +204,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => Ok(DomainParticipant::new(
-                crate::implementation::dds_impl::behavior_user_defined_subscriber::get_participant(
+                crate::implementation::behavior::user_defined_subscriber::get_participant(
                     s.parent_participant(),
                 )?,
             )),
@@ -232,7 +232,7 @@ impl Subscriber {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&s.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_subscriber::delete_contained_entities(dp.ok_or(DdsError::AlreadyDeleted)?, s.guid())
+                    crate::implementation::behavior::user_defined_subscriber::delete_contained_entities(dp.ok_or(DdsError::AlreadyDeleted)?, s.guid())
                 }),
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
@@ -249,7 +249,7 @@ impl Subscriber {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&s.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_subscriber::set_default_datareader_qos(dp.ok_or(DdsError::AlreadyDeleted)?, s.guid(),qos)
+                    crate::implementation::behavior::user_defined_subscriber::set_default_datareader_qos(dp.ok_or(DdsError::AlreadyDeleted)?, s.guid(),qos)
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
         }
@@ -264,7 +264,7 @@ impl Subscriber {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&s.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_subscriber::get_default_datareader_qos(dp.ok_or(DdsError::AlreadyDeleted)?, s.guid())
+                    crate::implementation::behavior::user_defined_subscriber::get_default_datareader_qos(dp.ok_or(DdsError::AlreadyDeleted)?, s.guid())
                 }),
             SubscriberNodeKind::Listener(_) => todo!(),
         }
@@ -300,7 +300,7 @@ impl Subscriber {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&s.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_subscriber::set_qos(
+                    crate::implementation::behavior::user_defined_subscriber::set_qos(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         s.guid(),
                         qos,
@@ -315,14 +315,14 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => {
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_builtin_subscriber::get_qos(
+                    crate::implementation::behavior::builtin_subscriber::get_qos(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                     )
                 })
             }
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&s.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_subscriber::get_qos(
+                    crate::implementation::behavior::user_defined_subscriber::get_qos(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         s.guid(),
                     )
@@ -405,7 +405,7 @@ impl Subscriber {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant_mut(&s.guid().prefix(), |dp| {
-                    crate::implementation::dds_impl::behavior_user_defined_subscriber::enable(
+                    crate::implementation::behavior::user_defined_subscriber::enable(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         s.guid(),
                     )

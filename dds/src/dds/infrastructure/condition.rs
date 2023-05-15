@@ -2,7 +2,7 @@ use std::sync::{Arc, Condvar};
 
 use crate::{
     implementation::{
-        dds_impl::status_condition_impl::StatusConditionImpl,
+        dds::status_condition_impl::StatusConditionImpl,
         utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::error::DdsResult,

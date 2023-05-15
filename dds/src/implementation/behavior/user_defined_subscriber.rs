@@ -1,11 +1,18 @@
 use crate::{
-    implementation::rtps::{
-        endpoint::RtpsEndpoint,
-        reader::RtpsReader,
-        stateful_reader::RtpsStatefulReader,
-        types::{
-            EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_READER_NO_KEY,
-            USER_DEFINED_READER_WITH_KEY,
+    implementation::{
+        dds::{
+            dds_data_reader::DdsDataReader,
+            dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+            nodes::{DataReaderNode, DomainParticipantNode},
+        },
+        rtps::{
+            endpoint::RtpsEndpoint,
+            reader::RtpsReader,
+            stateful_reader::RtpsStatefulReader,
+            types::{
+                EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_READER_NO_KEY,
+                USER_DEFINED_READER_WITH_KEY,
+            },
         },
     },
     infrastructure::{
@@ -14,12 +21,6 @@ use crate::{
         time::DURATION_ZERO,
     },
     topic_definition::type_support::{DdsDeserialize, DdsType},
-};
-
-use super::{
-    dds_data_reader::DdsDataReader,
-    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    nodes::{DataReaderNode, DomainParticipantNode},
 };
 
 pub fn create_datareader<Foo>(
@@ -115,11 +116,7 @@ where
             .entity_factory
             .autoenable_created_entities
     {
-        super::behavior_user_defined_data_reader::enable(
-            domain_participant,
-            guid,
-            subscriber_guid,
-        )?;
+        super::user_defined_data_reader::enable(domain_participant, guid, subscriber_guid)?;
     }
 
     Ok(node)

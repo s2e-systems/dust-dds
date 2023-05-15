@@ -1,15 +1,6 @@
 pub mod any_data_reader_listener;
 pub mod any_data_writer_listener;
 pub mod any_topic_listener;
-pub mod behavior_builtin_data_reader_stateful;
-pub mod behavior_builtin_data_reader_stateless;
-pub mod behavior_builtin_subscriber;
-pub mod behavior_domain_participant;
-pub mod behavior_user_defined_data_reader;
-pub mod behavior_user_defined_data_writer;
-pub mod behavior_user_defined_publisher;
-pub mod behavior_user_defined_subscriber;
-pub mod behavior_user_defined_topic;
 pub mod dds_data_reader;
 pub mod dds_data_writer;
 pub mod dds_domain_participant;

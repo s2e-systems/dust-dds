@@ -4,6 +4,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::{
             DiscoveredWriterData, WriterProxy,
         },
+        dds::dds_domain_participant::DdsDomainParticipant,
         rtps::types::Guid,
     },
     infrastructure::{
@@ -18,8 +19,6 @@ use crate::{
     },
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
-
-use super::dds_domain_participant::DdsDomainParticipant;
 
 pub fn unregister_instance_w_timestamp(
     domain_participant: &mut DdsDomainParticipant,

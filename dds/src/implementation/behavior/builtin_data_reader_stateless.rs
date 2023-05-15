@@ -1,5 +1,5 @@
 use crate::{
-    implementation::rtps::types::Guid,
+    implementation::{dds::dds_domain_participant::DdsDomainParticipant, rtps::types::Guid},
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -11,8 +11,6 @@ use crate::{
     },
     topic_definition::type_support::DdsDeserialize,
 };
-
-use super::dds_domain_participant::DdsDomainParticipant;
 
 pub fn read<Foo>(
     domain_participant: &mut DdsDomainParticipant,

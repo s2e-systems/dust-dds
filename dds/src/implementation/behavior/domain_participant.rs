@@ -1,18 +1,19 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
-    implementation::rtps::types::Guid,
+    implementation::{
+        dds::{
+            dds_domain_participant::DdsDomainParticipant,
+            nodes::{PublisherNode, SubscriberNode, TopicNode},
+        },
+        rtps::types::Guid,
+    },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         time::Time,
     },
-};
-
-use super::{
-    dds_domain_participant::DdsDomainParticipant,
-    nodes::{PublisherNode, SubscriberNode, TopicNode},
 };
 
 pub fn create_publisher(
