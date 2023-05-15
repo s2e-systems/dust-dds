@@ -1,17 +1,28 @@
 use crate::{
-    builtin_topics::ParticipantBuiltinTopicData,
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
-    implementation::{rtps::{
-        discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-        types::{Count, ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
-    }, parameter_list_serde::parameter::{ParameterWithDefault, Parameter, ParameterVector}},
+    implementation::{
+        parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
+        rtps::{
+            discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+            types::{
+                Count, ExpectsInlineQos, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId,
+            },
+        },
+    },
     infrastructure::{error::DdsResult, time::Duration},
     topic_definition::type_support::{
         DdsSerializedKey, DdsType, RepresentationFormat, RepresentationType, PL_CDR_LE,
     },
 };
 
-use super::parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_PROTOCOL_VERSION, PID_VENDORID, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_UNICAST_LOCATOR, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR, PID_DEFAULT_MULTICAST_LOCATOR, PID_BUILTIN_ENDPOINT_SET, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_BUILTIN_ENDPOINT_QOS, PID_PARTICIPANT_LEASE_DURATION};
+use super::parameter_id_values::{
+    DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
+    PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
+    PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
+    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
+    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
+};
 
 #[derive(
     Debug, PartialEq, Eq, derive_more::Into, derive_more::From, serde::Serialize, serde::Deserialize,
@@ -35,14 +46,13 @@ impl Default for LeaseDuration {
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
-
 #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantProxy {
     domain_id: Parameter<PID_DOMAIN_ID, DomainId>,
     domain_tag: ParameterWithDefault<PID_DOMAIN_TAG, DomainTag>,
     protocol_version: Parameter<PID_PROTOCOL_VERSION, ProtocolVersion>,
-    #[serde(skip)]
-    guid_prefix: GuidPrefix,
+    #[serde(skip_serializing)]
+    guid_prefix: Parameter<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
     vendor_id: Parameter<PID_VENDORID, VendorId>,
     expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
     metatraffic_unicast_locator_list: ParameterVector<PID_METATRAFFIC_UNICAST_LOCATOR, Locator>,
@@ -71,11 +81,18 @@ impl ParticipantProxy {
         manual_liveliness_count: Count,
         builtin_endpoint_qos: BuiltinEndpointQos,
     ) -> Self {
+        let g = <[u8; 12]>::from(guid_prefix);
+        let guid_prefix_as_built_topic_key = BuiltInTopicKey {
+            value: [
+                g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], g[9], g[10], g[11], 0, 0, 0,
+                0,
+            ],
+        };
         Self {
             domain_id: domain_id.into(),
             domain_tag: DomainTag::from(domain_tag).into(),
             protocol_version: protocol_version.into(),
-            guid_prefix: guid_prefix.into(),
+            guid_prefix: guid_prefix_as_built_topic_key.into(),
             vendor_id: vendor_id.into(),
             expects_inline_qos: ExpectsInlineQos::from(expects_inline_qos).into(),
             metatraffic_unicast_locator_list: metatraffic_unicast_locator_list.into(),
@@ -93,7 +110,7 @@ impl ParticipantProxy {
     }
 
     pub fn domain_tag(&self) -> &str {
-        &self.domain_tag.0.0
+        &self.domain_tag.0 .0
     }
 
     pub fn _protocol_version(&self) -> ProtocolVersion {
@@ -101,7 +118,11 @@ impl ParticipantProxy {
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
-        self.guid_prefix
+        let guid_prefix_as_built_topic_key = &self.guid_prefix.0;
+        let g = &guid_prefix_as_built_topic_key.value;
+        GuidPrefix::new([
+            g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], g[9], g[10], g[11],
+        ])
     }
 
     pub fn _vendor_id(&self) -> VendorId {
@@ -173,7 +194,7 @@ impl SpdpDiscoveredParticipantData {
     }
 
     pub fn _lease_duration(&self) -> &Duration {
-        &self.lease_duration.0.0
+        &self.lease_duration.0 .0
     }
 }
 

@@ -356,9 +356,11 @@ where
     {
         self.de.data = &self.de.data[self.skip_length as usize..];
 
-        let pid = seed.deserialize(&mut self.de).map(Some);
-        let length: i16 = serde::Deserialize::deserialize(&mut self.de)?;
+        let mut cdr_deserializer = cdr::Deserializer::<_,_,E>::new(self.de.data, cdr::Infinite);
+        let pid = seed.deserialize(&mut cdr_deserializer).map(Some);
+        let length: i16 = serde::Deserialize::deserialize(&mut cdr_deserializer)?;
         self.skip_length = length as usize;
+        self.de.data = &self.de.data[4 as usize..];
         pid
     }
 
@@ -366,8 +368,10 @@ where
     where
         V: serde::de::DeserializeSeed<'de>,
     {
+        let mut cdr_deserializer = cdr::Deserializer::<_,_,E>::new(self.de.data, cdr::Infinite);
+
         let length_before_deserialization = self.de.data.len();
-        let value = seed.deserialize(&mut self.de);
+        let value = seed.deserialize(&mut cdr_deserializer);
         let length_deserialized = length_before_deserialization - self.de.data.len();
 
         let padding_length = self.skip_length - length_deserialized;
@@ -417,17 +421,23 @@ mod tests {
 
     use super::*;
 
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct CdrParameterType {
+        i: u32
+    }
+
     #[test]
     fn deserialize_one_parameter_le() {
         let data = &[
             71, 0x00, 4, 0, // pid | Length (incl padding)
-            21, 0, 0, 0, // u8
+            21, 0, 0, 0, // CdrParameterType
         ][..];
-        let expected: Parameter<71, u8> = Parameter(21);
+        let expected: Parameter<71, CdrParameterType> = Parameter(CdrParameterType{i:21});
         let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
-        let result: Parameter<71, u8> = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+        let result: Parameter<71, CdrParameterType> = serde::Deserialize::deserialize(&mut deserializer).unwrap();
         assert_eq!(result, expected)
     }
+
 
     #[test]
     fn deserialize_one_parameter_be() {

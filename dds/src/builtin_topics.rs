@@ -52,6 +52,19 @@ impl Default for ReliabilityQosPolicyTopics {
 pub struct BuiltInTopicKey {
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
+
+impl From<[u8; 16]> for BuiltInTopicKey {
+    fn from(value: [u8; 16]) -> Self {
+        BuiltInTopicKey { value }
+    }
+}
+
+impl From<BuiltInTopicKey> for [u8; 16] {
+    fn from(value: BuiltInTopicKey) -> Self {
+        value.value
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantBuiltinTopicData {
     key: Parameter<PID_PARTICIPANT_GUID, BuiltInTopicKey>,

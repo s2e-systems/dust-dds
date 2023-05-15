@@ -25,12 +25,12 @@ pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
 #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ReaderProxy {
-    #[serde(skip_serializing)]
+    // #[serde(skip_serializing)]
     remote_reader_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
-    remote_group_entity_id: Parameter<PID_GROUP_ENTITYID, EntityId>,
-    unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
-    multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
-    expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
+    // remote_group_entity_id: Parameter<PID_GROUP_ENTITYID, EntityId>,
+    // unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
+    // multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
+    // expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
 }
 
 impl ReaderProxy {
@@ -43,10 +43,10 @@ impl ReaderProxy {
     ) -> Self {
         Self {
             remote_reader_guid: remote_reader_guid.into(),
-            remote_group_entity_id: remote_group_entity_id.into(),
-            unicast_locator_list: unicast_locator_list.into(),
-            multicast_locator_list: multicast_locator_list.into(),
-            expects_inline_qos: ExpectsInlineQos::from(expects_inline_qos).into(),
+            // remote_group_entity_id: remote_group_entity_id.into(),
+            // unicast_locator_list: unicast_locator_list.into(),
+            // multicast_locator_list: multicast_locator_list.into(),
+            // expects_inline_qos: ExpectsInlineQos::from(expects_inline_qos).into(),
         }
     }
 
@@ -55,19 +55,23 @@ impl ReaderProxy {
     }
 
     pub fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id.0
+        // self.remote_group_entity_id.0
+        todo!()
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.unicast_locator_list.0.as_ref()
+        // self.unicast_locator_list.0.as_ref()
+        todo!()
     }
 
     pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.multicast_locator_list.0.as_ref()
+        // self.multicast_locator_list.0.as_ref()
+        todo!()
     }
 
     pub fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos.0.into()
+        // self.expects_inline_qos.0.into()
+        todo!()
     }
 }
 
@@ -269,6 +273,38 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
         let result: DiscoveredReaderData = dds_deserialize(&mut data).unwrap();
+        assert_eq!(result, expected);
+    }
+
+
+
+    #[test]
+    fn deserialize_reader_proxy() {
+        let expected = ReaderProxy::new(
+            Guid::new(
+                GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
+                EntityId::new(EntityKey::new([4, 0, 0]), USER_DEFINED_UNKNOWN),
+            ),
+            EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_WRITER_WITH_KEY),
+            vec![],
+            vec![],
+            false,
+        );
+
+        let mut data = &[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length (SubscriptionBuiltinTopicData::key) used for remote_reader_guid
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID (remote_group_entity_id)
+            21, 22, 23, 0xc2, // u8[3], u8
+
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ][..];
+        let result: ReaderProxy = dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }
