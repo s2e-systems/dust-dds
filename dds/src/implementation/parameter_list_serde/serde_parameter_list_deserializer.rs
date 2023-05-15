@@ -319,7 +319,7 @@ where
         let pid = seed.deserialize(&mut cdr_deserializer).map(Some);
         let length: i16 = serde::Deserialize::deserialize(&mut cdr_deserializer)?;
         self.skip_length = length as usize;
-        self.data = &self.data[4 as usize..];
+        self.data = &self.data[4_usize..];
         pid
     }
 

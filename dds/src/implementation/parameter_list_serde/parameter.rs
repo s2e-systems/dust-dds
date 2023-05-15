@@ -96,7 +96,7 @@ where
     where
         S: serde::Serializer,
     {
-        if self.0.len() == 0 {
+        if self.0.is_empty() {
             return serializer.serialize_tuple(0)?.end();
         }
         let length_without_padding = cdr::size::calc_serialized_data_size(&self.0[0]) as i16;
