@@ -1,5 +1,5 @@
 use crate::{
-    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
     implementation::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
@@ -49,7 +49,7 @@ pub struct ParticipantProxy {
     protocol_version: Parameter<PID_PROTOCOL_VERSION, ProtocolVersion>,
     // guid_prefix omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
     #[serde(skip_serializing)]
-    guid_prefix: Parameter<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
+    guid_prefix: Parameter<PID_PARTICIPANT_GUID, GuidPrefix>,
     vendor_id: Parameter<PID_VENDORID, VendorId>,
     expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
     metatraffic_unicast_locator_list: ParameterVector<PID_METATRAFFIC_UNICAST_LOCATOR, Locator>,
@@ -79,18 +79,11 @@ impl ParticipantProxy {
         manual_liveliness_count: Count,
         builtin_endpoint_qos: BuiltinEndpointQos,
     ) -> Self {
-        let g = <[u8; 12]>::from(guid_prefix);
-        let guid_prefix_as_built_topic_key = BuiltInTopicKey {
-            value: [
-                g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], g[9], g[10], g[11], 0, 0, 0,
-                0,
-            ],
-        };
         Self {
             domain_id: domain_id.into(),
             domain_tag: DomainTag::from(domain_tag).into(),
             protocol_version: protocol_version.into(),
-            guid_prefix: guid_prefix_as_built_topic_key.into(),
+            guid_prefix: guid_prefix.into(),
             vendor_id: vendor_id.into(),
             expects_inline_qos: ExpectsInlineQos::from(expects_inline_qos).into(),
             metatraffic_unicast_locator_list: metatraffic_unicast_locator_list.into(),
@@ -116,11 +109,7 @@ impl ParticipantProxy {
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
-        let guid_prefix_as_built_topic_key = &self.guid_prefix.0;
-        let g = &guid_prefix_as_built_topic_key.value;
-        GuidPrefix::new([
-            g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], g[9], g[10], g[11],
-        ])
+        self.guid_prefix.0
     }
 
     pub fn _vendor_id(&self) -> VendorId {
@@ -257,7 +246,7 @@ mod tests {
         let expected = SpdpDiscoveredParticipantData::new(
             ParticipantBuiltinTopicData::new(
                 BuiltInTopicKey {
-                    value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 0, 0],
+                    value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
                 UserDataQosPolicy { value: vec![] },
             ),
@@ -292,7 +281,7 @@ mod tests {
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
-            0, 0, 0, 0, // EntityId,
+            0, 0, 1, 0xc1, // EntityId,
             0x16, 0x00, 4, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
             0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
