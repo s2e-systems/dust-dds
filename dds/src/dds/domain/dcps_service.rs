@@ -2,7 +2,7 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4, UdpSocket},
     sync::{
         atomic::{self, AtomicBool},
-        mpsc::{self, Receiver, Sender, SyncSender},
+        mpsc::{self, Receiver, SyncSender},
         Arc,
     },
     thread::JoinHandle,
@@ -58,7 +58,7 @@ use crate::{
             },
             writer_proxy::RtpsWriterProxy,
         },
-        rtps_udp_psm::udp_transport::UdpTransport,
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
     },
     infrastructure::{
@@ -141,9 +141,6 @@ impl DcpsService {
         default_unicast_locator_list: Vec<Locator>,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
-        mut metatraffic_multicast_transport: UdpTransport,
-        mut metatraffic_unicast_transport: UdpTransport,
-        mut default_unicast_transport: UdpTransport,
         sedp_condvar: &DdsCondvar,
         user_defined_data_send_condvar: &DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
@@ -152,39 +149,7 @@ impl DcpsService {
         let quit = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
 
-        let (listener_sender, listener_receiver) = mpsc::channel();
-
-        // //////////// SPDP Communication
-
-        // ////////////// SPDP participant discovery
-        {
-            let sedp_condvar_clone = sedp_condvar.clone();
-            let task_quit = quit.clone();
-            let listener_sender_clone = listener_sender.clone();
-
-            threads.push(std::thread::spawn(move || loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
-                if let Some((locator, message)) = metatraffic_multicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                        &participant_guid_prefix,
-                        |dp| {
-                            if let Some(dp) = dp {
-                                receive_builtin_message(
-                                    dp,
-                                    message,
-                                    locator,
-                                    &sedp_condvar_clone,
-                                    &listener_sender_clone,
-                                )
-                            }
-                        },
-                    )
-                }
-            }));
-        }
+        let (_listener_sender, listener_receiver) = mpsc::channel();
 
         //  ////////////// Entity announcer thread
         {
@@ -208,40 +173,11 @@ impl DcpsService {
             }));
         }
 
-        // //////////// Unicast metatraffic Communication receive
-        {
-            let sedp_condvar_clone = sedp_condvar.clone();
-            let task_quit = quit.clone();
-            let listener_sender_clone = listener_sender.clone();
-            threads.push(std::thread::spawn(move || loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
-                if let Some((locator, message)) = metatraffic_unicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                        &participant_guid_prefix,
-                        |dp| {
-                            if let Some(dp) = dp {
-                                receive_builtin_message(
-                                    dp,
-                                    message,
-                                    locator,
-                                    &sedp_condvar_clone,
-                                    &listener_sender_clone,
-                                )
-                            }
-                        },
-                    )
-                }
-            }));
-        }
-
         // //////////// Unicast metatraffic Communication send
         {
             let socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
 
-            let mut metatraffic_unicast_transport_send = UdpTransport::new(socket);
+            let mut metatraffic_unicast_transport_send = UdpTransportWrite::new(socket);
             let task_quit = quit.clone();
             let sedp_condvar_clone = sedp_condvar.clone();
             threads.push(std::thread::spawn(move || loop {
@@ -260,32 +196,10 @@ impl DcpsService {
             }));
         }
 
-        // //////////// User-defined Communication receive
-        {
-            let task_quit = quit.clone();
-            threads.push(std::thread::spawn(move || loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
-                if let Some((locator, message)) = default_unicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                        &participant_guid_prefix,
-                        |dp| {
-                            if let Some(dp) = dp {
-                                dp.receive_user_defined_data(locator, message, &listener_sender)
-                                    .ok();
-                            }
-                        },
-                    );
-                }
-            }));
-        }
-
         // //////////// User-defined Communication send
         {
             let socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
-            let mut default_unicast_transport_send = UdpTransport::new(socket);
+            let mut default_unicast_transport_send = UdpTransportWrite::new(socket);
             let task_quit = quit.clone();
             let user_defined_data_send_condvar_clone = user_defined_data_send_condvar.clone();
             threads.push(std::thread::spawn(move || loop {
@@ -1540,7 +1454,7 @@ fn user_defined_stateful_writer_send_message(
 
 fn discover_matched_writers(
     domain_participant: &mut DdsDomainParticipant,
-    listener_sender: &Sender<ListenerTriggerKind>,
+    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) -> DdsResult<()> {
     let samples = domain_participant
         .get_builtin_subscriber_mut()
@@ -1638,7 +1552,7 @@ pub fn subscriber_add_matched_writer(
     default_unicast_locator_list: &[Locator],
     default_multicast_locator_list: &[Locator],
     parent_participant_guid: Guid,
-    listener_sender: &Sender<ListenerTriggerKind>,
+    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
     let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
         &discovered_writer_data
@@ -2006,12 +1920,12 @@ fn add_matched_topics_detector(
     }
 }
 
-fn receive_builtin_message(
+pub fn receive_builtin_message(
     domain_participant: &mut DdsDomainParticipant,
     message: RtpsMessage,
     locator: Locator,
     sedp_condvar: &DdsCondvar,
-    listener_sender: &Sender<ListenerTriggerKind>,
+    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
     domain_participant
         .receive_builtin_data(locator, message, listener_sender)

@@ -80,7 +80,7 @@ use std::{
     future::Future,
     sync::{
         atomic::{AtomicU8, Ordering},
-        mpsc::{Sender, SyncSender},
+        mpsc::SyncSender,
     },
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -151,6 +151,7 @@ pub struct DdsDomainParticipant {
     data_max_size_serialized: usize,
     timer: DdsShared<DdsRwLock<Timer>>,
     announce_sender: SyncSender<AnnounceKind>,
+    sedp_condvar: DdsCondvar,
     task_executor: Runtime,
 }
 
@@ -172,6 +173,7 @@ impl DdsDomainParticipant {
         data_max_size_serialized: usize,
         announce_sender: SyncSender<AnnounceKind>,
         timer: DdsShared<DdsRwLock<Timer>>,
+        sedp_condvar: DdsCondvar,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -349,6 +351,7 @@ impl DdsDomainParticipant {
             data_max_size_serialized,
             timer,
             announce_sender,
+            sedp_condvar,
             task_executor: Runtime::new().unwrap(),
         }
     }
@@ -1008,7 +1011,7 @@ impl DdsDomainParticipant {
         &mut self,
         source_locator: Locator,
         message: RtpsMessage,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         MessageReceiver::new(self.get_current_time()).process_message(
             self.rtps_participant.guid(),
@@ -1026,7 +1029,7 @@ impl DdsDomainParticipant {
         &mut self,
         source_locator: Locator,
         message: RtpsMessage,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         MessageReceiver::new(self.get_current_time()).process_message(
             self.rtps_participant.guid(),
@@ -1042,7 +1045,7 @@ impl DdsDomainParticipant {
 
     pub fn discover_matched_readers(
         &mut self,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         let samples = self
             .get_builtin_subscriber_mut()
@@ -1178,7 +1181,7 @@ impl DdsDomainParticipant {
 
     pub fn discover_matched_topics(
         &mut self,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         while let Ok(samples) = self
             .get_builtin_subscriber_mut()
@@ -1232,6 +1235,10 @@ impl DdsDomainParticipant {
     pub fn user_defined_data_send_condvar(&self) -> &DdsCondvar {
         &self.user_defined_data_send_condvar
     }
+
+    pub fn sedp_condvar(&self) -> &DdsCondvar {
+        &self.sedp_condvar
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1243,7 +1250,7 @@ fn add_matched_reader(
     publisher_qos: &PublisherQos,
     parent_publisher_guid: Guid,
     parent_participant_guid: Guid,
-    listener_sender: &Sender<ListenerTriggerKind>,
+    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
     let is_matched_topic_name = discovered_reader_data
         .subscription_builtin_topic_data()
@@ -1391,17 +1398,17 @@ fn on_writer_publication_matched(
     writer: &DdsDataWriter<RtpsStatefulWriter>,
     parent_publisher_guid: Guid,
     parent_participant_guid: Guid,
-    listener_sender: &Sender<ListenerTriggerKind>,
+    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
     listener_sender
-        .send(ListenerTriggerKind::PublicationMatched(
+        .try_send(ListenerTriggerKind::PublicationMatched(
             DataWriterNode::new(
                 writer.guid(),
                 parent_publisher_guid,
                 parent_participant_guid,
             ),
         ))
-        .ok();
+        .unwrap();
 }
 
 pub fn remove_writer_matched_reader(
@@ -1409,7 +1416,7 @@ pub fn remove_writer_matched_reader(
     discovered_reader_handle: InstanceHandle,
     parent_publisher_guid: Guid,
     parent_participant_guid: Guid,
-    listener_sender: &Sender<ListenerTriggerKind>,
+    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
     if let Some(r) = writer.get_matched_subscription_data(discovered_reader_handle) {
         let handle = r.key().value.into();
@@ -1431,19 +1438,19 @@ fn writer_on_offered_incompatible_qos(
     incompatible_qos_policy_list: Vec<QosPolicyId>,
     parent_publisher_guid: Guid,
     parent_participant_guid: Guid,
-    listener_sender: &Sender<ListenerTriggerKind>,
+    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
     if !writer.get_incompatible_subscriptions().contains(&handle) {
         writer.add_offered_incompatible_qos(handle, incompatible_qos_policy_list);
         listener_sender
-            .send(ListenerTriggerKind::OfferedIncompatibleQos(
+            .try_send(ListenerTriggerKind::OfferedIncompatibleQos(
                 DataWriterNode::new(
                     writer.guid(),
                     parent_publisher_guid,
                     parent_participant_guid,
                 ),
             ))
-            .ok();
+            .unwrap();
     }
 }
 

@@ -15,6 +15,8 @@ use crate::{
             status_listener::ListenerTriggerKind,
         },
         rtps::types::GuidPrefix,
+        rtps_udp_psm::udp_transport::UdpTransportRead,
+        utils::condvar::DdsCondvar,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -34,6 +36,7 @@ use crate::{
 };
 
 use super::{
+    dcps_service::receive_builtin_message,
     domain_participant_factory::{
         DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY, THE_PARTICIPANT_FACTORY,
     },
@@ -656,6 +659,66 @@ impl DomainParticipant {
 }
 
 /////////////////////////////////////////////////////////////////////////
+
+pub async fn task_user_defined_receive(
+    participant_guid_prefix: GuidPrefix,
+    mut default_unicast_transport: UdpTransportRead,
+    listener_sender: Sender<ListenerTriggerKind>,
+) {
+    loop {
+        if let Some((locator, message)) = default_unicast_transport.read().await {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+                &participant_guid_prefix,
+                |dp| {
+                    if let Some(dp) = dp {
+                        dp.receive_user_defined_data(locator, message, &listener_sender)
+                            .ok();
+                    }
+                },
+            );
+        }
+    }
+}
+
+pub async fn task_metatraffic_unicast_receive(
+    participant_guid_prefix: GuidPrefix,
+    mut metatraffic_unicast_transport: UdpTransportRead,
+    sedp_condvar: DdsCondvar,
+    listener_sender: Sender<ListenerTriggerKind>,
+) {
+    loop {
+        if let Some((locator, message)) = metatraffic_unicast_transport.read().await {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
+                if let Some(dp) = dp {
+                    receive_builtin_message(dp, message, locator, &sedp_condvar, &listener_sender)
+                }
+            })
+        }
+    }
+}
+
+pub async fn task_metatraffic_multicast_receive(
+    participant_guid_prefix: GuidPrefix,
+    mut metatraffic_multicast_transport: UdpTransportRead,
+    sedp_condvar: DdsCondvar,
+    listener_sender: Sender<ListenerTriggerKind>,
+) {
+    loop {
+        if let Some((locator, message)) = metatraffic_multicast_transport.read().await {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
+                if let Some(dp) = dp {
+                    super::dcps_service::receive_builtin_message(
+                        dp,
+                        message,
+                        locator,
+                        &sedp_condvar,
+                        &listener_sender,
+                    )
+                }
+            })
+        }
+    }
+}
 
 pub async fn task_update_communication_status(
     participant_guid_prefix: GuidPrefix,

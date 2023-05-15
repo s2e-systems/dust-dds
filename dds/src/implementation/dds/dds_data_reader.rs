@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::mpsc::Sender,
-};
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -255,7 +252,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         message_receiver: &MessageReceiver,
         parent_subscriber_guid: Guid,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
         let data_submessage_received_result = self
             .rtps_reader
@@ -316,7 +313,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         message_receiver: &MessageReceiver,
         parent_subscriber_guid: Guid,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
         let data_submessage_received_result = self
             .rtps_reader
@@ -399,7 +396,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         subscriber_qos: &SubscriberQos,
         parent_subscriber_guid: Guid,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
@@ -522,7 +519,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         discovered_writer_handle: InstanceHandle,
         parent_subscriber_guid: Guid,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let matched_publication = self
             .matched_publication_list
@@ -794,10 +791,10 @@ impl DdsDataReader<RtpsStatefulReader> {
         &self,
         parent_subcriber_guid: Guid,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         listener_sender
-            .send(ListenerTriggerKind::OnDataAvailable(DataReaderNode::new(
+            .try_send(ListenerTriggerKind::OnDataAvailable(DataReaderNode::new(
                 self.guid(),
                 parent_subcriber_guid,
                 parent_participant_guid,
@@ -809,17 +806,17 @@ impl DdsDataReader<RtpsStatefulReader> {
         &mut self,
         parent_subscriber_guid: Guid,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         self.sample_lost_status.increment();
 
         listener_sender
-            .send(ListenerTriggerKind::OnSampleLost(DataReaderNode::new(
+            .try_send(ListenerTriggerKind::OnSampleLost(DataReaderNode::new(
                 self.guid(),
                 parent_subscriber_guid,
                 parent_participant_guid,
             )))
-            .ok();
+            .unwrap();
     }
 
     fn on_subscription_matched(
@@ -827,15 +824,15 @@ impl DdsDataReader<RtpsStatefulReader> {
         instance_handle: InstanceHandle,
         parent_subscriber_guid: Guid,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         self.subscription_matched_status.increment(instance_handle);
 
         listener_sender
-            .send(ListenerTriggerKind::SubscriptionMatched(
+            .try_send(ListenerTriggerKind::SubscriptionMatched(
                 DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
             ))
-            .ok();
+            .unwrap();
     }
 
     fn on_sample_rejected(
@@ -844,18 +841,18 @@ impl DdsDataReader<RtpsStatefulReader> {
         rejected_reason: SampleRejectedStatusKind,
         parent_subscriber_guid: Guid,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
 
         listener_sender
-            .send(ListenerTriggerKind::OnSampleRejected(DataReaderNode::new(
+            .try_send(ListenerTriggerKind::OnSampleRejected(DataReaderNode::new(
                 self.guid(),
                 parent_subscriber_guid,
                 parent_participant_guid,
             )))
-            .ok();
+            .unwrap();
     }
 
     fn on_requested_incompatible_qos(
@@ -863,16 +860,16 @@ impl DdsDataReader<RtpsStatefulReader> {
         incompatible_qos_policy_list: Vec<QosPolicyId>,
         parent_subscriber_guid: Guid,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
 
         listener_sender
-            .send(ListenerTriggerKind::RequestedIncompatibleQos(
+            .try_send(ListenerTriggerKind::RequestedIncompatibleQos(
                 DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
             ))
-            .ok();
+            .unwrap();
     }
 }
 

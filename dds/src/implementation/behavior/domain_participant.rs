@@ -1,12 +1,23 @@
+use std::net::{Ipv4Addr, SocketAddr};
+
+use socket2::Socket;
+
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::domain_participant_factory::DomainId,
+    domain::{
+        domain_participant::{
+            task_metatraffic_multicast_receive, task_metatraffic_unicast_receive,
+            task_user_defined_receive,
+        },
+        domain_participant_factory::DomainId,
+    },
     implementation::{
         dds::{
             dds_domain_participant::DdsDomainParticipant,
             nodes::{PublisherNode, SubscriberNode, TopicNode},
         },
-        rtps::types::Guid,
+        rtps::types::{Guid, LocatorAddress, LocatorPort},
+        rtps_udp_psm::udp_transport::UdpTransportRead,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -247,6 +258,60 @@ pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
     let participant_guid_prefix = domain_participant.guid().prefix();
     let (listener_sender, listener_receiver) = tokio::sync::mpsc::channel(100);
 
+    for metatraffic_multicast_locator in domain_participant.metatraffic_multicast_locator_list() {
+        let metatraffic_multicast_transport = UdpTransportRead::new(
+            get_multicast_socket(
+                metatraffic_multicast_locator.address(),
+                metatraffic_multicast_locator.port(),
+            )
+            .unwrap(),
+        );
+        domain_participant.spawn(task_metatraffic_multicast_receive(
+            participant_guid_prefix,
+            metatraffic_multicast_transport,
+            domain_participant.sedp_condvar().clone(),
+            listener_sender.clone(),
+        ));
+    }
+
+    for metatraffic_unicast_locator in domain_participant.metatraffic_unicast_locator_list() {
+        let metatraffic_unicast_transport = UdpTransportRead::new(
+            tokio::net::UdpSocket::from_std(
+                std::net::UdpSocket::bind(SocketAddr::from((
+                    Ipv4Addr::UNSPECIFIED,
+                    u32::from(metatraffic_unicast_locator.port()) as u16,
+                )))
+                .unwrap(),
+            )
+            .unwrap(),
+        );
+
+        domain_participant.spawn(task_metatraffic_unicast_receive(
+            participant_guid_prefix,
+            metatraffic_unicast_transport,
+            domain_participant.sedp_condvar().clone(),
+            listener_sender.clone(),
+        ))
+    }
+
+    for default_unicast_locator in domain_participant.default_unicast_locator_list() {
+        let default_unicast_transport = UdpTransportRead::new(
+            tokio::net::UdpSocket::from_std(
+                std::net::UdpSocket::bind(SocketAddr::from((
+                    Ipv4Addr::UNSPECIFIED,
+                    u32::from(default_unicast_locator.port()) as u16,
+                )))
+                .unwrap(),
+            )
+            .unwrap(),
+        );
+        domain_participant.spawn(task_user_defined_receive(
+            participant_guid_prefix,
+            default_unicast_transport,
+            listener_sender.clone(),
+        ))
+    }
+
     domain_participant.spawn(
         crate::domain::domain_participant::task_update_communication_status(
             participant_guid_prefix,
@@ -259,4 +324,34 @@ pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
     ));
 
     domain_participant.enable()
+}
+
+fn get_multicast_socket(
+    multicast_address: LocatorAddress,
+    port: LocatorPort,
+) -> std::io::Result<tokio::net::UdpSocket> {
+    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, <u32>::from(port) as u16));
+
+    let socket = Socket::new(
+        socket2::Domain::IPV4,
+        socket2::Type::DGRAM,
+        Some(socket2::Protocol::UDP),
+    )?;
+
+    socket.set_reuse_address(true)?;
+    socket.set_nonblocking(true)?;
+    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
+
+    socket.bind(&socket_addr.into())?;
+    let multicast_addr_bytes: [u8; 16] = multicast_address.into();
+    let addr = Ipv4Addr::new(
+        multicast_addr_bytes[12],
+        multicast_addr_bytes[13],
+        multicast_addr_bytes[14],
+        multicast_addr_bytes[15],
+    );
+    socket.join_multicast_v4(&addr, &Ipv4Addr::UNSPECIFIED)?;
+    socket.set_multicast_loop_v4(true)?;
+
+    tokio::net::UdpSocket::from_std(socket.into())
 }

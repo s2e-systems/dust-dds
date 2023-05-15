@@ -1,4 +1,4 @@
-use std::sync::mpsc::{Sender, SyncSender};
+use std::sync::mpsc::SyncSender;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
@@ -138,7 +138,7 @@ impl DdsTopic {
         &mut self,
         discovered_topic_data: &DiscoveredTopicData,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         if discovered_topic_data
             .topic_builtin_topic_data()
@@ -149,11 +149,11 @@ impl DdsTopic {
         {
             self.inconsistent_topic_status.increment();
             listener_sender
-                .send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
+                .try_send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
                     self.guid(),
                     parent_participant_guid,
                 )))
-                .ok();
+                .unwrap();
         }
     }
 }

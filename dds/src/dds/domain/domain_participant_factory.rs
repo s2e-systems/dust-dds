@@ -24,7 +24,6 @@ use crate::{
                 PROTOCOLVERSION, VENDOR_ID_S2E,
             },
         },
-        rtps_udp_psm::udp_transport::UdpTransport,
         utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
     },
     infrastructure::{
@@ -40,7 +39,6 @@ use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use mac_address::MacAddress;
 use schemars::schema_for;
-use socket2::Socket;
 
 pub type DomainId = i32;
 
@@ -85,37 +83,6 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
             })
         })
         .collect()
-}
-
-fn get_multicast_socket(
-    multicast_address: LocatorAddress,
-    port: LocatorPort,
-) -> std::io::Result<UdpSocket> {
-    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, <u32>::from(port) as u16));
-
-    let socket = Socket::new(
-        socket2::Domain::IPV4,
-        socket2::Type::DGRAM,
-        Some(socket2::Protocol::UDP),
-    )?;
-
-    socket.set_reuse_address(true)?;
-
-    //socket.set_nonblocking(true).ok()?;
-    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
-
-    socket.bind(&socket_addr.into())?;
-    let multicast_addr_bytes: [u8; 16] = multicast_address.into();
-    let addr = Ipv4Addr::new(
-        multicast_addr_bytes[12],
-        multicast_addr_bytes[13],
-        multicast_addr_bytes[14],
-        multicast_addr_bytes[15],
-    );
-    socket.join_multicast_v4(&addr, &Ipv4Addr::UNSPECIFIED)?;
-    socket.set_multicast_loop_v4(true)?;
-
-    Ok(socket.into())
 }
 
 fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfiguration, String> {
@@ -207,17 +174,17 @@ impl DomainParticipantFactory {
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
 
-        let metatraffic_multicast_transport = UdpTransport::new(
-            get_multicast_socket(
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-                port_builtin_multicast(domain_id),
-            )
-            .unwrap(),
-        );
+        // let metatraffic_multicast_transport = UdpTransportRead::new(
+        //     get_multicast_socket(
+        //         DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        //         port_builtin_multicast(domain_id),
+        //     )
+        //     .unwrap(),
+        // );
 
-        let metatraffic_unicast_transport = UdpTransport::new(metattrafic_unicast_socket);
+        // let metatraffic_unicast_transport = UdpTransportRead::new(metattrafic_unicast_socket);
 
-        let default_unicast_transport = UdpTransport::new(default_unicast_socket);
+        // let default_unicast_transport = UdpTransportRead::new(default_unicast_socket);
 
         let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
@@ -262,6 +229,7 @@ impl DomainParticipantFactory {
             configuration.fragment_size,
             announce_sender.clone(),
             timer,
+            sedp_condvar.clone(),
         );
 
         let dcps_service = DcpsService::new(
@@ -269,9 +237,6 @@ impl DomainParticipantFactory {
             default_unicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
-            metatraffic_multicast_transport,
-            metatraffic_unicast_transport,
-            default_unicast_transport,
             &sedp_condvar,
             &user_defined_data_send_condvar,
             announce_sender,
