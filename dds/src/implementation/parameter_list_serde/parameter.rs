@@ -5,14 +5,6 @@ use serde::ser::SerializeTuple;
 
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
 
-// pub type RepresentationType = [u8; 2];
-// pub type RepresentationOptions = [u8; 2];
-// pub const CDR_BE: RepresentationType = [0x00, 0x00];
-// pub const CDR_LE: RepresentationType = [0x00, 0x01];
-// pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
-// pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
-// pub const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parameter<const PID: u16, T>(pub T);
 

@@ -38,82 +38,83 @@ where
     type SerializeMap = Compound<'a, W, E>;
     type SerializeStruct = Compound<'a, W, E>;
     type SerializeStructVariant = Compound<'a, W, E>;
+
     fn serialize_bool(self, _v: bool) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_i8(self, _v: i8) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
-    fn serialize_i16(self, v: i16) -> std::result::Result<Self::Ok, Self::Error> {
-        self.ser.serialize_i16(v)
+    fn serialize_i16(self, _v: i16) -> std::result::Result<Self::Ok, Self::Error> {
+        unimplemented!()
     }
 
     fn serialize_i32(self, _v: i32) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_i64(self, _v: i64) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_u8(self, _v: u8) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
-    fn serialize_u16(self, v: u16) -> std::result::Result<Self::Ok, Self::Error> {
-        self.ser.serialize_u16(v)
+    fn serialize_u16(self, _v: u16) -> std::result::Result<Self::Ok, Self::Error> {
+        unimplemented!()
     }
 
     fn serialize_u32(self, _v: u32) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_u64(self, _v: u64) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_f32(self, _v: f32) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_f64(self, _v: f64) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_char(self, _v: char) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_str(self, _v: &str) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_bytes(self, _v: &[u8]) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_none(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_some<T: ?Sized>(self, _value: &T) -> std::result::Result<Self::Ok, Self::Error>
     where
         T: serde::Serialize,
     {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_unit(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_unit_struct(
         self,
         _name: &'static str,
     ) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_unit_variant(
@@ -122,7 +123,7 @@ where
         _variant_index: u32,
         _variant: &'static str,
     ) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_newtype_struct<T: ?Sized>(
@@ -146,21 +147,21 @@ where
     where
         T: serde::Serialize,
     {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_seq(
         self,
         _len: Option<usize>,
     ) -> std::result::Result<Self::SerializeSeq, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_tuple(
         self,
         _len: usize,
     ) -> std::result::Result<Self::SerializeTuple, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_tuple_struct(
@@ -168,7 +169,7 @@ where
         _name: &'static str,
         _len: usize,
     ) -> std::result::Result<Self::SerializeTupleStruct, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_tuple_variant(
@@ -178,14 +179,14 @@ where
         _variant: &'static str,
         _len: usize,
     ) -> std::result::Result<Self::SerializeTupleVariant, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_map(
         self,
         _len: Option<usize>,
     ) -> std::result::Result<Self::SerializeMap, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_struct(
@@ -203,7 +204,7 @@ where
         _variant: &'static str,
         _len: usize,
     ) -> std::result::Result<Self::SerializeStructVariant, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 }
 
@@ -218,15 +219,15 @@ where
     type Ok = ();
     type Error = cdr::Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
+    fn serialize_element<T: ?Sized>(&mut self, _value: &T) -> std::result::Result<(), Self::Error>
     where
         T: serde::Serialize,
     {
-        value.serialize(&mut *self.ser)
+        unimplemented!()
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        Ok(())
+        unimplemented!()
     }
 }
 
@@ -238,15 +239,15 @@ where
     type Ok = ();
     type Error = cdr::Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
+    fn serialize_element<T: ?Sized>(&mut self, _value: &T) -> std::result::Result<(), Self::Error>
     where
         T: serde::Serialize,
     {
-        value.serialize(&mut *self.ser)
+        unimplemented!()
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 }
 
@@ -258,11 +259,11 @@ impl<'a, W, E> serde::ser::SerializeTupleStruct for Compound<'a, W, E> {
     where
         T: serde::Serialize,
     {
-        todo!()
+        unimplemented!()
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 }
 
@@ -274,11 +275,11 @@ impl<'a, W, E> serde::ser::SerializeTupleVariant for Compound<'a, W, E> {
     where
         T: serde::Serialize,
     {
-        todo!()
+        unimplemented!()
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 }
 
@@ -290,18 +291,18 @@ impl<'a, W, E> serde::ser::SerializeMap for Compound<'a, W, E> {
     where
         T: serde::Serialize,
     {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_value<T: ?Sized>(&mut self, _value: &T) -> std::result::Result<(), Self::Error>
     where
         T: serde::Serialize,
     {
-        todo!()
+        unimplemented!()
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 }
 
@@ -342,11 +343,11 @@ impl<'a, W, E> serde::ser::SerializeStructVariant for Compound<'a, W, E> {
     where
         T: serde::Serialize,
     {
-        todo!()
+        unimplemented!()
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unimplemented!()
     }
 }
 
