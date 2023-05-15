@@ -360,7 +360,7 @@ fn announce_created_topic(
     domain_participant: &DdsDomainParticipant,
     discovered_topic: DiscoveredTopicData,
 ) {
-    let mut serialized_data = dds_serialize(&discovered_topic)
+    let serialized_data = dds_serialize(&discovered_topic)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();

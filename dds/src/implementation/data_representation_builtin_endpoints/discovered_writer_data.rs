@@ -168,6 +168,7 @@ impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
 #[cfg(test)]
 mod tests {
     use crate::builtin_topics::BuiltInTopicKey;
+    use crate::implementation::parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize;
     use crate::implementation::parameter_list_serde::serde_parameter_list_serializer::dds_serialize;
     use crate::implementation::rtps::types::{
         EntityKey, GuidPrefix, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP,
@@ -307,7 +308,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredWriterData = DdsDeserialize::dds_deserialize(&mut data).unwrap();
+        let result: DiscoveredWriterData = dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

@@ -48,7 +48,7 @@ impl UserDefinedSubscriberNode {
         mask: &[StatusKind],
     ) -> DdsResult<UserDefinedDataReaderNode>
     where
-        Foo: DdsType + for<'de> DdsDeserialize<'de>,
+        Foo: DdsType + for<'de> serde::Deserialize<'de>,
     {
         let (default_unicast_locator_list, default_multicast_locator_list) =
             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.0.parent(), |dp| {

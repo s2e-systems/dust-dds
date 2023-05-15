@@ -294,6 +294,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::builtin_topics::BuiltInTopicKey;
+    use crate::implementation::parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize;
     use crate::implementation::parameter_list_serde::serde_parameter_list_serializer::dds_serialize;
     use crate::implementation::rtps::types::{LocatorAddress, LocatorKind, LocatorPort};
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
@@ -425,7 +426,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
         let result: SpdpDiscoveredParticipantData =
-            DdsDeserialize::dds_deserialize(&mut data).unwrap();
+            dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 

@@ -1033,7 +1033,7 @@ impl DdsDomainParticipant {
             ),
             self.lease_duration,
         );
-        let mut serialized_data = dds_serialize(&spdp_discovered_participant_data).map_err(|err|DdsError::Error)?;
+        let serialized_data = dds_serialize(&spdp_discovered_participant_data).map_err(|_err|DdsError::Error)?;
 
         self.builtin_publisher
             .stateless_data_writer_list()
@@ -1576,7 +1576,7 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsStatelessWriter {
 
 fn create_builtin_stateless_reader<Foo>(guid: Guid) -> RtpsStatelessReader
 where
-    Foo: DdsType + for<'de> DdsDeserialize<'de>,
+    Foo: DdsType + for<'de> serde::Deserialize<'de>,
 {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
@@ -1610,7 +1610,7 @@ where
 
 fn create_builtin_stateful_reader<Foo>(guid: Guid) -> RtpsStatefulReader
 where
-    Foo: DdsType + for<'de> DdsDeserialize<'de>,
+    Foo: DdsType + for<'de> serde::Deserialize<'de>,
 {
     let qos = DataReaderQos {
         durability: DurabilityQosPolicy {

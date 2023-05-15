@@ -12,7 +12,7 @@ use crate::{
                 STATUS_INFO_UNREGISTERED,
             },
         },
-        dds_impl::status_condition_impl::StatusConditionImpl,
+        dds_impl::status_condition_impl::StatusConditionImpl, parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -117,13 +117,13 @@ struct InstanceHandleBuilder(fn(&mut &[u8]) -> RtpsReaderResult<DdsSerializedKey
 impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
-        Foo: for<'de> DdsDeserialize<'de> + DdsType,
+        Foo: for<'de> serde::Deserialize<'de> + DdsType,
     {
         fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>
         where
-            Foo: for<'de> DdsDeserialize<'de> + DdsType,
+            Foo: for<'de> serde::Deserialize<'de> + DdsType,
         {
-            Ok(Foo::dds_deserialize(data)
+            Ok(dds_deserialize::<Foo>(data)
                 .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize data"))?
                 .get_serialized_key())
         }
@@ -234,7 +234,7 @@ impl RtpsReader {
         qos: DataReaderQos,
     ) -> Self
     where
-        Foo: DdsType + for<'de> DdsDeserialize<'de>,
+        Foo: DdsType + for<'de> serde::Deserialize<'de>,
     {
         let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
         Self {

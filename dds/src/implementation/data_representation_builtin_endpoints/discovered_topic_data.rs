@@ -65,6 +65,7 @@ impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
 #[cfg(test)]
 mod tests {
     use crate::builtin_topics::BuiltInTopicKey;
+    use crate::implementation::parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize;
     use crate::implementation::parameter_list_serde::serde_parameter_list_serializer::dds_serialize;
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
@@ -157,7 +158,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredTopicData = DdsDeserialize::dds_deserialize(&mut data).unwrap();
+        let result: DiscoveredTopicData = dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }
