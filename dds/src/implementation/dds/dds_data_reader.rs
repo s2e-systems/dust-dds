@@ -50,8 +50,7 @@ use crate::{
 };
 
 use super::{
-    message_receiver::MessageReceiver, nodes::DataReaderNode,
-    status_listener::ListenerTriggerKind,
+    message_receiver::MessageReceiver, nodes::DataReaderNode, status_listener::ListenerTriggerKind,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -754,7 +753,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         now: Time,
         parent_participant_guid: Guid,
         parent_subcriber_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let (missed_deadline_instances, instance_reception_time) = self
             .instance_reception_time
@@ -771,7 +770,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                 .increment(missed_deadline_instance);
 
             listener_sender
-                .send(ListenerTriggerKind::RequestedDeadlineMissed(
+                .blocking_send(ListenerTriggerKind::RequestedDeadlineMissed(
                     DataReaderNode::new(
                         self.guid(),
                         parent_subcriber_guid,
@@ -798,13 +797,11 @@ impl DdsDataReader<RtpsStatefulReader> {
         listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         listener_sender
-            .send(ListenerTriggerKind::OnDataAvailable(
-                DataReaderNode::new(
-                    self.guid(),
-                    parent_subcriber_guid,
-                    parent_participant_guid,
-                ),
-            ))
+            .send(ListenerTriggerKind::OnDataAvailable(DataReaderNode::new(
+                self.guid(),
+                parent_subcriber_guid,
+                parent_participant_guid,
+            )))
             .unwrap();
     }
 
@@ -817,13 +814,11 @@ impl DdsDataReader<RtpsStatefulReader> {
         self.sample_lost_status.increment();
 
         listener_sender
-            .send(ListenerTriggerKind::OnSampleLost(
-                DataReaderNode::new(
-                    self.guid(),
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                ),
-            ))
+            .send(ListenerTriggerKind::OnSampleLost(DataReaderNode::new(
+                self.guid(),
+                parent_subscriber_guid,
+                parent_participant_guid,
+            )))
             .ok();
     }
 
@@ -838,11 +833,7 @@ impl DdsDataReader<RtpsStatefulReader> {
 
         listener_sender
             .send(ListenerTriggerKind::SubscriptionMatched(
-                DataReaderNode::new(
-                    self.guid(),
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                ),
+                DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
             ))
             .ok();
     }
@@ -859,13 +850,11 @@ impl DdsDataReader<RtpsStatefulReader> {
             .increment(instance_handle, rejected_reason);
 
         listener_sender
-            .send(ListenerTriggerKind::OnSampleRejected(
-                DataReaderNode::new(
-                    self.guid(),
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                ),
-            ))
+            .send(ListenerTriggerKind::OnSampleRejected(DataReaderNode::new(
+                self.guid(),
+                parent_subscriber_guid,
+                parent_participant_guid,
+            )))
             .ok();
     }
 
@@ -881,11 +870,7 @@ impl DdsDataReader<RtpsStatefulReader> {
 
         listener_sender
             .send(ListenerTriggerKind::RequestedIncompatibleQos(
-                DataReaderNode::new(
-                    self.guid(),
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                ),
+                DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
             ))
             .ok();
     }

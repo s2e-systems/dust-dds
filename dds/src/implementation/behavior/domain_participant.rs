@@ -244,5 +244,15 @@ pub fn get_qos(domain_participant: &DdsDomainParticipant) -> DdsResult<DomainPar
 }
 
 pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
+    let participant_guid_prefix = domain_participant.guid().prefix();
+    let (listener_sender, _listener_receiver) = tokio::sync::mpsc::channel(100);
+
+    domain_participant.spawn(
+        crate::domain::domain_participant::task_update_communication_status(
+            participant_guid_prefix,
+            listener_sender,
+        ),
+    );
+
     domain_participant.enable()
 }

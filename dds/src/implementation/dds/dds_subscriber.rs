@@ -167,7 +167,7 @@ impl DdsSubscriber {
         &mut self,
         now: Time,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let guid = self.guid();
         for data_reader in self.stateful_data_reader_list.iter_mut() {

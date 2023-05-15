@@ -154,28 +154,6 @@ impl DcpsService {
 
         let (listener_sender, listener_receiver) = mpsc::channel();
 
-        // //////////// Notification thread
-        {
-            let task_quit = quit.clone();
-            let listener_sender_clone = listener_sender.clone();
-
-            threads.push(std::thread::spawn(move || loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                    &participant_guid_prefix,
-                    |dp| {
-                        if let Some(dp) = dp {
-                            dp.update_communication_status(&listener_sender_clone).ok();
-                        }
-                    },
-                );
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            }));
-        }
-
         // //////////// SPDP Communication
 
         // ////////////// SPDP participant discovery
@@ -778,10 +756,16 @@ fn on_sample_rejected_communication_change(data_reader_node: DataReaderNode) {
 
 fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
     fn get_sample_lost_status(data_reader_node: &DataReaderNode) -> DdsResult<SampleLostStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_sample_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
-            })
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+            &data_reader_node.parent_participant().prefix(),
+            |dp| {
+                crate::implementation::behavior::user_defined_data_reader::get_sample_lost_status(
+                    dp.ok_or(DdsError::AlreadyDeleted)?,
+                    data_reader_node.guid(),
+                    data_reader_node.parent_subscriber(),
+                )
+            },
+        )
     }
 
     let status_kind = StatusKind::SampleLost;
@@ -995,10 +979,15 @@ fn on_publication_matched_communication_change(data_writer_node: DataWriterNode)
 
 fn on_inconsistent_topic_communication_change(topic_node: TopicNode) {
     fn get_inconsistent_topic_status(topic_node: &TopicNode) -> DdsResult<InconsistentTopicStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut(&topic_node.parent_participant().prefix(), |dp| {
-                crate::implementation::behavior::user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, topic_node.guid())
-            })
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+            &topic_node.parent_participant().prefix(),
+            |dp| {
+                crate::implementation::behavior::user_defined_topic::get_inconsistent_topic_status(
+                    dp.ok_or(DdsError::AlreadyDeleted)?,
+                    topic_node.guid(),
+                )
+            },
+        )
     }
 
     let status_kind = StatusKind::InconsistentTopic;

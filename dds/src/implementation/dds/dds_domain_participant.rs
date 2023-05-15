@@ -1,4 +1,5 @@
 use fnmatch_regex::glob_to_regex;
+use tokio::runtime::Runtime;
 
 use crate::{
     builtin_topics::{
@@ -15,9 +16,7 @@ use crate::{
                 ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
             },
         },
-        dds::{
-            dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
-        },
+        dds::{dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber, dds_topic::DdsTopic},
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
@@ -78,6 +77,7 @@ use crate::{
 
 use std::{
     collections::{HashMap, HashSet},
+    future::Future,
     sync::{
         atomic::{AtomicU8, Ordering},
         mpsc::{Sender, SyncSender},
@@ -151,6 +151,7 @@ pub struct DdsDomainParticipant {
     data_max_size_serialized: usize,
     timer: DdsShared<DdsRwLock<Timer>>,
     announce_sender: SyncSender<AnnounceKind>,
+    task_executor: Runtime,
 }
 
 impl Drop for DdsDomainParticipant {
@@ -348,7 +349,16 @@ impl DdsDomainParticipant {
             data_max_size_serialized,
             timer,
             announce_sender,
+            task_executor: Runtime::new().unwrap(),
         }
+    }
+
+    pub fn spawn<F>(&self, future: F)
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        self.task_executor.spawn(future);
     }
 
     pub fn guid(&self) -> Guid {
@@ -1204,7 +1214,7 @@ impl DdsDomainParticipant {
 
     pub fn update_communication_status(
         &mut self,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         let now = self.get_current_time();
         let guid = self.guid();
