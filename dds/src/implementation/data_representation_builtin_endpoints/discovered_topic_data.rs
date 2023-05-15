@@ -49,14 +49,13 @@ impl DdsType for DiscoveredTopicData {
 #[cfg(test)]
 mod tests {
     use crate::builtin_topics::BuiltInTopicKey;
-    use crate::implementation::parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize;
-    use crate::implementation::parameter_list_serde::serde_parameter_list_serializer::dds_serialize;
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
         LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
+    use crate::topic_definition::type_support::{dds_serialize, dds_deserialize};
 
     use super::*;
 

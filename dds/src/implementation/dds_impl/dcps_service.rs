@@ -19,7 +19,6 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
-        parameter_list_serde::serde_parameter_list_serializer::dds_serialize,
         rtps::{
             discovery_types::BuiltinEndpointSet,
             history_cache::RtpsWriterCacheChange,
@@ -53,7 +52,7 @@ use crate::{
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::type_support::{DdsSerializedKey, DdsType},
+    topic_definition::type_support::{DdsSerializedKey, DdsType, dds_serialize},
 };
 
 use super::{

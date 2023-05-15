@@ -2,14 +2,9 @@ use std::io::Write;
 use std::marker::PhantomData;
 use std::{self};
 
-use byteorder::{ByteOrder, WriteBytesExt};
+use byteorder::ByteOrder;
 
-use crate::topic_definition::type_support::DdsType;
-use cdr::Error;
-
-use super::parameter::{
-    CDR_BE, CDR_LE, PID_SENTINEL, PL_CDR_BE, PL_CDR_LE, REPRESENTATION_OPTIONS,
-};
+use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
 
 pub struct ParameterListSerializer<W, E> {
     ser: cdr::Serializer<W, E>,
@@ -330,7 +325,8 @@ where
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        Ok(())
+        serde::Serialize::serialize(&PID_SENTINEL, &mut *self.ser)?;
+        serde::Serialize::serialize(&[0u8; 2], &mut *self.ser)
     }
 }
 
@@ -354,68 +350,19 @@ impl<'a, W, E> serde::ser::SerializeStructVariant for Compound<'a, W, E> {
     }
 }
 
-pub fn dds_serialize<T>(value: &T) -> Result<Vec<u8>, Error>
-where
-    T: serde::Serialize + DdsType,
-{
-    let mut writer = vec![];
-    match T::REPRESENTATION_IDENTIFIER {
-        CDR_BE => {
-            writer.write_all(&CDR_BE)?;
-            writer.write_all(&REPRESENTATION_OPTIONS)?;
-            let mut serializer = cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
-            serde::Serialize::serialize(value, &mut serializer)?;
-        }
-        CDR_LE => {
-            writer.write_all(&CDR_LE)?;
-            writer.write_all(&REPRESENTATION_OPTIONS)?;
-            let mut serializer =
-                cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
-            serde::Serialize::serialize(value, &mut serializer)?;
-        }
-        PL_CDR_BE => {
-            writer.write_all(&PL_CDR_BE)?;
-            writer.write_all(&REPRESENTATION_OPTIONS)?;
-            let mut serializer =
-                ParameterListSerializer::<_, byteorder::BigEndian>::new(&mut writer);
-            serde::Serialize::serialize(value, &mut serializer).unwrap();
-            writer.write_u16::<byteorder::BigEndian>(PID_SENTINEL)?;
-            writer.write_i16::<byteorder::BigEndian>(0)?;
-        }
-        PL_CDR_LE => {
-            writer.write_all(&PL_CDR_LE)?;
-            writer.write_all(&REPRESENTATION_OPTIONS)?;
-            let mut serializer =
-                ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut writer);
-            serde::Serialize::serialize(value, &mut serializer).unwrap();
-            writer.write_u16::<byteorder::LittleEndian>(PID_SENTINEL)?;
-            writer.write_i16::<byteorder::LittleEndian>(0)?;
-        }
-        _ => todo!(),
-    };
-    Ok(writer)
-}
-
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::{
         implementation::parameter_list_serde::parameter::{
-            Parameter, ParameterVector, ParameterWithDefault, RepresentationType, PL_CDR_LE,
+            Parameter, ParameterVector, ParameterWithDefault,
         },
     };
-
-    use super::*;
 
     #[derive(Debug, PartialEq, serde::Serialize)]
     struct Inner {
         id: Parameter<71, u8>,
         n: Parameter<72, u16>,
-    }
-    impl DdsType for Inner {
-        const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-        fn type_name() -> &'static str {
-            todo!()
-        }
     }
     #[test]
     fn serialize_pl_le() {
@@ -424,14 +371,36 @@ mod tests {
             n: Parameter(34),
         };
         let expected = &[
-            0x00, 0x03, 0, 0, // representation identifier
             71, 0x00, 4, 0, // id | Length (incl padding)
-            21, 0, 0, 0, // u16
+            21, 0, 0, 0, // u8
             72, 0x00, 4, 0, // n | Length (incl padding)
-            34, 0, 0, 0, // u8
+            34, 0, 0, 0, // u16
             1, 0, 0, 0, // Sentinel
         ][..];
-        let result = dds_serialize(&data).unwrap();
+        let mut result = vec![];
+        let mut serializer =
+            ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
+        serde::Serialize::serialize(&data, &mut serializer).unwrap();
+        assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn serialize_pl_be() {
+        let data = Inner {
+            id: Parameter(21),
+            n: Parameter(34),
+        };
+        let expected = &[
+            0x00, 71, 0, 4, // id | Length (incl padding)
+            21, 0, 0, 0, // u8
+            0x00, 72, 0, 4, // n | Length (incl padding)
+            0, 34, 0, 0, // u16
+            0, 1, 0, 0, // Sentinel
+        ][..];
+        let mut result = vec![];
+        let mut serializer =
+            ParameterListSerializer::<_, byteorder::BigEndian>::new(&mut result);
+        serde::Serialize::serialize(&data, &mut serializer).unwrap();
         assert_eq!(result, expected)
     }
 
@@ -439,13 +408,6 @@ mod tests {
     struct PlWithList {
         id: Parameter<71, u8>,
         values: ParameterVector<93, u16>,
-    }
-    impl DdsType for PlWithList {
-        const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-        fn type_name() -> &'static str {
-            todo!()
-        }
     }
 
     #[test]
@@ -455,7 +417,6 @@ mod tests {
             values: ParameterVector(vec![34, 35]),
         };
         let expected = &[
-            0x00, 0x03, 0, 0, // representation identifier
             71, 0x00, 4, 0, // id | Length (incl padding)
             21, 0, 0, 0, // u8
             93, 0x00, 4, 0, // values | Length (incl padding)
@@ -464,7 +425,10 @@ mod tests {
             35, 0, 0, 0, // u16
             1, 0, 0, 0, // Sentinel
         ][..];
-        let result = dds_serialize(&data).unwrap();
+        let mut result = vec![];
+        let mut serializer =
+            ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
+        serde::Serialize::serialize(&data, &mut serializer).unwrap();
         assert_eq!(result, expected)
     }
 
@@ -472,13 +436,6 @@ mod tests {
     struct PlOuter {
         outer: Parameter<2, u8>,
         inner: Inner,
-    }
-    impl DdsType for PlOuter {
-        const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-        fn type_name() -> &'static str {
-            todo!()
-        }
     }
 
     #[test]
@@ -492,7 +449,6 @@ mod tests {
         };
 
         let expected = &[
-            0x00, 0x03, 0, 0, // representation identifier
             2, 0x00, 4, 0, // n | Length (incl padding)
             7, 0, 0, 0, // u8
             71, 0x00, 4, 0, // id | Length (incl padding)
@@ -501,43 +457,17 @@ mod tests {
             34, 0, 0, 0, // u8
             1, 0, 0, 0, // Sentinel
         ][..];
-        let result = dds_serialize(&data).unwrap();
+        let mut result = vec![];
+        let mut serializer =
+            ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
+        serde::Serialize::serialize(&data, &mut serializer).unwrap();
         assert_eq!(result, expected)
     }
 
     #[derive(Debug, PartialEq, serde::Serialize)]
-    struct UserData {
-        id: u8,
-        n: i32,
-    }
-    impl DdsType for UserData {
-        fn type_name() -> &'static str {
-            todo!()
-        }
-    }
-
-    #[test]
-    fn cdr_simple() {
-        let data = UserData { id: 3, n: 4 };
-        let expected = &[
-            0x00, 0x01, 0, 0, // representation identifier
-            3, 0, 0, 0, // id
-            4, 0, 0, 0, // n
-        ][..];
-        let result = dds_serialize(&data).unwrap();
-        assert_eq!(expected, result)
-    }
-    #[derive(Debug, PartialEq, serde::Serialize)]
     struct InnerWithDefault {
         id: Parameter<71, u8>,
         n: ParameterWithDefault<72, u8>,
-    }
-    impl DdsType for InnerWithDefault {
-        const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-        fn type_name() -> &'static str {
-            todo!()
-        }
     }
 
     #[test]
@@ -547,12 +477,14 @@ mod tests {
             n: ParameterWithDefault(0),
         };
         let expected = &[
-            0x00, 0x03, 0, 0, // representation identifier
             71, 0x00, 4, 0, // id | Length (incl padding)
             21, 0, 0, 0, // u8
             1, 0, 0, 0, // Sentinel
         ][..];
-        let result = dds_serialize(&data).unwrap();
+        let mut result = vec![];
+        let mut serializer =
+            ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
+        serde::Serialize::serialize(&data, &mut serializer).unwrap();
         assert_eq!(result, expected)
     }
 }

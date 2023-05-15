@@ -13,7 +13,6 @@ use crate::{
             },
         },
         dds_impl::status_condition_impl::StatusConditionImpl,
-        parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -27,7 +26,7 @@ use crate::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{dds_deserialize, DdsDeserialize, DdsSerializedKey, DdsType},
 };
 
 use super::{

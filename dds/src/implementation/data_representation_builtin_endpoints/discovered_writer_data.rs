@@ -115,8 +115,6 @@ impl DdsType for DiscoveredWriterData {
 #[cfg(test)]
 mod tests {
     use crate::builtin_topics::BuiltInTopicKey;
-    use crate::implementation::parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize;
-    use crate::implementation::parameter_list_serde::serde_parameter_list_serializer::dds_serialize;
     use crate::implementation::rtps::types::{
         EntityKey, GuidPrefix, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP,
         BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_UNKNOWN,
@@ -127,6 +125,7 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
+    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
 
     use super::*;
 

@@ -2,12 +2,9 @@ use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::{
-        dds_impl::{
-            any_data_writer_listener::AnyDataWriterListener,
-            node_kind::{DataWriterNodeKind, TopicNodeKind},
-        },
-        parameter_list_serde::serde_parameter_list_serializer::dds_serialize,
+    implementation::dds_impl::{
+        any_data_writer_listener::AnyDataWriterListener,
+        node_kind::{DataWriterNodeKind, TopicNodeKind},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -23,7 +20,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsSerialize, DdsType},
+        type_support::{dds_serialize, DdsSerialize, DdsType},
     },
 };
 

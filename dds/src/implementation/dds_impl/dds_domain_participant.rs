@@ -21,7 +21,6 @@ use crate::{
         dds_impl::{
             dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
         },
-        parameter_list_serde::serde_parameter_list_serializer::dds_serialize,
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
@@ -77,7 +76,7 @@ use crate::{
         },
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsType, dds_serialize},
     {
         builtin_topics::TopicBuiltinTopicData,
         infrastructure::{

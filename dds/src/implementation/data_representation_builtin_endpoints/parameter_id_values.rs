@@ -5,7 +5,7 @@ use crate::{
 
 // Constant value from Table 9.13 - ParameterId Values
 pub const _PID_PAD: u16 = 0x0000;
-pub const _PID_SENTINEL: u16 = 0x0001;
+pub const PID_SENTINEL: u16 = 0x0001;
 pub const PID_USER_DATA: u16 = 0x002c;
 pub const PID_TOPIC_NAME: u16 = 0x0005;
 pub const PID_TYPE_NAME: u16 = 0x0007;

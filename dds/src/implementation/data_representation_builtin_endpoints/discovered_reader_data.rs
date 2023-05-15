@@ -120,8 +120,6 @@ impl DdsType for DiscoveredReaderData {
 mod tests {
     use super::*;
     use crate::builtin_topics::BuiltInTopicKey;
-    use crate::implementation::parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize;
-    use crate::implementation::parameter_list_serde::serde_parameter_list_serializer::dds_serialize;
     use crate::implementation::rtps::types::{
         EntityKey, GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
         USER_DEFINED_UNKNOWN,
@@ -132,6 +130,7 @@ mod tests {
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
+    use crate::topic_definition::type_support::{dds_serialize, dds_deserialize};
 
     #[test]
     fn serialize_all_default() {

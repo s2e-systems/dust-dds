@@ -3,15 +3,15 @@ use std::{self, marker::PhantomData};
 use serde::de::{self};
 use serde::ser::SerializeTuple;
 
-pub type RepresentationType = [u8; 2];
-pub type RepresentationOptions = [u8; 2];
-pub const CDR_BE: RepresentationType = [0x00, 0x00];
-pub const CDR_LE: RepresentationType = [0x00, 0x01];
-pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
-pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
-pub const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
+use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
 
-pub const PID_SENTINEL: u16 = 1;
+// pub type RepresentationType = [u8; 2];
+// pub type RepresentationOptions = [u8; 2];
+// pub const CDR_BE: RepresentationType = [0x00, 0x00];
+// pub const CDR_LE: RepresentationType = [0x00, 0x01];
+// pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
+// pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
+// pub const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parameter<const PID: u16, T>(pub T);
@@ -19,10 +19,8 @@ pub struct Parameter<const PID: u16, T>(pub T);
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParameterWithDefault<const PID: u16, T>(pub T);
 
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParameterVector<const PID: u16, T>(pub Vec<T>);
-
 
 impl<const PID: u16, T> From<T> for Parameter<PID, T> {
     fn from(v: T) -> Self {
@@ -41,7 +39,6 @@ impl<const PID: u16, T> From<Vec<T>> for ParameterVector<PID, T> {
         ParameterVector(v)
     }
 }
-
 
 impl<const PID: u16, T> serde::Serialize for Parameter<PID, T>
 where
@@ -130,9 +127,6 @@ where
     }
 }
 
-
-
-
 impl<'de, const PID: u16, T> serde::Deserialize<'de> for Parameter<PID, T>
 where
     T: serde::Deserialize<'de>,
@@ -179,7 +173,6 @@ where
         )
     }
 }
-
 
 impl<'de, const PID: u16, T> serde::Deserialize<'de> for ParameterWithDefault<PID, T>
 where
@@ -228,7 +221,6 @@ where
         )
     }
 }
-
 
 impl<'de, const PID: u16, T> serde::Deserialize<'de> for ParameterVector<PID, T>
 where

@@ -1,13 +1,9 @@
-use std::{self, io::Read, marker::PhantomData};
+use std::{self, marker::PhantomData};
 
 use byteorder::ByteOrder;
 use serde::de::{self};
 
 use cdr::Error;
-
-use super::parameter::{
-    RepresentationOptions, RepresentationType, CDR_BE, CDR_LE, PL_CDR_BE, PL_CDR_LE,
-};
 
 pub struct ParameterListDeserializer<'a, E> {
     data: &'a [u8],
@@ -339,45 +335,12 @@ where
     }
 }
 
-pub fn dds_deserialize<'de, T>(mut data: &'de [u8]) -> Result<T, Error>
-where
-    T: serde::Deserialize<'de>,
-{
-    let mut representation_identifier: RepresentationType = [0, 0];
-    data.read_exact(&mut representation_identifier)?;
-
-    let mut representation_option: RepresentationOptions = [0, 0];
-    data.read_exact(&mut representation_option)?;
-
-    match representation_identifier {
-        CDR_BE => {
-            let mut deserializer =
-                cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
-            serde::Deserialize::deserialize(&mut deserializer)
-        }
-        CDR_LE => {
-            let mut deserializer =
-                cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(data, cdr::Infinite);
-            serde::Deserialize::deserialize(&mut deserializer)
-        }
-        PL_CDR_BE => {
-            let mut deserializer = ParameterListDeserializer::<byteorder::BigEndian>::new(data);
-            serde::Deserialize::deserialize(&mut deserializer)
-        }
-        PL_CDR_LE => {
-            let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
-            serde::Deserialize::deserialize(&mut deserializer)
-        }
-        _ => Err(Error::InvalidEncapsulation),
-    }
-}
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::implementation::parameter_list_serde::parameter::{
         Parameter, ParameterVector, ParameterWithDefault,
     };
-
-    use super::*;
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct CdrParameterType {
@@ -466,7 +429,6 @@ mod tests {
             values: ParameterVector(vec![34, 35]),
         };
         let data = &[
-            0x00, 0x03, 0, 0, // representation identifier
             71, 0x00, 4, 0, // id | Length (incl padding)
             21, 0, 0, 0, // u8
             93, 0x00, 4, 0, // values | Length (incl padding)
@@ -475,7 +437,8 @@ mod tests {
             35, 0, 0, 0, // u16
             1, 0, 0, 0, // Sentinel
         ][..];
-        let result: PlWithList = dds_deserialize(&data).unwrap();
+        let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
+        let result: PlWithList = serde::Deserialize::deserialize(&mut deserializer).unwrap();
         assert_eq!(result, expected)
     }
 
@@ -494,7 +457,6 @@ mod tests {
             },
         };
         let data = &[
-            0x00, 0x03, 0, 0, // representation identifier
             72, 0x00, 4, 0, // n | Length (incl padding)
             34, 0, 0, 0, // u8
             2, 0x00, 4, 0, // outer | Length (incl padding)
@@ -503,25 +465,8 @@ mod tests {
             21, 0, 0, 0, // u8
             1, 0, 0, 0, // Sentinel
         ][..];
-
-        let result: PlOuter = dds_deserialize(data).unwrap();
-        assert_eq!(result, expected)
-    }
-
-    #[derive(Debug, PartialEq, serde::Deserialize)]
-    struct UserInner {
-        id: u8,
-        n: u32,
-    }
-    #[test]
-    fn deserialize_cdr_simple() {
-        let expected = UserInner { id: 21, n: 34 };
-        let data = &[
-            0x00, 0x01, 0, 0, // representation identifier
-            21, 0, 0, 0, // id
-            34, 0, 0, 0, // n
-        ][..];
-        let result: UserInner = dds_deserialize(data).unwrap();
+        let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
+        let result: PlOuter = serde::Deserialize::deserialize(&mut deserializer).unwrap();
         assert_eq!(result, expected)
     }
 }
