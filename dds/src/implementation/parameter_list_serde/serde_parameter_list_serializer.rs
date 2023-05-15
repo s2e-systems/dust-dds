@@ -4,10 +4,12 @@ use std::{self};
 
 use byteorder::{ByteOrder, WriteBytesExt};
 
-use cdr::Error;
 use crate::topic_definition::type_support::RepresentationFormat;
+use cdr::Error;
 
-use super::parameter::{REPRESENTATION_OPTIONS, PID_SENTINEL};
+use super::parameter::{
+    CDR_BE, CDR_LE, PID_SENTINEL, PL_CDR_BE, PL_CDR_LE, REPRESENTATION_OPTIONS,
+};
 
 pub struct ParameterListSerializer<W, E> {
     ser: cdr::Serializer<W, E>,
@@ -396,7 +398,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{topic_definition::type_support::{DdsSerde, RepresentationFormat}, implementation::parameter_list_serde::parameter::{Parameter, RepresentationType, PL_CDR_LE, ParameterVector, ParameterWithDefault}};
+    use crate::{
+        implementation::parameter_list_serde::parameter::{
+            Parameter, ParameterVector, ParameterWithDefault, RepresentationType, PL_CDR_LE,
+        },
+        topic_definition::type_support::{DdsSerde, RepresentationFormat},
+    };
 
     use super::*;
 

@@ -4,13 +4,15 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         parameter_list_serde::{
-            parameter_list_deserializer::ParameterListDeserializer, parameter::{Parameter, ParameterVector, ParameterWithDefault},
+            parameter::{Parameter, ParameterVector, ParameterWithDefault},
+            parameter_list_deserializer::ParameterListDeserializer,
         },
         rtps::types::{EntityId, ExpectsInlineQos, Guid, Locator},
     },
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsDeserialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE, RepresentationFormat,
+        DdsDeserialize, DdsSerializedKey, DdsType, RepresentationFormat, RepresentationType,
+        PL_CDR_LE,
     },
 };
 
@@ -68,7 +70,6 @@ impl ReaderProxy {
         self.expects_inline_qos.0.into()
     }
 }
-
 
 impl<'de> DdsDeserialize<'de> for ReaderProxy {
     fn dds_deserialize_parameter_list<E: ByteOrder>(
@@ -140,7 +141,6 @@ impl DdsType for DiscoveredReaderData {
     }
 }
 
-
 impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
     fn dds_deserialize_parameter_list<E: ByteOrder>(
         deserializer: &mut ParameterListDeserializer<'de, E>,
@@ -158,6 +158,7 @@ impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
 mod tests {
     use super::*;
     use crate::builtin_topics::BuiltInTopicKey;
+    use crate::implementation::parameter_list_serde::serde_parameter_list_deserializer::dds_deserialize;
     use crate::implementation::parameter_list_serde::serde_parameter_list_serializer::dds_serialize;
     use crate::implementation::rtps::types::{
         EntityKey, GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
@@ -172,16 +173,13 @@ mod tests {
 
     #[test]
     fn serialize_all_default() {
-        let data = DiscoveredReaderData{
+        let data = DiscoveredReaderData {
             reader_proxy: ReaderProxy::new(
                 Guid::new(
                     GuidPrefix::new([5; 12]),
                     EntityId::new(EntityKey::new([11, 12, 13]), USER_DEFINED_READER_WITH_KEY),
                 ),
-                EntityId::new(
-                    EntityKey::new([21, 22, 23]),
-                    BUILT_IN_WRITER_WITH_KEY,
-                ),
+                EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_WRITER_WITH_KEY),
                 vec![],
                 vec![],
                 false,
@@ -246,10 +244,7 @@ mod tests {
                     GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
                     EntityId::new(EntityKey::new([4, 0, 0]), USER_DEFINED_UNKNOWN),
                 ),
-                EntityId::new(
-                    EntityKey::new([21, 22, 23]),
-                    BUILT_IN_WRITER_WITH_KEY,
-                ),
+                EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_WRITER_WITH_KEY),
                 vec![],
                 vec![],
                 false,
@@ -301,7 +296,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredReaderData = DdsDeserialize::dds_deserialize(&mut data).unwrap();
+        let result: DiscoveredReaderData = dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

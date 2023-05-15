@@ -5,7 +5,9 @@ use serde::de::{self};
 
 use cdr::Error;
 
-use super::parameter::{RepresentationType, RepresentationOptions};
+use super::parameter::{
+    RepresentationOptions, RepresentationType, CDR_BE, CDR_LE, PL_CDR_BE, PL_CDR_LE,
+};
 
 pub struct ParameterListDeserializer<'a, E> {
     data: &'a [u8],
@@ -375,7 +377,6 @@ where
     }
 }
 
-
 pub fn dds_deserialize<'de, T>(mut data: &'de [u8]) -> Result<T, Error>
 where
     T: serde::Deserialize<'de>,
@@ -410,7 +411,9 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use crate::implementation::parameter_list_serde::parameter::{Parameter, ParameterWithDefault, ParameterVector};
+    use crate::implementation::parameter_list_serde::parameter::{
+        Parameter, ParameterVector, ParameterWithDefault,
+    };
 
     use super::*;
 
