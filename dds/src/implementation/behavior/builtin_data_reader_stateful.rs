@@ -1,5 +1,5 @@
 use crate::{
-    implementation::rtps::types::Guid,
+    implementation::{dds_impl::dds_domain_participant::DdsDomainParticipant, rtps::types::Guid},
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -11,8 +11,6 @@ use crate::{
     },
     topic_definition::type_support::DdsDeserialize,
 };
-
-use super::dds_domain_participant::DdsDomainParticipant;
 
 pub fn read<Foo>(
     domain_participant: &mut DdsDomainParticipant,
@@ -28,7 +26,7 @@ where
 {
     domain_participant
         .get_builtin_subscriber_mut()
-        .get_stateless_data_reader_mut(reader_guid)
+        .get_stateful_data_reader_mut(reader_guid)
         .ok_or(DdsError::AlreadyDeleted)?
         .read(
             max_samples,
@@ -53,7 +51,7 @@ where
 {
     domain_participant
         .get_builtin_subscriber_mut()
-        .get_stateless_data_reader_mut(reader_guid)
+        .get_stateful_data_reader_mut(reader_guid)
         .ok_or(DdsError::AlreadyDeleted)?
         .read_next_instance(
             max_samples,
@@ -70,7 +68,7 @@ pub fn get_qos(
 ) -> DdsResult<DataReaderQos> {
     Ok(domain_participant
         .get_builtin_subscriber()
-        .get_stateless_data_reader(reader_guid)
+        .get_stateful_data_reader(reader_guid)
         .ok_or(DdsError::AlreadyDeleted)?
         .get_qos())
 }

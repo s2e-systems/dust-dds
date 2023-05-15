@@ -1,12 +1,13 @@
 use crate::{
-    implementation::rtps::types::Guid,
+    implementation::{
+        dds_impl::{
+            dds_domain_participant::DdsDomainParticipant,
+            nodes::{DataReaderNode, DataReaderNodeKind},
+        },
+        rtps::types::Guid,
+    },
     infrastructure::{error::DdsResult, qos::SubscriberQos},
     topic_definition::type_support::DdsType,
-};
-
-use super::{
-    dds_domain_participant::DdsDomainParticipant,
-    nodes::{DataReaderNode, DataReaderNodeKind},
 };
 
 pub fn lookup_datareader<Foo>(

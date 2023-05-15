@@ -1,12 +1,19 @@
 use crate::{
-    implementation::rtps::{
-        endpoint::RtpsEndpoint,
-        stateful_writer::RtpsStatefulWriter,
-        types::{
-            EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-            USER_DEFINED_WRITER_WITH_KEY,
+    implementation::{
+        dds_impl::{
+            dds_data_writer::DdsDataWriter,
+            dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+            nodes::DataWriterNode,
         },
-        writer::RtpsWriter,
+        rtps::{
+            endpoint::RtpsEndpoint,
+            stateful_writer::RtpsStatefulWriter,
+            types::{
+                EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+                USER_DEFINED_WRITER_WITH_KEY,
+            },
+            writer::RtpsWriter,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -15,12 +22,6 @@ use crate::{
         time::{Duration, DURATION_ZERO},
     },
     topic_definition::type_support::DdsType,
-};
-
-use super::{
-    dds_data_writer::DdsDataWriter,
-    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    nodes::DataWriterNode,
 };
 
 pub fn create_datawriter<Foo>(
@@ -98,7 +99,7 @@ where
             .entity_factory
             .autoenable_created_entities
     {
-        super::behavior_user_defined_data_writer::enable(domain_participant, guid, publisher_guid)?;
+        super::user_defined_data_writer::enable(domain_participant, guid, publisher_guid)?;
     }
 
     Ok(data_writer_node)
