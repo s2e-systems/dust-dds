@@ -21,7 +21,7 @@ use super::parameter_id_values::{
 };
 
 #[derive(
-    Debug, PartialEq, Eq, derive_more::Into, derive_more::From, serde::Serialize, serde::Deserialize,
+    Debug, PartialEq, Eq, derive_more::From, derive_more::AsRef, serde::Serialize, serde::Deserialize,
 )]
 struct DomainTag(String);
 impl Default for DomainTag {
@@ -31,7 +31,7 @@ impl Default for DomainTag {
 }
 
 #[derive(
-    Debug, PartialEq, Eq, derive_more::From, derive_more::Into, serde::Serialize, serde::Deserialize,
+    Debug, PartialEq, Eq, derive_more::From, derive_more::AsRef, serde::Serialize, serde::Deserialize,
 )]
 struct LeaseDuration(Duration);
 impl Default for LeaseDuration {
@@ -98,55 +98,55 @@ impl ParticipantProxy {
     }
 
     pub fn domain_id(&self) -> i32 {
-        self.domain_id.0
+        *self.domain_id.as_ref()
     }
 
     pub fn domain_tag(&self) -> &str {
-        &self.domain_tag.0 .0
+        self.domain_tag.as_ref().as_ref()
     }
 
     pub fn _protocol_version(&self) -> ProtocolVersion {
-        self.protocol_version.0
+        *self.protocol_version.as_ref()
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
-        self.guid_prefix.0
+        *self.guid_prefix.as_ref()
     }
 
     pub fn _vendor_id(&self) -> VendorId {
-        self.vendor_id.0
+        *self.vendor_id.as_ref()
     }
 
     pub fn _expects_inline_qos(&self) -> ExpectsInlineQos {
-        self.expects_inline_qos.0
+        *self.expects_inline_qos.as_ref()
     }
 
     pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
-        self.metatraffic_unicast_locator_list.0.as_ref()
+        self.metatraffic_unicast_locator_list.as_ref()
     }
 
     pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
-        self.metatraffic_multicast_locator_list.0.as_ref()
+        self.metatraffic_multicast_locator_list.as_ref()
     }
 
     pub fn default_unicast_locator_list(&self) -> &[Locator] {
-        self.default_unicast_locator_list.0.as_ref()
+        self.default_unicast_locator_list.as_ref()
     }
 
     pub fn default_multicast_locator_list(&self) -> &[Locator] {
-        self.default_multicast_locator_list.0.as_ref()
+        self.default_multicast_locator_list.as_ref()
     }
 
     pub fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
-        self.available_builtin_endpoints.0
+        *self.available_builtin_endpoints.as_ref()
     }
 
     pub fn _manual_liveliness_count(&self) -> Count {
-        self.manual_liveliness_count.0
+        *self.manual_liveliness_count.as_ref()
     }
 
     pub fn _builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
-        self.builtin_endpoint_qos.0
+        *self.builtin_endpoint_qos.as_ref()
     }
 }
 
@@ -179,7 +179,7 @@ impl SpdpDiscoveredParticipantData {
     }
 
     pub fn _lease_duration(&self) -> &Duration {
-        &self.lease_duration.0 .0
+        self.lease_duration.as_ref().as_ref()
     }
 }
 

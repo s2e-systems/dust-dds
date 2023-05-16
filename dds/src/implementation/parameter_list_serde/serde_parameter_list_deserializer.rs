@@ -353,7 +353,7 @@ mod tests {
             71, 0x00, 4, 0, // pid | Length (incl padding)
             21, 0, 0, 0, // CdrParameterType
         ][..];
-        let expected: Parameter<71, CdrParameterType> = Parameter(CdrParameterType { i: 21 });
+        let expected: Parameter<71, CdrParameterType> = Parameter::new(CdrParameterType { i: 21 });
         let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
         let result: Parameter<71, CdrParameterType> =
             serde::Deserialize::deserialize(&mut deserializer).unwrap();
@@ -366,7 +366,7 @@ mod tests {
             0, 71, 0, 4, // pid | Length (incl padding)
             0, 0, 0, 21, // u32
         ][..];
-        let expected: Parameter<71, u32> = Parameter(21);
+        let expected: Parameter<71, u32> = Parameter::new(21);
         let mut deserializer = ParameterListDeserializer::<byteorder::BigEndian>::new(data);
         let result: Parameter<71, u32> =
             serde::Deserialize::deserialize(&mut deserializer).unwrap();
@@ -381,8 +381,8 @@ mod tests {
     #[test]
     fn deserialize_pl_simple() {
         let expected = PlInner {
-            id: Parameter(21),
-            n: Parameter(34),
+            id: Parameter::new(21),
+            n: Parameter::new(34),
         };
         let data = &[
             72, 0x00, 4, 0, // n | Length (incl padding)
@@ -404,8 +404,8 @@ mod tests {
     #[test]
     fn deserialize_pl_with_default() {
         let expected = PlWithDefault {
-            id: Parameter(21),
-            n: ParameterWithDefault(0),
+            id: Parameter::new(21),
+            n: ParameterWithDefault::new(0),
         };
         let data = &[
             71, 0x00, 4, 0, // n | Length (incl padding)
@@ -425,8 +425,8 @@ mod tests {
     #[test]
     fn deserialize_pl_vec_le() {
         let expected = PlWithList {
-            id: Parameter(21),
-            values: ParameterVector(vec![34, 35]),
+            id: Parameter::new(21),
+            values: ParameterVector::new(vec![34, 35]),
         };
         let data = &[
             71, 0x00, 4, 0, // id | Length (incl padding)
@@ -450,10 +450,10 @@ mod tests {
     #[test]
     fn deserialize_dds_deserialize_compound() {
         let expected = PlOuter {
-            outer: Parameter(7),
+            outer: Parameter::new(7),
             inner: PlInner {
-                id: Parameter(21),
-                n: Parameter(34),
+                id: Parameter::new(21),
+                n: Parameter::new(34),
             },
         };
         let data = &[

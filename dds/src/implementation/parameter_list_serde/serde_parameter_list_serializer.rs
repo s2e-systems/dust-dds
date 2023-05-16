@@ -368,8 +368,8 @@ mod tests {
     #[test]
     fn serialize_pl_le() {
         let data = Inner {
-            id: Parameter(21),
-            n: Parameter(34),
+            id: Parameter::new(21),
+            n: Parameter::new(34),
         };
         let expected = &[
             71, 0x00, 4, 0, // id | Length (incl padding)
@@ -388,8 +388,8 @@ mod tests {
     #[test]
     fn serialize_pl_be() {
         let data = Inner {
-            id: Parameter(21),
-            n: Parameter(34),
+            id: Parameter::new(21),
+            n: Parameter::new(34),
         };
         let expected = &[
             0x00, 71, 0, 4, // id | Length (incl padding)
@@ -414,8 +414,8 @@ mod tests {
     #[test]
     fn serialize_pl_vec_le() {
         let data = PlWithList {
-            id: Parameter(21),
-            values: ParameterVector(vec![34, 35]),
+            id: Parameter::new(21),
+            values: ParameterVector::new(vec![34, 35]),
         };
         let expected = &[
             71, 0x00, 4, 0, // id | Length (incl padding)
@@ -442,10 +442,10 @@ mod tests {
     #[test]
     fn serialize_compound() {
         let data = PlOuter {
-            outer: Parameter(7),
+            outer: Parameter::new(7),
             inner: Inner {
-                id: Parameter(21),
-                n: Parameter(34),
+                id: Parameter::new(21),
+                n: Parameter::new(34),
             },
         };
 
@@ -474,8 +474,8 @@ mod tests {
     #[test]
     fn serialize_with_default() {
         let data = InnerWithDefault {
-            id: Parameter(21),
-            n: ParameterWithDefault(0),
+            id: Parameter::new(21),
+            n: ParameterWithDefault::new(0),
         };
         let expected = &[
             71, 0x00, 4, 0, // id | Length (incl padding)

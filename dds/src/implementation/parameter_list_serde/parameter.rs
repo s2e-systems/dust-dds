@@ -5,32 +5,15 @@ use serde::ser::SerializeTuple;
 
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Parameter<const PID: u16, T>(pub T);
+#[derive(Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, derive_more::Constructor)]
+pub struct Parameter<const PID: u16, T>(T);
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ParameterWithDefault<const PID: u16, T>(pub T);
+#[derive(Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, derive_more::Constructor)]
+pub struct ParameterWithDefault<const PID: u16, T>(T);
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ParameterVector<const PID: u16, T>(pub Vec<T>);
+#[derive(Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, derive_more::Constructor)]
+pub struct ParameterVector<const PID: u16, T>(Vec<T>);
 
-impl<const PID: u16, T> From<T> for Parameter<PID, T> {
-    fn from(v: T) -> Self {
-        Parameter(v)
-    }
-}
-
-impl<const PID: u16, T> From<T> for ParameterWithDefault<PID, T> {
-    fn from(v: T) -> Self {
-        ParameterWithDefault(v)
-    }
-}
-
-impl<const PID: u16, T> From<Vec<T>> for ParameterVector<PID, T> {
-    fn from(v: Vec<T>) -> Self {
-        ParameterVector(v)
-    }
-}
 
 impl<const PID: u16, T> serde::Serialize for Parameter<PID, T>
 where

@@ -41,23 +41,23 @@ impl WriterProxy {
     }
 
     pub fn remote_writer_guid(&self) -> Guid {
-        self.remote_writer_guid.0
+        *self.remote_writer_guid.as_ref()
     }
 
     pub fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id.0
+        *self.remote_group_entity_id.as_ref()
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.unicast_locator_list.0.as_ref()
+        self.unicast_locator_list.as_ref()
     }
 
     pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.multicast_locator_list.0.as_ref()
+        self.multicast_locator_list.as_ref()
     }
 
     pub fn data_max_size_serialized(&self) -> Option<i32> {
-        self.data_max_size_serialized.0
+        *self.data_max_size_serialized.as_ref()
     }
 }
 

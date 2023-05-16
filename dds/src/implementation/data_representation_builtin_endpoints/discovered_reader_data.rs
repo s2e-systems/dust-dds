@@ -43,23 +43,23 @@ impl ReaderProxy {
     }
 
     pub fn remote_reader_guid(&self) -> Guid {
-        self.remote_reader_guid.0
+        *self.remote_reader_guid.as_ref()
     }
 
     pub fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id.0
+        *self.remote_group_entity_id.as_ref()
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.unicast_locator_list.0.as_ref()
+        self.unicast_locator_list.as_ref()
     }
 
     pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.multicast_locator_list.0.as_ref()
+        self.multicast_locator_list.as_ref()
     }
 
     pub fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos.0.into()
+        (*self.expects_inline_qos.as_ref()).into()
     }
 }
 

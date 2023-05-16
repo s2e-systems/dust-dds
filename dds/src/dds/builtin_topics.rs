@@ -29,7 +29,7 @@ use crate::{
     serde::Serialize,
     serde::Deserialize,
     derive_more::From,
-    derive_more::Into,
+    derive_more::AsRef,
 )]
 pub struct ReliabilityQosPolicyTopics(ReliabilityQosPolicy);
 impl Default for ReliabilityQosPolicyTopics {
@@ -70,11 +70,11 @@ impl ParticipantBuiltinTopicData {
     }
 
     pub fn key(&self) -> &BuiltInTopicKey {
-        &self.key.0
+        self.key.as_ref()
     }
 
     pub fn user_data(&self) -> &UserDataQosPolicy {
-        &self.user_data.0
+        self.user_data.as_ref()
     }
 }
 
@@ -142,63 +142,63 @@ impl TopicBuiltinTopicData {
     }
 
     pub fn key(&self) -> &BuiltInTopicKey {
-        &self.key.0
+        self.key.as_ref()
     }
 
     pub fn name(&self) -> &str {
-        self.name.0.as_ref()
+        self.name.as_ref().as_ref()
     }
 
     pub fn get_type_name(&self) -> &str {
-        self.type_name.0.as_ref()
+        self.type_name.as_ref().as_ref()
     }
 
     pub fn durability(&self) -> &DurabilityQosPolicy {
-        &self.durability.0
+        self.durability.as_ref()
     }
 
     pub fn deadline(&self) -> &DeadlineQosPolicy {
-        &self.deadline.0
+        self.deadline.as_ref()
     }
 
     pub fn latency_budget(&self) -> &LatencyBudgetQosPolicy {
-        &self.latency_budget.0
+        self.latency_budget.as_ref()
     }
 
     pub fn liveliness(&self) -> &LivelinessQosPolicy {
-        &self.liveliness.0
+        self.liveliness.as_ref()
     }
 
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
-        &self.reliability.0 .0
+        self.reliability.as_ref().as_ref()
     }
 
     pub fn transport_priority(&self) -> &TransportPriorityQosPolicy {
-        &self.transport_priority.0
+        self.transport_priority.as_ref()
     }
 
     pub fn lifespan(&self) -> &LifespanQosPolicy {
-        &self.lifespan.0
+        self.lifespan.as_ref()
     }
 
     pub fn destination_order(&self) -> &DestinationOrderQosPolicy {
-        &self.destination_order.0
+        self.destination_order.as_ref()
     }
 
     pub fn history(&self) -> &HistoryQosPolicy {
-        &self.history.0
+        self.history.as_ref()
     }
 
     pub fn resource_limits(&self) -> &ResourceLimitsQosPolicy {
-        &self.resource_limits.0
+        self.resource_limits.as_ref()
     }
 
     pub fn ownership(&self) -> &OwnershipQosPolicy {
-        &self.ownership.0
+        self.ownership.as_ref()
     }
 
     pub fn topic_data(&self) -> &TopicDataQosPolicy {
-        &self.topic_data.0
+        self.topic_data.as_ref()
     }
 }
 
@@ -215,8 +215,8 @@ impl DdsType for TopicBuiltinTopicData {
     Clone,
     serde::Serialize,
     serde::Deserialize,
-    derive_more::Into,
     derive_more::From,
+    derive_more::AsRef,
 )]
 struct ReliabilityQosPolicyDataWriter(ReliabilityQosPolicy);
 impl Default for ReliabilityQosPolicyDataWriter {
@@ -232,8 +232,8 @@ impl Default for ReliabilityQosPolicyDataWriter {
     Clone,
     serde::Serialize,
     serde::Deserialize,
-    derive_more::Into,
     derive_more::From,
+    derive_more::AsRef,
 )]
 struct ReliabilityQosPolicyDataReader(ReliabilityQosPolicy);
 impl Default for ReliabilityQosPolicyDataReader {
@@ -307,71 +307,71 @@ impl PublicationBuiltinTopicData {
     }
 
     pub fn key(&self) -> &BuiltInTopicKey {
-        &self.key.0
+        self.key.as_ref()
     }
 
     pub fn participant_key(&self) -> &BuiltInTopicKey {
-        &self.participant_key.0
+        self.participant_key.as_ref()
     }
 
     pub fn topic_name(&self) -> &str {
-        self.topic_name.0.as_ref()
+        self.topic_name.as_ref()
     }
 
     pub fn get_type_name(&self) -> &str {
-        self.type_name.0.as_ref()
+        self.type_name.as_ref()
     }
 
     pub fn durability(&self) -> &DurabilityQosPolicy {
-        &self.durability.0
+        self.durability.as_ref()
     }
 
     pub fn deadline(&self) -> &DeadlineQosPolicy {
-        &self.deadline.0
+        self.deadline.as_ref()
     }
 
     pub fn latency_budget(&self) -> &LatencyBudgetQosPolicy {
-        &self.latency_budget.0
+        self.latency_budget.as_ref()
     }
 
     pub fn liveliness(&self) -> &LivelinessQosPolicy {
-        &self.liveliness.0
+        self.liveliness.as_ref()
     }
 
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
-        &self.reliability.0 .0
+        self.reliability.as_ref().as_ref()
     }
 
     pub fn lifespan(&self) -> &LifespanQosPolicy {
-        &self.lifespan.0
+        self.lifespan.as_ref()
     }
 
     pub fn user_data(&self) -> &UserDataQosPolicy {
-        &self.user_data.0
+        self.user_data.as_ref()
     }
 
     pub fn ownership(&self) -> &OwnershipQosPolicy {
-        &self.ownership.0
+        self.ownership.as_ref()
     }
 
     pub fn destination_order(&self) -> &DestinationOrderQosPolicy {
-        &self.destination_order.0
+        self.destination_order.as_ref()
     }
 
     pub fn presentation(&self) -> &PresentationQosPolicy {
-        &self.presentation.0
+        self.presentation.as_ref()
     }
 
     pub fn partition(&self) -> &PartitionQosPolicy {
-        &self.partition.0
+        self.partition.as_ref()
     }
 
     pub fn topic_data(&self) -> &TopicDataQosPolicy {
-        &self.topic_data.0
+        self.topic_data.as_ref()
     }
 
     pub fn group_data(&self) -> &GroupDataQosPolicy {
-        &self.group_data.0
+        self.group_data.as_ref()
     }
 }
 
@@ -427,7 +427,7 @@ impl SubscriptionBuiltinTopicData {
         group_data: GroupDataQosPolicy,
     ) -> Self {
         Self {
-            key: Parameter(key),
+            key: key.into(),
             participant_key: participant_key.into(),
             topic_name: topic_name.into(),
             type_name: type_name.into(),
@@ -448,71 +448,71 @@ impl SubscriptionBuiltinTopicData {
     }
 
     pub fn key(&self) -> &BuiltInTopicKey {
-        &self.key.0
+        self.key.as_ref()
     }
 
     pub fn participant_key(&self) -> &BuiltInTopicKey {
-        &self.participant_key.0
+        self.participant_key.as_ref()
     }
 
     pub fn topic_name(&self) -> &str {
-        self.topic_name.0.as_ref()
+        self.topic_name.as_ref()
     }
 
     pub fn get_type_name(&self) -> &str {
-        self.type_name.0.as_ref()
+        self.type_name.as_ref()
     }
 
     pub fn durability(&self) -> &DurabilityQosPolicy {
-        &self.durability.0
+        self.durability.as_ref()
     }
 
     pub fn deadline(&self) -> &DeadlineQosPolicy {
-        &self.deadline.0
+        self.deadline.as_ref()
     }
 
     pub fn latency_budget(&self) -> &LatencyBudgetQosPolicy {
-        &self.latency_budget.0
+        self.latency_budget.as_ref()
     }
 
     pub fn liveliness(&self) -> &LivelinessQosPolicy {
-        &self.liveliness.0
+        self.liveliness.as_ref()
     }
 
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
-        &self.reliability.0 .0
+        self.reliability.as_ref().as_ref()
     }
 
     pub fn ownership(&self) -> &OwnershipQosPolicy {
-        &self.ownership.0
+        self.ownership.as_ref()
     }
 
     pub fn destination_order(&self) -> &DestinationOrderQosPolicy {
-        &self.destination_order.0
+        self.destination_order.as_ref()
     }
 
     pub fn user_data(&self) -> &UserDataQosPolicy {
-        &self.user_data.0
+        self.user_data.as_ref()
     }
 
     pub fn time_based_filter(&self) -> &TimeBasedFilterQosPolicy {
-        &self.time_based_filter.0
+        self.time_based_filter.as_ref()
     }
 
     pub fn presentation(&self) -> &PresentationQosPolicy {
-        &self.presentation.0
+        self.presentation.as_ref()
     }
 
     pub fn partition(&self) -> &PartitionQosPolicy {
-        &self.partition.0
+        self.partition.as_ref()
     }
 
     pub fn topic_data(&self) -> &TopicDataQosPolicy {
-        &self.topic_data.0
+        self.topic_data.as_ref()
     }
 
     pub fn group_data(&self) -> &GroupDataQosPolicy {
-        &self.group_data.0
+        self.group_data.as_ref()
     }
 }
 
