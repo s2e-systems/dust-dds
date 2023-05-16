@@ -88,10 +88,12 @@ where
     T: serde::Deserialize<'de>,
 {
     let mut representation_identifier: RepresentationType = [0, 0];
-    data.read_exact(&mut representation_identifier).unwrap();
+    data.read_exact(&mut representation_identifier)
+        .map_err(|err| PreconditionNotMet(err.to_string()))?;
 
     let mut representation_option: RepresentationOptions = [0, 0];
-    data.read_exact(&mut representation_option).unwrap();
+    data.read_exact(&mut representation_option)
+        .map_err(|err| PreconditionNotMet(err.to_string()))?;
 
     match representation_identifier {
         CDR_BE => {
