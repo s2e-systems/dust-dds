@@ -1,34 +1,26 @@
-use std::io::Write;
-
-use byteorder::ByteOrder;
-
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        parameter_list_serde::{
-            parameter_list_deserializer::ParameterListDeserializer,
-            parameter_list_serializer::ParameterListSerializer,
-        },
+        parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
-    },
+    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
 };
 
 use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_ENDPOINT_GUID, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
     PID_UNICAST_LOCATOR,
 };
-
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WriterProxy {
-    remote_writer_guid: Guid,
-    remote_group_entity_id: EntityId,
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
-    data_max_size_serialized: Option<i32>,
+    // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
+    #[serde(skip_serializing)]
+    remote_writer_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
+    remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
+    unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
+    multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
+    data_max_size_serialized: ParameterWithDefault<PID_DATA_MAX_SIZE_SERIALIZED, Option<i32>>,
 }
 
 impl WriterProxy {
@@ -40,20 +32,20 @@ impl WriterProxy {
         data_max_size_serialized: Option<i32>,
     ) -> Self {
         Self {
-            remote_writer_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            data_max_size_serialized,
+            remote_writer_guid: remote_writer_guid.into(),
+            remote_group_entity_id: remote_group_entity_id.into(),
+            unicast_locator_list: unicast_locator_list.into(),
+            multicast_locator_list: multicast_locator_list.into(),
+            data_max_size_serialized: data_max_size_serialized.into(),
         }
     }
 
     pub fn remote_writer_guid(&self) -> Guid {
-        self.remote_writer_guid
+        *self.remote_writer_guid.as_ref()
     }
 
     pub fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id
+        *self.remote_group_entity_id.as_ref()
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
@@ -65,44 +57,11 @@ impl WriterProxy {
     }
 
     pub fn data_max_size_serialized(&self) -> Option<i32> {
-        self.data_max_size_serialized
+        *self.data_max_size_serialized.as_ref()
     }
 }
 
-impl DdsSerialize for WriterProxy {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-    fn dds_serialize_parameter_list<W: Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
-        serializer
-            .serialize_parameter_if_not_default(PID_GROUP_ENTITYID, &self.remote_group_entity_id)?;
-        serializer.serialize_parameter_vector(PID_UNICAST_LOCATOR, &self.unicast_locator_list)?;
-        serializer
-            .serialize_parameter_vector(PID_MULTICAST_LOCATOR, &self.multicast_locator_list)?;
-        serializer.serialize_parameter_if_not_default(
-            PID_DATA_MAX_SIZE_SERIALIZED,
-            &self.data_max_size_serialized,
-        )
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for WriterProxy {
-    fn dds_deserialize_parameter_list<E: ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            remote_writer_guid: deserializer.get(PID_ENDPOINT_GUID)?,
-            remote_group_entity_id: deserializer.get_or_default(PID_GROUP_ENTITYID)?,
-            unicast_locator_list: deserializer.get_list(PID_UNICAST_LOCATOR)?,
-            multicast_locator_list: deserializer.get_list(PID_MULTICAST_LOCATOR)?,
-            data_max_size_serialized: deserializer.get_or_default(PID_DATA_MAX_SIZE_SERIALIZED)?,
-        })
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,
@@ -131,6 +90,8 @@ impl DiscoveredWriterData {
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
 impl DdsType for DiscoveredWriterData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
     fn type_name() -> &'static str {
         "DiscoveredWriterData"
     }
@@ -151,30 +112,6 @@ impl DdsType for DiscoveredWriterData {
     }
 }
 
-impl DdsSerialize for DiscoveredWriterData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-    fn dds_serialize_parameter_list<W: Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        self.dds_publication_data
-            .dds_serialize_parameter_list(serializer)?;
-        self.writer_proxy.dds_serialize_parameter_list(serializer)
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
-    fn dds_deserialize_parameter_list<E: ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            dds_publication_data: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
-            writer_proxy: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::builtin_topics::BuiltInTopicKey;
@@ -188,14 +125,10 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
+    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
 
     use super::*;
 
-    fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
-        let mut writer = Vec::<u8>::new();
-        value.dds_serialize(&mut writer).unwrap();
-        writer
-    }
     #[test]
     fn serialize_all_default() {
         let data = DiscoveredWriterData::new(
@@ -256,7 +189,8 @@ mod tests {
             21, 22, 23, 0xc9, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(to_bytes_le(&data), expected);
+        let result = dds_serialize(&data).unwrap();
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -320,7 +254,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredWriterData = DdsDeserialize::dds_deserialize(&mut data).unwrap();
+        let result: DiscoveredWriterData = dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

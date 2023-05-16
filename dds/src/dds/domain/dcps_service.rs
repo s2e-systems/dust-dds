@@ -78,7 +78,7 @@ use crate::{
         },
         subscriber::Subscriber,
     },
-    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{dds_serialize, DdsSerializedKey, DdsType},
 };
 
 pub struct DcpsService {
@@ -778,10 +778,16 @@ fn on_sample_rejected_communication_change(data_reader_node: DataReaderNode) {
 
 fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
     fn get_sample_lost_status(data_reader_node: &DataReaderNode) -> DdsResult<SampleLostStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_sample_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
-            })
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+            &data_reader_node.parent_participant().prefix(),
+            |dp| {
+                crate::implementation::behavior::user_defined_data_reader::get_sample_lost_status(
+                    dp.ok_or(DdsError::AlreadyDeleted)?,
+                    data_reader_node.guid(),
+                    data_reader_node.parent_subscriber(),
+                )
+            },
+        )
     }
 
     let status_kind = StatusKind::SampleLost;
@@ -995,10 +1001,15 @@ fn on_publication_matched_communication_change(data_writer_node: DataWriterNode)
 
 fn on_inconsistent_topic_communication_change(topic_node: TopicNode) {
     fn get_inconsistent_topic_status(topic_node: &TopicNode) -> DdsResult<InconsistentTopicStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut(&topic_node.parent_participant().prefix(), |dp| {
-                crate::implementation::behavior::user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, topic_node.guid())
-            })
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+            &topic_node.parent_participant().prefix(),
+            |dp| {
+                crate::implementation::behavior::user_defined_topic::get_inconsistent_topic_status(
+                    dp.ok_or(DdsError::AlreadyDeleted)?,
+                    topic_node.guid(),
+                )
+            },
+        )
     }
 
     let status_kind = StatusKind::InconsistentTopic;
@@ -1061,10 +1072,7 @@ fn announce_created_data_reader(
             .clone(),
     );
 
-    let mut serialized_data = Vec::new();
-    reader_data
-        .dds_serialize(&mut serialized_data)
-        .expect("Failed to serialize data");
+    let serialized_data = dds_serialize(reader_data).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
     domain_participant
@@ -1101,10 +1109,7 @@ fn announce_created_data_writer(
         ),
     );
 
-    let mut serialized_data = Vec::new();
-    writer_data
-        .dds_serialize(&mut serialized_data)
-        .expect("Failed to serialize data");
+    let serialized_data = dds_serialize(writer_data).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
 
@@ -1127,10 +1132,7 @@ fn announce_created_topic(
     domain_participant: &mut DdsDomainParticipant,
     discovered_topic: DiscoveredTopicData,
 ) {
-    let mut serialized_data = Vec::new();
-    discovered_topic
-        .dds_serialize(&mut serialized_data)
-        .expect("Failed to serialize data");
+    let serialized_data = dds_serialize(&discovered_topic).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
 
