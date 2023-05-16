@@ -57,7 +57,8 @@ pub struct ParticipantProxy {
     default_unicast_locator_list: ParameterVector<PID_DEFAULT_UNICAST_LOCATOR, Locator>,
     default_multicast_locator_list: ParameterVector<PID_DEFAULT_MULTICAST_LOCATOR, Locator>,
     available_builtin_endpoints: Parameter<PID_BUILTIN_ENDPOINT_SET, BuiltinEndpointSet>,
-    manual_liveliness_count: Parameter<PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Count>,
+    // Default value is a deviation from the standard and is used for interoperability reasons:
+    manual_liveliness_count: ParameterWithDefault<PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Count>,
     // Default value is a deviation from the standard and is used for interoperability reasons:
     builtin_endpoint_qos: ParameterWithDefault<PID_BUILTIN_ENDPOINT_QOS, BuiltinEndpointQos>,
 }
