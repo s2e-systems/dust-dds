@@ -259,6 +259,7 @@ pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
     let (listener_sender, listener_receiver) = tokio::sync::mpsc::channel(100);
 
     for metatraffic_multicast_locator in domain_participant.metatraffic_multicast_locator_list() {
+        let enter_guard = domain_participant.task_executor().enter();
         let metatraffic_multicast_transport = UdpTransportRead::new(
             get_multicast_socket(
                 metatraffic_multicast_locator.address(),
@@ -266,6 +267,7 @@ pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
             )
             .unwrap(),
         );
+        std::mem::drop(enter_guard);
         domain_participant.spawn(task_metatraffic_multicast_receive(
             participant_guid_prefix,
             metatraffic_multicast_transport,
@@ -275,6 +277,7 @@ pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
     }
 
     for metatraffic_unicast_locator in domain_participant.metatraffic_unicast_locator_list() {
+        let enter_guard = domain_participant.task_executor().enter();
         let metatraffic_unicast_transport = UdpTransportRead::new(
             tokio::net::UdpSocket::from_std(
                 std::net::UdpSocket::bind(SocketAddr::from((
@@ -285,6 +288,7 @@ pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
             )
             .unwrap(),
         );
+        std::mem::drop(enter_guard);
 
         domain_participant.spawn(task_metatraffic_unicast_receive(
             participant_guid_prefix,
@@ -295,6 +299,7 @@ pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
     }
 
     for default_unicast_locator in domain_participant.default_unicast_locator_list() {
+        let enter_guard = domain_participant.task_executor().enter();
         let default_unicast_transport = UdpTransportRead::new(
             tokio::net::UdpSocket::from_std(
                 std::net::UdpSocket::bind(SocketAddr::from((
@@ -305,6 +310,7 @@ pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
             )
             .unwrap(),
         );
+        std::mem::drop(enter_guard);
         domain_participant.spawn(task_user_defined_receive(
             participant_guid_prefix,
             default_unicast_transport,

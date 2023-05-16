@@ -1239,6 +1239,10 @@ impl DdsDomainParticipant {
     pub fn sedp_condvar(&self) -> &DdsCondvar {
         &self.sedp_condvar
     }
+
+    pub fn task_executor(&self) -> &Runtime {
+        &self.task_executor
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
