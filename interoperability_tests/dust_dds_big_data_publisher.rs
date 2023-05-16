@@ -11,8 +11,9 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
 };
-
-mod big_data;
+mod big_data {
+    include!("build/idl/big_data.rs");
+}
 
 fn main() {
     let domain_id = 0;

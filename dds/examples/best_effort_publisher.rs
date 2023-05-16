@@ -6,12 +6,12 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::type_support::{DdsSerde, DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, DdsType, DdsSerde, Debug)]
+#[derive(Deserialize, Serialize, DdsType, Debug)]
 struct BestEffortExampleType {
     id: i32,
 }

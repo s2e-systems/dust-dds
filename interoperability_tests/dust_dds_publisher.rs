@@ -12,7 +12,9 @@ use dust_dds::{
     },
 };
 
-mod hello_world;
+mod hello_world {
+    include!("build/idl/hello_world.rs");
+}
 
 fn main() {
     let domain_id = 0;

@@ -8,7 +8,7 @@ use crate::{
     infrastructure::error::{DdsError::PreconditionNotMet, DdsResult},
 };
 
-pub use dust_dds_derive::{DdsSerde, DdsType};
+pub use dust_dds_derive::DdsType;
 
 pub type RepresentationType = [u8; 2];
 pub type RepresentationOptions = [u8; 2];
@@ -18,8 +18,6 @@ pub const CDR_LE: RepresentationType = [0x00, 0x01];
 pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
 pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
 pub const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
-
-pub trait DdsSerde {}
 
 #[derive(Debug, PartialEq, Clone, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DdsSerializedKey(Vec<u8>);
@@ -41,8 +39,6 @@ impl AsRef<[u8]> for DdsSerializedKey {
         self.0.as_slice()
     }
 }
-
-impl DdsSerde for DdsSerializedKey {}
 
 impl DdsType for DdsSerializedKey {
     fn type_name() -> &'static str {
