@@ -19,7 +19,7 @@ pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 pub struct ReaderProxy {
     #[serde(skip_serializing)]
     remote_reader_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
-    remote_group_entity_id: Parameter<PID_GROUP_ENTITYID, EntityId>,
+    remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
     unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
     multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
     expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
