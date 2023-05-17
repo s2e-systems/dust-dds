@@ -4,17 +4,11 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak},
 };
 
-use crate::infrastructure::error::{DdsError, DdsResult};
-
 pub struct DdsShared<T: ?Sized>(Arc<T>);
 
 impl<T> DdsShared<T> {
     pub fn new(t: T) -> Self {
         DdsShared(Arc::new(t))
-    }
-
-    pub fn downgrade(&self) -> DdsWeak<T> {
-        DdsWeak(Arc::downgrade(&self.0))
     }
 }
 
@@ -58,13 +52,6 @@ impl<T> PartialEq for DdsShared<T> {
 pub struct DdsWeak<T: ?Sized>(Weak<T>);
 
 impl<T> DdsWeak<T> {
-    pub fn upgrade(&self) -> DdsResult<DdsShared<T>> {
-        self.0
-            .upgrade()
-            .map(|x| DdsShared(x))
-            .ok_or(DdsError::AlreadyDeleted)
-    }
-
     pub fn ptr_eq(&self, other: &Self) -> bool {
         self.0.ptr_eq(&other.0)
     }

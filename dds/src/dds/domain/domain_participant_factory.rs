@@ -4,13 +4,10 @@ use std::{
     str::FromStr,
 };
 
-use super::{
-    domain_participant::{
-        task_metatraffic_multicast_receive, task_metatraffic_unicast_receive,
-        task_send_entity_announce, task_unicast_metatraffic_communication_send,
-        task_unicast_user_defined_communication_send, task_user_defined_receive, DomainParticipant,
-    },
-    timer_factory::TimerFactory,
+use super::domain_participant::{
+    task_metatraffic_multicast_receive, task_metatraffic_unicast_receive,
+    task_send_entity_announce, task_unicast_metatraffic_communication_send,
+    task_unicast_user_defined_communication_send, task_user_defined_receive, DomainParticipant,
 };
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
@@ -244,9 +241,7 @@ impl DomainParticipantFactory {
         let sedp_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
         let (announce_sender, announce_receiver) = tokio::sync::mpsc::channel(500);
-        let timer = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .timer_factory
-            .create_timer();
+
         let dds_participant = DdsDomainParticipant::new(
             rtps_participant,
             domain_id,
@@ -256,7 +251,6 @@ impl DomainParticipantFactory {
             user_defined_data_send_condvar.clone(),
             configuration.fragment_size,
             announce_sender,
-            timer,
             sedp_condvar.clone(),
         );
 
@@ -463,7 +457,6 @@ pub struct DdsDomainParticipantFactory {
         DdsRwLock<HashMap<Guid, StatusListener<dyn AnyDataWriterListener + Send + Sync>>>,
     qos: DdsRwLock<DomainParticipantFactoryQos>,
     default_participant_qos: DdsRwLock<DomainParticipantQos>,
-    timer_factory: TimerFactory,
 }
 
 impl Default for DdsDomainParticipantFactory {
@@ -484,7 +477,6 @@ impl DdsDomainParticipantFactory {
             data_writer_listener_list: DdsRwLock::new(HashMap::new()),
             qos: DdsRwLock::new(DomainParticipantFactoryQos::default()),
             default_participant_qos: DdsRwLock::new(DomainParticipantQos::default()),
-            timer_factory: TimerFactory::new(),
         }
     }
 

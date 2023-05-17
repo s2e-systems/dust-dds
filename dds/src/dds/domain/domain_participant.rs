@@ -708,6 +708,18 @@ impl DomainParticipant {
 
 /////////////////////////////////////////////////////////////////////////
 
+pub async fn task_announce_participant(participant_guid_prefix: GuidPrefix) {
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+    loop {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
+            if let Some(dp) = dp {
+                dp.announce_participant().ok();
+            }
+        });
+        interval.tick().await;
+    }
+}
+
 pub async fn task_unicast_user_defined_communication_send(
     participant_guid_prefix: GuidPrefix,
     _user_defined_data_send_condvar: DdsCondvar,
