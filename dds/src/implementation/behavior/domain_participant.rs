@@ -189,7 +189,6 @@ pub fn get_discovered_participants(
 ) -> DdsResult<Vec<InstanceHandle>> {
     Ok(domain_participant
         .discovered_participant_list()
-        .into_iter()
         .map(|(&key, _)| key)
         .collect())
 }
@@ -200,7 +199,6 @@ pub fn get_discovered_participant_data(
 ) -> DdsResult<ParticipantBuiltinTopicData> {
     Ok(domain_participant
         .discovered_participant_list()
-        .into_iter()
         .find(|&(handle, _)| handle == &participant_handle)
         .ok_or(DdsError::BadParameter)?
         .1

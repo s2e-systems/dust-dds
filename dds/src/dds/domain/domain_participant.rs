@@ -2196,7 +2196,6 @@ fn discover_matched_writers(
                             default_multicast_locator_list,
                         )) = domain_participant
                             .discovered_participant_list()
-                            .into_iter()
                             .find(|&(h, _)| {
                                 h == &InstanceHandle::from(writer_parent_participant_guid)
                             })

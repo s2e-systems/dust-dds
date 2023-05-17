@@ -233,10 +233,10 @@ impl DomainParticipantFactory {
 
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,
-            default_unicast_locator_list.clone(),
+            default_unicast_locator_list,
             default_multicast_locator_list,
-            metatraffic_unicast_locator_list.clone(),
-            metatraffic_multicast_locator_list.clone(),
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
             PROTOCOLVERSION,
             VENDOR_ID_S2E,
         );
@@ -255,7 +255,7 @@ impl DomainParticipantFactory {
             &spdp_discovery_locator_list,
             user_defined_data_send_condvar.clone(),
             configuration.fragment_size,
-            announce_sender.clone(),
+            announce_sender,
             timer,
             sedp_condvar.clone(),
         );
@@ -316,7 +316,7 @@ impl DomainParticipantFactory {
         dds_participant.spawn(task_user_defined_receive(
             guid_prefix,
             default_unicast_transport,
-            listener_sender.clone(),
+            listener_sender,
         ));
 
         dds_participant.spawn(task_unicast_metatraffic_communication_send(
