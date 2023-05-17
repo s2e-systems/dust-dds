@@ -177,6 +177,7 @@ impl DomainParticipantFactory {
 
         let default_unicast_socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
             .map_err(|_| DdsError::Error)?;
+        default_unicast_socket.set_nonblocking(true).unwrap();
         let user_defined_unicast_port = default_unicast_socket
             .local_addr()
             .map_err(|_| DdsError::Error)?
@@ -193,6 +194,8 @@ impl DomainParticipantFactory {
         let metattrafic_unicast_socket =
             UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
                 .map_err(|_| DdsError::Error)?;
+        metattrafic_unicast_socket.set_nonblocking(true).unwrap();
+
         let metattrafic_unicast_locator_port = LocatorPort::new(
             metattrafic_unicast_socket
                 .local_addr()
@@ -259,9 +262,6 @@ impl DomainParticipantFactory {
 
         let dcps_service = DcpsService::new(
             guid_prefix,
-            default_unicast_locator_list,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
             &sedp_condvar,
             &user_defined_data_send_condvar,
             announce_sender,
