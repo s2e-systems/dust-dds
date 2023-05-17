@@ -687,6 +687,8 @@ pub async fn task_metatraffic_unicast_receive(
     listener_sender: Sender<ListenerTriggerKind>,
 ) {
     loop {
+        // Task doesn't abort without this sleep. Needs to be removed later
+        tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
         if let Some((locator, message)) = metatraffic_unicast_transport.read().await {
             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
                 if let Some(dp) = dp {

@@ -5,7 +5,12 @@ use std::{
 };
 
 use super::{
-    dcps_service::DcpsService, domain_participant::DomainParticipant, timer_factory::TimerFactory,
+    dcps_service::DcpsService,
+    domain_participant::{
+        task_metatraffic_multicast_receive, task_metatraffic_unicast_receive,
+        task_user_defined_receive, DomainParticipant,
+    },
+    timer_factory::TimerFactory,
 };
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
@@ -24,6 +29,7 @@ use crate::{
                 PROTOCOLVERSION, VENDOR_ID_S2E,
             },
         },
+        rtps_udp_psm::udp_transport::UdpTransportRead,
         utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
     },
     infrastructure::{
@@ -39,6 +45,7 @@ use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use mac_address::MacAddress;
 use schemars::schema_for;
+use socket2::Socket;
 
 pub type DomainId = i32;
 
@@ -100,6 +107,36 @@ fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfigu
         .validate(&instance)
         .map_err(|errors| errors.map(|e| e.to_string()).collect::<String>())?;
     serde_json::from_value(instance).map_err(|e| e.to_string())
+}
+
+fn get_multicast_socket(
+    multicast_address: LocatorAddress,
+    port: LocatorPort,
+) -> std::io::Result<tokio::net::UdpSocket> {
+    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, <u32>::from(port) as u16));
+
+    let socket = Socket::new(
+        socket2::Domain::IPV4,
+        socket2::Type::DGRAM,
+        Some(socket2::Protocol::UDP),
+    )?;
+
+    socket.set_reuse_address(true)?;
+    socket.set_nonblocking(true)?;
+    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
+
+    socket.bind(&socket_addr.into())?;
+    let multicast_addr_bytes: [u8; 16] = multicast_address.into();
+    let addr = Ipv4Addr::new(
+        multicast_addr_bytes[12],
+        multicast_addr_bytes[13],
+        multicast_addr_bytes[14],
+        multicast_addr_bytes[15],
+    );
+    socket.join_multicast_v4(&addr, &Ipv4Addr::UNSPECIFIED)?;
+    socket.set_multicast_loop_v4(true)?;
+
+    tokio::net::UdpSocket::from_std(socket.into())
 }
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
@@ -174,18 +211,6 @@ impl DomainParticipantFactory {
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
 
-        // let metatraffic_multicast_transport = UdpTransportRead::new(
-        //     get_multicast_socket(
-        //         DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        //         port_builtin_multicast(domain_id),
-        //     )
-        //     .unwrap(),
-        // );
-
-        // let metatraffic_unicast_transport = UdpTransportRead::new(metattrafic_unicast_socket);
-
-        // let default_unicast_transport = UdpTransportRead::new(default_unicast_socket);
-
         let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
         let mac_address = ifcfg::IfCfg::get()
@@ -244,6 +269,61 @@ impl DomainParticipantFactory {
         )?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_domain_participant_listener(guid, a_listener, mask);
+
+        let enter_guard = dds_participant.task_executor().enter();
+        let (listener_sender, listener_receiver) = tokio::sync::mpsc::channel(100);
+        std::mem::drop(enter_guard);
+
+        dds_participant.spawn(
+            crate::domain::domain_participant::task_update_communication_status(
+                guid_prefix,
+                listener_sender.clone(),
+            ),
+        );
+
+        dds_participant.spawn(crate::domain::domain_participant::task_listener_receiver(
+            listener_receiver,
+        ));
+
+        let enter_guard = dds_participant.task_executor().enter();
+        let metatraffic_multicast_transport = UdpTransportRead::new(
+            get_multicast_socket(
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+                port_builtin_multicast(domain_id),
+            )
+            .unwrap(),
+        );
+        std::mem::drop(enter_guard);
+        dds_participant.spawn(task_metatraffic_multicast_receive(
+            guid_prefix,
+            metatraffic_multicast_transport,
+            dds_participant.sedp_condvar().clone(),
+            listener_sender.clone(),
+        ));
+
+        let enter_guard = dds_participant.task_executor().enter();
+        let metatraffic_unicast_transport = UdpTransportRead::new(
+            tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).unwrap(),
+        );
+        std::mem::drop(enter_guard);
+
+        dds_participant.spawn(task_metatraffic_unicast_receive(
+            guid_prefix,
+            metatraffic_unicast_transport,
+            dds_participant.sedp_condvar().clone(),
+            listener_sender.clone(),
+        ));
+
+        let enter_guard = dds_participant.task_executor().enter();
+        let default_unicast_transport =
+            UdpTransportRead::new(tokio::net::UdpSocket::from_std(default_unicast_socket).unwrap());
+        std::mem::drop(enter_guard);
+
+        dds_participant.spawn(task_user_defined_receive(
+            guid_prefix,
+            default_unicast_transport,
+            listener_sender.clone(),
+        ));
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_participant(
             guid_prefix,

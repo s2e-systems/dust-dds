@@ -2,7 +2,7 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4, UdpSocket},
     sync::{
         atomic::{self, AtomicBool},
-        mpsc::{self, Receiver, SyncSender},
+        mpsc::{Receiver, SyncSender},
         Arc,
     },
     thread::JoinHandle,
@@ -103,30 +103,30 @@ impl Drop for DcpsService {
             .send(AnnounceKind::DeletedParticipant)
             .ok();
 
-        // Send shutdown messages
-        if let Some(default_unicast_locator) = self.default_unicast_locator_list.get(0) {
-            let port: u32 = default_unicast_locator.port().into();
-            let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
-            self.sender_socket.send_to(&[0], addr).ok();
-        }
+        // // Send shutdown messages
+        // if let Some(default_unicast_locator) = self.default_unicast_locator_list.get(0) {
+        //     let port: u32 = default_unicast_locator.port().into();
+        //     let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
+        //     self.sender_socket.send_to(&[0], addr).ok();
+        // }
 
-        if let Some(metatraffic_unicast_locator) = self.metatraffic_unicast_locator_list.get(0) {
-            let port: u32 = metatraffic_unicast_locator.port().into();
-            let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
-            self.sender_socket.send_to(&[0], addr).ok();
-        }
+        // if let Some(metatraffic_unicast_locator) = self.metatraffic_unicast_locator_list.get(0) {
+        //     let port: u32 = metatraffic_unicast_locator.port().into();
+        //     let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
+        //     self.sender_socket.send_to(&[0], addr).ok();
+        // }
 
-        if let Some(metatraffic_multicast_transport) =
-            self.metatraffic_multicast_locator_list.get(0)
-        {
-            let addr: [u8; 16] = metatraffic_multicast_transport.address().into();
-            let port: u32 = metatraffic_multicast_transport.port().into();
-            let addr = SocketAddrV4::new(
-                Ipv4Addr::new(addr[12], addr[13], addr[14], addr[15]),
-                port as u16,
-            );
-            self.sender_socket.send_to(&[0], addr).ok();
-        }
+        // if let Some(metatraffic_multicast_transport) =
+        //     self.metatraffic_multicast_locator_list.get(0)
+        // {
+        //     let addr: [u8; 16] = metatraffic_multicast_transport.address().into();
+        //     let port: u32 = metatraffic_multicast_transport.port().into();
+        //     let addr = SocketAddrV4::new(
+        //         Ipv4Addr::new(addr[12], addr[13], addr[14], addr[15]),
+        //         port as u16,
+        //     );
+        //     self.sender_socket.send_to(&[0], addr).ok();
+        // }
 
         while let Some(thread) = self.threads.write_lock().pop() {
             thread.join().unwrap();
@@ -148,8 +148,6 @@ impl DcpsService {
     ) -> DdsResult<Self> {
         let quit = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
-
-        let (_listener_sender, listener_receiver) = mpsc::channel();
 
         //  ////////////// Entity announcer thread
         {
@@ -221,49 +219,6 @@ impl DcpsService {
                         }
                     },
                 )
-            }));
-        }
-
-        //////////// Listener thread
-        {
-            let task_quit = quit.clone();
-
-            threads.push(std::thread::spawn(move || loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
-                if let Ok(l) = listener_receiver.recv() {
-                    match l {
-                        ListenerTriggerKind::RequestedDeadlineMissed(dr) => {
-                            on_requested_deadline_missed_communication_change(dr)
-                        }
-                        ListenerTriggerKind::OnDataAvailable(dr) => {
-                            on_data_available_communication_change(dr)
-                        }
-                        ListenerTriggerKind::SubscriptionMatched(dr) => {
-                            on_subscription_matched_communication_change(dr)
-                        }
-                        ListenerTriggerKind::RequestedIncompatibleQos(dr) => {
-                            on_requested_incompatible_qos_communication_change(dr)
-                        }
-                        ListenerTriggerKind::OnSampleRejected(dr) => {
-                            on_sample_rejected_communication_change(dr)
-                        }
-                        ListenerTriggerKind::OnSampleLost(dr) => {
-                            on_sample_lost_communication_change(dr)
-                        }
-                        ListenerTriggerKind::OfferedIncompatibleQos(dw) => {
-                            on_offered_incompatible_qos_communication_change(dw)
-                        }
-                        ListenerTriggerKind::PublicationMatched(dw) => {
-                            on_publication_matched_communication_change(dw)
-                        }
-                        ListenerTriggerKind::InconsistentTopic(t) => {
-                            on_inconsistent_topic_communication_change(t)
-                        }
-                    }
-                }
             }));
         }
 
