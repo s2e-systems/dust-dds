@@ -21,7 +21,13 @@ use super::parameter_id_values::{
 };
 
 #[derive(
-    Debug, PartialEq, Eq, derive_more::From, derive_more::AsRef, serde::Serialize, serde::Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    derive_more::From,
+    derive_more::AsRef,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 struct DomainTag(String);
 impl Default for DomainTag {
@@ -31,7 +37,13 @@ impl Default for DomainTag {
 }
 
 #[derive(
-    Debug, PartialEq, Eq, derive_more::From, derive_more::AsRef, serde::Serialize, serde::Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    derive_more::From,
+    derive_more::AsRef,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 struct LeaseDuration(Duration);
 impl Default for LeaseDuration {
@@ -269,7 +281,7 @@ mod tests {
             lease_duration,
         );
 
-        let mut data = &[
+        let data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId

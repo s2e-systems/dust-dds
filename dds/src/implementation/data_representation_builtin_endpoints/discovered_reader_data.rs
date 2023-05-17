@@ -130,7 +130,7 @@ mod tests {
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{dds_serialize, dds_deserialize};
+    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
 
     #[test]
     fn serialize_all_default() {
@@ -235,7 +235,7 @@ mod tests {
             ),
         };
 
-        let mut data = &[
+        let data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc2, // u8[3], u8
@@ -274,7 +274,7 @@ mod tests {
             false,
         );
 
-        let mut data = &[
+        let data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x5a, 0x00, 16,
             0, //PID_ENDPOINT_GUID, length (SubscriptionBuiltinTopicData::key) used for remote_reader_guid

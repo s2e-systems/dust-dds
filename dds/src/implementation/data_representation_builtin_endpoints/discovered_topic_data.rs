@@ -55,7 +55,7 @@ mod tests {
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{dds_serialize, dds_deserialize};
+    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
 
     use super::*;
 
@@ -126,7 +126,7 @@ mod tests {
             ),
         };
 
-        let mut data = &[
+        let data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
