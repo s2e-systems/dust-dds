@@ -79,7 +79,7 @@ fn deleted_readers_are_disposed_from_writer() {
 
     let mut wait_set = WaitSet::new();
     wait_set
-        .attach_condition(Condition::StatusCondition(cond.clone()))
+        .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
     data_writer.get_publication_matched_status().unwrap();
@@ -119,7 +119,7 @@ fn updated_readers_are_announced_to_writer() {
 
     let mut wait_set = WaitSet::new();
     wait_set
-        .attach_condition(Condition::StatusCondition(cond.clone()))
+        .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
     data_writer.get_publication_matched_status().unwrap();
@@ -382,7 +382,7 @@ fn participant_announces_updated_qos() {
     qos.user_data.value = vec![7, 8, 9];
     std::thread::sleep(std::time::Duration::from_secs(1));
     participant1
-        .set_qos(QosKind::Specific(qos.clone()))
+        .set_qos(QosKind::Specific(qos))
         .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(5));

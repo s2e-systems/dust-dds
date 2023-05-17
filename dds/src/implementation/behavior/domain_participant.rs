@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::domain_participant_factory::DomainId,
+    domain::{domain_participant::task_announce_participant, domain_participant_factory::DomainId},
     implementation::{
         dds::{
             dds_domain_participant::DdsDomainParticipant,
@@ -242,5 +242,14 @@ pub fn get_qos(domain_participant: &DdsDomainParticipant) -> DdsResult<DomainPar
 }
 
 pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
-    domain_participant.enable()
+    domain_participant.enable()?;
+
+    domain_participant.announce_participant()?;
+    domain_participant
+        .task_executor()
+        .spawn(task_announce_participant(
+            domain_participant.guid().prefix(),
+        ));
+
+    Ok(())
 }

@@ -209,7 +209,7 @@ mod tests {
         };
         message_receiver.process_info_timestamp_submessage(&info_timestamp);
 
-        assert_eq!(message_receiver.have_timestamp, true);
+        assert!(message_receiver.have_timestamp);
         assert_eq!(message_receiver.timestamp, Time::new(0, 100));
     }
 
@@ -223,7 +223,7 @@ mod tests {
         };
         message_receiver.process_info_timestamp_submessage(&info_timestamp);
 
-        assert_eq!(message_receiver.have_timestamp, false);
+        assert!(!message_receiver.have_timestamp);
         assert_eq!(message_receiver.timestamp, TIME_INVALID);
     }
 }

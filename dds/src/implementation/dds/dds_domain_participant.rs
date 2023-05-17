@@ -6,7 +6,7 @@ use crate::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
         SubscriptionBuiltinTopicData,
     },
-    domain::{domain_participant_factory::DomainId, timer_factory::Timer},
+    domain::domain_participant_factory::DomainId,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
@@ -45,10 +45,7 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        utils::{
-            condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        utils::condvar::DdsCondvar,
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -147,16 +144,9 @@ pub struct DdsDomainParticipant {
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
-    timer: DdsShared<DdsRwLock<Timer>>,
     announce_sender: Sender<AnnounceKind>,
     sedp_condvar: DdsCondvar,
     task_executor: Runtime,
-}
-
-impl Drop for DdsDomainParticipant {
-    fn drop(&mut self) {
-        self.timer.write_lock().cancel_timers()
-    }
 }
 
 impl DdsDomainParticipant {
@@ -170,7 +160,6 @@ impl DdsDomainParticipant {
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
         announce_sender: Sender<AnnounceKind>,
-        timer: DdsShared<DdsRwLock<Timer>>,
         sedp_condvar: DdsCondvar,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
@@ -347,7 +336,6 @@ impl DdsDomainParticipant {
             ignored_publications: HashSet::new(),
             ignored_subcriptions: HashSet::new(),
             data_max_size_serialized,
-            timer,
             announce_sender,
             sedp_condvar,
             task_executor: Runtime::new().unwrap(),
@@ -912,21 +900,11 @@ impl DdsDomainParticipant {
                     topic.enable()?;
                 }
             }
-
-            self.announce_participant().ok();
-            self.timer.write_lock().start_timer(
-                DurationKind::Finite(Duration::new(5, 0)),
-                self.rtps_participant.guid().prefix(),
-                InstanceHandle::new([0; 16]),
-                |dp| {
-                    dp.announce_participant().ok();
-                },
-            );
         }
         Ok(())
     }
 
-    fn announce_participant(&mut self) -> DdsResult<()> {
+    pub fn announce_participant(&mut self) -> DdsResult<()> {
         let spdp_discovered_participant_data = SpdpDiscoveredParticipantData::new(
             ParticipantBuiltinTopicData::new(
                 BuiltInTopicKey {

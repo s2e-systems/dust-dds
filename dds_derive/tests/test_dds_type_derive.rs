@@ -10,7 +10,7 @@ struct StructNoKey {
 #[test]
 fn test_struct_no_key_info() {
     assert_eq!(StructNoKey::type_name(), "StructNoKey");
-    assert_eq!(StructNoKey::has_key(), false);
+    assert!(!StructNoKey::has_key());
 }
 
 #[test]
@@ -38,7 +38,7 @@ struct StructWithKey {
 #[test]
 fn test_struct_with_key_info() {
     assert_eq!(StructWithKey::type_name(), "StructWithKey");
-    assert_eq!(StructWithKey::has_key(), true);
+    assert!(StructWithKey::has_key());
 }
 
 #[test]
@@ -75,7 +75,7 @@ struct StructManyKeys {
 #[test]
 fn test_struct_many_keys_info() {
     assert_eq!(StructManyKeys::type_name(), "StructManyKeys");
-    assert_eq!(StructManyKeys::has_key(), true);
+    assert!(StructManyKeys::has_key());
 }
 
 #[test]
@@ -102,7 +102,7 @@ fn test_struct_many_keys_set() {
     assert_eq!(smk.a, 69);
     assert_eq!(smk.b, 0);
     assert_eq!(smk.c, 'X');
-    assert_eq!(smk.d, true);
+    assert!(smk.d);
 }
 
 /*
@@ -120,7 +120,7 @@ struct TypeWithGeneric<T> {
 #[test]
 fn test_dds_type_derive_with_generic_info() {
     assert_eq!(TypeWithGeneric::<i32>::type_name(), "TypeWithGeneric");
-    assert_eq!(TypeWithGeneric::<i32>::has_key(), true);
+    assert!(TypeWithGeneric::<i32>::has_key());
 }
 
 #[test]
@@ -150,7 +150,7 @@ struct TupleNoKey(i32, i32);
 #[test]
 fn test_tuple_no_key_info() {
     assert_eq!(TupleNoKey::type_name(), "TupleNoKey");
-    assert_eq!(TupleNoKey::has_key(), false);
+    assert!(!TupleNoKey::has_key());
 }
 
 #[test]
@@ -174,7 +174,7 @@ struct TupleWithKeys(i32, #[key] i32, #[key] bool, char);
 #[test]
 fn test_tuple_with_keys_info() {
     assert_eq!(TupleWithKeys::type_name(), "TupleWithKeys");
-    assert_eq!(TupleWithKeys::has_key(), true);
+    assert!(TupleWithKeys::has_key());
 }
 
 #[test]
@@ -190,7 +190,7 @@ fn test_tuple_with_keys_set() {
     twk.set_key_fields_from_serialized_key(&key).unwrap();
     assert_eq!(twk.0, 0);
     assert_eq!(twk.1, 2);
-    assert_eq!(twk.2, true);
+    assert!(twk.2);
     assert_eq!(twk.3, '\0');
 }
 
@@ -204,7 +204,7 @@ enum EnumNoKey {
 #[test]
 fn test_enum_no_key_info() {
     assert_eq!(EnumNoKey::type_name(), "EnumNoKey");
-    assert_eq!(EnumNoKey::has_key(), false);
+    assert!(!EnumNoKey::has_key());
 }
 
 #[test]
@@ -232,7 +232,7 @@ enum EnumKey {
 #[test]
 fn test_enum_key_info() {
     assert_eq!(EnumKey::type_name(), "EnumKey");
-    assert_eq!(EnumKey::has_key(), true);
+    assert!(EnumKey::has_key());
 }
 
 #[test]

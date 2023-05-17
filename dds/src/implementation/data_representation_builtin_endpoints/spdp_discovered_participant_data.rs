@@ -21,7 +21,13 @@ use super::parameter_id_values::{
 };
 
 #[derive(
-    Debug, PartialEq, Eq, derive_more::From, derive_more::AsRef, serde::Serialize, serde::Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    derive_more::From,
+    derive_more::AsRef,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 struct DomainTag(String);
 impl Default for DomainTag {
@@ -31,7 +37,13 @@ impl Default for DomainTag {
 }
 
 #[derive(
-    Debug, PartialEq, Eq, derive_more::From, derive_more::AsRef, serde::Serialize, serde::Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    derive_more::From,
+    derive_more::AsRef,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 struct LeaseDuration(Duration);
 impl Default for LeaseDuration {
@@ -269,7 +281,7 @@ mod tests {
             lease_duration,
         );
 
-        let mut data = &[
+        let data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId
@@ -333,7 +345,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result: SpdpDiscoveredParticipantData = dds_deserialize(&mut data).unwrap();
+        let result: SpdpDiscoveredParticipantData = dds_deserialize(data).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -355,7 +367,7 @@ mod tests {
         let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = GuidPrefix::new([8; 12]);
         let vendor_id = VendorId::new([73, 74]);
-        let expects_inline_qos = true.into();
+        let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
         let default_unicast_locator_list = vec![locator1];
