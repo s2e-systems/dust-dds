@@ -992,7 +992,6 @@ fn participant_deadline_missed_listener() {
 }
 
 #[test]
-#[ignore = "Fails after replacing threads by tokio"]
 fn participant_sample_rejected_listener() {
     mock! {
         SampleRejectedListener{}
@@ -1563,7 +1562,6 @@ fn subscriber_deadline_missed_listener() {
 }
 
 #[test]
-#[ignore = "Fails after replacing threads by tokio"]
 fn subscriber_sample_rejected_listener() {
     mock! {
         SampleRejectedListener{}
