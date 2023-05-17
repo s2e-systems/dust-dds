@@ -13,7 +13,9 @@ use dust_dds::{
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
 };
 
-mod big_data;
+mod big_data {
+    include!("build/idl/big_data.rs");
+}
 
 fn main() {
     let domain_id = 0;

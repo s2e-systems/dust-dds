@@ -88,7 +88,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
+        Foo: DdsType + for<'de> serde::Deserialize<'de> + 'static,
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),

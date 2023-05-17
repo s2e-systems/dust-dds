@@ -64,7 +64,7 @@ use crate::{
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType},
+    topic_definition::type_support::{DdsType, dds_serialize},
     {
         builtin_topics::TopicBuiltinTopicData,
         infrastructure::{
@@ -961,8 +961,9 @@ impl DdsDomainParticipant {
             ),
             self.lease_duration,
         );
-        let mut serialized_data = Vec::new();
-        spdp_discovered_participant_data.dds_serialize(&mut serialized_data)?;
+        let serialized_data =
+            dds_serialize(&spdp_discovered_participant_data).map_err(|_err| DdsError::Error)?;
+
         let current_time = self.get_current_time();
         self.builtin_publisher
             .stateless_data_writer_list_mut()
@@ -1530,7 +1531,7 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsStatelessWriter {
 
 fn create_builtin_stateless_reader<Foo>(guid: Guid) -> RtpsStatelessReader
 where
-    Foo: DdsType + for<'de> DdsDeserialize<'de>,
+    Foo: DdsType + for<'de> serde::Deserialize<'de>,
 {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
@@ -1564,7 +1565,7 @@ where
 
 fn create_builtin_stateful_reader<Foo>(guid: Guid) -> RtpsStatefulReader
 where
-    Foo: DdsType + for<'de> DdsDeserialize<'de>,
+    Foo: DdsType + for<'de> serde::Deserialize<'de>,
 {
     let qos = DataReaderQos {
         durability: DurabilityQosPolicy {

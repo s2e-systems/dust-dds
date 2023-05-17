@@ -1,18 +1,12 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    implementation::parameter_list_serde::{
-        parameter_list_deserializer::ParameterListDeserializer,
-        parameter_list_serializer::ParameterListSerializer,
-    },
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
-    },
+    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredTopicData {
     topic_builtin_topic_data: TopicBuiltinTopicData,
 }
@@ -30,6 +24,8 @@ impl DiscoveredTopicData {
 }
 
 impl DdsType for DiscoveredTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
     fn type_name() -> &'static str {
         "DiscoveredTopicData"
     }
@@ -50,28 +46,6 @@ impl DdsType for DiscoveredTopicData {
     }
 }
 
-impl DdsSerialize for DiscoveredTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-    fn dds_serialize_parameter_list<W: std::io::Write>(
-        &self,
-        serializer: &mut ParameterListSerializer<W>,
-    ) -> DdsResult<()> {
-        self.topic_builtin_topic_data
-            .dds_serialize_parameter_list(serializer)
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
-    fn dds_deserialize_parameter_list<E: byteorder::ByteOrder>(
-        deserializer: &mut ParameterListDeserializer<'de, E>,
-    ) -> DdsResult<Self> {
-        Ok(Self {
-            topic_builtin_topic_data: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::builtin_topics::BuiltInTopicKey;
@@ -81,14 +55,9 @@ mod tests {
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
+    use crate::topic_definition::type_support::{dds_serialize, dds_deserialize};
 
     use super::*;
-
-    fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
-        let mut writer = Vec::<u8>::new();
-        value.dds_serialize(&mut writer).unwrap();
-        writer
-    }
 
     #[test]
     fn serialize_all_default() {
@@ -129,7 +98,8 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(to_bytes_le(&data), expected);
+        let result = dds_serialize(&data).unwrap();
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -171,7 +141,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredTopicData = DdsDeserialize::dds_deserialize(&mut data).unwrap();
+        let result: DiscoveredTopicData = dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

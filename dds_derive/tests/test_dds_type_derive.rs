@@ -1,7 +1,7 @@
-use dust_dds::topic_definition::type_support::{DdsSerde, DdsType};
+use dust_dds::topic_definition::type_support::DdsType;
 use serde::{Deserialize, Serialize};
 
-#[derive(DdsType, DdsSerde)]
+#[derive(DdsType)]
 struct StructNoKey {
     a: i32,
     b: i32,
@@ -28,7 +28,7 @@ fn test_struct_no_key_set() {
     assert_eq!(snk2.b, 4);
 }
 
-#[derive(DdsType, DdsSerde)]
+#[derive(DdsType)]
 struct StructWithKey {
     a: i32,
     #[key]
@@ -56,7 +56,7 @@ fn test_struct_with_key_set() {
     assert_eq!(swk.b, 42)
 }
 
-#[derive(DdsType, DdsSerde)]
+#[derive(DdsType)]
 struct StructManyKeys {
     #[key]
     a: i32,
@@ -110,7 +110,7 @@ fn test_struct_many_keys_set() {
  * See: https://naftuli.wtf/2019/01/02/rust-derive-macros/
  */
 
-#[derive(DdsType, DdsSerde)]
+#[derive(DdsType)]
 struct TypeWithGeneric<T> {
     a: T,
     #[key]
@@ -144,7 +144,7 @@ fn test_dds_type_derive_with_generic_set() {
     assert_eq!(twg.b, 42);
 }
 
-#[derive(DdsType, DdsSerde)]
+#[derive(DdsType)]
 struct TupleNoKey(i32, i32);
 
 #[test]
@@ -168,7 +168,7 @@ fn test_tuple_no_key_set() {
     assert_eq!(twk.1, 2);
 }
 
-#[derive(DdsType, DdsSerde)]
+#[derive(DdsType)]
 struct TupleWithKeys(i32, #[key] i32, #[key] bool, char);
 
 #[test]
@@ -194,7 +194,7 @@ fn test_tuple_with_keys_set() {
     assert_eq!(twk.3, '\0');
 }
 
-#[derive(DdsType, DdsSerde, PartialEq, Eq, Debug)]
+#[derive(DdsType, PartialEq, Eq, Debug)]
 enum EnumNoKey {
     _One,
     _Two,
@@ -221,7 +221,7 @@ fn test_enum_no_key_set() {
     assert_eq!(enk, EnumNoKey::_Two);
 }
 
-#[derive(Serialize, Deserialize, DdsType, DdsSerde, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, DdsType, PartialEq, Eq, Debug)]
 #[key]
 enum EnumKey {
     _One,

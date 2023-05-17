@@ -17,7 +17,7 @@ use crate::{
         },
         time::Time,
     },
-    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{dds_serialize, DdsSerializedKey, DdsType},
 };
 
 pub fn unregister_instance_w_timestamp(
@@ -393,10 +393,7 @@ fn announce_created_data_writer(
         ),
     );
 
-    let mut serialized_data = Vec::new();
-    writer_data
-        .dds_serialize(&mut serialized_data)
-        .expect("Failed to serialize data");
+    let serialized_data = dds_serialize(writer_data).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
 

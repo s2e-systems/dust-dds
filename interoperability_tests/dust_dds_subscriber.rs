@@ -13,7 +13,9 @@ use dust_dds::{
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
 };
 
-mod hello_world;
+mod hello_world {
+    include!("build/idl/hello_world.rs");
+}
 
 fn main() {
     let domain_id = 0;

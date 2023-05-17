@@ -26,7 +26,7 @@ use crate::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{dds_deserialize, DdsDeserialize, DdsSerializedKey, DdsType},
 };
 
 use super::{
@@ -117,13 +117,13 @@ struct InstanceHandleBuilder(fn(&mut &[u8]) -> RtpsReaderResult<DdsSerializedKey
 impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
-        Foo: for<'de> DdsDeserialize<'de> + DdsType,
+        Foo: for<'de> serde::Deserialize<'de> + DdsType,
     {
         fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>
         where
-            Foo: for<'de> DdsDeserialize<'de> + DdsType,
+            Foo: for<'de> serde::Deserialize<'de> + DdsType,
         {
-            Ok(Foo::dds_deserialize(data)
+            Ok(dds_deserialize::<Foo>(data)
                 .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize data"))?
                 .get_serialized_key())
         }
@@ -146,7 +146,7 @@ impl InstanceHandleBuilder {
                 .find(|&x| x.parameter_id() == ParameterId(PID_KEY_HASH))
             {
                 Some(p) => InstanceHandle::new(p.value().try_into().unwrap()),
-                None => DdsSerializedKey::dds_deserialize(&mut data)
+                None => dds_deserialize::<DdsSerializedKey>(data)
                     .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize key"))?
                     .into(),
             },
@@ -234,7 +234,7 @@ impl RtpsReader {
         qos: DataReaderQos,
     ) -> Self
     where
-        Foo: DdsType + for<'de> DdsDeserialize<'de>,
+        Foo: DdsType + for<'de> serde::Deserialize<'de>,
     {
         let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
         Self {
@@ -575,9 +575,10 @@ impl RtpsReader {
 
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (
-                    Some(DdsDeserialize::dds_deserialize(
-                        &mut cache_change.data.as_slice(),
-                    )?),
+                    Some(
+                        dds_deserialize(cache_change.data.as_slice())
+                            .map_err(|_err| DdsError::Error)?,
+                    ),
                     true,
                 ),
                 ChangeKind::NotAliveDisposed

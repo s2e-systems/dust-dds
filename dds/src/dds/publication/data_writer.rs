@@ -18,7 +18,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsSerialize, DdsType},
+        type_support::{dds_serialize, DdsSerialize, DdsType},
     },
 };
 
@@ -171,10 +171,8 @@ where
                 }
             }?;
 
-            let mut serialized_key = Vec::new();
-            instance
-                .get_serialized_key()
-                .dds_serialize(&mut serialized_key)?;
+            let serialized_key =
+                dds_serialize(&instance.get_serialized_key()).map_err(|_err| DdsError::Error)?;
 
             match &self.0 {
                 DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
@@ -277,8 +275,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let mut serialized_data = Vec::new();
-        data.dds_serialize(&mut serialized_data)?;
+        let serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
@@ -353,9 +350,8 @@ where
             }
         }?;
 
-        let mut serialized_key = Vec::new();
-        data.get_serialized_key()
-            .dds_serialize(&mut serialized_key)?;
+        let serialized_key =
+            dds_serialize(&data.get_serialized_key()).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
