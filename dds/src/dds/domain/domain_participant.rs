@@ -710,15 +710,15 @@ impl DomainParticipant {
 
 pub async fn task_unicast_user_defined_communication_send(
     participant_guid_prefix: GuidPrefix,
-    user_defined_data_send_condvar: DdsCondvar,
+    _user_defined_data_send_condvar: DdsCondvar,
 ) {
     let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
     let mut default_unicast_transport_send = UdpTransportWrite::new(socket);
 
     loop {
-        tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        let _r = user_defined_data_send_condvar.wait_timeout(Duration::new(0, 100_000_000));
+        // let _r = user_defined_data_send_condvar.wait_timeout(Duration::new(0, 100_000_000));
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
             if let Some(dp) = dp {
@@ -730,16 +730,16 @@ pub async fn task_unicast_user_defined_communication_send(
 
 pub async fn task_unicast_metatraffic_communication_send(
     participant_guid_prefix: GuidPrefix,
-    sedp_condvar: DdsCondvar,
+    _sedp_condvar: DdsCondvar,
 ) {
     let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
 
     let mut metatraffic_unicast_transport_send = UdpTransportWrite::new(socket);
 
     loop {
-        tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        let _r = sedp_condvar.wait_timeout(Duration::new(0, 500000000));
+        // let _r = sedp_condvar.wait_timeout(Duration::new(0, 500000000));
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
             if let Some(dp) = dp {
                 send_builtin_message(dp, &mut metatraffic_unicast_transport_send);
