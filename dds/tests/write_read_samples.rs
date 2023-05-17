@@ -21,23 +21,23 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::{DdsSerde, DdsType},
+    topic_definition::type_support::{DdsType},
 };
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, DdsType, DdsSerde, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, DdsType, serde::Serialize, serde::Deserialize)]
 struct UserData(u8);
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct KeyedData {
     #[key]
     id: u8,
     value: u8,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct LargeData {
     #[key]
     id: u8,
