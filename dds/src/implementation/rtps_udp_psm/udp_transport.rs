@@ -165,7 +165,7 @@ mod tests {
             LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1]),
         );
 
-        let mut socket_addrs = UdpLocator(locator).to_socket_addrs().unwrap().into_iter();
+        let mut socket_addrs = UdpLocator(locator).to_socket_addrs().unwrap();
         let expected_socket_addr = SocketAddr::from_str("127.0.0.1:7400").unwrap();
         assert_eq!(socket_addrs.next(), Some(expected_socket_addr));
     }
@@ -178,7 +178,7 @@ mod tests {
             LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 25]),
         );
 
-        let mut socket_addrs = UdpLocator(locator).to_socket_addrs().unwrap().into_iter();
+        let mut socket_addrs = UdpLocator(locator).to_socket_addrs().unwrap();
         let expected_socket_addr = SocketAddr::from_str("192.168.1.25:7500").unwrap();
         assert_eq!(socket_addrs.next(), Some(expected_socket_addr));
     }

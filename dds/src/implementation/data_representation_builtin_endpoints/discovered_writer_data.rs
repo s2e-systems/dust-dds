@@ -145,7 +145,7 @@ mod tests {
                 DeadlineQosPolicy::default(),
                 LatencyBudgetQosPolicy::default(),
                 LivelinessQosPolicy::default(),
-                DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER.into(),
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
                 LifespanQosPolicy::default(),
                 UserDataQosPolicy::default(),
                 OwnershipQosPolicy::default(),
@@ -209,7 +209,7 @@ mod tests {
                 DeadlineQosPolicy::default(),
                 LatencyBudgetQosPolicy::default(),
                 LivelinessQosPolicy::default(),
-                DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER.into(),
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
                 LifespanQosPolicy::default(),
                 UserDataQosPolicy::default(),
                 OwnershipQosPolicy::default(),
@@ -254,7 +254,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredWriterData = dds_deserialize(&mut data).unwrap();
+        let result: DiscoveredWriterData = dds_deserialize(data).unwrap();
         assert_eq!(result, expected);
     }
 }

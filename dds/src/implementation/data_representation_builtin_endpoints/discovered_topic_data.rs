@@ -141,7 +141,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredTopicData = dds_deserialize(&mut data).unwrap();
+        let result: DiscoveredTopicData = dds_deserialize(data).unwrap();
         assert_eq!(result, expected);
     }
 }
