@@ -6,7 +6,7 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::type_support::DdsType,
+    DdsType,
 };
 
 use serde::{Deserialize, Serialize};

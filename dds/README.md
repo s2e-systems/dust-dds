@@ -14,7 +14,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
         infrastructure::{qos::QosKind, status::NO_STATUS},
-        topic_definition::type_support::DdsType,
+        DdsType,
     };
 
     use serde::{Deserialize, Serialize};
@@ -61,7 +61,7 @@ The subscriber side can be implemented as:
         domain::domain_participant_factory::DomainParticipantFactory,
         infrastructure::{qos::QosKind, status::NO_STATUS},
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        topic_definition::type_support::DdsType,
+        DdsType,
     };
 
     use serde::{Deserialize, Serialize};
