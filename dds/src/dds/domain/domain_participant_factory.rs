@@ -8,7 +8,8 @@ use super::{
     dcps_service::DcpsService,
     domain_participant::{
         task_metatraffic_multicast_receive, task_metatraffic_unicast_receive,
-        task_send_entity_announce, task_user_defined_receive, DomainParticipant,
+        task_send_entity_announce, task_unicast_metatraffic_communication_send,
+        task_unicast_user_defined_communication_send, task_user_defined_receive, DomainParticipant,
     },
     timer_factory::TimerFactory,
 };
@@ -320,6 +321,16 @@ impl DomainParticipantFactory {
             guid_prefix,
             default_unicast_transport,
             listener_sender.clone(),
+        ));
+
+        dds_participant.spawn(task_unicast_metatraffic_communication_send(
+            guid_prefix,
+            sedp_condvar,
+        ));
+
+        dds_participant.spawn(task_unicast_user_defined_communication_send(
+            guid_prefix,
+            user_defined_data_send_condvar,
         ));
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_participant(
