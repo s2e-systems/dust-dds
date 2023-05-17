@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 use crate::implementation::rtps::{
     messages::RtpsMessage,
@@ -9,22 +9,21 @@ use crate::implementation::rtps::{
 use super::mapping_traits::{from_bytes, to_bytes};
 
 const BUFFER_SIZE: usize = 65000;
-pub struct UdpTransport {
-    socket: UdpSocket,
+pub struct UdpTransportRead {
+    socket: tokio::net::UdpSocket,
     receive_buffer: Box<[u8; BUFFER_SIZE]>,
 }
 
-impl UdpTransport {
-    pub fn new(socket: UdpSocket) -> Self {
+impl UdpTransportRead {
+    pub fn new(socket: tokio::net::UdpSocket) -> Self {
         Self {
             socket,
             receive_buffer: Box::new([0; BUFFER_SIZE]),
         }
     }
 
-    pub fn read(&mut self) -> Option<(Locator, RtpsMessage<'_>)> {
-        self.socket.set_nonblocking(false).ok()?;
-        match self.socket.recv_from(self.receive_buffer.as_mut()) {
+    pub async fn read(&mut self) -> Option<(Locator, RtpsMessage<'_>)> {
+        match self.socket.recv_from(self.receive_buffer.as_mut()).await {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
                     if let Ok(message) = from_bytes(&self.receive_buffer[0..bytes]) {
@@ -43,7 +42,17 @@ impl UdpTransport {
     }
 }
 
-impl TransportWrite for UdpTransport {
+pub struct UdpTransportWrite {
+    socket: std::net::UdpSocket,
+}
+
+impl UdpTransportWrite {
+    pub fn new(socket: std::net::UdpSocket) -> Self {
+        Self { socket }
+    }
+}
+
+impl TransportWrite for UdpTransportWrite {
     fn write(&mut self, message: &RtpsMessage<'_>, destination_locator_list: &[Locator]) {
         let buf = to_bytes(message).unwrap();
 

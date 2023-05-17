@@ -142,7 +142,7 @@ pub fn delete_datareader(
     if data_reader.is_enabled() {
         domain_participant
             .announce_sender()
-            .send(AnnounceKind::DeletedDataReader(
+            .try_send(AnnounceKind::DeletedDataReader(
                 data_reader.get_instance_handle(),
             ))
             .ok();

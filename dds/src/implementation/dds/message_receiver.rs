@@ -1,5 +1,3 @@
-use std::sync::mpsc::Sender;
-
 use crate::{
     implementation::rtps::{
         messages::{
@@ -58,7 +56,7 @@ impl MessageReceiver {
         subscriber_list: &mut [DdsSubscriber],
         source_locator: Locator,
         message: &RtpsMessage<'_>,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         self.dest_guid_prefix = participant_guid.prefix();
         self.source_version = message.header().version;

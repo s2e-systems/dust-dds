@@ -313,7 +313,7 @@ where
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        self.data = &self.data[self.skip_length as usize..];
+        self.data = &self.data[self.skip_length..];
 
         let mut cdr_deserializer = cdr::Deserializer::<_, _, E>::new(self.data, cdr::Infinite);
         let pid = seed.deserialize(&mut cdr_deserializer).map(Some);

@@ -1,5 +1,3 @@
-use std::sync::mpsc::Sender;
-
 use crate::{
     implementation::rtps::{
         group::RtpsGroup,
@@ -167,7 +165,7 @@ impl DdsSubscriber {
         &mut self,
         now: Time,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let guid = self.guid();
         for data_reader in self.stateful_data_reader_list.iter_mut() {
@@ -239,7 +237,7 @@ impl DdsSubscriber {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let guid = self.guid();
         for stateless_data_reader in self.stateless_data_reader_list.iter_mut() {
@@ -262,7 +260,7 @@ impl DdsSubscriber {
         data_frag_submessage: &DataFragSubmessage<'_>,
         message_receiver: &MessageReceiver,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let guid = self.guid();
         for data_reader in self.stateful_data_reader_list.iter_mut() {

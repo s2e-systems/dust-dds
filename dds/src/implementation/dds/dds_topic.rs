@@ -1,4 +1,4 @@
-use std::sync::mpsc::{Sender, SyncSender};
+use tokio::sync::mpsc::Sender;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
@@ -38,7 +38,7 @@ pub struct DdsTopic {
     topic_name: String,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    announce_sender: SyncSender<AnnounceKind>,
+    announce_sender: Sender<AnnounceKind>,
 }
 
 impl DdsTopic {
@@ -47,7 +47,7 @@ impl DdsTopic {
         qos: TopicQos,
         type_name: &'static str,
         topic_name: &str,
-        announce_sender: SyncSender<AnnounceKind>,
+        announce_sender: Sender<AnnounceKind>,
     ) -> Self {
         Self {
             guid,
@@ -100,7 +100,7 @@ impl DdsTopic {
 
     pub fn enable(&mut self) -> DdsResult<()> {
         self.announce_sender
-            .send(AnnounceKind::CratedTopic(self.as_discovered_topic_data()))
+            .try_send(AnnounceKind::CratedTopic(self.as_discovered_topic_data()))
             .ok();
 
         self.enabled = true;
@@ -138,7 +138,7 @@ impl DdsTopic {
         &mut self,
         discovered_topic_data: &DiscoveredTopicData,
         parent_participant_guid: Guid,
-        listener_sender: &Sender<ListenerTriggerKind>,
+        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         if discovered_topic_data
             .topic_builtin_topic_data()
@@ -149,7 +149,7 @@ impl DdsTopic {
         {
             self.inconsistent_topic_status.increment();
             listener_sender
-                .send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
+                .try_send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
                     self.guid(),
                     parent_participant_guid,
                 )))
@@ -215,7 +215,7 @@ mod tests {
             GuidPrefix::new([2; 12]),
             EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
-        let (announce_sender, _) = std::sync::mpsc::sync_channel(1);
+        let (announce_sender, _) = tokio::sync::mpsc::channel(1);
         let mut topic = DdsTopic::new(guid, TopicQos::default(), "", "", announce_sender);
         topic.enabled = true;
 

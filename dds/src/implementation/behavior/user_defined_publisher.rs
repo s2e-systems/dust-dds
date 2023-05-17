@@ -146,7 +146,7 @@ pub fn delete_datawriter(
     {
         domain_participant
             .announce_sender()
-            .send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
+            .try_send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
             .ok();
     }
 

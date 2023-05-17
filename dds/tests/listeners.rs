@@ -28,7 +28,7 @@ use dust_dds::{
         subscriber::Subscriber,
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::{DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 use mockall::mock;
