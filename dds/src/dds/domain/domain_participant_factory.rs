@@ -5,7 +5,6 @@ use std::{
 };
 
 use super::{
-    dcps_service::DcpsService,
     domain_participant::{
         task_metatraffic_multicast_receive, task_metatraffic_unicast_receive,
         task_send_entity_announce, task_unicast_metatraffic_communication_send,
@@ -263,9 +262,6 @@ impl DomainParticipantFactory {
 
         dds_participant.spawn(task_send_entity_announce(guid_prefix, announce_receiver));
 
-        let dcps_service =
-            DcpsService::new(guid_prefix, &sedp_condvar, &user_defined_data_send_condvar)?;
-
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_domain_participant_listener(guid, a_listener, mask);
 
         let enter_guard = dds_participant.task_executor().enter();
@@ -333,11 +329,7 @@ impl DomainParticipantFactory {
             user_defined_data_send_condvar,
         ));
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_participant(
-            guid_prefix,
-            dds_participant,
-            dcps_service,
-        );
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_participant(guid_prefix, dds_participant);
 
         let participant = DomainParticipant::new(DomainParticipantNode::new(guid));
 
@@ -399,7 +391,7 @@ impl DomainParticipantFactory {
             .domain_participant_list
             .read_lock()
             .iter()
-            .find_map(|(_, (dp, _))| {
+            .find_map(|(_, dp)| {
                 if dp.get_domain_id() == domain_id {
                     Some(dp.guid())
                 } else {
@@ -456,7 +448,7 @@ impl DomainParticipantFactory {
 }
 
 pub struct DdsDomainParticipantFactory {
-    domain_participant_list: DdsRwLock<HashMap<GuidPrefix, (DdsDomainParticipant, DcpsService)>>,
+    domain_participant_list: DdsRwLock<HashMap<GuidPrefix, DdsDomainParticipant>>,
     domain_participant_listener_list:
         DdsRwLock<HashMap<Guid, StatusListener<dyn DomainParticipantListener + Send + Sync>>>,
     publisher_listener_list:
@@ -512,15 +504,10 @@ impl DdsDomainParticipantFactory {
         *self.default_participant_qos.write_lock() = default_participant_qos;
     }
 
-    pub fn add_participant(
-        &self,
-        guid_prefix: GuidPrefix,
-        dds_participant: DdsDomainParticipant,
-        dcps_service: DcpsService,
-    ) {
+    pub fn add_participant(&self, guid_prefix: GuidPrefix, dds_participant: DdsDomainParticipant) {
         self.domain_participant_list
             .write_lock()
-            .insert(guid_prefix, (dds_participant, dcps_service));
+            .insert(guid_prefix, dds_participant);
     }
 
     pub fn remove_participant(&self, guid_prefix: &GuidPrefix) {
@@ -533,11 +520,7 @@ impl DdsDomainParticipantFactory {
     where
         F: FnOnce(Option<&DdsDomainParticipant>) -> O,
     {
-        f(self
-            .domain_participant_list
-            .read_lock()
-            .get(guid_prefix)
-            .map(|o| &o.0))
+        f(self.domain_participant_list.read_lock().get(guid_prefix))
     }
 
     pub fn get_participant_mut<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
@@ -547,8 +530,7 @@ impl DdsDomainParticipantFactory {
         f(self
             .domain_participant_list
             .write_lock()
-            .get_mut(guid_prefix)
-            .map(|o| &mut o.0))
+            .get_mut(guid_prefix))
     }
 
     pub fn add_domain_participant_listener(
