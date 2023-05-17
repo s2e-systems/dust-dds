@@ -8,7 +8,7 @@ use super::{
     dcps_service::DcpsService,
     domain_participant::{
         task_metatraffic_multicast_receive, task_metatraffic_unicast_receive,
-        task_user_defined_receive, DomainParticipant,
+        task_send_entity_announce, task_user_defined_receive, DomainParticipant,
     },
     timer_factory::TimerFactory,
 };
@@ -243,7 +243,7 @@ impl DomainParticipantFactory {
         let guid = rtps_participant.guid();
         let sedp_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
-        let (announce_sender, announce_receiver) = std::sync::mpsc::sync_channel(10);
+        let (announce_sender, announce_receiver) = tokio::sync::mpsc::channel(500);
         let timer = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .timer_factory
             .create_timer();
@@ -260,18 +260,15 @@ impl DomainParticipantFactory {
             sedp_condvar.clone(),
         );
 
-        let dcps_service = DcpsService::new(
-            guid_prefix,
-            &sedp_condvar,
-            &user_defined_data_send_condvar,
-            announce_sender,
-            announce_receiver,
-        )?;
+        dds_participant.spawn(task_send_entity_announce(guid_prefix, announce_receiver));
+
+        let dcps_service =
+            DcpsService::new(guid_prefix, &sedp_condvar, &user_defined_data_send_condvar)?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_domain_participant_listener(guid, a_listener, mask);
 
         let enter_guard = dds_participant.task_executor().enter();
-        let (listener_sender, listener_receiver) = tokio::sync::mpsc::channel(100);
+        let (listener_sender, listener_receiver) = tokio::sync::mpsc::channel(500);
         std::mem::drop(enter_guard);
 
         dds_participant.spawn(

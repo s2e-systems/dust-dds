@@ -2,7 +2,6 @@ use std::{
     net::UdpSocket,
     sync::{
         atomic::{self, AtomicBool},
-        mpsc::{Receiver, SyncSender},
         Arc,
     },
     thread::JoinHandle,
@@ -14,16 +13,16 @@ use crate::{
     domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
+            discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
             discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
+            discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         dds::{
             dds_data_reader::DdsDataReader,
             dds_data_writer::DdsDataWriter,
             dds_domain_participant::{
-                AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
@@ -59,14 +58,14 @@ use crate::{
         utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
     },
     infrastructure::{
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         time::{Duration, DurationKind, Time},
     },
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::type_support::{dds_serialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 pub struct DcpsService {
@@ -74,7 +73,6 @@ pub struct DcpsService {
     threads: DdsRwLock<Vec<JoinHandle<()>>>,
     sedp_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
-    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl Drop for DcpsService {
@@ -83,9 +81,6 @@ impl Drop for DcpsService {
 
         self.sedp_condvar.notify_all();
         self.user_defined_data_send_condvar.notify_all();
-        self.announce_sender
-            .send(AnnounceKind::DeletedParticipant)
-            .ok();
 
         while let Some(thread) = self.threads.write_lock().pop() {
             thread.join().unwrap();
@@ -99,33 +94,9 @@ impl DcpsService {
         participant_guid_prefix: GuidPrefix,
         sedp_condvar: &DdsCondvar,
         user_defined_data_send_condvar: &DdsCondvar,
-        announce_sender: SyncSender<AnnounceKind>,
-        announce_receiver: Receiver<AnnounceKind>,
     ) -> DdsResult<Self> {
         let quit = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
-
-        //  ////////////// Entity announcer thread
-        {
-            let task_quit = quit.clone();
-
-            threads.push(std::thread::spawn(move || loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
-                if let Ok(announce_kind) = announce_receiver.recv() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                        &participant_guid_prefix,
-                        |dp| {
-                            if let Some(dp) = dp {
-                                announce_entity(dp, announce_kind);
-                            }
-                        },
-                    )
-                }
-            }));
-        }
 
         // //////////// Unicast metatraffic Communication send
         {
@@ -185,7 +156,6 @@ impl DcpsService {
             threads: DdsRwLock::new(threads),
             sedp_condvar,
             user_defined_data_send_condvar,
-            announce_sender,
         })
     }
 
@@ -196,153 +166,6 @@ impl DcpsService {
     pub fn user_defined_data_send_condvar(&self) -> &DdsCondvar {
         &self.user_defined_data_send_condvar
     }
-
-    pub fn announce_sender(&self) -> &SyncSender<AnnounceKind> {
-        &self.announce_sender
-    }
-}
-
-fn announce_created_data_reader(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_reader_data: DiscoveredReaderData,
-) {
-    let reader_proxy = ReaderProxy::new(
-        discovered_reader_data.reader_proxy().remote_reader_guid(),
-        discovered_reader_data
-            .reader_proxy()
-            .remote_group_entity_id(),
-        domain_participant.default_unicast_locator_list().to_vec(),
-        domain_participant.default_multicast_locator_list().to_vec(),
-        discovered_reader_data.reader_proxy().expects_inline_qos(),
-    );
-    let reader_data = &DiscoveredReaderData::new(
-        reader_proxy,
-        discovered_reader_data
-            .subscription_builtin_topic_data()
-            .clone(),
-    );
-
-    let serialized_data = dds_serialize(reader_data).expect("Failed to serialize data");
-
-    let timestamp = domain_participant.get_current_time();
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            reader_data.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
-}
-
-fn announce_created_data_writer(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_writer_data: DiscoveredWriterData,
-) {
-    let writer_data = &DiscoveredWriterData::new(
-        discovered_writer_data.dds_publication_data().clone(),
-        WriterProxy::new(
-            discovered_writer_data.writer_proxy().remote_writer_guid(),
-            discovered_writer_data
-                .writer_proxy()
-                .remote_group_entity_id(),
-            domain_participant.default_unicast_locator_list().to_vec(),
-            domain_participant.default_multicast_locator_list().to_vec(),
-            discovered_writer_data
-                .writer_proxy()
-                .data_max_size_serialized(),
-        ),
-    );
-
-    let serialized_data = dds_serialize(writer_data).expect("Failed to serialize data");
-
-    let timestamp = domain_participant.get_current_time();
-
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            writer_data.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
-}
-
-fn announce_created_topic(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_topic: DiscoveredTopicData,
-) {
-    let serialized_data = dds_serialize(&discovered_topic).expect("Failed to serialize data");
-
-    let timestamp = domain_participant.get_current_time();
-
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            discovered_topic.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
-}
-
-fn announce_deleted_reader(
-    domain_participant: &mut DdsDomainParticipant,
-    reader_handle: InstanceHandle,
-) {
-    let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
-    let instance_serialized_key =
-        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
-            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-            .expect("Failed to serialize data");
-
-    let timestamp = domain_participant.get_current_time();
-
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-        .unwrap()
-        .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
-        .expect("Should not fail to write built-in message");
-}
-
-fn announce_deleted_writer(
-    domain_participant: &mut DdsDomainParticipant,
-    writer_handle: InstanceHandle,
-) {
-    let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
-    let instance_serialized_key =
-        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
-            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-            .expect("Failed to serialize data");
-
-    let timestamp = domain_participant.get_current_time();
-
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-        .unwrap()
-        .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
-        .expect("Should not fail to write built-in message");
 }
 
 fn remove_stale_writer_changes(writer: &mut DdsDataWriter<RtpsStatefulWriter>, now: Time) {
@@ -1251,27 +1074,6 @@ fn send_user_defined_message(
         .stateful_data_reader_list_mut()
     {
         stateful_readers.send_message(header, metatraffic_unicast_transport_send)
-    }
-}
-
-fn announce_entity(domain_participant: &mut DdsDomainParticipant, announce_kind: AnnounceKind) {
-    match announce_kind {
-        AnnounceKind::CreatedDataReader(discovered_reader_data) => {
-            announce_created_data_reader(domain_participant, discovered_reader_data)
-        }
-        AnnounceKind::CreatedDataWriter(discovered_writer_data) => {
-            announce_created_data_writer(domain_participant, discovered_writer_data)
-        }
-        AnnounceKind::CratedTopic(discovered_topic_data) => {
-            announce_created_topic(domain_participant, discovered_topic_data)
-        }
-        AnnounceKind::DeletedDataReader(deleted_reader_handle) => {
-            announce_deleted_reader(domain_participant, deleted_reader_handle)
-        }
-        AnnounceKind::DeletedDataWriter(deleted_writer_handle) => {
-            announce_deleted_writer(domain_participant, deleted_writer_handle)
-        }
-        AnnounceKind::DeletedParticipant => (),
     }
 }
 

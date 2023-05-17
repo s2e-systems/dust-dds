@@ -356,7 +356,7 @@ pub fn set_qos(
             .as_discovered_reader_data(&topic.get_qos(), &subscriber_qos);
         domain_participant
             .announce_sender()
-            .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
+            .try_send(AnnounceKind::CreatedDataReader(discovered_reader_data))
             .ok();
     }
 
@@ -423,7 +423,7 @@ pub fn enable(
         .as_discovered_reader_data(&topic.get_qos(), &subscriber_qos);
     domain_participant
         .announce_sender()
-        .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
+        .try_send(AnnounceKind::CreatedDataReader(discovered_reader_data))
         .ok();
 
     Ok(())

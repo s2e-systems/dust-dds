@@ -774,7 +774,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                         parent_participant_guid,
                     ),
                 ))
-                .unwrap();
+                .ok();
         }
     }
 
@@ -799,7 +799,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                 parent_subcriber_guid,
                 parent_participant_guid,
             )))
-            .unwrap();
+            .ok();
     }
 
     fn on_sample_lost(
@@ -816,7 +816,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                 parent_subscriber_guid,
                 parent_participant_guid,
             )))
-            .unwrap();
+            .ok();
     }
 
     fn on_subscription_matched(
@@ -832,7 +832,7 @@ impl DdsDataReader<RtpsStatefulReader> {
             .try_send(ListenerTriggerKind::SubscriptionMatched(
                 DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
             ))
-            .unwrap();
+            .ok();
     }
 
     fn on_sample_rejected(
@@ -852,7 +852,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                 parent_subscriber_guid,
                 parent_participant_guid,
             )))
-            .unwrap();
+            .ok();
     }
 
     fn on_requested_incompatible_qos(
@@ -869,7 +869,7 @@ impl DdsDataReader<RtpsStatefulReader> {
             .try_send(ListenerTriggerKind::RequestedIncompatibleQos(
                 DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
             ))
-            .unwrap();
+            .ok();
     }
 }
 

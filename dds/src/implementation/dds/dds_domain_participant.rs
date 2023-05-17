@@ -1,5 +1,5 @@
 use fnmatch_regex::glob_to_regex;
-use tokio::runtime::Runtime;
+use tokio::{runtime::Runtime, sync::mpsc::Sender};
 
 use crate::{
     builtin_topics::{
@@ -64,7 +64,7 @@ use crate::{
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::type_support::{DdsType, dds_serialize},
+    topic_definition::type_support::{dds_serialize, DdsType},
     {
         builtin_topics::TopicBuiltinTopicData,
         infrastructure::{
@@ -78,10 +78,7 @@ use crate::{
 use std::{
     collections::{HashMap, HashSet},
     future::Future,
-    sync::{
-        atomic::{AtomicU8, Ordering},
-        mpsc::SyncSender,
-    },
+    sync::atomic::{AtomicU8, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -114,6 +111,7 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new(EntityKey::new([0, 0, 0x04]), BUILT_IN_READER_WITH_KEY);
 
+#[derive(Debug)]
 pub enum AnnounceKind {
     CreatedDataReader(DiscoveredReaderData),
     CreatedDataWriter(DiscoveredWriterData),
@@ -150,7 +148,7 @@ pub struct DdsDomainParticipant {
     ignored_subcriptions: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
     timer: DdsShared<DdsRwLock<Timer>>,
-    announce_sender: SyncSender<AnnounceKind>,
+    announce_sender: Sender<AnnounceKind>,
     sedp_condvar: DdsCondvar,
     task_executor: Runtime,
 }
@@ -171,7 +169,7 @@ impl DdsDomainParticipant {
         spdp_discovery_locator_list: &[Locator],
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
-        announce_sender: SyncSender<AnnounceKind>,
+        announce_sender: Sender<AnnounceKind>,
         timer: DdsShared<DdsRwLock<Timer>>,
         sedp_condvar: DdsCondvar,
     ) -> Self {
@@ -781,7 +779,7 @@ impl DdsDomainParticipant {
             for data_writer in user_defined_publisher.stateful_datawriter_drain() {
                 if data_writer.is_enabled() {
                     self.announce_sender
-                        .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+                        .try_send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
                         .ok();
                 }
             }
@@ -791,7 +789,7 @@ impl DdsDomainParticipant {
             for data_reader in user_defined_subscriber.stateful_data_reader_drain() {
                 if data_reader.is_enabled() {
                     self.announce_sender
-                        .send(AnnounceKind::DeletedDataReader(
+                        .try_send(AnnounceKind::DeletedDataReader(
                             data_reader.get_instance_handle(),
                         ))
                         .ok();
@@ -1229,7 +1227,7 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn announce_sender(&self) -> &SyncSender<AnnounceKind> {
+    pub fn announce_sender(&self) -> &Sender<AnnounceKind> {
         &self.announce_sender
     }
 
@@ -1413,7 +1411,7 @@ fn on_writer_publication_matched(
                 parent_participant_guid,
             ),
         ))
-        .unwrap();
+        .ok();
 }
 
 pub fn remove_writer_matched_reader(
@@ -1455,7 +1453,7 @@ fn writer_on_offered_incompatible_qos(
                     parent_participant_guid,
                 ),
             ))
-            .unwrap();
+            .ok();
     }
 }
 
