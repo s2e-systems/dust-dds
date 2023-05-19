@@ -86,8 +86,7 @@ use crate::{
 
 use super::{
     domain_participant_factory::{
-        DomainId, THE_CURRENT_THREAD_RUNTIME, THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-        THE_PARTICIPANT_FACTORY,
+        DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY, THE_PARTICIPANT_FACTORY, THE_TASK_RUNTIME,
     },
     domain_participant_listener::DomainParticipantListener,
 };
@@ -679,7 +678,7 @@ impl DomainParticipant {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            THE_CURRENT_THREAD_RUNTIME.block_on(async {
+            THE_TASK_RUNTIME.block_on(async {
                 crate::implementation::behavior::domain_participant::enable(dp).await
             })
         })

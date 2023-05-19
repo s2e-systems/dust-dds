@@ -158,7 +158,7 @@ impl DomainParticipantFactory {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
-        let participant = THE_CURRENT_THREAD_RUNTIME.block_on(
+        let participant = THE_TASK_RUNTIME.block_on(
             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.create_participant(domain_id, qos, a_listener, mask),
         )?;
 
@@ -699,11 +699,6 @@ lazy_static! {
         .enable_all()
         .build()
         .expect("Failed to create Tokio runtime");
-    pub static ref THE_CURRENT_THREAD_RUNTIME: Runtime =
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("Failed to create Tokio current thread runtime");
     pub(in crate::dds) static ref THE_DDS_DOMAIN_PARTICIPANT_FACTORY: DdsDomainParticipantFactory =
         DdsDomainParticipantFactory::new();
 }
