@@ -241,15 +241,13 @@ pub fn get_qos(domain_participant: &DdsDomainParticipant) -> DdsResult<DomainPar
     Ok(domain_participant.get_qos())
 }
 
-pub fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
+pub async fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
     domain_participant.enable()?;
 
     domain_participant.announce_participant()?;
-    domain_participant
-        .task_executor()
-        .spawn(task_announce_participant(
-            domain_participant.guid().prefix(),
-        ));
+    domain_participant.spawn(task_announce_participant(
+        domain_participant.guid().prefix(),
+    ));
 
     Ok(())
 }
