@@ -468,7 +468,6 @@ impl DdsDomainParticipantFactory {
             )
             .unwrap(),
         );
-
         dds_participant.spawn(task_metatraffic_multicast_receive(
             guid_prefix,
             metatraffic_multicast_transport,
