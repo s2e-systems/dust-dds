@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     net::{Ipv4Addr, SocketAddr, UdpSocket},
     str::FromStr,
+    sync::atomic::{self, AtomicU32},
 };
 
 use super::domain_participant::{
@@ -156,186 +157,18 @@ impl DomainParticipantFactory {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
-        let configuration = if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION")
-        {
-            configuration_try_from_str(configuration_json.as_str())
-                .map_err(DdsError::PreconditionNotMet)?
-        } else {
-            DustDdsConfiguration::default()
-        };
-
-        let domain_participant_qos = match qos {
-            QosKind::Default => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.default_participant_qos(),
-            QosKind::Specific(q) => q,
-        };
-
-        let interface_address_list =
-            get_interface_address_list(configuration.interface_name.as_ref());
-
-        let default_unicast_socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
-            .map_err(|_| DdsError::Error)?;
-        default_unicast_socket.set_nonblocking(true).unwrap();
-        let user_defined_unicast_port = default_unicast_socket
-            .local_addr()
-            .map_err(|_| DdsError::Error)?
-            .port();
-        let user_defined_unicast_locator_port = LocatorPort::new(user_defined_unicast_port.into());
-
-        let default_unicast_locator_list: Vec<Locator> = interface_address_list
-            .iter()
-            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, user_defined_unicast_locator_port, *a))
-            .collect();
-
-        let default_multicast_locator_list = vec![];
-
-        let metattrafic_unicast_socket =
-            UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
-                .map_err(|_| DdsError::Error)?;
-        metattrafic_unicast_socket.set_nonblocking(true).unwrap();
-
-        let metattrafic_unicast_locator_port = LocatorPort::new(
-            metattrafic_unicast_socket
-                .local_addr()
-                .map_err(|_| DdsError::Error)?
-                .port()
-                .into(),
-        );
-        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
-            .iter()
-            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
-            .collect();
-
-        let metatraffic_multicast_locator_list = vec![Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id),
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
-
-        let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
-
-        let mac_address = ifcfg::IfCfg::get()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .filter_map(|i| MacAddress::from_str(&i.mac).ok())
-            .find(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
-            .expect("Could not find any mac address")
-            .bytes();
-
-        #[rustfmt::skip]
-        let guid_prefix = GuidPrefix::new([
-            mac_address[0], mac_address[1], mac_address[2],
-            mac_address[3], mac_address[4], mac_address[5],
-            domain_id as u8, (user_defined_unicast_port >> 8) as u8, (user_defined_unicast_port & 0x00FF) as u8, 0, 0, 0
-        ]);
-
-        let rtps_participant = RtpsParticipant::new(
-            guid_prefix,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            PROTOCOLVERSION,
-            VENDOR_ID_S2E,
-        );
-        let guid = rtps_participant.guid();
-        let sedp_condvar = DdsCondvar::new();
-        let user_defined_data_send_condvar = DdsCondvar::new();
-        let (announce_sender, announce_receiver) = tokio::sync::mpsc::channel(500);
-
-        let dds_participant = DdsDomainParticipant::new(
-            rtps_participant,
-            domain_id,
-            configuration.domain_tag,
-            domain_participant_qos,
-            &spdp_discovery_locator_list,
-            user_defined_data_send_condvar.clone(),
-            configuration.fragment_size,
-            announce_sender,
-            sedp_condvar.clone(),
-        );
-
-        dds_participant.spawn(task_send_entity_announce(guid_prefix, announce_receiver));
-
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_domain_participant_listener(guid, a_listener, mask);
-
-        let enter_guard = dds_participant.task_executor().enter();
-        let (listener_sender, listener_receiver) = tokio::sync::mpsc::channel(500);
-        std::mem::drop(enter_guard);
-
-        dds_participant.spawn(
-            crate::domain::domain_participant::task_update_communication_status(
-                guid_prefix,
-                listener_sender.clone(),
-            ),
-        );
-
-        dds_participant.spawn(crate::domain::domain_participant::task_listener_receiver(
-            listener_receiver,
-        ));
-
-        let enter_guard = dds_participant.task_executor().enter();
-        let metatraffic_multicast_transport = UdpTransportRead::new(
-            get_multicast_socket(
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-                port_builtin_multicast(domain_id),
-            )
-            .unwrap(),
-        );
-        std::mem::drop(enter_guard);
-        dds_participant.spawn(task_metatraffic_multicast_receive(
-            guid_prefix,
-            metatraffic_multicast_transport,
-            dds_participant.sedp_condvar().clone(),
-            listener_sender.clone(),
-        ));
-
-        let enter_guard = dds_participant.task_executor().enter();
-        let metatraffic_unicast_transport = UdpTransportRead::new(
-            tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).unwrap(),
-        );
-        std::mem::drop(enter_guard);
-
-        dds_participant.spawn(task_metatraffic_unicast_receive(
-            guid_prefix,
-            metatraffic_unicast_transport,
-            dds_participant.sedp_condvar().clone(),
-            listener_sender.clone(),
-        ));
-
-        let enter_guard = dds_participant.task_executor().enter();
-        let default_unicast_transport =
-            UdpTransportRead::new(tokio::net::UdpSocket::from_std(default_unicast_socket).unwrap());
-        std::mem::drop(enter_guard);
-
-        dds_participant.spawn(task_user_defined_receive(
-            guid_prefix,
-            default_unicast_transport,
-            listener_sender,
-        ));
-
-        dds_participant.spawn(task_unicast_metatraffic_communication_send(
-            guid_prefix,
-            sedp_condvar,
-        ));
-
-        dds_participant.spawn(task_unicast_user_defined_communication_send(
-            guid_prefix,
-            user_defined_data_send_condvar,
-        ));
-
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_participant(guid_prefix, dds_participant);
-
-        let participant = DomainParticipant::new(DomainParticipantNode::new(guid));
+        let dp = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .create_participant(domain_id, qos, a_listener, mask)?;
 
         if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .qos()
             .entity_factory
             .autoenable_created_entities
         {
-            participant.enable()?;
+            dp.enable()?;
         }
 
-        Ok(participant)
+        Ok(dp)
     }
 
     /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
@@ -443,6 +276,7 @@ impl DomainParticipantFactory {
 
 pub struct DdsDomainParticipantFactory {
     domain_participant_list: DdsRwLock<HashMap<GuidPrefix, DdsDomainParticipant>>,
+    domain_participant_counter: AtomicU32,
     domain_participant_listener_list:
         DdsRwLock<HashMap<Guid, StatusListener<dyn DomainParticipantListener + Send + Sync>>>,
     publisher_listener_list:
@@ -469,6 +303,7 @@ impl DdsDomainParticipantFactory {
     pub fn new() -> Self {
         Self {
             domain_participant_list: DdsRwLock::new(HashMap::new()),
+            domain_participant_counter: AtomicU32::new(0),
             domain_participant_listener_list: DdsRwLock::new(HashMap::new()),
             publisher_listener_list: DdsRwLock::new(HashMap::new()),
             subscriber_listener_list: DdsRwLock::new(HashMap::new()),
@@ -496,10 +331,191 @@ impl DdsDomainParticipantFactory {
         *self.default_participant_qos.write_lock() = default_participant_qos;
     }
 
-    pub fn add_participant(&self, guid_prefix: GuidPrefix, dds_participant: DdsDomainParticipant) {
+    pub fn create_participant(
+        &self,
+        domain_id: DomainId,
+        qos: QosKind<DomainParticipantQos>,
+        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) -> DdsResult<DomainParticipant> {
+        let configuration = if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION")
+        {
+            configuration_try_from_str(configuration_json.as_str())
+                .map_err(DdsError::PreconditionNotMet)?
+        } else {
+            DustDdsConfiguration::default()
+        };
+
+        let domain_participant_qos = match qos {
+            QosKind::Default => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.default_participant_qos(),
+            QosKind::Specific(q) => q,
+        };
+
+        let interface_address_list =
+            get_interface_address_list(configuration.interface_name.as_ref());
+
+        let default_unicast_socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
+            .map_err(|_| DdsError::Error)?;
+        default_unicast_socket.set_nonblocking(true).unwrap();
+        let user_defined_unicast_port = default_unicast_socket
+            .local_addr()
+            .map_err(|_| DdsError::Error)?
+            .port();
+        let user_defined_unicast_locator_port = LocatorPort::new(user_defined_unicast_port.into());
+
+        let default_unicast_locator_list: Vec<Locator> = interface_address_list
+            .iter()
+            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, user_defined_unicast_locator_port, *a))
+            .collect();
+
+        let default_multicast_locator_list = vec![];
+
+        let metattrafic_unicast_socket =
+            UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
+                .map_err(|_| DdsError::Error)?;
+        metattrafic_unicast_socket.set_nonblocking(true).unwrap();
+
+        let metattrafic_unicast_locator_port = LocatorPort::new(
+            metattrafic_unicast_socket
+                .local_addr()
+                .map_err(|_| DdsError::Error)?
+                .port()
+                .into(),
+        );
+        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
+            .iter()
+            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
+            .collect();
+
+        let metatraffic_multicast_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDP_V4,
+            port_builtin_multicast(domain_id),
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        )];
+
+        let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
+
+        let mac_address = ifcfg::IfCfg::get()
+            .expect("Could not scan interfaces")
+            .into_iter()
+            .filter_map(|i| MacAddress::from_str(&i.mac).ok())
+            .find(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
+            .expect("Could not find any mac address")
+            .bytes();
+
+        let app_id = std::process::id().to_ne_bytes();
+        let instance_id = self
+            .domain_participant_counter
+            .fetch_add(1, atomic::Ordering::SeqCst)
+            .to_ne_bytes();
+
+        #[rustfmt::skip]
+        let guid_prefix = GuidPrefix::new([
+            mac_address[2],  mac_address[3], mac_address[4], mac_address[5], // Host ID
+            app_id[0], app_id[1], app_id[2], app_id[3], // App ID
+            instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
+        ]);
+
+        let rtps_participant = RtpsParticipant::new(
+            guid_prefix,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            PROTOCOLVERSION,
+            VENDOR_ID_S2E,
+        );
+        let guid = rtps_participant.guid();
+        let sedp_condvar = DdsCondvar::new();
+        let user_defined_data_send_condvar = DdsCondvar::new();
+        let (announce_sender, announce_receiver) = tokio::sync::mpsc::channel(500);
+
+        let dds_participant = DdsDomainParticipant::new(
+            rtps_participant,
+            domain_id,
+            configuration.domain_tag,
+            domain_participant_qos,
+            &spdp_discovery_locator_list,
+            user_defined_data_send_condvar.clone(),
+            configuration.fragment_size,
+            announce_sender,
+            sedp_condvar.clone(),
+        );
+
+        dds_participant.spawn(task_send_entity_announce(guid_prefix, announce_receiver));
+
+        self.add_domain_participant_listener(guid, a_listener, mask);
+
+        let enter_guard = dds_participant.task_executor().enter();
+        let (listener_sender, listener_receiver) = tokio::sync::mpsc::channel(500);
+        std::mem::drop(enter_guard);
+
+        dds_participant.spawn(
+            crate::domain::domain_participant::task_update_communication_status(
+                guid_prefix,
+                listener_sender.clone(),
+            ),
+        );
+
+        dds_participant.spawn(crate::domain::domain_participant::task_listener_receiver(
+            listener_receiver,
+        ));
+
+        let enter_guard = dds_participant.task_executor().enter();
+        let metatraffic_multicast_transport = UdpTransportRead::new(
+            get_multicast_socket(
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+                port_builtin_multicast(domain_id),
+            )
+            .unwrap(),
+        );
+        std::mem::drop(enter_guard);
+        dds_participant.spawn(task_metatraffic_multicast_receive(
+            guid_prefix,
+            metatraffic_multicast_transport,
+            dds_participant.sedp_condvar().clone(),
+            listener_sender.clone(),
+        ));
+
+        let enter_guard = dds_participant.task_executor().enter();
+        let metatraffic_unicast_transport = UdpTransportRead::new(
+            tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).unwrap(),
+        );
+        std::mem::drop(enter_guard);
+
+        dds_participant.spawn(task_metatraffic_unicast_receive(
+            guid_prefix,
+            metatraffic_unicast_transport,
+            dds_participant.sedp_condvar().clone(),
+            listener_sender.clone(),
+        ));
+
+        let enter_guard = dds_participant.task_executor().enter();
+        let default_unicast_transport =
+            UdpTransportRead::new(tokio::net::UdpSocket::from_std(default_unicast_socket).unwrap());
+        std::mem::drop(enter_guard);
+
+        dds_participant.spawn(task_user_defined_receive(
+            guid_prefix,
+            default_unicast_transport,
+            listener_sender,
+        ));
+
+        dds_participant.spawn(task_unicast_metatraffic_communication_send(
+            guid_prefix,
+            sedp_condvar,
+        ));
+
+        dds_participant.spawn(task_unicast_user_defined_communication_send(
+            guid_prefix,
+            user_defined_data_send_condvar,
+        ));
+
         self.domain_participant_list
             .write_lock()
             .insert(guid_prefix, dds_participant);
+
+        Ok(DomainParticipant::new(DomainParticipantNode::new(guid)))
     }
 
     pub fn remove_participant(&self, guid_prefix: &GuidPrefix) {
