@@ -192,7 +192,7 @@ impl DomainParticipantFactory {
             // while locking
             let object = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .domain_participant_list
-                .write_lock()
+                .blocking_write()
                 .remove(&participant.node().guid().prefix());
             std::mem::drop(object);
 
@@ -218,7 +218,7 @@ impl DomainParticipantFactory {
     pub fn lookup_participant(&self, domain_id: DomainId) -> Option<DomainParticipant> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .domain_participant_list
-            .read_lock()
+            .blocking_read()
             .iter()
             .find_map(|(_, dp)| {
                 if dp.get_domain_id() == domain_id {
@@ -277,7 +277,7 @@ impl DomainParticipantFactory {
 }
 
 pub struct DdsDomainParticipantFactory {
-    domain_participant_list: DdsRwLock<HashMap<GuidPrefix, DdsDomainParticipant>>,
+    domain_participant_list: tokio::sync::RwLock<HashMap<GuidPrefix, DdsDomainParticipant>>,
     domain_participant_counter: AtomicU32,
     domain_participant_listener_list:
         DdsRwLock<HashMap<Guid, StatusListener<dyn DomainParticipantListener + Send + Sync>>>,
@@ -304,7 +304,7 @@ impl Default for DdsDomainParticipantFactory {
 impl DdsDomainParticipantFactory {
     pub fn new() -> Self {
         Self {
-            domain_participant_list: DdsRwLock::new(HashMap::new()),
+            domain_participant_list: tokio::sync::RwLock::new(HashMap::new()),
             domain_participant_counter: AtomicU32::new(0),
             domain_participant_listener_list: DdsRwLock::new(HashMap::new()),
             publisher_listener_list: DdsRwLock::new(HashMap::new()),
@@ -506,7 +506,8 @@ impl DdsDomainParticipantFactory {
         ));
 
         self.domain_participant_list
-            .write_lock()
+            .write()
+            .await
             .insert(guid_prefix, dds_participant);
 
         Ok(DomainParticipant::new(DomainParticipantNode::new(guid)))
@@ -514,7 +515,7 @@ impl DdsDomainParticipantFactory {
 
     pub fn remove_participant(&self, guid_prefix: &GuidPrefix) {
         self.domain_participant_list
-            .write_lock()
+            .blocking_write()
             .remove(guid_prefix);
     }
 
@@ -522,7 +523,10 @@ impl DdsDomainParticipantFactory {
     where
         F: FnOnce(Option<&DdsDomainParticipant>) -> O,
     {
-        f(self.domain_participant_list.read_lock().get(guid_prefix))
+        f(self
+            .domain_participant_list
+            .blocking_read()
+            .get(guid_prefix))
     }
 
     pub fn get_participant_mut<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
@@ -531,7 +535,18 @@ impl DdsDomainParticipantFactory {
     {
         f(self
             .domain_participant_list
-            .write_lock()
+            .blocking_write()
+            .get_mut(guid_prefix))
+    }
+
+    pub async fn get_participant_mut_async<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
+    where
+        F: FnOnce(Option<&mut DdsDomainParticipant>) -> O,
+    {
+        f(self
+            .domain_participant_list
+            .write()
+            .await
             .get_mut(guid_prefix))
     }
 
