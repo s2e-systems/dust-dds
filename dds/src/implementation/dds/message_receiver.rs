@@ -3,8 +3,7 @@ use crate::{
         messages::{
             submessages::{
                 InfoDestinationSubmessage, InfoSourceSubmessage, InfoTimestampSubmessage,
-            },
-            RtpsMessage, RtpsSubmessageKind,
+            }, RtpsMessageRead, RtpsSubmessageReadKind,
         },
         types::{
             Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
@@ -55,7 +54,7 @@ impl MessageReceiver {
         publisher_list: &mut [DdsPublisher],
         subscriber_list: &mut [DdsSubscriber],
         source_locator: Locator,
-        message: &RtpsMessage<'_>,
+        message: &RtpsMessageRead<'_>,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         self.dest_guid_prefix = participant_guid.prefix();
@@ -75,7 +74,7 @@ impl MessageReceiver {
 
         for submessage in message.submessages() {
             match submessage {
-                RtpsSubmessageKind::AckNack(acknack_submessage) => {
+                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
                     for publisher in publisher_list.iter_mut() {
                         for stateful_data_writer in
                             publisher.stateful_data_writer_list_mut().iter_mut()
@@ -85,7 +84,7 @@ impl MessageReceiver {
                         }
                     }
                 }
-                RtpsSubmessageKind::Data(data_submessage) => {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
                     for subscriber in subscriber_list.iter_mut() {
                         subscriber.on_data_submessage_received(
                             data_submessage,
@@ -95,7 +94,7 @@ impl MessageReceiver {
                         )
                     }
                 }
-                RtpsSubmessageKind::DataFrag(data_frag_submessage) => {
+                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                     for subscriber in subscriber_list.iter_mut() {
                         subscriber.on_data_frag_submessage_received(
                             data_frag_submessage,
@@ -105,12 +104,12 @@ impl MessageReceiver {
                         )
                     }
                 }
-                RtpsSubmessageKind::Gap(gap_submessage) => {
+                RtpsSubmessageReadKind::Gap(gap_submessage) => {
                     for subscriber in subscriber_list.iter_mut() {
                         subscriber.on_gap_submessage_received(gap_submessage, self)
                     }
                 }
-                RtpsSubmessageKind::Heartbeat(heartbeat_submessage) => {
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
                     for subscriber in subscriber_list.iter_mut() {
                         subscriber.on_heartbeat_submessage_received(
                             heartbeat_submessage,
@@ -118,7 +117,7 @@ impl MessageReceiver {
                         )
                     }
                 }
-                RtpsSubmessageKind::HeartbeatFrag(heartbeat_frag) => {
+                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag) => {
                     for subscriber in subscriber_list.iter_mut() {
                         subscriber.on_heartbeat_frag_submessage_received(
                             heartbeat_frag,
@@ -126,17 +125,17 @@ impl MessageReceiver {
                         );
                     }
                 }
-                RtpsSubmessageKind::InfoDestination(info_dst) => {
+                RtpsSubmessageReadKind::InfoDestination(info_dst) => {
                     self.process_info_destination_submessage(info_dst)
                 }
-                RtpsSubmessageKind::InfoReply(_) => (),
-                RtpsSubmessageKind::InfoSource(info_source) => {
+                RtpsSubmessageReadKind::InfoReply(_) => (),
+                RtpsSubmessageReadKind::InfoSource(info_source) => {
                     self.process_info_source_submessage(info_source)
                 }
-                RtpsSubmessageKind::InfoTimestamp(info_timestamp) => {
+                RtpsSubmessageReadKind::InfoTimestamp(info_timestamp) => {
                     self.process_info_timestamp_submessage(info_timestamp)
                 }
-                RtpsSubmessageKind::NackFrag(nack_frag_submessage) => {
+                RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
                     for publisher in publisher_list.iter_mut() {
                         for stateful_data_writer in
                             publisher.stateful_data_writer_list_mut().iter_mut()
@@ -146,7 +145,7 @@ impl MessageReceiver {
                         }
                     }
                 }
-                RtpsSubmessageKind::Pad(_) => (),
+                RtpsSubmessageReadKind::Pad(_) => (),
             }
         }
 

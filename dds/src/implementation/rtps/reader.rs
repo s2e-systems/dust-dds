@@ -33,7 +33,7 @@ use super::{
     endpoint::RtpsEndpoint,
     history_cache::RtpsParameter,
     messages::{
-        submessages::{DataFragSubmessage, DataSubmessage},
+        submessages::{DataFragSubmessage, DataSubmessageRead, },
         types::ParameterId,
     },
     types::{ChangeKind, Guid, GuidPrefix},
@@ -256,7 +256,7 @@ impl RtpsReader {
 
     pub fn convert_data_to_cache_change(
         &self,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessageRead,
         source_timestamp: Option<Time>,
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,

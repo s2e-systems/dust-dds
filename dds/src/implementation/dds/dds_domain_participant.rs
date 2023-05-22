@@ -21,7 +21,6 @@ use crate::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::RtpsMessage,
             participant::RtpsParticipant,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
@@ -43,7 +42,7 @@ use crate::{
                 BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
-            writer::RtpsWriter,
+            writer::RtpsWriter, messages::RtpsMessageRead,
         },
         utils::condvar::DdsCondvar,
     },
@@ -987,7 +986,7 @@ impl DdsDomainParticipant {
     pub fn receive_builtin_data(
         &mut self,
         source_locator: Locator,
-        message: RtpsMessage,
+        message: RtpsMessageRead,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         MessageReceiver::new(self.get_current_time()).process_message(
@@ -1005,7 +1004,7 @@ impl DdsDomainParticipant {
     pub fn receive_user_defined_data(
         &mut self,
         source_locator: Locator,
-        message: RtpsMessage,
+        message: RtpsMessageRead,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         MessageReceiver::new(self.get_current_time()).process_message(

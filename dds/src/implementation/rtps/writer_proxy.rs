@@ -10,8 +10,7 @@ use super::{
         submessages::{
             AckNackSubmessage, DataFragSubmessage, InfoDestinationSubmessage, NackFragSubmessage,
         },
-        types::{FragmentNumber, ULong, UShort},
-        RtpsMessage, RtpsSubmessageKind,
+        types::{FragmentNumber, ULong, UShort}, RtpsSubmessageWriteKind, RtpsMessageWrite,
     },
     transport::TransportWrite,
     types::{Count, EntityId, Guid, Locator, SequenceNumber},
@@ -286,8 +285,8 @@ impl RtpsWriterProxy {
             };
 
             let mut submessages = vec![
-                RtpsSubmessageKind::InfoDestination(info_dst_submessage),
-                RtpsSubmessageKind::AckNack(acknack_submessage),
+                RtpsSubmessageWriteKind::InfoDestination(info_dst_submessage),
+                RtpsSubmessageWriteKind::AckNack(acknack_submessage),
             ];
 
             for (seq_num, owning_data_frag_list) in self.frag_buffer.iter() {
@@ -306,7 +305,7 @@ impl RtpsWriterProxy {
 
                 if !missing_fragment_number.is_empty() {
                     self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
-                    let nack_frag_submessage = RtpsSubmessageKind::NackFrag(NackFragSubmessage {
+                    let nack_frag_submessage = RtpsSubmessageWriteKind::NackFrag(NackFragSubmessage {
                         endianness_flag: true,
                         reader_id: reader_guid.entity_id(),
                         writer_id: self.remote_writer_guid().entity_id(),
@@ -323,7 +322,7 @@ impl RtpsWriterProxy {
             }
 
             transport.write(
-                &RtpsMessage::new(header, submessages),
+                &RtpsMessageWrite::new(header, submessages),
                 self.unicast_locator_list(),
             );
         }

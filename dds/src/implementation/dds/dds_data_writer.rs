@@ -583,7 +583,7 @@ mod test {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
-            messages::RtpsMessage,
+            messages::RtpsMessageWrite,
             transport::TransportWrite,
             types::{TopicKind, GUID_UNKNOWN},
             writer::RtpsWriter,
@@ -600,7 +600,7 @@ mod test {
         Transport{}
 
         impl TransportWrite for Transport {
-            fn write<'a>(&'a mut self, message: &RtpsMessage<'a>, destination_locator_list: &[Locator]);
+            fn write<'a>(&'a mut self, message: &RtpsMessageWrite<'a>, destination_locator_list: &[Locator]);
         }
     }
 

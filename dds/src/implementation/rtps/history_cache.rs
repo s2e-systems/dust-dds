@@ -6,7 +6,7 @@ use crate::{
 use super::{
     messages::{
         submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
-        submessages::{DataFragSubmessage, DataSubmessage, GapSubmessage},
+        submessages::{DataFragSubmessage, GapSubmessage, DataSubmessageWrite},
         types::{ParameterId, SerializedPayload},
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
@@ -59,7 +59,7 @@ impl RtpsWriterCacheChange {
         }
     }
 
-    pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessage {
+    pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessageWrite {
         let (data_flag, key_flag) = match self.kind() {
             ChangeKind::Alive => (true, false),
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
@@ -76,7 +76,7 @@ impl RtpsWriterCacheChange {
                 })
                 .collect(),
         };
-        DataSubmessage {
+        DataSubmessageWrite {
             endianness_flag: true,
             inline_qos_flag: true,
             data_flag,

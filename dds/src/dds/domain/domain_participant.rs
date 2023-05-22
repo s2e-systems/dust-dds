@@ -38,8 +38,7 @@ use crate::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::SequenceNumberSet,
                 submessages::{GapSubmessage, InfoDestinationSubmessage, InfoTimestampSubmessage},
-                types::{FragmentNumber, ProtocolId},
-                RtpsMessage, RtpsSubmessageKind,
+                types::{FragmentNumber, ProtocolId}, RtpsSubmessageWriteKind, RtpsMessageWrite, RtpsMessageRead,
             },
             reader_locator::WriterAssociatedReaderLocator,
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
@@ -1832,7 +1831,7 @@ fn send_message_best_effort_reader_locator(
             let info_ts_submessage = info_timestamp_submessage(cache_change.timestamp());
             let data_submessage = cache_change.as_data_submessage(ENTITYID_UNKNOWN);
             submessages.push(info_ts_submessage);
-            submessages.push(RtpsSubmessageKind::Data(data_submessage));
+            submessages.push(RtpsSubmessageWriteKind::Data(data_submessage));
         } else {
             let gap_submessage = gap_submessage(writer_id, change.sequence_number());
             submessages.push(gap_submessage);
@@ -1840,7 +1839,7 @@ fn send_message_best_effort_reader_locator(
     }
     if !submessages.is_empty() {
         transport.write(
-            &RtpsMessage::new(header, submessages),
+            &RtpsMessageWrite::new(header, submessages),
             &[reader_locator.locator()],
         )
     }
@@ -1873,18 +1872,18 @@ fn send_message_best_effort_reader_proxy(
                         info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
 
                     let into_timestamp = info_timestamp_submessage(timestamp);
-                    let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
+                    let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     let submessages = vec![info_dst, into_timestamp, data_frag];
 
                     transport.write(
-                        &RtpsMessage::new(header, submessages),
+                        &RtpsMessageWrite::new(header, submessages),
                         reader_proxy.unicast_locator_list(),
                     )
                 }
             } else {
                 submessages.push(info_timestamp_submessage(timestamp));
-                submessages.push(RtpsSubmessageKind::Data(
+                submessages.push(RtpsSubmessageWriteKind::Data(
                     cache_change.as_data_submessage(reader_id),
                 ))
             }
@@ -1892,14 +1891,14 @@ fn send_message_best_effort_reader_proxy(
             let gap_submessage: GapSubmessage = change
                 .cache_change()
                 .as_gap_message(reader_proxy.remote_reader_guid().entity_id());
-            submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+            submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
         }
     }
 
     // Send messages only if more than INFO_DST is added
     if submessages.len() > 1 {
         transport.write(
-            &RtpsMessage::new(header, submessages),
+            &RtpsMessageWrite::new(header, submessages),
             reader_proxy.unicast_locator_list(),
         )
     }
@@ -1950,14 +1949,14 @@ fn send_message_reliable_reader_proxy(
                     return;
                 } else {
                     submessages.push(info_timestamp_submessage(cache_change.timestamp()));
-                    submessages.push(RtpsSubmessageKind::Data(
+                    submessages.push(RtpsSubmessageWriteKind::Data(
                         cache_change.as_data_submessage(reader_id),
                     ))
                 }
             } else {
                 let gap_submessage: GapSubmessage = change.cache_change().as_gap_message(reader_id);
 
-                submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+                submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
             }
         }
 
@@ -2004,7 +2003,7 @@ fn send_message_reliable_reader_proxy(
                     return;
                 } else {
                     submessages.push(info_timestamp_submessage(cache_change.timestamp()));
-                    submessages.push(RtpsSubmessageKind::Data(
+                    submessages.push(RtpsSubmessageWriteKind::Data(
                         cache_change.as_data_submessage(reader_id),
                     ))
                 }
@@ -2012,7 +2011,7 @@ fn send_message_reliable_reader_proxy(
                 let gap_submessage: GapSubmessage =
                     change_for_reader.cache_change().as_gap_message(reader_id);
 
-                submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+                submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
             }
         }
         let heartbeat = reader_proxy
@@ -2023,7 +2022,7 @@ fn send_message_reliable_reader_proxy(
     // Send messages only if more or equal than INFO_DST and HEARTBEAT is added
     if submessages.len() >= 2 {
         transport.write(
-            &RtpsMessage::new(header, submessages),
+            &RtpsMessageWrite::new(header, submessages),
             reader_proxy.unicast_locator_list(),
         )
     }
@@ -2032,8 +2031,8 @@ fn send_message_reliable_reader_proxy(
 fn gap_submessage<'a>(
     writer_id: EntityId,
     gap_sequence_number: SequenceNumber,
-) -> RtpsSubmessageKind<'a> {
-    RtpsSubmessageKind::Gap(GapSubmessage {
+) -> RtpsSubmessageWriteKind<'a> {
+    RtpsSubmessageWriteKind::Gap(GapSubmessage {
         endianness_flag: true,
         reader_id: ENTITYID_UNKNOWN,
         writer_id,
@@ -2045,8 +2044,8 @@ fn gap_submessage<'a>(
     })
 }
 
-fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
-    RtpsSubmessageKind::InfoTimestamp(InfoTimestampSubmessage {
+fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
+    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessage {
         endianness_flag: true,
         invalidate_flag: false,
         timestamp: crate::implementation::rtps::messages::types::Time::new(
@@ -2056,8 +2055,8 @@ fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
     })
 }
 
-fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageKind<'a> {
-    RtpsSubmessageKind::InfoDestination(InfoDestinationSubmessage {
+fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWriteKind<'a> {
+    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessage {
         endianness_flag: true,
         guid_prefix,
     })
@@ -2092,7 +2091,7 @@ fn directly_send_data_frag(
 
         let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
         let into_timestamp = info_timestamp_submessage(timestamp);
-        let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
+        let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
         let is_last_fragment = data_frag_submessage_list.peek().is_none();
         let submessages = if is_last_fragment {
@@ -2109,7 +2108,7 @@ fn directly_send_data_frag(
             vec![info_dst, into_timestamp, data_frag, heartbeat]
         };
         transport.write(
-            &RtpsMessage::new(header, submessages),
+            &RtpsMessageWrite::new(header, submessages),
             reader_proxy.unicast_locator_list(),
         )
     }
@@ -2637,7 +2636,7 @@ fn add_matched_topics_detector(
 
 fn receive_builtin_message(
     domain_participant: &mut DdsDomainParticipant,
-    message: RtpsMessage,
+    message: RtpsMessageRead,
     locator: Locator,
     sedp_condvar: &DdsCondvar,
     listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,

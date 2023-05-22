@@ -19,8 +19,8 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessages::{
-            DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
-            HeartbeatSubmessage,
+            DataFragSubmessage, GapSubmessage, HeartbeatFragSubmessage,
+            HeartbeatSubmessage, DataSubmessageRead,
         },
     },
     reader::{
@@ -86,7 +86,7 @@ impl RtpsStatefulReader {
 
     pub fn _convert_data_to_cache_change(
         &self,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessageRead,
         source_timestamp: Option<Time>,
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
@@ -211,7 +211,7 @@ impl RtpsStatefulReader {
 
     pub fn on_data_submessage_received(
         &mut self,
-        data_submessage: &DataSubmessage<'_>,
+        data_submessage: &DataSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
     ) -> StatefulReaderDataReceivedResult {
         let sequence_number = data_submessage.writer_sn;

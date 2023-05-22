@@ -11,8 +11,8 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{
-                    DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
-                    HeartbeatSubmessage,
+                    DataFragSubmessage, GapSubmessage, HeartbeatFragSubmessage,
+                    HeartbeatSubmessage, DataSubmessageRead,
                 },
             },
             reader::{RtpsReaderCacheChange, RtpsReaderResult},
@@ -248,7 +248,7 @@ impl<T> DdsDataReader<T> {
 impl DdsDataReader<RtpsStatefulReader> {
     pub fn on_data_submessage_received(
         &mut self,
-        data_submessage: &DataSubmessage<'_>,
+        data_submessage: &DataSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
         parent_subscriber_guid: Guid,
         parent_participant_guid: Guid,
@@ -894,7 +894,7 @@ impl DdsDataReader<RtpsStatelessReader> {
 
     pub fn _convert_data_to_cache_change(
         &self,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessageRead,
         source_timestamp: Option<Time>,
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
@@ -1004,7 +1004,7 @@ impl DdsDataReader<RtpsStatelessReader> {
 
     pub fn on_data_submessage_received(
         &mut self,
-        data_submessage: &DataSubmessage<'_>,
+        data_submessage: &DataSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
     ) -> StatelessReaderDataReceivedResult {
         self.rtps_reader
