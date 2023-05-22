@@ -1,11 +1,11 @@
 use crate::implementation::rtps::{
-    history_cache::RtpsParameterList,
+    history_cache::{RtpsParameter, RtpsParameterList},
     types::{Count, EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
 };
 
 use super::{
     submessage_elements::{FragmentNumberSet, LocatorList, ParameterList, SequenceNumberSet},
-    types::{FragmentNumber, SerializedPayload, SubmessageFlag, Time, ULong, UShort},
+    types::{FragmentNumber, ParameterId, SerializedPayload, SubmessageFlag, Time, ULong, UShort},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -30,6 +30,18 @@ pub struct DataSubmessageRead<'a> {
     pub writer_sn: SequenceNumber,
     pub inline_qos: ParameterList<'a>,
     pub serialized_payload: SerializedPayload<'a>,
+}
+
+impl<'a> DataSubmessageRead<'a> {
+    pub fn inline_qos(&self) -> RtpsParameterList {
+        RtpsParameterList::new(
+            self.inline_qos
+                .parameter
+                .iter()
+                .map(|p| RtpsParameter::new(ParameterId(p.parameter_id), p.value.to_vec()))
+                .collect(),
+        )
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

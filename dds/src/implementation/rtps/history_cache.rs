@@ -1,16 +1,13 @@
 use byteorder::WriteBytesExt;
 
 use crate::{
-    implementation::{
-        rtps::messages::types::{FragmentNumber, ULong, UShort},
-        rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
-    },
+    implementation::rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
     infrastructure::{instance::InstanceHandle, time::Time},
 };
 
 use super::{
     messages::{
-        submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
+        submessage_elements::SequenceNumberSet,
         submessages::{DataFragSubmessage, DataSubmessageWrite, GapSubmessage},
         types::{ParameterId, SerializedPayload},
     },
@@ -78,6 +75,10 @@ impl RtpsParameterList {
 
     pub fn empty() -> Self {
         Self { parameter: vec![] }
+    }
+
+    pub fn parameter(&self) -> &[RtpsParameter] {
+        self.parameter.as_ref()
     }
 }
 impl NumberOfBytes for RtpsParameterList {
