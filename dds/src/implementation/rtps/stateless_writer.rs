@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::{
-    history_cache::{RtpsParameter, RtpsWriterCacheChange},
+    history_cache::{RtpsParameterList, RtpsWriterCacheChange},
     messages::overall_structure::RtpsMessageHeader,
     reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
     transport::TransportWrite,
@@ -58,7 +58,7 @@ impl RtpsStatelessWriter {
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
-        inline_qos: Vec<RtpsParameter>,
+        inline_qos: RtpsParameterList,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> RtpsWriterCacheChange {
@@ -122,7 +122,7 @@ impl RtpsStatelessWriter {
         let change = self.writer.new_change(
             ChangeKind::Alive,
             serialized_data,
-            vec![],
+            RtpsParameterList::empty(),
             handle,
             timestamp,
         );

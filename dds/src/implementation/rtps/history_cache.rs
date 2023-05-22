@@ -1,12 +1,17 @@
+use byteorder::WriteBytesExt;
+
 use crate::{
-    implementation::rtps::messages::types::{FragmentNumber, ULong, UShort},
+    implementation::{
+        rtps::messages::types::{FragmentNumber, ULong, UShort},
+        rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
+    },
     infrastructure::{instance::InstanceHandle, time::Time},
 };
 
 use super::{
     messages::{
         submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
-        submessages::{DataFragSubmessage, GapSubmessage, DataSubmessageWrite},
+        submessages::{DataFragSubmessage, DataSubmessageWrite, GapSubmessage},
         types::{ParameterId, SerializedPayload},
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
@@ -16,6 +21,32 @@ use super::{
 pub struct RtpsParameter {
     parameter_id: ParameterId,
     value: Vec<u8>,
+}
+
+impl MappingWriteByteOrdered for RtpsParameter {
+    fn mapping_write_byte_ordered<W: std::io::Write, B: byteorder::ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), std::io::Error> {
+        let padding: &[u8] = match self.value.len() % 4 {
+            1 => &[0; 3],
+            2 => &[0; 2],
+            3 => &[0; 1],
+            _ => &[],
+        };
+        let length = self.value.len(); // + padding.len();
+        writer.write_u16::<B>(self.parameter_id.into())?;
+        writer.write_i16::<B>(length as i16)?;
+        writer.write_all(self.value.as_ref())?;
+
+        writer.write_all(padding)?;
+        Ok(())
+    }
+}
+impl NumberOfBytes for RtpsParameter {
+    fn number_of_bytes(&self) -> usize {
+        4 /* parameter_id and length */ + self.value.len()
+    }
 }
 
 impl RtpsParameter {
@@ -35,6 +66,41 @@ impl RtpsParameter {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct RtpsParameterList {
+    parameter: Vec<RtpsParameter>,
+}
+
+impl RtpsParameterList {
+    pub fn new(parameter: Vec<RtpsParameter>) -> Self {
+        Self { parameter }
+    }
+
+    pub fn empty() -> Self {
+        Self { parameter: vec![] }
+    }
+}
+impl NumberOfBytes for RtpsParameterList {
+    fn number_of_bytes(&self) -> usize {
+        self.parameter.number_of_bytes() + 4 /* Sentinel */
+    }
+}
+
+const PID_SENTINEL: u16 = 1;
+
+impl MappingWriteByteOrdered for RtpsParameterList {
+    fn mapping_write_byte_ordered<W: std::io::Write, B: byteorder::ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), std::io::Error> {
+        for parameter in self.parameter.iter() {
+            parameter.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        }
+        PID_SENTINEL.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        [0u8; 2].mapping_write_byte_ordered::<_, B>(&mut writer)
+    }
+}
+
 pub struct RtpsWriterCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
@@ -42,7 +108,7 @@ pub struct RtpsWriterCacheChange {
     _instance_handle: InstanceHandle,
     timestamp: Time,
     data: Vec<u8>,
-    inline_qos: Vec<RtpsParameter>,
+    inline_qos: RtpsParameterList,
 }
 
 impl RtpsWriterCacheChange {
@@ -65,17 +131,7 @@ impl RtpsWriterCacheChange {
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
             _ => todo!(),
         };
-        let inline_qos = ParameterList {
-            parameter: self
-                .inline_qos()
-                .iter()
-                .map(|p| Parameter {
-                    parameter_id: p.parameter_id.0,
-                    length: p.value.len() as i16,
-                    value: p.value.as_ref(),
-                })
-                .collect(),
-        };
+
         DataSubmessageWrite {
             endianness_flag: true,
             inline_qos_flag: true,
@@ -85,7 +141,7 @@ impl RtpsWriterCacheChange {
             reader_id,
             writer_id: self.writer_guid().entity_id(),
             writer_sn: self.sequence_number(),
-            inline_qos,
+            inline_qos: &self.inline_qos,
             serialized_payload: SerializedPayload::new(self.data_value()),
         }
     }
@@ -95,67 +151,68 @@ impl RtpsWriterCacheChange {
         max_bytes: usize,
         reader_id: EntityId,
     ) -> Vec<DataFragSubmessage> {
-        let data = self.data_value();
-        let data_size = ULong::new(data.len() as u32);
-        let mut fragment_starting_num = FragmentNumber::new(1);
-        const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
+        // let data = self.data_value();
+        // let data_size = ULong::new(data.len() as u32);
+        // let mut fragment_starting_num = FragmentNumber::new(1);
+        // const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
 
-        let mut messages = Vec::new();
+        // let mut messages = Vec::new();
 
-        let mut data_fragment;
-        let mut data_remaining = data;
+        // let mut data_fragment;
+        // let mut data_remaining = data;
 
-        while !data_remaining.is_empty() {
-            if data_remaining.len() >= max_bytes {
-                (data_fragment, data_remaining) = data_remaining.split_at(max_bytes);
-            } else {
-                data_fragment = data_remaining;
-                data_remaining = &[];
-            }
+        // while !data_remaining.is_empty() {
+        //     if data_remaining.len() >= max_bytes {
+        //         (data_fragment, data_remaining) = data_remaining.split_at(max_bytes);
+        //     } else {
+        //         data_fragment = data_remaining;
+        //         data_remaining = &[];
+        //     }
 
-            let endianness_flag = true;
-            let inline_qos_flag = true;
-            let key_flag = match self.kind() {
-                ChangeKind::Alive => false,
-                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
-                _ => todo!(),
-            };
-            let non_standard_payload_flag = false;
-            let writer_id = self.writer_guid().entity_id();
-            let writer_sn = self.sequence_number();
-            let inline_qos = ParameterList {
-                parameter: self
-                    .inline_qos()
-                    .iter()
-                    .map(|p| Parameter {
-                        parameter_id: p.parameter_id.0,
-                        length: p.value.len() as i16,
-                        value: p.value.as_ref(),
-                    })
-                    .collect(),
-            };
-            let serialized_payload = SerializedPayload::new(data_fragment);
-            let message = DataFragSubmessage {
-                endianness_flag,
-                inline_qos_flag,
-                non_standard_payload_flag,
-                key_flag,
-                reader_id,
-                writer_id,
-                writer_sn,
-                fragment_starting_num,
-                fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
-                data_size,
-                fragment_size: UShort::new(max_bytes as u16),
-                inline_qos,
-                serialized_payload,
-            };
+        //     let endianness_flag = true;
+        //     let inline_qos_flag = true;
+        //     let key_flag = match self.kind() {
+        //         ChangeKind::Alive => false,
+        //         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
+        //         _ => todo!(),
+        //     };
+        //     let non_standard_payload_flag = false;
+        //     let writer_id = self.writer_guid().entity_id();
+        //     let writer_sn = self.sequence_number();
+        //     let inline_qos = ParameterList {
+        //         parameter: self
+        //             .inline_qos()
+        //             .iter()
+        //             .map(|p| Parameter {
+        //                 parameter_id: p.parameter_id.0,
+        //                 length: p.value.len() as i16,
+        //                 value: p.value.as_ref(),
+        //             })
+        //             .collect(),
+        //     };
+        //     let serialized_payload = SerializedPayload::new(data_fragment);
+        //     let message = DataFragSubmessage {
+        //         endianness_flag,
+        //         inline_qos_flag,
+        //         non_standard_payload_flag,
+        //         key_flag,
+        //         reader_id,
+        //         writer_id,
+        //         writer_sn,
+        //         fragment_starting_num,
+        //         fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
+        //         data_size,
+        //         fragment_size: UShort::new(max_bytes as u16),
+        //         inline_qos,
+        //         serialized_payload,
+        //     };
 
-            messages.push(message);
+        //     messages.push(message);
 
-            fragment_starting_num += FragmentNumber::new(1);
-        }
-        messages
+        //     fragment_starting_num += FragmentNumber::new(1);
+        // }
+        // messages
+        todo!()
     }
 }
 
@@ -167,7 +224,7 @@ impl RtpsWriterCacheChange {
         sequence_number: SequenceNumber,
         timestamp: Time,
         data_value: Vec<u8>,
-        inline_qos: Vec<RtpsParameter>,
+        inline_qos: RtpsParameterList,
     ) -> Self {
         Self {
             kind,
@@ -206,7 +263,7 @@ impl RtpsWriterCacheChange {
         self.data.as_ref()
     }
 
-    pub fn inline_qos(&self) -> &[RtpsParameter] {
+    pub fn inline_qos(&self) -> &RtpsParameterList {
         &self.inline_qos
     }
 }
@@ -266,7 +323,7 @@ mod tests {
             SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
-            vec![],
+            RtpsParameterList::empty(),
         );
         hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::new(1));
@@ -283,7 +340,7 @@ mod tests {
             SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
-            vec![],
+            RtpsParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
@@ -292,7 +349,7 @@ mod tests {
             SequenceNumber::new(2),
             TIME_INVALID,
             vec![],
-            vec![],
+            RtpsParameterList::empty(),
         );
         hc.add_change(change1);
         hc.add_change(change2);
@@ -309,7 +366,7 @@ mod tests {
             SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
-            vec![],
+            RtpsParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
@@ -318,7 +375,7 @@ mod tests {
             SequenceNumber::new(2),
             TIME_INVALID,
             vec![],
-            vec![],
+            RtpsParameterList::empty(),
         );
         hc.add_change(change1);
         hc.add_change(change2);

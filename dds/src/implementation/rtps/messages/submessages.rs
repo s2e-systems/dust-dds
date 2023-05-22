@@ -1,5 +1,6 @@
-use crate::implementation::rtps::types::{
-    Count, EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
+use crate::implementation::rtps::{
+    history_cache::RtpsParameterList,
+    types::{Count, EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
 };
 
 use super::{
@@ -41,10 +42,9 @@ pub struct DataSubmessageWrite<'a> {
     pub reader_id: EntityId,
     pub writer_id: EntityId,
     pub writer_sn: SequenceNumber,
-    pub inline_qos: ParameterList<'a>,
+    pub inline_qos: &'a RtpsParameterList,
     pub serialized_payload: SerializedPayload<'a>,
 }
-
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataFragSubmessage<'a> {
