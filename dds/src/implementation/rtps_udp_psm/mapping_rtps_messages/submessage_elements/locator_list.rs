@@ -14,9 +14,9 @@ impl MappingWriteByteOrdered for LocatorList {
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        let num_locators = self.value.len() as u32;
+        let num_locators = self.value().len() as u32;
         num_locators.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        for locator in self.value.iter() {
+        for locator in self.value().iter() {
             locator.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         Ok(())
@@ -30,19 +30,17 @@ impl<'de> MappingReadByteOrdered<'de> for LocatorList {
         for _ in 0..num_locators {
             locator_list.push(MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?);
         }
-        Ok(Self {
-            value: locator_list,
-        })
+        Ok(Self::new(locator_list))
     }
 }
 
 impl NumberOfBytes for LocatorList {
     fn number_of_bytes(&self) -> usize {
         let num_locators_byte_size = 4;
-        if self.value.is_empty() {
+        if self.value().is_empty() {
             num_locators_byte_size
         } else {
-            self.value.len() * self.value[0].number_of_bytes() + num_locators_byte_size
+            self.value().len() * self.value()[0].number_of_bytes() + num_locators_byte_size
         }
     }
 }
@@ -69,9 +67,7 @@ mod tests {
             LocatorPort::new(2),
             LocatorAddress::new([3; 16]),
         );
-        let locator_list = LocatorList {
-            value: vec![locator_1, locator_2],
-        };
+        let locator_list = LocatorList::new(vec![locator_1, locator_2]);
         assert_eq!(
             to_bytes_le(&locator_list).unwrap(),
             vec![
@@ -104,9 +100,7 @@ mod tests {
             LocatorPort::new(2),
             LocatorAddress::new([3; 16]),
         );
-        let expected = LocatorList {
-            value: vec![locator_1, locator_2],
-        };
+        let expected = LocatorList::new(vec![locator_1, locator_2]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             2, 0, 0, 0,  // numLocators (unsigned long)

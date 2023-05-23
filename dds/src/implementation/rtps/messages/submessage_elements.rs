@@ -22,5 +22,15 @@ pub struct FragmentNumberSet {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocatorList {
-    pub value: Vec<Locator>,
+    value: Vec<Locator>,
+}
+
+impl LocatorList {
+    pub fn new(value: Vec<Locator>) -> Self {
+        Self { value }
+    }
+
+    pub fn value(&self) -> &[Locator] {
+        self.value.as_ref()
+    }
 }
