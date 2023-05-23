@@ -180,7 +180,8 @@ impl<'a> RtpsReaderLocatorCacheChange<'a> {
 mod tests {
     use crate::{
         implementation::rtps::{
-            history_cache::{RtpsWriterCacheChange, RtpsParameterList},
+            history_cache::RtpsWriterCacheChange,
+            messages::submessage_elements::RtpsParameterList,
             types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
         },
         infrastructure::{instance::HANDLE_NIL, time::TIME_INVALID},

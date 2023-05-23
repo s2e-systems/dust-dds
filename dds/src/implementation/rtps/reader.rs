@@ -31,8 +31,8 @@ use crate::{
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::{RtpsParameter, RtpsParameterList},
     messages::{
+        submessage_elements::{RtpsParameter, RtpsParameterList},
         submessages::{DataFragSubmessageRead, DataSubmessageRead},
         types::ParameterId,
     },

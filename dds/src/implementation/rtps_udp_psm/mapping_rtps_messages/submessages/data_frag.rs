@@ -155,8 +155,10 @@ mod tests {
 
     use crate::implementation::{
         rtps::{
-            history_cache::{RtpsParameter, RtpsParameterList},
-            messages::types::{FragmentNumber, ParameterId, SerializedPayload, ULong, UShort},
+            messages::{
+                submessage_elements::{RtpsParameter, RtpsParameterList},
+                types::{FragmentNumber, ParameterId, SerializedPayload, ULong, UShort},
+            },
             types::{
                 EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_READER_NO_KEY,

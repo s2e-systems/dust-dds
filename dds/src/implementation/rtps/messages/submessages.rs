@@ -1,13 +1,12 @@
 use crate::implementation::{
     rtps::{
-        history_cache::RtpsParameterList,
         types::{Count, EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
     },
     rtps_udp_psm::mapping_traits::MappingReadByteOrdered,
 };
 
 use super::{
-    submessage_elements::{FragmentNumberSet, LocatorList, SequenceNumberSet},
+    submessage_elements::{FragmentNumberSet, LocatorList, SequenceNumberSet, RtpsParameterList},
     types::{FragmentNumber, SerializedPayload, SubmessageFlag, Time, ULong, UShort},
 };
 

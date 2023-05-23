@@ -12,7 +12,8 @@ use crate::{
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::{RtpsParameterList, RtpsWriterCacheChange, WriterHistoryCache},
+    history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
+    messages::submessage_elements::RtpsParameterList,
     types::{ChangeKind, Guid, Locator, SequenceNumber},
 };
 

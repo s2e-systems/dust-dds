@@ -18,8 +18,9 @@ use crate::{
 };
 
 use super::{
-    history_cache::{RtpsParameter, RtpsParameterList, RtpsWriterCacheChange},
+    history_cache::RtpsWriterCacheChange,
     messages::{
+        submessage_elements::{RtpsParameter, RtpsParameterList},
         submessages::{AckNackSubmessage, NackFragSubmessage},
         types::ParameterId,
     },

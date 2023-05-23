@@ -3,6 +3,8 @@ use crate::implementation::rtps::{
     types::{Locator, SequenceNumber},
 };
 
+use super::types::ParameterId;
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
@@ -32,5 +34,47 @@ impl LocatorList {
 
     pub fn value(&self) -> &[Locator] {
         self.value.as_ref()
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct RtpsParameter {
+    parameter_id: ParameterId,
+    value: Vec<u8>,
+}
+
+impl RtpsParameter {
+    pub fn new(parameter_id: ParameterId, value: Vec<u8>) -> Self {
+        Self {
+            parameter_id,
+            value,
+        }
+    }
+
+    pub fn parameter_id(&self) -> ParameterId {
+        self.parameter_id
+    }
+
+    pub fn value(&self) -> &[u8] {
+        self.value.as_ref()
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct RtpsParameterList {
+    parameter: Vec<RtpsParameter>,
+}
+
+impl RtpsParameterList {
+    pub fn new(parameter: Vec<RtpsParameter>) -> Self {
+        Self { parameter }
+    }
+
+    pub fn empty() -> Self {
+        Self { parameter: vec![] }
+    }
+
+    pub fn parameter(&self) -> &[RtpsParameter] {
+        self.parameter.as_ref()
     }
 }

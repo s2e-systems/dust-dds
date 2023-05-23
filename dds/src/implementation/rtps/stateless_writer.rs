@@ -9,8 +9,8 @@ use crate::{
 };
 
 use super::{
-    history_cache::{RtpsParameterList, RtpsWriterCacheChange},
-    messages::overall_structure::RtpsMessageHeader,
+    history_cache::RtpsWriterCacheChange,
+    messages::{overall_structure::RtpsMessageHeader, submessage_elements::RtpsParameterList},
     reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
     transport::TransportWrite,
     types::{ChangeKind, Guid, Locator},

@@ -1,156 +1,16 @@
-use byteorder::{ReadBytesExt, WriteBytesExt};
-
 use crate::{
-    implementation::{
-        rtps::messages::types::{FragmentNumber, ULong, UShort},
-        rtps_udp_psm::mapping_traits::{
-            MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
-        },
-    },
+    implementation::rtps::messages::types::{FragmentNumber, ULong, UShort},
     infrastructure::{instance::InstanceHandle, time::Time},
 };
 
 use super::{
     messages::{
-        submessage_elements::SequenceNumberSet,
+        submessage_elements::{RtpsParameterList, SequenceNumberSet},
         submessages::{DataFragSubmessageWrite, DataSubmessageWrite, GapSubmessage},
-        types::{ParameterId, SerializedPayload},
+        types::SerializedPayload,
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct RtpsParameter {
-    parameter_id: ParameterId,
-    value: Vec<u8>,
-}
-
-impl MappingWriteByteOrdered for RtpsParameter {
-    fn mapping_write_byte_ordered<W: std::io::Write, B: byteorder::ByteOrder>(
-        &self,
-        mut writer: W,
-    ) -> Result<(), std::io::Error> {
-        let padding: &[u8] = match self.value.len() % 4 {
-            1 => &[0; 3],
-            2 => &[0; 2],
-            3 => &[0; 1],
-            _ => &[],
-        };
-        let length = self.value.len(); // + padding.len();
-        writer.write_u16::<B>(self.parameter_id.into())?;
-        writer.write_i16::<B>(length as i16)?;
-        writer.write_all(self.value.as_ref())?;
-
-        writer.write_all(padding)?;
-        Ok(())
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for RtpsParameter {
-    fn mapping_read_byte_ordered<B: byteorder::ByteOrder>(
-        buf: &mut &'de [u8],
-    ) -> Result<Self, std::io::Error> {
-        let parameter_id = buf.read_u16::<B>()?;
-        let length = buf.read_i16::<B>()?;
-
-        let value = if parameter_id == PID_SENTINEL {
-            &[]
-        } else {
-            let (value, following) = buf.split_at(length as usize);
-            *buf = following;
-            value
-        };
-
-        Ok(Self {
-            parameter_id: ParameterId(parameter_id),
-            value: value.to_vec(),
-        })
-    }
-}
-
-impl NumberOfBytes for RtpsParameter {
-    fn number_of_bytes(&self) -> usize {
-        4 /* parameter_id and length */ + self.value.len()
-    }
-}
-
-impl RtpsParameter {
-    pub fn new(parameter_id: ParameterId, value: Vec<u8>) -> Self {
-        Self {
-            parameter_id,
-            value,
-        }
-    }
-
-    pub fn parameter_id(&self) -> ParameterId {
-        self.parameter_id
-    }
-
-    pub fn value(&self) -> &[u8] {
-        self.value.as_ref()
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct RtpsParameterList {
-    parameter: Vec<RtpsParameter>,
-}
-
-impl RtpsParameterList {
-    pub fn new(parameter: Vec<RtpsParameter>) -> Self {
-        Self { parameter }
-    }
-
-    pub fn empty() -> Self {
-        Self { parameter: vec![] }
-    }
-
-    pub fn parameter(&self) -> &[RtpsParameter] {
-        self.parameter.as_ref()
-    }
-}
-impl NumberOfBytes for RtpsParameterList {
-    fn number_of_bytes(&self) -> usize {
-        self.parameter.number_of_bytes() + 4 /* Sentinel */
-    }
-}
-
-const PID_SENTINEL: u16 = 1;
-
-impl MappingWriteByteOrdered for RtpsParameterList {
-    fn mapping_write_byte_ordered<W: std::io::Write, B: byteorder::ByteOrder>(
-        &self,
-        mut writer: W,
-    ) -> Result<(), std::io::Error> {
-        for parameter in self.parameter.iter() {
-            parameter.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        }
-        PID_SENTINEL.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        [0u8; 2].mapping_write_byte_ordered::<_, B>(&mut writer)
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for RtpsParameterList {
-    fn mapping_read_byte_ordered<B: byteorder::ByteOrder>(
-        buf: &mut &'de [u8],
-    ) -> Result<Self, std::io::Error> {
-        const MAX_PARAMETERS: usize = 2_usize.pow(16);
-
-        let mut parameter = vec![];
-
-        for _ in 0..MAX_PARAMETERS {
-            let parameter_i: RtpsParameter =
-                MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-
-            if parameter_i.parameter_id == ParameterId(PID_SENTINEL) {
-                break;
-            } else {
-                parameter.push(parameter_i);
-            }
-        }
-        Ok(Self { parameter })
-    }
-}
 
 pub struct RtpsWriterCacheChange {
     kind: ChangeKind,

@@ -143,9 +143,9 @@ mod tests {
 
     use crate::implementation::{
         rtps::{
-            history_cache::{RtpsParameter, RtpsParameterList},
             messages::{
                 overall_structure::RtpsMessageHeader,
+                submessage_elements::{RtpsParameter, RtpsParameterList},
                 submessages::{DataSubmessageRead, DataSubmessageWrite, HeartbeatSubmessage},
                 types::{ParameterId, ProtocolId, SerializedPayload},
             },
