@@ -1,14 +1,16 @@
-use byteorder::WriteBytesExt;
+use byteorder::{ReadBytesExt, WriteBytesExt};
 
 use crate::{
-    implementation::rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
+    implementation::{rtps_udp_psm::mapping_traits::{
+        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
+    }, rtps::messages::types::{FragmentNumber, UShort, ULong}},
     infrastructure::{instance::InstanceHandle, time::Time},
 };
 
 use super::{
     messages::{
         submessage_elements::SequenceNumberSet,
-        submessages::{DataFragSubmessage, DataSubmessageWrite, GapSubmessage},
+        submessages::{DataFragSubmessageWrite, DataSubmessageWrite, GapSubmessage},
         types::{ParameterId, SerializedPayload},
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
@@ -40,6 +42,29 @@ impl MappingWriteByteOrdered for RtpsParameter {
         Ok(())
     }
 }
+
+impl<'de> MappingReadByteOrdered<'de> for RtpsParameter {
+    fn mapping_read_byte_ordered<B: byteorder::ByteOrder>(
+        buf: &mut &'de [u8],
+    ) -> Result<Self, std::io::Error> {
+        let parameter_id = buf.read_u16::<B>()?;
+        let length = buf.read_i16::<B>()?;
+
+        let value = if parameter_id == PID_SENTINEL {
+            &[]
+        } else {
+            let (value, following) = buf.split_at(length as usize);
+            *buf = following;
+            value
+        };
+
+        Ok(Self {
+            parameter_id: ParameterId(parameter_id),
+            value: value.to_vec(),
+        })
+    }
+}
+
 impl NumberOfBytes for RtpsParameter {
     fn number_of_bytes(&self) -> usize {
         4 /* parameter_id and length */ + self.value.len()
@@ -102,6 +127,28 @@ impl MappingWriteByteOrdered for RtpsParameterList {
     }
 }
 
+impl<'de> MappingReadByteOrdered<'de> for RtpsParameterList {
+    fn mapping_read_byte_ordered<B: byteorder::ByteOrder>(
+        buf: &mut &'de [u8],
+    ) -> Result<Self, std::io::Error> {
+        const MAX_PARAMETERS: usize = 2_usize.pow(16);
+
+        let mut parameter = vec![];
+
+        for _ in 0..MAX_PARAMETERS {
+            let parameter_i: RtpsParameter =
+                MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+
+            if parameter_i.parameter_id == ParameterId(PID_SENTINEL) {
+                break;
+            } else {
+                parameter.push(parameter_i);
+            }
+        }
+        Ok(Self { parameter })
+    }
+}
+
 pub struct RtpsWriterCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
@@ -151,69 +198,58 @@ impl RtpsWriterCacheChange {
         &self,
         max_bytes: usize,
         reader_id: EntityId,
-    ) -> Vec<DataFragSubmessage> {
-        // let data = self.data_value();
-        // let data_size = ULong::new(data.len() as u32);
-        // let mut fragment_starting_num = FragmentNumber::new(1);
-        // const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
+    ) -> Vec<DataFragSubmessageWrite> {
+        let data = self.data_value();
+        let data_size = ULong::new(data.len() as u32);
+        let mut fragment_starting_num = FragmentNumber::new(1);
+        const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
 
-        // let mut messages = Vec::new();
+        let mut messages = Vec::new();
 
-        // let mut data_fragment;
-        // let mut data_remaining = data;
+        let mut data_fragment;
+        let mut data_remaining = data;
 
-        // while !data_remaining.is_empty() {
-        //     if data_remaining.len() >= max_bytes {
-        //         (data_fragment, data_remaining) = data_remaining.split_at(max_bytes);
-        //     } else {
-        //         data_fragment = data_remaining;
-        //         data_remaining = &[];
-        //     }
+        while !data_remaining.is_empty() {
+            if data_remaining.len() >= max_bytes {
+                (data_fragment, data_remaining) = data_remaining.split_at(max_bytes);
+            } else {
+                data_fragment = data_remaining;
+                data_remaining = &[];
+            }
 
-        //     let endianness_flag = true;
-        //     let inline_qos_flag = true;
-        //     let key_flag = match self.kind() {
-        //         ChangeKind::Alive => false,
-        //         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
-        //         _ => todo!(),
-        //     };
-        //     let non_standard_payload_flag = false;
-        //     let writer_id = self.writer_guid().entity_id();
-        //     let writer_sn = self.sequence_number();
-        //     let inline_qos = ParameterList {
-        //         parameter: self
-        //             .inline_qos()
-        //             .iter()
-        //             .map(|p| Parameter {
-        //                 parameter_id: p.parameter_id.0,
-        //                 length: p.value.len() as i16,
-        //                 value: p.value.as_ref(),
-        //             })
-        //             .collect(),
-        //     };
-        //     let serialized_payload = SerializedPayload::new(data_fragment);
-        //     let message = DataFragSubmessage {
-        //         endianness_flag,
-        //         inline_qos_flag,
-        //         non_standard_payload_flag,
-        //         key_flag,
-        //         reader_id,
-        //         writer_id,
-        //         writer_sn,
-        //         fragment_starting_num,
-        //         fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
-        //         data_size,
-        //         fragment_size: UShort::new(max_bytes as u16),
-        //         inline_qos,
-        //         serialized_payload,
-        //     };
+            let endianness_flag = true;
+            let inline_qos_flag = true;
+            let key_flag = match self.kind() {
+                ChangeKind::Alive => false,
+                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
+                _ => todo!(),
+            };
+            let non_standard_payload_flag = false;
+            let writer_id = self.writer_guid().entity_id();
+            let writer_sn = self.sequence_number();
+            let inline_qos = &self.inline_qos;
+            let serialized_payload = SerializedPayload::new(data_fragment);
+            let message = DataFragSubmessageWrite {
+                endianness_flag,
+                inline_qos_flag,
+                non_standard_payload_flag,
+                key_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                fragment_starting_num,
+                fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
+                data_size,
+                fragment_size: UShort::new(max_bytes as u16),
+                inline_qos,
+                serialized_payload,
+            };
 
-        //     messages.push(message);
+            messages.push(message);
 
-        //     fragment_starting_num += FragmentNumber::new(1);
-        // }
-        // messages
-        todo!()
+            fragment_starting_num += FragmentNumber::new(1);
+        }
+        messages
     }
 }
 

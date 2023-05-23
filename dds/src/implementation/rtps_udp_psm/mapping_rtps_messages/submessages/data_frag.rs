@@ -1,12 +1,13 @@
 use std::io::{Error, Write};
 
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder, ReadBytesExt};
 
 use crate::implementation::{
+    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::messages::{
         overall_structure::RtpsSubmessageHeader,
         submessage_elements::ParameterList,
-        submessages::DataFragSubmessage,
+        submessages::{DataFragSubmessageRead, DataFragSubmessageWrite},
         types::{SerializedPayload, SubmessageKind},
     },
     rtps_udp_psm::mapping_traits::{
@@ -16,7 +17,7 @@ use crate::implementation::{
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
-impl MappingWriteSubmessage for DataFragSubmessage<'_> {
+impl MappingWriteSubmessage for DataFragSubmessageWrite<'_> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -83,7 +84,7 @@ impl MappingWriteSubmessage for DataFragSubmessage<'_> {
     }
 }
 
-impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataFragSubmessage<'a> {
+impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataFragSubmessageRead<'a> {
     fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
@@ -103,16 +104,27 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataFragSubmessage<'a> {
         let fragment_size = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let data_size = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
 
-        let inline_qos = if inline_qos_flag {
-            MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?
-        } else {
-            ParameterList { parameter: vec![] }
-        };
+        let mut parameter_list_buf = *buf;
+        let parameter_list_buf_length = parameter_list_buf.len();
         let inline_qos_len = if inline_qos_flag {
-            inline_qos.number_of_bytes()
+            loop {
+                let pid = parameter_list_buf.read_u16::<B>().expect("pid read failed");
+                let length = parameter_list_buf
+                    .read_i16::<B>()
+                    .expect("length read failed");
+                if pid == PID_SENTINEL {
+                    break;
+                } else {
+                    (_, parameter_list_buf) = parameter_list_buf.split_at(length as usize);
+                }
+            }
+            parameter_list_buf_length - parameter_list_buf.len()
         } else {
             0
         };
+
+        let (inline_qos, following) = buf.split_at(inline_qos_len);
+        *buf = following;
 
         let serialized_payload_length =
             header.submessage_length as usize - octets_to_inline_qos as usize - 4 - inline_qos_len;
@@ -135,6 +147,7 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataFragSubmessage<'a> {
             inline_qos,
             serialized_payload,
         })
+        // todo!()
     }
 }
 
@@ -143,9 +156,10 @@ mod tests {
 
     use crate::implementation::{
         rtps::{
+            history_cache::{RtpsParameter, RtpsParameterList},
             messages::{
                 submessage_elements::{Parameter, ParameterList},
-                types::{FragmentNumber, SerializedPayload, ULong, UShort},
+                types::{FragmentNumber, ParameterId, SerializedPayload, ULong, UShort},
             },
             types::{
                 EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
@@ -159,7 +173,7 @@ mod tests {
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
-        let submessage = DataFragSubmessage {
+        let submessage = DataFragSubmessageWrite {
             endianness_flag: true,
             inline_qos_flag: false,
             non_standard_payload_flag: false,
@@ -171,7 +185,7 @@ mod tests {
             fragments_in_submessage: UShort::new(3),
             data_size: ULong::new(4),
             fragment_size: UShort::new(5),
-            inline_qos: ParameterList { parameter: vec![] },
+            inline_qos: &RtpsParameterList::empty(),
             serialized_payload: SerializedPayload::new(&[]),
         };
         #[rustfmt::skip]
@@ -191,7 +205,7 @@ mod tests {
 
     #[test]
     fn serialize_with_inline_qos_with_serialized_payload() {
-        let submessage = DataFragSubmessage {
+        let submessage = DataFragSubmessageWrite {
             endianness_flag: true,
             inline_qos_flag: true,
             non_standard_payload_flag: false,
@@ -203,13 +217,10 @@ mod tests {
             fragments_in_submessage: UShort::new(3),
             data_size: ULong::new(8),
             fragment_size: UShort::new(5),
-            inline_qos: ParameterList {
-                parameter: vec![Parameter {
-                    parameter_id: 8,
-                    length: 4,
-                    value: &[71, 72, 73, 74],
-                }],
-            },
+            inline_qos: &RtpsParameterList::new(vec![RtpsParameter::new(
+                ParameterId(8),
+                vec![71, 72, 73, 74],
+            )]),
             serialized_payload: SerializedPayload::new(&[1, 2, 3]),
         };
         #[rustfmt::skip]
@@ -233,7 +244,7 @@ mod tests {
 
     #[test]
     fn deserialize_no_inline_qos_no_serialized_payload() {
-        let expected = DataFragSubmessage {
+        let expected = DataFragSubmessageRead {
             endianness_flag: true,
             inline_qos_flag: false,
             non_standard_payload_flag: false,
@@ -245,7 +256,7 @@ mod tests {
             fragments_in_submessage: UShort::new(3),
             data_size: ULong::new(4),
             fragment_size: UShort::new(5),
-            inline_qos: ParameterList { parameter: vec![] },
+            inline_qos: &[],
             serialized_payload: SerializedPayload::new(&[]),
         };
         #[rustfmt::skip]
@@ -265,7 +276,7 @@ mod tests {
 
     #[test]
     fn deserialize_with_inline_qos_with_serialized_payload() {
-        let expected = DataFragSubmessage {
+        let expected = DataFragSubmessageRead {
             endianness_flag: true,
             inline_qos_flag: true,
             non_standard_payload_flag: false,
@@ -277,13 +288,11 @@ mod tests {
             fragments_in_submessage: UShort::new(3),
             data_size: ULong::new(8),
             fragment_size: UShort::new(5),
-            inline_qos: ParameterList {
-                parameter: vec![Parameter {
-                    parameter_id: 8,
-                    length: 4,
-                    value: &[71, 72, 73, 74],
-                }],
-            },
+            inline_qos: &[
+                8, 0, 4, 0, // inlineQos: parameterId, length
+                71, 72, 73, 74, // inlineQos: value[length]
+                1, 0, 0, 0, // inlineQos: Sentinel
+            ],
             serialized_payload: SerializedPayload::new(&[1, 2, 3, 0]),
         };
         #[rustfmt::skip]

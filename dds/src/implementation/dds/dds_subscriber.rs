@@ -2,8 +2,8 @@ use crate::{
     implementation::rtps::{
         group::RtpsGroup,
         messages::submessages::{
-            DataFragSubmessage, GapSubmessage, HeartbeatFragSubmessage,
-            HeartbeatSubmessage, DataSubmessageRead,
+            DataFragSubmessageRead, DataSubmessageRead, GapSubmessage, HeartbeatFragSubmessage,
+            HeartbeatSubmessage,
         },
         stateful_reader::RtpsStatefulReader,
         stateless_reader::RtpsStatelessReader,
@@ -257,7 +257,7 @@ impl DdsSubscriber {
 
     pub fn on_data_frag_submessage_received(
         &mut self,
-        data_frag_submessage: &DataFragSubmessage<'_>,
+        data_frag_submessage: &DataFragSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
         parent_participant_guid: Guid,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,

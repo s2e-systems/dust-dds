@@ -1,10 +1,10 @@
 use self::{
     overall_structure::RtpsMessageHeader,
     submessages::{
-        AckNackSubmessage, DataFragSubmessage,  GapSubmessage,
-        HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
-        InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
-        PadSubmessage, DataSubmessageRead, DataSubmessageWrite,
+        AckNackSubmessage, DataFragSubmessageRead, DataFragSubmessageWrite, DataSubmessageRead,
+        DataSubmessageWrite, GapSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
+        InfoDestinationSubmessage, InfoReplySubmessage, InfoSourceSubmessage,
+        InfoTimestampSubmessage, NackFragSubmessage, PadSubmessage,
     },
 };
 
@@ -59,12 +59,11 @@ impl<'a> RtpsMessageWrite<'a> {
     }
 }
 
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageReadKind<'a> {
     AckNack(AckNackSubmessage),
     Data(DataSubmessageRead<'a>),
-    DataFrag(DataFragSubmessage<'a>),
+    DataFrag(DataFragSubmessageRead<'a>),
     Gap(GapSubmessage),
     Heartbeat(HeartbeatSubmessage),
     HeartbeatFrag(HeartbeatFragSubmessage),
@@ -80,7 +79,7 @@ pub enum RtpsSubmessageReadKind<'a> {
 pub enum RtpsSubmessageWriteKind<'a> {
     AckNack(AckNackSubmessage),
     Data(DataSubmessageWrite<'a>),
-    DataFrag(DataFragSubmessage<'a>),
+    DataFrag(DataFragSubmessageWrite<'a>),
     Gap(GapSubmessage),
     Heartbeat(HeartbeatSubmessage),
     HeartbeatFrag(HeartbeatFragSubmessage),

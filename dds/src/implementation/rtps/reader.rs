@@ -33,7 +33,7 @@ use super::{
     endpoint::RtpsEndpoint,
     history_cache::{RtpsParameter, RtpsParameterList},
     messages::{
-        submessages::{DataFragSubmessage, DataSubmessageRead},
+        submessages::{DataFragSubmessageRead, DataSubmessageRead},
         types::ParameterId,
     },
     types::{ChangeKind, Guid, GuidPrefix},
@@ -60,57 +60,52 @@ pub struct RtpsReaderCacheChange {
 }
 
 pub fn convert_data_frag_to_cache_change(
-    data_frag_submessage: &DataFragSubmessage,
+    data_frag_submessage: &DataFragSubmessageRead,
     data: Vec<u8>,
     source_timestamp: Option<Time>,
     source_guid_prefix: GuidPrefix,
     reception_timestamp: Time,
 ) -> Result<RtpsReaderCacheChange, RtpsReaderError> {
-    // let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id);
+    let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id);
 
-    // let inline_qos: Vec<RtpsParameter> = data_frag_submessage
-    //     .inline_qos
-    //     .parameter
-    //     .iter()
-    //     .map(|p| RtpsParameter::new(ParameterId(p.parameter_id), p.value.to_vec()))
-    //     .collect();
+    let inline_qos = data_frag_submessage.inline_qos();
 
-    // let change_kind = if data_frag_submessage.key_flag {
-    //     if let Some(p) = inline_qos
-    //         .iter()
-    //         .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
-    //     {
-    //         let mut deserializer =
-    //             cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
-    //         let status_info: StatusInfo =
-    //             serde::Deserialize::deserialize(&mut deserializer).unwrap();
-    //         match status_info {
-    //             STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
-    //             STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
-    //             STATUS_INFO_DISPOSED_UNREGISTERED => Ok(ChangeKind::NotAliveDisposedUnregistered),
-    //             _ => Err(RtpsReaderError::InvalidData("Unknown status info value")),
-    //         }
-    //     } else {
-    //         Err(RtpsReaderError::InvalidData(
-    //             "Missing mandatory StatusInfo parameter",
-    //         ))
-    //     }
-    // } else {
-    //     Ok(ChangeKind::Alive)
-    // }?;
+    let change_kind = if data_frag_submessage.key_flag {
+        if let Some(p) = inline_qos
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
+        {
+            let mut deserializer =
+                cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
+            let status_info: StatusInfo =
+                serde::Deserialize::deserialize(&mut deserializer).unwrap();
+            match status_info {
+                STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
+                STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
+                STATUS_INFO_DISPOSED_UNREGISTERED => Ok(ChangeKind::NotAliveDisposedUnregistered),
+                _ => Err(RtpsReaderError::InvalidData("Unknown status info value")),
+            }
+        } else {
+            Err(RtpsReaderError::InvalidData(
+                "Missing mandatory StatusInfo parameter",
+            ))
+        }
+    } else {
+        Ok(ChangeKind::Alive)
+    }?;
 
-    // Ok(RtpsReaderCacheChange {
-    //     kind: change_kind,
-    //     writer_guid,
-    //     data,
-    //     inline_qos,
-    //     source_timestamp,
-    //     sample_state: SampleStateKind::NotRead,
-    //     disposed_generation_count: 0, // To be filled up only when getting stored
-    //     no_writers_generation_count: 0, // To be filled up only when getting stored
-    //     reception_timestamp,
-    // })
-    todo!()
+    Ok(RtpsReaderCacheChange {
+        kind: change_kind,
+        writer_guid,
+        data,
+        inline_qos,
+        source_timestamp,
+        sample_state: SampleStateKind::NotRead,
+        disposed_generation_count: 0, // To be filled up only when getting stored
+        no_writers_generation_count: 0, // To be filled up only when getting stored
+        reception_timestamp,
+    })
 }
 
 struct InstanceHandleBuilder(fn(&mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>);

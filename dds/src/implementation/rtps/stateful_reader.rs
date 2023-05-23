@@ -19,8 +19,8 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessages::{
-            DataFragSubmessage, GapSubmessage, HeartbeatFragSubmessage,
-            HeartbeatSubmessage, DataSubmessageRead,
+            DataFragSubmessageRead, DataSubmessageRead, GapSubmessage, HeartbeatFragSubmessage,
+            HeartbeatSubmessage,
         },
     },
     reader::{
@@ -300,7 +300,7 @@ impl RtpsStatefulReader {
 
     pub fn on_data_frag_submessage_received(
         &mut self,
-        data_frag_submessage: &DataFragSubmessage<'_>,
+        data_frag_submessage: &DataFragSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
     ) -> StatefulReaderDataReceivedResult {
         let sequence_number = data_frag_submessage.writer_sn;
