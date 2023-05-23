@@ -21,18 +21,6 @@ pub struct FragmentNumberSet {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Parameter<'a> {
-    pub parameter_id: u16,
-    pub length: i16,
-    pub value: &'a [u8],
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParameterList<'a> {
-    pub parameter: Vec<Parameter<'a>>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocatorList {
     pub value: Vec<Locator>,
 }

@@ -7,7 +7,7 @@ use crate::{
             DiscoveredWriterData, WriterProxy,
         },
         rtps::{
-            history_cache::{RtpsParameter, RtpsParameterList, RtpsWriterCacheChange},
+            history_cache::{RtpsParameterList, RtpsWriterCacheChange},
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
             reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},

@@ -1,9 +1,12 @@
 use byteorder::{ReadBytesExt, WriteBytesExt};
 
 use crate::{
-    implementation::{rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
-    }, rtps::messages::types::{FragmentNumber, UShort, ULong}},
+    implementation::{
+        rtps::messages::types::{FragmentNumber, ULong, UShort},
+        rtps_udp_psm::mapping_traits::{
+            MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
+        },
+    },
     infrastructure::{instance::InstanceHandle, time::Time},
 };
 

@@ -94,7 +94,6 @@ impl<'a> DataFragSubmessageRead<'a> {
     }
 }
 
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataFragSubmessageWrite<'a> {
     pub endianness_flag: SubmessageFlag,

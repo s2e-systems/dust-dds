@@ -6,7 +6,6 @@ use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::messages::{
         overall_structure::RtpsSubmessageHeader,
-        submessage_elements::ParameterList,
         submessages::{DataFragSubmessageRead, DataFragSubmessageWrite},
         types::{SerializedPayload, SubmessageKind},
     },
@@ -157,10 +156,7 @@ mod tests {
     use crate::implementation::{
         rtps::{
             history_cache::{RtpsParameter, RtpsParameterList},
-            messages::{
-                submessage_elements::{Parameter, ParameterList},
-                types::{FragmentNumber, ParameterId, SerializedPayload, ULong, UShort},
-            },
+            messages::types::{FragmentNumber, ParameterId, SerializedPayload, ULong, UShort},
             types::{
                 EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_READER_NO_KEY,
