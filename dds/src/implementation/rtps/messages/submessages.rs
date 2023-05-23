@@ -1,12 +1,10 @@
 use crate::implementation::{
-    rtps::{
-        types::{Count, EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
-    },
+    rtps::types::{Count, EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
     rtps_udp_psm::mapping_traits::MappingReadByteOrdered,
 };
 
 use super::{
-    submessage_elements::{FragmentNumberSet, LocatorList, SequenceNumberSet, RtpsParameterList},
+    submessage_elements::{FragmentNumberSet, LocatorList, ParameterList, SequenceNumberSet},
     types::{FragmentNumber, SerializedPayload, SubmessageFlag, Time, ULong, UShort},
 };
 
@@ -35,14 +33,12 @@ pub struct DataSubmessageRead<'a> {
 }
 
 impl<'a> DataSubmessageRead<'a> {
-    pub fn inline_qos(&self) -> RtpsParameterList {
+    pub fn inline_qos(&self) -> ParameterList {
         let mut buf = self.inline_qos;
         match self.endianness_flag {
-            true => {
-                RtpsParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
-                    .expect("RtpsParameterList failed LE")
-            }
-            false => RtpsParameterList::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut buf)
+            true => ParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
+                .expect("RtpsParameterList failed LE"),
+            false => ParameterList::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut buf)
                 .expect("RtpsParameterList failed BE"),
         }
     }
@@ -58,7 +54,7 @@ pub struct DataSubmessageWrite<'a> {
     pub reader_id: EntityId,
     pub writer_id: EntityId,
     pub writer_sn: SequenceNumber,
-    pub inline_qos: &'a RtpsParameterList,
+    pub inline_qos: &'a ParameterList,
     pub serialized_payload: SerializedPayload<'a>,
 }
 
@@ -80,14 +76,12 @@ pub struct DataFragSubmessageRead<'a> {
 }
 
 impl<'a> DataFragSubmessageRead<'a> {
-    pub fn inline_qos(&self) -> RtpsParameterList {
+    pub fn inline_qos(&self) -> ParameterList {
         let mut buf = self.inline_qos;
         match self.endianness_flag {
-            true => {
-                RtpsParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
-                    .expect("RtpsParameterList failed LE")
-            }
-            false => RtpsParameterList::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut buf)
+            true => ParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
+                .expect("RtpsParameterList failed LE"),
+            false => ParameterList::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut buf)
                 .expect("RtpsParameterList failed BE"),
         }
     }
@@ -106,7 +100,7 @@ pub struct DataFragSubmessageWrite<'a> {
     pub fragments_in_submessage: UShort,
     pub data_size: ULong,
     pub fragment_size: UShort,
-    pub inline_qos: &'a RtpsParameterList,
+    pub inline_qos: &'a ParameterList,
     pub serialized_payload: SerializedPayload<'a>,
 }
 

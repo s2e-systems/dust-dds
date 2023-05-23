@@ -9,7 +9,7 @@ use crate::{
         rtps::{
             history_cache::RtpsWriterCacheChange,
             messages::{
-                submessage_elements::RtpsParameterList,
+                submessage_elements::ParameterList,
                 submessages::{AckNackSubmessage, NackFragSubmessage},
             },
             reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
@@ -298,7 +298,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
-        inline_qos: RtpsParameterList,
+        inline_qos: ParameterList,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> RtpsWriterCacheChange {
@@ -534,7 +534,7 @@ impl DdsDataWriter<RtpsStatelessWriter> {
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
-        inline_qos: RtpsParameterList,
+        inline_qos: ParameterList,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> RtpsWriterCacheChange {

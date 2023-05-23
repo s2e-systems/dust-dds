@@ -32,7 +32,7 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     messages::{
-        submessage_elements::{RtpsParameter, RtpsParameterList},
+        submessage_elements::{Parameter, ParameterList},
         submessages::{DataFragSubmessageRead, DataSubmessageRead},
         types::ParameterId,
     },
@@ -51,7 +51,7 @@ pub struct RtpsReaderCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     data: Vec<u8>,
-    inline_qos: RtpsParameterList,
+    inline_qos: ParameterList,
     source_timestamp: Option<Time>,
     sample_state: SampleStateKind,
     disposed_generation_count: i32,
@@ -131,7 +131,7 @@ impl InstanceHandleBuilder {
         &self,
         change_kind: ChangeKind,
         mut data: &[u8],
-        inline_qos: &[RtpsParameter],
+        inline_qos: &[Parameter],
     ) -> RtpsReaderResult<InstanceHandle> {
         Ok(match change_kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(&mut data)?.into(),

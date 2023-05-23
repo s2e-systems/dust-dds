@@ -5,7 +5,7 @@ use crate::{
 
 use super::{
     messages::{
-        submessage_elements::{RtpsParameterList, SequenceNumberSet},
+        submessage_elements::{ParameterList, SequenceNumberSet},
         submessages::{DataFragSubmessageWrite, DataSubmessageWrite, GapSubmessage},
         types::SerializedPayload,
     },
@@ -19,7 +19,7 @@ pub struct RtpsWriterCacheChange {
     _instance_handle: InstanceHandle,
     timestamp: Time,
     data: Vec<u8>,
-    inline_qos: RtpsParameterList,
+    inline_qos: ParameterList,
 }
 
 impl RtpsWriterCacheChange {
@@ -124,7 +124,7 @@ impl RtpsWriterCacheChange {
         sequence_number: SequenceNumber,
         timestamp: Time,
         data_value: Vec<u8>,
-        inline_qos: RtpsParameterList,
+        inline_qos: ParameterList,
     ) -> Self {
         Self {
             kind,
@@ -163,7 +163,7 @@ impl RtpsWriterCacheChange {
         self.data.as_ref()
     }
 
-    pub fn inline_qos(&self) -> &RtpsParameterList {
+    pub fn inline_qos(&self) -> &ParameterList {
         &self.inline_qos
     }
 }
@@ -223,7 +223,7 @@ mod tests {
             SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
-            RtpsParameterList::empty(),
+            ParameterList::empty(),
         );
         hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::new(1));
@@ -240,7 +240,7 @@ mod tests {
             SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
-            RtpsParameterList::empty(),
+            ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
@@ -249,7 +249,7 @@ mod tests {
             SequenceNumber::new(2),
             TIME_INVALID,
             vec![],
-            RtpsParameterList::empty(),
+            ParameterList::empty(),
         );
         hc.add_change(change1);
         hc.add_change(change2);
@@ -266,7 +266,7 @@ mod tests {
             SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
-            RtpsParameterList::empty(),
+            ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
@@ -275,7 +275,7 @@ mod tests {
             SequenceNumber::new(2),
             TIME_INVALID,
             vec![],
-            RtpsParameterList::empty(),
+            ParameterList::empty(),
         );
         hc.add_change(change1);
         hc.add_change(change2);

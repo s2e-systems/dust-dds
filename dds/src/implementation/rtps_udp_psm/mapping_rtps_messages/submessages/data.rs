@@ -147,7 +147,7 @@ mod tests {
     use crate::implementation::{
         rtps::{
             messages::{
-                submessage_elements::{RtpsParameter, RtpsParameterList},
+                submessage_elements::{Parameter, ParameterList},
                 types::{ParameterId, SerializedPayload},
             },
             types::{
@@ -170,7 +170,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let inline_qos = &RtpsParameterList::empty();
+        let inline_qos = &ParameterList::empty();
         let serialized_payload = SerializedPayload::new(&[]);
         let submessage = DataSubmessageWrite {
             endianness_flag,
@@ -206,9 +206,9 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let parameter_1 = RtpsParameter::new(ParameterId(6), vec![10, 11, 12, 13]);
-        let parameter_2 = RtpsParameter::new(ParameterId(7), vec![20, 21, 22, 23]);
-        let inline_qos = &RtpsParameterList::new(vec![parameter_1, parameter_2]);
+        let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
+        let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
+        let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = SerializedPayload::new(&[]);
 
         let submessage = DataSubmessageWrite {
@@ -250,7 +250,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let inline_qos = &RtpsParameterList::empty();
+        let inline_qos = &ParameterList::empty();
         let serialized_payload = SerializedPayload::new(&[1, 2, 3, 4]);
         let submessage = DataSubmessageWrite {
             endianness_flag,
@@ -287,7 +287,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let inline_qos = &RtpsParameterList::empty();
+        let inline_qos = &ParameterList::empty();
         let serialized_payload = SerializedPayload::new(&[1, 2, 3]);
         let submessage = DataSubmessageWrite {
             endianness_flag,

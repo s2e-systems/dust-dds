@@ -20,7 +20,7 @@ use crate::{
 use super::{
     history_cache::RtpsWriterCacheChange,
     messages::{
-        submessage_elements::{RtpsParameter, RtpsParameterList},
+        submessage_elements::{Parameter, ParameterList},
         submessages::{AckNackSubmessage, NackFragSubmessage},
         types::ParameterId,
     },
@@ -77,7 +77,7 @@ impl RtpsStatefulWriter {
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
-        inline_qos: RtpsParameterList,
+        inline_qos: ParameterList,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> RtpsWriterCacheChange {
@@ -204,7 +204,7 @@ impl RtpsStatefulWriter {
         let change = self.writer.new_change(
             ChangeKind::Alive,
             serialized_data,
-            RtpsParameterList::empty(),
+            ParameterList::empty(),
             handle,
             timestamp,
         );
@@ -228,7 +228,7 @@ impl RtpsStatefulWriter {
             cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
         STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
-        let inline_qos = RtpsParameterList::new(vec![RtpsParameter::new(
+        let inline_qos = ParameterList::new(vec![Parameter::new(
             ParameterId(PID_STATUS_INFO),
             serialized_status_info,
         )]);
@@ -268,7 +268,7 @@ impl RtpsStatefulWriter {
             STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
         }
 
-        let inline_qos = RtpsParameterList::new(vec![RtpsParameter::new(
+        let inline_qos = ParameterList::new(vec![Parameter::new(
             ParameterId(PID_STATUS_INFO),
             serialized_status_info,
         )]);

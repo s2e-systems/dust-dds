@@ -38,12 +38,12 @@ impl LocatorList {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct RtpsParameter {
+pub struct Parameter {
     parameter_id: ParameterId,
     value: Vec<u8>,
 }
 
-impl RtpsParameter {
+impl Parameter {
     pub fn new(parameter_id: ParameterId, value: Vec<u8>) -> Self {
         Self {
             parameter_id,
@@ -61,12 +61,12 @@ impl RtpsParameter {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RtpsParameterList {
-    parameter: Vec<RtpsParameter>,
+pub struct ParameterList {
+    parameter: Vec<Parameter>,
 }
 
-impl RtpsParameterList {
-    pub fn new(parameter: Vec<RtpsParameter>) -> Self {
+impl ParameterList {
+    pub fn new(parameter: Vec<Parameter>) -> Self {
         Self { parameter }
     }
 
@@ -74,7 +74,7 @@ impl RtpsParameterList {
         Self { parameter: vec![] }
     }
 
-    pub fn parameter(&self) -> &[RtpsParameter] {
+    pub fn parameter(&self) -> &[Parameter] {
         self.parameter.as_ref()
     }
 }

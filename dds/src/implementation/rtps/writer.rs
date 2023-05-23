@@ -13,7 +13,7 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
-    messages::submessage_elements::RtpsParameterList,
+    messages::submessage_elements::ParameterList,
     types::{ChangeKind, Guid, Locator, SequenceNumber},
 };
 
@@ -86,7 +86,7 @@ impl RtpsWriter {
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
-        inline_qos: RtpsParameterList,
+        inline_qos: ParameterList,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> RtpsWriterCacheChange {

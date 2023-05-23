@@ -145,7 +145,7 @@ mod tests {
         rtps::{
             messages::{
                 overall_structure::RtpsMessageHeader,
-                submessage_elements::{RtpsParameter, RtpsParameterList},
+                submessage_elements::{Parameter, ParameterList},
                 submessages::{DataSubmessageRead, DataSubmessageWrite, HeartbeatSubmessage},
                 types::{ParameterId, ProtocolId, SerializedPayload},
             },
@@ -194,9 +194,9 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let parameter_1 = RtpsParameter::new(ParameterId(6), vec![10, 11, 12, 13]);
-        let parameter_2 = RtpsParameter::new(ParameterId(7), vec![20, 21, 22, 23]);
-        let inline_qos = &RtpsParameterList::new(vec![parameter_1, parameter_2]);
+        let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
+        let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
+        let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = SerializedPayload::new(&[]);
 
         let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite {

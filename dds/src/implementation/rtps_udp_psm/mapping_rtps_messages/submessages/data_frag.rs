@@ -156,7 +156,7 @@ mod tests {
     use crate::implementation::{
         rtps::{
             messages::{
-                submessage_elements::{RtpsParameter, RtpsParameterList},
+                submessage_elements::{Parameter, ParameterList},
                 types::{FragmentNumber, ParameterId, SerializedPayload, ULong, UShort},
             },
             types::{
@@ -183,7 +183,7 @@ mod tests {
             fragments_in_submessage: UShort::new(3),
             data_size: ULong::new(4),
             fragment_size: UShort::new(5),
-            inline_qos: &RtpsParameterList::empty(),
+            inline_qos: &ParameterList::empty(),
             serialized_payload: SerializedPayload::new(&[]),
         };
         #[rustfmt::skip]
@@ -215,7 +215,7 @@ mod tests {
             fragments_in_submessage: UShort::new(3),
             data_size: ULong::new(8),
             fragment_size: UShort::new(5),
-            inline_qos: &RtpsParameterList::new(vec![RtpsParameter::new(
+            inline_qos: &ParameterList::new(vec![Parameter::new(
                 ParameterId(8),
                 vec![71, 72, 73, 74],
             )]),

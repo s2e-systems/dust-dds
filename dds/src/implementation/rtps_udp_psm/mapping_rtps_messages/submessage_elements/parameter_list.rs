@@ -2,7 +2,7 @@ use byteorder::{ReadBytesExt, WriteBytesExt};
 
 use crate::implementation::{
     rtps::messages::{
-        submessage_elements::{RtpsParameter, RtpsParameterList},
+        submessage_elements::{Parameter, ParameterList},
         types::ParameterId,
     },
     rtps_udp_psm::mapping_traits::{
@@ -10,7 +10,7 @@ use crate::implementation::{
     },
 };
 
-impl MappingWriteByteOrdered for RtpsParameter {
+impl MappingWriteByteOrdered for Parameter {
     fn mapping_write_byte_ordered<W: std::io::Write, B: byteorder::ByteOrder>(
         &self,
         mut writer: W,
@@ -31,7 +31,7 @@ impl MappingWriteByteOrdered for RtpsParameter {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for RtpsParameter {
+impl<'de> MappingReadByteOrdered<'de> for Parameter {
     fn mapping_read_byte_ordered<B: byteorder::ByteOrder>(
         buf: &mut &'de [u8],
     ) -> Result<Self, std::io::Error> {
@@ -50,7 +50,7 @@ impl<'de> MappingReadByteOrdered<'de> for RtpsParameter {
     }
 }
 
-impl NumberOfBytes for RtpsParameter {
+impl NumberOfBytes for Parameter {
     fn number_of_bytes(&self) -> usize {
         let padding_length = match self.value().len() % 4 {
             1 => 3,
@@ -62,7 +62,7 @@ impl NumberOfBytes for RtpsParameter {
     }
 }
 
-impl NumberOfBytes for RtpsParameterList {
+impl NumberOfBytes for ParameterList {
     fn number_of_bytes(&self) -> usize {
         self.parameter().number_of_bytes() + 4 /* Sentinel */
     }
@@ -70,7 +70,7 @@ impl NumberOfBytes for RtpsParameterList {
 
 const PID_SENTINEL: u16 = 1;
 
-impl MappingWriteByteOrdered for RtpsParameterList {
+impl MappingWriteByteOrdered for ParameterList {
     fn mapping_write_byte_ordered<W: std::io::Write, B: byteorder::ByteOrder>(
         &self,
         mut writer: W,
@@ -83,7 +83,7 @@ impl MappingWriteByteOrdered for RtpsParameterList {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for RtpsParameterList {
+impl<'de> MappingReadByteOrdered<'de> for ParameterList {
     fn mapping_read_byte_ordered<B: byteorder::ByteOrder>(
         buf: &mut &'de [u8],
     ) -> Result<Self, std::io::Error> {
@@ -92,7 +92,7 @@ impl<'de> MappingReadByteOrdered<'de> for RtpsParameterList {
         let mut parameter = vec![];
 
         for _ in 0..MAX_PARAMETERS {
-            let parameter_i: RtpsParameter =
+            let parameter_i: Parameter =
                 MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
 
             if parameter_i.parameter_id() == ParameterId(PID_SENTINEL) {
@@ -114,7 +114,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = RtpsParameter::new(ParameterId(2), vec![5, 6, 7, 8]);
+        let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7, 8]);
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_non_multiple_4() {
-        let parameter = RtpsParameter::new(ParameterId(2), vec![5, 6, 7]);
+        let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7]);
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_zero_size() {
-        let parameter = RtpsParameter::new(ParameterId(2), vec![]);
+        let parameter = Parameter::new(ParameterId(2), vec![]);
         assert_eq!(
             to_bytes_le(&parameter).unwrap(),
             vec![
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
-        let expected = RtpsParameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 0]);
+        let expected = Parameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 0]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = RtpsParameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 12]);
+        let expected = Parameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 12]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -172,10 +172,9 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let parameter_1 = RtpsParameter::new(ParameterId(2), vec![51, 61, 71, 81]);
-        let parameter_2 = RtpsParameter::new(ParameterId(3), vec![52, 62, 0, 0]);
-        let parameter_list_submessage_element =
-            RtpsParameterList::new(vec![parameter_1, parameter_2]);
+        let parameter_1 = Parameter::new(ParameterId(2), vec![51, 61, 71, 81]);
+        let parameter_2 = Parameter::new(ParameterId(3), vec![52, 62, 0, 0]);
+        let parameter_list_submessage_element = ParameterList::new(vec![parameter_1, parameter_2]);
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter_list_submessage_element).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
@@ -189,7 +188,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list_empty() {
-        let parameter = RtpsParameterList::empty();
+        let parameter = ParameterList::empty();
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
@@ -199,9 +198,9 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_list() {
-        let expected = RtpsParameterList::new(vec![
-            RtpsParameter::new(ParameterId(2), vec![15, 16, 17, 18]),
-            RtpsParameter::new(ParameterId(3), vec![25, 26, 27, 28]),
+        let expected = ParameterList::new(vec![
+            Parameter::new(ParameterId(2), vec![15, 16, 17, 18]),
+            Parameter::new(ParameterId(3), vec![25, 26, 27, 28]),
         ]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
@@ -226,7 +225,7 @@ mod tests {
             0x01, 0x01, 0x01, 0x01,
         ];
 
-        let expected = RtpsParameterList::new(vec![RtpsParameter::new(
+        let expected = ParameterList::new(vec![Parameter::new(
             ParameterId(0x32),
             parameter_value_expected,
         )]);
@@ -265,9 +264,9 @@ mod tests {
             0x02, 0x02, 0x02, 0x02,
         ];
 
-        let expected = RtpsParameterList::new(vec![
-            RtpsParameter::new(ParameterId(0x32), parameter_value_expected1),
-            RtpsParameter::new(ParameterId(0x32), parameter_value_expected2),
+        let expected = ParameterList::new(vec![
+            Parameter::new(ParameterId(0x32), parameter_value_expected1),
+            Parameter::new(ParameterId(0x32), parameter_value_expected2),
         ]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
