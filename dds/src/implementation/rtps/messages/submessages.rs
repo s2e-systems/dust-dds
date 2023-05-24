@@ -34,12 +34,18 @@ pub struct DataSubmessageRead<'a> {
 
 impl<'a> DataSubmessageRead<'a> {
     pub fn inline_qos(&self) -> ParameterList {
-        let mut buf = self.inline_qos;
-        match self.endianness_flag {
-            true => ParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
-                .expect("RtpsParameterList failed LE"),
-            false => ParameterList::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut buf)
-                .expect("RtpsParameterList failed BE"),
+        if self.inline_qos_flag {
+            let mut buf = self.inline_qos;
+            match self.endianness_flag {
+                true => {
+                    ParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
+                        .expect("RtpsParameterList failed LE")
+                }
+                false => ParameterList::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut buf)
+                    .expect("RtpsParameterList failed BE"),
+            }
+        } else {
+            ParameterList::empty()
         }
     }
 }
@@ -77,12 +83,18 @@ pub struct DataFragSubmessageRead<'a> {
 
 impl<'a> DataFragSubmessageRead<'a> {
     pub fn inline_qos(&self) -> ParameterList {
-        let mut buf = self.inline_qos;
-        match self.endianness_flag {
-            true => ParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
-                .expect("RtpsParameterList failed LE"),
-            false => ParameterList::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut buf)
-                .expect("RtpsParameterList failed BE"),
+        if self.inline_qos_flag {
+            let mut buf = self.inline_qos;
+            match self.endianness_flag {
+                true => {
+                    ParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
+                        .expect("RtpsParameterList failed LE")
+                }
+                false => ParameterList::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut buf)
+                    .expect("RtpsParameterList failed BE"),
+            }
+        } else {
+            ParameterList::empty()
         }
     }
 }
