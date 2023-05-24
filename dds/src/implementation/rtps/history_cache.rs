@@ -5,35 +5,12 @@ use crate::{
 
 use super::{
     messages::{
-        submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
-        submessages::{DataFragSubmessage, DataSubmessage, GapSubmessage},
-        types::{ParameterId, SerializedPayload},
+        submessage_elements::{ParameterList, SequenceNumberSet},
+        submessages::{DataFragSubmessageWrite, DataSubmessageWrite, GapSubmessage},
+        types::SerializedPayload,
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct RtpsParameter {
-    parameter_id: ParameterId,
-    value: Vec<u8>,
-}
-
-impl RtpsParameter {
-    pub fn new(parameter_id: ParameterId, value: Vec<u8>) -> Self {
-        Self {
-            parameter_id,
-            value,
-        }
-    }
-
-    pub fn parameter_id(&self) -> ParameterId {
-        self.parameter_id
-    }
-
-    pub fn value(&self) -> &[u8] {
-        self.value.as_ref()
-    }
-}
 
 pub struct RtpsWriterCacheChange {
     kind: ChangeKind,
@@ -42,7 +19,7 @@ pub struct RtpsWriterCacheChange {
     _instance_handle: InstanceHandle,
     timestamp: Time,
     data: Vec<u8>,
-    inline_qos: Vec<RtpsParameter>,
+    inline_qos: ParameterList,
 }
 
 impl RtpsWriterCacheChange {
@@ -59,24 +36,14 @@ impl RtpsWriterCacheChange {
         }
     }
 
-    pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessage {
+    pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessageWrite {
         let (data_flag, key_flag) = match self.kind() {
             ChangeKind::Alive => (true, false),
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
             _ => todo!(),
         };
-        let inline_qos = ParameterList {
-            parameter: self
-                .inline_qos()
-                .iter()
-                .map(|p| Parameter {
-                    parameter_id: p.parameter_id.0,
-                    length: p.value.len() as i16,
-                    value: p.value.as_ref(),
-                })
-                .collect(),
-        };
-        DataSubmessage {
+
+        DataSubmessageWrite {
             endianness_flag: true,
             inline_qos_flag: true,
             data_flag,
@@ -85,7 +52,7 @@ impl RtpsWriterCacheChange {
             reader_id,
             writer_id: self.writer_guid().entity_id(),
             writer_sn: self.sequence_number(),
-            inline_qos,
+            inline_qos: &self.inline_qos,
             serialized_payload: SerializedPayload::new(self.data_value()),
         }
     }
@@ -94,7 +61,7 @@ impl RtpsWriterCacheChange {
         &self,
         max_bytes: usize,
         reader_id: EntityId,
-    ) -> Vec<DataFragSubmessage> {
+    ) -> Vec<DataFragSubmessageWrite> {
         let data = self.data_value();
         let data_size = ULong::new(data.len() as u32);
         let mut fragment_starting_num = FragmentNumber::new(1);
@@ -123,19 +90,9 @@ impl RtpsWriterCacheChange {
             let non_standard_payload_flag = false;
             let writer_id = self.writer_guid().entity_id();
             let writer_sn = self.sequence_number();
-            let inline_qos = ParameterList {
-                parameter: self
-                    .inline_qos()
-                    .iter()
-                    .map(|p| Parameter {
-                        parameter_id: p.parameter_id.0,
-                        length: p.value.len() as i16,
-                        value: p.value.as_ref(),
-                    })
-                    .collect(),
-            };
+            let inline_qos = &self.inline_qos;
             let serialized_payload = SerializedPayload::new(data_fragment);
-            let message = DataFragSubmessage {
+            let message = DataFragSubmessageWrite {
                 endianness_flag,
                 inline_qos_flag,
                 non_standard_payload_flag,
@@ -167,7 +124,7 @@ impl RtpsWriterCacheChange {
         sequence_number: SequenceNumber,
         timestamp: Time,
         data_value: Vec<u8>,
-        inline_qos: Vec<RtpsParameter>,
+        inline_qos: ParameterList,
     ) -> Self {
         Self {
             kind,
@@ -206,7 +163,7 @@ impl RtpsWriterCacheChange {
         self.data.as_ref()
     }
 
-    pub fn inline_qos(&self) -> &[RtpsParameter] {
+    pub fn inline_qos(&self) -> &ParameterList {
         &self.inline_qos
     }
 }
@@ -266,7 +223,7 @@ mod tests {
             SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
-            vec![],
+            ParameterList::empty(),
         );
         hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::new(1));
@@ -283,7 +240,7 @@ mod tests {
             SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
-            vec![],
+            ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
@@ -292,7 +249,7 @@ mod tests {
             SequenceNumber::new(2),
             TIME_INVALID,
             vec![],
-            vec![],
+            ParameterList::empty(),
         );
         hc.add_change(change1);
         hc.add_change(change2);
@@ -309,7 +266,7 @@ mod tests {
             SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
-            vec![],
+            ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
@@ -318,7 +275,7 @@ mod tests {
             SequenceNumber::new(2),
             TIME_INVALID,
             vec![],
-            vec![],
+            ParameterList::empty(),
         );
         hc.add_change(change1);
         hc.add_change(change2);

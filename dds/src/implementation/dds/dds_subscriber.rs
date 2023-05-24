@@ -2,7 +2,7 @@ use crate::{
     implementation::rtps::{
         group::RtpsGroup,
         messages::submessages::{
-            DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
+            DataFragSubmessageRead, DataSubmessageRead, GapSubmessage, HeartbeatFragSubmessage,
             HeartbeatSubmessage,
         },
         stateful_reader::RtpsStatefulReader,
@@ -234,7 +234,7 @@ impl DdsSubscriber {
 
     pub fn on_data_submessage_received(
         &mut self,
-        data_submessage: &DataSubmessage<'_>,
+        data_submessage: &DataSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
         parent_participant_guid: Guid,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
@@ -257,7 +257,7 @@ impl DdsSubscriber {
 
     pub fn on_data_frag_submessage_received(
         &mut self,
-        data_frag_submessage: &DataFragSubmessage<'_>,
+        data_frag_submessage: &DataFragSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
         parent_participant_guid: Guid,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,

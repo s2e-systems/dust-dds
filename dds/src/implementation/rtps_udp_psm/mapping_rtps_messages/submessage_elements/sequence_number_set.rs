@@ -32,7 +32,7 @@ impl MappingWriteByteOrdered for SequenceNumberSet {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for sequence_number in &self.set {
-            let delta_n =  <i64>::from(*sequence_number - self.base) as u32;
+            let delta_n = <i64>::from(*sequence_number - self.base) as u32;
             let bitmap_num = delta_n / 32;
             bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
             if delta_n + 1 > num_bits {

@@ -7,7 +7,7 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::type_support::{DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -292,8 +292,8 @@ fn two_participants_should_get_subscription_matched() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic2 = dp2
-    .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
-    .unwrap();
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
     let subscriber = dp2
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -329,16 +329,20 @@ fn participant_records_discovered_topics() {
     let topic_names = ["Topic 1", "Topic 2"];
     let mut topics = Vec::new();
     for name in topic_names {
-        topics.push(participant1
-            .create_topic::<UserType>(name, QosKind::Default, None, NO_STATUS)
-            .unwrap());
+        topics.push(
+            participant1
+                .create_topic::<UserType>(name, QosKind::Default, None, NO_STATUS)
+                .unwrap(),
+        );
     }
 
     let mut found_topics = Vec::new();
     for name in topic_names {
-        found_topics.push(participant2
-            .find_topic::<UserType>(name, Duration::new(10, 0))
-            .unwrap());
+        found_topics.push(
+            participant2
+                .find_topic::<UserType>(name, Duration::new(10, 0))
+                .unwrap(),
+        );
     }
 
     let discovered_topic_names: Vec<String> = participant2
@@ -381,9 +385,7 @@ fn participant_announces_updated_qos() {
         .unwrap();
     qos.user_data.value = vec![7, 8, 9];
     std::thread::sleep(std::time::Duration::from_secs(1));
-    participant1
-        .set_qos(QosKind::Specific(qos))
-        .unwrap();
+    participant1.set_qos(QosKind::Specific(qos)).unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(5));
 }

@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::{
-    messages::submessages::DataSubmessage,
+    messages::submessages::DataSubmessageRead,
     reader::{RtpsReader, RtpsReaderCacheChange, RtpsReaderError, RtpsReaderResult},
     types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
 };
@@ -41,7 +41,7 @@ impl RtpsStatelessReader {
 
     pub fn _convert_data_to_cache_change(
         &self,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessageRead,
         source_timestamp: Option<Time>,
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
@@ -151,7 +151,7 @@ impl RtpsStatelessReader {
 
     pub fn on_data_submessage_received(
         &mut self,
-        data_submessage: &DataSubmessage<'_>,
+        data_submessage: &DataSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
     ) -> StatelessReaderDataReceivedResult {
         if data_submessage.reader_id == ENTITYID_UNKNOWN

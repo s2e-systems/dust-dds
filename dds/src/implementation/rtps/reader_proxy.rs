@@ -6,8 +6,7 @@ use super::{
         submessages::{
             AckNackSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage, NackFragSubmessage,
         },
-        types::FragmentNumber,
-        RtpsSubmessageKind,
+        types::FragmentNumber, RtpsSubmessageWriteKind,
     },
     types::{
         Count, DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind,
@@ -41,10 +40,10 @@ impl HeartbeatMachine {
         writer_id: EntityId,
         first_sn: SequenceNumber,
         last_sn: SequenceNumber,
-    ) -> RtpsSubmessageKind<'a> {
+    ) -> RtpsSubmessageWriteKind<'a> {
         self.count = self.count.wrapping_add(1);
         self.timer.reset();
-        RtpsSubmessageKind::Heartbeat(HeartbeatSubmessage {
+        RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessage {
             endianness_flag: true,
             final_flag: false,
             liveliness_flag: false,
@@ -75,9 +74,9 @@ impl HeartbeatFragMachine {
         writer_id: EntityId,
         writer_sn: SequenceNumber,
         last_fragment_num: FragmentNumber,
-    ) -> RtpsSubmessageKind<'a> {
+    ) -> RtpsSubmessageWriteKind<'a> {
         self.count = self.count.wrapping_add(1);
-        RtpsSubmessageKind::HeartbeatFrag(HeartbeatFragSubmessage {
+        RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessage {
             endianness_flag: true,
             reader_id: self.reader_id,
             writer_id,

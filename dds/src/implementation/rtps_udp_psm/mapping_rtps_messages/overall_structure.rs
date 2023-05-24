@@ -3,7 +3,10 @@ use std::io::{BufRead, Error, Write};
 use byteorder::LittleEndian;
 
 use crate::implementation::{
-    rtps::messages::{overall_structure::RtpsSubmessageHeader, RtpsMessage, RtpsSubmessageKind},
+    rtps::messages::{
+        overall_structure::RtpsSubmessageHeader, RtpsMessageRead, RtpsMessageWrite,
+        RtpsSubmessageReadKind, RtpsSubmessageWriteKind,
+    },
     rtps_udp_psm::mapping_traits::{
         MappingReadByteOrderInfoInData, MappingReadByteOrdered, MappingWriteByteOrderInfoInData,
         MappingWriteByteOrdered,
@@ -15,45 +18,51 @@ use super::submessages::submessage_header::{
     INFO_TS, NACK_FRAG, PAD,
 };
 
-impl MappingWriteByteOrderInfoInData for RtpsSubmessageKind<'_> {
+impl MappingWriteByteOrderInfoInData for RtpsSubmessageWriteKind<'_> {
     fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         match self {
-            RtpsSubmessageKind::AckNack(s) => {
+            RtpsSubmessageWriteKind::AckNack(s) => {
                 s.mapping_write_byte_order_info_in_data(&mut writer)?
             }
-            RtpsSubmessageKind::Data(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
-            RtpsSubmessageKind::DataFrag(s) => {
+            RtpsSubmessageWriteKind::Data(s) => {
                 s.mapping_write_byte_order_info_in_data(&mut writer)?
             }
-            RtpsSubmessageKind::Gap(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
-            RtpsSubmessageKind::Heartbeat(s) => {
+            RtpsSubmessageWriteKind::DataFrag(s) => {
                 s.mapping_write_byte_order_info_in_data(&mut writer)?
             }
-            RtpsSubmessageKind::HeartbeatFrag(s) => {
+            RtpsSubmessageWriteKind::Gap(s) => {
                 s.mapping_write_byte_order_info_in_data(&mut writer)?
             }
-            RtpsSubmessageKind::InfoDestination(s) => {
+            RtpsSubmessageWriteKind::Heartbeat(s) => {
                 s.mapping_write_byte_order_info_in_data(&mut writer)?
             }
-            RtpsSubmessageKind::InfoReply(s) => {
+            RtpsSubmessageWriteKind::HeartbeatFrag(s) => {
                 s.mapping_write_byte_order_info_in_data(&mut writer)?
             }
-            RtpsSubmessageKind::InfoSource(s) => {
+            RtpsSubmessageWriteKind::InfoDestination(s) => {
                 s.mapping_write_byte_order_info_in_data(&mut writer)?
             }
-            RtpsSubmessageKind::InfoTimestamp(s) => {
+            RtpsSubmessageWriteKind::InfoReply(s) => {
                 s.mapping_write_byte_order_info_in_data(&mut writer)?
             }
-            RtpsSubmessageKind::NackFrag(s) => {
+            RtpsSubmessageWriteKind::InfoSource(s) => {
                 s.mapping_write_byte_order_info_in_data(&mut writer)?
             }
-            RtpsSubmessageKind::Pad(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageWriteKind::InfoTimestamp(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
+            RtpsSubmessageWriteKind::NackFrag(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
+            RtpsSubmessageWriteKind::Pad(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
         };
         Ok(())
     }
 }
 
-impl MappingWriteByteOrderInfoInData for RtpsMessage<'_> {
+impl MappingWriteByteOrderInfoInData for RtpsMessageWrite<'_> {
     fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         // The byteorder is determined by each submessage individually. Hence
         // decide here for a byteorder for the header
@@ -66,7 +75,7 @@ impl MappingWriteByteOrderInfoInData for RtpsMessage<'_> {
     }
 }
 
-impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessage<'a> {
+impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessageRead<'a> {
     fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
         // The byteorder is determined by each submessage individually. Hence
         // decide here for a byteorder for the header
@@ -80,40 +89,40 @@ impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessage<'a> {
             // Preview byte only (to allow full deserialization of submessage header)
             let submessage_id = buf[0];
             let submessage = match submessage_id {
-                ACKNACK => RtpsSubmessageKind::AckNack(
+                ACKNACK => RtpsSubmessageReadKind::AckNack(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                DATA => RtpsSubmessageKind::Data(
+                DATA => RtpsSubmessageReadKind::Data(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                DATA_FRAG => RtpsSubmessageKind::DataFrag(
+                DATA_FRAG => RtpsSubmessageReadKind::DataFrag(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                GAP => RtpsSubmessageKind::Gap(
+                GAP => RtpsSubmessageReadKind::Gap(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                HEARTBEAT => RtpsSubmessageKind::Heartbeat(
+                HEARTBEAT => RtpsSubmessageReadKind::Heartbeat(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                HEARTBEAT_FRAG => RtpsSubmessageKind::HeartbeatFrag(
+                HEARTBEAT_FRAG => RtpsSubmessageReadKind::HeartbeatFrag(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                INFO_DST => RtpsSubmessageKind::InfoDestination(
+                INFO_DST => RtpsSubmessageReadKind::InfoDestination(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                INFO_REPLY => RtpsSubmessageKind::InfoReply(
+                INFO_REPLY => RtpsSubmessageReadKind::InfoReply(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                INFO_SRC => RtpsSubmessageKind::InfoSource(
+                INFO_SRC => RtpsSubmessageReadKind::InfoSource(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                INFO_TS => RtpsSubmessageKind::InfoTimestamp(
+                INFO_TS => RtpsSubmessageReadKind::InfoTimestamp(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                NACK_FRAG => RtpsSubmessageKind::NackFrag(
+                NACK_FRAG => RtpsSubmessageReadKind::NackFrag(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
-                PAD => RtpsSubmessageKind::Pad(
+                PAD => RtpsSubmessageReadKind::Pad(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
                 ),
                 _ => {
@@ -125,7 +134,7 @@ impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessage<'a> {
             };
             submessages.push(submessage);
         }
-        Ok(RtpsMessage::new(header, submessages))
+        Ok(RtpsMessageRead::new(header, submessages))
     }
 }
 
@@ -137,8 +146,8 @@ mod tests {
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::{Parameter, ParameterList},
-                submessages::{DataSubmessage, HeartbeatSubmessage},
-                types::{ProtocolId, SerializedPayload},
+                submessages::{DataSubmessageRead, DataSubmessageWrite, HeartbeatSubmessage},
+                types::{ParameterId, ProtocolId, SerializedPayload},
             },
             types::{
                 Count, EntityId, EntityKey, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
@@ -158,7 +167,7 @@ mod tests {
             vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefix::new([3; 12]),
         };
-        let value = RtpsMessage::new(header, Vec::new());
+        let value = RtpsMessageWrite::new(header, Vec::new());
         #[rustfmt::skip]
         assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -185,22 +194,12 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let parameter_1 = Parameter {
-            parameter_id: 6,
-            length: 4,
-            value: &[10, 11, 12, 13],
-        };
-        let parameter_2 = Parameter {
-            parameter_id: 7,
-            length: 4,
-            value: &[20, 21, 22, 23],
-        };
-        let inline_qos = ParameterList {
-            parameter: vec![parameter_1, parameter_2],
-        };
+        let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
+        let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
+        let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = SerializedPayload::new(&[]);
 
-        let submessage = RtpsSubmessageKind::Data(DataSubmessage {
+        let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite {
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -212,7 +211,7 @@ mod tests {
             inline_qos,
             serialized_payload,
         });
-        let value = RtpsMessage::new(header, vec![submessage]);
+        let value = RtpsMessageWrite::new(header, vec![submessage]);
         #[rustfmt::skip]
         assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -243,9 +242,9 @@ mod tests {
             guid_prefix: GuidPrefix::new([3; 12]),
         };
 
-        let expected = RtpsMessage::new(header, Vec::new());
+        let expected = RtpsMessageRead::new(header, Vec::new());
         #[rustfmt::skip]
-        let result: RtpsMessage = from_bytes(&[
+        let result: RtpsMessageRead = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -271,22 +270,16 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let parameter_1 = Parameter {
-            parameter_id: 6,
-            length: 4,
-            value: &[10, 11, 12, 13],
-        };
-        let parameter_2 = Parameter {
-            parameter_id: 7,
-            length: 4,
-            value: &[20, 21, 22, 23],
-        };
-        let inline_qos = ParameterList {
-            parameter: vec![parameter_1, parameter_2],
-        };
+        let inline_qos = &[
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 1, 0, // inlineQos: Sentinel
+        ];
         let serialized_payload = SerializedPayload::new(&[]);
 
-        let data_submessage = RtpsSubmessageKind::Data(DataSubmessage {
+        let data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead {
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -306,7 +299,7 @@ mod tests {
         let first_sn = SequenceNumber::new(5);
         let last_sn = SequenceNumber::new(7);
         let count = Count::new(2);
-        let heartbeat_submessage = RtpsSubmessageKind::Heartbeat(HeartbeatSubmessage {
+        let heartbeat_submessage = RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessage {
             endianness_flag,
             final_flag,
             liveliness_flag,
@@ -316,9 +309,9 @@ mod tests {
             last_sn,
             count,
         });
-        let expected = RtpsMessage::new(header, vec![data_submessage, heartbeat_submessage]);
+        let expected = RtpsMessageRead::new(header, vec![data_submessage, heartbeat_submessage]);
         #[rustfmt::skip]
-        let result: RtpsMessage = from_bytes(&[
+        let result: RtpsMessageRead = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -363,22 +356,16 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let parameter_1 = Parameter {
-            parameter_id: 6,
-            length: 4,
-            value: &[10, 11, 12, 13],
-        };
-        let parameter_2 = Parameter {
-            parameter_id: 7,
-            length: 4,
-            value: &[20, 21, 22, 23],
-        };
-        let inline_qos = ParameterList {
-            parameter: vec![parameter_1, parameter_2],
-        };
+        let inline_qos = &[
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 0, 0, // inlineQos: Sentinel
+        ];
         let serialized_payload = SerializedPayload::new(&[]);
 
-        let submessage = RtpsSubmessageKind::Data(DataSubmessage {
+        let submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead {
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -390,9 +377,9 @@ mod tests {
             inline_qos,
             serialized_payload,
         });
-        let expected = RtpsMessage::new(header, vec![submessage]);
+        let expected = RtpsMessageRead::new(header, vec![submessage]);
         #[rustfmt::skip]
-        let result: RtpsMessage = from_bytes(&[
+        let result: RtpsMessageRead = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix

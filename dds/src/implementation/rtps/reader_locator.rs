@@ -6,7 +6,7 @@ use super::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::SequenceNumberSet,
         submessages::{GapSubmessage, InfoTimestampSubmessage},
-        RtpsMessage, RtpsSubmessageKind,
+        RtpsMessageWrite, RtpsSubmessageWriteKind,
     },
     transport::TransportWrite,
     types::{EntityId, Locator, SequenceNumber, ENTITYID_UNKNOWN},
@@ -19,8 +19,8 @@ pub struct RtpsReaderLocator {
     _expects_inline_qos: bool,
 }
 
-fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
-    RtpsSubmessageKind::InfoTimestamp(InfoTimestampSubmessage {
+fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
+    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessage {
         endianness_flag: true,
         invalidate_flag: false,
         timestamp: super::messages::types::Time::new(timestamp.sec(), timestamp.nanosec()),
@@ -30,8 +30,8 @@ fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
 fn gap_submessage<'a>(
     writer_id: EntityId,
     gap_sequence_number: SequenceNumber,
-) -> RtpsSubmessageKind<'a> {
-    RtpsSubmessageKind::Gap(GapSubmessage {
+) -> RtpsSubmessageWriteKind<'a> {
+    RtpsSubmessageWriteKind::Gap(GapSubmessage {
         endianness_flag: true,
         reader_id: ENTITYID_UNKNOWN,
         writer_id,
@@ -104,14 +104,14 @@ impl RtpsReaderLocator {
                 let info_ts_submessage = info_timestamp_submessage(cache_change.timestamp());
                 let data_submessage = cache_change.as_data_submessage(ENTITYID_UNKNOWN);
                 submessages.push(info_ts_submessage);
-                submessages.push(RtpsSubmessageKind::Data(data_submessage));
+                submessages.push(RtpsSubmessageWriteKind::Data(data_submessage));
             } else {
                 let gap_submessage = gap_submessage(writer_id, change.sequence_number);
                 submessages.push(gap_submessage);
             }
         }
         if !submessages.is_empty() {
-            transport.write(&RtpsMessage::new(header, submessages), &[self.locator])
+            transport.write(&RtpsMessageWrite::new(header, submessages), &[self.locator])
         }
     }
 }
@@ -181,6 +181,7 @@ mod tests {
     use crate::{
         implementation::rtps::{
             history_cache::RtpsWriterCacheChange,
+            messages::submessage_elements::ParameterList,
             types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
         },
         infrastructure::{instance::HANDLE_NIL, time::TIME_INVALID},
@@ -198,7 +199,7 @@ mod tests {
             SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
-            vec![],
+            ParameterList::empty(),
         ));
         hc.add_change(RtpsWriterCacheChange::new(
             ChangeKind::Alive,
@@ -207,7 +208,7 @@ mod tests {
             SequenceNumber::new(2),
             TIME_INVALID,
             vec![],
-            vec![],
+            ParameterList::empty(),
         ));
         let mut reader_locator_attributes = RtpsReaderLocator::new(LOCATOR_INVALID, false);
         reader_locator_attributes.unsent_changes =

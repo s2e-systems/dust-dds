@@ -64,7 +64,7 @@ impl<'de> MappingReadSubmessage<'de> for InfoReplySubmessage {
         let multicast_locator_list = if multicast_flag {
             MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?
         } else {
-            LocatorList { value: vec![] }
+            LocatorList::new(vec![])
         };
         Ok(InfoReplySubmessage {
             endianness_flag,
@@ -97,10 +97,8 @@ mod tests {
         let submessage = InfoReplySubmessage {
             endianness_flag: true,
             multicast_flag: false,
-            unicast_locator_list: LocatorList {
-                value: vec![locator],
-            },
-            multicast_locator_list: LocatorList { value: vec![] },
+            unicast_locator_list: LocatorList::new(vec![locator]),
+            multicast_locator_list: LocatorList::new(vec![]),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
@@ -126,10 +124,8 @@ mod tests {
         let submessage = InfoReplySubmessage {
             endianness_flag: true,
             multicast_flag: true,
-            unicast_locator_list: LocatorList { value: vec![] },
-            multicast_locator_list: LocatorList {
-                value: vec![locator, locator],
-            },
+            unicast_locator_list: LocatorList::new(vec![]),
+            multicast_locator_list: LocatorList::new(vec![locator, locator]),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
@@ -175,10 +171,8 @@ mod tests {
             InfoReplySubmessage {
                 endianness_flag: true,
                 multicast_flag: false,
-                unicast_locator_list: LocatorList {
-                    value: vec![locator]
-                },
-                multicast_locator_list: LocatorList { value: vec![] },
+                unicast_locator_list: LocatorList::new(vec![locator]),
+                multicast_locator_list: LocatorList::new(vec![]),
             },
             from_bytes(&buf).unwrap()
         );
@@ -214,10 +208,8 @@ mod tests {
             InfoReplySubmessage {
                 endianness_flag: true,
                 multicast_flag: true,
-                unicast_locator_list: LocatorList { value: vec![] },
-                multicast_locator_list: LocatorList {
-                    value: vec![locator, locator]
-                },
+                unicast_locator_list: LocatorList::new(vec![]),
+                multicast_locator_list: LocatorList::new(vec![locator, locator]),
             },
             from_bytes(&buf).unwrap()
         );

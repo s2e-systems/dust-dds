@@ -8,10 +8,11 @@ use super::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::{FragmentNumberSet, SequenceNumberSet},
         submessages::{
-            AckNackSubmessage, DataFragSubmessage, InfoDestinationSubmessage, NackFragSubmessage,
+            AckNackSubmessage, DataFragSubmessageRead, InfoDestinationSubmessage,
+            NackFragSubmessage,
         },
         types::{FragmentNumber, ULong, UShort},
-        RtpsMessage, RtpsSubmessageKind,
+        RtpsMessageWrite, RtpsSubmessageWriteKind,
     },
     transport::TransportWrite,
     types::{Count, EntityId, Guid, Locator, SequenceNumber},
@@ -26,8 +27,8 @@ pub struct OwningDataFragSubmessage {
     serialized_payload: Vec<u8>,
 }
 
-impl From<&DataFragSubmessage<'_>> for OwningDataFragSubmessage {
-    fn from(x: &DataFragSubmessage<'_>) -> Self {
+impl From<&DataFragSubmessageRead<'_>> for OwningDataFragSubmessage {
+    fn from(x: &DataFragSubmessageRead<'_>) -> Self {
         Self {
             fragment_starting_num: x.fragment_starting_num,
             data_size: x.data_size,
@@ -91,7 +92,7 @@ impl RtpsWriterProxy {
         }
     }
 
-    pub fn push_data_frag(&mut self, submessage: &DataFragSubmessage) {
+    pub fn push_data_frag(&mut self, submessage: &DataFragSubmessageRead) {
         let owning_data_frag = submessage.into();
         let frag_bug_seq_num = self.frag_buffer.entry(submessage.writer_sn).or_default();
         if !frag_bug_seq_num.contains(&owning_data_frag) {
@@ -286,8 +287,8 @@ impl RtpsWriterProxy {
             };
 
             let mut submessages = vec![
-                RtpsSubmessageKind::InfoDestination(info_dst_submessage),
-                RtpsSubmessageKind::AckNack(acknack_submessage),
+                RtpsSubmessageWriteKind::InfoDestination(info_dst_submessage),
+                RtpsSubmessageWriteKind::AckNack(acknack_submessage),
             ];
 
             for (seq_num, owning_data_frag_list) in self.frag_buffer.iter() {
@@ -306,24 +307,25 @@ impl RtpsWriterProxy {
 
                 if !missing_fragment_number.is_empty() {
                     self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
-                    let nack_frag_submessage = RtpsSubmessageKind::NackFrag(NackFragSubmessage {
-                        endianness_flag: true,
-                        reader_id: reader_guid.entity_id(),
-                        writer_id: self.remote_writer_guid().entity_id(),
-                        writer_sn: *seq_num,
-                        fragment_number_state: FragmentNumberSet {
-                            base: missing_fragment_number[0],
-                            set: missing_fragment_number,
-                        },
-                        count: self.nack_frag_count,
-                    });
+                    let nack_frag_submessage =
+                        RtpsSubmessageWriteKind::NackFrag(NackFragSubmessage {
+                            endianness_flag: true,
+                            reader_id: reader_guid.entity_id(),
+                            writer_id: self.remote_writer_guid().entity_id(),
+                            writer_sn: *seq_num,
+                            fragment_number_state: FragmentNumberSet {
+                                base: missing_fragment_number[0],
+                                set: missing_fragment_number,
+                            },
+                            count: self.nack_frag_count,
+                        });
 
                     submessages.push(nack_frag_submessage)
                 }
             }
 
             transport.write(
-                &RtpsMessage::new(header, submessages),
+                &RtpsMessageWrite::new(header, submessages),
                 self.unicast_locator_list(),
             );
         }

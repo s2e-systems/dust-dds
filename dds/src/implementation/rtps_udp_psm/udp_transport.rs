@@ -1,9 +1,8 @@
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 use crate::implementation::rtps::{
-    messages::RtpsMessage,
     transport::TransportWrite,
-    types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
+    types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6}, messages::{RtpsMessageRead, RtpsMessageWrite},
 };
 
 use super::mapping_traits::{from_bytes, to_bytes};
@@ -22,7 +21,7 @@ impl UdpTransportRead {
         }
     }
 
-    pub async fn read(&mut self) -> Option<(Locator, RtpsMessage<'_>)> {
+    pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead<'_>)> {
         match self.socket.recv_from(self.receive_buffer.as_mut()).await {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
@@ -53,7 +52,7 @@ impl UdpTransportWrite {
 }
 
 impl TransportWrite for UdpTransportWrite {
-    fn write(&mut self, message: &RtpsMessage<'_>, destination_locator_list: &[Locator]) {
+    fn write(&mut self, message: &RtpsMessageWrite<'_>, destination_locator_list: &[Locator]) {
         let buf = to_bytes(message).unwrap();
 
         for &destination_locator in destination_locator_list {

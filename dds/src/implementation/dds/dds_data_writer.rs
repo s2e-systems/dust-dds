@@ -7,8 +7,11 @@ use crate::{
             DiscoveredWriterData, WriterProxy,
         },
         rtps::{
-            history_cache::{RtpsParameter, RtpsWriterCacheChange},
-            messages::submessages::{AckNackSubmessage, NackFragSubmessage},
+            history_cache::RtpsWriterCacheChange,
+            messages::{
+                submessage_elements::ParameterList,
+                submessages::{AckNackSubmessage, NackFragSubmessage},
+            },
             reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
             stateful_writer::RtpsStatefulWriter,
@@ -295,7 +298,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
-        inline_qos: Vec<RtpsParameter>,
+        inline_qos: ParameterList,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> RtpsWriterCacheChange {
@@ -531,7 +534,7 @@ impl DdsDataWriter<RtpsStatelessWriter> {
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
-        inline_qos: Vec<RtpsParameter>,
+        inline_qos: ParameterList,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> RtpsWriterCacheChange {
@@ -583,7 +586,7 @@ mod test {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
-            messages::RtpsMessage,
+            messages::RtpsMessageWrite,
             transport::TransportWrite,
             types::{TopicKind, GUID_UNKNOWN},
             writer::RtpsWriter,
@@ -600,7 +603,7 @@ mod test {
         Transport{}
 
         impl TransportWrite for Transport {
-            fn write<'a>(&'a mut self, message: &RtpsMessage<'a>, destination_locator_list: &[Locator]);
+            fn write<'a>(&'a mut self, message: &RtpsMessageWrite<'a>, destination_locator_list: &[Locator]);
         }
     }
 
