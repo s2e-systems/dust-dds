@@ -86,7 +86,7 @@ use crate::{
 
 use super::{
     domain_participant_factory::{
-        DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY, THE_PARTICIPANT_FACTORY,
+        DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY, THE_PARTICIPANT_FACTORY, THE_TASK_RUNTIME,
     },
     domain_participant_listener::DomainParticipantListener,
 };
@@ -678,7 +678,9 @@ impl DomainParticipant {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::enable(dp)
+            THE_TASK_RUNTIME.block_on(async {
+                crate::implementation::behavior::domain_participant::enable(dp).await
+            })
         })
     }
 
@@ -711,11 +713,13 @@ impl DomainParticipant {
 pub async fn task_announce_participant(participant_guid_prefix: GuidPrefix) {
     let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
     loop {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
-            if let Some(dp) = dp {
-                dp.announce_participant().ok();
-            }
-        });
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant_mut_async(&participant_guid_prefix, |dp| {
+                if let Some(dp) = dp {
+                    dp.announce_participant().ok();
+                }
+            })
+            .await;
         interval.tick().await;
     }
 }
@@ -732,11 +736,13 @@ pub async fn task_unicast_user_defined_communication_send(
 
         // let _r = user_defined_data_send_condvar.wait_timeout(Duration::new(0, 100_000_000));
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
-            if let Some(dp) = dp {
-                user_defined_communication_send(dp, &mut default_unicast_transport_send);
-            }
-        })
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant_mut_async(&participant_guid_prefix, |dp| {
+                if let Some(dp) = dp {
+                    user_defined_communication_send(dp, &mut default_unicast_transport_send);
+                }
+            })
+            .await
     }
 }
 
@@ -752,11 +758,13 @@ pub async fn task_unicast_metatraffic_communication_send(
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
         // let _r = sedp_condvar.wait_timeout(Duration::new(0, 500000000));
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
-            if let Some(dp) = dp {
-                send_builtin_message(dp, &mut metatraffic_unicast_transport_send);
-            }
-        });
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant_mut_async(&participant_guid_prefix, |dp| {
+                if let Some(dp) = dp {
+                    send_builtin_message(dp, &mut metatraffic_unicast_transport_send);
+                }
+            })
+            .await;
     }
 }
 
@@ -766,11 +774,13 @@ pub async fn task_send_entity_announce(
 ) {
     loop {
         if let Some(announce_kind) = announce_receiver.recv().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    announce_entity(dp, announce_kind);
-                }
-            })
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut_async(&participant_guid_prefix, |dp| {
+                    if let Some(dp) = dp {
+                        announce_entity(dp, announce_kind);
+                    }
+                })
+                .await
         }
     }
 }
@@ -803,15 +813,14 @@ pub async fn task_user_defined_receive(
 ) {
     loop {
         if let Some((locator, message)) = default_unicast_transport.read().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                &participant_guid_prefix,
-                |dp| {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut_async(&participant_guid_prefix, |dp| {
                     if let Some(dp) = dp {
                         dp.receive_user_defined_data(locator, message, &listener_sender)
                             .ok();
                     }
-                },
-            );
+                })
+                .await;
         }
     }
 }
@@ -824,11 +833,19 @@ pub async fn task_metatraffic_unicast_receive(
 ) {
     loop {
         if let Some((locator, message)) = metatraffic_unicast_transport.read().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    receive_builtin_message(dp, message, locator, &sedp_condvar, &listener_sender)
-                }
-            })
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut_async(&participant_guid_prefix, |dp| {
+                    if let Some(dp) = dp {
+                        receive_builtin_message(
+                            dp,
+                            message,
+                            locator,
+                            &sedp_condvar,
+                            &listener_sender,
+                        )
+                    }
+                })
+                .await
         }
     }
 }
@@ -841,11 +858,19 @@ pub async fn task_metatraffic_multicast_receive(
 ) {
     loop {
         if let Some((locator, message)) = metatraffic_multicast_transport.read().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    receive_builtin_message(dp, message, locator, &sedp_condvar, &listener_sender)
-                }
-            })
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut_async(&participant_guid_prefix, |dp| {
+                    if let Some(dp) = dp {
+                        receive_builtin_message(
+                            dp,
+                            message,
+                            locator,
+                            &sedp_condvar,
+                            &listener_sender,
+                        )
+                    }
+                })
+                .await
         }
     }
 }
@@ -855,11 +880,13 @@ pub async fn task_update_communication_status(
     listener_sender: Sender<ListenerTriggerKind>,
 ) {
     loop {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&participant_guid_prefix, |dp| {
-            if let Some(dp) = dp {
-                dp.update_communication_status(&listener_sender).ok();
-            }
-        });
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant_mut_async(&participant_guid_prefix, |dp| {
+                if let Some(dp) = dp {
+                    dp.update_communication_status(&listener_sender).ok();
+                }
+            })
+            .await;
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     }
 }
@@ -869,29 +896,43 @@ pub async fn task_listener_receiver(mut listener_receiver: Receiver<ListenerTrig
         if let Some(l) = listener_receiver.recv().await {
             match l {
                 ListenerTriggerKind::RequestedDeadlineMissed(dr) => {
-                    on_requested_deadline_missed_communication_change(dr)
+                    THE_TASK_RUNTIME.spawn_blocking(move || {
+                        on_requested_deadline_missed_communication_change(dr)
+                    });
                 }
                 ListenerTriggerKind::OnDataAvailable(dr) => {
-                    on_data_available_communication_change(dr)
+                    THE_TASK_RUNTIME
+                        .spawn_blocking(move || on_data_available_communication_change(dr));
                 }
                 ListenerTriggerKind::SubscriptionMatched(dr) => {
-                    on_subscription_matched_communication_change(dr)
+                    THE_TASK_RUNTIME
+                        .spawn_blocking(move || on_subscription_matched_communication_change(dr));
                 }
                 ListenerTriggerKind::RequestedIncompatibleQos(dr) => {
-                    on_requested_incompatible_qos_communication_change(dr)
+                    THE_TASK_RUNTIME.spawn_blocking(move || {
+                        on_requested_incompatible_qos_communication_change(dr)
+                    });
                 }
                 ListenerTriggerKind::OnSampleRejected(dr) => {
-                    on_sample_rejected_communication_change(dr)
+                    THE_TASK_RUNTIME
+                        .spawn_blocking(move || on_sample_rejected_communication_change(dr));
                 }
-                ListenerTriggerKind::OnSampleLost(dr) => on_sample_lost_communication_change(dr),
+                ListenerTriggerKind::OnSampleLost(dr) => {
+                    THE_TASK_RUNTIME
+                        .spawn_blocking(move || on_sample_lost_communication_change(dr));
+                }
                 ListenerTriggerKind::OfferedIncompatibleQos(dw) => {
-                    on_offered_incompatible_qos_communication_change(dw)
+                    THE_TASK_RUNTIME.spawn_blocking(move || {
+                        on_offered_incompatible_qos_communication_change(dw)
+                    });
                 }
                 ListenerTriggerKind::PublicationMatched(dw) => {
-                    on_publication_matched_communication_change(dw)
+                    THE_TASK_RUNTIME
+                        .spawn_blocking(move || on_publication_matched_communication_change(dw));
                 }
                 ListenerTriggerKind::InconsistentTopic(t) => {
-                    on_inconsistent_topic_communication_change(t)
+                    THE_TASK_RUNTIME
+                        .spawn_blocking(move || on_inconsistent_topic_communication_change(t));
                 }
             }
         }

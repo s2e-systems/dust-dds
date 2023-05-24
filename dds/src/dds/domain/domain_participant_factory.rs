@@ -44,6 +44,7 @@ use lazy_static::lazy_static;
 use mac_address::MacAddress;
 use schemars::schema_for;
 use socket2::Socket;
+use tokio::runtime::Runtime;
 
 pub type DomainId = i32;
 
@@ -157,18 +158,19 @@ impl DomainParticipantFactory {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
-        let dp = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .create_participant(domain_id, qos, a_listener, mask)?;
+        let participant = THE_TASK_RUNTIME.block_on(
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.create_participant(domain_id, qos, a_listener, mask),
+        )?;
 
         if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .qos()
             .entity_factory
             .autoenable_created_entities
         {
-            dp.enable()?;
+            participant.enable()?;
         }
 
-        Ok(dp)
+        Ok(participant)
     }
 
     /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
@@ -190,7 +192,7 @@ impl DomainParticipantFactory {
             // while locking
             let object = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .domain_participant_list
-                .write_lock()
+                .blocking_write()
                 .remove(&participant.node().guid().prefix());
             std::mem::drop(object);
 
@@ -216,7 +218,7 @@ impl DomainParticipantFactory {
     pub fn lookup_participant(&self, domain_id: DomainId) -> Option<DomainParticipant> {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .domain_participant_list
-            .read_lock()
+            .blocking_read()
             .iter()
             .find_map(|(_, dp)| {
                 if dp.get_domain_id() == domain_id {
@@ -275,7 +277,7 @@ impl DomainParticipantFactory {
 }
 
 pub struct DdsDomainParticipantFactory {
-    domain_participant_list: DdsRwLock<HashMap<GuidPrefix, DdsDomainParticipant>>,
+    domain_participant_list: tokio::sync::RwLock<HashMap<GuidPrefix, DdsDomainParticipant>>,
     domain_participant_counter: AtomicU32,
     domain_participant_listener_list:
         DdsRwLock<HashMap<Guid, StatusListener<dyn DomainParticipantListener + Send + Sync>>>,
@@ -302,7 +304,7 @@ impl Default for DdsDomainParticipantFactory {
 impl DdsDomainParticipantFactory {
     pub fn new() -> Self {
         Self {
-            domain_participant_list: DdsRwLock::new(HashMap::new()),
+            domain_participant_list: tokio::sync::RwLock::new(HashMap::new()),
             domain_participant_counter: AtomicU32::new(0),
             domain_participant_listener_list: DdsRwLock::new(HashMap::new()),
             publisher_listener_list: DdsRwLock::new(HashMap::new()),
@@ -331,7 +333,7 @@ impl DdsDomainParticipantFactory {
         *self.default_participant_qos.write_lock() = default_participant_qos;
     }
 
-    pub fn create_participant(
+    pub async fn create_participant(
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
@@ -430,7 +432,7 @@ impl DdsDomainParticipantFactory {
         let user_defined_data_send_condvar = DdsCondvar::new();
         let (announce_sender, announce_receiver) = tokio::sync::mpsc::channel(500);
 
-        let dds_participant = DdsDomainParticipant::new(
+        let mut dds_participant = DdsDomainParticipant::new(
             rtps_participant,
             domain_id,
             configuration.domain_tag,
@@ -441,14 +443,12 @@ impl DdsDomainParticipantFactory {
             announce_sender,
             sedp_condvar.clone(),
         );
-
+        let _guard = THE_TASK_RUNTIME.enter();
         dds_participant.spawn(task_send_entity_announce(guid_prefix, announce_receiver));
 
         self.add_domain_participant_listener(guid, a_listener, mask);
 
-        let enter_guard = dds_participant.task_executor().enter();
         let (listener_sender, listener_receiver) = tokio::sync::mpsc::channel(500);
-        std::mem::drop(enter_guard);
 
         dds_participant.spawn(
             crate::domain::domain_participant::task_update_communication_status(
@@ -461,7 +461,6 @@ impl DdsDomainParticipantFactory {
             listener_receiver,
         ));
 
-        let enter_guard = dds_participant.task_executor().enter();
         let metatraffic_multicast_transport = UdpTransportRead::new(
             get_multicast_socket(
                 DEFAULT_MULTICAST_LOCATOR_ADDRESS,
@@ -469,7 +468,6 @@ impl DdsDomainParticipantFactory {
             )
             .unwrap(),
         );
-        std::mem::drop(enter_guard);
         dds_participant.spawn(task_metatraffic_multicast_receive(
             guid_prefix,
             metatraffic_multicast_transport,
@@ -477,11 +475,9 @@ impl DdsDomainParticipantFactory {
             listener_sender.clone(),
         ));
 
-        let enter_guard = dds_participant.task_executor().enter();
         let metatraffic_unicast_transport = UdpTransportRead::new(
             tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).unwrap(),
         );
-        std::mem::drop(enter_guard);
 
         dds_participant.spawn(task_metatraffic_unicast_receive(
             guid_prefix,
@@ -490,10 +486,8 @@ impl DdsDomainParticipantFactory {
             listener_sender.clone(),
         ));
 
-        let enter_guard = dds_participant.task_executor().enter();
         let default_unicast_transport =
             UdpTransportRead::new(tokio::net::UdpSocket::from_std(default_unicast_socket).unwrap());
-        std::mem::drop(enter_guard);
 
         dds_participant.spawn(task_user_defined_receive(
             guid_prefix,
@@ -512,7 +506,8 @@ impl DdsDomainParticipantFactory {
         ));
 
         self.domain_participant_list
-            .write_lock()
+            .write()
+            .await
             .insert(guid_prefix, dds_participant);
 
         Ok(DomainParticipant::new(DomainParticipantNode::new(guid)))
@@ -520,7 +515,7 @@ impl DdsDomainParticipantFactory {
 
     pub fn remove_participant(&self, guid_prefix: &GuidPrefix) {
         self.domain_participant_list
-            .write_lock()
+            .blocking_write()
             .remove(guid_prefix);
     }
 
@@ -528,7 +523,10 @@ impl DdsDomainParticipantFactory {
     where
         F: FnOnce(Option<&DdsDomainParticipant>) -> O,
     {
-        f(self.domain_participant_list.read_lock().get(guid_prefix))
+        f(self
+            .domain_participant_list
+            .blocking_read()
+            .get(guid_prefix))
     }
 
     pub fn get_participant_mut<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
@@ -537,7 +535,18 @@ impl DdsDomainParticipantFactory {
     {
         f(self
             .domain_participant_list
-            .write_lock()
+            .blocking_write()
+            .get_mut(guid_prefix))
+    }
+
+    pub async fn get_participant_mut_async<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
+    where
+        F: FnOnce(Option<&mut DdsDomainParticipant>) -> O,
+    {
+        f(self
+            .domain_participant_list
+            .write()
+            .await
             .get_mut(guid_prefix))
     }
 
@@ -700,6 +709,10 @@ impl DdsDomainParticipantFactory {
 }
 
 lazy_static! {
+    pub static ref THE_TASK_RUNTIME: Runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Failed to create Tokio runtime");
     pub(in crate::dds) static ref THE_DDS_DOMAIN_PARTICIPANT_FACTORY: DdsDomainParticipantFactory =
         DdsDomainParticipantFactory::new();
 }

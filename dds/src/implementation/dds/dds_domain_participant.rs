@@ -1,5 +1,5 @@
 use fnmatch_regex::glob_to_regex;
-use tokio::{runtime::Runtime, sync::mpsc::Sender};
+use tokio::{sync::mpsc::Sender, task::JoinSet};
 
 use crate::{
     builtin_topics::{
@@ -146,7 +146,7 @@ pub struct DdsDomainParticipant {
     data_max_size_serialized: usize,
     announce_sender: Sender<AnnounceKind>,
     sedp_condvar: DdsCondvar,
-    task_executor: Runtime,
+    task_set: JoinSet<()>,
 }
 
 impl DdsDomainParticipant {
@@ -338,16 +338,12 @@ impl DdsDomainParticipant {
             data_max_size_serialized,
             announce_sender,
             sedp_condvar,
-            task_executor: Runtime::new().unwrap(),
+            task_set: JoinSet::new(),
         }
     }
 
-    pub fn spawn<F>(&self, future: F)
-    where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        self.task_executor.spawn(future);
+    pub fn spawn(&mut self, future: impl Future<Output = ()> + Send + 'static) {
+        self.task_set.spawn(future);
     }
 
     pub fn guid(&self) -> Guid {
@@ -1215,10 +1211,6 @@ impl DdsDomainParticipant {
 
     pub fn sedp_condvar(&self) -> &DdsCondvar {
         &self.sedp_condvar
-    }
-
-    pub fn task_executor(&self) -> &Runtime {
-        &self.task_executor
     }
 }
 
