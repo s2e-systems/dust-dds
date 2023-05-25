@@ -2,7 +2,7 @@ use crate::{
     implementation::rtps::{
         messages::{
             submessages::{
-                InfoDestinationSubmessageRead, InfoSourceSubmessageRead, InfoTimestampSubmessage,
+                InfoDestinationSubmessageRead, InfoSourceSubmessageRead, InfoTimestampSubmessageRead,
             },
             RtpsMessageRead, RtpsSubmessageReadKind,
         },
@@ -159,12 +159,12 @@ impl MessageReceiver {
         self.source_vendor_id = info_source.vendor_id();
     }
 
-    fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {
-        if !info_timestamp.invalidate_flag {
+    fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessageRead) {
+        if !info_timestamp.invalidate_flag() {
             self.have_timestamp = true;
             self.timestamp = Time::new(
-                info_timestamp.timestamp.seconds(),
-                info_timestamp.timestamp.fraction(),
+                info_timestamp.timestamp().seconds(),
+                info_timestamp.timestamp().fraction(),
             );
         } else {
             self.have_timestamp = false;
@@ -189,41 +189,5 @@ impl MessageReceiver {
 
     pub fn reception_timestamp(&self) -> Time {
         self.reception_timestamp
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use crate::implementation::rtps::messages::submessages::InfoTimestampSubmessage;
-
-    use super::*;
-
-    #[test]
-    fn process_info_timestamp_submessage_valid_time() {
-        let mut message_receiver = MessageReceiver::new(TIME_INVALID);
-        let info_timestamp = InfoTimestampSubmessage {
-            endianness_flag: true,
-            invalidate_flag: false,
-            timestamp: crate::implementation::rtps::messages::types::Time::new(0, 100),
-        };
-        message_receiver.process_info_timestamp_submessage(&info_timestamp);
-
-        assert!(message_receiver.have_timestamp);
-        assert_eq!(message_receiver.timestamp, Time::new(0, 100));
-    }
-
-    #[test]
-    fn process_info_timestamp_submessage_invalid_time() {
-        let mut message_receiver = MessageReceiver::new(TIME_INVALID);
-        let info_timestamp = InfoTimestampSubmessage {
-            endianness_flag: true,
-            invalidate_flag: true,
-            timestamp: crate::implementation::rtps::messages::types::Time::new(0, 100),
-        };
-        message_receiver.process_info_timestamp_submessage(&info_timestamp);
-
-        assert!(!message_receiver.have_timestamp);
-        assert_eq!(message_receiver.timestamp, TIME_INVALID);
     }
 }

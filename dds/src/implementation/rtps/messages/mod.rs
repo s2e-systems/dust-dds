@@ -3,7 +3,7 @@ use std::io::BufRead;
 use crate::implementation::{
     rtps::messages::submessages::{
         AckNackSubmessageRead, GapSubmessageRead, InfoDestinationSubmessageRead,
-        InfoSourceSubmessageRead,
+        InfoSourceSubmessageRead, InfoTimestampSubmessageRead,
     },
     rtps_udp_psm::{
         mapping_rtps_messages::submessages::submessage_header::{
@@ -21,7 +21,7 @@ use self::{
         DataSubmessageRead, DataSubmessageWrite, GapSubmessageWrite, HeartbeatFragSubmessage,
         HeartbeatSubmessageRead, HeartbeatSubmessageWrite, InfoDestinationSubmessageWrite,
         InfoReplySubmessageRead, InfoReplySubmessageWrite, InfoSourceSubmessageWrite,
-        InfoTimestampSubmessage, NackFragSubmessage, PadSubmessage,
+        NackFragSubmessage, PadSubmessage, InfoTimestampSubmessageWrite,
     },
     types::ProtocolId,
 };
@@ -106,10 +106,9 @@ impl<'a> RtpsMessageRead<'a> {
                 INFO_SRC => RtpsSubmessageReadKind::InfoSource(InfoSourceSubmessageRead::new(
                     submessage_data,
                 )),
-                INFO_TS => RtpsSubmessageReadKind::InfoTimestamp(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
-                        .unwrap(),
-                ),
+                INFO_TS => RtpsSubmessageReadKind::InfoTimestamp(InfoTimestampSubmessageRead::new(
+                    submessage_data,
+                )),
                 NACK_FRAG => RtpsSubmessageReadKind::NackFrag(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
                         .unwrap(),
@@ -165,7 +164,7 @@ pub enum RtpsSubmessageReadKind<'a> {
     InfoDestination(InfoDestinationSubmessageRead<'a>),
     InfoReply(InfoReplySubmessageRead<'a>),
     InfoSource(InfoSourceSubmessageRead<'a>),
-    InfoTimestamp(InfoTimestampSubmessage),
+    InfoTimestamp(InfoTimestampSubmessageRead<'a>),
     NackFrag(NackFragSubmessage),
     Pad(PadSubmessage),
 }
@@ -181,7 +180,7 @@ pub enum RtpsSubmessageWriteKind<'a> {
     InfoDestination(InfoDestinationSubmessageWrite),
     InfoReply(InfoReplySubmessageWrite),
     InfoSource(InfoSourceSubmessageWrite),
-    InfoTimestamp(InfoTimestampSubmessage),
+    InfoTimestamp(InfoTimestampSubmessageWrite),
     NackFrag(NackFragSubmessage),
     Pad(PadSubmessage),
 }

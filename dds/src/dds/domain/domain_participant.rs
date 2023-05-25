@@ -37,9 +37,7 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::SequenceNumberSet,
-                submessages::{
-                    GapSubmessageWrite, InfoDestinationSubmessageWrite, InfoTimestampSubmessage,
-                },
+                submessages::{GapSubmessageWrite, InfoDestinationSubmessageWrite, InfoTimestampSubmessageWrite},
                 types::{FragmentNumber, ProtocolId},
                 RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind,
             },
@@ -2090,7 +2088,7 @@ fn gap_submessage<'a>(
 }
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessage {
+    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite {
         endianness_flag: true,
         invalidate_flag: false,
         timestamp: crate::implementation::rtps::messages::types::Time::new(

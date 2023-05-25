@@ -8,7 +8,7 @@ use crate::implementation::{
 
 use super::{
     submessage_elements::{FragmentNumberSet, LocatorList, ParameterList, SequenceNumberSet},
-    types::{FragmentNumber, SerializedPayload, SubmessageFlag, Time, ULong, UShort},
+    types::{FragmentNumber, SerializedPayload, SubmessageFlag, Time, ULong, UShort, TIME_INVALID},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -478,7 +478,38 @@ pub struct InfoSourceSubmessageWrite {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoTimestampSubmessage {
+pub struct InfoTimestampSubmessageRead<'a> {
+    data: &'a[u8],
+}
+
+impl Endianness for InfoTimestampSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+
+impl<'a> InfoTimestampSubmessageRead<'a> {
+    pub fn new(data: &'a[u8]) -> Self { Self { data } }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn invalidate_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0010) != 0
+    }
+
+    pub fn timestamp(&self) -> Time {
+        if self.invalidate_flag() {
+            TIME_INVALID
+        } else {
+            self.mapping_read(&self.data[4..])
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct InfoTimestampSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub invalidate_flag: SubmessageFlag,
     pub timestamp: Time,
