@@ -1,20 +1,24 @@
 use std::io::BufRead;
 
-use crate::implementation::rtps_udp_psm::{
-    mapping_rtps_messages::submessages::submessage_header::{
-        ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
-        INFO_TS, NACK_FRAG, PAD,
+use crate::implementation::{
+    rtps::messages::submessages::AckNackSubmessageRead,
+    rtps_udp_psm::{
+        mapping_rtps_messages::submessages::submessage_header::{
+            ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
+            INFO_SRC, INFO_TS, NACK_FRAG, PAD,
+        },
+        mapping_traits::MappingReadByteOrderInfoInData,
     },
-    mapping_traits::MappingReadByteOrderInfoInData,
 };
 
 use self::{
     overall_structure::RtpsMessageHeader,
     submessages::{
-        AckNackSubmessage, DataFragSubmessageRead, DataFragSubmessageWrite, DataSubmessageRead,
-        DataSubmessageWrite, Endianness, GapSubmessage, HeartbeatFragSubmessage,
-        InfoDestinationSubmessage, InfoReplySubmessage, InfoSourceSubmessage,
-        InfoTimestampSubmessage, NackFragSubmessage, PadSubmessage, HeartbeatSubmessageWrite, HeartbeatSubmessageRead,
+        AckNackSubmessageWrite, DataFragSubmessageRead, DataFragSubmessageWrite,
+        DataSubmessageRead, DataSubmessageWrite, GapSubmessage, HeartbeatFragSubmessage,
+        HeartbeatSubmessageRead, HeartbeatSubmessageWrite, InfoDestinationSubmessage,
+        InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
+        PadSubmessage,
     },
     types::ProtocolId,
 };
@@ -68,15 +72,15 @@ impl<'a> RtpsMessageRead<'a> {
                 u16::from_le_bytes([buf[2], buf[3]])
             } else {
                 u16::from_be_bytes([buf[2], buf[3]])
-            } as usize + 4;
+            } as usize
+                + 4;
 
             let submessage_data = &buf[..submessage_length];
 
             let submessage = match submessage_id {
-                ACKNACK => RtpsSubmessageReadKind::AckNack(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
-                        .unwrap(),
-                ),
+                ACKNACK => {
+                    RtpsSubmessageReadKind::AckNack(AckNackSubmessageRead::new(submessage_data))
+                }
                 DATA => RtpsSubmessageReadKind::Data(DataSubmessageRead::new(submessage_data)),
                 DATA_FRAG => RtpsSubmessageReadKind::DataFrag(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
@@ -86,9 +90,9 @@ impl<'a> RtpsMessageRead<'a> {
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
                         .unwrap(),
                 ),
-                HEARTBEAT => RtpsSubmessageReadKind::Heartbeat(
-                    HeartbeatSubmessageRead::new(submessage_data)
-                ),
+                HEARTBEAT => {
+                    RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::new(submessage_data))
+                }
                 HEARTBEAT_FRAG => RtpsSubmessageReadKind::HeartbeatFrag(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
                         .unwrap(),
@@ -155,7 +159,7 @@ impl<'a> RtpsMessageWrite<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageReadKind<'a> {
-    AckNack(AckNackSubmessage),
+    AckNack(AckNackSubmessageRead<'a>),
     Data(DataSubmessageRead<'a>),
     DataFrag(DataFragSubmessageRead<'a>),
     Gap(GapSubmessage),
@@ -171,7 +175,7 @@ pub enum RtpsSubmessageReadKind<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageWriteKind<'a> {
-    AckNack(AckNackSubmessage),
+    AckNack(AckNackSubmessageWrite),
     Data(DataSubmessageWrite<'a>),
     DataFrag(DataFragSubmessageWrite<'a>),
     Gap(GapSubmessage),

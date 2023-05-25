@@ -12,7 +12,47 @@ use super::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct AckNackSubmessage {
+pub struct AckNackSubmessageRead<'a> {
+    data: &'a [u8],
+}
+impl Endianness for AckNackSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+
+impl<'a> AckNackSubmessageRead<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn final_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0010) != 0
+    }
+
+    pub fn reader_id(&self) -> EntityId {
+        self.mapping_read(&self.data[4..])
+    }
+
+    pub fn writer_id(&self) -> EntityId {
+        self.mapping_read(&self.data[8..])
+    }
+
+    pub fn reader_sn_state(&self) -> SequenceNumberSet {
+        self.mapping_read(&self.data[12..])
+    }
+
+    pub fn count(&self) -> Count {
+        self.mapping_read(&self.data[self.data.len() - 4..])
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AckNackSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
     pub reader_id: EntityId,
@@ -225,7 +265,7 @@ impl Endianness for HeartbeatSubmessageRead<'_> {
 }
 
 impl<'a> HeartbeatSubmessageRead<'a> {
-    pub fn new(data: &'a[u8]) -> Self {
+    pub fn new(data: &'a [u8]) -> Self {
         Self { data }
     }
 

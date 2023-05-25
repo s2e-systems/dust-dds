@@ -10,7 +10,7 @@ use crate::{
             history_cache::RtpsWriterCacheChange,
             messages::{
                 submessage_elements::ParameterList,
-                submessages::{AckNackSubmessage, NackFragSubmessage},
+                submessages::{NackFragSubmessage, AckNackSubmessageRead},
             },
             reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
@@ -347,7 +347,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
 
     pub fn on_acknack_submessage_received(
         &mut self,
-        acknack_submessage: &AckNackSubmessage,
+        acknack_submessage: &AckNackSubmessageRead,
         message_receiver: &MessageReceiver,
     ) {
         if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {

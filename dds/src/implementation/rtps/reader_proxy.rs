@@ -4,8 +4,8 @@ use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         submessages::{
-            AckNackSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessageWrite,
-            NackFragSubmessage,
+            HeartbeatFragSubmessage, HeartbeatSubmessageWrite,
+            NackFragSubmessage, AckNackSubmessageRead,
         },
         types::FragmentNumber,
         RtpsSubmessageWriteKind,
@@ -169,15 +169,15 @@ impl RtpsReaderProxy {
         self.durability
     }
 
-    pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
+    pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessageRead) {
         match self.reliability {
             ReliabilityKind::BestEffort => (),
             ReliabilityKind::Reliable => {
-                if acknack_submessage.count > self.last_received_acknack_count {
-                    self.acked_changes_set(acknack_submessage.reader_sn_state.base - 1);
-                    self.requested_changes_set(acknack_submessage.reader_sn_state.set.as_ref());
+                if acknack_submessage.count() > self.last_received_acknack_count {
+                    self.acked_changes_set(acknack_submessage.reader_sn_state().base - 1);
+                    self.requested_changes_set(acknack_submessage.reader_sn_state().set.as_ref());
 
-                    self.last_received_acknack_count = acknack_submessage.count;
+                    self.last_received_acknack_count = acknack_submessage.count();
                 }
             }
         }
