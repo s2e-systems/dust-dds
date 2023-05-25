@@ -20,10 +20,6 @@ where
     fn handle(&mut self, message: M) -> M::Result;
 }
 
-trait GenericHandler<A> {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()>;
-}
-
 pub struct ActorAddress<A>
 where
     A: Actor,
@@ -48,7 +44,7 @@ impl<A> ActorAddress<A>
 where
     A: Actor,
 {
-    pub fn send_and_get_reply<M>(&self, message: M) -> DdsResult<M::Result>
+    pub fn send<M>(&self, message: M) -> DdsResult<M::Result>
     where
         A: Handler<M>,
         M: Message + Send + 'static,
@@ -65,10 +61,27 @@ where
     }
 }
 
+pub struct ActorJoinHandle {
+    join_handle: tokio::task::JoinHandle<()>,
+}
+
+impl Drop for ActorJoinHandle {
+    fn drop(&mut self) {
+        self.join_handle.abort();
+    }
+}
+
+trait GenericHandler<A> {
+    fn handle(&mut self, actor: &mut A) -> Result<(), ()>;
+}
+
 struct SyncMessage<M>
 where
     M: Message,
 {
+    // Both fields have to be inside an option because later on the contents
+    // have to be moved out and the struct. Because the struct is passed as a Boxed
+    // trait object this is only feasible by using the Option fields.
     message: Option<M>,
     sender: Option<sync::oneshot::Sender<M::Result>>,
 }
@@ -99,16 +112,6 @@ where
 {
     value: T,
     mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<T> + Send>>,
-}
-
-pub struct ActorJoinHandle {
-    join_handle: tokio::task::JoinHandle<()>,
-}
-
-impl Drop for ActorJoinHandle {
-    fn drop(&mut self) {
-        self.join_handle.abort();
-    }
 }
 
 pub fn spawn_actor<A>(actor: A) -> (ActorAddress<A>, ActorJoinHandle)
@@ -206,7 +209,7 @@ mod tests {
 
     impl DataInterface {
         pub fn increment(&self, value: u8) -> DdsResult<u8> {
-            self.0.send_and_get_reply(IncrementMessage { value })
+            self.0.send(IncrementMessage { value })
         }
     }
 
