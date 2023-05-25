@@ -2,8 +2,9 @@ use crate::{
     implementation::rtps::{
         messages::{
             submessages::{
-                InfoSourceSubmessage, InfoTimestampSubmessage, InfoDestinationSubmessageRead,
-            }, RtpsMessageRead, RtpsSubmessageReadKind,
+                InfoDestinationSubmessageRead, InfoSourceSubmessageRead, InfoTimestampSubmessage,
+            },
+            RtpsMessageRead, RtpsSubmessageReadKind,
         },
         types::{
             Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
@@ -152,10 +153,10 @@ impl MessageReceiver {
         Ok(())
     }
 
-    fn process_info_source_submessage(&mut self, info_source: &InfoSourceSubmessage) {
-        self.source_vendor_id = info_source.vendor_id;
-        self.source_version = info_source.protocol_version;
-        self.source_vendor_id = info_source.vendor_id;
+    fn process_info_source_submessage(&mut self, info_source: &InfoSourceSubmessageRead) {
+        self.source_vendor_id = info_source.vendor_id();
+        self.source_version = info_source.protocol_version();
+        self.source_vendor_id = info_source.vendor_id();
     }
 
     fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {

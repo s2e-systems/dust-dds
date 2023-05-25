@@ -37,8 +37,11 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::SequenceNumberSet,
-                submessages::{InfoTimestampSubmessage, GapSubmessageWrite, InfoDestinationSubmessageWrite},
-                types::{FragmentNumber, ProtocolId}, RtpsSubmessageWriteKind, RtpsMessageWrite, RtpsMessageRead,
+                submessages::{
+                    GapSubmessageWrite, InfoDestinationSubmessageWrite, InfoTimestampSubmessage,
+                },
+                types::{FragmentNumber, ProtocolId},
+                RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind,
             },
             reader_locator::WriterAssociatedReaderLocator,
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
@@ -1995,7 +1998,8 @@ fn send_message_reliable_reader_proxy(
                     ))
                 }
             } else {
-                let gap_submessage: GapSubmessageWrite = change.cache_change().as_gap_message(reader_id);
+                let gap_submessage: GapSubmessageWrite =
+                    change.cache_change().as_gap_message(reader_id);
 
                 submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
             }

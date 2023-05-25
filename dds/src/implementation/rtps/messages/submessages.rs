@@ -437,7 +437,40 @@ pub struct InfoReplySubmessageWrite {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoSourceSubmessage {
+pub struct InfoSourceSubmessageRead<'a> {
+    data: &'a [u8],
+}
+
+impl Endianness for InfoSourceSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+
+impl<'a> InfoSourceSubmessageRead<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn protocol_version(&self) -> ProtocolVersion {
+        self.mapping_read(&self.data[8..])
+    }
+
+    pub fn vendor_id(&self) -> VendorId {
+        self.mapping_read(&self.data[10..])
+    }
+
+    pub fn guid_prefix(&self) -> GuidPrefix {
+        self.mapping_read(&self.data[12..])
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct InfoSourceSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub protocol_version: ProtocolVersion,
     pub vendor_id: VendorId,
