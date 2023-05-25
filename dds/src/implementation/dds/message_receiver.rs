@@ -72,7 +72,7 @@ impl MessageReceiver {
             LOCATOR_ADDRESS_INVALID,
         ));
 
-        for submessage in message.submessages() {
+        for submessage in &message.submessages() {
             match submessage {
                 RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
                     for publisher in publisher_list.iter_mut() {

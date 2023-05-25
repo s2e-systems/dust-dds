@@ -1,4 +1,7 @@
+use byteorder::ReadBytesExt;
+
 use crate::implementation::{
+    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::types::{Count, EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
     rtps_udp_psm::mapping_traits::MappingReadByteOrdered,
 };
@@ -20,23 +23,102 @@ pub struct AckNackSubmessage {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataSubmessageRead<'a> {
-    pub endianness_flag: SubmessageFlag,
-    pub inline_qos_flag: SubmessageFlag,
-    pub data_flag: SubmessageFlag,
-    pub key_flag: SubmessageFlag,
-    pub non_standard_payload_flag: SubmessageFlag,
-    pub reader_id: EntityId,
-    pub writer_id: EntityId,
-    pub writer_sn: SequenceNumber,
-    pub inline_qos: &'a [u8],
-    pub serialized_payload: SerializedPayload<'a>,
+    data: &'a [u8],
+}
+
+pub trait Endianness {
+    fn endianness(&self) -> bool;
+}
+
+trait MappingRead: Endianness {
+    fn mapping_read<'de, T: MappingReadByteOrdered<'de> + 'de>(&self, mut data: &'de [u8]) -> T {
+        if self.endianness() {
+            T::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut data).unwrap()
+        } else {
+            T::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut data).unwrap()
+        }
+    }
+}
+
+impl<T: Endianness> MappingRead for T {}
+
+impl Endianness for DataSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
 }
 
 impl<'a> DataSubmessageRead<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+
+    fn octets_to_inline_qos(&self) -> usize {
+        (&self.data[6..])
+            .read_u16::<byteorder::LittleEndian>()
+            .unwrap() as usize
+    }
+
+    fn inline_qos_len(&self) -> usize {
+        let mut parameter_list_buf = &self.data[8 + self.octets_to_inline_qos()..];
+        let parameter_list_buf_length = parameter_list_buf.len();
+
+        if self.inline_qos_flag() {
+            loop {
+                let pid = parameter_list_buf
+                    .read_u16::<byteorder::LittleEndian>()
+                    .expect("pid read failed");
+                let length = parameter_list_buf
+                    .read_i16::<byteorder::LittleEndian>()
+                    .expect("length read failed");
+                if pid == PID_SENTINEL {
+                    break;
+                } else {
+                    (_, parameter_list_buf) = parameter_list_buf.split_at(length as usize);
+                }
+            }
+            parameter_list_buf_length - parameter_list_buf.len()
+        } else {
+            0
+        }
+    }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn inline_qos_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0010) != 0
+    }
+
+    pub fn data_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0100) != 0
+    }
+
+    pub fn key_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_1000) != 0
+    }
+
+    pub fn non_standard_payload_flag(&self) -> bool {
+        (self.data[1] & 0b_0001_0000) != 0
+    }
+
+    pub fn reader_id(&self) -> EntityId {
+        self.mapping_read(&self.data[8..])
+    }
+
+    pub fn writer_id(&self) -> EntityId {
+        self.mapping_read(&self.data[12..])
+    }
+
+    pub fn writer_sn(&self) -> SequenceNumber {
+        self.mapping_read(&self.data[16..])
+    }
+
     pub fn inline_qos(&self) -> ParameterList {
-        if self.inline_qos_flag {
-            let mut buf = self.inline_qos;
-            match self.endianness_flag {
+        if self.inline_qos_flag() {
+            let mut buf = &self.data[self.octets_to_inline_qos() + 8..];
+            match self.endianness_flag() {
                 true => {
                     ParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
                         .expect("RtpsParameterList failed LE")
@@ -47,6 +129,12 @@ impl<'a> DataSubmessageRead<'a> {
         } else {
             ParameterList::empty()
         }
+    }
+
+    pub fn serialized_payload(&self) -> SerializedPayload<'a> {
+        SerializedPayload::new(
+            &self.data[8 + self.octets_to_inline_qos() + self.inline_qos_len()..],
+        )
     }
 }
 
@@ -126,7 +214,55 @@ pub struct GapSubmessage {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatSubmessage {
+pub struct HeartbeatSubmessageRead<'a> {
+    data: &'a [u8],
+}
+
+impl Endianness for HeartbeatSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+
+impl<'a> HeartbeatSubmessageRead<'a> {
+    pub fn new(data: &'a[u8]) -> Self {
+        Self { data }
+    }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn final_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0010) != 0
+    }
+
+    pub fn liveliness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0100) != 0
+    }
+
+    pub fn reader_id(&self) -> EntityId {
+        self.mapping_read(&self.data[4..])
+    }
+
+    pub fn writer_id(&self) -> EntityId {
+        self.mapping_read(&self.data[8..])
+    }
+
+    pub fn first_sn(&self) -> SequenceNumber {
+        self.mapping_read(&self.data[12..])
+    }
+
+    pub fn last_sn(&self) -> SequenceNumber {
+        self.mapping_read(&self.data[20..])
+    }
+
+    pub fn count(&self) -> Count {
+        self.mapping_read(&self.data[28..])
+    }
+}
+#[derive(Debug, PartialEq, Eq)]
+pub struct HeartbeatSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
     pub liveliness_flag: SubmessageFlag,

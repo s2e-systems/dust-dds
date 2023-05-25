@@ -4,9 +4,11 @@ use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         submessages::{
-            AckNackSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage, NackFragSubmessage,
+            AckNackSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessageWrite,
+            NackFragSubmessage,
         },
-        types::FragmentNumber, RtpsSubmessageWriteKind,
+        types::FragmentNumber,
+        RtpsSubmessageWriteKind,
     },
     types::{
         Count, DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind,
@@ -43,7 +45,7 @@ impl HeartbeatMachine {
     ) -> RtpsSubmessageWriteKind<'a> {
         self.count = self.count.wrapping_add(1);
         self.timer.reset();
-        RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessage {
+        RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessageWrite {
             endianness_flag: true,
             final_flag: false,
             liveliness_flag: false,

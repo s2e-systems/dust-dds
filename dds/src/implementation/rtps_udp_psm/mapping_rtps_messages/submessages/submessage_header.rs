@@ -141,8 +141,7 @@ impl<'de> MappingReadByteOrderInfoInData<'de> for RtpsSubmessageHeader {
     fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
         // The byteorder is determined by the one after next element. Since the submessage_id
         // is not byteorder dependent, just use a specific one (to avoid look ahead)
-        let submessage_id: u8 =
-            MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
+        let submessage_id: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
         let submessage_id = match submessage_id {
             DATA => SubmessageKind::DATA,
             GAP => SubmessageKind::GAP,
