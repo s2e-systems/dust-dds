@@ -9,7 +9,7 @@ use crate::implementation::{
 
 impl<'de> MappingReadByteOrdered<'de> for SerializedPayload<'de> {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        Ok(SerializedPayload::new(*buf))
+        Ok(SerializedPayload::new(buf))
     }
 }
 
