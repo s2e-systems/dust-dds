@@ -19,7 +19,8 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessages::{
-            DataFragSubmessageRead, DataSubmessageRead,  HeartbeatFragSubmessage, HeartbeatSubmessageRead, GapSubmessageRead,
+            DataFragSubmessageRead, DataSubmessageRead, GapSubmessageRead,
+            HeartbeatFragSubmessageRead, HeartbeatSubmessageRead,
         },
     },
     reader::{
@@ -275,7 +276,8 @@ impl RtpsStatefulReader {
 
                                 match add_change_result {
                                     Ok(instance_handle) => {
-                                        writer_proxy.received_change_set(data_submessage.writer_sn());
+                                        writer_proxy
+                                            .received_change_set(data_submessage.writer_sn());
                                         StatefulReaderDataReceivedResult::NewSampleAdded(
                                             instance_handle,
                                         )
@@ -431,20 +433,21 @@ impl RtpsStatefulReader {
 
     pub fn on_heartbeat_frag_submessage_received(
         &mut self,
-        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
+        heartbeat_frag_submessage: &HeartbeatFragSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
         if self.reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let writer_guid = Guid::new(source_guid_prefix, heartbeat_frag_submessage.writer_id);
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_frag_submessage.writer_id());
 
             if let Some(writer_proxy) = self
                 .matched_writers
                 .iter_mut()
                 .find(|x| x.remote_writer_guid() == writer_guid)
             {
-                if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count {
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count()
+                {
                     writer_proxy
-                        .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count);
+                        .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count());
                 }
 
                 // todo!()

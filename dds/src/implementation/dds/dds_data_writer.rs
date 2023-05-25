@@ -8,7 +8,10 @@ use crate::{
         },
         rtps::{
             history_cache::RtpsWriterCacheChange,
-            messages::{submessage_elements::ParameterList, submessages::{AckNackSubmessageRead, NackFragSubmessageRead}},
+            messages::{
+                submessage_elements::ParameterList,
+                submessages::{AckNackSubmessageRead, NackFragSubmessageRead},
+            },
             reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
             stateful_writer::RtpsStatefulWriter,

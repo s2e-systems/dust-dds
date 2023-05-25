@@ -416,7 +416,46 @@ pub struct HeartbeatSubmessageWrite {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatFragSubmessage {
+pub struct HeartbeatFragSubmessageRead<'a> {
+    data: &'a [u8],
+}
+impl Endianness for HeartbeatFragSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+impl<'a> HeartbeatFragSubmessageRead<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn reader_id(&self) -> EntityId {
+        self.mapping_read(&self.data[4..])
+    }
+
+    pub fn writer_id(&self) -> EntityId {
+        self.mapping_read(&self.data[8..])
+    }
+
+    pub fn writer_sn(&self) -> SequenceNumber {
+        self.mapping_read(&self.data[12..])
+    }
+
+    pub fn last_fragment_num(&self) -> FragmentNumber {
+        self.mapping_read(&self.data[20..])
+    }
+
+    pub fn count(&self) -> Count {
+        self.mapping_read(&self.data[24..])
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct HeartbeatFragSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityId,
     pub writer_id: EntityId,

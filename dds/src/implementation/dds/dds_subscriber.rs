@@ -2,7 +2,8 @@ use crate::{
     implementation::rtps::{
         group::RtpsGroup,
         messages::submessages::{
-            DataFragSubmessageRead, DataSubmessageRead,HeartbeatFragSubmessage, HeartbeatSubmessageRead, GapSubmessageRead,
+            DataFragSubmessageRead, DataSubmessageRead, GapSubmessageRead,
+            HeartbeatFragSubmessageRead, HeartbeatSubmessageRead,
         },
         stateful_reader::RtpsStatefulReader,
         stateless_reader::RtpsStatelessReader,
@@ -220,7 +221,7 @@ impl DdsSubscriber {
 
     pub fn on_heartbeat_frag_submessage_received(
         &mut self,
-        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
+        heartbeat_frag_submessage: &HeartbeatFragSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
         for data_reader in self.stateful_data_reader_list.iter_mut() {

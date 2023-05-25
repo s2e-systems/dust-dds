@@ -4,7 +4,7 @@ use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         submessages::{
-            AckNackSubmessageRead, HeartbeatFragSubmessage, HeartbeatSubmessageWrite,
+            AckNackSubmessageRead, HeartbeatFragSubmessageWrite, HeartbeatSubmessageWrite,
             NackFragSubmessageRead,
         },
         types::FragmentNumber,
@@ -78,7 +78,7 @@ impl HeartbeatFragMachine {
         last_fragment_num: FragmentNumber,
     ) -> RtpsSubmessageWriteKind<'a> {
         self.count = self.count.wrapping_add(1);
-        RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessage {
+        RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessageWrite {
             endianness_flag: true,
             reader_id: self.reader_id,
             writer_id,

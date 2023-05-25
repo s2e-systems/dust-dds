@@ -2,16 +2,15 @@ use std::io::BufRead;
 
 use crate::implementation::{
     rtps::messages::submessages::{
-        AckNackSubmessageRead, GapSubmessageRead, InfoDestinationSubmessageRead,
-        InfoSourceSubmessageRead, InfoTimestampSubmessageRead, NackFragSubmessageRead,
-        PadSubmessageRead,
+        AckNackSubmessageRead, GapSubmessageRead, HeartbeatFragSubmessageRead,
+        InfoDestinationSubmessageRead, InfoSourceSubmessageRead, InfoTimestampSubmessageRead,
+        NackFragSubmessageRead, PadSubmessageRead,
     },
     rtps_udp_psm::{
         mapping_rtps_messages::submessages::submessage_header::{
             ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
             INFO_SRC, INFO_TS, NACK_FRAG, PAD,
         },
-        mapping_traits::MappingReadByteOrderInfoInData,
     },
 };
 
@@ -19,7 +18,7 @@ use self::{
     overall_structure::RtpsMessageHeader,
     submessages::{
         AckNackSubmessageWrite, DataFragSubmessageRead, DataFragSubmessageWrite,
-        DataSubmessageRead, DataSubmessageWrite, GapSubmessageWrite, HeartbeatFragSubmessage,
+        DataSubmessageRead, DataSubmessageWrite, GapSubmessageWrite, HeartbeatFragSubmessageWrite,
         HeartbeatSubmessageRead, HeartbeatSubmessageWrite, InfoDestinationSubmessageWrite,
         InfoReplySubmessageRead, InfoReplySubmessageWrite, InfoSourceSubmessageWrite,
         InfoTimestampSubmessageWrite, NackFragSubmessageWrite, PadSubmessageWrite,
@@ -94,8 +93,7 @@ impl<'a> RtpsMessageRead<'a> {
                     RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::new(submessage_data))
                 }
                 HEARTBEAT_FRAG => RtpsSubmessageReadKind::HeartbeatFrag(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
-                        .unwrap(),
+                    HeartbeatFragSubmessageRead::new(submessage_data),
                 ),
                 INFO_DST => RtpsSubmessageReadKind::InfoDestination(
                     InfoDestinationSubmessageRead::new(submessage_data),
@@ -156,7 +154,7 @@ pub enum RtpsSubmessageReadKind<'a> {
     DataFrag(DataFragSubmessageRead<'a>),
     Gap(GapSubmessageRead<'a>),
     Heartbeat(HeartbeatSubmessageRead<'a>),
-    HeartbeatFrag(HeartbeatFragSubmessage),
+    HeartbeatFrag(HeartbeatFragSubmessageRead<'a>),
     InfoDestination(InfoDestinationSubmessageRead<'a>),
     InfoReply(InfoReplySubmessageRead<'a>),
     InfoSource(InfoSourceSubmessageRead<'a>),
@@ -172,7 +170,7 @@ pub enum RtpsSubmessageWriteKind<'a> {
     DataFrag(DataFragSubmessageWrite<'a>),
     Gap(GapSubmessageWrite),
     Heartbeat(HeartbeatSubmessageWrite),
-    HeartbeatFrag(HeartbeatFragSubmessage),
+    HeartbeatFrag(HeartbeatFragSubmessageWrite),
     InfoDestination(InfoDestinationSubmessageWrite),
     InfoReply(InfoReplySubmessageWrite),
     InfoSource(InfoSourceSubmessageWrite),

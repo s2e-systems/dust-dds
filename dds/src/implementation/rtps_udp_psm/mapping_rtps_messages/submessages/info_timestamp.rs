@@ -1,9 +1,12 @@
 use std::io::{Error, Write};
 
-use crate::implementation::{rtps::messages::{
-    overall_structure::RtpsSubmessageHeader, submessages::InfoTimestampSubmessageWrite,
-    types::SubmessageKind,
-}, rtps_udp_psm::mapping_traits::MappingWriteByteOrdered};
+use crate::implementation::{
+    rtps::messages::{
+        overall_structure::RtpsSubmessageHeader, submessages::InfoTimestampSubmessageWrite,
+        types::SubmessageKind,
+    },
+    rtps_udp_psm::mapping_traits::MappingWriteByteOrdered,
+};
 
 use super::submessage::MappingWriteSubmessage;
 
@@ -45,7 +48,10 @@ impl MappingWriteSubmessage for InfoTimestampSubmessageWrite {
 mod tests {
 
     use crate::implementation::{
-        rtps::messages::{submessages::InfoTimestampSubmessageRead, types::{Time, TIME_INVALID}},
+        rtps::messages::{
+            submessages::InfoTimestampSubmessageRead,
+            types::{Time, TIME_INVALID},
+        },
         rtps_udp_psm::mapping_traits::to_bytes,
     };
 
