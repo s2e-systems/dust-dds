@@ -1,7 +1,7 @@
 use std::io::BufRead;
 
 use crate::implementation::{
-    rtps::messages::submessages::AckNackSubmessageRead,
+    rtps::messages::submessages::{AckNackSubmessageRead, GapSubmessageRead},
     rtps_udp_psm::{
         mapping_rtps_messages::submessages::submessage_header::{
             ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
@@ -15,10 +15,9 @@ use self::{
     overall_structure::RtpsMessageHeader,
     submessages::{
         AckNackSubmessageWrite, DataFragSubmessageRead, DataFragSubmessageWrite,
-        DataSubmessageRead, DataSubmessageWrite, GapSubmessage, HeartbeatFragSubmessage,
-        HeartbeatSubmessageRead, HeartbeatSubmessageWrite, InfoDestinationSubmessage,
-        InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
-        PadSubmessage,
+        DataSubmessageRead, DataSubmessageWrite, HeartbeatFragSubmessage, HeartbeatSubmessageRead,
+        HeartbeatSubmessageWrite, InfoDestinationSubmessage, InfoReplySubmessage,
+        InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage, PadSubmessage, GapSubmessageWrite,
     },
     types::ProtocolId,
 };
@@ -86,10 +85,7 @@ impl<'a> RtpsMessageRead<'a> {
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
                         .unwrap(),
                 ),
-                GAP => RtpsSubmessageReadKind::Gap(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
-                        .unwrap(),
-                ),
+                GAP => RtpsSubmessageReadKind::Gap(GapSubmessageRead::new(submessage_data)),
                 HEARTBEAT => {
                     RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::new(submessage_data))
                 }
@@ -162,7 +158,7 @@ pub enum RtpsSubmessageReadKind<'a> {
     AckNack(AckNackSubmessageRead<'a>),
     Data(DataSubmessageRead<'a>),
     DataFrag(DataFragSubmessageRead<'a>),
-    Gap(GapSubmessage),
+    Gap(GapSubmessageRead<'a>),
     Heartbeat(HeartbeatSubmessageRead<'a>),
     HeartbeatFrag(HeartbeatFragSubmessage),
     InfoDestination(InfoDestinationSubmessage),
@@ -178,7 +174,7 @@ pub enum RtpsSubmessageWriteKind<'a> {
     AckNack(AckNackSubmessageWrite),
     Data(DataSubmessageWrite<'a>),
     DataFrag(DataFragSubmessageWrite<'a>),
-    Gap(GapSubmessage),
+    Gap(GapSubmessageWrite),
     Heartbeat(HeartbeatSubmessageWrite),
     HeartbeatFrag(HeartbeatFragSubmessage),
     InfoDestination(InfoDestinationSubmessage),

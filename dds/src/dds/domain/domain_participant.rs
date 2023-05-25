@@ -37,7 +37,7 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::SequenceNumberSet,
-                submessages::{GapSubmessage, InfoDestinationSubmessage, InfoTimestampSubmessage},
+                submessages::{InfoDestinationSubmessage, InfoTimestampSubmessage, GapSubmessageWrite},
                 types::{FragmentNumber, ProtocolId}, RtpsSubmessageWriteKind, RtpsMessageWrite, RtpsMessageRead,
             },
             reader_locator::WriterAssociatedReaderLocator,
@@ -1929,7 +1929,7 @@ fn send_message_best_effort_reader_proxy(
                 ))
             }
         } else {
-            let gap_submessage: GapSubmessage = change
+            let gap_submessage: GapSubmessageWrite = change
                 .cache_change()
                 .as_gap_message(reader_proxy.remote_reader_guid().entity_id());
             submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
@@ -1995,7 +1995,7 @@ fn send_message_reliable_reader_proxy(
                     ))
                 }
             } else {
-                let gap_submessage: GapSubmessage = change.cache_change().as_gap_message(reader_id);
+                let gap_submessage: GapSubmessageWrite = change.cache_change().as_gap_message(reader_id);
 
                 submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
             }
@@ -2049,7 +2049,7 @@ fn send_message_reliable_reader_proxy(
                     ))
                 }
             } else {
-                let gap_submessage: GapSubmessage =
+                let gap_submessage: GapSubmessageWrite =
                     change_for_reader.cache_change().as_gap_message(reader_id);
 
                 submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
@@ -2073,7 +2073,7 @@ fn gap_submessage<'a>(
     writer_id: EntityId,
     gap_sequence_number: SequenceNumber,
 ) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::Gap(GapSubmessage {
+    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite {
         endianness_flag: true,
         reader_id: ENTITYID_UNKNOWN,
         writer_id,

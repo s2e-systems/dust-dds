@@ -245,7 +245,43 @@ pub struct DataFragSubmessageWrite<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct GapSubmessage {
+pub struct GapSubmessageRead<'a> {
+    data: &'a [u8],
+}
+impl Endianness for GapSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+
+impl<'a> GapSubmessageRead<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn reader_id(&self) -> EntityId {
+        self.mapping_read(&self.data[4..])
+    }
+
+    pub fn writer_id(&self) -> EntityId {
+        self.mapping_read(&self.data[8..])
+    }
+
+    pub fn gap_start(&self) -> SequenceNumber {
+        self.mapping_read(&self.data[12..])
+    }
+
+    pub fn gap_list(&self) -> SequenceNumberSet {
+        self.mapping_read(&self.data[20..])
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct GapSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityId,
     pub writer_id: EntityId,

@@ -5,7 +5,7 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::SequenceNumberSet,
-        submessages::{GapSubmessage, InfoTimestampSubmessage},
+        submessages::{ InfoTimestampSubmessage, GapSubmessageWrite},
         RtpsMessageWrite, RtpsSubmessageWriteKind,
     },
     transport::TransportWrite,
@@ -31,7 +31,7 @@ fn gap_submessage<'a>(
     writer_id: EntityId,
     gap_sequence_number: SequenceNumber,
 ) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::Gap(GapSubmessage {
+    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite {
         endianness_flag: true,
         reader_id: ENTITYID_UNKNOWN,
         writer_id,

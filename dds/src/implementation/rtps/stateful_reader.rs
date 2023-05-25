@@ -19,7 +19,7 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessages::{
-            DataFragSubmessageRead, DataSubmessageRead, GapSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessageRead,
+            DataFragSubmessageRead, DataSubmessageRead,  HeartbeatFragSubmessage, HeartbeatSubmessageRead, GapSubmessageRead,
         },
     },
     reader::{
@@ -454,22 +454,22 @@ impl RtpsStatefulReader {
 
     pub fn on_gap_submessage_received(
         &mut self,
-        gap_submessage: &GapSubmessage,
+        gap_submessage: &GapSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
-        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id);
+        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id());
         if let Some(writer_proxy) = self
             .matched_writers
             .iter_mut()
             .find(|x| x.remote_writer_guid() == writer_guid)
         {
             for seq_num in
-                i64::from(gap_submessage.gap_start)..i64::from(gap_submessage.gap_list.base)
+                i64::from(gap_submessage.gap_start())..i64::from(gap_submessage.gap_list().base)
             {
                 writer_proxy.irrelevant_change_set(SequenceNumber::new(seq_num))
             }
 
-            for seq_num in &gap_submessage.gap_list.set {
+            for seq_num in &gap_submessage.gap_list().set {
                 writer_proxy.irrelevant_change_set(*seq_num)
             }
         }

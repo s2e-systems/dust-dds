@@ -11,8 +11,8 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{
-                    DataFragSubmessageRead, DataSubmessageRead, GapSubmessage,
-                    HeartbeatFragSubmessage, HeartbeatSubmessageRead,
+                    DataFragSubmessageRead, DataSubmessageRead,
+                    HeartbeatFragSubmessage, HeartbeatSubmessageRead, GapSubmessageRead,
                 },
             },
             reader::{RtpsReaderCacheChange, RtpsReaderResult},
@@ -780,7 +780,7 @@ impl DdsDataReader<RtpsStatefulReader> {
 
     pub fn on_gap_submessage_received(
         &mut self,
-        gap_submessage: &GapSubmessage,
+        gap_submessage: &GapSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
         self.rtps_reader
