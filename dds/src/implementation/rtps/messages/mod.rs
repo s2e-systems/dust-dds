@@ -1,7 +1,9 @@
 use std::io::BufRead;
 
 use crate::implementation::{
-    rtps::messages::submessages::{AckNackSubmessageRead, GapSubmessageRead},
+    rtps::messages::submessages::{
+        AckNackSubmessageRead, GapSubmessageRead, InfoDestinationSubmessageRead,
+    },
     rtps_udp_psm::{
         mapping_rtps_messages::submessages::submessage_header::{
             ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
@@ -15,9 +17,10 @@ use self::{
     overall_structure::RtpsMessageHeader,
     submessages::{
         AckNackSubmessageWrite, DataFragSubmessageRead, DataFragSubmessageWrite,
-        DataSubmessageRead, DataSubmessageWrite, HeartbeatFragSubmessage, HeartbeatSubmessageRead,
-        HeartbeatSubmessageWrite, InfoDestinationSubmessage, InfoReplySubmessage,
-        InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage, PadSubmessage, GapSubmessageWrite,
+        DataSubmessageRead, DataSubmessageWrite, GapSubmessageWrite, HeartbeatFragSubmessage,
+        HeartbeatSubmessageRead, HeartbeatSubmessageWrite,
+        InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
+        PadSubmessage, InfoDestinationSubmessageWrite,
     },
     types::ProtocolId,
 };
@@ -94,8 +97,7 @@ impl<'a> RtpsMessageRead<'a> {
                         .unwrap(),
                 ),
                 INFO_DST => RtpsSubmessageReadKind::InfoDestination(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
-                        .unwrap(),
+                    InfoDestinationSubmessageRead::new(submessage_data),
                 ),
                 INFO_REPLY => RtpsSubmessageReadKind::InfoReply(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
@@ -161,7 +163,7 @@ pub enum RtpsSubmessageReadKind<'a> {
     Gap(GapSubmessageRead<'a>),
     Heartbeat(HeartbeatSubmessageRead<'a>),
     HeartbeatFrag(HeartbeatFragSubmessage),
-    InfoDestination(InfoDestinationSubmessage),
+    InfoDestination(InfoDestinationSubmessageRead<'a>),
     InfoReply(InfoReplySubmessage),
     InfoSource(InfoSourceSubmessage),
     InfoTimestamp(InfoTimestampSubmessage),
@@ -177,7 +179,7 @@ pub enum RtpsSubmessageWriteKind<'a> {
     Gap(GapSubmessageWrite),
     Heartbeat(HeartbeatSubmessageWrite),
     HeartbeatFrag(HeartbeatFragSubmessage),
-    InfoDestination(InfoDestinationSubmessage),
+    InfoDestination(InfoDestinationSubmessageWrite),
     InfoReply(InfoReplySubmessage),
     InfoSource(InfoSourceSubmessage),
     InfoTimestamp(InfoTimestampSubmessage),

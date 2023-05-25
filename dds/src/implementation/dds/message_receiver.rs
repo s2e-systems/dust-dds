@@ -2,7 +2,7 @@ use crate::{
     implementation::rtps::{
         messages::{
             submessages::{
-                InfoDestinationSubmessage, InfoSourceSubmessage, InfoTimestampSubmessage,
+                InfoSourceSubmessage, InfoTimestampSubmessage, InfoDestinationSubmessageRead,
             }, RtpsMessageRead, RtpsSubmessageReadKind,
         },
         types::{
@@ -173,9 +173,9 @@ impl MessageReceiver {
 
     fn process_info_destination_submessage(
         &mut self,
-        info_destination: &InfoDestinationSubmessage,
+        info_destination: &InfoDestinationSubmessageRead,
     ) {
-        self.dest_guid_prefix = info_destination.guid_prefix;
+        self.dest_guid_prefix = info_destination.guid_prefix();
     }
 
     pub fn source_guid_prefix(&self) -> GuidPrefix {

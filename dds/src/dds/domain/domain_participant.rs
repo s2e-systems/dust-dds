@@ -37,7 +37,7 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::SequenceNumberSet,
-                submessages::{InfoDestinationSubmessage, InfoTimestampSubmessage, GapSubmessageWrite},
+                submessages::{InfoTimestampSubmessage, GapSubmessageWrite, InfoDestinationSubmessageWrite},
                 types::{FragmentNumber, ProtocolId}, RtpsSubmessageWriteKind, RtpsMessageWrite, RtpsMessageRead,
             },
             reader_locator::WriterAssociatedReaderLocator,
@@ -2097,7 +2097,7 @@ fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a>
 }
 
 fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessage {
+    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite {
         endianness_flag: true,
         guid_prefix,
     })

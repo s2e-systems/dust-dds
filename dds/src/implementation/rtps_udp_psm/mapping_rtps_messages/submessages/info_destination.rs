@@ -4,17 +4,15 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::RtpsSubmessageHeader, submessages::InfoDestinationSubmessage,
+        overall_structure::RtpsSubmessageHeader, submessages::InfoDestinationSubmessageWrite,
         types::SubmessageKind,
     },
-    rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
-    },
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
 
-use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
+use super::submessage::MappingWriteSubmessage;
 
-impl MappingWriteSubmessage for InfoDestinationSubmessage {
+impl MappingWriteSubmessage for InfoDestinationSubmessageWrite {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let octets_to_next_header = self.guid_prefix.number_of_bytes();
         RtpsSubmessageHeader {
@@ -39,19 +37,5 @@ impl MappingWriteSubmessage for InfoDestinationSubmessage {
     ) -> Result<(), Error> {
         self.guid_prefix
             .mapping_write_byte_ordered::<_, B>(&mut writer)
-    }
-}
-
-impl<'de> MappingReadSubmessage<'de> for InfoDestinationSubmessage {
-    fn mapping_read_submessage<B: ByteOrder>(
-        buf: &mut &'de [u8],
-        header: RtpsSubmessageHeader,
-    ) -> Result<Self, Error> {
-        let endianness_flag = header.flags[0];
-        let guid_prefix = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        Ok(Self {
-            endianness_flag,
-            guid_prefix,
-        })
     }
 }

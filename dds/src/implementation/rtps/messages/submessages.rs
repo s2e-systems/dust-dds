@@ -360,7 +360,29 @@ pub struct HeartbeatFragSubmessage {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoDestinationSubmessage {
+pub struct InfoDestinationSubmessageRead<'a> {
+    data: &'a [u8],
+}
+
+impl Endianness for InfoDestinationSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+
+impl<'a> InfoDestinationSubmessageRead<'a> {
+    pub fn new(data: &'a [u8]) -> Self { Self { data } }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn guid_prefix(&self) -> GuidPrefix {
+        self.mapping_read(&self.data[4..])
+    }
+}
+#[derive(Debug, PartialEq, Eq)]
+pub struct InfoDestinationSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub guid_prefix: GuidPrefix,
 }
