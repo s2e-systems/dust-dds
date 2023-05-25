@@ -371,7 +371,9 @@ impl Endianness for InfoDestinationSubmessageRead<'_> {
 }
 
 impl<'a> InfoDestinationSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self { Self { data } }
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
 
     pub fn endianness_flag(&self) -> bool {
         (self.data[1] & 0b_0000_0001) != 0
@@ -388,7 +390,46 @@ pub struct InfoDestinationSubmessageWrite {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoReplySubmessage {
+pub struct InfoReplySubmessageRead<'a> {
+    data: &'a [u8],
+}
+
+impl Endianness for InfoReplySubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+
+impl<'a> InfoReplySubmessageRead<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn multicast_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0010) != 0
+    }
+
+    pub fn unicast_locator_list(&self) -> LocatorList {
+        self.mapping_read(&self.data[4..])
+    }
+
+    pub fn multicast_locator_list(&self) -> LocatorList {
+        if self.multicast_flag() {
+            let num_locators: u32 = self.mapping_read(&self.data[4..]);
+            let octets_to_multicat_loctor_list = num_locators as usize * 24 + 8;
+            self.mapping_read(&self.data[octets_to_multicat_loctor_list..])
+        } else {
+            LocatorList::new(vec![])
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct InfoReplySubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub multicast_flag: SubmessageFlag,
     pub unicast_locator_list: LocatorList,

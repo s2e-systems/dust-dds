@@ -18,9 +18,9 @@ use self::{
     submessages::{
         AckNackSubmessageWrite, DataFragSubmessageRead, DataFragSubmessageWrite,
         DataSubmessageRead, DataSubmessageWrite, GapSubmessageWrite, HeartbeatFragSubmessage,
-        HeartbeatSubmessageRead, HeartbeatSubmessageWrite,
-        InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
-        PadSubmessage, InfoDestinationSubmessageWrite,
+        HeartbeatSubmessageRead, HeartbeatSubmessageWrite, InfoDestinationSubmessageWrite,
+        InfoReplySubmessageRead, InfoReplySubmessageWrite,
+        InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage, PadSubmessage,
     },
     types::ProtocolId,
 };
@@ -99,10 +99,9 @@ impl<'a> RtpsMessageRead<'a> {
                 INFO_DST => RtpsSubmessageReadKind::InfoDestination(
                     InfoDestinationSubmessageRead::new(submessage_data),
                 ),
-                INFO_REPLY => RtpsSubmessageReadKind::InfoReply(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
-                        .unwrap(),
-                ),
+                INFO_REPLY => {
+                    RtpsSubmessageReadKind::InfoReply(InfoReplySubmessageRead::new(submessage_data))
+                }
                 INFO_SRC => RtpsSubmessageReadKind::InfoSource(
                     MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
                         .unwrap(),
@@ -164,7 +163,7 @@ pub enum RtpsSubmessageReadKind<'a> {
     Heartbeat(HeartbeatSubmessageRead<'a>),
     HeartbeatFrag(HeartbeatFragSubmessage),
     InfoDestination(InfoDestinationSubmessageRead<'a>),
-    InfoReply(InfoReplySubmessage),
+    InfoReply(InfoReplySubmessageRead<'a>),
     InfoSource(InfoSourceSubmessage),
     InfoTimestamp(InfoTimestampSubmessage),
     NackFrag(NackFragSubmessage),
@@ -180,7 +179,7 @@ pub enum RtpsSubmessageWriteKind<'a> {
     Heartbeat(HeartbeatSubmessageWrite),
     HeartbeatFrag(HeartbeatFragSubmessage),
     InfoDestination(InfoDestinationSubmessageWrite),
-    InfoReply(InfoReplySubmessage),
+    InfoReply(InfoReplySubmessageWrite),
     InfoSource(InfoSourceSubmessage),
     InfoTimestamp(InfoTimestampSubmessage),
     NackFrag(NackFragSubmessage),
