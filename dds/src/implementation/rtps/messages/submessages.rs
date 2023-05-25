@@ -479,7 +479,7 @@ pub struct InfoSourceSubmessageWrite {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoTimestampSubmessageRead<'a> {
-    data: &'a[u8],
+    data: &'a [u8],
 }
 
 impl Endianness for InfoTimestampSubmessageRead<'_> {
@@ -489,7 +489,9 @@ impl Endianness for InfoTimestampSubmessageRead<'_> {
 }
 
 impl<'a> InfoTimestampSubmessageRead<'a> {
-    pub fn new(data: &'a[u8]) -> Self { Self { data } }
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
 
     pub fn endianness_flag(&self) -> bool {
         (self.data[1] & 0b_0000_0001) != 0
@@ -516,7 +518,48 @@ pub struct InfoTimestampSubmessageWrite {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct NackFragSubmessage {
+pub struct NackFragSubmessageRead<'a> {
+    data: &'a [u8],
+}
+
+impl Endianness for NackFragSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+
+impl<'a> NackFragSubmessageRead<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn reader_id(&self) -> EntityId {
+        self.mapping_read(&self.data[4..])
+    }
+
+    pub fn writer_id(&self) -> EntityId {
+        self.mapping_read(&self.data[8..])
+    }
+
+    pub fn writer_sn(&self) -> SequenceNumber {
+        self.mapping_read(&self.data[12..])
+    }
+
+    pub fn fragment_number_state(&self) -> FragmentNumberSet {
+        self.mapping_read(&self.data[20..])
+    }
+
+    pub fn count(&self) -> Count {
+        self.mapping_read(&self.data[self.data.len() - 4..])
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct NackFragSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityId,
     pub writer_id: EntityId,
@@ -526,6 +569,25 @@ pub struct NackFragSubmessage {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct PadSubmessage {
+pub struct PadSubmessageRead<'a> {
+    data: &'a [u8],
+}
+
+impl<'a> PadSubmessageRead<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+    pub fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+
+impl Endianness for PadSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
+#[derive(Debug, PartialEq, Eq)]
+pub struct PadSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
 }

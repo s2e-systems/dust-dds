@@ -8,8 +8,7 @@ use super::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::{FragmentNumberSet, SequenceNumberSet},
         submessages::{
-            AckNackSubmessageWrite, DataFragSubmessageRead, InfoDestinationSubmessageWrite,
-            NackFragSubmessage,
+            AckNackSubmessageWrite, DataFragSubmessageRead, InfoDestinationSubmessageWrite, NackFragSubmessageWrite,
         },
         types::{FragmentNumber, ULong, UShort},
         RtpsMessageWrite, RtpsSubmessageWriteKind,
@@ -308,7 +307,7 @@ impl RtpsWriterProxy {
                 if !missing_fragment_number.is_empty() {
                     self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
                     let nack_frag_submessage =
-                        RtpsSubmessageWriteKind::NackFrag(NackFragSubmessage {
+                        RtpsSubmessageWriteKind::NackFrag(NackFragSubmessageWrite {
                             endianness_flag: true,
                             reader_id: reader_guid.entity_id(),
                             writer_id: self.remote_writer_guid().entity_id(),

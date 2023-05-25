@@ -21,7 +21,7 @@ use super::{
     history_cache::RtpsWriterCacheChange,
     messages::{
         submessage_elements::{Parameter, ParameterList},
-        submessages::{NackFragSubmessage, AckNackSubmessageRead},
+        submessages::{AckNackSubmessageRead, NackFragSubmessageRead},
         types::ParameterId,
     },
     reader_proxy::{
@@ -320,11 +320,11 @@ impl RtpsStatefulWriter {
 
     pub fn on_nack_frag_submessage_received(
         &mut self,
-        nackfrag_submessage: &NackFragSubmessage,
+        nackfrag_submessage: &NackFragSubmessageRead,
         src_guid_prefix: GuidPrefix,
     ) {
         if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(src_guid_prefix, nackfrag_submessage.reader_id);
+            let reader_guid = Guid::new(src_guid_prefix, nackfrag_submessage.reader_id());
 
             if let Some(reader_proxy) = self
                 .matched_readers
