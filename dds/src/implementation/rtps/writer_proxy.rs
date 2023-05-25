@@ -29,11 +29,11 @@ pub struct OwningDataFragSubmessage {
 impl From<&DataFragSubmessageRead<'_>> for OwningDataFragSubmessage {
     fn from(x: &DataFragSubmessageRead<'_>) -> Self {
         Self {
-            fragment_starting_num: x.fragment_starting_num,
-            data_size: x.data_size,
-            fragment_size: x.fragment_size,
-            fragments_in_submessage: x.fragments_in_submessage,
-            serialized_payload: <&[u8]>::from(&x.serialized_payload).to_vec(),
+            fragment_starting_num: x.fragment_starting_num(),
+            data_size: x.data_size(),
+            fragment_size: x.fragment_size(),
+            fragments_in_submessage: x.fragments_in_submessage(),
+            serialized_payload: <&[u8]>::from(&x.serialized_payload()).to_vec(),
         }
     }
 }
@@ -93,7 +93,7 @@ impl RtpsWriterProxy {
 
     pub fn push_data_frag(&mut self, submessage: &DataFragSubmessageRead) {
         let owning_data_frag = submessage.into();
-        let frag_bug_seq_num = self.frag_buffer.entry(submessage.writer_sn).or_default();
+        let frag_bug_seq_num = self.frag_buffer.entry(submessage.writer_sn()).or_default();
         if !frag_bug_seq_num.contains(&owning_data_frag) {
             frag_bug_seq_num.push(owning_data_frag);
         }

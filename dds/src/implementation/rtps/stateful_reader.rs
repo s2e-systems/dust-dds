@@ -302,10 +302,10 @@ impl RtpsStatefulReader {
         data_frag_submessage: &DataFragSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
     ) -> StatefulReaderDataReceivedResult {
-        let sequence_number = data_frag_submessage.writer_sn;
+        let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(
             message_receiver.source_guid_prefix(),
-            data_frag_submessage.writer_id,
+            data_frag_submessage.writer_id(),
         );
 
         if let Some(writer_proxy) = self

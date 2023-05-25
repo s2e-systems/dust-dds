@@ -86,10 +86,9 @@ impl<'a> RtpsMessageRead<'a> {
                     RtpsSubmessageReadKind::AckNack(AckNackSubmessageRead::new(submessage_data))
                 }
                 DATA => RtpsSubmessageReadKind::Data(DataSubmessageRead::new(submessage_data)),
-                DATA_FRAG => RtpsSubmessageReadKind::DataFrag(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(&mut buf)
-                        .unwrap(),
-                ),
+                DATA_FRAG => {
+                    RtpsSubmessageReadKind::DataFrag(DataFragSubmessageRead::new(submessage_data))
+                }
                 GAP => RtpsSubmessageReadKind::Gap(GapSubmessageRead::new(submessage_data)),
                 HEARTBEAT => {
                     RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::new(submessage_data))

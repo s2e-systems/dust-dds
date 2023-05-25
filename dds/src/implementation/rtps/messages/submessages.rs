@@ -194,36 +194,102 @@ pub struct DataSubmessageWrite<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataFragSubmessageRead<'a> {
-    pub endianness_flag: SubmessageFlag,
-    pub inline_qos_flag: SubmessageFlag,
-    pub non_standard_payload_flag: SubmessageFlag,
-    pub key_flag: SubmessageFlag,
-    pub reader_id: EntityId,
-    pub writer_id: EntityId,
-    pub writer_sn: SequenceNumber,
-    pub fragment_starting_num: FragmentNumber,
-    pub fragments_in_submessage: UShort,
-    pub data_size: ULong,
-    pub fragment_size: UShort,
-    pub inline_qos: &'a [u8],
-    pub serialized_payload: SerializedPayload<'a>,
+    data: &'a [u8],
 }
-
+impl Endianness for DataFragSubmessageRead<'_> {
+    fn endianness(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+}
 impl<'a> DataFragSubmessageRead<'a> {
-    pub fn inline_qos(&self) -> ParameterList {
-        if self.inline_qos_flag {
-            let mut buf = self.inline_qos;
-            match self.endianness_flag {
-                true => {
-                    ParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
-                        .expect("RtpsParameterList failed LE")
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+
+    fn octets_to_inline_qos(&self) -> usize {
+        (&self.data[6..])
+            .read_u16::<byteorder::LittleEndian>()
+            .unwrap() as usize
+    }
+
+    fn inline_qos_len(&self) -> usize {
+        let mut parameter_list_buf = &self.data[8 + self.octets_to_inline_qos()..];
+        let parameter_list_buf_length = parameter_list_buf.len();
+
+        if self.inline_qos_flag() {
+            loop {
+                let pid = parameter_list_buf
+                    .read_u16::<byteorder::LittleEndian>()
+                    .expect("pid read failed");
+                let length = parameter_list_buf
+                    .read_i16::<byteorder::LittleEndian>()
+                    .expect("length read failed");
+                if pid == PID_SENTINEL {
+                    break;
+                } else {
+                    (_, parameter_list_buf) = parameter_list_buf.split_at(length as usize);
                 }
-                false => ParameterList::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut buf)
-                    .expect("RtpsParameterList failed BE"),
             }
+            parameter_list_buf_length - parameter_list_buf.len()
+        } else {
+            0
+        }
+    }
+
+    pub fn endianness_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0001) != 0
+    }
+
+    pub fn inline_qos_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0010) != 0
+    }
+
+    pub fn key_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_0100) != 0
+    }
+
+    pub fn non_standard_payload_flag(&self) -> bool {
+        (self.data[1] & 0b_0000_1000) != 0
+    }
+
+    pub fn reader_id(&self) -> EntityId {
+        self.mapping_read(&self.data[8..])
+    }
+
+    pub fn writer_id(&self) -> EntityId {
+        self.mapping_read(&self.data[12..])
+    }
+
+    pub fn writer_sn(&self) -> SequenceNumber {
+        self.mapping_read(&self.data[16..])
+    }
+
+    pub fn fragment_starting_num(&self) -> FragmentNumber {
+        self.mapping_read(&self.data[24..])
+    }
+
+    pub fn fragments_in_submessage(&self) -> UShort {
+        self.mapping_read(&self.data[28..])
+    }
+
+    pub fn fragment_size(&self) -> UShort {
+        self.mapping_read(&self.data[30..])
+    }
+
+    pub fn data_size(&self) -> ULong {
+        self.mapping_read(&self.data[32..])
+    }
+
+    pub fn inline_qos(&self) -> ParameterList {
+        if self.inline_qos_flag() {
+            self.mapping_read(&self.data[self.octets_to_inline_qos() + 8..])
         } else {
             ParameterList::empty()
         }
+    }
+
+    pub fn serialized_payload(&self) -> SerializedPayload<'a> {
+        self.mapping_read(&self.data[8 + self.octets_to_inline_qos() + self.inline_qos_len()..])
     }
 }
 

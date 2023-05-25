@@ -6,7 +6,7 @@ use crate::implementation::rtps::messages::{
     overall_structure::RtpsSubmessageHeader, submessages::PadSubmessageWrite, types::SubmessageKind,
 };
 
-use super::submessage::{MappingWriteSubmessage};
+use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for PadSubmessageWrite {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
@@ -37,8 +37,7 @@ impl MappingWriteSubmessage for PadSubmessageWrite {
 #[cfg(test)]
 mod tests {
     use crate::implementation::{
-        rtps::messages::submessages::PadSubmessageRead,
-        rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
+        rtps::messages::submessages::PadSubmessageRead, rtps_udp_psm::mapping_traits::to_bytes,
     };
 
     use super::*;
