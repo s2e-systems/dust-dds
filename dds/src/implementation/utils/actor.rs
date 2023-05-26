@@ -59,6 +59,23 @@ where
             .blocking_recv()
             .map_err(|_| DdsError::AlreadyDeleted)
     }
+
+    pub async fn send_async<M>(&self, message: M) -> DdsResult<M::Result>
+    where
+        A: Handler<M>,
+        M: Message + Send + 'static,
+        M::Result: Send,
+    {
+        let (response_sender, response_receiver) = sync::oneshot::channel();
+
+        self.sender
+            .send(Box::new(SyncMessage::new(message, response_sender)))
+            .await
+            .map_err(|_| DdsError::AlreadyDeleted)?;
+        response_receiver
+            .await
+            .map_err(|_| DdsError::AlreadyDeleted)
+    }
 }
 
 pub struct ActorJoinHandle {

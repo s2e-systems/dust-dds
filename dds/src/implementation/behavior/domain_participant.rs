@@ -242,7 +242,7 @@ pub fn get_qos(domain_participant: &DdsDomainParticipant) -> DdsResult<DomainPar
 }
 
 pub async fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
-    domain_participant.enable()?;
+    domain_participant.enable().await?;
 
     domain_participant.announce_participant()?;
     domain_participant.spawn(task_announce_participant(

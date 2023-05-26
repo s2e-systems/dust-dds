@@ -197,6 +197,60 @@ impl<T> actor::Handler<EnableMessage> for DdsDataWriter<T> {
     }
 }
 
+pub struct GetTypeName;
+
+impl actor::Message for GetTypeName {
+    type Result = &'static str;
+}
+
+impl<T> actor::Handler<GetTypeName> for DdsDataWriter<T> {
+    fn handle(&mut self, _message: GetTypeName) -> <GetTypeName as actor::Message>::Result {
+        self.get_type_name()
+    }
+}
+
+pub struct WriteWithTimestamp {
+    serialized_data: Vec<u8>,
+    instance_serialized_key: DdsSerializedKey,
+    handle: Option<InstanceHandle>,
+    timestamp: Time,
+}
+
+impl WriteWithTimestamp {
+    pub fn new(
+        serialized_data: Vec<u8>,
+        instance_serialized_key: DdsSerializedKey,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> Self {
+        Self {
+            serialized_data,
+            instance_serialized_key,
+            handle,
+            timestamp,
+        }
+    }
+}
+
+impl actor::Message for WriteWithTimestamp {
+    type Result = DdsResult<()>;
+}
+
+impl actor::Handler<WriteWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: WriteWithTimestamp,
+    ) -> <WriteWithTimestamp as actor::Message>::Result {
+        self.write_w_timestamp(
+            message.serialized_data,
+            message.instance_serialized_key,
+            message.handle,
+            message.timestamp,
+        );
+        Ok(())
+    }
+}
+
 impl<T> DdsDataWriter<T> {
     pub fn new(rtps_writer: T, type_name: &'static str, topic_name: String) -> Self {
         DdsDataWriter {

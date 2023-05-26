@@ -15,7 +15,7 @@ use crate::{
         dds::{
             any_topic_listener::AnyTopicListener,
             dds_data_reader::DdsDataReader,
-            dds_data_writer::DdsDataWriter,
+            dds_data_writer::{self, DdsDataWriter},
             dds_domain_participant::{
                 AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
@@ -1673,20 +1673,21 @@ fn announce_created_topic(
     let serialized_data = dds_serialize(&discovered_topic).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
-    todo!()
-    // domain_participant
-    //     .get_builtin_publisher_mut()
-    //     .stateful_data_writer_list_mut()
-    //     .iter_mut()
-    //     .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
-    //     .unwrap()
-    //     .write_w_timestamp(
-    //         serialized_data,
-    //         discovered_topic.get_serialized_key(),
-    //         None,
-    //         timestamp,
-    //     )
-    //     .expect("Should not fail to write built-in message");
+
+    domain_participant
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list()
+        .iter()
+        .find(|x| x.send(dds_data_writer::GetTypeName).unwrap() == DiscoveredTopicData::type_name())
+        .unwrap()
+        .send(dds_data_writer::WriteWithTimestamp::new(
+            serialized_data,
+            discovered_topic.get_serialized_key(),
+            None,
+            timestamp,
+        ))
+        .expect("Failed to send builtin message")
+        .expect("Should not fail to write built-in message")
 }
 
 fn announce_deleted_reader(

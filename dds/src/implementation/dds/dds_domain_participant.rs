@@ -80,8 +80,11 @@ use std::{
 };
 
 use super::{
-    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
-    nodes::DataWriterNode, status_listener::ListenerTriggerKind,
+    dds_data_writer::{self, DdsDataWriter},
+    dds_publisher::DdsPublisher,
+    message_receiver::MessageReceiver,
+    nodes::DataWriterNode,
+    status_listener::ListenerTriggerKind,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -877,7 +880,7 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn enable(&mut self) -> DdsResult<()> {
+    pub async fn enable(&mut self) -> DdsResult<()> {
         if !self.enabled {
             self.enabled = true;
 
@@ -892,15 +895,15 @@ impl DdsDomainParticipant {
                 builtin_stateless_writer.enable();
             }
 
-            todo!();
-
-            // for builtin_stateful_writer in self
-            //     .builtin_publisher
-            //     .stateful_data_writer_list_mut()
-            //     .iter_mut()
-            // {
-            //     builtin_stateful_writer.enable()
-            // }
+            for builtin_stateful_writer in self
+                .builtin_publisher
+                .stateful_data_writer_list()
+                .iter_mut()
+            {
+                builtin_stateful_writer
+                    .send_async(dds_data_writer::EnableMessage)
+                    .await?;
+            }
 
             if self.qos.entity_factory.autoenable_created_entities {
                 for publisher in self.user_defined_publisher_list_mut() {

@@ -82,11 +82,11 @@ impl DdsPublisher {
 
     pub fn stateful_data_writer_list(
         &self,
-    ) -> &[(
-        ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
-        ActorJoinHandle,
-    )] {
-        &self.stateful_data_writer_list
+    ) -> Vec<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
+        self.stateful_data_writer_list
+            .iter()
+            .map(|x| x.0.clone())
+            .collect()
     }
 
     pub fn stateless_datawriter_add(&mut self, data_writer: DdsDataWriter<RtpsStatelessWriter>) {
