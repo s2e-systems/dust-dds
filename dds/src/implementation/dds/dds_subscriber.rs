@@ -1,9 +1,13 @@
+use super::{
+    dds_data_reader::DdsDataReader, message_receiver::MessageReceiver,
+    status_listener::ListenerTriggerKind,
+};
 use crate::{
     implementation::rtps::{
         group::RtpsGroup,
         messages::submessages::{
-            DataFragSubmessageRead, DataSubmessageRead, GapSubmessageRead,
-            HeartbeatFragSubmessageRead, HeartbeatSubmessageRead,
+            data::DataSubmessageRead, data_frag::DataFragSubmessageRead, gap::GapSubmessageRead,
+            heartbeat::HeartbeatSubmessageRead, heartbeat_frag::HeartbeatFragSubmessageRead,
         },
         stateful_reader::RtpsStatefulReader,
         stateless_reader::RtpsStatelessReader,
@@ -15,11 +19,6 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         time::Time,
     },
-};
-
-use super::{
-    dds_data_reader::DdsDataReader, message_receiver::MessageReceiver,
-    status_listener::ListenerTriggerKind,
 };
 
 pub struct DdsSubscriber {

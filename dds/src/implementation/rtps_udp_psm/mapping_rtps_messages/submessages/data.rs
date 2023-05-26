@@ -1,14 +1,12 @@
-use std::io::{Error, Write};
-
-use byteorder::ByteOrder;
-
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::SubmessageHeaderWrite, submessages::DataSubmessageWrite,
+        overall_structure::SubmessageHeaderWrite, submessages::data::DataSubmessageWrite,
         types::SubmessageKind,
     },
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
+use byteorder::ByteOrder;
+use std::io::{Error, Write};
 
 use super::submessage::MappingWriteSubmessage;
 

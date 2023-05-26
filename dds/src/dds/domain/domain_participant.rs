@@ -37,7 +37,10 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::SequenceNumberSet,
-                submessages::{GapSubmessageWrite, InfoDestinationSubmessageWrite, InfoTimestampSubmessageWrite},
+                submessages::{
+                    gap::GapSubmessageWrite, info_destination::InfoDestinationSubmessageWrite,
+                    info_timestamp::InfoTimestampSubmessageWrite,
+                },
                 types::{FragmentNumber, ProtocolId},
                 RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind,
             },

@@ -1,12 +1,9 @@
-use std::io::{Error, Write};
-
-use byteorder::LittleEndian;
-use byteorder::{BigEndian, ByteOrder};
-
 use crate::implementation::{
     rtps::messages::overall_structure::SubmessageHeaderWrite,
     rtps_udp_psm::mapping_traits::MappingWriteByteOrderInfoInData,
 };
+use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use std::io::{Error, Write};
 
 pub trait MappingWriteSubmessage {
     fn submessage_header(&self) -> SubmessageHeaderWrite;

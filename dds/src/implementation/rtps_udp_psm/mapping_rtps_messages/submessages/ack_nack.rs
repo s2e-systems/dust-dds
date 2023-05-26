@@ -2,8 +2,8 @@ use std::io::{Error, Write};
 
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::SubmessageHeaderWrite, submessages::AckNackSubmessageWrite,
-        types::SubmessageKind,
+        overall_structure::SubmessageHeaderWrite,
+        types::SubmessageKind, submessages::ack_nack::AckNackSubmessageWrite,
     },
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };

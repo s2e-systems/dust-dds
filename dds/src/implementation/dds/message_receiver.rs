@@ -1,8 +1,13 @@
+use super::{
+    dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
+    status_listener::ListenerTriggerKind,
+};
 use crate::{
     implementation::rtps::{
         messages::{
             submessages::{
-                InfoDestinationSubmessageRead, InfoSourceSubmessageRead, InfoTimestampSubmessageRead,
+                info_destination::InfoDestinationSubmessageRead,
+                info_source::InfoSourceSubmessageRead, info_timestamp::InfoTimestampSubmessageRead,
             },
             RtpsMessageRead, RtpsSubmessageReadKind,
         },
@@ -15,11 +20,6 @@ use crate::{
         error::DdsResult,
         time::{Time, TIME_INVALID},
     },
-};
-
-use super::{
-    dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
-    status_listener::ListenerTriggerKind,
 };
 
 pub struct MessageReceiver {

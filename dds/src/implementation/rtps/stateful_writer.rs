@@ -21,7 +21,7 @@ use super::{
     history_cache::RtpsWriterCacheChange,
     messages::{
         submessage_elements::{Parameter, ParameterList},
-        submessages::{AckNackSubmessageRead, NackFragSubmessageRead},
+        submessages::{ack_nack::AckNackSubmessageRead, nack_frag::NackFragSubmessageRead},
         types::ParameterId,
     },
     reader_proxy::{

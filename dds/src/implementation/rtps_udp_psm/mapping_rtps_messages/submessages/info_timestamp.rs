@@ -1,14 +1,12 @@
-use std::io::{Error, Write};
-
+use super::submessage::MappingWriteSubmessage;
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::SubmessageHeaderWrite, submessages::InfoTimestampSubmessageWrite,
-        types::SubmessageKind,
+        overall_structure::SubmessageHeaderWrite,
+        submessages::info_timestamp::InfoTimestampSubmessageWrite, types::SubmessageKind,
     },
     rtps_udp_psm::mapping_traits::MappingWriteByteOrdered,
 };
-
-use super::submessage::MappingWriteSubmessage;
+use std::io::{Error, Write};
 
 impl MappingWriteSubmessage for InfoTimestampSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {

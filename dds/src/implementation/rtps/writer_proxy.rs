@@ -8,8 +8,8 @@ use super::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::{FragmentNumberSet, SequenceNumberSet},
         submessages::{
-            AckNackSubmessageWrite, DataFragSubmessageRead, InfoDestinationSubmessageWrite,
-            NackFragSubmessageWrite,
+            ack_nack::AckNackSubmessageWrite, data_frag::DataFragSubmessageRead,
+            info_destination::InfoDestinationSubmessageWrite, nack_frag::NackFragSubmessageWrite,
         },
         types::FragmentNumber,
         RtpsMessageWrite, RtpsSubmessageWriteKind,

@@ -1,32 +1,32 @@
 use std::io::BufRead;
 
-use crate::implementation::{
-    rtps::messages::submessages::{
-        AckNackSubmessageRead, GapSubmessageRead, HeartbeatFragSubmessageRead,
-        InfoDestinationSubmessageRead, InfoSourceSubmessageRead, InfoTimestampSubmessageRead,
-        NackFragSubmessageRead, PadSubmessageRead,
-    },
-    rtps_udp_psm::{
-        mapping_rtps_messages::submessages::submessage_header::{
-            ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
-            INFO_SRC, INFO_TS, NACK_FRAG, PAD,
-        },
-    },
-};
-
 use self::{
     overall_structure::{RtpsMessageHeader, SubmessageHeaderRead},
     submessages::{
-        AckNackSubmessageWrite, DataFragSubmessageRead, DataFragSubmessageWrite,
-        DataSubmessageRead, DataSubmessageWrite, GapSubmessageWrite, HeartbeatFragSubmessageWrite,
-        HeartbeatSubmessageRead, HeartbeatSubmessageWrite, InfoDestinationSubmessageWrite,
-        InfoReplySubmessageRead, InfoReplySubmessageWrite, InfoSourceSubmessageWrite,
-        InfoTimestampSubmessageWrite, NackFragSubmessageWrite, PadSubmessageWrite,
+        ack_nack::AckNackSubmessageWrite, data::DataSubmessageWrite,
+        data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
+        heartbeat::HeartbeatSubmessageWrite, heartbeat_frag::HeartbeatFragSubmessageWrite,
+        info_destination::InfoDestinationSubmessageWrite, info_reply::InfoReplySubmessageWrite,
+        info_source::InfoSourceSubmessageWrite, info_timestamp::InfoTimestampSubmessageWrite,
+        nack_frag::NackFragSubmessageWrite, pad::PadSubmessageWrite,
     },
     types::ProtocolId,
 };
-
 use super::types::{GuidPrefix, ProtocolVersion, VendorId};
+use crate::implementation::{
+    rtps::messages::submessages::{
+        ack_nack::AckNackSubmessageRead, data::DataSubmessageRead,
+        data_frag::DataFragSubmessageRead, gap::GapSubmessageRead,
+        heartbeat::HeartbeatSubmessageRead, heartbeat_frag::HeartbeatFragSubmessageRead,
+        info_destination::InfoDestinationSubmessageRead, info_reply::InfoReplySubmessageRead,
+        info_source::InfoSourceSubmessageRead, info_timestamp::InfoTimestampSubmessageRead,
+        nack_frag::NackFragSubmessageRead, pad::PadSubmessageRead,
+    },
+    rtps_udp_psm::mapping_rtps_messages::submessages::submessage_header::{
+        ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
+        INFO_TS, NACK_FRAG, PAD,
+    },
+};
 
 pub mod overall_structure;
 pub mod submessage_elements;
@@ -34,14 +34,14 @@ pub mod submessages;
 pub mod types;
 
 pub trait FromBytes<'a> {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &'a[u8]) -> Self;
+    fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self;
 }
 
 trait SubmessageHeader {
     fn submessage_header(&self) -> SubmessageHeaderRead;
 }
 
-trait RtpsMap<'a> : SubmessageHeader {
+trait RtpsMap<'a>: SubmessageHeader {
     fn map<T: FromBytes<'a>>(&self, data: &'a [u8]) -> T {
         if self.submessage_header().endianness_flag() {
             T::from_bytes::<byteorder::LittleEndian>(data)
@@ -51,7 +51,7 @@ trait RtpsMap<'a> : SubmessageHeader {
     }
 }
 
-impl<'a, T:SubmessageHeader> RtpsMap<'a> for T{}
+impl<'a, T: SubmessageHeader> RtpsMap<'a> for T {}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageRead<'a> {

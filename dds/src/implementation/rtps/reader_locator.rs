@@ -5,7 +5,7 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::SequenceNumberSet,
-        submessages::{ GapSubmessageWrite, InfoTimestampSubmessageWrite},
+        submessages::{gap::GapSubmessageWrite, info_timestamp::InfoTimestampSubmessageWrite},
         RtpsMessageWrite, RtpsSubmessageWriteKind,
     },
     transport::TransportWrite,

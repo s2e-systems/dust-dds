@@ -1,16 +1,13 @@
-use std::io::{Error, Write};
-
-use byteorder::ByteOrder;
-
+use super::submessage::MappingWriteSubmessage;
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::SubmessageHeaderWrite, submessages::InfoDestinationSubmessageWrite,
-        types::SubmessageKind,
+        overall_structure::SubmessageHeaderWrite,
+        submessages::info_destination::InfoDestinationSubmessageWrite, types::SubmessageKind,
     },
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
-
-use super::submessage::MappingWriteSubmessage;
+use byteorder::ByteOrder;
+use std::io::{Error, Write};
 
 impl MappingWriteSubmessage for InfoDestinationSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {

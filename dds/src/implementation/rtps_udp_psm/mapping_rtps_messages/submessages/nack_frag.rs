@@ -1,15 +1,13 @@
-use std::io::{Error, Write};
-
-use byteorder::ByteOrder;
-
-use crate::implementation::rtps::messages::submessages::NackFragSubmessageWrite;
-use crate::implementation::rtps::messages::{
-    overall_structure::SubmessageHeaderWrite, types::SubmessageKind,
-};
-
-use crate::implementation::rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes};
-
 use super::submessage::MappingWriteSubmessage;
+use crate::implementation::{
+    rtps::messages::{
+        overall_structure::SubmessageHeaderWrite, submessages::nack_frag::NackFragSubmessageWrite,
+        types::SubmessageKind,
+    },
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
+};
+use byteorder::ByteOrder;
+use std::io::{Error, Write};
 
 impl MappingWriteSubmessage for NackFragSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {

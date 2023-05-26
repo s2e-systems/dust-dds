@@ -4,8 +4,8 @@ use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         submessages::{
-            AckNackSubmessageRead, HeartbeatFragSubmessageWrite, HeartbeatSubmessageWrite,
-            NackFragSubmessageRead,
+            ack_nack::AckNackSubmessageRead, heartbeat::HeartbeatSubmessageWrite,
+            heartbeat_frag::HeartbeatFragSubmessageWrite, nack_frag::NackFragSubmessageRead,
         },
         types::FragmentNumber,
         RtpsSubmessageWriteKind,
