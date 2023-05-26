@@ -37,7 +37,10 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::SequenceNumberSet,
-                submessages::{GapSubmessageWrite, InfoDestinationSubmessageWrite, InfoTimestampSubmessageWrite},
+                submessages::{
+                    GapSubmessageWrite, InfoDestinationSubmessageWrite,
+                    InfoTimestampSubmessageWrite,
+                },
                 types::{FragmentNumber, ProtocolId},
                 RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind,
             },
@@ -1609,19 +1612,20 @@ fn announce_created_data_reader(
     let serialized_data = dds_serialize(reader_data).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            reader_data.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
+    todo!()
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list_mut()
+    //     .iter_mut()
+    //     .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+    //     .unwrap()
+    //     .write_w_timestamp(
+    //         serialized_data,
+    //         reader_data.get_serialized_key(),
+    //         None,
+    //         timestamp,
+    //     )
+    //     .expect("Should not fail to write built-in message");
 }
 
 fn announce_created_data_writer(
@@ -1646,20 +1650,20 @@ fn announce_created_data_writer(
     let serialized_data = dds_serialize(writer_data).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
-
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            writer_data.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
+    todo!()
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list_mut()
+    //     .iter_mut()
+    //     .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+    //     .unwrap()
+    //     .write_w_timestamp(
+    //         serialized_data,
+    //         writer_data.get_serialized_key(),
+    //         None,
+    //         timestamp,
+    //     )
+    //     .expect("Should not fail to write built-in message");
 }
 
 fn announce_created_topic(
@@ -1669,20 +1673,20 @@ fn announce_created_topic(
     let serialized_data = dds_serialize(&discovered_topic).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
-
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            discovered_topic.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
+    todo!()
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list_mut()
+    //     .iter_mut()
+    //     .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+    //     .unwrap()
+    //     .write_w_timestamp(
+    //         serialized_data,
+    //         discovered_topic.get_serialized_key(),
+    //         None,
+    //         timestamp,
+    //     )
+    //     .expect("Should not fail to write built-in message");
 }
 
 fn announce_deleted_reader(
@@ -1697,14 +1701,15 @@ fn announce_deleted_reader(
 
     let timestamp = domain_participant.get_current_time();
 
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-        .unwrap()
-        .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
-        .expect("Should not fail to write built-in message");
+    todo!()
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list_mut()
+    //     .iter_mut()
+    //     .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+    //     .unwrap()
+    //     .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
+    //     .expect("Should not fail to write built-in message");
 }
 
 fn announce_deleted_writer(
@@ -1719,14 +1724,15 @@ fn announce_deleted_writer(
 
     let timestamp = domain_participant.get_current_time();
 
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-        .unwrap()
-        .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
-        .expect("Should not fail to write built-in message");
+    todo!()
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list_mut()
+    //     .iter_mut()
+    //     .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+    //     .unwrap()
+    //     .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
+    //     .expect("Should not fail to write built-in message");
 }
 
 fn send_builtin_message(
@@ -1752,38 +1758,40 @@ fn send_builtin_message(
         metatraffic_unicast_transport_send,
     );
 
-    stateful_writer_send_message(
-        domain_participant
-            .get_builtin_publisher_mut()
-            .stateful_data_writer_list_mut()
-            .iter_mut()
-            .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-            .unwrap(),
-        header,
-        metatraffic_unicast_transport_send,
-    );
+    todo!();
 
-    stateful_writer_send_message(
-        domain_participant
-            .get_builtin_publisher_mut()
-            .stateful_data_writer_list_mut()
-            .iter_mut()
-            .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-            .unwrap(),
-        header,
-        metatraffic_unicast_transport_send,
-    );
+    // stateful_writer_send_message(
+    //     domain_participant
+    //         .get_builtin_publisher_mut()
+    //         .stateful_data_writer_list_mut()
+    //         .iter_mut()
+    //         .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+    //         .unwrap(),
+    //     header,
+    //     metatraffic_unicast_transport_send,
+    // );
 
-    stateful_writer_send_message(
-        domain_participant
-            .get_builtin_publisher_mut()
-            .stateful_data_writer_list_mut()
-            .iter_mut()
-            .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
-            .unwrap(),
-        header,
-        metatraffic_unicast_transport_send,
-    );
+    // stateful_writer_send_message(
+    //     domain_participant
+    //         .get_builtin_publisher_mut()
+    //         .stateful_data_writer_list_mut()
+    //         .iter_mut()
+    //         .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+    //         .unwrap(),
+    //     header,
+    //     metatraffic_unicast_transport_send,
+    // );
+
+    // stateful_writer_send_message(
+    //     domain_participant
+    //         .get_builtin_publisher_mut()
+    //         .stateful_data_writer_list_mut()
+    //         .iter_mut()
+    //         .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+    //         .unwrap(),
+    //     header,
+    //     metatraffic_unicast_transport_send,
+    // );
 
     for stateful_readers in domain_participant
         .get_builtin_subscriber_mut()
@@ -1806,44 +1814,45 @@ fn user_defined_communication_send(
     let now = domain_participant.get_current_time();
 
     for publisher in domain_participant.user_defined_publisher_list_mut() {
-        for data_writer in publisher.stateful_data_writer_list_mut() {
-            let writer_id = data_writer.guid().entity_id();
-            let data_max_size_serialized = data_writer.data_max_size_serialized();
-            let heartbeat_period = data_writer.heartbeat_period();
-            let first_sn = data_writer
-                .change_list()
-                .iter()
-                .map(|x| x.sequence_number())
-                .min()
-                .unwrap_or(SequenceNumber::new(1));
-            let last_sn = data_writer
-                .change_list()
-                .iter()
-                .map(|x| x.sequence_number())
-                .max()
-                .unwrap_or_else(|| SequenceNumber::new(0));
-            remove_stale_writer_changes(data_writer, now);
-            for reader_proxy in &mut data_writer.matched_reader_list() {
-                match reader_proxy.reliability() {
-                    ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
-                        reader_proxy,
-                        data_max_size_serialized,
-                        header,
-                        default_unicast_transport_send,
-                    ),
-                    ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
-                        reader_proxy,
-                        data_max_size_serialized,
-                        header,
-                        default_unicast_transport_send,
-                        writer_id,
-                        first_sn,
-                        last_sn,
-                        heartbeat_period,
-                    ),
-                }
-            }
-        }
+        todo!()
+        // for data_writer in publisher.stateful_data_writer_list_mut() {
+        //     let writer_id = data_writer.guid().entity_id();
+        //     let data_max_size_serialized = data_writer.data_max_size_serialized();
+        //     let heartbeat_period = data_writer.heartbeat_period();
+        //     let first_sn = data_writer
+        //         .change_list()
+        //         .iter()
+        //         .map(|x| x.sequence_number())
+        //         .min()
+        //         .unwrap_or(SequenceNumber::new(1));
+        //     let last_sn = data_writer
+        //         .change_list()
+        //         .iter()
+        //         .map(|x| x.sequence_number())
+        //         .max()
+        //         .unwrap_or_else(|| SequenceNumber::new(0));
+        //     remove_stale_writer_changes(data_writer, now);
+        //     for reader_proxy in &mut data_writer.matched_reader_list() {
+        //         match reader_proxy.reliability() {
+        //             ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
+        //                 reader_proxy,
+        //                 data_max_size_serialized,
+        //                 header,
+        //                 default_unicast_transport_send,
+        //             ),
+        //             ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
+        //                 reader_proxy,
+        //                 data_max_size_serialized,
+        //                 header,
+        //                 default_unicast_transport_send,
+        //                 writer_id,
+        //                 first_sn,
+        //                 last_sn,
+        //                 heartbeat_period,
+        //             ),
+        //         }
+        //     }
+        // }
     }
 
     for subscriber in domain_participant.user_defined_subscriber_list_mut() {
@@ -2405,15 +2414,16 @@ fn add_discovered_participant(
         && !domain_participant
             .is_participant_ignored(discovered_participant_data.get_serialized_key().into())
     {
-        add_matched_publications_detector(
-            domain_participant
-                .get_builtin_publisher_mut()
-                .stateful_data_writer_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
-                .unwrap(),
-            &discovered_participant_data,
-        );
+        todo!();
+        // add_matched_publications_detector(
+        //     domain_participant
+        //         .get_builtin_publisher_mut()
+        //         .stateful_data_writer_list_mut()
+        //         .iter_mut()
+        //         .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
+        //         .unwrap(),
+        //     &discovered_participant_data,
+        // );
 
         add_matched_publications_announcer(
             domain_participant
@@ -2425,15 +2435,17 @@ fn add_discovered_participant(
             &discovered_participant_data,
         );
 
-        add_matched_subscriptions_detector(
-            domain_participant
-                .get_builtin_publisher_mut()
-                .stateful_data_writer_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
-                .unwrap(),
-            &discovered_participant_data,
-        );
+        todo!();
+
+        // add_matched_subscriptions_detector(
+        //     domain_participant
+        //         .get_builtin_publisher_mut()
+        //         .stateful_data_writer_list_mut()
+        //         .iter_mut()
+        //         .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
+        //         .unwrap(),
+        //     &discovered_participant_data,
+        // );
 
         add_matched_subscriptions_announcer(
             domain_participant
@@ -2445,15 +2457,15 @@ fn add_discovered_participant(
             &discovered_participant_data,
         );
 
-        add_matched_topics_detector(
-            domain_participant
-                .get_builtin_publisher_mut()
-                .stateful_data_writer_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_TOPIC)
-                .unwrap(),
-            &discovered_participant_data,
-        );
+        // add_matched_topics_detector(
+        //     domain_participant
+        //         .get_builtin_publisher_mut()
+        //         .stateful_data_writer_list_mut()
+        //         .iter_mut()
+        //         .find(|x| x.get_topic_name() == DCPS_TOPIC)
+        //         .unwrap(),
+        //     &discovered_participant_data,
+        // );
 
         add_matched_topics_announcer(
             domain_participant

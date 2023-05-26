@@ -1,8 +1,7 @@
 use crate::{
     implementation::{
         dds::{
-            dds_data_writer::DdsDataWriter,
-            dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+            dds_data_writer::DdsDataWriter, dds_domain_participant::DdsDomainParticipant,
             nodes::DataWriterNode,
         },
         rtps::{
@@ -14,10 +13,10 @@ use crate::{
             },
             writer::RtpsWriter,
         },
+        utils::actor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         time::{Duration, DURATION_ZERO},
     },
@@ -88,10 +87,11 @@ where
 
     let data_writer = DdsDataWriter::new(rtps_writer_impl, type_name, topic_name);
 
-    let data_writer_node =
-        DataWriterNode::new(data_writer.guid(), publisher_guid, domain_participant_guid);
+    let (data_writer_address, data_writer_handle) = actor::spawn_actor(data_writer);
 
-    publisher.stateful_datawriter_add(data_writer);
+    let data_writer_node = DataWriterNode::new(guid, publisher_guid, domain_participant_guid);
+
+    publisher.stateful_datawriter_add((data_writer_address, data_writer_handle));
 
     if publisher.is_enabled()
         && publisher
@@ -116,48 +116,49 @@ pub fn delete_datawriter(
             "Data writer can only be deleted from its parent publisher".to_string(),
         ));
     }
+    todo!()
 
-    let data_writer_guid = domain_participant
-        .user_defined_publisher_list_mut()
-        .iter_mut()
-        .find(|p| p.guid() == publisher_guid)
-        .ok_or(DdsError::AlreadyDeleted)?
-        .stateful_data_writer_list()
-        .iter()
-        .find(|x| x.guid() == data_writer_guid)
-        .ok_or(DdsError::AlreadyDeleted)?
-        .guid();
+    // let data_writer_guid = domain_participant
+    //     .user_defined_publisher_list_mut()
+    //     .iter_mut()
+    //     .find(|p| p.guid() == publisher_guid)
+    //     .ok_or(DdsError::AlreadyDeleted)?
+    //     .stateful_data_writer_list()
+    //     .iter()
+    //     .find(|x| x.guid() == data_writer_guid)
+    //     .ok_or(DdsError::AlreadyDeleted)?
+    //     .guid();
 
-    // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
-    if domain_participant
-        .user_defined_publisher_list_mut()
-        .iter_mut()
-        .find(|p| p.guid() == publisher_guid)
-        .ok_or(DdsError::AlreadyDeleted)?
-        .stateful_data_writer_list()
-        .iter()
-        .find(|x| x.guid() == data_writer_guid)
-        .ok_or_else(|| {
-            DdsError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher".to_string(),
-            )
-        })?
-        .is_enabled()
-    {
-        domain_participant
-            .announce_sender()
-            .try_send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
-            .ok();
-    }
+    // // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
+    // if domain_participant
+    //     .user_defined_publisher_list_mut()
+    //     .iter_mut()
+    //     .find(|p| p.guid() == publisher_guid)
+    //     .ok_or(DdsError::AlreadyDeleted)?
+    //     .stateful_data_writer_list()
+    //     .iter()
+    //     .find(|x| x.guid() == data_writer_guid)
+    //     .ok_or_else(|| {
+    //         DdsError::PreconditionNotMet(
+    //             "Data writer can only be deleted from its parent publisher".to_string(),
+    //         )
+    //     })?
+    //     .is_enabled()
+    // {
+    //     domain_participant
+    //         .announce_sender()
+    //         .try_send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
+    //         .ok();
+    // }
 
-    domain_participant
-        .user_defined_publisher_list_mut()
-        .iter_mut()
-        .find(|p| p.guid() == publisher_guid)
-        .ok_or(DdsError::AlreadyDeleted)?
-        .stateful_datawriter_delete(InstanceHandle::from(data_writer_guid));
+    // domain_participant
+    //     .user_defined_publisher_list_mut()
+    //     .iter_mut()
+    //     .find(|p| p.guid() == publisher_guid)
+    //     .ok_or(DdsError::AlreadyDeleted)?
+    //     .stateful_datawriter_delete(InstanceHandle::from(data_writer_guid));
 
-    Ok(())
+    // Ok(())
 }
 
 pub fn lookup_datawriter(
@@ -166,15 +167,16 @@ pub fn lookup_datawriter(
     type_name: &'static str,
     topic_name: &str,
 ) -> DdsResult<Option<DataWriterNode>> {
-    Ok(domain_participant
-        .get_publisher(publisher_guid)
-        .ok_or(DdsError::AlreadyDeleted)?
-        .stateful_data_writer_list()
-        .iter()
-        .find(|data_reader| {
-            data_reader.get_topic_name() == topic_name && data_reader.get_type_name() == type_name
-        })
-        .map(|x| DataWriterNode::new(x.guid(), publisher_guid, domain_participant.guid())))
+    todo!()
+    // Ok(domain_participant
+    //     .get_publisher(publisher_guid)
+    //     .ok_or(DdsError::AlreadyDeleted)?
+    //     .stateful_data_writer_list()
+    //     .iter()
+    //     .find(|data_reader| {
+    //         data_reader.get_topic_name() == topic_name && data_reader.get_type_name() == type_name
+    //     })
+    //     .map(|x| DataWriterNode::new(x.guid(), publisher_guid, domain_participant.guid())))
 }
 
 pub fn delete_contained_entities() -> DdsResult<()> {

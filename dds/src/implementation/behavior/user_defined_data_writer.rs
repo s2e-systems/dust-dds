@@ -397,17 +397,18 @@ fn announce_created_data_writer(
 
     let timestamp = domain_participant.get_current_time();
 
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            writer_data.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
+    todo!()
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list_mut()
+    //     .iter_mut()
+    //     .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+    //     .unwrap()
+    //     .write_w_timestamp(
+    //         serialized_data,
+    //         writer_data.get_serialized_key(),
+    //         None,
+    //         timestamp,
+    //     )
+    //     .expect("Should not fail to write built-in message");
 }

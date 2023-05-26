@@ -2,7 +2,8 @@ use crate::{
     implementation::rtps::{
         messages::{
             submessages::{
-                InfoDestinationSubmessageRead, InfoSourceSubmessageRead, InfoTimestampSubmessageRead,
+                InfoDestinationSubmessageRead, InfoSourceSubmessageRead,
+                InfoTimestampSubmessageRead,
             },
             RtpsMessageRead, RtpsSubmessageReadKind,
         },
@@ -77,12 +78,13 @@ impl MessageReceiver {
             match submessage {
                 RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
                     for publisher in publisher_list.iter_mut() {
-                        for stateful_data_writer in
-                            publisher.stateful_data_writer_list_mut().iter_mut()
-                        {
-                            stateful_data_writer
-                                .on_acknack_submessage_received(acknack_submessage, self);
-                        }
+                        todo!()
+                        // for stateful_data_writer in
+                        //     publisher.stateful_data_writer_list_mut().iter_mut()
+                        // {
+                        //     stateful_data_writer
+                        //         .on_acknack_submessage_received(acknack_submessage, self);
+                        // }
                     }
                 }
                 RtpsSubmessageReadKind::Data(data_submessage) => {
@@ -138,12 +140,13 @@ impl MessageReceiver {
                 }
                 RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
                     for publisher in publisher_list.iter_mut() {
-                        for stateful_data_writer in
-                            publisher.stateful_data_writer_list_mut().iter_mut()
-                        {
-                            stateful_data_writer
-                                .on_nack_frag_submessage_received(nack_frag_submessage, self);
-                        }
+                        todo!()
+                        // for stateful_data_writer in
+                        //     publisher.stateful_data_writer_list_mut().iter_mut()
+                        // {
+                        //     stateful_data_writer
+                        //         .on_nack_frag_submessage_received(nack_frag_submessage, self);
+                        // }
                     }
                 }
                 RtpsSubmessageReadKind::Pad(_) => (),

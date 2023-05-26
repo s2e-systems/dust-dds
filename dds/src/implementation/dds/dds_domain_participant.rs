@@ -21,6 +21,7 @@ use crate::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
+            messages::RtpsMessageRead,
             participant::RtpsParticipant,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
@@ -42,9 +43,9 @@ use crate::{
                 BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
-            writer::RtpsWriter, messages::RtpsMessageRead,
+            writer::RtpsWriter,
         },
-        utils::condvar::DdsCondvar,
+        utils::{actor, condvar::DdsCondvar},
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -278,6 +279,8 @@ impl DdsDomainParticipant {
             DiscoveredTopicData::type_name(),
             String::from(DCPS_TOPIC),
         );
+        let (sedp_builtin_topics_writer_address, sedp_builtin_topics_writer_handle) =
+            actor::spawn_actor(sedp_builtin_topics_writer);
 
         let sedp_builtin_publications_writer = DdsDataWriter::new(
             create_builtin_stateful_writer(Guid::new(
@@ -287,6 +290,8 @@ impl DdsDomainParticipant {
             DiscoveredWriterData::type_name(),
             String::from(DCPS_PUBLICATION),
         );
+        let (sedp_builtin_publications_writer_address, sedp_builtin_publications_writer_handle) =
+            actor::spawn_actor(sedp_builtin_publications_writer);
 
         let sedp_builtin_subscriptions_writer = DdsDataWriter::new(
             create_builtin_stateful_writer(Guid::new(
@@ -296,6 +301,8 @@ impl DdsDomainParticipant {
             DiscoveredReaderData::type_name(),
             String::from(DCPS_SUBSCRIPTION),
         );
+        let (sedp_builtin_subscriptions_writer_address, sedp_builtin_subscriptions_writer_handle) =
+            actor::spawn_actor(sedp_builtin_subscriptions_writer);
 
         let mut builtin_publisher = DdsPublisher::new(
             PublisherQos::default(),
@@ -305,9 +312,18 @@ impl DdsDomainParticipant {
             )),
         );
         builtin_publisher.stateless_datawriter_add(spdp_builtin_participant_writer);
-        builtin_publisher.stateful_datawriter_add(sedp_builtin_topics_writer);
-        builtin_publisher.stateful_datawriter_add(sedp_builtin_publications_writer);
-        builtin_publisher.stateful_datawriter_add(sedp_builtin_subscriptions_writer);
+        builtin_publisher.stateful_datawriter_add((
+            sedp_builtin_topics_writer_address,
+            sedp_builtin_topics_writer_handle,
+        ));
+        builtin_publisher.stateful_datawriter_add((
+            sedp_builtin_publications_writer_address,
+            sedp_builtin_publications_writer_handle,
+        ));
+        builtin_publisher.stateful_datawriter_add((
+            sedp_builtin_subscriptions_writer_address,
+            sedp_builtin_subscriptions_writer_handle,
+        ));
 
         Self {
             rtps_participant,
@@ -634,13 +650,14 @@ impl DdsDomainParticipant {
             .ok_or(DdsError::AlreadyDeleted)?;
 
         for publisher in self.user_defined_publisher_list() {
-            if publisher.stateful_data_writer_list().iter().any(|w| {
-                w.get_type_name() == topic.get_type_name() && w.get_topic_name() == topic.get_name()
-            }) {
-                return Err(DdsError::PreconditionNotMet(
-                    "Topic still attached to some data writer".to_string(),
-                ));
-            }
+            todo!()
+            // if publisher.stateful_data_writer_list().iter().any(|w| {
+            //     w.get_type_name() == topic.get_type_name() && w.get_topic_name() == topic.get_name()
+            // }) {
+            //     return Err(DdsError::PreconditionNotMet(
+            //         "Topic still attached to some data writer".to_string(),
+            //     ));
+            // }
         }
 
         for subscriber in self.user_defined_subscriber_list() {
@@ -760,11 +777,12 @@ impl DdsDomainParticipant {
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
         for mut user_defined_publisher in self.user_defined_publisher_list.drain(..) {
             for data_writer in user_defined_publisher.stateful_datawriter_drain() {
-                if data_writer.is_enabled() {
-                    self.announce_sender
-                        .try_send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
-                        .ok();
-                }
+                todo!()
+                // if data_writer.is_enabled() {
+                //     self.announce_sender
+                //         .try_send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+                //         .ok();
+                // }
             }
         }
 
@@ -874,13 +892,15 @@ impl DdsDomainParticipant {
                 builtin_stateless_writer.enable();
             }
 
-            for builtin_stateful_writer in self
-                .builtin_publisher
-                .stateful_data_writer_list_mut()
-                .iter_mut()
-            {
-                builtin_stateful_writer.enable()
-            }
+            todo!();
+
+            // for builtin_stateful_writer in self
+            //     .builtin_publisher
+            //     .stateful_data_writer_list_mut()
+            //     .iter_mut()
+            // {
+            //     builtin_stateful_writer.enable()
+            // }
 
             if self.qos.entity_factory.autoenable_created_entities {
                 for publisher in self.user_defined_publisher_list_mut() {
@@ -1109,19 +1129,20 @@ impl DdsDomainParticipant {
                                         || is_publisher_regex_matched_to_discovered_reader
                                         || is_partition_string_matched
                                     {
-                                        for data_writer in publisher.stateful_data_writer_list_mut()
-                                        {
-                                            add_matched_reader(
-                                                data_writer,
-                                                &discovered_reader_data,
-                                                &default_unicast_locator_list,
-                                                &default_multicast_locator_list,
-                                                &publisher_qos,
-                                                publisher_guid,
-                                                participant_guid,
-                                                listener_sender,
-                                            )
-                                        }
+                                        todo!()
+                                        // for data_writer in publisher.stateful_data_writer_list_mut()
+                                        // {
+                                        //     add_matched_reader(
+                                        //         data_writer,
+                                        //         &discovered_reader_data,
+                                        //         &default_unicast_locator_list,
+                                        //         &default_multicast_locator_list,
+                                        //         &publisher_qos,
+                                        //         publisher_guid,
+                                        //         participant_guid,
+                                        //         listener_sender,
+                                        //     )
+                                        // }
                                     }
                                 }
                             }
@@ -1132,15 +1153,16 @@ impl DdsDomainParticipant {
                     let participant_guid = self.guid();
                     for publisher in self.user_defined_publisher_list_mut() {
                         let publisher_guid = publisher.guid();
-                        for data_writer in publisher.stateful_data_writer_list_mut() {
-                            remove_writer_matched_reader(
-                                data_writer,
-                                discovered_reader_data_sample.sample_info.instance_handle,
-                                publisher_guid,
-                                participant_guid,
-                                listener_sender,
-                            )
-                        }
+                        todo!()
+                        // for data_writer in publisher.stateful_data_writer_list_mut() {
+                        //     remove_writer_matched_reader(
+                        //         data_writer,
+                        //         discovered_reader_data_sample.sample_info.instance_handle,
+                        //         publisher_guid,
+                        //         participant_guid,
+                        //         listener_sender,
+                        //     )
+                        // }
                     }
                 }
 
