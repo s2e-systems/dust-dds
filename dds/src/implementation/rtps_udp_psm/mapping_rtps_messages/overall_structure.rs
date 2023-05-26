@@ -1,21 +1,12 @@
-use std::io::{BufRead, Error, Write};
+use std::io::{Error, Write};
 
 use byteorder::LittleEndian;
 
 use crate::implementation::{
-    rtps::messages::{
-        overall_structure::RtpsSubmessageHeader, RtpsMessageRead, RtpsMessageWrite,
-        RtpsSubmessageReadKind, RtpsSubmessageWriteKind,
-    },
+    rtps::messages::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind},
     rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrderInfoInData, MappingReadByteOrdered, MappingWriteByteOrderInfoInData,
-        MappingWriteByteOrdered,
+        MappingReadByteOrderInfoInData, MappingWriteByteOrderInfoInData, MappingWriteByteOrdered,
     },
-};
-
-use super::submessages::submessage_header::{
-    ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
-    INFO_TS, NACK_FRAG, PAD,
 };
 
 impl MappingWriteByteOrderInfoInData for RtpsSubmessageWriteKind<'_> {
@@ -79,62 +70,62 @@ impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessageRead<'a> {
     fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
         // The byteorder is determined by each submessage individually. Hence
         // decide here for a byteorder for the header
-        let header = MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
-        const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
-        let mut submessages = vec![];
-        for _ in 0..MAX_SUBMESSAGES {
-            if buf.len() < 4 {
-                break;
-            }
-            // Preview byte only (to allow full deserialization of submessage header)
-            let submessage_id = buf[0];
-            let submessage = match submessage_id {
-                ACKNACK => RtpsSubmessageReadKind::AckNack(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                DATA => RtpsSubmessageReadKind::Data(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                DATA_FRAG => RtpsSubmessageReadKind::DataFrag(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                GAP => RtpsSubmessageReadKind::Gap(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                HEARTBEAT => RtpsSubmessageReadKind::Heartbeat(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                HEARTBEAT_FRAG => RtpsSubmessageReadKind::HeartbeatFrag(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                INFO_DST => RtpsSubmessageReadKind::InfoDestination(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                INFO_REPLY => RtpsSubmessageReadKind::InfoReply(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                INFO_SRC => RtpsSubmessageReadKind::InfoSource(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                INFO_TS => RtpsSubmessageReadKind::InfoTimestamp(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                NACK_FRAG => RtpsSubmessageReadKind::NackFrag(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                PAD => RtpsSubmessageReadKind::Pad(
-                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-                ),
-                _ => {
-                    let submessage_header: RtpsSubmessageHeader =
-                        MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
-                    buf.consume(submessage_header.submessage_length as usize);
-                    continue;
-                }
-            };
-            submessages.push(submessage);
-        }
-        Ok(RtpsMessageRead::new(header, submessages))
+        // let header = MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
+        // const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
+        // let mut submessages = vec![];
+        // for _ in 0..MAX_SUBMESSAGES {
+        //     if buf.len() < 4 {
+        //         break;
+        //     }
+        //     // Preview byte only (to allow full deserialization of submessage header)
+        //     let submessage_id = buf[0];
+        //     let submessage = match submessage_id {
+        //         ACKNACK => RtpsSubmessageReadKind::AckNack(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         DATA => RtpsSubmessageReadKind::Data(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         DATA_FRAG => RtpsSubmessageReadKind::DataFrag(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         GAP => RtpsSubmessageReadKind::Gap(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         HEARTBEAT => RtpsSubmessageReadKind::Heartbeat(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         HEARTBEAT_FRAG => RtpsSubmessageReadKind::HeartbeatFrag(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         INFO_DST => RtpsSubmessageReadKind::InfoDestination(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         INFO_REPLY => RtpsSubmessageReadKind::InfoReply(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         INFO_SRC => RtpsSubmessageReadKind::InfoSource(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         INFO_TS => RtpsSubmessageReadKind::InfoTimestamp(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         NACK_FRAG => RtpsSubmessageReadKind::NackFrag(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         PAD => RtpsSubmessageReadKind::Pad(
+        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+        //         ),
+        //         _ => {
+        //             let submessage_header: RtpsSubmessageHeader =
+        //                 MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
+        //             buf.consume(submessage_header.submessage_length as usize);
+        //             continue;
+        //         }
+        //     };
+        //     submessages.push(submessage);
+        // }
+        Ok(RtpsMessageRead::new(buf))
     }
 }
 
@@ -146,15 +137,16 @@ mod tests {
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::{Parameter, ParameterList},
-                submessages::{DataSubmessageRead, DataSubmessageWrite, HeartbeatSubmessage},
+                submessages::{DataSubmessageRead, DataSubmessageWrite, HeartbeatSubmessageRead},
                 types::{ParameterId, ProtocolId, SerializedPayload},
+                RtpsSubmessageReadKind,
             },
             types::{
-                Count, EntityId, EntityKey, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
+                EntityId, EntityKey, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
                 USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
             },
         },
-        rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
+        rtps_udp_psm::mapping_traits::to_bytes,
     };
 
     use super::*;
@@ -242,76 +234,56 @@ mod tests {
             guid_prefix: GuidPrefix::new([3; 12]),
         };
 
-        let expected = RtpsMessageRead::new(header, Vec::new());
         #[rustfmt::skip]
-        let result: RtpsMessageRead = from_bytes(&[
+        let rtps_message = RtpsMessageRead::new(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
-        ]).unwrap();
-        assert_eq!(result, expected);
+        ]);
+        assert_eq!(header, rtps_message.header());
     }
 
     #[test]
     fn deserialize_rtps_message() {
-        let header = RtpsMessageHeader {
+        let expected_header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefix::new([3; 12]),
         };
-        let endianness_flag = true;
-        let inline_qos_flag = true;
-        let data_flag = false;
-        let key_flag = false;
-        let non_standard_payload_flag = false;
-        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let writer_sn = SequenceNumber::new(5);
-        let inline_qos = &[
+
+        #[rustfmt::skip]
+        let data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::new(
+            &[0x15, 0b_0000_0011, 40, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
             6, 0, 4, 0, // inlineQos: parameterId_1, length_1
             10, 11, 12, 13, // inlineQos: value_1[length_1]
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 1, 0, // inlineQos: Sentinel
-        ];
-        let serialized_payload = SerializedPayload::new(&[]);
-
-        let data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead {
-            endianness_flag,
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        });
-        let endianness_flag = true;
-        let final_flag = false;
-        let liveliness_flag = true;
-        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let first_sn = SequenceNumber::new(5);
-        let last_sn = SequenceNumber::new(7);
-        let count = Count::new(2);
-        let heartbeat_submessage = RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessage {
-            endianness_flag,
-            final_flag,
-            liveliness_flag,
-            reader_id,
-            writer_id,
-            first_sn,
-            last_sn,
-            count,
-        });
-        let expected = RtpsMessageRead::new(header, vec![data_submessage, heartbeat_submessage]);
+        ]));
         #[rustfmt::skip]
-        let result: RtpsMessageRead = from_bytes(&[
+        let heartbeat_submessage = RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::new(&[
+            0x07, 0b_0000_0101, 28, 0, // Submessage header
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // firstSN: SequenceNumber: high
+            5, 0, 0, 0, // firstSN: SequenceNumber: low
+            0, 0, 0, 0, // lastSN: SequenceNumberSet: high
+            7, 0, 0, 0, // lastSN: SequenceNumberSet: low
+            2, 0, 0, 0, // count: Count: value (long)
+        ]));
+
+        let expected_submessages = vec![data_submessage, heartbeat_submessage];
+
+        #[rustfmt::skip]
+        let rtps_message: RtpsMessageRead = RtpsMessageRead::new(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -336,50 +308,31 @@ mod tests {
             0, 0, 0, 0, // lastSN: SequenceNumberSet: high
             7, 0, 0, 0, // lastSN: SequenceNumberSet: low
             2, 0, 0, 0, // count: Count: value (long)
-        ]).unwrap();
-        assert_eq!(result, expected);
+        ]);
+        assert_eq!(expected_header, rtps_message.header());
+        assert_eq!(expected_submessages, rtps_message.submessages());
     }
 
     #[test]
     fn deserialize_rtps_message_unknown_submessage() {
-        let header = RtpsMessageHeader {
-            protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
-        };
-        let endianness_flag = true;
-        let inline_qos_flag = true;
-        let data_flag = false;
-        let key_flag = false;
-        let non_standard_payload_flag = false;
-        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let writer_sn = SequenceNumber::new(5);
-        let inline_qos = &[
+        #[rustfmt::skip]
+        let submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::new(&[
+            0x15, 0b_0000_0011, 40, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
             6, 0, 4, 0, // inlineQos: parameterId_1, length_1
             10, 11, 12, 13, // inlineQos: value_1[length_1]
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 0, 0, // inlineQos: Sentinel
-        ];
-        let serialized_payload = SerializedPayload::new(&[]);
+        ]));
+        let expected_submessages = vec![submessage];
 
-        let submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead {
-            endianness_flag,
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        });
-        let expected = RtpsMessageRead::new(header, vec![submessage]);
         #[rustfmt::skip]
-        let result: RtpsMessageRead = from_bytes(&[
+        let rtps_message = RtpsMessageRead::new(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -398,7 +351,7 @@ mod tests {
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 0, 0, // inlineQos: Sentinel
-        ]).unwrap();
-        assert_eq!(result, expected);
+        ]);
+        assert_eq!(expected_submessages, rtps_message.submessages());
     }
 }

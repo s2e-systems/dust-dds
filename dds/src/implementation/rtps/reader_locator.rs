@@ -5,7 +5,7 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::SequenceNumberSet,
-        submessages::{GapSubmessage, InfoTimestampSubmessage},
+        submessages::{ GapSubmessageWrite, InfoTimestampSubmessageWrite},
         RtpsMessageWrite, RtpsSubmessageWriteKind,
     },
     transport::TransportWrite,
@@ -20,7 +20,7 @@ pub struct RtpsReaderLocator {
 }
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessage {
+    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite {
         endianness_flag: true,
         invalidate_flag: false,
         timestamp: super::messages::types::Time::new(timestamp.sec(), timestamp.nanosec()),
@@ -31,7 +31,7 @@ fn gap_submessage<'a>(
     writer_id: EntityId,
     gap_sequence_number: SequenceNumber,
 ) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::Gap(GapSubmessage {
+    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite {
         endianness_flag: true,
         reader_id: ENTITYID_UNKNOWN,
         writer_id,

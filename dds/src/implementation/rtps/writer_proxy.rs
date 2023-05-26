@@ -8,8 +8,8 @@ use super::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::{FragmentNumberSet, SequenceNumberSet},
         submessages::{
-            AckNackSubmessage, DataFragSubmessageRead, InfoDestinationSubmessage,
-            NackFragSubmessage,
+            AckNackSubmessageWrite, DataFragSubmessageRead, InfoDestinationSubmessageWrite,
+            NackFragSubmessageWrite,
         },
         types::{FragmentNumber, ULong, UShort},
         RtpsMessageWrite, RtpsSubmessageWriteKind,
@@ -30,11 +30,11 @@ pub struct OwningDataFragSubmessage {
 impl From<&DataFragSubmessageRead<'_>> for OwningDataFragSubmessage {
     fn from(x: &DataFragSubmessageRead<'_>) -> Self {
         Self {
-            fragment_starting_num: x.fragment_starting_num,
-            data_size: x.data_size,
-            fragment_size: x.fragment_size,
-            fragments_in_submessage: x.fragments_in_submessage,
-            serialized_payload: <&[u8]>::from(&x.serialized_payload).to_vec(),
+            fragment_starting_num: x.fragment_starting_num(),
+            data_size: x.data_size(),
+            fragment_size: x.fragment_size(),
+            fragments_in_submessage: x.fragments_in_submessage(),
+            serialized_payload: <&[u8]>::from(&x.serialized_payload()).to_vec(),
         }
     }
 }
@@ -94,7 +94,7 @@ impl RtpsWriterProxy {
 
     pub fn push_data_frag(&mut self, submessage: &DataFragSubmessageRead) {
         let owning_data_frag = submessage.into();
-        let frag_bug_seq_num = self.frag_buffer.entry(submessage.writer_sn).or_default();
+        let frag_bug_seq_num = self.frag_buffer.entry(submessage.writer_sn()).or_default();
         if !frag_bug_seq_num.contains(&owning_data_frag) {
             frag_bug_seq_num.push(owning_data_frag);
         }
@@ -269,12 +269,12 @@ impl RtpsWriterProxy {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
 
-            let info_dst_submessage = InfoDestinationSubmessage {
+            let info_dst_submessage = InfoDestinationSubmessageWrite {
                 endianness_flag: true,
                 guid_prefix: self.remote_writer_guid().prefix(),
             };
 
-            let acknack_submessage = AckNackSubmessage {
+            let acknack_submessage = AckNackSubmessageWrite {
                 endianness_flag: true,
                 final_flag: true,
                 reader_id: reader_guid.entity_id(),
@@ -308,7 +308,7 @@ impl RtpsWriterProxy {
                 if !missing_fragment_number.is_empty() {
                     self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
                     let nack_frag_submessage =
-                        RtpsSubmessageWriteKind::NackFrag(NackFragSubmessage {
+                        RtpsSubmessageWriteKind::NackFrag(NackFragSubmessageWrite {
                             endianness_flag: true,
                             reader_id: reader_guid.entity_id(),
                             writer_id: self.remote_writer_guid().entity_id(),

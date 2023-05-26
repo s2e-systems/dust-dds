@@ -2,18 +2,16 @@ use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 
+use crate::implementation::rtps::messages::submessages::InfoSourceSubmessageWrite;
 use crate::implementation::rtps::messages::{
     overall_structure::RtpsSubmessageHeader, types::SubmessageKind,
 };
 
-use crate::implementation::rtps::messages::submessages::InfoSourceSubmessage;
-use crate::implementation::rtps_udp_psm::mapping_traits::{
-    MappingReadByteOrdered, MappingWriteByteOrdered,
-};
+use crate::implementation::rtps_udp_psm::mapping_traits::MappingWriteByteOrdered;
 
-use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
+use super::submessage::MappingWriteSubmessage;
 
-impl MappingWriteSubmessage for InfoSourceSubmessage {
+impl MappingWriteSubmessage for InfoSourceSubmessageWrite {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         RtpsSubmessageHeader {
             submessage_id: SubmessageKind::INFO_SRC,
@@ -46,33 +44,21 @@ impl MappingWriteSubmessage for InfoSourceSubmessage {
     }
 }
 
-impl<'de> MappingReadSubmessage<'de> for InfoSourceSubmessage {
-    fn mapping_read_submessage<B: ByteOrder>(
-        buf: &mut &'de [u8],
-        header: RtpsSubmessageHeader,
-    ) -> Result<Self, Error> {
-        let _unused: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        Ok(InfoSourceSubmessage {
-            endianness_flag: header.flags[0],
-            protocol_version: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
-            vendor_id: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
-            guid_prefix: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::implementation::{
-        rtps::types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
-        rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
+        rtps::{
+            messages::submessages::InfoSourceSubmessageRead,
+            types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
+        },
+        rtps_udp_psm::mapping_traits::to_bytes,
     };
 
     use super::*;
 
     #[test]
     fn serialize_info_source() {
-        let submessage = InfoSourceSubmessage {
+        let submessage = InfoSourceSubmessageWrite {
             endianness_flag: true,
             protocol_version: PROTOCOLVERSION_1_0,
             vendor_id: VENDOR_ID_UNKNOWN,
@@ -93,23 +79,23 @@ mod tests {
     #[test]
     fn deserialize_info_source() {
         #[rustfmt::skip]
-        let buf = [
+        let submessage = InfoSourceSubmessageRead::new(&[
             0x0c, 0b_0000_0001, 20, 0, // Submessage header
             0, 0, 0, 0, // unused
             1, 0, 0, 0, //protocol_version | vendor_id
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
-        ];
+        ]);
 
-        assert_eq!(
-            InfoSourceSubmessage {
-                endianness_flag: true,
-                protocol_version: PROTOCOLVERSION_1_0,
-                vendor_id: VENDOR_ID_UNKNOWN,
-                guid_prefix: GUIDPREFIX_UNKNOWN,
-            },
-            from_bytes(&buf).unwrap()
-        );
+        let expected_endianness_flag = true;
+        let expected_protocol_version = PROTOCOLVERSION_1_0;
+        let expected_vendor_id = VENDOR_ID_UNKNOWN;
+        let expected_guid_prefix = GUIDPREFIX_UNKNOWN;
+
+        assert_eq!(expected_endianness_flag, submessage.endianness_flag());
+        assert_eq!(expected_protocol_version, submessage.protocol_version());
+        assert_eq!(expected_vendor_id, submessage.vendor_id());
+        assert_eq!(expected_guid_prefix, submessage.guid_prefix());
     }
 }

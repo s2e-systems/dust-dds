@@ -4,8 +4,14 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::types::SerializedPayload,
-    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes, MappingReadByteOrdered},
 };
+
+impl<'de> MappingReadByteOrdered<'de> for SerializedPayload<'de> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        Ok(SerializedPayload::new(buf))
+    }
+}
 
 impl MappingWriteByteOrdered for SerializedPayload<'_> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(

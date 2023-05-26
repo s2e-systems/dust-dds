@@ -154,8 +154,8 @@ impl RtpsStatelessReader {
         data_submessage: &DataSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
     ) -> StatelessReaderDataReceivedResult {
-        if data_submessage.reader_id == ENTITYID_UNKNOWN
-            || data_submessage.reader_id == self.0.guid().entity_id()
+        if data_submessage.reader_id() == ENTITYID_UNKNOWN
+            || data_submessage.reader_id() == self.0.guid().entity_id()
         {
             let change_result = self.0.convert_data_to_cache_change(
                 data_submessage,

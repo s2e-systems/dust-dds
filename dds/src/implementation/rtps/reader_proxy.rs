@@ -4,9 +4,11 @@ use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         submessages::{
-            AckNackSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage, NackFragSubmessage,
+            AckNackSubmessageRead, HeartbeatFragSubmessageWrite, HeartbeatSubmessageWrite,
+            NackFragSubmessageRead,
         },
-        types::FragmentNumber, RtpsSubmessageWriteKind,
+        types::FragmentNumber,
+        RtpsSubmessageWriteKind,
     },
     types::{
         Count, DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind,
@@ -43,7 +45,7 @@ impl HeartbeatMachine {
     ) -> RtpsSubmessageWriteKind<'a> {
         self.count = self.count.wrapping_add(1);
         self.timer.reset();
-        RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessage {
+        RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessageWrite {
             endianness_flag: true,
             final_flag: false,
             liveliness_flag: false,
@@ -76,7 +78,7 @@ impl HeartbeatFragMachine {
         last_fragment_num: FragmentNumber,
     ) -> RtpsSubmessageWriteKind<'a> {
         self.count = self.count.wrapping_add(1);
-        RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessage {
+        RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessageWrite {
             endianness_flag: true,
             reader_id: self.reader_id,
             writer_id,
@@ -167,27 +169,27 @@ impl RtpsReaderProxy {
         self.durability
     }
 
-    pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
+    pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessageRead) {
         match self.reliability {
             ReliabilityKind::BestEffort => (),
             ReliabilityKind::Reliable => {
-                if acknack_submessage.count > self.last_received_acknack_count {
-                    self.acked_changes_set(acknack_submessage.reader_sn_state.base - 1);
-                    self.requested_changes_set(acknack_submessage.reader_sn_state.set.as_ref());
+                if acknack_submessage.count() > self.last_received_acknack_count {
+                    self.acked_changes_set(acknack_submessage.reader_sn_state().base - 1);
+                    self.requested_changes_set(acknack_submessage.reader_sn_state().set.as_ref());
 
-                    self.last_received_acknack_count = acknack_submessage.count;
+                    self.last_received_acknack_count = acknack_submessage.count();
                 }
             }
         }
     }
 
-    pub fn receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessage) {
+    pub fn receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessageRead) {
         match self.reliability {
             ReliabilityKind::BestEffort => (),
             ReliabilityKind::Reliable => {
-                if nack_frag_submessage.count > self.last_received_nack_frag_count {
-                    self.requested_changes_set(&[nack_frag_submessage.writer_sn]);
-                    self.last_received_nack_frag_count = nack_frag_submessage.count;
+                if nack_frag_submessage.count() > self.last_received_nack_frag_count {
+                    self.requested_changes_set(&[nack_frag_submessage.writer_sn()]);
+                    self.last_received_nack_frag_count = nack_frag_submessage.count();
                 }
             }
         }

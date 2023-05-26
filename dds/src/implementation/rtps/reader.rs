@@ -66,11 +66,11 @@ pub fn convert_data_frag_to_cache_change(
     source_guid_prefix: GuidPrefix,
     reception_timestamp: Time,
 ) -> Result<RtpsReaderCacheChange, RtpsReaderError> {
-    let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id);
+    let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
 
     let inline_qos = data_frag_submessage.inline_qos();
 
-    let change_kind = if data_frag_submessage.key_flag {
+    let change_kind = if data_frag_submessage.key_flag() {
         if let Some(p) = inline_qos
             .parameter()
             .iter()
@@ -257,13 +257,13 @@ impl RtpsReader {
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
     ) -> RtpsReaderResult<RtpsReaderCacheChange> {
-        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id);
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
 
-        let data = <&[u8]>::from(&data_submessage.serialized_payload).to_vec();
+        let data = <&[u8]>::from(data_submessage.serialized_payload()).to_vec();
 
         let inline_qos = data_submessage.inline_qos();
 
-        let change_kind = match (data_submessage.data_flag, data_submessage.key_flag) {
+        let change_kind = match (data_submessage.data_flag(), data_submessage.key_flag()) {
             (true, false) => Ok(ChangeKind::Alive),
             (false, true) | (false, false) => {
                 if let Some(p) = inline_qos

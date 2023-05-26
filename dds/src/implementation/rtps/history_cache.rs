@@ -6,7 +6,7 @@ use crate::{
 use super::{
     messages::{
         submessage_elements::{ParameterList, SequenceNumberSet},
-        submessages::{DataFragSubmessageWrite, DataSubmessageWrite, GapSubmessage},
+        submessages::{DataFragSubmessageWrite, DataSubmessageWrite, GapSubmessageWrite,},
         types::SerializedPayload,
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
@@ -23,8 +23,8 @@ pub struct RtpsWriterCacheChange {
 }
 
 impl RtpsWriterCacheChange {
-    pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessage {
-        GapSubmessage {
+    pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessageWrite {
+        GapSubmessageWrite {
             endianness_flag: true,
             reader_id,
             writer_id: self.writer_guid.entity_id(),

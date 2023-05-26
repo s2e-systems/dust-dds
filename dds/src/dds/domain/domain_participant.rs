@@ -37,8 +37,9 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::SequenceNumberSet,
-                submessages::{GapSubmessage, InfoDestinationSubmessage, InfoTimestampSubmessage},
-                types::{FragmentNumber, ProtocolId}, RtpsSubmessageWriteKind, RtpsMessageWrite, RtpsMessageRead,
+                submessages::{GapSubmessageWrite, InfoDestinationSubmessageWrite, InfoTimestampSubmessageWrite},
+                types::{FragmentNumber, ProtocolId},
+                RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind,
             },
             reader_locator::WriterAssociatedReaderLocator,
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
@@ -1929,7 +1930,7 @@ fn send_message_best_effort_reader_proxy(
                 ))
             }
         } else {
-            let gap_submessage: GapSubmessage = change
+            let gap_submessage: GapSubmessageWrite = change
                 .cache_change()
                 .as_gap_message(reader_proxy.remote_reader_guid().entity_id());
             submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
@@ -1995,7 +1996,8 @@ fn send_message_reliable_reader_proxy(
                     ))
                 }
             } else {
-                let gap_submessage: GapSubmessage = change.cache_change().as_gap_message(reader_id);
+                let gap_submessage: GapSubmessageWrite =
+                    change.cache_change().as_gap_message(reader_id);
 
                 submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
             }
@@ -2049,7 +2051,7 @@ fn send_message_reliable_reader_proxy(
                     ))
                 }
             } else {
-                let gap_submessage: GapSubmessage =
+                let gap_submessage: GapSubmessageWrite =
                     change_for_reader.cache_change().as_gap_message(reader_id);
 
                 submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
@@ -2073,7 +2075,7 @@ fn gap_submessage<'a>(
     writer_id: EntityId,
     gap_sequence_number: SequenceNumber,
 ) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::Gap(GapSubmessage {
+    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite {
         endianness_flag: true,
         reader_id: ENTITYID_UNKNOWN,
         writer_id,
@@ -2086,7 +2088,7 @@ fn gap_submessage<'a>(
 }
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessage {
+    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite {
         endianness_flag: true,
         invalidate_flag: false,
         timestamp: crate::implementation::rtps::messages::types::Time::new(
@@ -2097,7 +2099,7 @@ fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a>
 }
 
 fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessage {
+    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite {
         endianness_flag: true,
         guid_prefix,
     })

@@ -2,17 +2,17 @@ use std::io::{Error, Write};
 
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::RtpsSubmessageHeader, submessages::AckNackSubmessage,
-        types::SubmessageKind,
+        overall_structure::RtpsSubmessageHeader,
+        types::SubmessageKind, submessages::AckNackSubmessageWrite,
     },
     rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
+        MappingWriteByteOrdered, NumberOfBytes,
     },
 };
 
-use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
+use super::submessage::{MappingWriteSubmessage};
 
-impl MappingWriteSubmessage for AckNackSubmessage {
+impl MappingWriteSubmessage for AckNackSubmessageWrite {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let octets_to_next_header = self.reader_id.number_of_bytes()
             + self.writer_id.number_of_bytes()
@@ -50,40 +50,17 @@ impl MappingWriteSubmessage for AckNackSubmessage {
     }
 }
 
-impl<'de> MappingReadSubmessage<'de> for AckNackSubmessage {
-    fn mapping_read_submessage<B: byteorder::ByteOrder>(
-        buf: &mut &'de [u8],
-        header: RtpsSubmessageHeader,
-    ) -> Result<Self, Error> {
-        let endianness_flag = header.flags[0];
-        let final_flag = header.flags[1];
-        let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let reader_sn_state = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let count = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-
-        Ok(Self {
-            endianness_flag,
-            final_flag,
-            reader_id,
-            writer_id,
-            reader_sn_state,
-            count,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::implementation::{
         rtps::{
-            messages::submessage_elements::SequenceNumberSet,
+            messages::{submessage_elements::SequenceNumberSet, submessages::AckNackSubmessageRead},
             types::{
                 Count, EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_READER_NO_KEY,
             },
         },
-        rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
+        rtps_udp_psm::mapping_traits::{to_bytes},
     };
 
     use super::*;
@@ -94,7 +71,7 @@ mod tests {
         let final_flag = false;
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let submessage = AckNackSubmessage {
+        let submessage = AckNackSubmessageWrite {
             endianness_flag,
             final_flag,
             reader_id,
@@ -121,29 +98,31 @@ mod tests {
     #[test]
     fn deserialize_acknack() {
         #[rustfmt::skip]
-        let buf = [
+        let submessage = AckNackSubmessageRead::new(&[
                 0x06_u8, 0b_0000_0001, 24, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
                 0, 0, 0, 0, // reader_sn_state.base
                10, 0, 0, 0, // reader_sn_state.base
                 0, 0, 0, 0, // reader_sn_state.set: numBits (ULong)
-                0, 0, 0, 0, // count
-        ];
+                2, 0, 0, 0, // count
+        ]);
 
-        assert_eq!(
-            AckNackSubmessage {
-                endianness_flag: true,
-                final_flag: false,
-                reader_id: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-                writer_id: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-                reader_sn_state: SequenceNumberSet {
-                    base: SequenceNumber::new(10),
-                    set: vec![],
-                },
-                count: Count::new(0),
-            },
-            from_bytes(&buf).unwrap()
-        );
+        let expected_endianness_flag = true;
+        let expected_final_flag = false;
+        let expected_reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let expected_reader_sn_state = SequenceNumberSet {
+            base: SequenceNumber::new(10),
+            set: vec![],
+        };
+        let expected_count = Count::new(2);
+
+        assert_eq!(expected_endianness_flag, submessage.endianness_flag());
+        assert_eq!(expected_final_flag, submessage.final_flag());
+        assert_eq!(expected_reader_id, submessage.reader_id());
+        assert_eq!(expected_writer_id, submessage.writer_id());
+        assert_eq!(expected_reader_sn_state, submessage.reader_sn_state());
+        assert_eq!(expected_count, submessage.count());
     }
 }

@@ -19,8 +19,8 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessages::{
-            DataFragSubmessageRead, DataSubmessageRead, GapSubmessage, HeartbeatFragSubmessage,
-            HeartbeatSubmessage,
+            DataFragSubmessageRead, DataSubmessageRead, GapSubmessageRead,
+            HeartbeatFragSubmessageRead, HeartbeatSubmessageRead,
         },
     },
     reader::{
@@ -214,10 +214,10 @@ impl RtpsStatefulReader {
         data_submessage: &DataSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
     ) -> StatefulReaderDataReceivedResult {
-        let sequence_number = data_submessage.writer_sn;
+        let sequence_number = data_submessage.writer_sn();
         let writer_guid = Guid::new(
             message_receiver.source_guid_prefix(),
-            data_submessage.writer_id,
+            data_submessage.writer_id(),
         );
 
         if let Some(writer_proxy) = self
@@ -276,7 +276,8 @@ impl RtpsStatefulReader {
 
                                 match add_change_result {
                                     Ok(instance_handle) => {
-                                        writer_proxy.received_change_set(data_submessage.writer_sn);
+                                        writer_proxy
+                                            .received_change_set(data_submessage.writer_sn());
                                         StatefulReaderDataReceivedResult::NewSampleAdded(
                                             instance_handle,
                                         )
@@ -303,10 +304,10 @@ impl RtpsStatefulReader {
         data_frag_submessage: &DataFragSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
     ) -> StatefulReaderDataReceivedResult {
-        let sequence_number = data_frag_submessage.writer_sn;
+        let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(
             message_receiver.source_guid_prefix(),
-            data_frag_submessage.writer_id,
+            data_frag_submessage.writer_id(),
         );
 
         if let Some(writer_proxy) = self
@@ -400,31 +401,31 @@ impl RtpsStatefulReader {
 
     pub fn on_heartbeat_submessage_received(
         &mut self,
-        heartbeat_submessage: &HeartbeatSubmessage,
+        heartbeat_submessage: &HeartbeatSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
         if self.reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id);
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
 
             if let Some(writer_proxy) = self
                 .matched_writers
                 .iter_mut()
                 .find(|x| x.remote_writer_guid() == writer_guid)
             {
-                if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count {
-                    writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count);
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
+                    writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
 
                     writer_proxy.set_must_send_acknacks(
-                        !heartbeat_submessage.final_flag
-                            || (!heartbeat_submessage.liveliness_flag
+                        !heartbeat_submessage.final_flag()
+                            || (!heartbeat_submessage.liveliness_flag()
                                 && !writer_proxy.missing_changes().is_empty()),
                     );
 
-                    if !heartbeat_submessage.final_flag {
+                    if !heartbeat_submessage.final_flag() {
                         writer_proxy.set_must_send_acknacks(true);
                     }
-                    writer_proxy.missing_changes_update(heartbeat_submessage.last_sn);
-                    writer_proxy.lost_changes_update(heartbeat_submessage.first_sn);
+                    writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
+                    writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
                 }
             }
         }
@@ -432,20 +433,21 @@ impl RtpsStatefulReader {
 
     pub fn on_heartbeat_frag_submessage_received(
         &mut self,
-        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
+        heartbeat_frag_submessage: &HeartbeatFragSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
         if self.reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let writer_guid = Guid::new(source_guid_prefix, heartbeat_frag_submessage.writer_id);
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_frag_submessage.writer_id());
 
             if let Some(writer_proxy) = self
                 .matched_writers
                 .iter_mut()
                 .find(|x| x.remote_writer_guid() == writer_guid)
             {
-                if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count {
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count()
+                {
                     writer_proxy
-                        .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count);
+                        .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count());
                 }
 
                 // todo!()
@@ -455,22 +457,22 @@ impl RtpsStatefulReader {
 
     pub fn on_gap_submessage_received(
         &mut self,
-        gap_submessage: &GapSubmessage,
+        gap_submessage: &GapSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
-        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id);
+        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id());
         if let Some(writer_proxy) = self
             .matched_writers
             .iter_mut()
             .find(|x| x.remote_writer_guid() == writer_guid)
         {
             for seq_num in
-                i64::from(gap_submessage.gap_start)..i64::from(gap_submessage.gap_list.base)
+                i64::from(gap_submessage.gap_start())..i64::from(gap_submessage.gap_list().base)
             {
                 writer_proxy.irrelevant_change_set(SequenceNumber::new(seq_num))
             }
 
-            for seq_num in &gap_submessage.gap_list.set {
+            for seq_num in &gap_submessage.gap_list().set {
                 writer_proxy.irrelevant_change_set(*seq_num)
             }
         }
