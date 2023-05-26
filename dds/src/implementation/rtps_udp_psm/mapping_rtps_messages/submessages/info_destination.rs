@@ -4,7 +4,7 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::RtpsSubmessageHeader, submessages::InfoDestinationSubmessageWrite,
+        overall_structure::SubmessageHeaderWrite, submessages::InfoDestinationSubmessageWrite,
         types::SubmessageKind,
     },
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
@@ -13,9 +13,9 @@ use crate::implementation::{
 use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for InfoDestinationSubmessageWrite {
-    fn submessage_header(&self) -> RtpsSubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeaderWrite {
         let octets_to_next_header = self.guid_prefix.number_of_bytes();
-        RtpsSubmessageHeader {
+        SubmessageHeaderWrite {
             submessage_id: SubmessageKind::INFO_DST,
             flags: [
                 self.endianness_flag,

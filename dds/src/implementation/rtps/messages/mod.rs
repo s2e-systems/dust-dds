@@ -15,7 +15,7 @@ use crate::implementation::{
 };
 
 use self::{
-    overall_structure::RtpsMessageHeader,
+    overall_structure::{RtpsMessageHeader, SubmessageHeaderRead},
     submessages::{
         AckNackSubmessageWrite, DataFragSubmessageRead, DataFragSubmessageWrite,
         DataSubmessageRead, DataSubmessageWrite, GapSubmessageWrite, HeartbeatFragSubmessageWrite,
@@ -32,6 +32,24 @@ pub mod overall_structure;
 pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
+
+pub trait FromBytes {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self;
+}
+
+trait SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeaderRead;
+}
+
+trait RtpsMap:SubmessageHeader {
+    fn map<T: FromBytes>(&self, data: &[u8]) -> T {
+        if self.submessage_header().endianness_flag() {
+            T::from_bytes::<byteorder::LittleEndian>(data)
+        } else {
+            T::from_bytes::<byteorder::BigEndian>(data)
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageRead<'a> {

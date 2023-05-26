@@ -8,16 +8,18 @@ use crate::implementation::{
 
 use super::{
     submessage_elements::{FragmentNumberSet, LocatorList, ParameterList, SequenceNumberSet},
-    types::{FragmentNumber, SerializedPayload, SubmessageFlag, Time, ULong, UShort, TIME_INVALID},
+    types::{FragmentNumber, SerializedPayload, SubmessageFlag, Time, ULong, UShort, TIME_INVALID}, RtpsMap, SubmessageHeader, overall_structure::SubmessageHeaderRead,
 };
 
+impl<T:SubmessageHeader> RtpsMap for T{}
 #[derive(Debug, PartialEq, Eq)]
 pub struct AckNackSubmessageRead<'a> {
     data: &'a [u8],
 }
-impl Endianness for AckNackSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+
+impl SubmessageHeader for AckNackSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
 
@@ -26,28 +28,24 @@ impl<'a> AckNackSubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn final_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0010) != 0
+        self.submessage_header().flags()[1]
     }
 
     pub fn reader_id(&self) -> EntityId {
-        self.mapping_read(&self.data[4..])
+        self.map(&self.data[4..])
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.mapping_read(&self.data[8..])
+        self.map(&self.data[8..])
     }
 
     pub fn reader_sn_state(&self) -> SequenceNumberSet {
-        self.mapping_read(&self.data[12..])
+        self.map(&self.data[12..])
     }
 
     pub fn count(&self) -> Count {
-        self.mapping_read(&self.data[self.data.len() - 4..])
+        self.map(&self.data[self.data.len() - 4..])
     }
 }
 

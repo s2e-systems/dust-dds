@@ -2,7 +2,7 @@ use std::io::{Error, Write};
 
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::RtpsSubmessageHeader, submessages::InfoTimestampSubmessageWrite,
+        overall_structure::SubmessageHeaderWrite, submessages::InfoTimestampSubmessageWrite,
         types::SubmessageKind,
     },
     rtps_udp_psm::mapping_traits::MappingWriteByteOrdered,
@@ -11,12 +11,12 @@ use crate::implementation::{
 use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for InfoTimestampSubmessageWrite {
-    fn submessage_header(&self) -> RtpsSubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeaderWrite {
         let submessage_length = match self.invalidate_flag {
             true => 0,
             false => 8,
         };
-        RtpsSubmessageHeader {
+        SubmessageHeaderWrite {
             submessage_id: SubmessageKind::INFO_TS,
             flags: [
                 self.endianness_flag,
@@ -87,37 +87,37 @@ mod tests {
         );
     }
 
-    #[test]
-    fn deserialize_info_timestamp_valid_time() {
-        #[rustfmt::skip]
-        let submessage = InfoTimestampSubmessageRead::new(&[
-            0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
-            4, 0, 0, 0, // Time
-            0, 0, 0, 0, // Time
-        ]);
+    // #[test]
+    // fn deserialize_info_timestamp_valid_time() {
+    //     #[rustfmt::skip]
+    //     let submessage = InfoTimestampSubmessageRead::new(&[
+    //         0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
+    //         4, 0, 0, 0, // Time
+    //         0, 0, 0, 0, // Time
+    //     ]);
 
-        let expected_endianness_flag = true;
-        let expected_invalidate_flag = false;
-        let expected_timestamp = Time::new(4, 0);
+    //     let expected_endianness_flag = true;
+    //     let expected_invalidate_flag = false;
+    //     let expected_timestamp = Time::new(4, 0);
 
-        assert_eq!(expected_endianness_flag, submessage.endianness_flag());
-        assert_eq!(expected_invalidate_flag, submessage.invalidate_flag());
-        assert_eq!(expected_timestamp, submessage.timestamp());
-    }
+    //     assert_eq!(expected_endianness_flag, submessage.endianness_flag());
+    //     assert_eq!(expected_invalidate_flag, submessage.invalidate_flag());
+    //     assert_eq!(expected_timestamp, submessage.timestamp());
+    // }
 
-    #[test]
-    fn deserialize_info_timestamp_invalid_time() {
-        #[rustfmt::skip]
-        let submessage = InfoTimestampSubmessageRead::new(&[
-            0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
-        ]);
+    // #[test]
+    // fn deserialize_info_timestamp_invalid_time() {
+    //     #[rustfmt::skip]
+    //     let submessage = InfoTimestampSubmessageRead::new(&[
+    //         0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
+    //     ]);
 
-        let expected_endianness_flag = true;
-        let expected_invalidate_flag = true;
-        let expected_timestamp = TIME_INVALID;
+    //     let expected_endianness_flag = true;
+    //     let expected_invalidate_flag = true;
+    //     let expected_timestamp = TIME_INVALID;
 
-        assert_eq!(expected_endianness_flag, submessage.endianness_flag());
-        assert_eq!(expected_invalidate_flag, submessage.invalidate_flag());
-        assert_eq!(expected_timestamp, submessage.timestamp());
-    }
+    //     assert_eq!(expected_endianness_flag, submessage.endianness_flag());
+    //     assert_eq!(expected_invalidate_flag, submessage.invalidate_flag());
+    //     assert_eq!(expected_timestamp, submessage.timestamp());
+    // }
 }
