@@ -4,14 +4,13 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::SubmessageHeaderWrite,
-        submessages::{DataSubmessageRead, DataSubmessageWrite},
+        overall_structure::SubmessageHeaderWrite, submessages::DataSubmessageWrite,
         types::SubmessageKind,
     },
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
 
-use super::submessage::{ MappingWriteSubmessage};
+use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for DataSubmessageWrite<'_> {
     fn submessage_header(&self) -> SubmessageHeaderWrite {

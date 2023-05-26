@@ -1,3 +1,5 @@
+use std::io::BufRead;
+
 use byteorder::ReadBytesExt;
 
 use crate::implementation::{
@@ -181,38 +183,35 @@ pub struct DataSubmessageWrite<'a> {
 pub struct DataFragSubmessageRead<'a> {
     data: &'a [u8],
 }
-impl Endianness for DataFragSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+
+impl SubmessageHeader for DataFragSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
+
 impl<'a> DataFragSubmessageRead<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         Self { data }
     }
 
-    fn octets_to_inline_qos(&self) -> usize {
-        (&self.data[6..])
-            .read_u16::<byteorder::LittleEndian>()
-            .unwrap() as usize
+    fn octets_to_inline_qos(&self) -> u16 {
+        self.map(&self.data[6..])
     }
 
     fn inline_qos_len(&self) -> usize {
-        let mut parameter_list_buf = &self.data[8 + self.octets_to_inline_qos()..];
-        let parameter_list_buf_length = parameter_list_buf.len();
-
         if self.inline_qos_flag() {
+            let mut parameter_list_buf = &self.data[8 + self.octets_to_inline_qos() as usize..];
+            let parameter_list_buf_length = parameter_list_buf.len();
             loop {
-                let pid = parameter_list_buf
-                    .read_u16::<byteorder::LittleEndian>()
-                    .expect("pid read failed");
-                let length = parameter_list_buf
-                    .read_i16::<byteorder::LittleEndian>()
-                    .expect("length read failed");
+                let pid: u16 = self.map(parameter_list_buf);
+                parameter_list_buf.consume(2);
+                let length: i16 = self.map(parameter_list_buf);
+                parameter_list_buf.consume(2);
                 if pid == PID_SENTINEL {
                     break;
                 } else {
-                    (_, parameter_list_buf) = parameter_list_buf.split_at(length as usize);
+                    parameter_list_buf.consume(length as usize);
                 }
             }
             parameter_list_buf_length - parameter_list_buf.len()
@@ -238,43 +237,43 @@ impl<'a> DataFragSubmessageRead<'a> {
     }
 
     pub fn reader_id(&self) -> EntityId {
-        self.mapping_read(&self.data[8..])
+        self.map(&self.data[8..])
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.mapping_read(&self.data[12..])
+        self.map(&self.data[12..])
     }
 
     pub fn writer_sn(&self) -> SequenceNumber {
-        self.mapping_read(&self.data[16..])
+        self.map(&self.data[16..])
     }
 
     pub fn fragment_starting_num(&self) -> FragmentNumber {
-        self.mapping_read(&self.data[24..])
+        self.map(&self.data[24..])
     }
 
-    pub fn fragments_in_submessage(&self) -> UShort {
-        self.mapping_read(&self.data[28..])
+    pub fn fragments_in_submessage(&self) -> u16 {
+        self.map(&self.data[28..])
     }
 
-    pub fn fragment_size(&self) -> UShort {
-        self.mapping_read(&self.data[30..])
+    pub fn fragment_size(&self) -> u16 {
+        self.map(&self.data[30..])
     }
 
-    pub fn data_size(&self) -> ULong {
-        self.mapping_read(&self.data[32..])
+    pub fn data_size(&self) -> u32 {
+        self.map(&self.data[32..])
     }
 
     pub fn inline_qos(&self) -> ParameterList {
         if self.inline_qos_flag() {
-            self.mapping_read(&self.data[self.octets_to_inline_qos() + 8..])
+            self.map(&self.data[self.octets_to_inline_qos() as usize + 8..])
         } else {
             ParameterList::empty()
         }
     }
 
     pub fn serialized_payload(&self) -> SerializedPayload<'a> {
-        self.mapping_read(&self.data[8 + self.octets_to_inline_qos() + self.inline_qos_len()..])
+        self.map(&self.data[8 + self.octets_to_inline_qos() as usize + self.inline_qos_len()..])
     }
 }
 
@@ -299,9 +298,10 @@ pub struct DataFragSubmessageWrite<'a> {
 pub struct GapSubmessageRead<'a> {
     data: &'a [u8],
 }
-impl Endianness for GapSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+
+impl SubmessageHeader for GapSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
 
@@ -310,24 +310,20 @@ impl<'a> GapSubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn reader_id(&self) -> EntityId {
-        self.mapping_read(&self.data[4..])
+        self.map(&self.data[4..])
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.mapping_read(&self.data[8..])
+        self.map(&self.data[8..])
     }
 
     pub fn gap_start(&self) -> SequenceNumber {
-        self.mapping_read(&self.data[12..])
+        self.map(&self.data[12..])
     }
 
     pub fn gap_list(&self) -> SequenceNumberSet {
-        self.mapping_read(&self.data[20..])
+        self.map(&self.data[20..])
     }
 }
 
@@ -345,9 +341,9 @@ pub struct HeartbeatSubmessageRead<'a> {
     data: &'a [u8],
 }
 
-impl Endianness for HeartbeatSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+impl SubmessageHeader for HeartbeatSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
 
@@ -356,36 +352,32 @@ impl<'a> HeartbeatSubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn final_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0010) != 0
+        self.submessage_header().flags()[1]
     }
 
     pub fn liveliness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0100) != 0
+        self.submessage_header().flags()[2]
     }
 
     pub fn reader_id(&self) -> EntityId {
-        self.mapping_read(&self.data[4..])
+        self.map(&self.data[4..])
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.mapping_read(&self.data[8..])
+        self.map(&self.data[8..])
     }
 
     pub fn first_sn(&self) -> SequenceNumber {
-        self.mapping_read(&self.data[12..])
+        self.map(&self.data[12..])
     }
 
     pub fn last_sn(&self) -> SequenceNumber {
-        self.mapping_read(&self.data[20..])
+        self.map(&self.data[20..])
     }
 
     pub fn count(&self) -> Count {
-        self.mapping_read(&self.data[28..])
+        self.map(&self.data[28..])
     }
 }
 #[derive(Debug, PartialEq, Eq)]
@@ -404,38 +396,36 @@ pub struct HeartbeatSubmessageWrite {
 pub struct HeartbeatFragSubmessageRead<'a> {
     data: &'a [u8],
 }
-impl Endianness for HeartbeatFragSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+
+impl SubmessageHeader for HeartbeatFragSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
+
 impl<'a> HeartbeatFragSubmessageRead<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         Self { data }
     }
 
-    pub fn endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn reader_id(&self) -> EntityId {
-        self.mapping_read(&self.data[4..])
+        self.map(&self.data[4..])
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.mapping_read(&self.data[8..])
+        self.map(&self.data[8..])
     }
 
     pub fn writer_sn(&self) -> SequenceNumber {
-        self.mapping_read(&self.data[12..])
+        self.map(&self.data[12..])
     }
 
     pub fn last_fragment_num(&self) -> FragmentNumber {
-        self.mapping_read(&self.data[20..])
+        self.map(&self.data[20..])
     }
 
     pub fn count(&self) -> Count {
-        self.mapping_read(&self.data[24..])
+        self.map(&self.data[24..])
     }
 }
 
@@ -454,9 +444,9 @@ pub struct InfoDestinationSubmessageRead<'a> {
     data: &'a [u8],
 }
 
-impl Endianness for InfoDestinationSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+impl SubmessageHeader for InfoDestinationSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
 
@@ -465,12 +455,8 @@ impl<'a> InfoDestinationSubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn guid_prefix(&self) -> GuidPrefix {
-        self.mapping_read(&self.data[4..])
+        self.map(&self.data[4..])
     }
 }
 #[derive(Debug, PartialEq, Eq)]
@@ -484,9 +470,9 @@ pub struct InfoReplySubmessageRead<'a> {
     data: &'a [u8],
 }
 
-impl Endianness for InfoReplySubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+impl SubmessageHeader for InfoReplySubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
 
@@ -495,23 +481,19 @@ impl<'a> InfoReplySubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn multicast_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0010) != 0
+        self.submessage_header().flags()[1]
     }
 
     pub fn unicast_locator_list(&self) -> LocatorList {
-        self.mapping_read(&self.data[4..])
+        self.map(&self.data[4..])
     }
 
     pub fn multicast_locator_list(&self) -> LocatorList {
         if self.multicast_flag() {
-            let num_locators: u32 = self.mapping_read(&self.data[4..]);
+            let num_locators: u32 = self.map(&self.data[4..]);
             let octets_to_multicat_loctor_list = num_locators as usize * 24 + 8;
-            self.mapping_read(&self.data[octets_to_multicat_loctor_list..])
+            self.map(&self.data[octets_to_multicat_loctor_list..])
         } else {
             LocatorList::new(vec![])
         }
@@ -531,9 +513,9 @@ pub struct InfoSourceSubmessageRead<'a> {
     data: &'a [u8],
 }
 
-impl Endianness for InfoSourceSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+impl SubmessageHeader for InfoSourceSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
 
@@ -542,20 +524,16 @@ impl<'a> InfoSourceSubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn protocol_version(&self) -> ProtocolVersion {
-        self.mapping_read(&self.data[8..])
+        self.map(&self.data[8..])
     }
 
     pub fn vendor_id(&self) -> VendorId {
-        self.mapping_read(&self.data[10..])
+        self.map(&self.data[10..])
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
-        self.mapping_read(&self.data[12..])
+        self.map(&self.data[12..])
     }
 }
 
@@ -572,9 +550,9 @@ pub struct InfoTimestampSubmessageRead<'a> {
     data: &'a [u8],
 }
 
-impl Endianness for InfoTimestampSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+impl SubmessageHeader for InfoTimestampSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
 
@@ -583,19 +561,15 @@ impl<'a> InfoTimestampSubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn invalidate_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0010) != 0
+        self.submessage_header().flags()[1]
     }
 
     pub fn timestamp(&self) -> Time {
         if self.invalidate_flag() {
             TIME_INVALID
         } else {
-            self.mapping_read(&self.data[4..])
+            self.map(&self.data[4..])
         }
     }
 }
@@ -612,9 +586,9 @@ pub struct NackFragSubmessageRead<'a> {
     data: &'a [u8],
 }
 
-impl Endianness for NackFragSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+impl SubmessageHeader for NackFragSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
 
@@ -623,28 +597,24 @@ impl<'a> NackFragSubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn reader_id(&self) -> EntityId {
-        self.mapping_read(&self.data[4..])
+        self.map(&self.data[4..])
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.mapping_read(&self.data[8..])
+        self.map(&self.data[8..])
     }
 
     pub fn writer_sn(&self) -> SequenceNumber {
-        self.mapping_read(&self.data[12..])
+        self.map(&self.data[12..])
     }
 
     pub fn fragment_number_state(&self) -> FragmentNumberSet {
-        self.mapping_read(&self.data[20..])
+        self.map(&self.data[20..])
     }
 
     pub fn count(&self) -> Count {
-        self.mapping_read(&self.data[self.data.len() - 4..])
+        self.map(&self.data[self.data.len() - 4..])
     }
 }
 
@@ -663,20 +633,18 @@ pub struct PadSubmessageRead<'a> {
     data: &'a [u8],
 }
 
+impl SubmessageHeader for PadSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
+    }
+}
+
 impl<'a> PadSubmessageRead<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         Self { data }
     }
-    pub fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
 }
 
-impl Endianness for PadSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-}
 #[derive(Debug, PartialEq, Eq)]
 pub struct PadSubmessageWrite {
     pub endianness_flag: SubmessageFlag,

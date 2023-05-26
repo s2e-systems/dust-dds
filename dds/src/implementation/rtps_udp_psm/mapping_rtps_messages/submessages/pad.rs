@@ -3,7 +3,8 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 
 use crate::implementation::rtps::messages::{
-    overall_structure::SubmessageHeaderWrite, submessages::PadSubmessageWrite, types::SubmessageKind,
+    overall_structure::SubmessageHeaderWrite, submessages::PadSubmessageWrite,
+    types::SubmessageKind,
 };
 
 use super::submessage::MappingWriteSubmessage;
@@ -36,9 +37,7 @@ impl MappingWriteSubmessage for PadSubmessageWrite {
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::{
-        rtps::messages::submessages::PadSubmessageRead, rtps_udp_psm::mapping_traits::to_bytes,
-    };
+    use crate::implementation::rtps_udp_psm::mapping_traits::to_bytes;
 
     use super::*;
 

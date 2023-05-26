@@ -2,15 +2,13 @@ use std::io::{Error, Write};
 
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::SubmessageHeaderWrite,
-        types::SubmessageKind, submessages::AckNackSubmessageWrite,
+        overall_structure::SubmessageHeaderWrite, submessages::AckNackSubmessageWrite,
+        types::SubmessageKind,
     },
-    rtps_udp_psm::mapping_traits::{
-        MappingWriteByteOrdered, NumberOfBytes,
-    },
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
 
-use super::submessage::{MappingWriteSubmessage};
+use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for AckNackSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
@@ -54,13 +52,13 @@ impl MappingWriteSubmessage for AckNackSubmessageWrite {
 mod tests {
     use crate::implementation::{
         rtps::{
-            messages::{submessage_elements::SequenceNumberSet, submessages::AckNackSubmessageRead},
+            messages::submessage_elements::SequenceNumberSet,
             types::{
                 Count, EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_READER_NO_KEY,
             },
         },
-        rtps_udp_psm::mapping_traits::{to_bytes},
+        rtps_udp_psm::mapping_traits::to_bytes,
     };
 
     use super::*;

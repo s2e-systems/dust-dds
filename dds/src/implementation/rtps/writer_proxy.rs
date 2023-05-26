@@ -11,7 +11,7 @@ use super::{
             AckNackSubmessageWrite, DataFragSubmessageRead, InfoDestinationSubmessageWrite,
             NackFragSubmessageWrite,
         },
-        types::{FragmentNumber, ULong, UShort},
+        types::FragmentNumber,
         RtpsMessageWrite, RtpsSubmessageWriteKind,
     },
     transport::TransportWrite,
@@ -21,9 +21,9 @@ use super::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct OwningDataFragSubmessage {
     fragment_starting_num: FragmentNumber,
-    data_size: ULong,
-    fragment_size: UShort,
-    fragments_in_submessage: UShort,
+    data_size: u32,
+    fragment_size: u16,
+    fragments_in_submessage: u16,
     serialized_payload: Vec<u8>,
 }
 

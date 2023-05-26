@@ -55,10 +55,7 @@ impl MappingWriteSubmessage for NackFragSubmessageWrite {
 mod tests {
     use crate::implementation::{
         rtps::{
-            messages::{
-                submessage_elements::FragmentNumberSet, submessages::NackFragSubmessageRead,
-                types::FragmentNumber,
-            },
+            messages::{submessage_elements::FragmentNumberSet, types::FragmentNumber},
             types::{
                 Count, EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_READER_NO_KEY,

@@ -86,7 +86,6 @@ mod tests {
         rtps::{
             messages::{
                 submessage_elements::{Parameter, ParameterList},
-                submessages::DataFragSubmessageRead,
                 types::{FragmentNumber, ParameterId, SerializedPayload, ULong, UShort},
             },
             types::{

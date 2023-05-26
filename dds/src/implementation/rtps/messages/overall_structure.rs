@@ -40,7 +40,7 @@ impl<'a> SubmessageHeaderRead<'a> {
             flags_byte & 0b_1000_0000 != 0
         ]
     }
-    pub fn submessage_length(&self) -> u16 {
+    pub fn _submessage_length(&self) -> u16 {
         let length_bytes = [self.data[2], self.data[3]];
         match self.endianness_flag() {
             true => u16::from_le_bytes(length_bytes),

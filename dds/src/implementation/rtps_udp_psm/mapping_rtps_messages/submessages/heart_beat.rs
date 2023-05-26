@@ -2,14 +2,13 @@ use std::io::{Error, Write};
 
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::SubmessageHeaderWrite,
-        submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite},
+        overall_structure::SubmessageHeaderWrite, submessages::HeartbeatSubmessageWrite,
         types::SubmessageKind,
     },
     rtps_udp_psm::mapping_traits::MappingWriteByteOrdered,
 };
 
-use super::submessage::{MappingWriteSubmessage};
+use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for HeartbeatSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {

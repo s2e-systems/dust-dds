@@ -48,10 +48,7 @@ impl MappingWriteSubmessage for InfoTimestampSubmessageWrite {
 mod tests {
 
     use crate::implementation::{
-        rtps::messages::{
-            submessages::InfoTimestampSubmessageRead,
-            types::{Time, TIME_INVALID},
-        },
+        rtps::messages::types::{Time, TIME_INVALID},
         rtps_udp_psm::mapping_traits::to_bytes,
     };
 

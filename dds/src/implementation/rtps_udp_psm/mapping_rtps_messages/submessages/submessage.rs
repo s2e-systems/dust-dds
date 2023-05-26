@@ -5,9 +5,7 @@ use byteorder::{BigEndian, ByteOrder};
 
 use crate::implementation::{
     rtps::messages::overall_structure::SubmessageHeaderWrite,
-    rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrderInfoInData, MappingWriteByteOrderInfoInData,
-    },
+    rtps_udp_psm::mapping_traits::MappingWriteByteOrderInfoInData,
 };
 
 pub trait MappingWriteSubmessage {

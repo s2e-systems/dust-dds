@@ -51,7 +51,7 @@ mod tests {
 
     use crate::implementation::{
         rtps::{
-            messages::{submessage_elements::SequenceNumberSet, submessages::GapSubmessageRead},
+            messages::submessage_elements::SequenceNumberSet,
             types::{
                 EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_READER_NO_KEY,

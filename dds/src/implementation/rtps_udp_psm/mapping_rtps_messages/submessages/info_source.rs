@@ -47,10 +47,7 @@ impl MappingWriteSubmessage for InfoSourceSubmessageWrite {
 #[cfg(test)]
 mod tests {
     use crate::implementation::{
-        rtps::{
-            messages::submessages::InfoSourceSubmessageRead,
-            types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
-        },
+        rtps::types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
         rtps_udp_psm::mapping_traits::to_bytes,
     };
 

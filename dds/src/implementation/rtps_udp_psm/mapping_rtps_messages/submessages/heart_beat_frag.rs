@@ -51,7 +51,7 @@ mod tests {
 
     use crate::implementation::{
         rtps::{
-            messages::{submessages::HeartbeatFragSubmessageRead, types::FragmentNumber},
+            messages::types::FragmentNumber,
             types::{
                 Count, EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_READER_NO_KEY,

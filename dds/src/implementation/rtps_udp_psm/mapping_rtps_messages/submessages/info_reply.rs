@@ -56,7 +56,7 @@ impl MappingWriteSubmessage for InfoReplySubmessageWrite {
 mod tests {
     use crate::implementation::{
         rtps::{
-            messages::{submessage_elements::LocatorList, submessages::InfoReplySubmessageRead},
+            messages::submessage_elements::LocatorList,
             types::{Locator, LocatorAddress, LocatorKind, LocatorPort},
         },
         rtps_udp_psm::mapping_traits::to_bytes,

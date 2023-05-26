@@ -4,12 +4,15 @@ use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::{
         messages::types::FragmentNumber,
-        types::{Count, EntityId, EntityKey, EntityKind, Locator, SequenceNumber},
+        types::{
+            Count, EntityId, EntityKey, EntityKind, GuidPrefix, Locator, LocatorAddress,
+            LocatorKind, LocatorPort, ProtocolVersion, SequenceNumber, VendorId,
+        },
     },
 };
 
 use super::{
-    types::{ParameterId, SerializedPayload},
+    types::{ParameterId, SerializedPayload, Time},
     FromBytes,
 };
 
@@ -34,6 +37,12 @@ impl SequenceNumberSet {
 pub struct FragmentNumberSet {
     pub base: FragmentNumber,
     pub set: Vec<FragmentNumber>,
+}
+
+impl FragmentNumberSet {
+    pub fn new(base: FragmentNumber, set: Vec<FragmentNumber>) -> Self {
+        Self { base, set }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -135,9 +144,17 @@ impl<'a> FromBytes<'a> for SerializedPayload<'a> {
     }
 }
 
-impl<'a> FromBytes<'_> for EntityId {
+impl FromBytes<'_> for EntityId {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         Self::new(EntityKey::new([v[0], v[1], v[2]]), EntityKind::new(v[3]))
+    }
+}
+
+impl FromBytes<'_> for GuidPrefix {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        Self::new([
+            v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11],
+        ])
     }
 }
 
@@ -178,5 +195,96 @@ impl FromBytes<'_> for SequenceNumberSet {
             }
         }
         SequenceNumberSet::new(SequenceNumber::new(base), set)
+    }
+}
+
+impl FromBytes<'_> for u16 {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        E::read_u16(v)
+    }
+}
+
+impl FromBytes<'_> for i16 {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        E::read_i16(v)
+    }
+}
+
+impl FromBytes<'_> for u32 {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        E::read_u32(v)
+    }
+}
+
+impl FromBytes<'_> for FragmentNumber {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        Self::new(E::read_u32(v))
+    }
+}
+
+impl FromBytes<'_> for Locator {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        let kind = LocatorKind::new(E::read_i32(&v[0..]));
+        let port = LocatorPort::new(E::read_u32(&v[4..]));
+        let address = LocatorAddress::new([
+            v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13],
+            v[14], v[15],
+        ]);
+        Self::new(kind, port, address)
+    }
+}
+
+impl FromBytes<'_> for LocatorList {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        let num_locators = E::read_u32(v);
+        let mut buf = &v[4..];
+        let mut locator_list = Vec::new();
+        for _ in 0..num_locators {
+            locator_list.push(Locator::from_bytes::<E>(buf));
+            buf.consume(24)
+        }
+        Self::new(locator_list)
+    }
+}
+
+impl FromBytes<'_> for ProtocolVersion {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        Self::new(v[0], v[1])
+    }
+}
+
+impl FromBytes<'_> for VendorId {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        Self::new([v[0], v[1]])
+    }
+}
+
+impl FromBytes<'_> for Time {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        let seconds = E::read_i32(&v[0..]);
+        let fractions = E::read_u32(&v[4..]);
+        Self::new(seconds, fractions)
+    }
+}
+
+impl FromBytes<'_> for FragmentNumberSet {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        let base = E::read_u32(&v[0..]);
+        let num_bits = E::read_u32(&v[4..]);
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
+        let mut bitmap = [0; 8];
+        let mut buf = &v[8..];
+        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
+            *bitmap_i = E::read_i32(buf);
+            buf.consume(4);
+        }
+
+        let mut set = Vec::with_capacity(256);
+        for delta_n in 0..num_bits as usize {
+            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
+                set.push(FragmentNumber::new(base + delta_n as u32));
+            }
+        }
+        Self::new(FragmentNumber::new(base), set)
     }
 }

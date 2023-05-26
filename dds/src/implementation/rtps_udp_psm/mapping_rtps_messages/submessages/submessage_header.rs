@@ -7,10 +7,7 @@ use crate::implementation::{
         overall_structure::SubmessageHeaderWrite,
         types::{SubmessageFlag, SubmessageKind},
     },
-    rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrderInfoInData, MappingReadByteOrdered, MappingWriteByteOrderInfoInData,
-        MappingWriteByteOrdered,
-    },
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrderInfoInData, MappingWriteByteOrdered},
 };
 
 pub trait Submessage {
@@ -57,7 +54,6 @@ impl MappingWriteByteOrderInfoInData for [SubmessageFlag; 8] {
     }
 }
 
-
 impl MappingWriteByteOrderInfoInData for SubmessageHeaderWrite {
     fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         let submessage_id = match self.submessage_id {
@@ -73,12 +69,6 @@ impl MappingWriteByteOrderInfoInData for SubmessageHeaderWrite {
             SubmessageKind::DATA_FRAG => DATA_FRAG,
             SubmessageKind::NACK_FRAG => NACK_FRAG,
             SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
-            SubmessageKind::UNKNOWN => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Unknow submessage kind not allowed",
-                ))
-            }
         };
         if self.flags[0] {
             submessage_id.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
@@ -114,12 +104,6 @@ impl MappingWriteByteOrdered for SubmessageHeaderWrite {
             SubmessageKind::DATA_FRAG => DATA_FRAG,
             SubmessageKind::NACK_FRAG => NACK_FRAG,
             SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
-            SubmessageKind::UNKNOWN => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Unknow submessage kind not allowed",
-                ))
-            }
         };
         submessage_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.flags.mapping_write_byte_ordered::<_, B>(&mut writer)?;
@@ -130,7 +114,7 @@ impl MappingWriteByteOrdered for SubmessageHeaderWrite {
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le, from_bytes};
+    use crate::implementation::rtps_udp_psm::mapping_traits::to_bytes_le;
 
     use super::*;
 
@@ -152,15 +136,4 @@ mod tests {
             vec![0x06, 0b_1111_1111, 16, 0]
         );
     }
-
-    // #[test]
-    // fn deserialize_rtps_header() {
-    //     let expected = RtpsSubmessageHeader {
-    //         submessage_id: SubmessageKind::ACKNACK,
-    //         flags: [true; 8],
-    //         submessage_length: 16,
-    //     };
-    //     let result = from_bytes(&[0x06, 0b_1111_1111, 16, 0]).unwrap();
-    //     assert_eq!(expected, result);
-    // }
 }
