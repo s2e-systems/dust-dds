@@ -20,6 +20,7 @@ use crate::{
                 ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
         },
+        utils::actor,
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -180,6 +181,20 @@ pub struct DdsDataWriter<T> {
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
+}
+
+impl<T> actor::Actor for DdsDataWriter<T> {}
+
+pub struct EnableMessage;
+
+impl actor::Message for EnableMessage {
+    type Result = ();
+}
+
+impl<T> actor::Handler<EnableMessage> for DdsDataWriter<T> {
+    fn handle(&mut self, _message: EnableMessage) -> <EnableMessage as actor::Message>::Result {
+        self.enable();
+    }
 }
 
 impl<T> DdsDataWriter<T> {
