@@ -7,11 +7,28 @@ use crate::implementation::{
 };
 
 use super::{
+    overall_structure::SubmessageHeaderRead,
     submessage_elements::{FragmentNumberSet, LocatorList, ParameterList, SequenceNumberSet},
-    types::{FragmentNumber, SerializedPayload, SubmessageFlag, Time, ULong, UShort, TIME_INVALID}, RtpsMap, SubmessageHeader, overall_structure::SubmessageHeaderRead,
+    types::{FragmentNumber, SerializedPayload, SubmessageFlag, Time, ULong, UShort, TIME_INVALID},
+    RtpsMap, SubmessageHeader,
 };
 
-impl<T:SubmessageHeader> RtpsMap for T{}
+pub trait Endianness {
+    fn endianness(&self) -> bool;
+}
+
+trait MappingRead: Endianness {
+    fn mapping_read<'de, T: MappingReadByteOrdered<'de> + 'de>(&self, mut data: &'de [u8]) -> T {
+        if self.endianness() {
+            T::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut data).unwrap()
+        } else {
+            T::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut data).unwrap()
+        }
+    }
+}
+
+impl<T: Endianness> MappingRead for T {}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct AckNackSubmessageRead<'a> {
     data: &'a [u8],
@@ -64,25 +81,9 @@ pub struct DataSubmessageRead<'a> {
     data: &'a [u8],
 }
 
-pub trait Endianness {
-    fn endianness(&self) -> bool;
-}
-
-trait MappingRead: Endianness {
-    fn mapping_read<'de, T: MappingReadByteOrdered<'de> + 'de>(&self, mut data: &'de [u8]) -> T {
-        if self.endianness() {
-            T::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut data).unwrap()
-        } else {
-            T::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut data).unwrap()
-        }
-    }
-}
-
-impl<T: Endianness> MappingRead for T {}
-
-impl Endianness for DataSubmessageRead<'_> {
-    fn endianness(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
+impl SubmessageHeader for DataSubmessageRead<'_> {
+    fn submessage_header(&self) -> SubmessageHeaderRead {
+        SubmessageHeaderRead::new(self.data)
     }
 }
 
@@ -121,58 +122,44 @@ impl<'a> DataSubmessageRead<'a> {
         }
     }
 
-    pub fn endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn inline_qos_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0010) != 0
+        self.submessage_header().flags()[1]
     }
 
     pub fn data_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0100) != 0
+        self.submessage_header().flags()[2]
     }
 
     pub fn key_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_1000) != 0
+        self.submessage_header().flags()[3]
     }
 
     pub fn non_standard_payload_flag(&self) -> bool {
-        (self.data[1] & 0b_0001_0000) != 0
+        self.submessage_header().flags()[4]
     }
 
     pub fn reader_id(&self) -> EntityId {
-        self.mapping_read(&self.data[8..])
+        self.map(&self.data[8..])
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.mapping_read(&self.data[12..])
+        self.map(&self.data[12..])
     }
 
     pub fn writer_sn(&self) -> SequenceNumber {
-        self.mapping_read(&self.data[16..])
+        self.map(&self.data[16..])
     }
 
     pub fn inline_qos(&self) -> ParameterList {
         if self.inline_qos_flag() {
-            let mut buf = &self.data[self.octets_to_inline_qos() + 8..];
-            match self.endianness_flag() {
-                true => {
-                    ParameterList::mapping_read_byte_ordered::<byteorder::LittleEndian>(&mut buf)
-                        .expect("RtpsParameterList failed LE")
-                }
-                false => ParameterList::mapping_read_byte_ordered::<byteorder::BigEndian>(&mut buf)
-                    .expect("RtpsParameterList failed BE"),
-            }
+            self.map(&self.data[self.octets_to_inline_qos() + 8..])
         } else {
             ParameterList::empty()
         }
     }
 
     pub fn serialized_payload(&self) -> SerializedPayload<'a> {
-        SerializedPayload::new(
-            &self.data[8 + self.octets_to_inline_qos() + self.inline_qos_len()..],
-        )
+        self.map(&self.data[8 + self.octets_to_inline_qos() + self.inline_qos_len()..])
     }
 }
 

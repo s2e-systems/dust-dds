@@ -33,16 +33,16 @@ pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
 
-pub trait FromBytes {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self;
+pub trait FromBytes<'a> {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &'a[u8]) -> Self;
 }
 
 trait SubmessageHeader {
     fn submessage_header(&self) -> SubmessageHeaderRead;
 }
 
-trait RtpsMap:SubmessageHeader {
-    fn map<T: FromBytes>(&self, data: &[u8]) -> T {
+trait RtpsMap<'a> : SubmessageHeader {
+    fn map<T: FromBytes<'a>>(&self, data: &'a [u8]) -> T {
         if self.submessage_header().endianness_flag() {
             T::from_bytes::<byteorder::LittleEndian>(data)
         } else {
@@ -50,6 +50,8 @@ trait RtpsMap:SubmessageHeader {
         }
     }
 }
+
+impl<'a, T:SubmessageHeader> RtpsMap<'a> for T{}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageRead<'a> {
