@@ -1,16 +1,9 @@
-use std::{
-    io::{Error, Write},
-    iter::FromIterator,
-};
-
-use byteorder::ByteOrder;
-
 use crate::implementation::{
-    rtps::{messages::submessage_elements::SequenceNumberSet, types::SequenceNumber},
-    rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
-    },
+    rtps::messages::submessage_elements::SequenceNumberSet,
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
+use byteorder::ByteOrder;
+use std::io::{Error, Write};
 
 impl NumberOfBytes for SequenceNumberSet {
     fn number_of_bytes(&self) -> usize {
@@ -53,36 +46,12 @@ impl MappingWriteByteOrdered for SequenceNumberSet {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSet {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let high: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let low: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let base = ((high as i64) << 32) + low as i64;
-
-        let num_bits: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
-        let mut bitmap = [0; 8];
-        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
-            *bitmap_i = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        }
-
-        let mut set = Vec::with_capacity(256);
-        for delta_n in 0..num_bits as usize {
-            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(SequenceNumber::new(base + delta_n as i64));
-            }
-        }
-        Ok(Self {
-            base: SequenceNumber::new(base),
-            set: Vec::from_iter(set.into_iter()),
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps_udp_psm::mapping_traits::to_bytes_le;
+    use crate::implementation::{
+        rtps::types::SequenceNumber, rtps_udp_psm::mapping_traits::to_bytes_le,
+    };
 
     #[test]
     fn serialize_sequence_number_max_gap() {

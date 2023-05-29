@@ -1,11 +1,8 @@
-use std::io::{Error, Write};
-
-use byteorder::ByteOrder;
-
 use crate::implementation::{
-    rtps::messages::types::FragmentNumber,
-    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
+    rtps::messages::types::FragmentNumber, rtps_udp_psm::mapping_traits::MappingWriteByteOrdered,
 };
+use byteorder::ByteOrder;
+use std::io::{Error, Write};
 
 impl MappingWriteByteOrdered for FragmentNumber {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -13,14 +10,6 @@ impl MappingWriteByteOrdered for FragmentNumber {
         mut writer: W,
     ) -> Result<(), Error> {
         <u32>::from(*self).mapping_write_byte_ordered::<_, B>(&mut writer)
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for FragmentNumber {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        Ok(FragmentNumber::new(
-            MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
-        ))
     }
 }
 

@@ -1,14 +1,8 @@
-use byteorder::{ReadBytesExt, WriteBytesExt};
-
 use crate::implementation::{
-    rtps::messages::{
-        submessage_elements::{Parameter, ParameterList},
-        types::ParameterId,
-    },
-    rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
-    },
+    rtps::messages::submessage_elements::{Parameter, ParameterList},
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
+use byteorder::WriteBytesExt;
 
 impl MappingWriteByteOrdered for Parameter {
     fn mapping_write_byte_ordered<W: std::io::Write, B: byteorder::ByteOrder>(
@@ -28,25 +22,6 @@ impl MappingWriteByteOrdered for Parameter {
 
         writer.write_all(padding)?;
         Ok(())
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for Parameter {
-    fn mapping_read_byte_ordered<B: byteorder::ByteOrder>(
-        buf: &mut &'de [u8],
-    ) -> Result<Self, std::io::Error> {
-        let parameter_id = buf.read_u16::<B>()?;
-        let length = buf.read_i16::<B>()?;
-
-        let value = if parameter_id == PID_SENTINEL {
-            &[]
-        } else {
-            let (value, following) = buf.split_at(length as usize);
-            *buf = following;
-            value
-        };
-
-        Ok(Self::new(ParameterId(parameter_id), value.to_vec()))
     }
 }
 
@@ -83,32 +58,10 @@ impl MappingWriteByteOrdered for ParameterList {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for ParameterList {
-    fn mapping_read_byte_ordered<B: byteorder::ByteOrder>(
-        buf: &mut &'de [u8],
-    ) -> Result<Self, std::io::Error> {
-        const MAX_PARAMETERS: usize = 2_usize.pow(16);
-
-        let mut parameter = vec![];
-
-        for _ in 0..MAX_PARAMETERS {
-            let parameter_i: Parameter =
-                MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-
-            if parameter_i.parameter_id() == ParameterId(PID_SENTINEL) {
-                break;
-            } else {
-                parameter.push(parameter_i);
-            }
-        }
-        Ok(Self::new(parameter))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps_udp_psm::mapping_traits::{to_bytes_le};
+    use crate::implementation::{rtps_udp_psm::mapping_traits::to_bytes_le, rtps::messages::types::ParameterId};
 
     #[test]
     fn serialize_parameter() {
@@ -169,5 +122,4 @@ mod tests {
         ]);
         assert_eq!(parameter.number_of_bytes(), 4);
     }
-
 }

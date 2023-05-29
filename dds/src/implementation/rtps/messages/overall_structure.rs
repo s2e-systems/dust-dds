@@ -52,3 +52,28 @@ impl<'a> SubmessageHeaderRead<'a> {
         self.data[1] & 0b_0000_0001 != 0
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    // use super::*;
+
+    // #[test]
+    // fn deserialize_rtps_header() {
+    //     let expected = RtpsMessageHeaderRead {
+    //         protocol: ProtocolId::PROTOCOL_RTPS,
+    //         version: ProtocolVersion::new(2, 3),
+    //         vendor_id: VendorId::new([9, 8]),
+    //         guid_prefix: GuidPrefix::new([3; 12]),
+    //     };
+    //     #[rustfmt::skip]
+    //     let result = RtpsMessageHeaderRead::from_bytes::<byteorder::LittleEndian>(&[
+    //         b'R', b'T', b'P', b'S', // Protocol
+    //         2, 3, 9, 8, // ProtocolVersion | VendorId
+    //         3, 3, 3, 3, // GuidPrefix
+    //         3, 3, 3, 3, // GuidPrefix
+    //         3, 3, 3, 3, // GuidPrefix
+    //     ]);
+    //     assert_eq!(expected, result);
+    // }
+}

@@ -5,7 +5,7 @@ use byteorder::ByteOrder;
 use crate::implementation::{
     rtps::types::Count,
     rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
+        MappingWriteByteOrdered, NumberOfBytes,
     },
 };
 
@@ -15,14 +15,6 @@ impl MappingWriteByteOrdered for Count {
         mut writer: W,
     ) -> Result<(), Error> {
         <i32>::from(*self).mapping_write_byte_ordered::<_, B>(&mut writer)
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for Count {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        Ok(Self::new(
-            MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
-        ))
     }
 }
 

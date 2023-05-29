@@ -4,9 +4,7 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::{submessage_elements::FragmentNumberSet, types::FragmentNumber},
-    rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
-    },
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
 
 impl NumberOfBytes for FragmentNumberSet {
@@ -45,29 +43,6 @@ impl MappingWriteByteOrdered for FragmentNumberSet {
             bitmap_element.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         Ok(())
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for FragmentNumberSet {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let base: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let num_bits: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
-        let mut bitmap = [0; 8];
-        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
-            *bitmap_i = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        }
-
-        let mut set = Vec::with_capacity(256);
-        for delta_n in 0..num_bits as usize {
-            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(FragmentNumber::new(base + delta_n as u32));
-            }
-        }
-        Ok(Self {
-            base: FragmentNumber::new(base),
-            set,
-        })
     }
 }
 

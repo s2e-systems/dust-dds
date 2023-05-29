@@ -1,13 +1,9 @@
-use std::io::{Error, Write};
-
-use byteorder::ByteOrder;
-
 use crate::implementation::{
     rtps::types::ProtocolVersion,
-    rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
-    },
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
+use byteorder::ByteOrder;
+use std::io::{Error, Write};
 
 impl NumberOfBytes for ProtocolVersion {
     fn number_of_bytes(&self) -> usize {
@@ -23,14 +19,6 @@ impl MappingWriteByteOrdered for ProtocolVersion {
         self.major()
             .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.minor().mapping_write_byte_ordered::<_, B>(&mut writer)
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for ProtocolVersion {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let major: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let minor: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        Ok(Self::new(major, minor))
     }
 }
 

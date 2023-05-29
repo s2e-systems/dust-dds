@@ -1,11 +1,8 @@
-use std::io::{Error, Write};
-
-use byteorder::ByteOrder;
-
 use crate::implementation::{
-    rtps::types::SequenceNumber,
-    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
+    rtps::types::SequenceNumber, rtps_udp_psm::mapping_traits::MappingWriteByteOrdered,
 };
+use byteorder::ByteOrder;
+use std::io::{Error, Write};
 
 impl MappingWriteByteOrdered for SequenceNumber {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -17,15 +14,6 @@ impl MappingWriteByteOrdered for SequenceNumber {
         high.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         low.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         Ok(())
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for SequenceNumber {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let high: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let low: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let value = ((high as i64) << 32) + low as i64;
-        Ok(SequenceNumber::new(value))
     }
 }
 
