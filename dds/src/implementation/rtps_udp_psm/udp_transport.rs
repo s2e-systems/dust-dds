@@ -1,11 +1,12 @@
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 use crate::implementation::rtps::{
+    messages::{RtpsMessageRead, RtpsMessageWrite},
     transport::TransportWrite,
-    types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6}, messages::{RtpsMessageRead, RtpsMessageWrite},
+    types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
 };
 
-use super::mapping_traits::{from_bytes, to_bytes};
+use super::mapping_traits::to_bytes;
 
 const BUFFER_SIZE: usize = 65000;
 pub struct UdpTransportRead {
@@ -25,13 +26,9 @@ impl UdpTransportRead {
         match self.socket.recv_from(self.receive_buffer.as_mut()).await {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
-                    if let Ok(message) = from_bytes(&self.receive_buffer[0..bytes]) {
-                        let udp_locator: UdpLocator = source_address.into();
-                        Some((udp_locator.0, message))
-                    } else {
-                        // Invalid message received
-                        None
-                    }
+                    let message = RtpsMessageRead::new(&self.receive_buffer[0..bytes]);
+                    let udp_locator: UdpLocator = source_address.into();
+                    Some((udp_locator.0, message))
                 } else {
                     None
                 }

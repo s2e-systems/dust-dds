@@ -1,8 +1,6 @@
 use crate::implementation::{
-    rtps::messages::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind},
-    rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrderInfoInData, MappingWriteByteOrderInfoInData, MappingWriteByteOrdered,
-    },
+    rtps::messages::{RtpsMessageWrite, RtpsSubmessageWriteKind},
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrderInfoInData, MappingWriteByteOrdered},
 };
 use byteorder::LittleEndian;
 use std::io::{Error, Write};
@@ -64,69 +62,6 @@ impl MappingWriteByteOrderInfoInData for RtpsMessageWrite<'_> {
     }
 }
 
-impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessageRead<'a> {
-    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        // The byteorder is determined by each submessage individually. Hence
-        // decide here for a byteorder for the header
-        // let header = MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
-        // const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
-        // let mut submessages = vec![];
-        // for _ in 0..MAX_SUBMESSAGES {
-        //     if buf.len() < 4 {
-        //         break;
-        //     }
-        //     // Preview byte only (to allow full deserialization of submessage header)
-        //     let submessage_id = buf[0];
-        //     let submessage = match submessage_id {
-        //         ACKNACK => RtpsSubmessageReadKind::AckNack(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         DATA => RtpsSubmessageReadKind::Data(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         DATA_FRAG => RtpsSubmessageReadKind::DataFrag(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         GAP => RtpsSubmessageReadKind::Gap(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         HEARTBEAT => RtpsSubmessageReadKind::Heartbeat(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         HEARTBEAT_FRAG => RtpsSubmessageReadKind::HeartbeatFrag(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         INFO_DST => RtpsSubmessageReadKind::InfoDestination(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         INFO_REPLY => RtpsSubmessageReadKind::InfoReply(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         INFO_SRC => RtpsSubmessageReadKind::InfoSource(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         INFO_TS => RtpsSubmessageReadKind::InfoTimestamp(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         NACK_FRAG => RtpsSubmessageReadKind::NackFrag(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         PAD => RtpsSubmessageReadKind::Pad(
-        //             MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
-        //         ),
-        //         _ => {
-        //             let submessage_header: RtpsSubmessageHeader =
-        //                 MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
-        //             buf.consume(submessage_header.submessage_length as usize);
-        //             continue;
-        //         }
-        //     };
-        //     submessages.push(submessage);
-        // }
-        Ok(RtpsMessageRead::new(buf))
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -140,7 +75,7 @@ mod tests {
                     heartbeat::HeartbeatSubmessageRead,
                 },
                 types::{ParameterId, ProtocolId, SerializedPayload},
-                RtpsSubmessageReadKind,
+                RtpsMessageRead, RtpsSubmessageReadKind,
             },
             types::{
                 EntityId, EntityKey, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
