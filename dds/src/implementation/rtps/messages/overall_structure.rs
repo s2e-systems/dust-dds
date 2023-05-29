@@ -129,6 +129,12 @@ impl RtpsMessageRead {
     }
 }
 
+impl Default for RtpsMessageRead {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageWrite<'a> {
     header: RtpsMessageHeader,
