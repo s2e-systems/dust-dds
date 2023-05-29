@@ -40,8 +40,8 @@ impl From<&DataFragSubmessageRead<'_>> for OwningDataFragSubmessage {
 }
 
 fn total_fragments_expected(data_frag_submessage: &OwningDataFragSubmessage) -> u32 {
-    let data_size = u32::from(data_frag_submessage.data_size);
-    let fragment_size = u16::from(data_frag_submessage.fragment_size) as u32;
+    let data_size = data_frag_submessage.data_size;
+    let fragment_size = data_frag_submessage.fragment_size as u32;
     let total_fragments_correction = if data_size % fragment_size == 0 { 0 } else { 1 };
     data_size / fragment_size + total_fragments_correction
 }
@@ -106,7 +106,7 @@ impl RtpsWriterProxy {
 
             let mut total_fragments = 0;
             for frag_seq_num in seq_num_frag {
-                total_fragments += u16::from(frag_seq_num.fragments_in_submessage) as u32;
+                total_fragments += frag_seq_num.fragments_in_submessage as u32;
             }
 
             if total_fragments == total_fragments_expected {
@@ -299,7 +299,7 @@ impl RtpsWriterProxy {
                         fragment_number >= u32::from(x.fragment_starting_num)
                             && fragment_number
                                 < u32::from(x.fragment_starting_num)
-                                    + (u16::from(x.fragments_in_submessage) as u32)
+                                    + (x.fragments_in_submessage as u32)
                     }) {
                         missing_fragment_number.push(FragmentNumber::new(fragment_number))
                     }

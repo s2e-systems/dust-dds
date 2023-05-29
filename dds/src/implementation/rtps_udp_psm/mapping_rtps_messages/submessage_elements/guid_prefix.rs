@@ -35,7 +35,7 @@ impl NumberOfBytes for GuidPrefix {
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le};
+    use crate::implementation::rtps_udp_psm::mapping_traits::to_bytes_le;
 
     use super::*;
 
@@ -48,16 +48,5 @@ mod tests {
             1, 1, 1, 1,
             1, 1, 1, 1,
         ]);
-    }
-
-    #[test]
-    fn deserialize_guid_prefix() {
-        let expected = GuidPrefix::new([1; 12]);
-        #[rustfmt::skip]
-        assert_eq!(expected, from_bytes_le(&[
-            1, 1, 1, 1,
-            1, 1, 1, 1,
-            1, 1, 1, 1,
-        ]).unwrap());
     }
 }

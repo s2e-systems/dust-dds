@@ -227,8 +227,8 @@ impl FromBytes<'_> for Locator {
         let kind = LocatorKind::new(E::read_i32(&v[0..]));
         let port = LocatorPort::new(E::read_u32(&v[4..]));
         let address = LocatorAddress::new([
-            v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17],
-            v[18], v[19], v[20], v[21], v[22], v[23],
+            v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17], v[18], v[19],
+            v[20], v[21], v[22], v[23],
         ]);
         Self::new(kind, port, address)
     }
@@ -289,14 +289,21 @@ impl FromBytes<'_> for FragmentNumberSet {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::{
-        rtps::types::{Locator, LocatorAddress, LocatorKind, LocatorPort},
-    };
+    use crate::implementation::rtps::types::{Locator, LocatorAddress, LocatorKind, LocatorPort};
+
+    #[test]
+    fn deserialize_count() {
+        let expected = Count::new(7);
+        assert_eq!(
+            expected,
+            Count::from_bytes::<byteorder::LittleEndian>(&[
+            7, 0, 0,0 , //value (long)
+        ])
+        );
+    }
 
     #[test]
     fn deserialize_locator_list() {
@@ -327,6 +334,221 @@ mod tests {
             3, 3, 3, 3, // address (octet[16])
             3, 3, 3, 3, // address (octet[16])
 
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_fragment_number() {
+        let expected = FragmentNumber::new(7);
+        assert_eq!(
+            expected,
+            FragmentNumber::from_bytes::<byteorder::LittleEndian>(&[
+                7, 0, 0, 0, // (unsigned long)
+            ])
+        );
+    }
+
+    #[test]
+    fn deserialize_fragment_number_set_max_gap() {
+        let expected = FragmentNumberSet {
+            base: FragmentNumber::new(2),
+            set: vec![FragmentNumber::new(2), FragmentNumber::new(257)],
+        };
+        #[rustfmt::skip]
+        let result = FragmentNumberSet::from_bytes::<byteorder::LittleEndian>(&[
+            2, 0, 0, 0, // bitmapBase: (unsigned long)
+            0, 1, 0, 0, // numBits (unsigned long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
+            0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
+
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_guid_prefix() {
+        let expected = GuidPrefix::new([1; 12]);
+        #[rustfmt::skip]
+        assert_eq!(expected, GuidPrefix::from_bytes::<byteorder::LittleEndian>(&[
+            1, 1, 1, 1,
+            1, 1, 1, 1,
+            1, 1, 1, 1,
+        ]));
+    }
+
+    #[test]
+    fn deserialize_protocol_version() {
+        let expected = ProtocolVersion::new(2, 3);
+        assert_eq!(
+            expected,
+            ProtocolVersion::from_bytes::<byteorder::LittleEndian>(&[2, 3])
+        );
+    }
+
+    #[test]
+    fn deserialize_vendor_id() {
+        let expected = VendorId::new([1, 2]);
+        assert_eq!(
+            expected,
+            VendorId::from_bytes::<byteorder::LittleEndian>(&[1, 2,])
+        );
+    }
+
+    #[test]
+    fn deserialize_sequence_number() {
+        let expected = SequenceNumber::new(7);
+        assert_eq!(
+            expected,
+            SequenceNumber::from_bytes::<byteorder::LittleEndian>(&[
+                0, 0, 0, 0, // high (long)
+                7, 0, 0, 0, // low (unsigned long)
+            ])
+        );
+    }
+
+    #[test]
+    fn deserialize_sequence_number_set_max_gap() {
+        let expected = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
+        };
+        #[rustfmt::skip]
+        let result = SequenceNumberSet::from_bytes::<byteorder::LittleEndian>(&[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 1, 0, 0, // numBits (unsigned long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
+            0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_parameter_non_multiple_of_4() {
+        let expected = Parameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 0]);
+        #[rustfmt::skip]
+        let result = Parameter::from_bytes::<byteorder::LittleEndian>(&[
+            0x02, 0x00, 8, 0, // Parameter | length
+            5, 6, 7, 8,       // value
+            9, 10, 11, 0,     // value
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_parameter() {
+        let expected = Parameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 12]);
+        #[rustfmt::skip]
+        let result = Parameter::from_bytes::<byteorder::LittleEndian>(&[
+            0x02, 0x00, 8, 0, // Parameter | length
+            5, 6, 7, 8,       // value
+            9, 10, 11, 12,       // value
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_parameter_list() {
+        let expected = ParameterList::new(vec![
+            Parameter::new(ParameterId(2), vec![15, 16, 17, 18]),
+            Parameter::new(ParameterId(3), vec![25, 26, 27, 28]),
+        ]);
+        #[rustfmt::skip]
+        let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
+            0x02, 0x00, 4, 0, // Parameter ID | length
+            15, 16, 17, 18,        // value
+            0x03, 0x00, 4, 0, // Parameter ID | length
+            25, 26, 27, 28,        // value
+            0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_parameter_list_with_long_parameter_including_sentinel() {
+        #[rustfmt::skip]
+        let parameter_value_expected = vec![
+            0x01, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x01, 0x01, 0x01, 0x01,
+            0x01, 0x01, 0x01, 0x01,
+            0x01, 0x01, 0x01, 0x01,
+            0x01, 0x01, 0x01, 0x01,
+        ];
+
+        let expected = ParameterList::new(vec![Parameter::new(
+            ParameterId(0x32),
+            parameter_value_expected,
+        )]);
+        #[rustfmt::skip]
+        let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
+            0x32, 0x00, 24, 0x00, // Parameter ID | length
+            0x01, 0x00, 0x00, 0x00, // Parameter value
+            0x01, 0x00, 0x00, 0x00, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_parameter_list_with_multiple_parameters_with_same_id() {
+        #[rustfmt::skip]
+        let parameter_value_expected1 = vec![
+            0x01, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x01, 0x01, 0x01, 0x01,
+            0x01, 0x01, 0x01, 0x01,
+            0x01, 0x01, 0x01, 0x01,
+            0x01, 0x01, 0x01, 0x01,
+        ];
+        #[rustfmt::skip]
+        let parameter_value_expected2 = vec![
+            0x01, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x02, 0x02, 0x02, 0x02,
+            0x02, 0x02, 0x02, 0x02,
+            0x02, 0x02, 0x02, 0x02,
+            0x02, 0x02, 0x02, 0x02,
+        ];
+
+        let expected = ParameterList::new(vec![
+            Parameter::new(ParameterId(0x32), parameter_value_expected1),
+            Parameter::new(ParameterId(0x32), parameter_value_expected2),
+        ]);
+        #[rustfmt::skip]
+        let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
+            0x32, 0x00, 24, 0x00, // Parameter ID | length
+            0x01, 0x00, 0x00, 0x00, // Parameter value
+            0x01, 0x00, 0x00, 0x00, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x32, 0x00, 24, 0x00, // Parameter ID | length
+            0x01, 0x00, 0x00, 0x00, // Parameter value
+            0x01, 0x00, 0x00, 0x00, // Parameter value
+            0x02, 0x02, 0x02, 0x02, // Parameter value
+            0x02, 0x02, 0x02, 0x02, // Parameter value
+            0x02, 0x02, 0x02, 0x02, // Parameter value
+            0x02, 0x02, 0x02, 0x02, // Parameter value
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
         ]);
         assert_eq!(expected, result);
     }

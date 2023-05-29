@@ -37,19 +37,12 @@ impl<'de> MappingReadByteOrdered<'de> for ProtocolVersion {
 #[cfg(test)]
 mod tests {
     use crate::implementation::{
-        rtps::types::ProtocolVersion,
-        rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le},
+        rtps::types::ProtocolVersion, rtps_udp_psm::mapping_traits::to_bytes_le,
     };
 
     #[test]
     fn serialize_protocol_version() {
         let data = ProtocolVersion::new(2, 3);
         assert_eq!(to_bytes_le(&data).unwrap(), vec![2, 3]);
-    }
-
-    #[test]
-    fn deserialize_protocol_version() {
-        let expected = ProtocolVersion::new(2, 3);
-        assert_eq!(expected, from_bytes_le(&[2, 3]).unwrap());
     }
 }

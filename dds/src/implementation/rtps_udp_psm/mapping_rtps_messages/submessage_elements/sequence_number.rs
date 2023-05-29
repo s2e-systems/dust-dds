@@ -31,9 +31,8 @@ impl<'de> MappingReadByteOrdered<'de> for SequenceNumber {
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le};
-
     use super::*;
+    use crate::implementation::rtps_udp_psm::mapping_traits::to_bytes_le;
 
     #[test]
     fn serialize_sequence_number() {
@@ -44,19 +43,6 @@ mod tests {
                 0, 0, 0, 0, // high (long)
                 7, 0, 0, 0, // low (unsigned long)
             ]
-        );
-    }
-
-    #[test]
-    fn deserialize_sequence_number() {
-        let expected = SequenceNumber::new(7);
-        assert_eq!(
-            expected,
-            from_bytes_le(&[
-                0, 0, 0, 0, // high (long)
-                7, 0, 0, 0, // low (unsigned long)
-            ])
-            .unwrap()
         );
     }
 }
