@@ -30,14 +30,18 @@ use super::{
     types::{ProtocolId, SubmessageFlag, SubmessageKind},
 };
 
+const BUFFER_SIZE: usize = 65000;
+
 #[derive(Debug, PartialEq, Eq)]
-pub struct RtpsMessageRead<'a> {
-    data: &'a [u8],
+pub struct RtpsMessageRead {
+    pub data: [u8; BUFFER_SIZE],
 }
 
-impl<'a> RtpsMessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
+impl RtpsMessageRead {
+    pub fn new() -> Self {
+        Self {
+            data: [0; BUFFER_SIZE],
+        }
     }
 
     pub fn header(&self) -> RtpsMessageHeader {
@@ -118,6 +122,10 @@ impl<'a> RtpsMessageRead<'a> {
             submessages.push(submessage);
         }
         submessages
+    }
+
+    pub fn data_mut(&mut self) -> &mut [u8; BUFFER_SIZE] {
+        &mut self.data
     }
 }
 
@@ -230,26 +238,6 @@ impl<'a> SubmessageHeaderRead<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // #[test]
-    // fn deserialize_rtps_header() {
-    //     let expected = RtpsMessageHeaderRead {
-    //         protocol: ProtocolId::PROTOCOL_RTPS,
-    //         version: ProtocolVersion::new(2, 3),
-    //         vendor_id: VendorId::new([9, 8]),
-    //         guid_prefix: GuidPrefix::new([3; 12]),
-    //     };
-    //     #[rustfmt::skip]
-    //     let result = RtpsMessageHeaderRead::from_bytes::<byteorder::LittleEndian>(&[
-    //         b'R', b'T', b'P', b'S', // Protocol
-    //         2, 3, 9, 8, // ProtocolVersion | VendorId
-    //         3, 3, 3, 3, // GuidPrefix
-    //         3, 3, 3, 3, // GuidPrefix
-    //         3, 3, 3, 3, // GuidPrefix
-    //     ]);
-    //     assert_eq!(expected, result);
-    // }
-
     use crate::implementation::rtps::messages::submessages::{
         data::DataSubmessageRead, heartbeat::HeartbeatSubmessageRead,
     };
@@ -264,13 +252,15 @@ mod tests {
         };
 
         #[rustfmt::skip]
-        let rtps_message = RtpsMessageRead::new(&[
+        let mut rtps_message = RtpsMessageRead::new();
+        let data = &[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
-        ]);
+        ];
+        rtps_message.data[..data.len()].copy_from_slice(data);
         assert_eq!(header, rtps_message.header());
     }
 
@@ -311,8 +301,9 @@ mod tests {
 
         let expected_submessages = vec![data_submessage, heartbeat_submessage];
 
+        let mut rtps_message = RtpsMessageRead::new();
         #[rustfmt::skip]
-        let rtps_message: RtpsMessageRead = RtpsMessageRead::new(&[
+        let data = &[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -337,7 +328,8 @@ mod tests {
             0, 0, 0, 0, // lastSN: SequenceNumberSet: high
             7, 0, 0, 0, // lastSN: SequenceNumberSet: low
             2, 0, 0, 0, // count: Count: value (long)
-        ]);
+        ];
+        rtps_message.data[..data.len()].copy_from_slice(data);
         assert_eq!(expected_header, rtps_message.header());
         assert_eq!(expected_submessages, rtps_message.submessages());
     }
@@ -360,8 +352,9 @@ mod tests {
         ]));
         let expected_submessages = vec![submessage];
 
+        let mut rtps_message = RtpsMessageRead::new();
         #[rustfmt::skip]
-        let rtps_message = RtpsMessageRead::new(&[
+        let data = &[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -380,7 +373,8 @@ mod tests {
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 0, 0, // inlineQos: Sentinel
-        ]);
+        ];
+        rtps_message.data[..data.len()].copy_from_slice(data);
         assert_eq!(expected_submessages, rtps_message.submessages());
     }
 }

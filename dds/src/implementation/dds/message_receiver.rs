@@ -55,7 +55,7 @@ impl MessageReceiver {
         publisher_list: &mut [DdsPublisher],
         subscriber_list: &mut [DdsSubscriber],
         source_locator: Locator,
-        message: &RtpsMessageRead<'_>,
+        message: &RtpsMessageRead,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         self.dest_guid_prefix = participant_guid.prefix();
