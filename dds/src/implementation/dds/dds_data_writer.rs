@@ -586,10 +586,9 @@ mod test {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
-            messages::RtpsMessageWrite,
             transport::TransportWrite,
             types::{TopicKind, GUID_UNKNOWN},
-            writer::RtpsWriter,
+            writer::RtpsWriter, messages::overall_structure::RtpsMessageWrite,
         },
         infrastructure::time::DURATION_ZERO,
         topic_definition::type_support::DdsSerializedKey,

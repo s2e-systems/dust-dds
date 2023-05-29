@@ -35,14 +35,13 @@ use crate::{
             discovery_types::BuiltinEndpointSet,
             history_cache::RtpsWriterCacheChange,
             messages::{
-                overall_structure::RtpsMessageHeader,
+                overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind, RtpsMessageRead},
                 submessage_elements::SequenceNumberSet,
                 submessages::{
                     gap::GapSubmessageWrite, info_destination::InfoDestinationSubmessageWrite,
                     info_timestamp::InfoTimestampSubmessageWrite,
                 },
                 types::{FragmentNumber, ProtocolId},
-                RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind,
             },
             reader_locator::WriterAssociatedReaderLocator,
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},

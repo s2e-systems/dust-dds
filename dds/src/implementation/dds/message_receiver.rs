@@ -5,11 +5,11 @@ use super::{
 use crate::{
     implementation::rtps::{
         messages::{
+            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
             submessages::{
                 info_destination::InfoDestinationSubmessageRead,
                 info_source::InfoSourceSubmessageRead, info_timestamp::InfoTimestampSubmessageRead,
             },
-            RtpsMessageRead, RtpsSubmessageReadKind,
         },
         types::{
             Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,

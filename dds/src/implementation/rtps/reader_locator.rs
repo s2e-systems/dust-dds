@@ -3,10 +3,9 @@ use crate::infrastructure::time::Time;
 use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
-        overall_structure::RtpsMessageHeader,
+        overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind},
         submessage_elements::SequenceNumberSet,
         submessages::{gap::GapSubmessageWrite, info_timestamp::InfoTimestampSubmessageWrite},
-        RtpsMessageWrite, RtpsSubmessageWriteKind,
     },
     transport::TransportWrite,
     types::{EntityId, Locator, SequenceNumber, ENTITYID_UNKNOWN},

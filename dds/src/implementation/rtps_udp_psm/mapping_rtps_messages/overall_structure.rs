@@ -1,5 +1,5 @@
 use crate::implementation::{
-    rtps::messages::{RtpsMessageWrite, RtpsSubmessageWriteKind},
+    rtps::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageWriteKind},
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrderInfoInData, MappingWriteByteOrdered},
 };
 use byteorder::LittleEndian;
@@ -64,18 +64,14 @@ impl MappingWriteByteOrderInfoInData for RtpsMessageWrite<'_> {
 
 #[cfg(test)]
 mod tests {
-
+    use super::*;
     use crate::implementation::{
         rtps::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::{Parameter, ParameterList},
-                submessages::{
-                    data::{DataSubmessageRead, DataSubmessageWrite},
-                    heartbeat::HeartbeatSubmessageRead,
-                },
+                submessages::data::DataSubmessageWrite,
                 types::{ParameterId, ProtocolId, SerializedPayload},
-                RtpsMessageRead, RtpsSubmessageReadKind,
             },
             types::{
                 EntityId, EntityKey, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
@@ -84,8 +80,6 @@ mod tests {
         },
         rtps_udp_psm::mapping_traits::to_bytes,
     };
-
-    use super::*;
 
     #[test]
     fn serialize_rtps_message_no_submessage() {
@@ -159,135 +153,5 @@ mod tests {
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 0, 0, // inlineQos: Sentinel
         ]);
-    }
-
-    #[test]
-    fn deserialize_rtps_message_no_submessage() {
-        let header = RtpsMessageHeader {
-            protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
-        };
-
-        #[rustfmt::skip]
-        let rtps_message = RtpsMessageRead::new(&[
-            b'R', b'T', b'P', b'S', // Protocol
-            2, 3, 9, 8, // ProtocolVersion | VendorId
-            3, 3, 3, 3, // GuidPrefix
-            3, 3, 3, 3, // GuidPrefix
-            3, 3, 3, 3, // GuidPrefix
-        ]);
-        assert_eq!(header, rtps_message.header());
-    }
-
-    #[test]
-    fn deserialize_rtps_message() {
-        let expected_header = RtpsMessageHeader {
-            protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
-        };
-
-        #[rustfmt::skip]
-        let data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::new(
-            &[0x15, 0b_0000_0011, 40, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
-            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
-            10, 11, 12, 13, // inlineQos: value_1[length_1]
-            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
-            20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 1, 0, // inlineQos: Sentinel
-        ]));
-        #[rustfmt::skip]
-        let heartbeat_submessage = RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::new(&[
-            0x07, 0b_0000_0101, 28, 0, // Submessage header
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // firstSN: SequenceNumber: high
-            5, 0, 0, 0, // firstSN: SequenceNumber: low
-            0, 0, 0, 0, // lastSN: SequenceNumberSet: high
-            7, 0, 0, 0, // lastSN: SequenceNumberSet: low
-            2, 0, 0, 0, // count: Count: value (long)
-        ]));
-
-        let expected_submessages = vec![data_submessage, heartbeat_submessage];
-
-        #[rustfmt::skip]
-        let rtps_message: RtpsMessageRead = RtpsMessageRead::new(&[
-            b'R', b'T', b'P', b'S', // Protocol
-            2, 3, 9, 8, // ProtocolVersion | VendorId
-            3, 3, 3, 3, // GuidPrefix
-            3, 3, 3, 3, // GuidPrefix
-            3, 3, 3, 3, // GuidPrefix
-            0x15, 0b_0000_0011, 40, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
-            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
-            10, 11, 12, 13, // inlineQos: value_1[length_1]
-            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
-            20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 1, 0, // inlineQos: Sentinel
-            0x07, 0b_0000_0101, 28, 0, // Submessage header
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // firstSN: SequenceNumber: high
-            5, 0, 0, 0, // firstSN: SequenceNumber: low
-            0, 0, 0, 0, // lastSN: SequenceNumberSet: high
-            7, 0, 0, 0, // lastSN: SequenceNumberSet: low
-            2, 0, 0, 0, // count: Count: value (long)
-        ]);
-        assert_eq!(expected_header, rtps_message.header());
-        assert_eq!(expected_submessages, rtps_message.submessages());
-    }
-
-    #[test]
-    fn deserialize_rtps_message_unknown_submessage() {
-        #[rustfmt::skip]
-        let submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::new(&[
-            0x15, 0b_0000_0011, 40, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
-            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
-            10, 11, 12, 13, // inlineQos: value_1[length_1]
-            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
-            20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 0, 0, // inlineQos: Sentinel
-        ]));
-        let expected_submessages = vec![submessage];
-
-        #[rustfmt::skip]
-        let rtps_message = RtpsMessageRead::new(&[
-            b'R', b'T', b'P', b'S', // Protocol
-            2, 3, 9, 8, // ProtocolVersion | VendorId
-            3, 3, 3, 3, // GuidPrefix
-            3, 3, 3, 3, // GuidPrefix
-            3, 3, 3, 3, // GuidPrefix
-            0x99, 0b_0101_0011, 4, 0, // Submessage header
-            9, 9, 9, 9, // Unkown data
-            0x15, 0b_0000_0011, 40, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
-            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
-            10, 11, 12, 13, // inlineQos: value_1[length_1]
-            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
-            20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 0, 0, // inlineQos: Sentinel
-        ]);
-        assert_eq!(expected_submessages, rtps_message.submessages());
     }
 }

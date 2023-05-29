@@ -1,9 +1,8 @@
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 use crate::implementation::rtps::{
-    messages::{RtpsMessageRead, RtpsMessageWrite},
     transport::TransportWrite,
-    types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
+    types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6}, messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
 };
 
 use super::mapping_traits::to_bytes;

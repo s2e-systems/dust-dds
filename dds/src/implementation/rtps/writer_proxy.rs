@@ -5,14 +5,13 @@ use std::{
 
 use super::{
     messages::{
-        overall_structure::RtpsMessageHeader,
+        overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind},
         submessage_elements::{FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessageWrite, data_frag::DataFragSubmessageRead,
             info_destination::InfoDestinationSubmessageWrite, nack_frag::NackFragSubmessageWrite,
         },
         types::FragmentNumber,
-        RtpsMessageWrite, RtpsSubmessageWriteKind,
     },
     transport::TransportWrite,
     types::{Count, EntityId, Guid, Locator, SequenceNumber},
