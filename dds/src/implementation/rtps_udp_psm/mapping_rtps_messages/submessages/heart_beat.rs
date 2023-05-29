@@ -89,36 +89,4 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn deserialize_heart_beat() {
-    //     let expected_endianness_flag = true;
-    //     let expected_final_flag = false;
-    //     let expected_liveliness_flag = true;
-    //     let expected_reader_id =
-    //         EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-    //     let expected_writer_id =
-    //         EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-    //     let expected_first_sn = SequenceNumber::new(5);
-    //     let expected_last_sn = SequenceNumber::new(7);
-    //     let expected_count = Count::new(2);
-    //     #[rustfmt::skip]
-    //     let submessage = HeartbeatSubmessageRead::new(&[
-    //         0x07, 0b_0000_0101, 28, 0, // Submessage header
-    //         1, 2, 3, 4, // readerId: value[4]
-    //         6, 7, 8, 9, // writerId: value[4]
-    //         0, 0, 0, 0, // firstSN: SequenceNumber: high
-    //         5, 0, 0, 0, // firstSN: SequenceNumber: low
-    //         0, 0, 0, 0, // lastSN: SequenceNumberSet: high
-    //         7, 0, 0, 0, // lastSN: SequenceNumberSet: low
-    //         2, 0, 0, 0, // count: Count: value (long)
-    //     ]);
-    //     assert_eq!(expected_endianness_flag, submessage.endianness_flag());
-    //     assert_eq!(expected_final_flag, submessage.final_flag());
-    //     assert_eq!(expected_liveliness_flag, submessage.liveliness_flag());
-    //     assert_eq!(expected_reader_id, submessage.reader_id());
-    //     assert_eq!(expected_writer_id, submessage.writer_id());
-    //     assert_eq!(expected_first_sn, submessage.first_sn());
-    //     assert_eq!(expected_last_sn, submessage.last_sn());
-    //     assert_eq!(expected_count, submessage.count());
-    // }
 }

@@ -227,8 +227,8 @@ impl FromBytes<'_> for Locator {
         let kind = LocatorKind::new(E::read_i32(&v[0..]));
         let port = LocatorPort::new(E::read_u32(&v[4..]));
         let address = LocatorAddress::new([
-            v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13],
-            v[14], v[15],
+            v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17],
+            v[18], v[19], v[20], v[21], v[22], v[23],
         ]);
         Self::new(kind, port, address)
     }
@@ -286,5 +286,48 @@ impl FromBytes<'_> for FragmentNumberSet {
             }
         }
         Self::new(FragmentNumber::new(base), set)
+    }
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::implementation::{
+        rtps::types::{Locator, LocatorAddress, LocatorKind, LocatorPort},
+    };
+
+    #[test]
+    fn deserialize_locator_list() {
+        let locator_1 = Locator::new(
+            LocatorKind::new(1),
+            LocatorPort::new(2),
+            LocatorAddress::new([3; 16]),
+        );
+        let locator_2 = Locator::new(
+            LocatorKind::new(2),
+            LocatorPort::new(2),
+            LocatorAddress::new([3; 16]),
+        );
+        let expected = LocatorList::new(vec![locator_1, locator_2]);
+        #[rustfmt::skip]
+        let result = LocatorList::from_bytes::<byteorder::LittleEndian>(&[
+            2, 0, 0, 0,  // numLocators (unsigned long)
+            1, 0, 0, 0, // kind (long)
+            2, 0, 0, 0, // port (unsigned long)
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+            2, 0, 0, 0, // kind (long)
+            2, 0, 0, 0, // port (unsigned long)
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+
+        ]);
+        assert_eq!(expected, result);
     }
 }

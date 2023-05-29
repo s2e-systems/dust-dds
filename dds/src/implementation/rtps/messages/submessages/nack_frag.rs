@@ -52,3 +52,45 @@ pub struct NackFragSubmessageWrite {
     pub fragment_number_state: FragmentNumberSet,
     pub count: Count,
 }
+
+
+#[cfg(test)]
+mod tests {
+    use crate::implementation::rtps::{types::{EntityKey, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_GROUP}, messages::types::FragmentNumber};
+
+    use super::*;
+    #[test]
+    fn deserialize_nack_frag() {
+        #[rustfmt::skip]
+        let submessage = NackFragSubmessageRead::new(&[
+            0x12_u8, 0b_0000_0001, 28, 0, // Submessage header
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN
+            4, 0, 0, 0, // writerSN
+           10, 0, 0, 0, // fragmentNumberState.base
+            0, 0, 0, 0, // fragmentNumberState.numBits
+            6, 0, 0, 0, // count
+        ]);
+
+        let expected_reader_id =
+            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id =
+            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let expected_writer_sn = SequenceNumber::new(4);
+        let expected_fragment_number_state = FragmentNumberSet {
+            base: FragmentNumber::new(10),
+            set: vec![],
+        };
+        let expected_count = Count::new(6);
+
+        assert_eq!(expected_reader_id, submessage.reader_id());
+        assert_eq!(expected_writer_id, submessage.writer_id());
+        assert_eq!(expected_writer_sn, submessage.writer_sn());
+        assert_eq!(
+            expected_fragment_number_state,
+            submessage.fragment_number_state()
+        );
+        assert_eq!(expected_count, submessage.count());
+    }
+}

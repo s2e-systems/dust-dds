@@ -23,3 +23,18 @@ impl<'a> PadSubmessageRead<'a> {
 pub struct PadSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn deserialize_pad() {
+        #[rustfmt::skip]
+        let submessage = PadSubmessageRead::new(&[
+            0x01, 0b_0000_0001, 0, 0, // Submessage header
+        ]);
+        let expected_endianness_flag = true;
+        assert_eq!(expected_endianness_flag, submessage.submessage_header().endianness_flag());
+    }
+}

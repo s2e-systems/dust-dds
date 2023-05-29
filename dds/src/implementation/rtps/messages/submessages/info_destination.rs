@@ -30,3 +30,24 @@ pub struct InfoDestinationSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub guid_prefix: GuidPrefix,
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::implementation::rtps::types::GUIDPREFIX_UNKNOWN;
+
+    use super::*;
+
+    #[test]
+    fn deserialize_info_destination() {
+        #[rustfmt::skip]
+        let submessage = InfoDestinationSubmessageRead::new(&[
+            0x0c, 0b_0000_0001, 12, 0, // Submessage header
+            0, 0, 0, 0, //guid_prefix
+            0, 0, 0, 0, //guid_prefix
+            0, 0, 0, 0, //guid_prefix
+        ]);
+
+        let expected_guid_prefix = GUIDPREFIX_UNKNOWN;
+        assert_eq!(expected_guid_prefix, submessage.guid_prefix());
+    }
+}

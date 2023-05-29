@@ -44,11 +44,10 @@ pub struct InfoSourceSubmessageWrite {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::implementation::rtps::types::{
         GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN,
     };
-
-    use super::*;
 
     #[test]
     fn deserialize_info_source() {
@@ -62,7 +61,6 @@ mod tests {
             0, 0, 0, 0, //guid_prefix
         ]);
 
-        let expected_endianness_flag = true;
         let expected_protocol_version = PROTOCOLVERSION_1_0;
         let expected_vendor_id = VENDOR_ID_UNKNOWN;
         let expected_guid_prefix = GUIDPREFIX_UNKNOWN;
@@ -72,3 +70,4 @@ mod tests {
         assert_eq!(expected_guid_prefix, submessage.guid_prefix());
     }
 }
+

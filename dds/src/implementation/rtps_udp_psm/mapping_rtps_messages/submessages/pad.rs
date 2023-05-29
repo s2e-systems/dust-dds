@@ -51,13 +51,4 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn deserialize_pad() {
-    //     #[rustfmt::skip]
-    //     let submessage = PadSubmessageRead::new(&[
-    //         0x01, 0b_0000_0001, 0, 0, // Submessage header
-    //     ]);
-    //     let expected_endianness_flag = true;
-    //     assert_eq!(expected_endianness_flag, submessage.endianness());
-    // }
 }
