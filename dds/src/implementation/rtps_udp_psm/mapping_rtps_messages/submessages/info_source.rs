@@ -11,20 +11,21 @@ use std::io::{Error, Write};
 
 impl MappingWriteSubmessage for InfoSourceSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::INFO_SRC,
-            flags: [
-                self.endianness_flag,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length: 20,
-        }
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::INFO_SRC,
+        //     flags: [
+        //         self.endianness_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length: 20,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(

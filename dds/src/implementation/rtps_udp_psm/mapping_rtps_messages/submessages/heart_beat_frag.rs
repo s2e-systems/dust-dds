@@ -12,20 +12,21 @@ use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for HeartbeatFragSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::HEARTBEAT_FRAG,
-            flags: [
-                self.endianness_flag,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length: 24,
-        }
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::HEARTBEAT_FRAG,
+        //     flags: [
+        //         self.endianness_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length: 24,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(

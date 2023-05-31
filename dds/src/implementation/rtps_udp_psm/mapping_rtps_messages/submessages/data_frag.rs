@@ -12,27 +12,28 @@ use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for DataFragSubmessageWrite<'_> {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        let inline_qos_len = if self.inline_qos_flag {
-            self.inline_qos.number_of_bytes()
-        } else {
-            0
-        };
-        let serialized_payload_len_padded = (self.serialized_payload.number_of_bytes() + 3) & !3; //ceil to multiple of 4
-        let octets_to_next_header = 32 + inline_qos_len + serialized_payload_len_padded;
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::DATA_FRAG,
-            flags: [
-                self.endianness_flag,
-                self.inline_qos_flag,
-                self.key_flag,
-                self.non_standard_payload_flag,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length: octets_to_next_header as u16,
-        }
+        // let inline_qos_len = if self.inline_qos_flag {
+        //     self.inline_qos.number_of_bytes()
+        // } else {
+        //     0
+        // };
+        // let serialized_payload_len_padded = (self.serialized_payload.number_of_bytes() + 3) & !3; //ceil to multiple of 4
+        // let octets_to_next_header = 32 + inline_qos_len + serialized_payload_len_padded;
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::DATA_FRAG,
+        //     flags: [
+        //         self.endianness_flag,
+        //         self.inline_qos_flag,
+        //         self.key_flag,
+        //         self.non_standard_payload_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length: octets_to_next_header as u16,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(

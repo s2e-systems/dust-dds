@@ -56,33 +56,34 @@ impl MappingWriteByteOrderInfoInData for [SubmessageFlag; 8] {
 
 impl MappingWriteByteOrderInfoInData for SubmessageHeaderWrite {
     fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
-        let submessage_id = match self.submessage_id {
-            SubmessageKind::DATA => DATA,
-            SubmessageKind::GAP => GAP,
-            SubmessageKind::HEARTBEAT => HEARTBEAT,
-            SubmessageKind::ACKNACK => ACKNACK,
-            SubmessageKind::PAD => PAD,
-            SubmessageKind::INFO_TS => INFO_TS,
-            SubmessageKind::INFO_REPLY => INFO_REPLY,
-            SubmessageKind::INFO_DST => INFO_DST,
-            SubmessageKind::INFO_SRC => INFO_SRC,
-            SubmessageKind::DATA_FRAG => DATA_FRAG,
-            SubmessageKind::NACK_FRAG => NACK_FRAG,
-            SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
-        };
-        if self.flags[0] {
-            submessage_id.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
-            self.flags
-                .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
-            self.submessage_length
-                .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)
-        } else {
-            submessage_id.mapping_write_byte_ordered::<_, BigEndian>(&mut writer)?;
-            self.flags
-                .mapping_write_byte_ordered::<_, BigEndian>(&mut writer)?;
-            self.submessage_length
-                .mapping_write_byte_ordered::<_, BigEndian>(&mut writer)
-        }
+        // let submessage_id = match self.submessage_id {
+        //     SubmessageKind::DATA => DATA,
+        //     SubmessageKind::GAP => GAP,
+        //     SubmessageKind::HEARTBEAT => HEARTBEAT,
+        //     SubmessageKind::ACKNACK => ACKNACK,
+        //     SubmessageKind::PAD => PAD,
+        //     SubmessageKind::INFO_TS => INFO_TS,
+        //     SubmessageKind::INFO_REPLY => INFO_REPLY,
+        //     SubmessageKind::INFO_DST => INFO_DST,
+        //     SubmessageKind::INFO_SRC => INFO_SRC,
+        //     SubmessageKind::DATA_FRAG => DATA_FRAG,
+        //     SubmessageKind::NACK_FRAG => NACK_FRAG,
+        //     SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
+        // };
+        // if self.flags[0] {
+        //     submessage_id.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
+        //     self.flags
+        //         .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
+        //     self.submessage_length
+        //         .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)
+        // } else {
+        //     submessage_id.mapping_write_byte_ordered::<_, BigEndian>(&mut writer)?;
+        //     self.flags
+        //         .mapping_write_byte_ordered::<_, BigEndian>(&mut writer)?;
+        //     self.submessage_length
+        //         .mapping_write_byte_ordered::<_, BigEndian>(&mut writer)
+        // }
+        todo!()
     }
 }
 
@@ -91,23 +92,24 @@ impl MappingWriteByteOrdered for SubmessageHeaderWrite {
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        let submessage_id = match self.submessage_id {
-            SubmessageKind::DATA => DATA,
-            SubmessageKind::GAP => GAP,
-            SubmessageKind::HEARTBEAT => HEARTBEAT,
-            SubmessageKind::ACKNACK => ACKNACK,
-            SubmessageKind::PAD => PAD,
-            SubmessageKind::INFO_TS => INFO_TS,
-            SubmessageKind::INFO_REPLY => INFO_REPLY,
-            SubmessageKind::INFO_DST => INFO_DST,
-            SubmessageKind::INFO_SRC => INFO_SRC,
-            SubmessageKind::DATA_FRAG => DATA_FRAG,
-            SubmessageKind::NACK_FRAG => NACK_FRAG,
-            SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
-        };
-        submessage_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.flags.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        writer.write_u16::<B>(self.submessage_length)
+        // let submessage_id = match self.submessage_id {
+        //     SubmessageKind::DATA => DATA,
+        //     SubmessageKind::GAP => GAP,
+        //     SubmessageKind::HEARTBEAT => HEARTBEAT,
+        //     SubmessageKind::ACKNACK => ACKNACK,
+        //     SubmessageKind::PAD => PAD,
+        //     SubmessageKind::INFO_TS => INFO_TS,
+        //     SubmessageKind::INFO_REPLY => INFO_REPLY,
+        //     SubmessageKind::INFO_DST => INFO_DST,
+        //     SubmessageKind::INFO_SRC => INFO_SRC,
+        //     SubmessageKind::DATA_FRAG => DATA_FRAG,
+        //     SubmessageKind::NACK_FRAG => NACK_FRAG,
+        //     SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
+        // };
+        // submessage_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // self.flags.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // writer.write_u16::<B>(self.submessage_length)
+        todo!()
     }
 }
 
@@ -126,11 +128,7 @@ mod tests {
 
     #[test]
     fn serialize_rtps_submessage_header() {
-        let value = SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::ACKNACK,
-            flags: [true; 8],
-            submessage_length: 16,
-        };
+        let value = SubmessageHeaderWrite::new(SubmessageKind::ACKNACK, [true; 8], 16);
         assert_eq!(
             to_bytes_le(&value).unwrap(),
             vec![0x06, 0b_1111_1111, 16, 0]

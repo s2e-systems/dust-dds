@@ -12,21 +12,22 @@ use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for GapSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        let submessage_length = 16 + self.gap_list.number_of_bytes();
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::GAP,
-            flags: [
-                self.endianness_flag,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length: submessage_length as u16,
-        }
+        // let submessage_length = 16 + self.gap_list.number_of_bytes();
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::GAP,
+        //     flags: [
+        //         self.endianness_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length: submessage_length as u16,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(

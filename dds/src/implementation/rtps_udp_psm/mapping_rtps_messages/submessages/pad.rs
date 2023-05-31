@@ -8,20 +8,21 @@ use std::io::{Error, Write};
 
 impl MappingWriteSubmessage for PadSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::PAD,
-            flags: [
-                self.endianness_flag,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length: 0,
-        }
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::PAD,
+        //     flags: [
+        //         self.endianness_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length: 0,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(

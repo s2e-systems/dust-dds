@@ -10,20 +10,21 @@ use std::io::{Error, Write};
 
 impl MappingWriteSubmessage for HeartbeatSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::HEARTBEAT,
-            flags: [
-                self.endianness_flag,
-                self.final_flag,
-                self.liveliness_flag,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length: 28,
-        }
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::HEARTBEAT,
+        //     flags: [
+        //         self.endianness_flag,
+        //         self.final_flag,
+        //         self.liveliness_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length: 28,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: byteorder::ByteOrder>(

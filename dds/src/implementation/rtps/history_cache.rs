@@ -6,7 +6,9 @@ use crate::{
 use super::{
     messages::{
         submessage_elements::{ParameterList, SequenceNumberSet},
-        submessages::{data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite, data::DataSubmessageWrite, },
+        submessages::{
+            data::DataSubmessageWrite, data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
+        },
         types::SerializedPayload,
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
@@ -43,18 +45,18 @@ impl RtpsWriterCacheChange {
             _ => todo!(),
         };
 
-        DataSubmessageWrite {
-            endianness_flag: true,
-            inline_qos_flag: true,
+        DataSubmessageWrite::new(
+            true,
+            true,
             data_flag,
             key_flag,
-            non_standard_payload_flag: false,
+            false,
             reader_id,
-            writer_id: self.writer_guid().entity_id(),
-            writer_sn: self.sequence_number(),
-            inline_qos: &self.inline_qos,
-            serialized_payload: SerializedPayload::new(self.data_value()),
-        }
+            self.writer_guid().entity_id(),
+            self.sequence_number(),
+            &self.inline_qos,
+            SerializedPayload::new(self.data_value()),
+        )
     }
 
     pub fn as_data_frag_submessages(

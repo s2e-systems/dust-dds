@@ -12,24 +12,25 @@ use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for AckNackSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        let octets_to_next_header = self.reader_id.number_of_bytes()
-            + self.writer_id.number_of_bytes()
-            + self.reader_sn_state.number_of_bytes()
-            + self.count.number_of_bytes();
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::ACKNACK,
-            flags: [
-                self.endianness_flag,
-                self.final_flag,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length: octets_to_next_header as u16,
-        }
+        // let octets_to_next_header = self.reader_id.number_of_bytes()
+        //     + self.writer_id.number_of_bytes()
+        //     + self.reader_sn_state.number_of_bytes()
+        //     + self.count.number_of_bytes();
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::ACKNACK,
+        //     flags: [
+        //         self.endianness_flag,
+        //         self.final_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length: octets_to_next_header as u16,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: byteorder::ByteOrder>(

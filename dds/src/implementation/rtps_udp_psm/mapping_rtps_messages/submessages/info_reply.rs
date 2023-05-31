@@ -11,27 +11,28 @@ use std::io::{Error, Write};
 
 impl MappingWriteSubmessage for InfoReplySubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        let unicast_locator_list_number_of_bytes = self.unicast_locator_list.number_of_bytes();
-        let submessage_length = match self.multicast_flag {
-            true => {
-                unicast_locator_list_number_of_bytes + self.multicast_locator_list.number_of_bytes()
-            }
-            false => unicast_locator_list_number_of_bytes,
-        } as u16;
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::INFO_REPLY,
-            flags: [
-                self.endianness_flag,
-                self.multicast_flag,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length,
-        }
+        // let unicast_locator_list_number_of_bytes = self.unicast_locator_list.number_of_bytes();
+        // let submessage_length = match self.multicast_flag {
+        //     true => {
+        //         unicast_locator_list_number_of_bytes + self.multicast_locator_list.number_of_bytes()
+        //     }
+        //     false => unicast_locator_list_number_of_bytes,
+        // } as u16;
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::INFO_REPLY,
+        //     flags: [
+        //         self.endianness_flag,
+        //         self.multicast_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(

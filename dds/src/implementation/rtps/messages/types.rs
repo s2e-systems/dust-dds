@@ -1,3 +1,12 @@
+use std::io::Read;
+
+use crate::implementation::rtps_udp_psm::mapping_rtps_messages::submessages::submessage_header::{
+    ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
+    INFO_TS, NACK_FRAG, PAD,
+};
+
+use super::overall_structure::IntoBytes;
+
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
 ///
@@ -11,10 +20,29 @@ pub enum ProtocolId {
     PROTOCOL_RTPS,
 }
 
+impl IntoBytes for ProtocolId {
+    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        b"RTPS".as_slice().read(buf).unwrap()
+    }
+}
+
 /// SubmessageFlag
 /// Type used to specify a Submessage flag.
 /// A Submessage flag takes a boolean value and affects the parsing of the Submessage by the receiver.
 pub type SubmessageFlag = bool;
+
+impl IntoBytes for [SubmessageFlag; 8] {
+    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        let mut flags = 0b_0000_0000_u8;
+        for (i, &item) in self.iter().enumerate() {
+            if item {
+                flags |= 0b_0000_0001 << i
+            }
+        }
+        buf[0] = flags;
+        1
+    }
+}
 
 /// SubmessageKind
 /// Enumeration used to identify the kind of Submessage.
@@ -36,6 +64,26 @@ pub enum SubmessageKind {
     DATA_FRAG,
     NACK_FRAG,
     HEARTBEAT_FRAG,
+}
+
+impl IntoBytes for SubmessageKind {
+    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        buf[0] = match self {
+            SubmessageKind::DATA => DATA,
+            SubmessageKind::GAP => GAP,
+            SubmessageKind::HEARTBEAT => HEARTBEAT,
+            SubmessageKind::ACKNACK => ACKNACK,
+            SubmessageKind::PAD => PAD,
+            SubmessageKind::INFO_TS => INFO_TS,
+            SubmessageKind::INFO_REPLY => INFO_REPLY,
+            SubmessageKind::INFO_DST => INFO_DST,
+            SubmessageKind::INFO_SRC => INFO_SRC,
+            SubmessageKind::DATA_FRAG => DATA_FRAG,
+            SubmessageKind::NACK_FRAG => NACK_FRAG,
+            SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
+        };
+        1
+    }
 }
 
 /// ParameterId_t
@@ -136,6 +184,13 @@ pub struct SerializedPayload<'a>(&'a [u8]);
 impl<'a> SerializedPayload<'a> {
     pub fn new(value: &'a [u8]) -> Self {
         Self(value)
+    }
+}
+
+impl IntoBytes for SerializedPayload<'_> {
+    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        buf[..self.0.len()].copy_from_slice(self.0);
+        self.0.len()
     }
 }
 

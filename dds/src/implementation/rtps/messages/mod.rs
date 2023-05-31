@@ -4,6 +4,7 @@ pub mod overall_structure;
 pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
+pub mod submessage_elements_write;
 
 pub trait FromBytes<'a> {
     fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self;

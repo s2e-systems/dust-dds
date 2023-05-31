@@ -11,25 +11,26 @@ use std::io::{Error, Write};
 
 impl MappingWriteSubmessage for NackFragSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        let octets_to_next_header = self.reader_id.number_of_bytes()
-            + self.writer_id.number_of_bytes()
-            + self.writer_sn.number_of_bytes()
-            + self.fragment_number_state.number_of_bytes()
-            + self.count.number_of_bytes();
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::NACK_FRAG,
-            flags: [
-                self.endianness_flag,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length: octets_to_next_header as u16,
-        }
+        // let octets_to_next_header = self.reader_id.number_of_bytes()
+        //     + self.writer_id.number_of_bytes()
+        //     + self.writer_sn.number_of_bytes()
+        //     + self.fragment_number_state.number_of_bytes()
+        //     + self.count.number_of_bytes();
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::NACK_FRAG,
+        //     flags: [
+        //         self.endianness_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length: octets_to_next_header as u16,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(

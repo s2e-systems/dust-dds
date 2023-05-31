@@ -11,21 +11,22 @@ use std::io::{Error, Write};
 
 impl MappingWriteSubmessage for InfoDestinationSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        let octets_to_next_header = self.guid_prefix.number_of_bytes();
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::INFO_DST,
-            flags: [
-                self.endianness_flag,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length: octets_to_next_header as u16,
-        }
+        // let octets_to_next_header = self.guid_prefix.number_of_bytes();
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::INFO_DST,
+        //     flags: [
+        //         self.endianness_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length: octets_to_next_header as u16,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(

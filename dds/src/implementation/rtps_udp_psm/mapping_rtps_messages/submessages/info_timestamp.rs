@@ -10,24 +10,25 @@ use std::io::{Error, Write};
 
 impl MappingWriteSubmessage for InfoTimestampSubmessageWrite {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
-        let submessage_length = match self.invalidate_flag {
-            true => 0,
-            false => 8,
-        };
-        SubmessageHeaderWrite {
-            submessage_id: SubmessageKind::INFO_TS,
-            flags: [
-                self.endianness_flag,
-                self.invalidate_flag,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ],
-            submessage_length,
-        }
+        // let submessage_length = match self.invalidate_flag {
+        //     true => 0,
+        //     false => 8,
+        // };
+        // SubmessageHeaderWrite {
+        //     submessage_id: SubmessageKind::INFO_TS,
+        //     flags: [
+        //         self.endianness_flag,
+        //         self.invalidate_flag,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //         false,
+        //     ],
+        //     submessage_length,
+        // }
+        todo!()
     }
 
     fn mapping_write_submessage_elements<W: Write, B: byteorder::ByteOrder>(

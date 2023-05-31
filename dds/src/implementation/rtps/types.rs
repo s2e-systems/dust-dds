@@ -1,9 +1,9 @@
-use std::ops::{Add, AddAssign, Sub, SubAssign};
-
+use std::{ops::{Add, AddAssign, Sub, SubAssign}, io::Read};
 use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS,
     rtps_udp_psm::mapping_traits::NumberOfBytes,
 };
+use super::messages::overall_structure::IntoBytes;
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -99,6 +99,12 @@ pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
 impl GuidPrefix {
     pub const fn new(value: [u8; 12]) -> Self {
         Self(value)
+    }
+}
+
+impl IntoBytes for GuidPrefix {
+    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.0.as_slice().read(buf).unwrap()
     }
 }
 
@@ -310,6 +316,14 @@ pub struct ProtocolVersion {
     minor: u8,
 }
 
+impl IntoBytes for ProtocolVersion {
+    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        buf[0] = self.major;
+        buf[1] = self.minor;
+        2
+    }
+}
+
 pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
 #[allow(dead_code)]
 pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion { major: 1, minor: 0 };
@@ -348,6 +362,12 @@ pub struct VendorId([u8; 2]);
 impl VendorId {
     pub const fn new(value: [u8; 2]) -> Self {
         Self(value)
+    }
+}
+
+impl IntoBytes for VendorId {
+    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.0.as_slice().read(buf).unwrap()
     }
 }
 
