@@ -5,19 +5,21 @@ use crate::implementation::{
 use byteorder::ByteOrder;
 use std::io::{Error, Write};
 
-impl MappingWriteByteOrdered for SerializedPayload<'_> {
+impl MappingWriteByteOrdered for SerializedPayload {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        writer.write_all(self.into())?;
-        Ok(())
+        // writer.write_all(self.into())?;
+        // Ok(())
+        todo!()
     }
 }
 
-impl NumberOfBytes for SerializedPayload<'_> {
+impl NumberOfBytes for SerializedPayload {
     fn number_of_bytes(&self) -> usize {
-        <&[u8]>::from(self).len()
+        //<&[u8]>::from(self).len()
+        todo!()
     }
 }
 

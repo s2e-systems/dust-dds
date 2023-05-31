@@ -20,7 +20,7 @@ pub struct RtpsWriterCacheChange {
     sequence_number: SequenceNumber,
     _instance_handle: InstanceHandle,
     timestamp: Time,
-    data: Vec<u8>,
+    data: SerializedPayload,
     inline_qos: ParameterList,
 }
 
@@ -55,7 +55,7 @@ impl RtpsWriterCacheChange {
             self.writer_guid().entity_id(),
             self.sequence_number(),
             &self.inline_qos,
-            SerializedPayload::new(self.data_value()),
+            &self.data,
         )
     }
 
@@ -64,57 +64,58 @@ impl RtpsWriterCacheChange {
         max_bytes: usize,
         reader_id: EntityId,
     ) -> Vec<DataFragSubmessageWrite> {
-        let data = self.data_value();
-        let data_size = ULong::new(data.len() as u32);
-        let mut fragment_starting_num = FragmentNumber::new(1);
-        const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
+        // let data = self.data_value();
+        // let data_size = ULong::new(data.len() as u32);
+        // let mut fragment_starting_num = FragmentNumber::new(1);
+        // const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
 
-        let mut messages = Vec::new();
+        // let mut messages = Vec::new();
 
-        let mut data_fragment;
-        let mut data_remaining = data;
+        // let mut data_fragment;
+        // let mut data_remaining = data;
 
-        while !data_remaining.is_empty() {
-            if data_remaining.len() >= max_bytes {
-                (data_fragment, data_remaining) = data_remaining.split_at(max_bytes);
-            } else {
-                data_fragment = data_remaining;
-                data_remaining = &[];
-            }
+        // while !data_remaining.is_empty() {
+        //     if data_remaining.len() >= max_bytes {
+        //         (data_fragment, data_remaining) = data_remaining.split_at(max_bytes);
+        //     } else {
+        //         data_fragment = data_remaining;
+        //         data_remaining = &[];
+        //     }
 
-            let endianness_flag = true;
-            let inline_qos_flag = true;
-            let key_flag = match self.kind() {
-                ChangeKind::Alive => false,
-                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
-                _ => todo!(),
-            };
-            let non_standard_payload_flag = false;
-            let writer_id = self.writer_guid().entity_id();
-            let writer_sn = self.sequence_number();
-            let inline_qos = &self.inline_qos;
-            let serialized_payload = SerializedPayload::new(data_fragment);
-            let message = DataFragSubmessageWrite {
-                endianness_flag,
-                inline_qos_flag,
-                non_standard_payload_flag,
-                key_flag,
-                reader_id,
-                writer_id,
-                writer_sn,
-                fragment_starting_num,
-                fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
-                data_size,
-                fragment_size: UShort::new(max_bytes as u16),
-                inline_qos,
-                serialized_payload,
-            };
+        //     let endianness_flag = true;
+        //     let inline_qos_flag = true;
+        //     let key_flag = match self.kind() {
+        //         ChangeKind::Alive => false,
+        //         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
+        //         _ => todo!(),
+        //     };
+        //     let non_standard_payload_flag = false;
+        //     let writer_id = self.writer_guid().entity_id();
+        //     let writer_sn = self.sequence_number();
+        //     let inline_qos = &self.inline_qos;
+        //     let serialized_payload = &SerializedPayload::new(data_fragment);
+        //     let message = DataFragSubmessageWrite {
+        //         endianness_flag,
+        //         inline_qos_flag,
+        //         non_standard_payload_flag,
+        //         key_flag,
+        //         reader_id,
+        //         writer_id,
+        //         writer_sn,
+        //         fragment_starting_num,
+        //         fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
+        //         data_size,
+        //         fragment_size: UShort::new(max_bytes as u16),
+        //         inline_qos,
+        //         serialized_payload,
+        //     };
 
-            messages.push(message);
+        //     messages.push(message);
 
-            fragment_starting_num += FragmentNumber::new(1);
-        }
-        messages
+        //     fragment_starting_num += FragmentNumber::new(1);
+        // }
+        // messages
+        todo!()
     }
 }
 
@@ -134,7 +135,7 @@ impl RtpsWriterCacheChange {
             sequence_number,
             _instance_handle: instance_handle,
             timestamp,
-            data: data_value,
+            data: SerializedPayload::new(&data_value),
             inline_qos,
         }
     }

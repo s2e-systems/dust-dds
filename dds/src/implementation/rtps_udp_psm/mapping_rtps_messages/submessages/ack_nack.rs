@@ -10,7 +10,7 @@ use crate::implementation::{
 
 use super::submessage::MappingWriteSubmessage;
 
-impl MappingWriteSubmessage for AckNackSubmessageWrite {
+impl MappingWriteSubmessage for AckNackSubmessageWrite<'_> {
     fn submessage_header(&self) -> SubmessageHeaderWrite {
         // let octets_to_next_header = self.reader_id.number_of_bytes()
         //     + self.writer_id.number_of_bytes()

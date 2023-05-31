@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn serialize_rtps_submessage_header() {
-        let value = SubmessageHeaderWrite::new(SubmessageKind::ACKNACK, [true; 8], 16);
+        let value = SubmessageHeaderWrite::new(SubmessageKind::ACKNACK, &[true; 8], 16);
         assert_eq!(
             to_bytes_le(&value).unwrap(),
             vec![0x06, 0b_1111_1111, 16, 0]

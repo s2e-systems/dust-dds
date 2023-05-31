@@ -259,52 +259,53 @@ impl RtpsReader {
     ) -> RtpsReaderResult<RtpsReaderCacheChange> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
 
-        let data = <&[u8]>::from(data_submessage.serialized_payload()).to_vec();
+        // let data = <&[u8]>::from(data_submessage.serialized_payload()).to_vec();
 
-        let inline_qos = data_submessage.inline_qos();
+        // let inline_qos = data_submessage.inline_qos();
 
-        let change_kind = match (data_submessage.data_flag(), data_submessage.key_flag()) {
-            (true, false) => Ok(ChangeKind::Alive),
-            (false, true) | (false, false) => {
-                if let Some(p) = inline_qos
-                    .parameter()
-                    .iter()
-                    .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
-                {
-                    let mut deserializer =
-                        cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
-                    let status_info: StatusInfo =
-                        serde::Deserialize::deserialize(&mut deserializer).unwrap();
-                    match status_info {
-                        STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
-                        STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
-                        STATUS_INFO_DISPOSED_UNREGISTERED => {
-                            Ok(ChangeKind::NotAliveDisposedUnregistered)
-                        }
-                        _ => Err(RtpsReaderError::InvalidData("Unknown status info value")),
-                    }
-                } else {
-                    Err(RtpsReaderError::InvalidData(
-                        "Missing mandatory StatusInfo parameter",
-                    ))
-                }
-            }
-            (true, true) => Err(RtpsReaderError::InvalidData(
-                "Invalid data and key flag combination",
-            )),
-        }?;
+        // let change_kind = match (data_submessage.data_flag(), data_submessage.key_flag()) {
+        //     (true, false) => Ok(ChangeKind::Alive),
+        //     (false, true) | (false, false) => {
+        //         if let Some(p) = inline_qos
+        //             .parameter()
+        //             .iter()
+        //             .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
+        //         {
+        //             let mut deserializer =
+        //                 cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
+        //             let status_info: StatusInfo =
+        //                 serde::Deserialize::deserialize(&mut deserializer).unwrap();
+        //             match status_info {
+        //                 STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
+        //                 STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
+        //                 STATUS_INFO_DISPOSED_UNREGISTERED => {
+        //                     Ok(ChangeKind::NotAliveDisposedUnregistered)
+        //                 }
+        //                 _ => Err(RtpsReaderError::InvalidData("Unknown status info value")),
+        //             }
+        //         } else {
+        //             Err(RtpsReaderError::InvalidData(
+        //                 "Missing mandatory StatusInfo parameter",
+        //             ))
+        //         }
+        //     }
+        //     (true, true) => Err(RtpsReaderError::InvalidData(
+        //         "Invalid data and key flag combination",
+        //     )),
+        // }?;
 
-        Ok(RtpsReaderCacheChange {
-            kind: change_kind,
-            writer_guid,
-            data,
-            inline_qos,
-            source_timestamp,
-            sample_state: SampleStateKind::NotRead,
-            disposed_generation_count: 0, // To be filled up only when getting stored
-            no_writers_generation_count: 0, // To be filled up only when getting stored
-            reception_timestamp,
-        })
+        // Ok(RtpsReaderCacheChange {
+        //     kind: change_kind,
+        //     writer_guid,
+        //     data,
+        //     inline_qos,
+        //     source_timestamp,
+        //     sample_state: SampleStateKind::NotRead,
+        //     disposed_generation_count: 0, // To be filled up only when getting stored
+        //     no_writers_generation_count: 0, // To be filled up only when getting stored
+        //     reception_timestamp,
+        // })
+        todo!()
     }
 
     fn is_max_samples_limit_reached(&self, change_instance_handle: &InstanceHandle) -> bool {

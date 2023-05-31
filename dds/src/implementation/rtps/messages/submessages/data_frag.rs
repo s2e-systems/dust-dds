@@ -105,7 +105,7 @@ impl<'a> DataFragSubmessageRead<'a> {
         }
     }
 
-    pub fn serialized_payload(&self) -> SerializedPayload<'a> {
+    pub fn serialized_payload(&self) -> SerializedPayload {
         self.map(&self.data[8 + self.octets_to_inline_qos() as usize + self.inline_qos_len()..])
     }
 }
@@ -124,7 +124,7 @@ pub struct DataFragSubmessageWrite<'a> {
     pub data_size: ULong,
     pub fragment_size: UShort,
     pub inline_qos: &'a ParameterList,
-    pub serialized_payload: SerializedPayload<'a>,
+    pub serialized_payload: &'a SerializedPayload,
 }
 
 #[cfg(test)]

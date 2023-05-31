@@ -31,7 +31,7 @@ impl EndianWriteBytes for ProtocolId {
 /// A Submessage flag takes a boolean value and affects the parsing of the Submessage by the receiver.
 pub type SubmessageFlag = bool;
 
-impl WriteBytes for [SubmessageFlag; 8] {
+impl WriteBytes for &[SubmessageFlag] {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let mut flags = 0b_0000_0000_u8;
         for (i, &item) in self.iter().enumerate() {
@@ -179,23 +179,29 @@ pub const TIME_INVALID: Time = Time {
 };
 
 #[derive(Debug, PartialEq, Eq, derive_more::Into, derive_more::From)]
-pub struct SerializedPayload<'a>(&'a [u8]);
+pub struct SerializedPayload(Vec<u8>);
 
-impl<'a> SerializedPayload<'a> {
-    pub fn new(value: &'a [u8]) -> Self {
-        Self(value)
+impl SerializedPayload {
+    pub fn new(value: &[u8]) -> Self {
+        Self(value.to_vec())
     }
 }
-
-impl EndianWriteBytes for SerializedPayload<'_> {
+impl AsRef<[u8]> for SerializedPayload {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+impl EndianWriteBytes for SerializedPayload {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(self.0);
-        self.0.len()
+        buf[..self.0.len()].copy_from_slice(&self.0);
+        let length_inclusive_padding = self.0.len() + 3 & !3;
+        buf[self.0.len()..length_inclusive_padding].fill(0);
+        length_inclusive_padding
     }
 }
 
-impl<'a> From<&'_ SerializedPayload<'a>> for &'a [u8] {
-    fn from(value: &'_ SerializedPayload<'a>) -> Self {
-        value.0
-    }
-}
+// impl From<&SerializedPayload> for &[u8] {
+//     fn from(value: &SerializedPayload) -> Self {
+//         &value.0
+//     }
+// }

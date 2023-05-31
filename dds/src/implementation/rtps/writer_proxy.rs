@@ -28,13 +28,14 @@ pub struct OwningDataFragSubmessage {
 
 impl From<&DataFragSubmessageRead<'_>> for OwningDataFragSubmessage {
     fn from(x: &DataFragSubmessageRead<'_>) -> Self {
-        Self {
-            fragment_starting_num: x.fragment_starting_num(),
-            data_size: x.data_size(),
-            fragment_size: x.fragment_size(),
-            fragments_in_submessage: x.fragments_in_submessage(),
-            serialized_payload: <&[u8]>::from(&x.serialized_payload()).to_vec(),
-        }
+        // Self {
+        //     fragment_starting_num: x.fragment_starting_num(),
+        //     data_size: x.data_size(),
+        //     fragment_size: x.fragment_size(),
+        //     fragments_in_submessage: x.fragments_in_submessage(),
+        //     serialized_payload: <&[u8]>::from(&x.serialized_payload()).to_vec(),
+        // }
+        todo!()
     }
 }
 
