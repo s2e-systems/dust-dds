@@ -357,8 +357,9 @@ impl SubmessageHeaderWrite {
 
 impl EndianWriteBytes for SubmessageHeaderWrite {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        self.submessage_id.endian_write_bytes::<E>(buf);
-        self.flags.endian_write_bytes::<E>(buf);
+        self.submessage_id.write_bytes(&mut buf[0..]);
+        self.flags.write_bytes(&mut buf[1..]);
+        self.submessage_length.endian_write_bytes::<E>(&mut buf[2..]);
         4
     }
 }

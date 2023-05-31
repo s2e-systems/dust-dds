@@ -5,7 +5,7 @@ use crate::implementation::rtps_udp_psm::mapping_rtps_messages::submessages::sub
     INFO_TS, NACK_FRAG, PAD,
 };
 
-use super::overall_structure::EndianWriteBytes;
+use super::overall_structure::{EndianWriteBytes, WriteBytes};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
@@ -31,8 +31,8 @@ impl EndianWriteBytes for ProtocolId {
 /// A Submessage flag takes a boolean value and affects the parsing of the Submessage by the receiver.
 pub type SubmessageFlag = bool;
 
-impl EndianWriteBytes for [SubmessageFlag; 8] {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for [SubmessageFlag; 8] {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let mut flags = 0b_0000_0000_u8;
         for (i, &item) in self.iter().enumerate() {
             if item {
@@ -66,8 +66,8 @@ pub enum SubmessageKind {
     HEARTBEAT_FRAG,
 }
 
-impl EndianWriteBytes for SubmessageKind {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for SubmessageKind {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         buf[0] = match self {
             SubmessageKind::DATA => DATA,
             SubmessageKind::GAP => GAP,

@@ -6,7 +6,7 @@ use crate::implementation::{
         messages::{
             overall_structure::{
                 EndiannessFlag, RtpsMap, RtpsMapWrite, SubmessageHeader, SubmessageHeaderRead,
-                WriteBytes,
+                WriteBytes, SubmessageHeaderWrite,
             },
             submessage_elements::ParameterList,
             types::{SerializedPayload, SubmessageFlag, SubmessageKind},
@@ -142,6 +142,20 @@ impl<'a> DataSubmessageWrite<'a> {
             serialized_payload,
         }
     }
+
+    fn submessage_header(&self, octets_to_next_header: usize) -> SubmessageHeaderWrite {
+        let flags = [
+            self.endianness_flag,
+            self.inline_qos_flag,
+            self.data_flag,
+            self.key_flag,
+            self.non_standard_payload_flag,
+            false,
+            false,
+            false,
+        ];
+        SubmessageHeaderWrite::new(SubmessageKind::DATA, flags, octets_to_next_header as u16)
+    }
 }
 
 impl EndiannessFlag for DataSubmessageWrite<'_> {
@@ -154,19 +168,7 @@ impl WriteBytes for DataSubmessageWrite<'_> {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         const OCTETS_TO_INLINE_QOS: u16 = 16;
         const EXTRA_FLAGS: u16 = 0;
-        let flags = [
-            self.endianness_flag,
-            self.inline_qos_flag,
-            self.data_flag,
-            self.key_flag,
-            self.non_standard_payload_flag,
-            false,
-            false,
-            false,
-        ];
 
-        self.map_write(&SubmessageKind::DATA, &mut buf[0..]);
-        self.map_write(&flags, &mut buf[1..]);
         self.map_write(&EXTRA_FLAGS, &mut buf[4..]);
         self.map_write(&OCTETS_TO_INLINE_QOS, &mut buf[6..]);
         self.map_write(&self.reader_id, &mut buf[8..]);
@@ -186,8 +188,8 @@ impl WriteBytes for DataSubmessageWrite<'_> {
         let length_with_padding = length_without_padding + 3 & !3;
         buf[length_without_padding..length_with_padding].fill(0);
 
-        let octets_to_next_header = (length_with_padding - 4) as i16;
-        self.map_write(&octets_to_next_header, &mut buf[2..]);
+        let octets_to_next_header = length_with_padding - 4;
+        self.map_write(&self.submessage_header(octets_to_next_header), &mut buf[0..]);
 
         length_with_padding
     }

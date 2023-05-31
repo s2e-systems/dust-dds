@@ -2,7 +2,7 @@ use crate::implementation::rtps::{
     messages::{
         overall_structure::{
             EndiannessFlag, RtpsMap, RtpsMapWrite, SubmessageHeader, SubmessageHeaderRead,
-            WriteBytes,
+            SubmessageHeaderWrite, WriteBytes,
         },
         submessage_elements::SequenceNumberSet,
         types::{SubmessageFlag, SubmessageKind},
@@ -75,16 +75,8 @@ impl AckNackSubmessageWrite {
             count,
         }
     }
-}
 
-impl EndiannessFlag for AckNackSubmessageWrite {
-    fn endianness_flag(&self) -> bool {
-        self.endianness_flag
-    }
-}
-
-impl WriteBytes for AckNackSubmessageWrite {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+    fn submessage_header(&self, octets_to_next_header: usize) -> SubmessageHeaderWrite {
         let flags = [
             self.endianness_flag,
             self.final_flag,
@@ -95,9 +87,18 @@ impl WriteBytes for AckNackSubmessageWrite {
             false,
             false,
         ];
+        SubmessageHeaderWrite::new(SubmessageKind::ACKNACK, flags, octets_to_next_header as u16)
+    }
+}
 
-        self.map_write(&SubmessageKind::ACKNACK, &mut buf[0..]);
-        self.map_write(&flags, &mut buf[1..]);
+impl EndiannessFlag for AckNackSubmessageWrite {
+    fn endianness_flag(&self) -> bool {
+        self.endianness_flag
+    }
+}
+
+impl WriteBytes for AckNackSubmessageWrite {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.map_write(&self.reader_id, &mut buf[4..]);
         self.map_write(&self.writer_id, &mut buf[8..]);
         let len = self.map_write(&self.reader_sn_state, &mut buf[12..]);
@@ -106,6 +107,7 @@ impl WriteBytes for AckNackSubmessageWrite {
         let octets_to_next_header = 12 + len;
         self.map_write(&(octets_to_next_header as i16), &mut buf[2..]);
 
+        self.map_write(&self.submessage_header(octets_to_next_header), &mut buf[0..]);
         octets_to_next_header + 4
     }
 }
