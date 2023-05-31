@@ -32,6 +32,59 @@ use super::{
 
 const BUFFER_SIZE: usize = 65000;
 
+pub trait FromBytes<'a> {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self;
+}
+
+pub trait SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeaderRead;
+}
+
+pub trait RtpsMap<'a>: SubmessageHeader {
+    fn map<T: FromBytes<'a>>(&self, data: &'a [u8]) -> T {
+        if self.submessage_header().endianness_flag() {
+            T::from_bytes::<byteorder::LittleEndian>(data)
+        } else {
+            T::from_bytes::<byteorder::BigEndian>(data)
+        }
+    }
+}
+
+impl<'a, T: SubmessageHeader> RtpsMap<'a> for T {}
+
+
+pub trait EndiannessFlag {
+    fn endianness_flag(&self) -> bool;
+}
+
+pub trait RtpsMapWrite: EndiannessFlag {
+    fn map_write<T: EndianWriteBytes>(&self, value: &T, buf: &mut [u8]) -> usize {
+        if self.endianness_flag() {
+            value.endian_write_bytes::<byteorder::LittleEndian>(buf)
+        } else {
+            value.endian_write_bytes::<byteorder::BigEndian>(buf)
+        }
+    }
+}
+
+impl<T: EndiannessFlag> RtpsMapWrite for T {}
+
+
+impl EndianWriteBytes for u16 {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_u16(buf, *self);
+        2
+    }
+}
+
+impl EndianWriteBytes for i16 {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_i16(buf, *self);
+        2
+    }
+}
+
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageRead {
     pub data: [u8; BUFFER_SIZE],
@@ -135,13 +188,23 @@ impl Default for RtpsMessageRead {
     }
 }
 
-pub trait IntoBytes {
-    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize;
+pub trait WriteBytes {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize;
 }
 
-pub fn into_bytes_vec<T: IntoBytes>(value: T) -> Vec<u8> {
+pub trait EndianWriteBytes {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize;
+}
+
+pub fn into_bytes_le_vec<T: EndianWriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
-    let len = value.into_bytes::<byteorder::LittleEndian>(buf.as_mut_slice());
+    let len = value.endian_write_bytes::<byteorder::LittleEndian>(buf.as_mut_slice());
+    Vec::from(&buf[0..len])
+}
+
+pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
+    let mut buf = [0u8; BUFFER_SIZE];
+    let len = value.write_bytes(buf.as_mut_slice());
     Vec::from(&buf[0..len])
 }
 
@@ -151,11 +214,11 @@ pub struct RtpsMessageWrite<'a> {
     submessages: Vec<RtpsSubmessageWriteKind<'a>>,
 }
 
-impl IntoBytes for RtpsMessageWrite<'_> {
-    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        let mut len = self.header.into_bytes::<E>(buf);
+impl EndianWriteBytes for RtpsMessageWrite<'_> {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        let mut len = self.header.endian_write_bytes::<E>(buf);
         for submessage in &self.submessages {
-            len += submessage.into_bytes::<E>(buf);
+            len += submessage.write_bytes(buf);
         }
         len
     }
@@ -210,13 +273,13 @@ pub enum RtpsSubmessageWriteKind<'a> {
     Pad(PadSubmessageWrite),
 }
 
-impl IntoBytes for RtpsSubmessageWriteKind<'_> {
-    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for RtpsSubmessageWriteKind<'_> {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         match self {
             // RtpsSubmessageWriteKind::AckNack(s) => {
             //     s.into_bytes(buf)
             // }
-            RtpsSubmessageWriteKind::Data(s) => s.into_bytes::<E>(buf),
+            RtpsSubmessageWriteKind::Data(s) => s.write_bytes(buf),
             // RtpsSubmessageWriteKind::DataFrag(s) => {
             //     s.into_bytes(buf)
             // }
@@ -261,12 +324,12 @@ pub struct RtpsMessageHeader {
     pub guid_prefix: GuidPrefix,
 }
 
-impl IntoBytes for RtpsMessageHeader {
-    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        self.protocol.into_bytes::<E>(&mut buf[0..]);
-        self.version.into_bytes::<E>(&mut buf[4..]);
-        self.vendor_id.into_bytes::<E>(&mut buf[6..]);
-        self.guid_prefix.into_bytes::<E>(&mut buf[8..]);
+impl EndianWriteBytes for RtpsMessageHeader {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.protocol.endian_write_bytes::<E>(&mut buf[0..]);
+        self.version.endian_write_bytes::<E>(&mut buf[4..]);
+        self.vendor_id.endian_write_bytes::<E>(&mut buf[6..]);
+        self.guid_prefix.endian_write_bytes::<E>(&mut buf[8..]);
         20
     }
 }
@@ -292,10 +355,10 @@ impl SubmessageHeaderWrite {
     }
 }
 
-impl IntoBytes for SubmessageHeaderWrite {
-    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        self.submessage_id.into_bytes::<E>(buf);
-        self.flags.into_bytes::<E>(buf);
+impl EndianWriteBytes for SubmessageHeaderWrite {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.submessage_id.endian_write_bytes::<E>(buf);
+        self.flags.endian_write_bytes::<E>(buf);
         4
     }
 }
@@ -351,9 +414,9 @@ mod tests {
         },
     };
 
-    fn into_bytes_vec<T: IntoBytes>(value: T) -> Vec<u8> {
+    fn into_bytes_vec<T: EndianWriteBytes>(value: T) -> Vec<u8> {
         let mut buf = [0u8; BUFFER_SIZE];
-        let len = value.into_bytes::<byteorder::LittleEndian>(buf.as_mut_slice());
+        let len = value.endian_write_bytes::<byteorder::LittleEndian>(buf.as_mut_slice());
         Vec::from(&buf[0..len])
     }
 

@@ -1,7 +1,6 @@
 use super::submessage::MappingWriteSubmessage;
 use crate::implementation::rtps::messages::{
     overall_structure::SubmessageHeaderWrite, submessages::pad::PadSubmessageWrite,
-    types::SubmessageKind,
 };
 use byteorder::ByteOrder;
 use std::io::{Error, Write};

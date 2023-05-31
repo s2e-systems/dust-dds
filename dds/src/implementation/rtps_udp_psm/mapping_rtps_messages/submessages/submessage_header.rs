@@ -1,11 +1,11 @@
 use std::io::{Error, Write};
 
-use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
+use byteorder::{ ByteOrder,  WriteBytesExt};
 
 use crate::implementation::{
     rtps::messages::{
         overall_structure::SubmessageHeaderWrite,
-        types::{SubmessageFlag, SubmessageKind},
+        types::{SubmessageFlag, },
     },
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrderInfoInData, MappingWriteByteOrdered},
 };
@@ -55,7 +55,7 @@ impl MappingWriteByteOrderInfoInData for [SubmessageFlag; 8] {
 }
 
 impl MappingWriteByteOrderInfoInData for SubmessageHeaderWrite {
-    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut _writer: W) -> Result<(), Error> {
         // let submessage_id = match self.submessage_id {
         //     SubmessageKind::DATA => DATA,
         //     SubmessageKind::GAP => GAP,
@@ -90,7 +90,7 @@ impl MappingWriteByteOrderInfoInData for SubmessageHeaderWrite {
 impl MappingWriteByteOrdered for SubmessageHeaderWrite {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
-        mut writer: W,
+        mut _writer: W,
     ) -> Result<(), Error> {
         // let submessage_id = match self.submessage_id {
         //     SubmessageKind::DATA => DATA,
@@ -116,7 +116,7 @@ impl MappingWriteByteOrdered for SubmessageHeaderWrite {
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::rtps_udp_psm::mapping_traits::to_bytes_le;
+    use crate::implementation::{rtps_udp_psm::mapping_traits::to_bytes_le, rtps::messages::types::SubmessageKind};
 
     use super::*;
 

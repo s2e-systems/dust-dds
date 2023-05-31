@@ -5,7 +5,7 @@ use crate::implementation::rtps_udp_psm::mapping_rtps_messages::submessages::sub
     INFO_TS, NACK_FRAG, PAD,
 };
 
-use super::overall_structure::IntoBytes;
+use super::overall_structure::EndianWriteBytes;
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
@@ -20,8 +20,8 @@ pub enum ProtocolId {
     PROTOCOL_RTPS,
 }
 
-impl IntoBytes for ProtocolId {
-    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl EndianWriteBytes for ProtocolId {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
         b"RTPS".as_slice().read(buf).unwrap()
     }
 }
@@ -31,8 +31,8 @@ impl IntoBytes for ProtocolId {
 /// A Submessage flag takes a boolean value and affects the parsing of the Submessage by the receiver.
 pub type SubmessageFlag = bool;
 
-impl IntoBytes for [SubmessageFlag; 8] {
-    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl EndianWriteBytes for [SubmessageFlag; 8] {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
         let mut flags = 0b_0000_0000_u8;
         for (i, &item) in self.iter().enumerate() {
             if item {
@@ -66,8 +66,8 @@ pub enum SubmessageKind {
     HEARTBEAT_FRAG,
 }
 
-impl IntoBytes for SubmessageKind {
-    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl EndianWriteBytes for SubmessageKind {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
         buf[0] = match self {
             SubmessageKind::DATA => DATA,
             SubmessageKind::GAP => GAP,
@@ -187,8 +187,8 @@ impl<'a> SerializedPayload<'a> {
     }
 }
 
-impl IntoBytes for SerializedPayload<'_> {
-    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl EndianWriteBytes for SerializedPayload<'_> {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
         buf[..self.0.len()].copy_from_slice(self.0);
         self.0.len()
     }

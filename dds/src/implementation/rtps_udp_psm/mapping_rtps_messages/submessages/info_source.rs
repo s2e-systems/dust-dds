@@ -2,7 +2,7 @@ use super::submessage::MappingWriteSubmessage;
 use crate::implementation::{
     rtps::messages::{
         overall_structure::SubmessageHeaderWrite,
-        submessages::info_source::InfoSourceSubmessageWrite, types::SubmessageKind,
+        submessages::info_source::InfoSourceSubmessageWrite,
     },
     rtps_udp_psm::mapping_traits::MappingWriteByteOrdered,
 };

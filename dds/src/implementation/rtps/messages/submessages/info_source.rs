@@ -1,6 +1,7 @@
 use crate::implementation::rtps::{
     messages::{
-        overall_structure::SubmessageHeaderRead, types::SubmessageFlag, RtpsMap, SubmessageHeader,
+        overall_structure::{RtpsMap, SubmessageHeader, SubmessageHeaderRead},
+        types::SubmessageFlag,
     },
     types::{GuidPrefix, ProtocolVersion, VendorId},
 };
@@ -70,4 +71,3 @@ mod tests {
         assert_eq!(expected_guid_prefix, submessage.guid_prefix());
     }
 }
-

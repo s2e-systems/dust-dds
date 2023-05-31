@@ -1,5 +1,7 @@
-use std::io::BufRead;
-
+use super::{
+    overall_structure::FromBytes,
+    types::{ParameterId, SerializedPayload, Time},
+};
 use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::{
@@ -10,11 +12,7 @@ use crate::implementation::{
         },
     },
 };
-
-use super::{
-    types::{ParameterId, SerializedPayload, Time},
-    FromBytes,
-};
+use std::io::BufRead;
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3

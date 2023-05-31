@@ -4,14 +4,15 @@ use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::{
         messages::{
-            overall_structure::{IntoBytes, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{
+                EndiannessFlag, RtpsMap, RtpsMapWrite, SubmessageHeader, SubmessageHeaderRead,
+                WriteBytes,
+            },
             submessage_elements::ParameterList,
             types::{SerializedPayload, SubmessageFlag, SubmessageKind},
-            RtpsMap, SubmessageHeader,
         },
         types::{EntityId, SequenceNumber},
     },
-    rtps_udp_psm::mapping_traits::NumberOfBytes,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -143,9 +144,16 @@ impl<'a> DataSubmessageWrite<'a> {
     }
 }
 
-impl IntoBytes for DataSubmessageWrite<'_> {
-    fn into_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        SubmessageKind::DATA.into_bytes::<E>(&mut buf[0..]);
+impl EndiannessFlag for DataSubmessageWrite<'_> {
+    fn endianness_flag(&self) -> bool {
+        self.endianness_flag
+    }
+}
+
+impl WriteBytes for DataSubmessageWrite<'_> {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        const OCTETS_TO_INLINE_QOS: u16 = 16;
+        const EXTRA_FLAGS: u16 = 0;
         let flags = [
             self.endianness_flag,
             self.inline_qos_flag,
@@ -156,22 +164,21 @@ impl IntoBytes for DataSubmessageWrite<'_> {
             false,
             false,
         ];
-        flags.into_bytes::<E>(&mut buf[1..]);
 
-        const OCTETS_TO_INLINE_QOS: u16 = 16;
-        const EXTRA_FLAGS: u16 = 0;
-        E::write_u16(&mut buf[4..], EXTRA_FLAGS);
-        E::write_u16(&mut buf[6..], OCTETS_TO_INLINE_QOS);
-        self.reader_id.into_bytes::<E>(&mut buf[8..]);
-        self.writer_id.into_bytes::<E>(&mut buf[12..]);
-        self.writer_sn.into_bytes::<E>(&mut buf[16..]);
+        self.map_write(&SubmessageKind::DATA, &mut buf[0..]);
+        self.map_write(&flags, &mut buf[1..]);
+        self.map_write(&EXTRA_FLAGS, &mut buf[4..]);
+        self.map_write(&OCTETS_TO_INLINE_QOS, &mut buf[6..]);
+        self.map_write(&self.reader_id, &mut buf[8..]);
+        self.map_write(&self.writer_id, &mut buf[12..]);
+        self.map_write(&self.writer_sn, &mut buf[16..]);
         let inline_qos_length = if self.inline_qos_flag {
-            self.inline_qos.into_bytes::<E>(&mut buf[24..])
+            self.map_write(&self.inline_qos, &mut buf[24..])
         } else {
             0
         };
         let serialized_payload_len = if self.data_flag || self.key_flag {
-            self.serialized_payload.into_bytes::<E>(&mut buf[24 + inline_qos_length..])
+            self.map_write(&self.serialized_payload, &mut buf[24 + inline_qos_length..])
         } else {
             0
         };
@@ -180,7 +187,7 @@ impl IntoBytes for DataSubmessageWrite<'_> {
         buf[length_without_padding..length_with_padding].fill(0);
 
         let octets_to_next_header = (length_with_padding - 4) as i16;
-        E::write_i16(&mut buf[2..], octets_to_next_header);
+        self.map_write(&octets_to_next_header, &mut buf[2..]);
 
         length_with_padding
     }
@@ -190,15 +197,11 @@ impl IntoBytes for DataSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{submessage_elements::Parameter, types::ParameterId},
+        messages::{
+            overall_structure::into_bytes_vec, submessage_elements::Parameter, types::ParameterId,
+        },
         types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
-
-    fn into_bytes_vec<T: IntoBytes>(value: T) -> Vec<u8> {
-        let mut buf = [0u8; 300];
-        let len = value.into_bytes::<byteorder::LittleEndian>(buf.as_mut_slice());
-        Vec::from(&buf[0..len])
-    }
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {

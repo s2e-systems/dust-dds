@@ -1,5 +1,5 @@
 use crate::implementation::rtps::messages::{
-    overall_structure::SubmessageHeaderRead, types::SubmessageFlag, SubmessageHeader,
+    overall_structure::{SubmessageHeaderRead, SubmessageHeader}, types::SubmessageFlag,
 };
 
 #[derive(Debug, PartialEq, Eq)]

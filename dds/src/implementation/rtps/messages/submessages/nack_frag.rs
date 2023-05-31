@@ -1,7 +1,8 @@
 use crate::implementation::rtps::{
     messages::{
-        overall_structure::SubmessageHeaderRead, submessage_elements::FragmentNumberSet,
-        types::SubmessageFlag, RtpsMap, SubmessageHeader,
+        overall_structure::{RtpsMap, SubmessageHeader, SubmessageHeaderRead},
+        submessage_elements::FragmentNumberSet,
+        types::SubmessageFlag,
     },
     types::{Count, EntityId, SequenceNumber},
 };
@@ -53,10 +54,12 @@ pub struct NackFragSubmessageWrite {
     pub count: Count,
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps::{types::{EntityKey, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_GROUP}, messages::types::FragmentNumber};
+    use crate::implementation::rtps::{
+        messages::types::FragmentNumber,
+        types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+    };
 
     use super::*;
     #[test]

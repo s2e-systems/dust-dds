@@ -2,7 +2,7 @@ use crate::implementation::{
     rtps::messages::overall_structure::SubmessageHeaderWrite,
     rtps_udp_psm::mapping_traits::MappingWriteByteOrderInfoInData,
 };
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use byteorder::{ ByteOrder,};
 use std::io::{Error, Write};
 
 pub trait MappingWriteSubmessage {
@@ -17,7 +17,7 @@ impl<T> MappingWriteByteOrderInfoInData for T
 where
     T: MappingWriteSubmessage,
 {
-    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, _writer: W) -> Result<(), Error> {
         // self.submessage_header()
         //     .mapping_write_byte_order_info_in_data(&mut writer)?;
         // if self.submessage_header().flags[0] {

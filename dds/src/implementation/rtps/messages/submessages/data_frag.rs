@@ -4,10 +4,9 @@ use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::{
         messages::{
-            overall_structure::SubmessageHeaderRead,
+            overall_structure::{RtpsMap, SubmessageHeader, SubmessageHeaderRead},
             submessage_elements::ParameterList,
             types::{FragmentNumber, SerializedPayload, SubmessageFlag, ULong, UShort},
-            RtpsMap, SubmessageHeader,
         },
         types::{EntityId, SequenceNumber},
     },

@@ -1,7 +1,7 @@
 use crate::implementation::{
     rtps::messages::{
         overall_structure::SubmessageHeaderWrite, submessages::data_frag::DataFragSubmessageWrite,
-        types::SubmessageKind,
+
     },
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };

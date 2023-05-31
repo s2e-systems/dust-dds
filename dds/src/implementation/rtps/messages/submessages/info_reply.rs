@@ -1,6 +1,7 @@
 use crate::implementation::rtps::messages::{
-    overall_structure::SubmessageHeaderRead, submessage_elements::LocatorList,
-    types::SubmessageFlag, RtpsMap, SubmessageHeader,
+    overall_structure::{RtpsMap, SubmessageHeader, SubmessageHeaderRead},
+    submessage_elements::LocatorList,
+    types::SubmessageFlag,
 };
 
 #[derive(Debug, PartialEq, Eq)]

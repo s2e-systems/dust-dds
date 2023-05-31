@@ -1,8 +1,7 @@
 use crate::implementation::rtps::{
     messages::{
-        overall_structure::SubmessageHeaderRead,
+        overall_structure::{RtpsMap, SubmessageHeader, SubmessageHeaderRead},
         types::{FragmentNumber, SubmessageFlag},
-        RtpsMap, SubmessageHeader,
     },
     types::{Count, EntityId, SequenceNumber},
 };

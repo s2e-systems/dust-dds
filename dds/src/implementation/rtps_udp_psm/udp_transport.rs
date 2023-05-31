@@ -1,6 +1,5 @@
-use super::mapping_traits::to_bytes;
 use crate::implementation::rtps::{
-    messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite, IntoBytes},
+    messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite, EndianWriteBytes},
     transport::TransportWrite,
     types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
 };
@@ -44,7 +43,7 @@ impl UdpTransportWrite {
 impl TransportWrite for UdpTransportWrite {
     fn write(&mut self, message: &RtpsMessageWrite<'_>, destination_locator_list: &[Locator]) {
         let mut buf = [0u8; 35000];
-        message.into_bytes::<byteorder::LittleEndian>(&mut buf);
+        message.endian_write_bytes::<byteorder::LittleEndian>(&mut buf);
 
         for &destination_locator in destination_locator_list {
             if UdpLocator(destination_locator).is_multicast() {

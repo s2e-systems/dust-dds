@@ -11,7 +11,7 @@ impl MappingWriteByteOrderInfoInData for RtpsSubmessageWriteKind<'_> {
             RtpsSubmessageWriteKind::AckNack(s) => {
                 s.mapping_write_byte_order_info_in_data(&mut writer)?
             }
-            RtpsSubmessageWriteKind::Data(s) => {
+            RtpsSubmessageWriteKind::Data(_s) => {
                 //s.mapping_write_byte_order_info_in_data(&mut writer)?
                 todo!()
             }
@@ -70,13 +70,10 @@ mod tests {
         rtps::{
             messages::{
                 overall_structure::RtpsMessageHeader,
-                submessage_elements::{Parameter, ParameterList},
-                submessages::data::DataSubmessageWrite,
-                types::{ParameterId, ProtocolId, SerializedPayload},
+                types::{ProtocolId},
             },
             types::{
-                EntityId, EntityKey, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
-                USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
+                GuidPrefix, ProtocolVersion, VendorId,
             },
         },
         rtps_udp_psm::mapping_traits::to_bytes,

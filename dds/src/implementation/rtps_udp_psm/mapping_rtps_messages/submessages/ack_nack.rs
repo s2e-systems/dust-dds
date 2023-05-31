@@ -3,9 +3,9 @@ use std::io::{Error, Write};
 use crate::implementation::{
     rtps::messages::{
         overall_structure::SubmessageHeaderWrite,
-        types::SubmessageKind, submessages::ack_nack::AckNackSubmessageWrite,
+        submessages::ack_nack::AckNackSubmessageWrite,
     },
-    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, },
 };
 
 use super::submessage::MappingWriteSubmessage;
