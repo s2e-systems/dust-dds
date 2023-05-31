@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::{
-    messages::submessages::DataSubmessageRead,
+    messages::submessages::data::DataSubmessageRead,
     reader::{RtpsReader, RtpsReaderCacheChange, RtpsReaderError, RtpsReaderResult},
     types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
 };

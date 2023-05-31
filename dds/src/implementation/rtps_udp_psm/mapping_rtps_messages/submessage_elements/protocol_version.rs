@@ -1,13 +1,9 @@
-use std::io::{Error, Write};
-
-use byteorder::ByteOrder;
-
 use crate::implementation::{
     rtps::types::ProtocolVersion,
-    rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
-    },
+    rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
+use byteorder::ByteOrder;
+use std::io::{Error, Write};
 
 impl NumberOfBytes for ProtocolVersion {
     fn number_of_bytes(&self) -> usize {
@@ -26,30 +22,15 @@ impl MappingWriteByteOrdered for ProtocolVersion {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for ProtocolVersion {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let major: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let minor: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        Ok(Self::new(major, minor))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::implementation::{
-        rtps::types::ProtocolVersion,
-        rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le},
+        rtps::types::ProtocolVersion, rtps_udp_psm::mapping_traits::to_bytes_le,
     };
 
     #[test]
     fn serialize_protocol_version() {
         let data = ProtocolVersion::new(2, 3);
         assert_eq!(to_bytes_le(&data).unwrap(), vec![2, 3]);
-    }
-
-    #[test]
-    fn deserialize_protocol_version() {
-        let expected = ProtocolVersion::new(2, 3);
-        assert_eq!(expected, from_bytes_le(&[2, 3]).unwrap());
     }
 }

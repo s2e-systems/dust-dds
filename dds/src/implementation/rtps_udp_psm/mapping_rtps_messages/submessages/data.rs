@@ -1,20 +1,17 @@
-use std::io::{Error, Write};
-
-use byteorder::ByteOrder;
-
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::RtpsSubmessageHeader,
-        submessages::{DataSubmessageRead, DataSubmessageWrite},
+        overall_structure::SubmessageHeaderWrite, submessages::data::DataSubmessageWrite,
         types::SubmessageKind,
     },
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
+use byteorder::ByteOrder;
+use std::io::{Error, Write};
 
-use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
+use super::submessage::MappingWriteSubmessage;
 
 impl MappingWriteSubmessage for DataSubmessageWrite<'_> {
-    fn submessage_header(&self) -> RtpsSubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeaderWrite {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
         } else {
@@ -22,7 +19,7 @@ impl MappingWriteSubmessage for DataSubmessageWrite<'_> {
         };
         let serialized_payload_len_padded = (self.serialized_payload.number_of_bytes() + 3) & !3; //ceil to multiple of 4
         let octets_to_next_header = 20 + inline_qos_len + serialized_payload_len_padded;
-        RtpsSubmessageHeader {
+        SubmessageHeaderWrite {
             submessage_id: SubmessageKind::DATA,
             flags: [
                 self.endianness_flag,
@@ -68,18 +65,6 @@ impl MappingWriteSubmessage for DataSubmessageWrite<'_> {
             writer.write_all(padding)?;
         }
         Ok(())
-    }
-}
-
-impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessageRead<'a> {
-    fn mapping_read_submessage<B: ByteOrder>(
-        buf: &mut &'de [u8],
-        header: RtpsSubmessageHeader,
-    ) -> Result<Self, Error> {
-        let (data, following) = buf.split_at(header.submessage_length as usize);
-        *buf = following;
-
-        Ok(Self::new(data))
     }
 }
 
@@ -256,113 +241,4 @@ mod tests {
         );
     }
 
-    #[test]
-    fn deserialize_no_inline_qos_no_serialized_payload() {
-        let endianness_flag = true;
-        let inline_qos_flag = false;
-        let data_flag = false;
-        let key_flag = false;
-        let non_standard_payload_flag = false;
-        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterList::empty();
-        let serialized_payload = SerializedPayload::new(&[]);
-
-        #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
-            0x15, 0b_0000_0001, 20, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
-        ]);
-
-        assert_eq!(endianness_flag, data_submessage.endianness_flag());
-        assert_eq!(inline_qos_flag, data_submessage.inline_qos_flag());
-        assert_eq!(data_flag, data_submessage.data_flag());
-        assert_eq!(key_flag, data_submessage.key_flag());
-        assert_eq!(
-            non_standard_payload_flag,
-            data_submessage.non_standard_payload_flag()
-        );
-        assert_eq!(reader_id, data_submessage.reader_id());
-        assert_eq!(writer_id, data_submessage.writer_id());
-        assert_eq!(writer_sn, data_submessage.writer_sn());
-        assert_eq!(inline_qos, data_submessage.inline_qos());
-        assert_eq!(serialized_payload, data_submessage.serialized_payload());
-    }
-
-    #[test]
-    fn deserialize_no_inline_qos_with_serialized_payload() {
-        let inline_qos = ParameterList::empty();
-        let serialized_payload = SerializedPayload::new(&[1, 2, 3, 4]);
-
-        #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
-            0x15, 0b_0000_0101, 24, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
-            1, 2, 3, 4, // SerializedPayload
-        ]);
-        assert_eq!(inline_qos, data_submessage.inline_qos());
-        assert_eq!(serialized_payload, data_submessage.serialized_payload());
-    }
-
-    #[test]
-    fn deserialize_with_inline_qos_no_serialized_payload() {
-        let inline_qos = ParameterList::new(vec![
-            Parameter::new(ParameterId(6), vec![10, 11, 12, 13]),
-            Parameter::new(ParameterId(7), vec![20, 21, 22, 23]),
-        ]);
-        let serialized_payload = SerializedPayload::new(&[]);
-
-        #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
-            0x15, 0b_0000_0011, 40, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
-            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
-            10, 11, 12, 13, // inlineQos: value_1[length_1]
-            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
-            20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 1, 0, // inlineQos: Sentinel
-        ]);
-        assert_eq!(inline_qos, data_submessage.inline_qos());
-        assert_eq!(serialized_payload, data_submessage.serialized_payload());
-    }
-
-    #[test]
-    fn deserialize_with_inline_qos_with_serialized_payload() {
-        let inline_qos = ParameterList::new(vec![
-            Parameter::new(ParameterId(6), vec![10, 11, 12, 13]),
-            Parameter::new(ParameterId(7), vec![20, 21, 22, 23]),
-        ]);
-        let serialized_payload = SerializedPayload::new(&[1, 2, 3, 4]);
-
-        #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
-            0x15, 0b_0000_0111, 40, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
-            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
-            10, 11, 12, 13, // inlineQos: value_1[length_1]
-            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
-            20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 1, 0, // inlineQos: Sentinel
-            1, 2, 3, 4, // SerializedPayload
-        ]);
-        assert_eq!(inline_qos, data_submessage.inline_qos());
-        assert_eq!(serialized_payload, data_submessage.serialized_payload());
-    }
 }

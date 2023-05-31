@@ -36,7 +36,6 @@ pub enum SubmessageKind {
     DATA_FRAG,
     NACK_FRAG,
     HEARTBEAT_FRAG,
-    UNKNOWN,
 }
 
 /// ParameterId_t

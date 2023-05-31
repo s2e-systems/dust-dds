@@ -3,12 +3,12 @@ use crate::infrastructure::time::Duration;
 use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
+        overall_structure::RtpsSubmessageWriteKind,
         submessages::{
-            AckNackSubmessageRead, HeartbeatFragSubmessageWrite, HeartbeatSubmessageWrite,
-            NackFragSubmessageRead,
+            ack_nack::AckNackSubmessageRead, heartbeat::HeartbeatSubmessageWrite,
+            heartbeat_frag::HeartbeatFragSubmessageWrite, nack_frag::NackFragSubmessageRead,
         },
         types::FragmentNumber,
-        RtpsSubmessageWriteKind,
     },
     types::{
         Count, DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind,

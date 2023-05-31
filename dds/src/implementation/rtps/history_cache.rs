@@ -6,7 +6,7 @@ use crate::{
 use super::{
     messages::{
         submessage_elements::{ParameterList, SequenceNumberSet},
-        submessages::{DataFragSubmessageWrite, DataSubmessageWrite, GapSubmessageWrite,},
+        submessages::{data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite, data::DataSubmessageWrite, },
         types::SerializedPayload,
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},

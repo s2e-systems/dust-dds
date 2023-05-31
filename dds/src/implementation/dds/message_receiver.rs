@@ -1,10 +1,15 @@
+use super::{
+    dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
+    status_listener::ListenerTriggerKind,
+};
 use crate::{
     implementation::rtps::{
         messages::{
+            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
             submessages::{
-                InfoDestinationSubmessageRead, InfoSourceSubmessageRead, InfoTimestampSubmessageRead,
+                info_destination::InfoDestinationSubmessageRead,
+                info_source::InfoSourceSubmessageRead, info_timestamp::InfoTimestampSubmessageRead,
             },
-            RtpsMessageRead, RtpsSubmessageReadKind,
         },
         types::{
             Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
@@ -15,11 +20,6 @@ use crate::{
         error::DdsResult,
         time::{Time, TIME_INVALID},
     },
-};
-
-use super::{
-    dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
-    status_listener::ListenerTriggerKind,
 };
 
 pub struct MessageReceiver {
@@ -55,7 +55,7 @@ impl MessageReceiver {
         publisher_list: &mut [DdsPublisher],
         subscriber_list: &mut [DdsSubscriber],
         source_locator: Locator,
-        message: &RtpsMessageRead<'_>,
+        message: &RtpsMessageRead,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         self.dest_guid_prefix = participant_guid.prefix();

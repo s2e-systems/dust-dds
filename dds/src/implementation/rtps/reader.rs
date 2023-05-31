@@ -33,7 +33,7 @@ use super::{
     endpoint::RtpsEndpoint,
     messages::{
         submessage_elements::{Parameter, ParameterList},
-        submessages::{DataFragSubmessageRead, DataSubmessageRead},
+        submessages::{data::DataSubmessageRead, data_frag::DataFragSubmessageRead},
         types::ParameterId,
     },
     types::{ChangeKind, Guid, GuidPrefix},

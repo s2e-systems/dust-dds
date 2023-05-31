@@ -1,10 +1,8 @@
-use std::io::{Error, Write};
-
-use byteorder::ByteOrder;
-
 use crate::implementation::{
-    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered}, rtps::messages::types::FragmentNumber,
+    rtps::messages::types::FragmentNumber, rtps_udp_psm::mapping_traits::MappingWriteByteOrdered,
 };
+use byteorder::ByteOrder;
+use std::io::{Error, Write};
 
 impl MappingWriteByteOrdered for FragmentNumber {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -15,17 +13,10 @@ impl MappingWriteByteOrdered for FragmentNumber {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for FragmentNumber {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        Ok(FragmentNumber::new(MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?))
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le};
-
     use super::*;
+    use crate::implementation::rtps_udp_psm::mapping_traits::to_bytes_le;
 
     #[test]
     fn serialize_fragment_number() {
@@ -35,18 +26,6 @@ mod tests {
             vec![
                 7, 0, 0, 0, // (unsigned long)
             ]
-        );
-    }
-
-    #[test]
-    fn deserialize_fragment_number() {
-        let expected = FragmentNumber::new(7);
-        assert_eq!(
-            expected,
-            from_bytes_le(&[
-                7, 0, 0, 0, // (unsigned long)
-            ])
-            .unwrap()
         );
     }
 }
