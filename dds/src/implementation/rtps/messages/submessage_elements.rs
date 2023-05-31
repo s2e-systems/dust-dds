@@ -1,5 +1,5 @@
 use super::{
-    overall_structure::FromBytes,
+    overall_structure::{FromBytes, EndianWriteBytes},
     types::{ParameterId, SerializedPayload, Time},
 };
 use crate::implementation::{
@@ -28,6 +28,31 @@ pub struct SequenceNumberSet {
 impl SequenceNumberSet {
     pub fn new(base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
         Self { base, set }
+    }
+}
+
+impl EndianWriteBytes for SequenceNumberSet {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        let mut bitmap = [0; 8];
+        let mut num_bits = 0;
+        for sequence_number in &self.set {
+            let delta_n = <i64>::from(*sequence_number - self.base) as u32;
+            let bitmap_num = delta_n / 32;
+            bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
+            if delta_n + 1 > num_bits {
+                num_bits = delta_n + 1;
+            }
+        }
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
+
+        self.base.endian_write_bytes::<E>(&mut buf[0..]);
+        E::write_u32(&mut buf[8..], num_bits);
+        let mut len = 12;
+        for bitmap_element in &bitmap[..number_of_bitmap_elements] {
+            E::write_i32(&mut buf[len..], *bitmap_element);
+            len += 4;
+        }
+        len
     }
 }
 
@@ -133,6 +158,36 @@ impl<'a> FromBytes<'a> for ParameterList {
             }
         }
         Self::new(parameter)
+    }
+}
+
+impl EndianWriteBytes for Parameter  {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, mut buf: &mut [u8]) -> usize {
+        let padding_len= match self.value().len() % 4 {
+            1 => 3,
+            2 => 2,
+            3 => 1,
+            _ => 0,
+        };
+        let length = self.value().len() + padding_len;
+        E::write_u16(&mut buf[0..], self.parameter_id().into());
+        E::write_i16(&mut buf[2..], length as i16);
+        buf = &mut buf[4..];
+        buf[..self.value().len()].copy_from_slice(self.value().as_ref());
+        buf[self.value().len()..length].fill(0);
+        4+length
+    }
+}
+
+impl EndianWriteBytes for &ParameterList {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        let mut length = 0;
+        for parameter in self.parameter().iter() {
+            length += parameter.endian_write_bytes::<E>(&mut buf[length..]);
+        }
+        E::write_u16(&mut buf[length..], PID_SENTINEL);
+        buf[length+2..length+4].fill(0);
+        length+4
     }
 }
 
@@ -290,7 +345,7 @@ impl FromBytes<'_> for FragmentNumberSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::types::{Locator, LocatorAddress, LocatorKind, LocatorPort};
+    use crate::implementation::rtps::{types::{Locator, LocatorAddress, LocatorKind, LocatorPort}, messages::overall_structure::{into_bytes_le_vec, into_bytes_vec}};
 
     #[test]
     fn deserialize_count() {
@@ -412,6 +467,28 @@ mod tests {
     }
 
     #[test]
+    fn serialize_sequence_number_max_gap() {
+        let sequence_number_set = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
+        };
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_le_vec(sequence_number_set), vec![
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 1, 0, 0, // numBits (unsigned long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
+            0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
+        ]);
+    }
+
+    #[test]
     fn deserialize_sequence_number_set_max_gap() {
         let expected = SequenceNumberSet {
             base: SequenceNumber::new(2),
@@ -432,6 +509,61 @@ mod tests {
             0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
         ]);
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn serialize_parameter() {
+        let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7, 8]);
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_le_vec(parameter), vec![
+            0x02, 0x00, 4, 0, // Parameter | length
+            5, 6, 7, 8,       // value
+        ]);
+    }
+
+    #[test]
+    fn serialize_parameter_non_multiple_4() {
+        let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7]);
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_le_vec(parameter), vec![
+            0x02, 0x00, 4, 0, // Parameter | length
+            5, 6, 7, 0,       // value
+        ]);
+    }
+
+    #[test]
+    fn serialize_parameter_zero_size() {
+        let parameter = Parameter::new(ParameterId(2), vec![]);
+        assert_eq!(
+            into_bytes_le_vec(parameter),
+            vec![
+            0x02, 0x00, 0, 0, // Parameter | length
+        ]
+        );
+    }
+
+    #[test]
+    fn serialize_parameter_list() {
+        let parameter_1 = Parameter::new(ParameterId(2), vec![51, 61, 71, 81]);
+        let parameter_2 = Parameter::new(ParameterId(3), vec![52, 62, 0, 0]);
+        let parameter_list_submessage_element = &ParameterList::new(vec![parameter_1, parameter_2]);
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_le_vec(parameter_list_submessage_element), vec![
+            0x02, 0x00, 4, 0, // Parameter ID | length
+            51, 61, 71, 81,   // value
+            0x03, 0x00, 4, 0, // Parameter ID | length
+            52, 62, 0, 0,   // value
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
+        ]);
+    }
+
+    #[test]
+    fn serialize_parameter_list_empty() {
+        let parameter = &ParameterList::empty();
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_le_vec(parameter), vec![
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
+        ]);
     }
 
     #[test]

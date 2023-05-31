@@ -53,27 +53,6 @@ mod tests {
         rtps::types::SequenceNumber, rtps_udp_psm::mapping_traits::to_bytes_le,
     };
 
-    #[test]
-    fn serialize_sequence_number_max_gap() {
-        let sequence_number_set = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
-        };
-        #[rustfmt::skip]
-        assert_eq!(to_bytes_le(&sequence_number_set).unwrap(), vec![
-            0, 0, 0, 0, // bitmapBase: high (long)
-            2, 0, 0, 0, // bitmapBase: low (unsigned long)
-            0, 1, 0, 0, // numBits (unsigned long)
-            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
-            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
-            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
-            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
-            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
-            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
-            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
-            0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
-        ]);
-    }
 
     #[test]
     fn number_of_bytes_max_numbers() {

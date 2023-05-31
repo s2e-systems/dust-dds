@@ -273,17 +273,17 @@ impl RtpsWriterProxy {
                 guid_prefix: self.remote_writer_guid().prefix(),
             };
 
-            let acknack_submessage = AckNackSubmessageWrite {
-                endianness_flag: true,
-                final_flag: true,
-                reader_id: reader_guid.entity_id(),
-                writer_id: self.remote_writer_guid().entity_id(),
-                reader_sn_state: SequenceNumberSet {
+            let acknack_submessage = AckNackSubmessageWrite::new(
+                true,
+                true,
+                reader_guid.entity_id(),
+                self.remote_writer_guid().entity_id(),
+                SequenceNumberSet {
                     base: self.available_changes_max() + 1,
                     set: self.missing_changes(),
                 },
-                count: self.acknack_count(),
-            };
+                self.acknack_count(),
+            );
 
             let mut submessages = vec![
                 RtpsSubmessageWriteKind::InfoDestination(info_dst_submessage),

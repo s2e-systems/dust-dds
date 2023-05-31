@@ -1,9 +1,12 @@
-use std::{ops::{Add, AddAssign, Sub, SubAssign}, io::Read};
+use super::messages::overall_structure::EndianWriteBytes;
 use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS,
     rtps_udp_psm::mapping_traits::NumberOfBytes,
 };
-use super::messages::overall_structure::EndianWriteBytes;
+use std::{
+    io::Read,
+    ops::{Add, AddAssign, Sub, SubAssign},
+};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -162,6 +165,14 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
     entity_kind: BUILT_IN_PARTICIPANT,
 };
 
+impl EndianWriteBytes for EntityId {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.entity_key().endian_write_bytes::<E>(&mut buf[0..]);
+        self.entity_kind().endian_write_bytes::<E>(&mut buf[3..]);
+        4
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct EntityKind(u8);
 
@@ -174,6 +185,13 @@ impl EntityKind {
 impl From<EntityKind> for u8 {
     fn from(value: EntityKind) -> Self {
         value.0
+    }
+}
+
+impl EndianWriteBytes for EntityKind {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        buf[0] = u8::from(*self);
+        1
     }
 }
 
@@ -221,6 +239,12 @@ impl EntityKey {
     }
 }
 
+impl EndianWriteBytes for EntityKey {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        <[u8; 3]>::from(*self).as_slice().read(buf).unwrap()
+    }
+}
+
 /// SequenceNumber_t
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
@@ -247,8 +271,19 @@ impl SequenceNumber {
         Self(value)
     }
 }
+
 impl NumberOfBytes for SequenceNumber {
     fn number_of_bytes(&self) -> usize {
+        8
+    }
+}
+
+impl EndianWriteBytes for SequenceNumber {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        let high = (<i64>::from(*self) >> 32) as i32;
+        let low = <i64>::from(*self) as i32;
+        E::write_i32(&mut buf[0..], high);
+        E::write_i32(&mut buf[4..], low);
         8
     }
 }
@@ -407,6 +442,13 @@ impl PartialOrd<Count> for Count {
     }
 }
 
+impl EndianWriteBytes for Count {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_i32(buf, self.0);
+        4
+    }
+}
+
 /// Locator_t
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
@@ -513,5 +555,35 @@ pub struct ExpectsInlineQos(bool);
 impl Default for ExpectsInlineQos {
     fn default() -> Self {
         Self(DEFAULT_EXPECTS_INLINE_QOS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::implementation::rtps::messages::overall_structure::into_bytes_le_vec;
+
+    #[test]
+    fn serialize_sequence_number() {
+        let data = SequenceNumber::new(7);
+        let result = into_bytes_le_vec(data);
+        assert_eq!(
+            result,
+            vec![
+                0, 0, 0, 0, // high (long)
+                7, 0, 0, 0, // low (unsigned long)
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_entity_id() {
+        let data = EntityId::new(EntityKey::new([1, 2, 3]), EntityKind::new(0x04));
+        assert_eq!(
+            into_bytes_le_vec(data),
+            vec![
+            1, 2, 3, 0x04, //value (long)
+        ]
+        );
     }
 }

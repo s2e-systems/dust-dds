@@ -183,7 +183,7 @@ impl WriteBytes for DataSubmessageWrite<'_> {
             0
         };
         let length_without_padding = 24 + inline_qos_length + serialized_payload_len;
-        let length_with_padding = length_without_padding + (4 - length_without_padding % 4 & 3);
+        let length_with_padding = length_without_padding + 3 & !3;
         buf[length_without_padding..length_with_padding].fill(0);
 
         let octets_to_next_header = (length_with_padding - 4) as i16;
