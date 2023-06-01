@@ -1,7 +1,6 @@
 use super::messages::overall_structure::EndianWriteBytes;
 use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS,
-    rtps_udp_psm::mapping_traits::NumberOfBytes,
 };
 use std::{
     io::Read,
@@ -269,12 +268,6 @@ pub struct SequenceNumber(i64);
 impl SequenceNumber {
     pub const fn new(value: i64) -> Self {
         Self(value)
-    }
-}
-
-impl NumberOfBytes for SequenceNumber {
-    fn number_of_bytes(&self) -> usize {
-        8
     }
 }
 
