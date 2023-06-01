@@ -1,10 +1,10 @@
 use crate::implementation::rtps::{
     messages::{
         overall_structure::{
-            EndiannessFlag, RtpsMap, RtpsMapWrite, SubmessageHeader, SubmessageHeaderRead,
-            SubmessageHeaderWrite, WriteBytes,
+            EndiannessFlag, RtpsMap, RtpsMapWrite, Submessage, SubmessageHeader,
+            SubmessageHeaderRead, SubmessageHeaderWrite, WriteBytes, EndianWriteBytes,
         },
-        submessage_elements::SequenceNumberSet,
+        submessage_elements::{SequenceNumberSet, SubmessageElement},
         types::{SubmessageFlag, SubmessageKind},
     },
     types::{Count, EntityId},
@@ -48,16 +48,13 @@ impl<'a> AckNackSubmessageRead<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct AckNackSubmessageWrite {
+pub struct AckNackSubmessageWrite<'a> {
     endianness_flag: SubmessageFlag,
     final_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    reader_sn_state: SequenceNumberSet,
-    count: Count,
+    submessage_elements: [SubmessageElement<'a>; 4],
 }
 
-impl AckNackSubmessageWrite {
+impl AckNackSubmessageWrite<'_> {
     pub fn new(
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
@@ -69,46 +66,53 @@ impl AckNackSubmessageWrite {
         Self {
             endianness_flag,
             final_flag,
-            reader_id,
-            writer_id,
-            reader_sn_state,
-            count,
+            submessage_elements: [
+                SubmessageElement::EntityId(reader_id),
+                SubmessageElement::EntityId(writer_id),
+                SubmessageElement::SequenceNumberSet(reader_sn_state),
+                SubmessageElement::Count(count),
+            ],
         }
-    }
-
-    fn submessage_header(&self, octets_to_next_header: usize) -> SubmessageHeaderWrite {
-        let flags = [
-            self.endianness_flag,
-            self.final_flag,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-        ];
-        SubmessageHeaderWrite::new(SubmessageKind::ACKNACK, flags, octets_to_next_header as u16)
     }
 }
 
-impl EndiannessFlag for AckNackSubmessageWrite {
+impl Submessage for AckNackSubmessageWrite<'_> {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+
+        SubmessageHeaderWrite::new(
+            SubmessageKind::ACKNACK,
+            &[self.endianness_flag, self.final_flag],
+            octets_to_next_header,
+        )
+    }
+
+    fn submessage_elements(&self) -> &[SubmessageElement] {
+        self.submessage_elements.as_ref()
+    }
+
     fn endianness_flag(&self) -> bool {
         self.endianness_flag
     }
 }
 
-impl WriteBytes for AckNackSubmessageWrite {
+impl<T> WriteBytes for T where T: Submessage {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.map_write(&self.reader_id, &mut buf[4..]);
-        self.map_write(&self.writer_id, &mut buf[8..]);
-        let len = self.map_write(&self.reader_sn_state, &mut buf[12..]);
-        self.map_write(&self.count, &mut buf[12 + len..]);
-
-        let octets_to_next_header = 12 + len;
-        self.map_write(&(octets_to_next_header as i16), &mut buf[2..]);
-
-        self.map_write(&self.submessage_header(octets_to_next_header), &mut buf[0..]);
-        octets_to_next_header + 4
+        let mut len = 4;
+        for submessage_element in self.submessage_elements() {
+            len += if self.endianness_flag() {
+                submessage_element.endian_write_bytes::<byteorder::LittleEndian>(&mut buf[len..])
+            } else {
+                submessage_element.endian_write_bytes::<byteorder::BigEndian>(&mut buf[len..])
+            };
+        }
+        let octets_to_next_header = len - 4;
+        let submessage_header = self.submessage_header(octets_to_next_header as u16);
+        if self.endianness_flag() {
+            submessage_header.endian_write_bytes::<byteorder::LittleEndian>(&mut buf[0..]);
+        } else {
+            submessage_header.endian_write_bytes::<byteorder::BigEndian>(&mut buf[0..]);
+        }
+        len
     }
 }
 

@@ -27,10 +27,16 @@ use super::{
         info_source::InfoSourceSubmessageWrite, info_timestamp::InfoTimestampSubmessageWrite,
         nack_frag::NackFragSubmessageWrite, pad::PadSubmessageWrite,
     },
-    types::{ProtocolId, SubmessageFlag, SubmessageKind},
+    types::{ProtocolId, SubmessageFlag, SubmessageKind}, submessage_elements::SubmessageElement,
 };
 
 const BUFFER_SIZE: usize = 65000;
+
+pub trait Submessage {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite;
+    fn submessage_elements(&self) -> &[SubmessageElement];
+    fn endianness_flag(&self) -> bool;
+}
 
 pub trait FromBytes<'a> {
     fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self;
@@ -259,7 +265,7 @@ pub enum RtpsSubmessageReadKind<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageWriteKind<'a> {
-    AckNack(AckNackSubmessageWrite),
+    AckNack(AckNackSubmessageWrite<'a>),
     Data(DataSubmessageWrite<'a>),
     DataFrag(DataFragSubmessageWrite<'a>),
     Gap(GapSubmessageWrite),
@@ -344,12 +350,15 @@ pub struct SubmessageHeaderWrite {
 impl SubmessageHeaderWrite {
     pub fn new(
         submessage_id: SubmessageKind,
-        flags: [SubmessageFlag; 8],
+        flags: &[SubmessageFlag],
         submessage_length: u16,
     ) -> Self {
+        let mut flags_array = [false; 8];
+        flags_array[..flags.len()].copy_from_slice(flags);
+
         Self {
             submessage_id,
-            flags,
+            flags: flags_array,
             submessage_length,
         }
     }

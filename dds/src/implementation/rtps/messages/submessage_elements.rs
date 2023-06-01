@@ -19,6 +19,31 @@ use std::io::BufRead;
 /// 8.3.5 RTPS SubmessageElements
 ///
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum SubmessageElement<'a> {
+    Count(Count),
+    EntityId(EntityId),
+    ParameterList(&'a ParameterList),
+    SequenceNumber(SequenceNumber),
+    SequenceNumberSet(SequenceNumberSet),
+    SerializedPayload(SerializedPayload<'a>),
+    UShort(u16)
+}
+
+impl EndianWriteBytes for SubmessageElement<'_> {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        match self {
+            SubmessageElement::Count(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::EntityId(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::ParameterList(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::SequenceNumber(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::SequenceNumberSet(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::SerializedPayload(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::UShort(e) => e.endian_write_bytes::<E>(buf),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SequenceNumberSet {
     pub base: SequenceNumber,

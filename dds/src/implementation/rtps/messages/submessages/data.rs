@@ -154,7 +154,7 @@ impl<'a> DataSubmessageWrite<'a> {
             false,
             false,
         ];
-        SubmessageHeaderWrite::new(SubmessageKind::DATA, flags, octets_to_next_header as u16)
+        SubmessageHeaderWrite::new(SubmessageKind::DATA, &flags, octets_to_next_header as u16)
     }
 }
 
