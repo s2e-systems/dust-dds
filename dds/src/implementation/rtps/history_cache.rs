@@ -1,5 +1,5 @@
 use crate::{
-    implementation::rtps::messages::types::{FragmentNumber, ULong, UShort},
+    implementation::rtps::messages::types::FragmentNumber,
     infrastructure::{instance::InstanceHandle, time::Time},
 };
 
@@ -26,16 +26,16 @@ pub struct RtpsWriterCacheChange {
 
 impl RtpsWriterCacheChange {
     pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessageWrite {
-        GapSubmessageWrite {
-            endianness_flag: true,
+        GapSubmessageWrite::new(
+            true,
             reader_id,
-            writer_id: self.writer_guid.entity_id(),
-            gap_start: self.sequence_number,
-            gap_list: SequenceNumberSet {
+            self.writer_guid.entity_id(),
+            self.sequence_number,
+            SequenceNumberSet {
                 base: self.sequence_number + 1,
                 set: vec![],
             },
-        }
+        )
     }
 
     pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessageWrite {

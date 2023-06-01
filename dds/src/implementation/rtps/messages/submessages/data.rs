@@ -5,8 +5,8 @@ use crate::implementation::{
     rtps::{
         messages::{
             overall_structure::{
-                EndiannessFlag, RtpsMap, RtpsMapWrite, Submessage, SubmessageHeader,
-                SubmessageHeaderRead, SubmessageHeaderWrite, WriteBytes,
+                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead,
+                SubmessageHeaderWrite,
             },
             submessage_elements::{ParameterList, SubmessageElement},
             types::{SerializedPayload, SubmessageFlag, SubmessageKind},

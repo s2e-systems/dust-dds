@@ -6,47 +6,8 @@ use byteorder::LittleEndian;
 use std::io::{Error, Write};
 
 impl MappingWriteByteOrderInfoInData for RtpsSubmessageWriteKind<'_> {
-    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
-        match self {
-            RtpsSubmessageWriteKind::AckNack(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-            RtpsSubmessageWriteKind::Data(_s) => {
-                //s.mapping_write_byte_order_info_in_data(&mut writer)?
-                todo!()
-            }
-            RtpsSubmessageWriteKind::DataFrag(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-            RtpsSubmessageWriteKind::Gap(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-            RtpsSubmessageWriteKind::Heartbeat(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-            RtpsSubmessageWriteKind::HeartbeatFrag(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-            RtpsSubmessageWriteKind::InfoDestination(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-            RtpsSubmessageWriteKind::InfoReply(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-            RtpsSubmessageWriteKind::InfoSource(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-            RtpsSubmessageWriteKind::InfoTimestamp(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-            RtpsSubmessageWriteKind::NackFrag(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-            RtpsSubmessageWriteKind::Pad(s) => {
-                s.mapping_write_byte_order_info_in_data(&mut writer)?
-            }
-        };
-        Ok(())
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, _writer: W) -> Result<(), Error> {
+        todo!()
     }
 }
 

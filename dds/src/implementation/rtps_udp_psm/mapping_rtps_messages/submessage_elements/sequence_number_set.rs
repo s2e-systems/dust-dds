@@ -49,10 +49,7 @@ impl MappingWriteByteOrdered for SequenceNumberSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::{
-        rtps::types::SequenceNumber, rtps_udp_psm::mapping_traits::to_bytes_le,
-    };
-
+    use crate::implementation::rtps::types::SequenceNumber;
 
     #[test]
     fn number_of_bytes_max_numbers() {

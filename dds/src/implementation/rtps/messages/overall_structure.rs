@@ -19,6 +19,7 @@ use crate::implementation::{
 };
 
 use super::{
+    submessage_elements::SubmessageElement,
     submessages::{
         ack_nack::AckNackSubmessageWrite, data::DataSubmessageWrite,
         data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
@@ -27,7 +28,7 @@ use super::{
         info_source::InfoSourceSubmessageWrite, info_timestamp::InfoTimestampSubmessageWrite,
         nack_frag::NackFragSubmessageWrite, pad::PadSubmessageWrite,
     },
-    types::{ProtocolId, SubmessageFlag, SubmessageKind}, submessage_elements::SubmessageElement,
+    types::{ProtocolId, SubmessageFlag, SubmessageKind},
 };
 
 const BUFFER_SIZE: usize = 65000;
@@ -38,7 +39,10 @@ pub trait Submessage {
     fn endianness_flag(&self) -> bool;
 }
 
-impl<T> WriteBytes for T where T: Submessage {
+impl<T> WriteBytes for T
+where
+    T: Submessage,
+{
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let mut len = 4;
         for submessage_element in self.submessage_elements() {
@@ -79,7 +83,6 @@ pub trait RtpsMap<'a>: SubmessageHeader {
 
 impl<'a, T: SubmessageHeader> RtpsMap<'a> for T {}
 
-
 pub trait EndiannessFlag {
     fn endianness_flag(&self) -> bool;
 }
@@ -116,7 +119,6 @@ impl EndianWriteBytes for i16 {
         2
     }
 }
-
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageRead {
@@ -229,12 +231,14 @@ pub trait EndianWriteBytes {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize;
 }
 
+#[allow(dead_code)]
 pub fn into_bytes_le_vec<T: EndianWriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
     let len = value.endian_write_bytes::<byteorder::LittleEndian>(buf.as_mut_slice());
     Vec::from(&buf[0..len])
 }
 
+#[allow(dead_code)]
 pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
     let len = value.write_bytes(buf.as_mut_slice());
@@ -295,9 +299,9 @@ pub enum RtpsSubmessageWriteKind<'a> {
     AckNack(AckNackSubmessageWrite<'a>),
     Data(DataSubmessageWrite<'a>),
     DataFrag(DataFragSubmessageWrite<'a>),
-    Gap(GapSubmessageWrite),
-    Heartbeat(HeartbeatSubmessageWrite),
-    HeartbeatFrag(HeartbeatFragSubmessageWrite),
+    Gap(GapSubmessageWrite<'a>),
+    Heartbeat(HeartbeatSubmessageWrite<'a>),
+    HeartbeatFrag(HeartbeatFragSubmessageWrite<'a>),
     InfoDestination(InfoDestinationSubmessageWrite),
     InfoReply(InfoReplySubmessageWrite),
     InfoSource(InfoSourceSubmessageWrite),
@@ -309,39 +313,35 @@ pub enum RtpsSubmessageWriteKind<'a> {
 impl WriteBytes for RtpsSubmessageWriteKind<'_> {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         match self {
-            // RtpsSubmessageWriteKind::AckNack(s) => {
-            //     s.into_bytes(buf)
-            // }
+            RtpsSubmessageWriteKind::AckNack(s) => s.write_bytes(buf),
             RtpsSubmessageWriteKind::Data(s) => s.write_bytes(buf),
-            // RtpsSubmessageWriteKind::DataFrag(s) => {
-            //     s.into_bytes(buf)
-            // }
+            RtpsSubmessageWriteKind::DataFrag(s) => s.write_bytes(buf),
             // RtpsSubmessageWriteKind::Gap(s) => {
-            //     s.into_bytes(buf)
+            //     s.write_bytes(buf)
             // }
             // RtpsSubmessageWriteKind::Heartbeat(s) => {
-            //     s.into_bytes(buf)
+            //     s.write_bytes(buf)
             // }
             // RtpsSubmessageWriteKind::HeartbeatFrag(s) => {
-            //     s.into_bytes(buf)
+            //     s.write_bytes(buf)
             // }
             // RtpsSubmessageWriteKind::InfoDestination(s) => {
-            //     s.into_bytes(buf)
+            //     s.write_bytes(buf)
             // }
             // RtpsSubmessageWriteKind::InfoReply(s) => {
-            //     s.into_bytes(buf)
+            //     s.write_bytes(buf)
             // }
             // RtpsSubmessageWriteKind::InfoSource(s) => {
-            //     s.into_bytes(buf)
+            //     s.write_bytes(buf)
             // }
             // RtpsSubmessageWriteKind::InfoTimestamp(s) => {
-            //     s.into_bytes(buf)
+            //     s.write_bytes(buf)
             // }
             // RtpsSubmessageWriteKind::NackFrag(s) => {
-            //     s.into_bytes(buf)
+            //     s.write_bytes(buf)
             // }
             // RtpsSubmessageWriteKind::Pad(s) => {
-            //     s.into_bytes(buf)
+            //     s.write_bytes(buf)
             // }
             _ => todo!(),
         };
@@ -395,7 +395,8 @@ impl EndianWriteBytes for SubmessageHeaderWrite {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
         self.submessage_id.write_bytes(&mut buf[0..]);
         self.flags.write_bytes(&mut buf[1..]);
-        self.submessage_length.endian_write_bytes::<E>(&mut buf[2..]);
+        self.submessage_length
+            .endian_write_bytes::<E>(&mut buf[2..]);
         4
     }
 }

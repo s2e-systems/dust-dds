@@ -1,7 +1,10 @@
 use crate::implementation::rtps::{
     messages::{
-        overall_structure::{RtpsMap, SubmessageHeader, SubmessageHeaderRead},
-        types::{FragmentNumber, SubmessageFlag},
+        overall_structure::{
+            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+        },
+        submessage_elements::SubmessageElement,
+        types::{FragmentNumber, SubmessageFlag, SubmessageKind},
     },
     types::{Count, EntityId, SequenceNumber},
 };
@@ -44,22 +47,84 @@ impl<'a> HeartbeatFragSubmessageRead<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatFragSubmessageWrite {
-    pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityId,
-    pub writer_id: EntityId,
-    pub writer_sn: SequenceNumber,
-    pub last_fragment_num: FragmentNumber,
-    pub count: Count,
+pub struct HeartbeatFragSubmessageWrite<'a> {
+    endianness_flag: SubmessageFlag,
+    submessage_elements: [SubmessageElement<'a>; 5],
+}
+impl HeartbeatFragSubmessageWrite<'_> {
+    pub fn new(
+        endianness_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        writer_sn: SequenceNumber,
+        last_fragment_num: FragmentNumber,
+        count: Count,
+    ) -> Self {
+        Self {
+            endianness_flag,
+            submessage_elements: [
+                SubmessageElement::EntityId(reader_id),
+                SubmessageElement::EntityId(writer_id),
+                SubmessageElement::SequenceNumber(writer_sn),
+                SubmessageElement::FragmentNumber(last_fragment_num),
+                SubmessageElement::Count(count),
+            ],
+        }
+    }
+}
+
+impl Submessage for HeartbeatFragSubmessageWrite<'_> {
+    fn submessage_header(
+        &self,
+        octets_to_next_header: u16,
+    ) -> crate::implementation::rtps::messages::overall_structure::SubmessageHeaderWrite {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::HEARTBEAT_FRAG,
+            &[self.endianness_flag],
+            octets_to_next_header,
+        )
+    }
+
+    fn submessage_elements(&self) -> &[SubmessageElement] {
+        &self.submessage_elements
+    }
+
+    fn endianness_flag(&self) -> bool {
+        self.endianness_flag
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps::types::{
-        EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
+    use super::*;
+    use crate::implementation::rtps::{
+        messages::overall_structure::into_bytes_vec,
+        types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
-    use super::*;
+    #[test]
+    fn serialize_heart_beat() {
+        let submessage = HeartbeatFragSubmessageWrite::new(
+            true,
+            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
+            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
+            SequenceNumber::new(5),
+            FragmentNumber::new(7),
+            Count::new(2),
+        );
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(submessage), vec![
+                0x13_u8, 0b_0000_0001, 24, 0, // Submessage header
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: SequenceNumber: high
+                5, 0, 0, 0, // writerSN: SequenceNumber: low
+                7, 0, 0, 0, // lastFragmentNum
+                2, 0, 0, 0, // count: Count
+            ]
+        );
+    }
+
     #[test]
     fn deserialize_heart_beat_frag() {
         #[rustfmt::skip]
