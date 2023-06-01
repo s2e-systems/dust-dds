@@ -15,34 +15,10 @@ use crate::implementation::{
 use std::io::BufRead;
 
 ///
-/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
+/// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
 
-
-#[derive(Debug, PartialEq, Eq, derive_more::Into, derive_more::From)]
-pub struct SerializedPayload<'a>(&'a [u8]);
-
-impl<'a> SerializedPayload<'a> {
-    pub fn new(value: &'a [u8]) -> Self {
-        Self(value)
-    }
-}
-
-impl EndianWriteBytes for SerializedPayload<'_> {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(self.0);
-        let length_inclusive_padding = (self.0.len() + 3) & !3;
-        buf[self.0.len()..length_inclusive_padding].fill(0);
-        length_inclusive_padding
-    }
-}
-
-impl<'a> From<&'_ SerializedPayload<'a>> for &'a [u8] {
-    fn from(value: &'_ SerializedPayload<'a>) -> Self {
-        value.0
-    }
-}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SubmessageElement<'a> {
@@ -84,6 +60,35 @@ impl EndianWriteBytes for SubmessageElement<'_> {
             SubmessageElement::UShort(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::VendorId(e) => e.endian_write_bytes::<E>(buf),
         }
+    }
+}
+
+
+impl EndianWriteBytes for i32 {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_i32(buf, *self);
+        4
+    }
+}
+
+impl EndianWriteBytes for u32 {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_u32(buf, *self);
+        4
+    }
+}
+
+impl EndianWriteBytes for u16 {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_u16(buf, *self);
+        2
+    }
+}
+
+impl EndianWriteBytes for i16 {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_i16(buf, *self);
+        2
     }
 }
 
@@ -446,6 +451,31 @@ impl FromBytes<'_> for FragmentNumberSet {
         Self::new(FragmentNumber::new(base), set)
     }
 }
+
+#[derive(Debug, PartialEq, Eq, derive_more::Into, derive_more::From)]
+pub struct SerializedPayload<'a>(&'a [u8]);
+
+impl<'a> SerializedPayload<'a> {
+    pub fn new(value: &'a [u8]) -> Self {
+        Self(value)
+    }
+}
+
+impl EndianWriteBytes for SerializedPayload<'_> {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        buf[..self.0.len()].copy_from_slice(self.0);
+        let length_inclusive_padding = (self.0.len() + 3) & !3;
+        buf[self.0.len()..length_inclusive_padding].fill(0);
+        length_inclusive_padding
+    }
+}
+
+impl<'a> From<&'_ SerializedPayload<'a>> for &'a [u8] {
+    fn from(value: &'_ SerializedPayload<'a>) -> Self {
+        value.0
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -87,46 +87,6 @@ pub trait EndiannessFlag {
     fn endianness_flag(&self) -> bool;
 }
 
-pub trait RtpsMapWrite: EndiannessFlag {
-    fn map_write<T: EndianWriteBytes>(&self, value: &T, buf: &mut [u8]) -> usize {
-        if self.endianness_flag() {
-            value.endian_write_bytes::<byteorder::LittleEndian>(buf)
-        } else {
-            value.endian_write_bytes::<byteorder::BigEndian>(buf)
-        }
-    }
-}
-
-impl<T: EndiannessFlag> RtpsMapWrite for T {}
-
-impl EndianWriteBytes for i32 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_i32(buf, *self);
-        4
-    }
-}
-
-impl EndianWriteBytes for u32 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_u32(buf, *self);
-        4
-    }
-}
-
-impl EndianWriteBytes for u16 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_u16(buf, *self);
-        2
-    }
-}
-
-impl EndianWriteBytes for i16 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_i16(buf, *self);
-        2
-    }
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageRead {
     pub data: [u8; BUFFER_SIZE],
@@ -338,10 +298,37 @@ impl WriteBytes for RtpsSubmessageWriteKind<'_> {
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct RtpsMessageHeader {
-    pub protocol: ProtocolId,
-    pub version: ProtocolVersion,
-    pub vendor_id: VendorId,
-    pub guid_prefix: GuidPrefix,
+    protocol: ProtocolId,
+    version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
+}
+
+impl RtpsMessageHeader {
+    pub fn new(version: ProtocolVersion, vendor_id: VendorId, guid_prefix: GuidPrefix) -> Self {
+        Self {
+            protocol: ProtocolId::PROTOCOL_RTPS,
+            version,
+            vendor_id,
+            guid_prefix,
+        }
+    }
+
+    pub fn protocol(&self) -> ProtocolId {
+        self.protocol
+    }
+
+    pub fn version(&self) -> ProtocolVersion {
+        self.version
+    }
+
+    pub fn vendor_id(&self) -> VendorId {
+        self.vendor_id
+    }
+
+    pub fn guid_prefix(&self) -> GuidPrefix {
+        self.guid_prefix
+    }
 }
 
 impl EndianWriteBytes for RtpsMessageHeader {

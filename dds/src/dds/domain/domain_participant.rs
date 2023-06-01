@@ -43,7 +43,7 @@ use crate::{
                     gap::GapSubmessageWrite, info_destination::InfoDestinationSubmessageWrite,
                     info_timestamp::InfoTimestampSubmessageWrite,
                 },
-                types::{FragmentNumber, ProtocolId},
+                types::FragmentNumber,
             },
             reader_locator::WriterAssociatedReaderLocator,
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
@@ -1737,12 +1737,11 @@ fn send_builtin_message(
     domain_participant: &mut DdsDomainParticipant,
     metatraffic_unicast_transport_send: &mut impl TransportWrite,
 ) {
-    let header = RtpsMessageHeader {
-        protocol: ProtocolId::PROTOCOL_RTPS,
-        version: domain_participant.protocol_version(),
-        vendor_id: domain_participant.vendor_id(),
-        guid_prefix: domain_participant.guid().prefix(),
-    };
+    let header = RtpsMessageHeader::new(
+        domain_participant.protocol_version(),
+        domain_participant.vendor_id(),
+        domain_participant.guid().prefix(),
+    );
 
     let _now = domain_participant.get_current_time();
     stateless_writer_send_message(
@@ -1801,12 +1800,11 @@ fn user_defined_communication_send(
     domain_participant: &mut DdsDomainParticipant,
     default_unicast_transport_send: &mut impl TransportWrite,
 ) {
-    let header = RtpsMessageHeader {
-        protocol: ProtocolId::PROTOCOL_RTPS,
-        version: domain_participant.protocol_version(),
-        vendor_id: domain_participant.vendor_id(),
-        guid_prefix: domain_participant.guid().prefix(),
-    };
+    let header = RtpsMessageHeader::new(
+        domain_participant.protocol_version(),
+        domain_participant.vendor_id(),
+        domain_participant.guid().prefix(),
+    );
     let now = domain_participant.get_current_time();
 
     for publisher in domain_participant.user_defined_publisher_list_mut() {
