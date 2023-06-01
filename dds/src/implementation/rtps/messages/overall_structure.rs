@@ -38,6 +38,27 @@ pub trait Submessage {
     fn endianness_flag(&self) -> bool;
 }
 
+impl<T> WriteBytes for T where T: Submessage {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        let mut len = 4;
+        for submessage_element in self.submessage_elements() {
+            len += if self.endianness_flag() {
+                submessage_element.endian_write_bytes::<byteorder::LittleEndian>(&mut buf[len..])
+            } else {
+                submessage_element.endian_write_bytes::<byteorder::BigEndian>(&mut buf[len..])
+            };
+        }
+        let octets_to_next_header = len - 4;
+        let submessage_header = self.submessage_header(octets_to_next_header as u16);
+        if self.endianness_flag() {
+            submessage_header.endian_write_bytes::<byteorder::LittleEndian>(&mut buf[0..]);
+        } else {
+            submessage_header.endian_write_bytes::<byteorder::BigEndian>(&mut buf[0..]);
+        }
+        len
+    }
+}
+
 pub trait FromBytes<'a> {
     fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self;
 }

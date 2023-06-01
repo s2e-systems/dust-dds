@@ -1,8 +1,7 @@
 use crate::implementation::rtps::{
     messages::{
         overall_structure::{
-            EndiannessFlag, RtpsMap, RtpsMapWrite, Submessage, SubmessageHeader,
-            SubmessageHeaderRead, SubmessageHeaderWrite, WriteBytes, EndianWriteBytes,
+            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
         },
         submessage_elements::{SequenceNumberSet, SubmessageElement},
         types::{SubmessageFlag, SubmessageKind},
@@ -78,7 +77,6 @@ impl AckNackSubmessageWrite<'_> {
 
 impl Submessage for AckNackSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
-
         SubmessageHeaderWrite::new(
             SubmessageKind::ACKNACK,
             &[self.endianness_flag, self.final_flag],
@@ -92,27 +90,6 @@ impl Submessage for AckNackSubmessageWrite<'_> {
 
     fn endianness_flag(&self) -> bool {
         self.endianness_flag
-    }
-}
-
-impl<T> WriteBytes for T where T: Submessage {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let mut len = 4;
-        for submessage_element in self.submessage_elements() {
-            len += if self.endianness_flag() {
-                submessage_element.endian_write_bytes::<byteorder::LittleEndian>(&mut buf[len..])
-            } else {
-                submessage_element.endian_write_bytes::<byteorder::BigEndian>(&mut buf[len..])
-            };
-        }
-        let octets_to_next_header = len - 4;
-        let submessage_header = self.submessage_header(octets_to_next_header as u16);
-        if self.endianness_flag() {
-            submessage_header.endian_write_bytes::<byteorder::LittleEndian>(&mut buf[0..]);
-        } else {
-            submessage_header.endian_write_bytes::<byteorder::BigEndian>(&mut buf[0..]);
-        }
-        len
     }
 }
 

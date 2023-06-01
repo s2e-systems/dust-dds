@@ -5,10 +5,10 @@ use crate::implementation::{
     rtps::{
         messages::{
             overall_structure::{
-                EndiannessFlag, RtpsMap, RtpsMapWrite, SubmessageHeader, SubmessageHeaderRead,
-                WriteBytes, SubmessageHeaderWrite,
+                EndiannessFlag, RtpsMap, RtpsMapWrite, Submessage, SubmessageHeader,
+                SubmessageHeaderRead, SubmessageHeaderWrite, WriteBytes,
             },
-            submessage_elements::ParameterList,
+            submessage_elements::{ParameterList, SubmessageElement},
             types::{SerializedPayload, SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber},
@@ -109,11 +109,7 @@ pub struct DataSubmessageWrite<'a> {
     data_flag: SubmessageFlag,
     key_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    inline_qos: &'a ParameterList,
-    serialized_payload: SerializedPayload<'a>,
+    submessage_elements: Vec<SubmessageElement<'a>>,
 }
 
 impl<'a> DataSubmessageWrite<'a> {
@@ -129,69 +125,53 @@ impl<'a> DataSubmessageWrite<'a> {
         inline_qos: &'a ParameterList,
         serialized_payload: SerializedPayload<'a>,
     ) -> Self {
+        const EXTRA_FLAGS: u16 = 0;
+        const OCTETS_TO_INLINE_QOS: u16 = 16;
+        let mut submessage_elements = vec![
+            SubmessageElement::UShort(EXTRA_FLAGS),
+            SubmessageElement::UShort(OCTETS_TO_INLINE_QOS),
+            SubmessageElement::EntityId(reader_id),
+            SubmessageElement::EntityId(writer_id),
+            SubmessageElement::SequenceNumber(writer_sn),
+        ];
+        if inline_qos_flag {
+            submessage_elements.push(SubmessageElement::ParameterList(inline_qos));
+        }
+        if data_flag || key_flag {
+            submessage_elements.push(SubmessageElement::SerializedPayload(serialized_payload));
+        }
         Self {
             endianness_flag,
             inline_qos_flag,
             data_flag,
             key_flag,
             non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
+            submessage_elements,
         }
     }
-
-    fn submessage_header(&self, octets_to_next_header: usize) -> SubmessageHeaderWrite {
-        let flags = [
-            self.endianness_flag,
-            self.inline_qos_flag,
-            self.data_flag,
-            self.key_flag,
-            self.non_standard_payload_flag,
-            false,
-            false,
-            false,
-        ];
-        SubmessageHeaderWrite::new(SubmessageKind::DATA, &flags, octets_to_next_header as u16)
-    }
 }
 
-impl EndiannessFlag for DataSubmessageWrite<'_> {
+impl Submessage for DataSubmessageWrite<'_> {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::DATA,
+            &[
+                self.endianness_flag,
+                self.inline_qos_flag,
+                self.data_flag,
+                self.key_flag,
+                self.non_standard_payload_flag,
+            ],
+            octets_to_next_header,
+        )
+    }
+
+    fn submessage_elements(&self) -> &[SubmessageElement] {
+        &self.submessage_elements
+    }
+
     fn endianness_flag(&self) -> bool {
         self.endianness_flag
-    }
-}
-
-impl WriteBytes for DataSubmessageWrite<'_> {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        const OCTETS_TO_INLINE_QOS: u16 = 16;
-        const EXTRA_FLAGS: u16 = 0;
-
-        self.map_write(&EXTRA_FLAGS, &mut buf[4..]);
-        self.map_write(&OCTETS_TO_INLINE_QOS, &mut buf[6..]);
-        self.map_write(&self.reader_id, &mut buf[8..]);
-        self.map_write(&self.writer_id, &mut buf[12..]);
-        self.map_write(&self.writer_sn, &mut buf[16..]);
-        let inline_qos_length = if self.inline_qos_flag {
-            self.map_write(&self.inline_qos, &mut buf[24..])
-        } else {
-            0
-        };
-        let serialized_payload_len = if self.data_flag || self.key_flag {
-            self.map_write(&self.serialized_payload, &mut buf[24 + inline_qos_length..])
-        } else {
-            0
-        };
-        let length_without_padding = 24 + inline_qos_length + serialized_payload_len;
-        let length_with_padding = length_without_padding + 3 & !3;
-        buf[length_without_padding..length_with_padding].fill(0);
-
-        let octets_to_next_header = length_with_padding - 4;
-        self.map_write(&self.submessage_header(octets_to_next_header), &mut buf[0..]);
-
-        length_with_padding
     }
 }
 
