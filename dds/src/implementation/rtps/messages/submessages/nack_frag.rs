@@ -1,8 +1,10 @@
 use crate::implementation::rtps::{
     messages::{
-        overall_structure::{RtpsMap, SubmessageHeader, SubmessageHeaderRead},
-        submessage_elements::FragmentNumberSet,
-        types::SubmessageFlag,
+        overall_structure::{
+            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+        },
+        submessage_elements::{FragmentNumberSet, SubmessageElement},
+        types::{SubmessageFlag, SubmessageKind},
     },
     types::{Count, EntityId, SequenceNumber},
 };
@@ -45,23 +47,86 @@ impl<'a> NackFragSubmessageRead<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct NackFragSubmessageWrite {
-    pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityId,
-    pub writer_id: EntityId,
-    pub writer_sn: SequenceNumber,
-    pub fragment_number_state: FragmentNumberSet,
-    pub count: Count,
+pub struct NackFragSubmessageWrite<'a> {
+    endianness_flag: SubmessageFlag,
+    submessage_elements: [SubmessageElement<'a>; 5],
+}
+
+impl NackFragSubmessageWrite<'_> {
+    pub fn new(
+        endianness_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        writer_sn: SequenceNumber,
+        fragment_number_state: FragmentNumberSet,
+        count: Count,
+    ) -> Self {
+        Self {
+            endianness_flag,
+            submessage_elements: [
+                SubmessageElement::EntityId(reader_id),
+                SubmessageElement::EntityId(writer_id),
+                SubmessageElement::SequenceNumber(writer_sn),
+                SubmessageElement::FragmentNumberSet(fragment_number_state),
+                SubmessageElement::Count(count),
+            ],
+        }
+    }
+}
+
+impl Submessage for NackFragSubmessageWrite<'_> {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::NACK_FRAG,
+            &[self.endianness_flag],
+            octets_to_next_header,
+        )
+    }
+
+    fn submessage_elements(&self) -> &[SubmessageElement] {
+        &self.submessage_elements
+    }
+
+    fn endianness_flag(&self) -> bool {
+        self.endianness_flag
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::implementation::rtps::{
-        messages::types::FragmentNumber,
+        messages::{types::FragmentNumber, overall_structure::into_bytes_vec},
         types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
-    use super::*;
+    #[test]
+    fn serialize_nack_frag() {
+        let submessage = NackFragSubmessageWrite::new(
+            true,
+            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
+            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
+            SequenceNumber::new(4),
+            FragmentNumberSet {
+                base: FragmentNumber::new(10),
+                set: vec![],
+            },
+            Count::new(6),
+        );
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(submessage), vec![
+                0x12_u8, 0b_0000_0001, 28, 0, // Submessage header
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN
+                4, 0, 0, 0, // writerSN
+               10, 0, 0, 0, // fragmentNumberState.base
+                0, 0, 0, 0, // fragmentNumberState.numBits
+                6, 0, 0, 0, // count
+            ]
+        );
+    }
+
     #[test]
     fn deserialize_nack_frag() {
         #[rustfmt::skip]

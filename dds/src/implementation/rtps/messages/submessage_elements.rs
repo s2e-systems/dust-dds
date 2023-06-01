@@ -24,12 +24,19 @@ pub enum SubmessageElement<'a> {
     Count(Count),
     EntityId(EntityId),
     FragmentNumber(FragmentNumber),
+    FragmentNumberSet(FragmentNumberSet),
+    GuidPrefix(GuidPrefix),
+    LocatorList(LocatorList),
+    Long(i32),
     ParameterList(&'a ParameterList),
+    ProtocolVersion(ProtocolVersion),
     SequenceNumber(SequenceNumber),
     SequenceNumberSet(SequenceNumberSet),
     SerializedPayload(SerializedPayload<'a>),
+    Timestamp(Time),
     ULong(u32),
     UShort(u16),
+    VendorId(VendorId),
 }
 
 impl EndianWriteBytes for SubmessageElement<'_> {
@@ -38,12 +45,19 @@ impl EndianWriteBytes for SubmessageElement<'_> {
             SubmessageElement::Count(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::EntityId(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::FragmentNumber(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::FragmentNumberSet(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::GuidPrefix(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::LocatorList(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::Long(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::ParameterList(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::ProtocolVersion(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::SequenceNumber(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::SequenceNumberSet(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::SerializedPayload(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::Timestamp(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::ULong(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::UShort(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::VendorId(e) => e.endian_write_bytes::<E>(buf),
         }
     }
 }
@@ -97,6 +111,30 @@ impl FragmentNumberSet {
     }
 }
 
+impl EndianWriteBytes for FragmentNumberSet {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        let mut bitmap = [0; 8];
+        let mut num_bits = 0;
+        for fragment_number in &self.set {
+            let delta_n = <u32>::from(*fragment_number - self.base);
+            let bitmap_num = delta_n / 32;
+            bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
+            if delta_n + 1 > num_bits {
+                num_bits = delta_n + 1;
+            }
+        }
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
+
+        self.base.endian_write_bytes::<E>(&mut buf[0..]);
+        num_bits.endian_write_bytes::<E>(&mut buf[4..]);
+        let mut len = 8;
+        for bitmap_element in &bitmap[..number_of_bitmap_elements] {
+            len += bitmap_element.endian_write_bytes::<E>(&mut buf[len..]);
+        }
+        len
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocatorList {
     value: Vec<Locator>,
@@ -109,6 +147,18 @@ impl LocatorList {
 
     pub fn value(&self) -> &[Locator] {
         self.value.as_ref()
+    }
+}
+
+impl EndianWriteBytes for LocatorList {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        let num_locators = self.value().len() as u32;
+        num_locators.endian_write_bytes::<E>(&mut buf[0..]);
+        let mut len = 4;
+        for locator in self.value().iter() {
+            len += locator.endian_write_bytes::<E>(&mut buf[len..]);
+        }
+        len
     }
 }
 
@@ -378,6 +428,60 @@ mod tests {
         messages::overall_structure::into_bytes_le_vec,
         types::{Locator, LocatorAddress, LocatorKind, LocatorPort},
     };
+
+    #[test]
+    fn serialize_fragment_number_max_gap() {
+        let fragment_number_set = FragmentNumberSet {
+            base: FragmentNumber::new(2),
+            set: vec![FragmentNumber::new(2), FragmentNumber::new(257)],
+        };
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_le_vec(fragment_number_set), vec![
+            2, 0, 0, 0, // bitmapBase: (unsigned long)
+            0, 1, 0, 0, // numBits (unsigned long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
+            0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
+        ]);
+    }
+
+    #[test]
+    fn serialize_locator_list() {
+        let locator_1 = Locator::new(
+            LocatorKind::new(1),
+            LocatorPort::new(2),
+            LocatorAddress::new([3; 16]),
+        );
+        let locator_2 = Locator::new(
+            LocatorKind::new(2),
+            LocatorPort::new(2),
+            LocatorAddress::new([3; 16]),
+        );
+        let locator_list = LocatorList::new(vec![locator_1, locator_2]);
+        assert_eq!(
+            into_bytes_le_vec(locator_list),
+            vec![
+                2, 0, 0, 0, // numLocators (unsigned long)
+                1, 0, 0, 0, // kind (long)
+                2, 0, 0, 0, // port (unsigned long)
+                3, 3, 3, 3, // address (octet[16])
+                3, 3, 3, 3, // address (octet[16])
+                3, 3, 3, 3, // address (octet[16])
+                3, 3, 3, 3, // address (octet[16])
+                2, 0, 0, 0, // kind (long)
+                2, 0, 0, 0, // port (unsigned long)
+                3, 3, 3, 3, // address (octet[16])
+                3, 3, 3, 3, // address (octet[16])
+                3, 3, 3, 3, // address (octet[16])
+                3, 3, 3, 3, // address (octet[16])
+            ]
+        );
+    }
 
     #[test]
     fn deserialize_count() {

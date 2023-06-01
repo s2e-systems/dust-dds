@@ -460,6 +460,15 @@ pub struct Locator {
     address: LocatorAddress,
 }
 
+impl EndianWriteBytes for Locator {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.kind.endian_write_bytes::<E>(&mut buf[0..]);
+        self.port.endian_write_bytes::<E>(&mut buf[4..]);
+        self.address.endian_write_bytes::<E>(&mut buf[8..]);
+        24
+    }
+}
+
 #[derive(
     Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
 )]
@@ -468,6 +477,12 @@ pub struct LocatorKind(i32);
 impl LocatorKind {
     pub const fn new(value: i32) -> Self {
         Self(value)
+    }
+}
+
+impl EndianWriteBytes for LocatorKind {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.0.endian_write_bytes::<E>(buf)
     }
 }
 
@@ -482,6 +497,12 @@ impl LocatorPort {
     }
 }
 
+impl EndianWriteBytes for LocatorPort {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.0.endian_write_bytes::<E>(buf)
+    }
+}
+
 #[derive(
     Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
 )]
@@ -490,6 +511,13 @@ pub struct LocatorAddress([u8; 16]);
 impl LocatorAddress {
     pub const fn new(value: [u8; 16]) -> Self {
         Self(value)
+    }
+}
+
+impl EndianWriteBytes for LocatorAddress {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        buf[..self.0.len()].copy_from_slice(&self.0);
+        16
     }
 }
 

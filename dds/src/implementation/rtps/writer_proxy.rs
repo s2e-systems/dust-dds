@@ -268,10 +268,8 @@ impl RtpsWriterProxy {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
 
-            let info_dst_submessage = InfoDestinationSubmessageWrite {
-                endianness_flag: true,
-                guid_prefix: self.remote_writer_guid().prefix(),
-            };
+            let info_dst_submessage =
+                InfoDestinationSubmessageWrite::new(true, self.remote_writer_guid().prefix());
 
             let acknack_submessage = AckNackSubmessageWrite::new(
                 true,
@@ -307,17 +305,17 @@ impl RtpsWriterProxy {
                 if !missing_fragment_number.is_empty() {
                     self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
                     let nack_frag_submessage =
-                        RtpsSubmessageWriteKind::NackFrag(NackFragSubmessageWrite {
-                            endianness_flag: true,
-                            reader_id: reader_guid.entity_id(),
-                            writer_id: self.remote_writer_guid().entity_id(),
-                            writer_sn: *seq_num,
-                            fragment_number_state: FragmentNumberSet {
+                        RtpsSubmessageWriteKind::NackFrag(NackFragSubmessageWrite::new(
+                            true,
+                            reader_guid.entity_id(),
+                            self.remote_writer_guid().entity_id(),
+                            *seq_num,
+                            FragmentNumberSet {
                                 base: missing_fragment_number[0],
                                 set: missing_fragment_number,
                             },
-                            count: self.nack_frag_count,
-                        });
+                            self.nack_frag_count,
+                        ));
 
                     submessages.push(nack_frag_submessage)
                 }

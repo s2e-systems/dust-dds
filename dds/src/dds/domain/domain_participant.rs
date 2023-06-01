@@ -35,7 +35,9 @@ use crate::{
             discovery_types::BuiltinEndpointSet,
             history_cache::RtpsWriterCacheChange,
             messages::{
-                overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind, RtpsMessageRead},
+                overall_structure::{
+                    RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind,
+                },
                 submessage_elements::SequenceNumberSet,
                 submessages::{
                     gap::GapSubmessageWrite, info_destination::InfoDestinationSubmessageWrite,
@@ -2090,21 +2092,18 @@ fn gap_submessage<'a>(
 }
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite {
-        endianness_flag: true,
-        invalidate_flag: false,
-        timestamp: crate::implementation::rtps::messages::types::Time::new(
+    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
+        true,
+        false,
+        crate::implementation::rtps::messages::types::Time::new(
             timestamp.sec(),
             timestamp.nanosec(),
         ),
-    })
+    ))
 }
 
 fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite {
-        endianness_flag: true,
-        guid_prefix,
-    })
+    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite::new(true, guid_prefix))
 }
 
 #[allow(clippy::too_many_arguments)]

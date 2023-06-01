@@ -99,6 +99,13 @@ pub trait RtpsMapWrite: EndiannessFlag {
 
 impl<T: EndiannessFlag> RtpsMapWrite for T {}
 
+impl EndianWriteBytes for i32 {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_i32(buf, *self);
+        4
+    }
+}
+
 impl EndianWriteBytes for u32 {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
         E::write_u32(buf, *self);
@@ -302,11 +309,11 @@ pub enum RtpsSubmessageWriteKind<'a> {
     Gap(GapSubmessageWrite<'a>),
     Heartbeat(HeartbeatSubmessageWrite<'a>),
     HeartbeatFrag(HeartbeatFragSubmessageWrite<'a>),
-    InfoDestination(InfoDestinationSubmessageWrite),
-    InfoReply(InfoReplySubmessageWrite),
-    InfoSource(InfoSourceSubmessageWrite),
-    InfoTimestamp(InfoTimestampSubmessageWrite),
-    NackFrag(NackFragSubmessageWrite),
+    InfoDestination(InfoDestinationSubmessageWrite<'a>),
+    InfoReply(InfoReplySubmessageWrite<'a>),
+    InfoSource(InfoSourceSubmessageWrite<'a>),
+    InfoTimestamp(InfoTimestampSubmessageWrite<'a>),
+    NackFrag(NackFragSubmessageWrite<'a>),
     Pad(PadSubmessageWrite),
 }
 

@@ -19,11 +19,11 @@ pub struct RtpsReaderLocator {
 }
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite {
-        endianness_flag: true,
-        invalidate_flag: false,
-        timestamp: super::messages::types::Time::new(timestamp.sec(), timestamp.nanosec()),
-    })
+    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
+        true,
+        false,
+        super::messages::types::Time::new(timestamp.sec(), timestamp.nanosec()),
+    ))
 }
 
 fn gap_submessage<'a>(

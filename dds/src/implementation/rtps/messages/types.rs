@@ -180,6 +180,14 @@ impl Time {
     }
 }
 
+impl EndianWriteBytes for Time {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.seconds.endian_write_bytes::<E>(&mut buf[0..]);
+        self.fraction.endian_write_bytes::<E>(&mut buf[4..]);
+        8
+    }
+}
+
 pub const TIME_INVALID: Time = Time {
     seconds: 0xffff,
     fraction: 0xffff,
