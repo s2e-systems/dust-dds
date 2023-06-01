@@ -11,10 +11,10 @@ use super::{
             ack_nack::AckNackSubmessageWrite, data_frag::DataFragSubmessageRead,
             info_destination::InfoDestinationSubmessageWrite, nack_frag::NackFragSubmessageWrite,
         },
-        types::FragmentNumber,
+        types::{Count, FragmentNumber},
     },
     transport::TransportWrite,
-    types::{Count, EntityId, Guid, Locator, SequenceNumber},
+    types::{EntityId, Guid, Locator, SequenceNumber},
 };
 
 #[derive(Debug, PartialEq, Eq)]

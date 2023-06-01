@@ -7,9 +7,9 @@ use crate::implementation::{
             overall_structure::{
                 RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
-            submessage_elements::{ParameterList, SubmessageElement},
+            submessage_elements::{SerializedPayload, ParameterList, SubmessageElement},
             types::{
-                FragmentNumber, SerializedPayload, SubmessageFlag, SubmessageKind,
+                FragmentNumber, SubmessageFlag, SubmessageKind,
             },
         },
         types::{EntityId, SequenceNumber},

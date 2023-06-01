@@ -5,11 +5,10 @@ use crate::{
 
 use super::{
     messages::{
-        submessage_elements::{ParameterList, SequenceNumberSet},
+        submessage_elements::{ParameterList, SequenceNumberSet, SerializedPayload},
         submessages::{
             data::DataSubmessageWrite, data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
         },
-        types::SerializedPayload,
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };

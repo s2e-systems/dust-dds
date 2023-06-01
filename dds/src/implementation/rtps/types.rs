@@ -402,46 +402,6 @@ impl EndianWriteBytes for VendorId {
 pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
 pub const VENDOR_ID_S2E: VendorId = VendorId([0x01, 0x14]);
 
-/// Count_t
-/// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    Default,
-    derive_more::Into,
-    derive_more::Add,
-    derive_more::AddAssign,
-    derive_more::Sub,
-    derive_more::SubAssign,
-)]
-pub struct Count(i32);
-
-impl Count {
-    pub const fn new(value: i32) -> Self {
-        Self(value)
-    }
-    pub const fn wrapping_add(self, rhs: i32) -> Self {
-        Self(self.0.wrapping_add(rhs))
-    }
-}
-impl PartialOrd<Count> for Count {
-    fn partial_cmp(&self, other: &Count) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
-    }
-}
-
-impl EndianWriteBytes for Count {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_i32(buf, self.0);
-        4
-    }
-}
-
 /// Locator_t
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.

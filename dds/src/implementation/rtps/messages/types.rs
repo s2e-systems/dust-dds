@@ -93,79 +93,11 @@ impl WriteBytes for SubmessageKind {
     }
 }
 
-/// ParameterId_t
-/// Type used to uniquely identify a parameter in a parameter list.
-/// Used extensively by the Discovery Module mainly to define QoS Parameters. A range of values is reserved for protocol-defined parameters, while another range can be used for vendor-defined parameters, see 8.3.5.9.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into)]
-pub struct ParameterId(pub u16);
-
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Debug,
-    derive_more::Into,
-    derive_more::Sub,
-    derive_more::SubAssign,
-    derive_more::Add,
-    derive_more::AddAssign,
-)]
-pub struct FragmentNumber(u32);
-
-impl FragmentNumber {
-    pub const fn new(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-impl EndianWriteBytes for FragmentNumber {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_u32(buf, self.0);
-        4
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into)]
-pub struct GroupDigest([u8; 4]);
-
-impl GroupDigest {
-    pub const fn new(value: [u8; 4]) -> Self {
-        Self(value)
-    }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    derive_more::Into,
-    derive_more::Sub,
-    derive_more::SubAssign,
-    derive_more::Add,
-    derive_more::AddAssign,
-)]
-pub struct UShort(u16);
-
-impl UShort {
-    pub const fn new(value: u16) -> Self {
-        Self(value)
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, derive_more::Into)]
-pub struct ULong(u32);
-
-impl ULong {
-    pub const fn new(value: u32) -> Self {
-        Self(value)
-    }
-}
+/// Time_t
+/// Type used to hold a timestamp.
+/// Should have at least nano-second resolution.
+/// The following values are reserved by the protocol: TIME_ZERO
+/// TIME_INVALID TIME_INFINITE
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Time {
@@ -200,26 +132,95 @@ pub const TIME_INVALID: Time = Time {
     fraction: 0xffff,
 };
 
-#[derive(Debug, PartialEq, Eq, derive_more::Into, derive_more::From)]
-pub struct SerializedPayload<'a>(&'a [u8]);
+/// Count_t
+/// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Default,
+    derive_more::Into,
+    derive_more::Add,
+    derive_more::AddAssign,
+    derive_more::Sub,
+    derive_more::SubAssign,
+)]
+pub struct Count(i32);
 
-impl<'a> SerializedPayload<'a> {
-    pub fn new(value: &'a [u8]) -> Self {
+impl Count {
+    pub const fn new(value: i32) -> Self {
+        Self(value)
+    }
+    pub const fn wrapping_add(self, rhs: i32) -> Self {
+        Self(self.0.wrapping_add(rhs))
+    }
+}
+impl PartialOrd<Count> for Count {
+    fn partial_cmp(&self, other: &Count) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
+impl EndianWriteBytes for Count {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_i32(buf, self.0);
+        4
+    }
+}
+
+
+/// ParameterId_t
+/// Type used to uniquely identify a parameter in a parameter list.
+/// Used extensively by the Discovery Module mainly to define QoS Parameters. A range of values is reserved for protocol-defined parameters, while another range can be used for vendor-defined parameters, see 8.3.5.9.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into)]
+pub struct ParameterId(pub u16);
+
+
+/// FragmentNumber_t
+/// Type used to hold fragment numbers.
+/// Must be possible to represent using 32 bits.
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Debug,
+    derive_more::Into,
+    derive_more::Sub,
+    derive_more::SubAssign,
+    derive_more::Add,
+    derive_more::AddAssign,
+)]
+pub struct FragmentNumber(u32);
+
+impl FragmentNumber {
+    pub const fn new(value: u32) -> Self {
         Self(value)
     }
 }
 
-impl EndianWriteBytes for SerializedPayload<'_> {
+impl EndianWriteBytes for FragmentNumber {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(self.0);
-        let length_inclusive_padding = (self.0.len() + 3) & !3;
-        buf[self.0.len()..length_inclusive_padding].fill(0);
-        length_inclusive_padding
+        E::write_u32(buf, self.0);
+        4
     }
 }
 
-impl<'a> From<&'_ SerializedPayload<'a>> for &'a [u8] {
-    fn from(value: &'_ SerializedPayload<'a>) -> Self {
-        value.0
+/// GroupDigest_t
+/// Type used to hold a digest value that uniquely identifies a group of Entities belonging to the same Participant.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into)]
+pub struct GroupDigest([u8; 4]);
+
+impl GroupDigest {
+    pub const fn new(value: [u8; 4]) -> Self {
+        Self(value)
     }
 }
+

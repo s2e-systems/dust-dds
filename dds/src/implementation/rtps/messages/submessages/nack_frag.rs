@@ -4,9 +4,9 @@ use crate::implementation::rtps::{
             RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
         },
         submessage_elements::{FragmentNumberSet, SubmessageElement},
-        types::{SubmessageFlag, SubmessageKind},
+        types::{Count, SubmessageFlag, SubmessageKind},
     },
-    types::{Count, EntityId, SequenceNumber},
+    types::{EntityId, SequenceNumber},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -95,7 +95,7 @@ impl Submessage for NackFragSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{types::FragmentNumber, overall_structure::into_bytes_vec},
+        messages::{overall_structure::into_bytes_vec, types::FragmentNumber},
         types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 

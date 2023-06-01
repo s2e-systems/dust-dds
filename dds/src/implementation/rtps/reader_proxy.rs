@@ -8,11 +8,10 @@ use super::{
             ack_nack::AckNackSubmessageRead, heartbeat::HeartbeatSubmessageWrite,
             heartbeat_frag::HeartbeatFragSubmessageWrite, nack_frag::NackFragSubmessageRead,
         },
-        types::FragmentNumber,
+        types::{Count, FragmentNumber},
     },
     types::{
-        Count, DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind,
-        SequenceNumber,
+        DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind, SequenceNumber,
     },
     utils::clock::{StdTimer, Timer, TimerConstructor},
     writer::RtpsWriter,

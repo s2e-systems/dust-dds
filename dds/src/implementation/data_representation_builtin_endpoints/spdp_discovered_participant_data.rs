@@ -5,7 +5,8 @@ use crate::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-            types::{Count, ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
+            messages::types::Count,
+            types::{ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
         },
     },
     infrastructure::{error::DdsResult, time::Duration},

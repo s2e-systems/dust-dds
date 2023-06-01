@@ -4,9 +4,9 @@ use crate::implementation::rtps::{
             RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
         },
         submessage_elements::{SequenceNumberSet, SubmessageElement},
-        types::{SubmessageFlag, SubmessageKind},
+        types::{Count, SubmessageFlag, SubmessageKind},
     },
-    types::{Count, EntityId},
+    types::EntityId,
 };
 
 #[derive(Debug, PartialEq, Eq)]

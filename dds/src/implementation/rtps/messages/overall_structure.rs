@@ -429,9 +429,9 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::{
-            submessage_elements::{Parameter, ParameterList},
+            submessage_elements::{Parameter, ParameterList, SerializedPayload},
             submessages::{data::DataSubmessageRead, heartbeat::HeartbeatSubmessageRead},
-            types::{ParameterId, SerializedPayload},
+            types::ParameterId,
         },
         types::{
             EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
