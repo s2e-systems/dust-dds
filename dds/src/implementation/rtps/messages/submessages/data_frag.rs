@@ -5,7 +5,7 @@ use crate::implementation::{
     rtps::{
         messages::{
             overall_structure::{RtpsMap, SubmessageHeader, SubmessageHeaderRead},
-            submessage_elements::ParameterList,
+            submessage_elements::{ParameterList, SubmessageElement},
             types::{FragmentNumber, SerializedPayload, SubmessageFlag, ULong, UShort},
         },
         types::{EntityId, SequenceNumber},
@@ -112,19 +112,76 @@ impl<'a> DataFragSubmessageRead<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataFragSubmessageWrite<'a> {
-    pub endianness_flag: SubmessageFlag,
-    pub inline_qos_flag: SubmessageFlag,
-    pub non_standard_payload_flag: SubmessageFlag,
-    pub key_flag: SubmessageFlag,
-    pub reader_id: EntityId,
-    pub writer_id: EntityId,
-    pub writer_sn: SequenceNumber,
-    pub fragment_starting_num: FragmentNumber,
-    pub fragments_in_submessage: UShort,
-    pub data_size: ULong,
-    pub fragment_size: UShort,
-    pub inline_qos: &'a ParameterList,
-    pub serialized_payload: SerializedPayload<'a>,
+    endianness_flag: SubmessageFlag,
+    inline_qos_flag: SubmessageFlag,
+    non_standard_payload_flag: SubmessageFlag,
+    key_flag: SubmessageFlag,
+    submessage_elements: Vec<SubmessageElement<'a>>,
+}
+
+impl<'a> DataFragSubmessageWrite<'a> {
+    pub fn new(
+        endianness_flag: SubmessageFlag,
+        inline_qos_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
+        key_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        writer_sn: SequenceNumber,
+        fragment_starting_num: FragmentNumber,
+        fragments_in_submessage: u16,
+        data_size: u32,
+        fragment_size: u16,
+        inline_qos: &'a ParameterList,
+        serialized_payload: SerializedPayload<'a>,
+    ) -> Self {
+        const EXTRA_FLAGS: u16 = 0;
+        const OCTETS_TO_INLINE_QOS: u16 = 16;
+        let mut submessage_elements = vec![
+            SubmessageElement::UShort(EXTRA_FLAGS),
+            SubmessageElement::UShort(OCTETS_TO_INLINE_QOS),
+            SubmessageElement::EntityId(reader_id),
+            SubmessageElement::EntityId(writer_id),
+            SubmessageElement::SequenceNumber(writer_sn),
+            SubmessageElement::FragmentNumber(fragment_starting_num),
+            SubmessageElement::UShort(fragments_in_submessage),
+            SubmessageElement::UShort(fragment_size),
+            SubmessageElement::ULong(data_size),
+        ];
+        if inline_qos_flag {
+            submessage_elements.push(SubmessageElement::ParameterList(inline_qos));
+        }
+        submessage_elements.push(SubmessageElement::SerializedPayload(serialized_payload));
+
+        Self {
+            endianness_flag,
+            inline_qos_flag,
+            non_standard_payload_flag,
+            key_flag,
+            submessage_elements
+        }
+    }
+
+    pub fn writer_sn(&self) -> SequenceNumber {
+        match self.submessage_elements[4] {
+            SubmessageElement::SequenceNumber(e) => e,
+            _ => todo!()
+        }
+    }
+
+    pub fn fragment_starting_num(&self) -> FragmentNumber {
+        match self.submessage_elements[5] {
+            SubmessageElement::FragmentNumber(e) => e,
+            _ => todo!()
+        }
+    }
+
+    pub fn fragments_in_submessage(&self) -> u16 {
+        match self.submessage_elements[6] {
+            SubmessageElement::UShort(e) => e,
+            _ => todo!()
+        }
+    }
 }
 
 #[cfg(test)]

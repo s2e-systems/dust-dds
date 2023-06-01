@@ -23,10 +23,12 @@ use std::io::BufRead;
 pub enum SubmessageElement<'a> {
     Count(Count),
     EntityId(EntityId),
+    FragmentNumber(FragmentNumber),
     ParameterList(&'a ParameterList),
     SequenceNumber(SequenceNumber),
     SequenceNumberSet(SequenceNumberSet),
     SerializedPayload(SerializedPayload<'a>),
+    ULong(u32),
     UShort(u16)
 }
 
@@ -35,10 +37,12 @@ impl EndianWriteBytes for SubmessageElement<'_> {
         match self {
             SubmessageElement::Count(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::EntityId(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::FragmentNumber(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::ParameterList(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::SequenceNumber(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::SequenceNumberSet(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::SerializedPayload(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::ULong(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::UShort(e) => e.endian_write_bytes::<E>(buf),
         }
     }

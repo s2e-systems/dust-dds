@@ -2127,10 +2127,10 @@ fn directly_send_data_frag(
         .peekable();
 
     while let Some(data_frag_submessage) = data_frag_submessage_list.next() {
-        let writer_sn = data_frag_submessage.writer_sn;
+        let writer_sn = data_frag_submessage.writer_sn();
         let last_fragment_num = FragmentNumber::new(
-            u32::from(data_frag_submessage.fragment_starting_num)
-                + u16::from(data_frag_submessage.fragments_in_submessage) as u32
+            u32::from(data_frag_submessage.fragment_starting_num())
+                + u16::from(data_frag_submessage.fragments_in_submessage()) as u32
                 - 1,
         );
 

@@ -115,6 +115,13 @@ impl FragmentNumber {
     }
 }
 
+impl EndianWriteBytes for FragmentNumber {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_u32(buf, self.0);
+        4
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into)]
 pub struct GroupDigest([u8; 4]);
 

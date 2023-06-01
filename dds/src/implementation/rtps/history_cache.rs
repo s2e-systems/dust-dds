@@ -65,9 +65,9 @@ impl RtpsWriterCacheChange {
         reader_id: EntityId,
     ) -> Vec<DataFragSubmessageWrite> {
         let data = self.data_value();
-        let data_size = ULong::new(data.len() as u32);
+        let data_size = data.len() as u32;
         let mut fragment_starting_num = FragmentNumber::new(1);
-        const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
+        const FRAGMENTS_IN_SUBMESSAGE: u16 = 1;
 
         let mut messages = Vec::new();
 
@@ -94,7 +94,7 @@ impl RtpsWriterCacheChange {
             let writer_sn = self.sequence_number();
             let inline_qos = &self.inline_qos;
             let serialized_payload = SerializedPayload::new(data_fragment);
-            let message = DataFragSubmessageWrite {
+            let message = DataFragSubmessageWrite::new(
                 endianness_flag,
                 inline_qos_flag,
                 non_standard_payload_flag,
@@ -103,12 +103,12 @@ impl RtpsWriterCacheChange {
                 writer_id,
                 writer_sn,
                 fragment_starting_num,
-                fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
+                FRAGMENTS_IN_SUBMESSAGE,
                 data_size,
-                fragment_size: UShort::new(max_bytes as u16),
+                max_bytes as u16,
                 inline_qos,
                 serialized_payload,
-            };
+            );
 
             messages.push(message);
 

@@ -1,7 +1,6 @@
 use crate::implementation::{
     rtps::messages::{
         overall_structure::SubmessageHeaderWrite, submessages::data_frag::DataFragSubmessageWrite,
-
     },
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
@@ -38,43 +37,44 @@ impl MappingWriteSubmessage for DataFragSubmessageWrite<'_> {
 
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(
         &self,
-        mut writer: W,
+        _writer: W,
     ) -> Result<(), Error> {
-        const OCTETS_TO_INLINE_QOS: u16 = 28;
-        const EXTRA_FLAGS: u16 = 0;
-        EXTRA_FLAGS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        OCTETS_TO_INLINE_QOS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.reader_id
-            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.writer_id
-            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.writer_sn
-            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.fragment_starting_num
-            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.fragments_in_submessage
-            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.fragment_size
-            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.data_size
-            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        if self.inline_qos_flag {
-            self.inline_qos
-                .mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        }
+        // const OCTETS_TO_INLINE_QOS: u16 = 28;
+        // const EXTRA_FLAGS: u16 = 0;
+        // EXTRA_FLAGS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // OCTETS_TO_INLINE_QOS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // self.reader_id
+        //     .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // self.writer_id
+        //     .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // self.writer_sn
+        //     .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // self.fragment_starting_num
+        //     .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // self.fragments_in_submessage
+        //     .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // self.fragment_size
+        //     .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // self.data_size
+        //     .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // if self.inline_qos_flag {
+        //     self.inline_qos
+        //         .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // }
 
-        self.serialized_payload
-            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        // Pad to 32bit boundary
-        let padding: &[u8] = match self.serialized_payload.number_of_bytes() % 4 {
-            1 => &[0; 3],
-            2 => &[0; 2],
-            3 => &[0; 1],
-            _ => &[],
-        };
-        writer.write_all(padding)?;
+        // self.serialized_payload
+        //     .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        // // Pad to 32bit boundary
+        // let padding: &[u8] = match self.serialized_payload.number_of_bytes() % 4 {
+        //     1 => &[0; 3],
+        //     2 => &[0; 2],
+        //     3 => &[0; 1],
+        //     _ => &[],
+        // };
+        // writer.write_all(padding)?;
 
-        Ok(())
+        // Ok(())
+        todo!()
     }
 }
 
@@ -99,21 +99,22 @@ mod tests {
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
-        let submessage = DataFragSubmessageWrite {
-            endianness_flag: true,
-            inline_qos_flag: false,
-            non_standard_payload_flag: false,
-            key_flag: false,
-            reader_id: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-            writer_id: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-            writer_sn: SequenceNumber::new(5),
-            fragment_starting_num: FragmentNumber::new(2),
-            fragments_in_submessage: UShort::new(3),
-            data_size: ULong::new(4),
-            fragment_size: UShort::new(5),
-            inline_qos: &ParameterList::empty(),
-            serialized_payload: SerializedPayload::new(&[]),
-        };
+        let inline_qos = &ParameterList::empty();
+        let submessage = DataFragSubmessageWrite::new(
+            true,
+            false,
+            false,
+            false,
+            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
+            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
+            SequenceNumber::new(5),
+            FragmentNumber::new(2),
+            3,
+            4,
+            5,
+            inline_qos,
+            SerializedPayload::new(&[]),
+        );
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x16_u8, 0b_0000_0001, 32, 0, // Submessage header
@@ -131,24 +132,22 @@ mod tests {
 
     #[test]
     fn serialize_with_inline_qos_with_serialized_payload() {
-        let submessage = DataFragSubmessageWrite {
-            endianness_flag: true,
-            inline_qos_flag: true,
-            non_standard_payload_flag: false,
-            key_flag: false,
-            reader_id: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-            writer_id: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-            writer_sn: SequenceNumber::new(6),
-            fragment_starting_num: FragmentNumber::new(2),
-            fragments_in_submessage: UShort::new(3),
-            data_size: ULong::new(8),
-            fragment_size: UShort::new(5),
-            inline_qos: &ParameterList::new(vec![Parameter::new(
-                ParameterId(8),
-                vec![71, 72, 73, 74],
-            )]),
-            serialized_payload: SerializedPayload::new(&[1, 2, 3]),
-        };
+        let inline_qos = ParameterList::new(vec![Parameter::new(ParameterId(8), vec![71, 72, 73, 74])]);
+        let submessage = DataFragSubmessageWrite::new(
+            true,
+            true,
+            false,
+            false,
+            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
+            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
+            SequenceNumber::new(6),
+            FragmentNumber::new(2),
+            3,
+            8,
+            5,
+            &inline_qos,
+            SerializedPayload::new(&[1, 2, 3]),
+        );
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x16_u8, 0b_0000_0011, 48, 0, // Submessage header
@@ -167,5 +166,4 @@ mod tests {
             ]
         );
     }
-
 }

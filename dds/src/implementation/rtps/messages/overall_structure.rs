@@ -96,6 +96,12 @@ pub trait RtpsMapWrite: EndiannessFlag {
 
 impl<T: EndiannessFlag> RtpsMapWrite for T {}
 
+impl EndianWriteBytes for u32 {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        E::write_u32(buf, *self);
+        4
+    }
+}
 
 impl EndianWriteBytes for u16 {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
