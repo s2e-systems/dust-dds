@@ -53,7 +53,6 @@ pub struct HeartbeatFragSubmessageWrite<'a> {
 }
 impl HeartbeatFragSubmessageWrite<'_> {
     pub fn new(
-        endianness_flag: SubmessageFlag,
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
@@ -61,7 +60,7 @@ impl HeartbeatFragSubmessageWrite<'_> {
         count: Count,
     ) -> Self {
         Self {
-            endianness_flag,
+            endianness_flag: true,
             submessage_elements: [
                 SubmessageElement::EntityId(reader_id),
                 SubmessageElement::EntityId(writer_id),
@@ -105,7 +104,6 @@ mod tests {
     #[test]
     fn serialize_heart_beat() {
         let submessage = HeartbeatFragSubmessageWrite::new(
-            true,
             EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
             EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
             SequenceNumber::new(5),

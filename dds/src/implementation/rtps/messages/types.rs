@@ -211,8 +211,8 @@ impl<'a> SerializedPayload<'a> {
 
 impl EndianWriteBytes for SerializedPayload<'_> {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(&self.0);
-        let length_inclusive_padding = self.0.len() + 3 & !3;
+        buf[..self.0.len()].copy_from_slice(self.0);
+        let length_inclusive_padding = (self.0.len() + 3) & !3;
         buf[self.0.len()..length_inclusive_padding].fill(0);
         length_inclusive_padding
     }

@@ -2080,7 +2080,6 @@ fn gap_submessage<'a>(
     gap_sequence_number: SequenceNumber,
 ) -> RtpsSubmessageWriteKind<'a> {
     RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
-        true,
         ENTITYID_UNKNOWN,
         writer_id,
         gap_sequence_number,
@@ -2093,7 +2092,6 @@ fn gap_submessage<'a>(
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
     RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
-        true,
         false,
         crate::implementation::rtps::messages::types::Time::new(
             timestamp.sec(),
@@ -2103,7 +2101,7 @@ fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a>
 }
 
 fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite::new(true, guid_prefix))
+    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite::new(guid_prefix))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2129,7 +2127,7 @@ fn directly_send_data_frag(
         let writer_sn = data_frag_submessage.writer_sn();
         let last_fragment_num = FragmentNumber::new(
             u32::from(data_frag_submessage.fragment_starting_num())
-                + u16::from(data_frag_submessage.fragments_in_submessage()) as u32
+                + data_frag_submessage.fragments_in_submessage() as u32
                 - 1,
         );
 

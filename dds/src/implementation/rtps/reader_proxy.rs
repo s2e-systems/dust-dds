@@ -46,7 +46,6 @@ impl HeartbeatMachine {
         self.count = self.count.wrapping_add(1);
         self.timer.reset();
         RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessageWrite::new(
-            true,
             false,
             false,
             self.reader_id,
@@ -79,7 +78,6 @@ impl HeartbeatFragMachine {
     ) -> RtpsSubmessageWriteKind<'a> {
         self.count = self.count.wrapping_add(1);
         RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessageWrite::new(
-            true,
             self.reader_id,
             writer_id,
             writer_sn,

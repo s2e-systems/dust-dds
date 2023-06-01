@@ -50,7 +50,6 @@ pub struct InfoReplySubmessageWrite<'a> {
 
 impl<'a> InfoReplySubmessageWrite<'a> {
     pub fn new(
-        endianness_flag: SubmessageFlag,
         multicast_flag: SubmessageFlag,
         unicast_locator_list: LocatorList,
         multicast_locator_list: LocatorList,
@@ -60,7 +59,7 @@ impl<'a> InfoReplySubmessageWrite<'a> {
             submessage_elements.push(SubmessageElement::LocatorList(multicast_locator_list));
         }
         Self {
-            endianness_flag,
+            endianness_flag: true,
             multicast_flag,
             submessage_elements,
         }
@@ -101,7 +100,6 @@ mod tests {
             LocatorAddress::new([1; 16]),
         );
         let submessage = InfoReplySubmessageWrite::new(
-            true,
             false,
             LocatorList::new(vec![locator]),
             LocatorList::new(vec![]),

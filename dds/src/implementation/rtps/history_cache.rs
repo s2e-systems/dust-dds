@@ -27,7 +27,6 @@ pub struct RtpsWriterCacheChange {
 impl RtpsWriterCacheChange {
     pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessageWrite {
         GapSubmessageWrite::new(
-            true,
             reader_id,
             self.writer_guid.entity_id(),
             self.sequence_number,
@@ -46,7 +45,6 @@ impl RtpsWriterCacheChange {
         };
 
         DataSubmessageWrite::new(
-            true,
             true,
             data_flag,
             key_flag,
@@ -82,7 +80,6 @@ impl RtpsWriterCacheChange {
                 data_remaining = &[];
             }
 
-            let endianness_flag = true;
             let inline_qos_flag = true;
             let key_flag = match self.kind() {
                 ChangeKind::Alive => false,
@@ -95,7 +92,6 @@ impl RtpsWriterCacheChange {
             let inline_qos = &self.inline_qos;
             let serialized_payload = SerializedPayload::new(data_fragment);
             let message = DataFragSubmessageWrite::new(
-                endianness_flag,
                 inline_qos_flag,
                 non_standard_payload_flag,
                 key_flag,

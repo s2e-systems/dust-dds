@@ -29,8 +29,14 @@ pub struct PadSubmessageWrite {
 }
 
 impl PadSubmessageWrite {
-    pub fn new(endianness_flag: SubmessageFlag) -> Self {
-        Self { endianness_flag }
+    pub fn new() -> Self {
+        Self { endianness_flag: true }
+    }
+}
+
+impl Default for PadSubmessageWrite {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl Submessage for PadSubmessageWrite {
@@ -58,7 +64,7 @@ mod tests {
 
     #[test]
     fn serialize_pad() {
-        let submessage = PadSubmessageWrite::new(true);
+        let submessage = PadSubmessageWrite::new();
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x01, 0b_0000_0001, 0, 0, // Submessage header

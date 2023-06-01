@@ -46,13 +46,12 @@ pub struct InfoSourceSubmessageWrite<'a> {
 
 impl InfoSourceSubmessageWrite<'_> {
     pub fn new(
-        endianness_flag: SubmessageFlag,
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
     ) -> Self {
         Self {
-            endianness_flag,
+            endianness_flag: true,
             submessage_elements: [
                 SubmessageElement::Long(0),
                 SubmessageElement::ProtocolVersion(protocol_version),
@@ -92,7 +91,6 @@ mod tests {
     #[test]
     fn serialize_info_source() {
         let submessage = InfoSourceSubmessageWrite::new(
-            true,
             PROTOCOLVERSION_1_0,
             VENDOR_ID_UNKNOWN,
             GUIDPREFIX_UNKNOWN,

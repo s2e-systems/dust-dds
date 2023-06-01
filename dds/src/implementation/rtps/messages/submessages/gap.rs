@@ -50,14 +50,13 @@ pub struct GapSubmessageWrite<'a> {
 
 impl GapSubmessageWrite<'_> {
     pub fn new(
-        endianness_flag: SubmessageFlag,
         reader_id: EntityId,
         writer_id: EntityId,
         gap_start: SequenceNumber,
         gap_list: SequenceNumberSet,
     ) -> Self {
         Self {
-            endianness_flag,
+            endianness_flag: true,
             submessage_elements: [
                 SubmessageElement::EntityId(reader_id),
                 SubmessageElement::EntityId(writer_id),
@@ -95,7 +94,6 @@ mod tests {
 
     #[test]
     fn serialize_gap() {
-        let endianness_flag = true;
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let gap_start = SequenceNumber::new(5);
@@ -104,7 +102,7 @@ mod tests {
             set: vec![],
         };
         let submessage =
-            GapSubmessageWrite::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
+            GapSubmessageWrite::new(reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x08_u8, 0b_0000_0001, 28, 0, // Submessage header

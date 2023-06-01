@@ -113,8 +113,8 @@ pub struct DataSubmessageWrite<'a> {
 }
 
 impl<'a> DataSubmessageWrite<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        endianness_flag: SubmessageFlag,
         inline_qos_flag: SubmessageFlag,
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
@@ -141,7 +141,7 @@ impl<'a> DataSubmessageWrite<'a> {
             submessage_elements.push(SubmessageElement::SerializedPayload(serialized_payload));
         }
         Self {
-            endianness_flag,
+            endianness_flag: true,
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -187,7 +187,6 @@ mod tests {
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
-        let endianness_flag = true;
         let inline_qos_flag = false;
         let data_flag = false;
         let key_flag = false;
@@ -198,7 +197,6 @@ mod tests {
         let inline_qos = &ParameterList::empty();
         let serialized_payload = SerializedPayload::new(&[]);
         let submessage = DataSubmessageWrite::new(
-            endianness_flag,
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -223,7 +221,6 @@ mod tests {
 
     #[test]
     fn serialize_with_inline_qos_no_serialized_payload() {
-        let endianness_flag = true;
         let inline_qos_flag = true;
         let data_flag = false;
         let key_flag = false;
@@ -237,7 +234,6 @@ mod tests {
         let serialized_payload = SerializedPayload::new(&[]);
 
         let submessage = DataSubmessageWrite::new(
-            endianness_flag,
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -267,7 +263,6 @@ mod tests {
 
     #[test]
     fn serialize_no_inline_qos_with_serialized_payload() {
-        let endianness_flag = true;
         let inline_qos_flag = false;
         let data_flag = true;
         let key_flag = false;
@@ -278,7 +273,6 @@ mod tests {
         let inline_qos = &ParameterList::empty();
         let serialized_payload = SerializedPayload::new(&[1, 2, 3, 4]);
         let submessage = DataSubmessageWrite::new(
-            endianness_flag,
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -304,7 +298,6 @@ mod tests {
 
     #[test]
     fn serialize_no_inline_qos_with_serialized_payload_non_multiple_of_4() {
-        let endianness_flag = true;
         let inline_qos_flag = false;
         let data_flag = true;
         let key_flag = false;
@@ -315,7 +308,6 @@ mod tests {
         let inline_qos = &ParameterList::empty();
         let serialized_payload = SerializedPayload::new(&[1, 2, 3]);
         let submessage = DataSubmessageWrite::new(
-            endianness_flag,
             inline_qos_flag,
             data_flag,
             key_flag,

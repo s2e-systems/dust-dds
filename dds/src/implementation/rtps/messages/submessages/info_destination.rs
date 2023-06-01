@@ -36,9 +36,9 @@ pub struct InfoDestinationSubmessageWrite<'a> {
 }
 
 impl InfoDestinationSubmessageWrite<'_> {
-    pub fn new(endianness_flag: SubmessageFlag, guid_prefix: GuidPrefix) -> Self {
+    pub fn new(guid_prefix: GuidPrefix) -> Self {
         Self {
-            endianness_flag,
+            endianness_flag: true,
             submessage_elements: [SubmessageElement::GuidPrefix(guid_prefix)],
         }
     }
@@ -71,9 +71,8 @@ mod tests {
 
     #[test]
     fn serialize_heart_beat() {
-        let endianness_flag = true;
         let guid_prefix = GuidPrefix::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-        let submessage = InfoDestinationSubmessageWrite::new(endianness_flag, guid_prefix);
+        let submessage = InfoDestinationSubmessageWrite::new(guid_prefix);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
               0x0e, 0b_0000_0001, 12, 0, // Submessage header

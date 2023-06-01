@@ -43,7 +43,6 @@ pub struct InfoTimestampSubmessageWrite<'a> {
 
 impl InfoTimestampSubmessageWrite<'_> {
     pub fn new(
-        endianness_flag: SubmessageFlag,
         invalidate_flag: SubmessageFlag,
         timestamp: Time,
     ) -> Self {
@@ -52,7 +51,7 @@ impl InfoTimestampSubmessageWrite<'_> {
             submessage_elements.push(SubmessageElement::Timestamp(timestamp))
         }
         Self {
-            endianness_flag,
+            endianness_flag: true,
             invalidate_flag,
             submessage_elements,
         }
@@ -84,7 +83,7 @@ mod tests {
 
     #[test]
     fn serialize_info_timestamp_valid_time() {
-        let submessage = InfoTimestampSubmessageWrite::new(true, false, Time::new(4, 0));
+        let submessage = InfoTimestampSubmessageWrite::new(false, Time::new(4, 0));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
@@ -96,7 +95,7 @@ mod tests {
 
     #[test]
     fn serialize_info_timestamp_invalid_time() {
-        let submessage = InfoTimestampSubmessageWrite::new(true, true, TIME_INVALID);
+        let submessage = InfoTimestampSubmessageWrite::new(true, TIME_INVALID);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x09_u8, 0b_0000_0011, 0, 0, // Submessage header

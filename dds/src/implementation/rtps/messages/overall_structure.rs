@@ -466,7 +466,6 @@ mod tests {
             vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefix::new([3; 12]),
         };
-        let endianness_flag = true;
         let inline_qos_flag = true;
         let data_flag = false;
         let key_flag = false;
@@ -480,7 +479,6 @@ mod tests {
         let serialized_payload = SerializedPayload::new(&[]);
 
         let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
-            endianness_flag,
             inline_qos_flag,
             data_flag,
             key_flag,

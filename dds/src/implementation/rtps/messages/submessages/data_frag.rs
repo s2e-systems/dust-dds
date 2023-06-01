@@ -124,8 +124,8 @@ pub struct DataFragSubmessageWrite<'a> {
 }
 
 impl<'a> DataFragSubmessageWrite<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        endianness_flag: SubmessageFlag,
         inline_qos_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
@@ -158,7 +158,7 @@ impl<'a> DataFragSubmessageWrite<'a> {
         submessage_elements.push(SubmessageElement::SerializedPayload(serialized_payload));
 
         Self {
-            endianness_flag,
+            endianness_flag: true,
             inline_qos_flag,
             non_standard_payload_flag,
             key_flag,
@@ -225,7 +225,6 @@ mod tests {
     fn serialize_no_inline_qos_no_serialized_payload() {
         let inline_qos = &ParameterList::empty();
         let submessage = DataFragSubmessageWrite::new(
-            true,
             false,
             false,
             false,
@@ -259,7 +258,6 @@ mod tests {
         let inline_qos =
             ParameterList::new(vec![Parameter::new(ParameterId(8), vec![71, 72, 73, 74])]);
         let submessage = DataFragSubmessageWrite::new(
-            true,
             true,
             false,
             false,

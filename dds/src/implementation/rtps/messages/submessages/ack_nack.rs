@@ -55,7 +55,6 @@ pub struct AckNackSubmessageWrite<'a> {
 
 impl AckNackSubmessageWrite<'_> {
     pub fn new(
-        endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
         reader_id: EntityId,
         writer_id: EntityId,
@@ -63,7 +62,7 @@ impl AckNackSubmessageWrite<'_> {
         count: Count,
     ) -> Self {
         Self {
-            endianness_flag,
+            endianness_flag: true,
             final_flag,
             submessage_elements: [
                 SubmessageElement::EntityId(reader_id),
@@ -103,12 +102,10 @@ mod tests {
 
     #[test]
     fn serialize_acknack() {
-        let endianness_flag = true;
         let final_flag = false;
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let submessage = AckNackSubmessageWrite::new(
-            endianness_flag,
             final_flag,
             reader_id,
             writer_id,
