@@ -259,7 +259,7 @@ pub enum RtpsSubmessageReadKind<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageWriteKind<'a> {
-    AckNack(AckNackSubmessageWrite<'a>),
+    AckNack(AckNackSubmessageWrite),
     Data(DataSubmessageWrite<'a>),
     DataFrag(DataFragSubmessageWrite<'a>),
     Gap(GapSubmessageWrite),
@@ -337,19 +337,19 @@ impl EndianWriteBytes for RtpsMessageHeader {
 #[derive(Debug, PartialEq, Eq)]
 pub struct SubmessageHeaderWrite {
     submessage_id: SubmessageKind,
-    flags: Vec<SubmessageFlag>,
+    flags: [SubmessageFlag; 8],
     submessage_length: u16,
 }
 
 impl SubmessageHeaderWrite {
     pub fn new(
         submessage_id: SubmessageKind,
-        flags: &[SubmessageFlag],
+        flags: [SubmessageFlag; 8],
         submessage_length: u16,
     ) -> Self {
         Self {
             submessage_id,
-            flags: flags.to_vec(),
+            flags,
             submessage_length,
         }
     }
@@ -358,7 +358,7 @@ impl SubmessageHeaderWrite {
 impl EndianWriteBytes for SubmessageHeaderWrite {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
         self.submessage_id.write_bytes(&mut buf[0..]);
-        self.flags.as_slice().write_bytes(&mut buf[1..]);
+        self.flags.write_bytes(&mut buf[1..]);
         self.submessage_length.endian_write_bytes::<E>(&mut buf[2..]);
         4
     }
@@ -459,7 +459,7 @@ mod tests {
         let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
         let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
-        let serialized_payload = &SerializedPayload::new(&[]);
+        let serialized_payload = SerializedPayload::new(&[]);
 
         let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
             endianness_flag,

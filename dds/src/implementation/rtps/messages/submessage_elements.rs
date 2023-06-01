@@ -1,5 +1,5 @@
 use super::{
-    overall_structure::{EndianWriteBytes, FromBytes},
+    overall_structure::{FromBytes, EndianWriteBytes},
     types::{ParameterId, SerializedPayload, Time},
 };
 use crate::implementation::{
@@ -18,31 +18,6 @@ use std::io::BufRead;
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum SubmessageElement<'a> {
-    Count(Count),
-    EntityId(EntityId),
-    ParameterList(&'a ParameterList),
-    SequenceNumber(SequenceNumber),
-    SequenceNumberSet(SequenceNumberSet),
-    SerializedPayload(&'a SerializedPayload),
-    UShort(u16)
-}
-
-impl EndianWriteBytes for SubmessageElement<'_> {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        match self {
-            SubmessageElement::Count(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::EntityId(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::ParameterList(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::SequenceNumber(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::SequenceNumberSet(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::SerializedPayload(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::UShort(e) => e.endian_write_bytes::<E>(buf),
-        }
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SequenceNumberSet {
@@ -186,9 +161,9 @@ impl<'a> FromBytes<'a> for ParameterList {
     }
 }
 
-impl EndianWriteBytes for Parameter {
+impl EndianWriteBytes for Parameter  {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, mut buf: &mut [u8]) -> usize {
-        let padding_len = match self.value().len() % 4 {
+        let padding_len= match self.value().len() % 4 {
             1 => 3,
             2 => 2,
             3 => 1,
@@ -200,7 +175,7 @@ impl EndianWriteBytes for Parameter {
         buf = &mut buf[4..];
         buf[..self.value().len()].copy_from_slice(self.value().as_ref());
         buf[self.value().len()..length].fill(0);
-        4 + length
+        4+length
     }
 }
 
@@ -211,13 +186,13 @@ impl EndianWriteBytes for &ParameterList {
             length += parameter.endian_write_bytes::<E>(&mut buf[length..]);
         }
         E::write_u16(&mut buf[length..], PID_SENTINEL);
-        buf[length + 2..length + 4].fill(0);
-        length + 4
+        buf[length+2..length+4].fill(0);
+        length+4
     }
 }
 
-impl FromBytes<'_> for SerializedPayload {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+impl<'a> FromBytes<'a> for SerializedPayload<'a> {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self {
         Self::new(v)
     }
 }
@@ -370,10 +345,7 @@ impl FromBytes<'_> for FragmentNumberSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::{
-        messages::overall_structure::{into_bytes_le_vec, into_bytes_vec},
-        types::{Locator, LocatorAddress, LocatorKind, LocatorPort},
-    };
+    use crate::implementation::rtps::{types::{Locator, LocatorAddress, LocatorKind, LocatorPort}, messages::overall_structure::{into_bytes_le_vec, into_bytes_vec}};
 
     #[test]
     fn deserialize_count() {

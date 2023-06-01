@@ -1,10 +1,10 @@
 use crate::implementation::rtps::{
     messages::{
         overall_structure::{
-            EndianWriteBytes, EndiannessFlag, RtpsMap, RtpsMapWrite, SubmessageHeader,
-            SubmessageHeaderRead, SubmessageHeaderWrite, WriteBytes,
+            EndiannessFlag, RtpsMap, RtpsMapWrite, SubmessageHeader, SubmessageHeaderRead,
+            SubmessageHeaderWrite, WriteBytes,
         },
-        submessage_elements::{SequenceNumberSet, SubmessageElement},
+        submessage_elements::SequenceNumberSet,
         types::{SubmessageFlag, SubmessageKind},
     },
     types::{Count, EntityId},
@@ -48,17 +48,16 @@ impl<'a> AckNackSubmessageRead<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct AckNackSubmessageWrite<'a> {
+pub struct AckNackSubmessageWrite {
     endianness_flag: SubmessageFlag,
     final_flag: SubmessageFlag,
-    submessage_elements: [SubmessageElement<'a>; 4], // reader_id: SubmessageElement,
-                                                 // writer_id: SubmessageElement,
-                                                 // reader_sn_state: SubmessageElement,
-                                                 // count: SubmessageElement,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    reader_sn_state: SequenceNumberSet,
+    count: Count,
 }
 
-
-impl AckNackSubmessageWrite<'_> {
+impl AckNackSubmessageWrite {
     pub fn new(
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
@@ -70,46 +69,46 @@ impl AckNackSubmessageWrite<'_> {
         Self {
             endianness_flag,
             final_flag,
-            submessage_elements: [
-                SubmessageElement::EntityId(reader_id),
-                SubmessageElement::EntityId(writer_id),
-                SubmessageElement::SequenceNumberSet(reader_sn_state),
-                SubmessageElement::Count(count),
-            ],
+            reader_id,
+            writer_id,
+            reader_sn_state,
+            count,
         }
     }
 
     fn submessage_header(&self, octets_to_next_header: usize) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite::new(
-            SubmessageKind::ACKNACK,
-            &[self.endianness_flag, self.final_flag],
-            octets_to_next_header as u16,
-        )
-    }
-
-    fn submessage_elements(&self) -> &[SubmessageElement] {
-        self.submessage_elements.as_slice()
+        let flags = [
+            self.endianness_flag,
+            self.final_flag,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+        ];
+        SubmessageHeaderWrite::new(SubmessageKind::ACKNACK, flags, octets_to_next_header as u16)
     }
 }
 
-impl EndiannessFlag for AckNackSubmessageWrite<'_> {
+impl EndiannessFlag for AckNackSubmessageWrite {
     fn endianness_flag(&self) -> bool {
         self.endianness_flag
     }
 }
 
-impl WriteBytes for AckNackSubmessageWrite<'_> {
+impl WriteBytes for AckNackSubmessageWrite {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let mut len = 4;
-        for submessage_element in self.submessage_elements() {
-            len += self.map_write(submessage_element, &mut buf[len..]);
-        }
-        let octets_to_next_header = len - 4;
-        self.map_write(
-            &self.submessage_header(octets_to_next_header),
-            &mut buf[0..],
-        );
-        len
+        self.map_write(&self.reader_id, &mut buf[4..]);
+        self.map_write(&self.writer_id, &mut buf[8..]);
+        let len = self.map_write(&self.reader_sn_state, &mut buf[12..]);
+        self.map_write(&self.count, &mut buf[12 + len..]);
+
+        let octets_to_next_header = 12 + len;
+        self.map_write(&(octets_to_next_header as i16), &mut buf[2..]);
+
+        self.map_write(&self.submessage_header(octets_to_next_header), &mut buf[0..]);
+        octets_to_next_header + 4
     }
 }
 
