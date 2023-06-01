@@ -137,17 +137,6 @@ impl EntityId {
     }
 }
 
-impl From<EntityId> for [u8; 4] {
-    fn from(value: EntityId) -> Self {
-        [
-            value.entity_key.0[0],
-            value.entity_key.0[1],
-            value.entity_key.0[2],
-            value.entity_kind.0,
-        ]
-    }
-}
-
 impl Default for EntityId {
     fn default() -> Self {
         ENTITYID_UNKNOWN
@@ -181,15 +170,9 @@ impl EntityKind {
     }
 }
 
-impl From<EntityKind> for u8 {
-    fn from(value: EntityKind) -> Self {
-        value.0
-    }
-}
-
 impl EndianWriteBytes for EntityKind {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        buf[0] = u8::from(*self);
+        buf[0] = self.0;
         1
     }
 }
@@ -240,7 +223,7 @@ impl EntityKey {
 
 impl EndianWriteBytes for EntityKey {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        <[u8; 3]>::from(*self).as_slice().read(buf).unwrap()
+        self.0.as_slice().read(buf).unwrap()
     }
 }
 
@@ -308,99 +291,6 @@ impl Sub<i64> for SequenceNumber {
         SequenceNumber(self.0 - rhs)
     }
 }
-
-/// TopicKind_t
-/// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
-/// The following values are reserved by the protocol: NO_KEY
-/// WITH_KEY
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum TopicKind {
-    NoKey,
-    WithKey,
-}
-
-/// ChangeKind_t
-/// Enumeration used to distinguish the kind of change that was made to a data-object. Includes changes to the data or the instance state of the data-object.
-/// It can take the values:
-/// ALIVE, ALIVE_FILTERED, NOT_ALIVE_DISPOSED, NOT_ALIVE_UNREGISTERED
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[allow(dead_code)]
-pub enum ChangeKind {
-    Alive,
-    AliveFiltered,
-    NotAliveDisposed,
-    NotAliveUnregistered,
-    NotAliveDisposedUnregistered,
-}
-
-/// ProtocolVersion_t
-/// Type used to represent the version of the RTPS protocol. The version is composed of a major and a minor version number. See also 8.6.
-/// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
-/// PROTOCOLVERSION_2_4
-/// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
-pub struct ProtocolVersion {
-    major: u8,
-    minor: u8,
-}
-
-impl EndianWriteBytes for ProtocolVersion {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        buf[0] = self.major;
-        buf[1] = self.minor;
-        2
-    }
-}
-
-pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
-#[allow(dead_code)]
-pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion { major: 1, minor: 0 };
-#[allow(dead_code)]
-pub const PROTOCOLVERSION_1_1: ProtocolVersion = ProtocolVersion { major: 1, minor: 1 };
-#[allow(dead_code)]
-pub const PROTOCOLVERSION_2_0: ProtocolVersion = ProtocolVersion { major: 2, minor: 0 };
-#[allow(dead_code)]
-pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion { major: 2, minor: 1 };
-#[allow(dead_code)]
-pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion { major: 2, minor: 2 };
-#[allow(dead_code)]
-pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
-pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
-
-impl ProtocolVersion {
-    pub const fn new(major: u8, minor: u8) -> Self {
-        Self { major, minor }
-    }
-    pub const fn major(&self) -> u8 {
-        self.major
-    }
-    pub const fn minor(&self) -> u8 {
-        self.minor
-    }
-}
-
-/// VendorId_t
-/// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
-/// The following values are reserved by the protocol: VENDORID_UNKNOWN
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct VendorId([u8; 2]);
-
-impl VendorId {
-    pub const fn new(value: [u8; 2]) -> Self {
-        Self(value)
-    }
-}
-
-impl EndianWriteBytes for VendorId {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        self.0.as_slice().read(buf).unwrap()
-    }
-}
-
-pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
-pub const VENDOR_ID_S2E: VendorId = VendorId([0x01, 0x14]);
 
 /// Locator_t
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
@@ -509,18 +399,122 @@ impl Locator {
     }
 }
 
+/// TopicKind_t
+/// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
+/// The following values are reserved by the protocol: NO_KEY
+/// WITH_KEY
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TopicKind {
+    NoKey,
+    WithKey,
+}
+
+/// ChangeKind_t
+/// Enumeration used to distinguish the kind of change that was made to a data-object. Includes changes to the data or the instance state of the data-object.
+/// It can take the values:
+/// ALIVE, ALIVE_FILTERED, NOT_ALIVE_DISPOSED, NOT_ALIVE_UNREGISTERED
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[allow(dead_code)]
+pub enum ChangeKind {
+    Alive,
+    AliveFiltered,
+    NotAliveDisposed,
+    NotAliveUnregistered,
+    NotAliveDisposedUnregistered,
+}
+
+/// ReliabilityKind_t
+/// Enumeration used to indicate the level of the reliability used for communications.
+/// It can take the values: BEST_EFFORT, RELIABLE.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReliabilityKind {
     BestEffort,
     Reliable,
 }
 
+/// InstanceHandle_t
+/// Type used to represent the identity of a data-object whose changes in value are communicated by the RTPS protocol.
+// Defined elsewhere in DDS
+
+
+/// ProtocolVersion_t
+/// Type used to represent the version of the RTPS protocol. The version is composed of a major and a minor version number. See also 8.6.
+/// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
+/// PROTOCOLVERSION_2_4
+/// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ProtocolVersion {
+    major: u8,
+    minor: u8,
+}
+
+impl EndianWriteBytes for ProtocolVersion {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        buf[0] = self.major;
+        buf[1] = self.minor;
+        2
+    }
+}
+
+pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
+#[allow(dead_code)]
+pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion { major: 1, minor: 0 };
+#[allow(dead_code)]
+pub const PROTOCOLVERSION_1_1: ProtocolVersion = ProtocolVersion { major: 1, minor: 1 };
+#[allow(dead_code)]
+pub const PROTOCOLVERSION_2_0: ProtocolVersion = ProtocolVersion { major: 2, minor: 0 };
+#[allow(dead_code)]
+pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion { major: 2, minor: 1 };
+#[allow(dead_code)]
+pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion { major: 2, minor: 2 };
+#[allow(dead_code)]
+pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
+pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
+
+impl ProtocolVersion {
+    pub const fn new(major: u8, minor: u8) -> Self {
+        Self { major, minor }
+    }
+    pub const fn major(&self) -> u8 {
+        self.major
+    }
+    pub const fn minor(&self) -> u8 {
+        self.minor
+    }
+}
+
+/// VendorId_t
+/// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
+/// The following values are reserved by the protocol: VENDORID_UNKNOWN
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Into,
+)]
+pub struct VendorId([u8; 2]);
+
+impl VendorId {
+    pub const fn new(value: [u8; 2]) -> Self {
+        Self(value)
+    }
+}
+
+impl EndianWriteBytes for VendorId {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.0.as_slice().read(buf).unwrap()
+    }
+}
+
+pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
+pub const VENDOR_ID_S2E: VendorId = VendorId([0x01, 0x14]);
+
+
+/// Additionally defined here (should move to DDS)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DurabilityKind {
     Volatile,
     TransientLocal,
 }
 
+/// Additionally defined here (should move to DDS)
 #[derive(
     Debug,
     PartialEq,
