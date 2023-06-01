@@ -1,8 +1,8 @@
 use std::io::BufRead;
 
-use crate::implementation::{
-    rtps::{
-        messages::submessages::{
+use crate::implementation::rtps::{
+    messages::{
+        submessages::{
             ack_nack::AckNackSubmessageRead, data::DataSubmessageRead,
             data_frag::DataFragSubmessageRead, gap::GapSubmessageRead,
             heartbeat::HeartbeatSubmessageRead, heartbeat_frag::HeartbeatFragSubmessageRead,
@@ -10,12 +10,12 @@ use crate::implementation::{
             info_source::InfoSourceSubmessageRead, info_timestamp::InfoTimestampSubmessageRead,
             nack_frag::NackFragSubmessageRead, pad::PadSubmessageRead,
         },
-        types::{GuidPrefix, ProtocolVersion, VendorId},
+        types::{
+            ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
+            INFO_SRC, INFO_TS, NACK_FRAG, PAD,
+        },
     },
-    rtps_udp_psm::mapping_rtps_messages::submessages::submessage_header::{
-        ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
-        INFO_TS, NACK_FRAG, PAD,
-    },
+    types::{GuidPrefix, ProtocolVersion, VendorId},
 };
 
 use super::{
@@ -262,7 +262,7 @@ impl EndianWriteBytes for RtpsMessageWrite<'_> {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
         let mut len = self.header.endian_write_bytes::<E>(buf);
         for submessage in &self.submessages {
-            len += submessage.write_bytes(buf);
+            len += submessage.write_bytes(&mut buf[len..]);
         }
         len
     }
@@ -323,36 +323,16 @@ impl WriteBytes for RtpsSubmessageWriteKind<'_> {
             RtpsSubmessageWriteKind::AckNack(s) => s.write_bytes(buf),
             RtpsSubmessageWriteKind::Data(s) => s.write_bytes(buf),
             RtpsSubmessageWriteKind::DataFrag(s) => s.write_bytes(buf),
-            // RtpsSubmessageWriteKind::Gap(s) => {
-            //     s.write_bytes(buf)
-            // }
-            // RtpsSubmessageWriteKind::Heartbeat(s) => {
-            //     s.write_bytes(buf)
-            // }
-            // RtpsSubmessageWriteKind::HeartbeatFrag(s) => {
-            //     s.write_bytes(buf)
-            // }
-            // RtpsSubmessageWriteKind::InfoDestination(s) => {
-            //     s.write_bytes(buf)
-            // }
-            // RtpsSubmessageWriteKind::InfoReply(s) => {
-            //     s.write_bytes(buf)
-            // }
-            // RtpsSubmessageWriteKind::InfoSource(s) => {
-            //     s.write_bytes(buf)
-            // }
-            // RtpsSubmessageWriteKind::InfoTimestamp(s) => {
-            //     s.write_bytes(buf)
-            // }
-            // RtpsSubmessageWriteKind::NackFrag(s) => {
-            //     s.write_bytes(buf)
-            // }
-            // RtpsSubmessageWriteKind::Pad(s) => {
-            //     s.write_bytes(buf)
-            // }
-            _ => todo!(),
-        };
-        0
+            RtpsSubmessageWriteKind::Gap(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::Heartbeat(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::HeartbeatFrag(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::InfoDestination(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::InfoReply(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::InfoSource(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::InfoTimestamp(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::NackFrag(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::Pad(s) => s.write_bytes(buf),
+        }
     }
 }
 
@@ -459,12 +439,6 @@ mod tests {
         },
     };
 
-    fn into_bytes_vec<T: EndianWriteBytes>(value: T) -> Vec<u8> {
-        let mut buf = [0u8; BUFFER_SIZE];
-        let len = value.endian_write_bytes::<byteorder::LittleEndian>(buf.as_mut_slice());
-        Vec::from(&buf[0..len])
-    }
-
     #[test]
     fn serialize_rtps_message_no_submessage() {
         let header = RtpsMessageHeader {
@@ -473,9 +447,9 @@ mod tests {
             vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefix::new([3; 12]),
         };
-        let value = RtpsMessageWrite::new(header, Vec::new());
+        let message = RtpsMessageWrite::new(header, Vec::new());
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(value), vec![
+        assert_eq!(into_bytes_le_vec(message), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -519,7 +493,7 @@ mod tests {
         ));
         let value = RtpsMessageWrite::new(header, vec![submessage]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(value), vec![
+        assert_eq!(into_bytes_le_vec(value), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix

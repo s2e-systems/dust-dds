@@ -125,9 +125,10 @@ impl EndianWriteBytes for FragmentNumberSet {
         }
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
 
-        self.base.endian_write_bytes::<E>(&mut buf[0..]);
-        num_bits.endian_write_bytes::<E>(&mut buf[4..]);
-        let mut len = 8;
+        let mut len = 0;
+        len += self.base.endian_write_bytes::<E>(&mut buf[len..]);
+        len += num_bits.endian_write_bytes::<E>(&mut buf[len..]);
+
         for bitmap_element in &bitmap[..number_of_bitmap_elements] {
             len += bitmap_element.endian_write_bytes::<E>(&mut buf[len..]);
         }

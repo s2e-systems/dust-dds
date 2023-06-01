@@ -1,10 +1,4 @@
 use std::io::Read;
-
-use crate::implementation::rtps_udp_psm::mapping_rtps_messages::submessages::submessage_header::{
-    ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
-    INFO_TS, NACK_FRAG, PAD,
-};
-
 use super::overall_structure::{EndianWriteBytes, WriteBytes};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -65,6 +59,19 @@ pub enum SubmessageKind {
     NACK_FRAG,
     HEARTBEAT_FRAG,
 }
+
+pub const DATA: u8 = 0x15;
+pub const GAP: u8 = 0x08;
+pub const HEARTBEAT: u8 = 0x07;
+pub const ACKNACK: u8 = 0x06;
+pub const PAD: u8 = 0x01;
+pub const INFO_TS: u8 = 0x09;
+pub const INFO_REPLY: u8 = 0x0f;
+pub const INFO_DST: u8 = 0x0e;
+pub const INFO_SRC: u8 = 0x0c;
+pub const DATA_FRAG: u8 = 0x16;
+pub const NACK_FRAG: u8 = 0x12;
+pub const HEARTBEAT_FRAG: u8 = 0x13;
 
 impl WriteBytes for SubmessageKind {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
