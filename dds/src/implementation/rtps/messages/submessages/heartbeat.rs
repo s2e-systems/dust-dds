@@ -1,8 +1,12 @@
 use crate::implementation::rtps::{
     messages::{
-        overall_structure::SubmessageHeaderRead, types::SubmessageFlag, RtpsMap, SubmessageHeader,
+        overall_structure::{
+            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+        },
+        submessage_elements::SubmessageElement,
+        types::{Count, SubmessageFlag, SubmessageKind},
     },
-    types::{Count, EntityId, SequenceNumber},
+    types::{EntityId, SequenceNumber},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -50,24 +54,96 @@ impl<'a> HeartbeatSubmessageRead<'a> {
     }
 }
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatSubmessageWrite {
-    pub endianness_flag: SubmessageFlag,
-    pub final_flag: SubmessageFlag,
-    pub liveliness_flag: SubmessageFlag,
-    pub reader_id: EntityId,
-    pub writer_id: EntityId,
-    pub first_sn: SequenceNumber,
-    pub last_sn: SequenceNumber,
-    pub count: Count,
+pub struct HeartbeatSubmessageWrite<'a> {
+    endianness_flag: SubmessageFlag,
+    final_flag: SubmessageFlag,
+    liveliness_flag: SubmessageFlag,
+    submessage_elements: [SubmessageElement<'a>; 5],
+}
+
+impl HeartbeatSubmessageWrite<'_> {
+    pub fn new(
+        final_flag: SubmessageFlag,
+        liveliness_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        first_sn: SequenceNumber,
+        last_sn: SequenceNumber,
+        count: Count,
+    ) -> Self {
+        Self {
+            endianness_flag: true,
+            final_flag,
+            liveliness_flag,
+            submessage_elements: [
+                SubmessageElement::EntityId(reader_id),
+                SubmessageElement::EntityId(writer_id),
+                SubmessageElement::SequenceNumber(first_sn),
+                SubmessageElement::SequenceNumber(last_sn),
+                SubmessageElement::Count(count),
+            ],
+        }
+    }
+}
+
+impl Submessage for HeartbeatSubmessageWrite<'_> {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::HEARTBEAT,
+            &[self.endianness_flag, self.final_flag, self.liveliness_flag],
+            octets_to_next_header,
+        )
+    }
+
+    fn submessage_elements(&self) -> &[SubmessageElement] {
+        &self.submessage_elements
+    }
+
+    fn endianness_flag(&self) -> bool {
+        self.endianness_flag
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps::types::{
-        EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
+    use super::*;
+    use crate::implementation::rtps::{
+        messages::overall_structure::into_bytes_vec,
+        types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
-    use super::*;
+    #[test]
+    fn serialize_heart_beat() {
+        let final_flag = false;
+        let liveliness_flag = true;
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let first_sn = SequenceNumber::new(5);
+        let last_sn = SequenceNumber::new(7);
+        let count = Count::new(2);
+        let submessage = HeartbeatSubmessageWrite::new(
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        );
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(submessage), vec![
+                0x07_u8, 0b_0000_0101, 28, 0, // Submessage header
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // firstSN: SequenceNumber: high
+                5, 0, 0, 0, // firstSN: SequenceNumber: low
+                0, 0, 0, 0, // lastSN: SequenceNumberSet: high
+                7, 0, 0, 0, // lastSN: SequenceNumberSet: low
+                2, 0, 0, 0, // count: Count: value (long)
+            ]
+        );
+    }
+
     #[test]
     fn deserialize_heart_beat() {
         let expected_final_flag = false;

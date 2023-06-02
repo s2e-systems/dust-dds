@@ -35,13 +35,15 @@ use crate::{
             discovery_types::BuiltinEndpointSet,
             history_cache::RtpsWriterCacheChange,
             messages::{
-                overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind, RtpsMessageRead},
+                overall_structure::{
+                    RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind,
+                },
                 submessage_elements::SequenceNumberSet,
                 submessages::{
                     gap::GapSubmessageWrite, info_destination::InfoDestinationSubmessageWrite,
                     info_timestamp::InfoTimestampSubmessageWrite,
                 },
-                types::{FragmentNumber, ProtocolId},
+                types::FragmentNumber,
             },
             reader_locator::WriterAssociatedReaderLocator,
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
@@ -1735,12 +1737,11 @@ fn send_builtin_message(
     domain_participant: &mut DdsDomainParticipant,
     metatraffic_unicast_transport_send: &mut impl TransportWrite,
 ) {
-    let header = RtpsMessageHeader {
-        protocol: ProtocolId::PROTOCOL_RTPS,
-        version: domain_participant.protocol_version(),
-        vendor_id: domain_participant.vendor_id(),
-        guid_prefix: domain_participant.guid().prefix(),
-    };
+    let header = RtpsMessageHeader::new(
+        domain_participant.protocol_version(),
+        domain_participant.vendor_id(),
+        domain_participant.guid().prefix(),
+    );
 
     let _now = domain_participant.get_current_time();
     stateless_writer_send_message(
@@ -1799,12 +1800,11 @@ fn user_defined_communication_send(
     domain_participant: &mut DdsDomainParticipant,
     default_unicast_transport_send: &mut impl TransportWrite,
 ) {
-    let header = RtpsMessageHeader {
-        protocol: ProtocolId::PROTOCOL_RTPS,
-        version: domain_participant.protocol_version(),
-        vendor_id: domain_participant.vendor_id(),
-        guid_prefix: domain_participant.guid().prefix(),
-    };
+    let header = RtpsMessageHeader::new(
+        domain_participant.protocol_version(),
+        domain_participant.vendor_id(),
+        domain_participant.guid().prefix(),
+    );
     let now = domain_participant.get_current_time();
 
     for publisher in domain_participant.user_defined_publisher_list_mut() {
@@ -2077,34 +2077,29 @@ fn gap_submessage<'a>(
     writer_id: EntityId,
     gap_sequence_number: SequenceNumber,
 ) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite {
-        endianness_flag: true,
-        reader_id: ENTITYID_UNKNOWN,
+    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
+        ENTITYID_UNKNOWN,
         writer_id,
-        gap_start: gap_sequence_number,
-        gap_list: SequenceNumberSet {
+        gap_sequence_number,
+        SequenceNumberSet {
             base: gap_sequence_number,
             set: vec![],
         },
-    })
+    ))
 }
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite {
-        endianness_flag: true,
-        invalidate_flag: false,
-        timestamp: crate::implementation::rtps::messages::types::Time::new(
+    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
+        false,
+        crate::implementation::rtps::messages::types::Time::new(
             timestamp.sec(),
             timestamp.nanosec(),
         ),
-    })
+    ))
 }
 
 fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite {
-        endianness_flag: true,
-        guid_prefix,
-    })
+    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite::new(guid_prefix))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2127,10 +2122,10 @@ fn directly_send_data_frag(
         .peekable();
 
     while let Some(data_frag_submessage) = data_frag_submessage_list.next() {
-        let writer_sn = data_frag_submessage.writer_sn;
+        let writer_sn = data_frag_submessage.writer_sn();
         let last_fragment_num = FragmentNumber::new(
-            u32::from(data_frag_submessage.fragment_starting_num)
-                + u16::from(data_frag_submessage.fragments_in_submessage) as u32
+            u32::from(data_frag_submessage.fragment_starting_num())
+                + data_frag_submessage.fragments_in_submessage() as u32
                 - 1,
         );
 

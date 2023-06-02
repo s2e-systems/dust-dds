@@ -59,9 +59,9 @@ impl MessageReceiver {
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         self.dest_guid_prefix = participant_guid.prefix();
-        self.source_version = message.header().version;
-        self.source_vendor_id = message.header().vendor_id;
-        self.source_guid_prefix = message.header().guid_prefix;
+        self.source_version = message.header().version();
+        self.source_vendor_id = message.header().vendor_id();
+        self.source_guid_prefix = message.header().guid_prefix();
         self.unicast_reply_locator_list.push(Locator::new(
             source_locator.kind(),
             LOCATOR_PORT_INVALID,

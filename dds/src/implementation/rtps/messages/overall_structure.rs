@@ -1,8 +1,8 @@
 use std::io::BufRead;
 
-use crate::implementation::{
-    rtps::{
-        messages::submessages::{
+use crate::implementation::rtps::{
+    messages::{
+        submessages::{
             ack_nack::AckNackSubmessageRead, data::DataSubmessageRead,
             data_frag::DataFragSubmessageRead, gap::GapSubmessageRead,
             heartbeat::HeartbeatSubmessageRead, heartbeat_frag::HeartbeatFragSubmessageRead,
@@ -10,15 +10,16 @@ use crate::implementation::{
             info_source::InfoSourceSubmessageRead, info_timestamp::InfoTimestampSubmessageRead,
             nack_frag::NackFragSubmessageRead, pad::PadSubmessageRead,
         },
-        types::{GuidPrefix, ProtocolVersion, VendorId},
+        types::{
+            ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
+            INFO_SRC, INFO_TS, NACK_FRAG, PAD,
+        },
     },
-    rtps_udp_psm::mapping_rtps_messages::submessages::submessage_header::{
-        ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
-        INFO_TS, NACK_FRAG, PAD,
-    },
+    types::{GuidPrefix, ProtocolVersion, VendorId},
 };
 
 use super::{
+    submessage_elements::SubmessageElement,
     submessages::{
         ack_nack::AckNackSubmessageWrite, data::DataSubmessageWrite,
         data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
@@ -31,6 +32,60 @@ use super::{
 };
 
 const BUFFER_SIZE: usize = 65000;
+
+pub trait Submessage {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite;
+    fn submessage_elements(&self) -> &[SubmessageElement];
+    fn endianness_flag(&self) -> bool;
+}
+
+impl<T> WriteBytes for T
+where
+    T: Submessage,
+{
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        let mut len = 4;
+        for submessage_element in self.submessage_elements() {
+            len += if self.endianness_flag() {
+                submessage_element.endian_write_bytes::<byteorder::LittleEndian>(&mut buf[len..])
+            } else {
+                submessage_element.endian_write_bytes::<byteorder::BigEndian>(&mut buf[len..])
+            };
+        }
+        let octets_to_next_header = len - 4;
+        let submessage_header = self.submessage_header(octets_to_next_header as u16);
+        if self.endianness_flag() {
+            submessage_header.endian_write_bytes::<byteorder::LittleEndian>(&mut buf[0..]);
+        } else {
+            submessage_header.endian_write_bytes::<byteorder::BigEndian>(&mut buf[0..]);
+        }
+        len
+    }
+}
+
+pub trait FromBytes<'a> {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self;
+}
+
+pub trait SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeaderRead;
+}
+
+pub trait RtpsMap<'a>: SubmessageHeader {
+    fn map<T: FromBytes<'a>>(&self, data: &'a [u8]) -> T {
+        if self.submessage_header().endianness_flag() {
+            T::from_bytes::<byteorder::LittleEndian>(data)
+        } else {
+            T::from_bytes::<byteorder::BigEndian>(data)
+        }
+    }
+}
+
+impl<'a, T: SubmessageHeader> RtpsMap<'a> for T {}
+
+pub trait EndiannessFlag {
+    fn endianness_flag(&self) -> bool;
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageRead {
@@ -135,10 +190,42 @@ impl Default for RtpsMessageRead {
     }
 }
 
+pub trait WriteBytes {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize;
+}
+
+pub trait EndianWriteBytes {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize;
+}
+
+#[allow(dead_code)]
+pub fn into_bytes_le_vec<T: EndianWriteBytes>(value: T) -> Vec<u8> {
+    let mut buf = [0u8; BUFFER_SIZE];
+    let len = value.endian_write_bytes::<byteorder::LittleEndian>(buf.as_mut_slice());
+    Vec::from(&buf[0..len])
+}
+
+#[allow(dead_code)]
+pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
+    let mut buf = [0u8; BUFFER_SIZE];
+    let len = value.write_bytes(buf.as_mut_slice());
+    Vec::from(&buf[0..len])
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageWrite<'a> {
     header: RtpsMessageHeader,
     submessages: Vec<RtpsSubmessageWriteKind<'a>>,
+}
+
+impl EndianWriteBytes for RtpsMessageWrite<'_> {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        let mut len = self.header.endian_write_bytes::<E>(buf);
+        for submessage in &self.submessages {
+            len += submessage.write_bytes(&mut buf[len..]);
+        }
+        len
+    }
 }
 
 impl<'a> RtpsMessageWrite<'a> {
@@ -176,33 +263,116 @@ pub enum RtpsSubmessageReadKind<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageWriteKind<'a> {
-    AckNack(AckNackSubmessageWrite),
+    AckNack(AckNackSubmessageWrite<'a>),
     Data(DataSubmessageWrite<'a>),
     DataFrag(DataFragSubmessageWrite<'a>),
-    Gap(GapSubmessageWrite),
-    Heartbeat(HeartbeatSubmessageWrite),
-    HeartbeatFrag(HeartbeatFragSubmessageWrite),
-    InfoDestination(InfoDestinationSubmessageWrite),
-    InfoReply(InfoReplySubmessageWrite),
-    InfoSource(InfoSourceSubmessageWrite),
-    InfoTimestamp(InfoTimestampSubmessageWrite),
-    NackFrag(NackFragSubmessageWrite),
+    Gap(GapSubmessageWrite<'a>),
+    Heartbeat(HeartbeatSubmessageWrite<'a>),
+    HeartbeatFrag(HeartbeatFragSubmessageWrite<'a>),
+    InfoDestination(InfoDestinationSubmessageWrite<'a>),
+    InfoReply(InfoReplySubmessageWrite<'a>),
+    InfoSource(InfoSourceSubmessageWrite<'a>),
+    InfoTimestamp(InfoTimestampSubmessageWrite<'a>),
+    NackFrag(NackFragSubmessageWrite<'a>),
     Pad(PadSubmessageWrite),
+}
+
+impl WriteBytes for RtpsSubmessageWriteKind<'_> {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        match self {
+            RtpsSubmessageWriteKind::AckNack(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::Data(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::DataFrag(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::Gap(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::Heartbeat(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::HeartbeatFrag(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::InfoDestination(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::InfoReply(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::InfoSource(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::InfoTimestamp(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::NackFrag(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::Pad(s) => s.write_bytes(buf),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct RtpsMessageHeader {
-    pub protocol: ProtocolId,
-    pub version: ProtocolVersion,
-    pub vendor_id: VendorId,
-    pub guid_prefix: GuidPrefix,
+    protocol: ProtocolId,
+    version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
+}
+
+impl RtpsMessageHeader {
+    pub fn new(version: ProtocolVersion, vendor_id: VendorId, guid_prefix: GuidPrefix) -> Self {
+        Self {
+            protocol: ProtocolId::PROTOCOL_RTPS,
+            version,
+            vendor_id,
+            guid_prefix,
+        }
+    }
+
+    pub fn protocol(&self) -> ProtocolId {
+        self.protocol
+    }
+
+    pub fn version(&self) -> ProtocolVersion {
+        self.version
+    }
+
+    pub fn vendor_id(&self) -> VendorId {
+        self.vendor_id
+    }
+
+    pub fn guid_prefix(&self) -> GuidPrefix {
+        self.guid_prefix
+    }
+}
+
+impl EndianWriteBytes for RtpsMessageHeader {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.protocol.endian_write_bytes::<E>(&mut buf[0..]);
+        self.version.endian_write_bytes::<E>(&mut buf[4..]);
+        self.vendor_id.endian_write_bytes::<E>(&mut buf[6..]);
+        self.guid_prefix.endian_write_bytes::<E>(&mut buf[8..]);
+        20
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SubmessageHeaderWrite {
-    pub submessage_id: SubmessageKind,
-    pub flags: [SubmessageFlag; 8],
-    pub submessage_length: u16,
+    submessage_id: SubmessageKind,
+    flags: [SubmessageFlag; 8],
+    submessage_length: u16,
+}
+
+impl SubmessageHeaderWrite {
+    pub fn new(
+        submessage_id: SubmessageKind,
+        flags: &[SubmessageFlag],
+        submessage_length: u16,
+    ) -> Self {
+        let mut flags_array = [false; 8];
+        flags_array[..flags.len()].copy_from_slice(flags);
+
+        Self {
+            submessage_id,
+            flags: flags_array,
+            submessage_length,
+        }
+    }
+}
+
+impl EndianWriteBytes for SubmessageHeaderWrite {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.submessage_id.write_bytes(&mut buf[0..]);
+        self.flags.write_bytes(&mut buf[1..]);
+        self.submessage_length
+            .endian_write_bytes::<E>(&mut buf[2..]);
+        4
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -244,9 +414,89 @@ impl<'a> SubmessageHeaderRead<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::messages::submessages::{
-        data::DataSubmessageRead, heartbeat::HeartbeatSubmessageRead,
+    use crate::implementation::rtps::{
+        messages::{
+            submessage_elements::{Parameter, ParameterList, SerializedPayload},
+            submessages::{data::DataSubmessageRead, heartbeat::HeartbeatSubmessageRead},
+            types::ParameterId,
+        },
+        types::{
+            EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
+            USER_DEFINED_READER_NO_KEY,
+        },
     };
+
+    #[test]
+    fn serialize_rtps_message_no_submessage() {
+        let header = RtpsMessageHeader {
+            protocol: ProtocolId::PROTOCOL_RTPS,
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
+            guid_prefix: GuidPrefix::new([3; 12]),
+        };
+        let message = RtpsMessageWrite::new(header, Vec::new());
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_le_vec(message), vec![
+            b'R', b'T', b'P', b'S', // Protocol
+            2, 3, 9, 8, // ProtocolVersion | VendorId
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+        ]);
+    }
+
+    #[test]
+    fn serialize_rtps_message() {
+        let header = RtpsMessageHeader {
+            protocol: ProtocolId::PROTOCOL_RTPS,
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
+            guid_prefix: GuidPrefix::new([3; 12]),
+        };
+        let inline_qos_flag = true;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let writer_sn = SequenceNumber::new(5);
+        let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
+        let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
+        let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
+        let serialized_payload = SerializedPayload::new(&[]);
+
+        let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        ));
+        let value = RtpsMessageWrite::new(header, vec![submessage]);
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_le_vec(value), vec![
+            b'R', b'T', b'P', b'S', // Protocol
+            2, 3, 9, 8, // ProtocolVersion | VendorId
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            0x15, 0b_0000_0011, 40, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 0, 0, // inlineQos: Sentinel
+        ]);
+    }
 
     #[test]
     fn deserialize_rtps_message_no_submessage() {

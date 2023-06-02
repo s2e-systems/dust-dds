@@ -19,27 +19,25 @@ pub struct RtpsReaderLocator {
 }
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite {
-        endianness_flag: true,
-        invalidate_flag: false,
-        timestamp: super::messages::types::Time::new(timestamp.sec(), timestamp.nanosec()),
-    })
+    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
+        false,
+        super::messages::types::Time::new(timestamp.sec(), timestamp.nanosec()),
+    ))
 }
 
 fn gap_submessage<'a>(
     writer_id: EntityId,
     gap_sequence_number: SequenceNumber,
 ) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite {
-        endianness_flag: true,
-        reader_id: ENTITYID_UNKNOWN,
+    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
+        ENTITYID_UNKNOWN,
         writer_id,
-        gap_start: gap_sequence_number,
-        gap_list: SequenceNumberSet {
+        gap_sequence_number,
+        SequenceNumberSet {
             base: gap_sequence_number,
             set: vec![],
         },
-    })
+    ))
 }
 
 impl RtpsReaderLocator {

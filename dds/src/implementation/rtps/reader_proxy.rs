@@ -8,11 +8,10 @@ use super::{
             ack_nack::AckNackSubmessageRead, heartbeat::HeartbeatSubmessageWrite,
             heartbeat_frag::HeartbeatFragSubmessageWrite, nack_frag::NackFragSubmessageRead,
         },
-        types::FragmentNumber,
+        types::{Count, FragmentNumber},
     },
     types::{
-        Count, DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind,
-        SequenceNumber,
+        DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind, SequenceNumber,
     },
     utils::clock::{StdTimer, Timer, TimerConstructor},
     writer::RtpsWriter,
@@ -45,16 +44,15 @@ impl HeartbeatMachine {
     ) -> RtpsSubmessageWriteKind<'a> {
         self.count = self.count.wrapping_add(1);
         self.timer.reset();
-        RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessageWrite {
-            endianness_flag: true,
-            final_flag: false,
-            liveliness_flag: false,
-            reader_id: self.reader_id,
+        RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessageWrite::new(
+            false,
+            false,
+            self.reader_id,
             writer_id,
             first_sn,
             last_sn,
-            count: self.count,
-        })
+            self.count,
+        ))
     }
 }
 
@@ -78,14 +76,13 @@ impl HeartbeatFragMachine {
         last_fragment_num: FragmentNumber,
     ) -> RtpsSubmessageWriteKind<'a> {
         self.count = self.count.wrapping_add(1);
-        RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessageWrite {
-            endianness_flag: true,
-            reader_id: self.reader_id,
+        RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessageWrite::new(
+            self.reader_id,
             writer_id,
             writer_sn,
             last_fragment_num,
-            count: self.count,
-        })
+            self.count,
+        ))
     }
 }
 

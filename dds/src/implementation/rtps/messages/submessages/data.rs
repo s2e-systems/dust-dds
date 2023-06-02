@@ -4,10 +4,12 @@ use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::{
         messages::{
-            overall_structure::SubmessageHeaderRead,
-            submessage_elements::ParameterList,
-            types::{SerializedPayload, SubmessageFlag},
-            RtpsMap, SubmessageHeader,
+            overall_structure::{
+                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead,
+                SubmessageHeaderWrite,
+            },
+            submessage_elements::{SerializedPayload, ParameterList, SubmessageElement},
+            types::{SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber},
     },
@@ -102,26 +104,233 @@ impl<'a> DataSubmessageRead<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataSubmessageWrite<'a> {
-    pub endianness_flag: SubmessageFlag,
-    pub inline_qos_flag: SubmessageFlag,
-    pub data_flag: SubmessageFlag,
-    pub key_flag: SubmessageFlag,
-    pub non_standard_payload_flag: SubmessageFlag,
-    pub reader_id: EntityId,
-    pub writer_id: EntityId,
-    pub writer_sn: SequenceNumber,
-    pub inline_qos: &'a ParameterList,
-    pub serialized_payload: SerializedPayload<'a>,
+    endianness_flag: SubmessageFlag,
+    inline_qos_flag: SubmessageFlag,
+    data_flag: SubmessageFlag,
+    key_flag: SubmessageFlag,
+    non_standard_payload_flag: SubmessageFlag,
+    submessage_elements: Vec<SubmessageElement<'a>>,
+}
+
+impl<'a> DataSubmessageWrite<'a> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        inline_qos_flag: SubmessageFlag,
+        data_flag: SubmessageFlag,
+        key_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        writer_sn: SequenceNumber,
+        inline_qos: &'a ParameterList,
+        serialized_payload: SerializedPayload<'a>,
+    ) -> Self {
+        const EXTRA_FLAGS: u16 = 0;
+        const OCTETS_TO_INLINE_QOS: u16 = 16;
+        let mut submessage_elements = vec![
+            SubmessageElement::UShort(EXTRA_FLAGS),
+            SubmessageElement::UShort(OCTETS_TO_INLINE_QOS),
+            SubmessageElement::EntityId(reader_id),
+            SubmessageElement::EntityId(writer_id),
+            SubmessageElement::SequenceNumber(writer_sn),
+        ];
+        if inline_qos_flag {
+            submessage_elements.push(SubmessageElement::ParameterList(inline_qos));
+        }
+        if data_flag || key_flag {
+            submessage_elements.push(SubmessageElement::SerializedPayload(serialized_payload));
+        }
+        Self {
+            endianness_flag: true,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            submessage_elements,
+        }
+    }
+}
+
+impl Submessage for DataSubmessageWrite<'_> {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::DATA,
+            &[
+                self.endianness_flag,
+                self.inline_qos_flag,
+                self.data_flag,
+                self.key_flag,
+                self.non_standard_payload_flag,
+            ],
+            octets_to_next_header,
+        )
+    }
+
+    fn submessage_elements(&self) -> &[SubmessageElement] {
+        &self.submessage_elements
+    }
+
+    fn endianness_flag(&self) -> bool {
+        self.endianness_flag
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::implementation::rtps::{
-        messages::{submessage_elements::Parameter, types::ParameterId},
+        messages::{
+            overall_structure::into_bytes_vec, submessage_elements::Parameter, types::ParameterId,
+        },
         types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
-    use super::*;
+    #[test]
+    fn serialize_no_inline_qos_no_serialized_payload() {
+        let inline_qos_flag = false;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let writer_sn = SequenceNumber::new(5);
+        let inline_qos = &ParameterList::empty();
+        let serialized_payload = SerializedPayload::new(&[]);
+        let submessage = DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        );
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(submessage), vec![
+                0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_with_inline_qos_no_serialized_payload() {
+        let inline_qos_flag = true;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let writer_sn = SequenceNumber::new(5);
+        let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
+        let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
+        let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
+        let serialized_payload = SerializedPayload::new(&[]);
+
+        let submessage = DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        );
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(submessage), vec![
+                0x15, 0b_0000_0011, 40, 0, // Submessage header
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+                10, 11, 12, 13, // inlineQos: value_1[length_1]
+                7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+                20, 21, 22, 23, // inlineQos: value_2[length_2]
+                1, 0, 0, 0, // inlineQos: Sentinel
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_no_inline_qos_with_serialized_payload() {
+        let inline_qos_flag = false;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let writer_sn = SequenceNumber::new(5);
+        let inline_qos = &ParameterList::empty();
+        let serialized_payload = SerializedPayload::new(&[1, 2, 3, 4]);
+        let submessage = DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        );
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(submessage), vec![
+                0x15, 0b_0000_0101, 24, 0, // Submessage header
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                1, 2, 3, 4, // serialized payload
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_no_inline_qos_with_serialized_payload_non_multiple_of_4() {
+        let inline_qos_flag = false;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let writer_sn = SequenceNumber::new(5);
+        let inline_qos = &ParameterList::empty();
+        let serialized_payload = SerializedPayload::new(&[1, 2, 3]);
+        let submessage = DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        );
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(submessage), vec![
+                0x15, 0b_0000_0101, 24, 0, // Submessage header
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                1, 2, 3, 0, // serialized payload
+            ]
+        );
+    }
+
     #[test]
     fn deserialize_no_inline_qos_no_serialized_payload() {
         let inline_qos_flag = false;

@@ -4,10 +4,13 @@ use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::{
         messages::{
-            overall_structure::SubmessageHeaderRead,
-            submessage_elements::ParameterList,
-            types::{FragmentNumber, SerializedPayload, SubmessageFlag, ULong, UShort},
-            RtpsMap, SubmessageHeader,
+            overall_structure::{
+                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+            },
+            submessage_elements::{SerializedPayload, ParameterList, SubmessageElement},
+            types::{
+                FragmentNumber, SubmessageFlag, SubmessageKind,
+            },
         },
         types::{EntityId, SequenceNumber},
     },
@@ -113,29 +116,179 @@ impl<'a> DataFragSubmessageRead<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataFragSubmessageWrite<'a> {
-    pub endianness_flag: SubmessageFlag,
-    pub inline_qos_flag: SubmessageFlag,
-    pub non_standard_payload_flag: SubmessageFlag,
-    pub key_flag: SubmessageFlag,
-    pub reader_id: EntityId,
-    pub writer_id: EntityId,
-    pub writer_sn: SequenceNumber,
-    pub fragment_starting_num: FragmentNumber,
-    pub fragments_in_submessage: UShort,
-    pub data_size: ULong,
-    pub fragment_size: UShort,
-    pub inline_qos: &'a ParameterList,
-    pub serialized_payload: SerializedPayload<'a>,
+    endianness_flag: SubmessageFlag,
+    inline_qos_flag: SubmessageFlag,
+    non_standard_payload_flag: SubmessageFlag,
+    key_flag: SubmessageFlag,
+    submessage_elements: Vec<SubmessageElement<'a>>,
+}
+
+impl<'a> DataFragSubmessageWrite<'a> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        inline_qos_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
+        key_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        writer_sn: SequenceNumber,
+        fragment_starting_num: FragmentNumber,
+        fragments_in_submessage: u16,
+        data_size: u32,
+        fragment_size: u16,
+        inline_qos: &'a ParameterList,
+        serialized_payload: SerializedPayload<'a>,
+    ) -> Self {
+        const EXTRA_FLAGS: u16 = 0;
+        const OCTETS_TO_INLINE_QOS: u16 = 28;
+        let mut submessage_elements = vec![
+            SubmessageElement::UShort(EXTRA_FLAGS),
+            SubmessageElement::UShort(OCTETS_TO_INLINE_QOS),
+            SubmessageElement::EntityId(reader_id),
+            SubmessageElement::EntityId(writer_id),
+            SubmessageElement::SequenceNumber(writer_sn),
+            SubmessageElement::FragmentNumber(fragment_starting_num),
+            SubmessageElement::UShort(fragments_in_submessage),
+            SubmessageElement::UShort(fragment_size),
+            SubmessageElement::ULong(data_size),
+        ];
+        if inline_qos_flag {
+            submessage_elements.push(SubmessageElement::ParameterList(inline_qos));
+        }
+        submessage_elements.push(SubmessageElement::SerializedPayload(serialized_payload));
+
+        Self {
+            endianness_flag: true,
+            inline_qos_flag,
+            non_standard_payload_flag,
+            key_flag,
+            submessage_elements,
+        }
+    }
+
+    pub fn writer_sn(&self) -> SequenceNumber {
+        match self.submessage_elements[4] {
+            SubmessageElement::SequenceNumber(e) => e,
+            _ => todo!(),
+        }
+    }
+
+    pub fn fragment_starting_num(&self) -> FragmentNumber {
+        match self.submessage_elements[5] {
+            SubmessageElement::FragmentNumber(e) => e,
+            _ => todo!(),
+        }
+    }
+
+    pub fn fragments_in_submessage(&self) -> u16 {
+        match self.submessage_elements[6] {
+            SubmessageElement::UShort(e) => e,
+            _ => todo!(),
+        }
+    }
+}
+
+impl Submessage for DataFragSubmessageWrite<'_> {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::DATA_FRAG,
+            &[
+                self.endianness_flag,
+                self.inline_qos_flag,
+                self.key_flag,
+                self.non_standard_payload_flag,
+            ],
+            octets_to_next_header,
+        )
+    }
+
+    fn submessage_elements(&self) -> &[SubmessageElement] {
+        &self.submessage_elements
+    }
+
+    fn endianness_flag(&self) -> bool {
+        self.endianness_flag
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::implementation::rtps::{
-        messages::{submessage_elements::Parameter, types::ParameterId},
+        messages::{
+            overall_structure::into_bytes_vec, submessage_elements::Parameter, types::ParameterId,
+        },
         types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
-    use super::*;
+    #[test]
+    fn serialize_no_inline_qos_no_serialized_payload() {
+        let inline_qos = &ParameterList::empty();
+        let submessage = DataFragSubmessageWrite::new(
+            false,
+            false,
+            false,
+            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
+            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
+            SequenceNumber::new(5),
+            FragmentNumber::new(2),
+            3,
+            4,
+            5,
+            inline_qos,
+            SerializedPayload::new(&[]),
+        );
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(submessage), vec![
+                0x16_u8, 0b_0000_0001, 32, 0, // Submessage header
+                0, 0, 28, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                2, 0, 0, 0, // fragmentStartingNum
+                3, 0, 5, 0, // fragmentsInSubmessage | fragmentSize
+                4, 0, 0, 0, // sampleSize
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_with_inline_qos_with_serialized_payload() {
+        let inline_qos =
+            ParameterList::new(vec![Parameter::new(ParameterId(8), vec![71, 72, 73, 74])]);
+        let submessage = DataFragSubmessageWrite::new(
+            true,
+            false,
+            false,
+            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
+            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
+            SequenceNumber::new(6),
+            FragmentNumber::new(2),
+            3,
+            8,
+            5,
+            &inline_qos,
+            SerializedPayload::new(&[1, 2, 3]),
+        );
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(submessage), vec![
+                0x16_u8, 0b_0000_0011, 48, 0, // Submessage header
+                0, 0, 28, 0, // extraFlags | octetsToInlineQos
+                1, 2, 3, 4, // readerId
+                6, 7, 8, 9, // writerId
+                0, 0, 0, 0, // writerSN: high
+                6, 0, 0, 0, // writerSN: low
+                2, 0, 0, 0, // fragmentStartingNum
+                3, 0, 5, 0, // fragmentsInSubmessage | fragmentSize
+                8, 0, 0, 0, // sampleSize
+                8, 0, 4, 0, // inlineQos: parameterId, length
+                71, 72, 73, 74, // inlineQos: value[length]
+                1, 0, 0, 0, // inlineQos: Sentinel
+                1, 2, 3, 0, // serializedPayload
+            ]
+        );
+    }
 
     #[test]
     fn deserialize_no_inline_qos_no_serialized_payload() {
