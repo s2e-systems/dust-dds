@@ -653,14 +653,14 @@ impl DdsDomainParticipant {
             .ok_or(DdsError::AlreadyDeleted)?;
 
         for publisher in self.user_defined_publisher_list() {
-            todo!()
-            // if publisher.stateful_data_writer_list().iter().any(|w| {
-            //     w.get_type_name() == topic.get_type_name() && w.get_topic_name() == topic.get_name()
-            // }) {
-            //     return Err(DdsError::PreconditionNotMet(
-            //         "Topic still attached to some data writer".to_string(),
-            //     ));
-            // }
+            if publisher.stateful_data_writer_list().iter().any(|w| {
+                w.send(dds_data_writer::GetTypeName).unwrap() == topic.get_type_name()
+                    && w.send(dds_data_writer::GetTopicName).unwrap() == topic.get_name()
+            }) {
+                return Err(DdsError::PreconditionNotMet(
+                    "Topic still attached to some data writer".to_string(),
+                ));
+            }
         }
 
         for subscriber in self.user_defined_subscriber_list() {
@@ -901,7 +901,7 @@ impl DdsDomainParticipant {
                 .iter_mut()
             {
                 builtin_stateful_writer
-                    .send_async(dds_data_writer::EnableMessage)
+                    .send_async(dds_data_writer::Enable)
                     .await?;
             }
 

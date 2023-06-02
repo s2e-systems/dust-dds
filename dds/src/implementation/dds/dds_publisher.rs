@@ -115,20 +115,10 @@ impl DdsPublisher {
     pub fn get_data_writer(
         &self,
         data_writer_guid: Guid,
-    ) -> Option<&DdsDataWriter<RtpsStatefulWriter>> {
+    ) -> Option<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
         todo!()
         // self.stateful_data_writer_list()
         //     .iter()
-        //     .find(|dw| dw.guid() == data_writer_guid)
-    }
-
-    pub fn get_data_writer_mut(
-        &mut self,
-        data_writer_guid: Guid,
-    ) -> Option<&mut DdsDataWriter<RtpsStatefulWriter>> {
-        todo!()
-        // self.stateful_data_writer_list_mut()
-        //     .iter_mut()
         //     .find(|dw| dw.guid() == data_writer_guid)
     }
 

@@ -185,14 +185,14 @@ pub struct DdsDataWriter<T> {
 
 impl<T> actor::Actor for DdsDataWriter<T> {}
 
-pub struct EnableMessage;
+pub struct Enable;
 
-impl actor::Message for EnableMessage {
+impl actor::Message for Enable {
     type Result = ();
 }
 
-impl<T> actor::Handler<EnableMessage> for DdsDataWriter<T> {
-    fn handle(&mut self, _message: EnableMessage) -> <EnableMessage as actor::Message>::Result {
+impl<T> actor::Handler<Enable> for DdsDataWriter<T> {
+    fn handle(&mut self, _message: Enable) -> <Enable as actor::Message>::Result {
         self.enable();
     }
 }
@@ -206,6 +206,18 @@ impl actor::Message for GetTypeName {
 impl<T> actor::Handler<GetTypeName> for DdsDataWriter<T> {
     fn handle(&mut self, _message: GetTypeName) -> <GetTypeName as actor::Message>::Result {
         self.get_type_name()
+    }
+}
+
+pub struct GetTopicName;
+
+impl actor::Message for GetTopicName {
+    type Result = String;
+}
+
+impl actor::Handler<GetTopicName> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: GetTopicName) -> <GetTopicName as actor::Message>::Result {
+        self.get_topic_name().to_string()
     }
 }
 
@@ -248,6 +260,278 @@ impl actor::Handler<WriteWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
             message.timestamp,
         );
         Ok(())
+    }
+}
+
+pub struct UnregisterInstanceWithTimestamp {
+    instance_serialized_key: Vec<u8>,
+    handle: InstanceHandle,
+    timestamp: Time,
+}
+
+impl UnregisterInstanceWithTimestamp {
+    pub fn new(instance_serialized_key: Vec<u8>, handle: InstanceHandle, timestamp: Time) -> Self {
+        Self {
+            instance_serialized_key,
+            handle,
+            timestamp,
+        }
+    }
+}
+
+impl actor::Message for UnregisterInstanceWithTimestamp {
+    type Result = DdsResult<()>;
+}
+
+impl actor::Handler<UnregisterInstanceWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: UnregisterInstanceWithTimestamp,
+    ) -> <UnregisterInstanceWithTimestamp as actor::Message>::Result {
+        self.unregister_instance_w_timestamp(
+            message.instance_serialized_key,
+            message.handle,
+            message.timestamp,
+        )
+    }
+}
+
+pub struct LookupInstance {
+    instance_serialized_key: DdsSerializedKey,
+}
+
+impl LookupInstance {
+    pub fn new(instance_serialized_key: DdsSerializedKey) -> Self {
+        Self {
+            instance_serialized_key,
+        }
+    }
+}
+
+impl actor::Message for LookupInstance {
+    type Result = DdsResult<Option<InstanceHandle>>;
+}
+
+impl actor::Handler<LookupInstance> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: LookupInstance) -> <LookupInstance as actor::Message>::Result {
+        self.lookup_instance(message.instance_serialized_key)
+    }
+}
+
+pub struct DisposeWithTimestamp {
+    instance_serialized_key: Vec<u8>,
+    handle: InstanceHandle,
+    timestamp: Time,
+}
+
+impl DisposeWithTimestamp {
+    pub fn new(instance_serialized_key: Vec<u8>, handle: InstanceHandle, timestamp: Time) -> Self {
+        Self {
+            instance_serialized_key,
+            handle,
+            timestamp,
+        }
+    }
+}
+
+impl actor::Message for DisposeWithTimestamp {
+    type Result = DdsResult<()>;
+}
+
+impl actor::Handler<DisposeWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: DisposeWithTimestamp,
+    ) -> <DisposeWithTimestamp as actor::Message>::Result {
+        self.dispose_w_timestamp(
+            message.instance_serialized_key,
+            message.handle,
+            message.timestamp,
+        )
+    }
+}
+
+pub struct IsEnabled;
+
+impl actor::Message for IsEnabled {
+    type Result = bool;
+}
+
+impl actor::Handler<IsEnabled> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: IsEnabled) -> <IsEnabled as actor::Message>::Result {
+        self.is_enabled()
+    }
+}
+
+pub struct AreAllChangesAcknowledge;
+
+impl actor::Message for AreAllChangesAcknowledge {
+    type Result = bool;
+}
+
+impl actor::Handler<AreAllChangesAcknowledge> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: AreAllChangesAcknowledge,
+    ) -> <AreAllChangesAcknowledge as actor::Message>::Result {
+        self.are_all_changes_acknowledge()
+    }
+}
+
+pub struct GetLivelinessLostStatus;
+
+impl actor::Message for GetLivelinessLostStatus {
+    type Result = LivelinessLostStatus;
+}
+
+impl actor::Handler<GetLivelinessLostStatus> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: GetLivelinessLostStatus,
+    ) -> <GetLivelinessLostStatus as actor::Message>::Result {
+        self.get_liveliness_lost_status()
+    }
+}
+
+pub struct GetOfferedDeadlineMissedStatus;
+
+impl actor::Message for GetOfferedDeadlineMissedStatus {
+    type Result = OfferedDeadlineMissedStatus;
+}
+
+impl actor::Handler<GetOfferedDeadlineMissedStatus> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: GetOfferedDeadlineMissedStatus,
+    ) -> <GetOfferedDeadlineMissedStatus as actor::Message>::Result {
+        self.get_offered_deadline_missed_status()
+    }
+}
+
+pub struct GetOfferedIncompatibleQosStatus;
+
+impl actor::Message for GetOfferedIncompatibleQosStatus {
+    type Result = OfferedIncompatibleQosStatus;
+}
+
+impl actor::Handler<GetOfferedIncompatibleQosStatus> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: GetOfferedIncompatibleQosStatus,
+    ) -> <GetOfferedIncompatibleQosStatus as actor::Message>::Result {
+        self.get_offered_incompatible_qos_status()
+    }
+}
+
+pub struct GetPublicationMatchedStatus;
+
+impl actor::Message for GetPublicationMatchedStatus {
+    type Result = PublicationMatchedStatus;
+}
+
+impl actor::Handler<GetPublicationMatchedStatus> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: GetPublicationMatchedStatus,
+    ) -> <GetPublicationMatchedStatus as actor::Message>::Result {
+        self.get_publication_matched_status()
+    }
+}
+
+pub struct GetMatchedSubscriptionData {
+    handle: InstanceHandle,
+}
+
+impl GetMatchedSubscriptionData {
+    pub fn new(handle: InstanceHandle) -> Self {
+        Self { handle }
+    }
+}
+
+impl actor::Message for GetMatchedSubscriptionData {
+    type Result = Option<SubscriptionBuiltinTopicData>;
+}
+
+impl actor::Handler<GetMatchedSubscriptionData> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: GetMatchedSubscriptionData,
+    ) -> <GetMatchedSubscriptionData as actor::Message>::Result {
+        self.get_matched_subscription_data(message.handle)
+    }
+}
+
+pub struct GetMatchedSubscriptions;
+
+impl actor::Message for GetMatchedSubscriptions {
+    type Result = Vec<InstanceHandle>;
+}
+
+impl actor::Handler<GetMatchedSubscriptions> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: GetMatchedSubscriptions,
+    ) -> <GetMatchedSubscriptions as actor::Message>::Result {
+        self.get_matched_subscriptions()
+    }
+}
+
+pub struct GetQos;
+
+impl actor::Message for GetQos {
+    type Result = DataWriterQos;
+}
+
+impl actor::Handler<GetQos> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: GetQos) -> <GetQos as actor::Message>::Result {
+        self.get_qos()
+    }
+}
+
+pub struct SetQos {
+    qos: DataWriterQos,
+}
+
+impl SetQos {
+    pub fn new(qos: DataWriterQos) -> Self {
+        Self { qos }
+    }
+}
+
+impl actor::Message for SetQos {
+    type Result = ();
+}
+
+impl actor::Handler<SetQos> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: SetQos) -> <SetQos as actor::Message>::Result {
+        self.set_qos(message.qos)
+    }
+}
+
+pub struct AsDiscoveredWriterData {
+    topic_qos: TopicQos,
+    publisher_qos: PublisherQos,
+}
+
+impl AsDiscoveredWriterData {
+    pub fn new(topic_qos: TopicQos, publisher_qos: PublisherQos) -> Self {
+        Self {
+            topic_qos,
+            publisher_qos,
+        }
+    }
+}
+
+impl actor::Message for AsDiscoveredWriterData {
+    type Result = DiscoveredWriterData;
+}
+
+impl actor::Handler<AsDiscoveredWriterData> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(
+        &mut self,
+        message: AsDiscoveredWriterData,
+    ) -> <AsDiscoveredWriterData as actor::Message>::Result {
+        self.as_discovered_writer_data(&message.topic_qos, &message.publisher_qos)
     }
 }
 

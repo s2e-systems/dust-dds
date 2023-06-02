@@ -777,13 +777,19 @@ pub async fn task_send_entity_announce(
 ) {
     loop {
         if let Some(announce_kind) = announce_receiver.recv().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                    if let Some(dp) = dp {
-                        announce_entity(dp, announce_kind);
-                    }
+            THE_TASK_RUNTIME
+                .spawn_blocking(move || {
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+                        &participant_guid_prefix,
+                        |dp| {
+                            if let Some(dp) = dp {
+                                announce_entity(dp, announce_kind);
+                            }
+                        },
+                    )
                 })
                 .await
+                .unwrap()
         }
     }
 }
@@ -1612,20 +1618,23 @@ fn announce_created_data_reader(
     let serialized_data = dds_serialize(reader_data).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
-    todo!()
-    // domain_participant
-    //     .get_builtin_publisher_mut()
-    //     .stateful_data_writer_list_mut()
-    //     .iter_mut()
-    //     .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-    //     .unwrap()
-    //     .write_w_timestamp(
-    //         serialized_data,
-    //         reader_data.get_serialized_key(),
-    //         None,
-    //         timestamp,
-    //     )
-    //     .expect("Should not fail to write built-in message");
+
+    domain_participant
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list()
+        .iter()
+        .find(|x| {
+            x.send(dds_data_writer::GetTypeName).unwrap() == DiscoveredReaderData::type_name()
+        })
+        .unwrap()
+        .send(dds_data_writer::WriteWithTimestamp::new(
+            serialized_data,
+            reader_data.get_serialized_key(),
+            None,
+            timestamp,
+        ))
+        .expect("Message sending should not fail")
+        .expect("Should not fail to write built-in message");
 }
 
 fn announce_created_data_writer(
@@ -1650,20 +1659,23 @@ fn announce_created_data_writer(
     let serialized_data = dds_serialize(writer_data).expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
-    todo!()
-    // domain_participant
-    //     .get_builtin_publisher_mut()
-    //     .stateful_data_writer_list_mut()
-    //     .iter_mut()
-    //     .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-    //     .unwrap()
-    //     .write_w_timestamp(
-    //         serialized_data,
-    //         writer_data.get_serialized_key(),
-    //         None,
-    //         timestamp,
-    //     )
-    //     .expect("Should not fail to write built-in message");
+
+    domain_participant
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list()
+        .iter()
+        .find(|x| {
+            x.send(dds_data_writer::GetTypeName).unwrap() == DiscoveredWriterData::type_name()
+        })
+        .unwrap()
+        .send(dds_data_writer::WriteWithTimestamp::new(
+            serialized_data,
+            writer_data.get_serialized_key(),
+            None,
+            timestamp,
+        ))
+        .expect("Message sending failed")
+        .expect("Should not fail to write built-in message");
 }
 
 fn announce_created_topic(
@@ -1702,15 +1714,21 @@ fn announce_deleted_reader(
 
     let timestamp = domain_participant.get_current_time();
 
-    todo!()
-    // domain_participant
-    //     .get_builtin_publisher_mut()
-    //     .stateful_data_writer_list_mut()
-    //     .iter_mut()
-    //     .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-    //     .unwrap()
-    //     .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
-    //     .expect("Should not fail to write built-in message");
+    domain_participant
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list()
+        .iter()
+        .find(|x| {
+            x.send(dds_data_writer::GetTypeName).unwrap() == DiscoveredReaderData::type_name()
+        })
+        .unwrap()
+        .send(dds_data_writer::DisposeWithTimestamp::new(
+            instance_serialized_key,
+            reader_handle,
+            timestamp,
+        ))
+        .expect("Should not fail message sending")
+        .expect("Should not fail to write built-in message");
 }
 
 fn announce_deleted_writer(
@@ -1725,15 +1743,21 @@ fn announce_deleted_writer(
 
     let timestamp = domain_participant.get_current_time();
 
-    todo!()
-    // domain_participant
-    //     .get_builtin_publisher_mut()
-    //     .stateful_data_writer_list_mut()
-    //     .iter_mut()
-    //     .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-    //     .unwrap()
-    //     .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
-    //     .expect("Should not fail to write built-in message");
+    domain_participant
+        .get_builtin_publisher_mut()
+        .stateful_data_writer_list()
+        .iter()
+        .find(|x| {
+            x.send(dds_data_writer::GetTypeName).unwrap() == DiscoveredWriterData::type_name()
+        })
+        .unwrap()
+        .send(dds_data_writer::DisposeWithTimestamp::new(
+            instance_serialized_key,
+            writer_handle,
+            timestamp,
+        ))
+        .expect("Shoud not fail message sending")
+        .expect("Should not fail to write built-in message");
 }
 
 fn send_builtin_message(
