@@ -1625,10 +1625,10 @@ fn announce_created_data_reader(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send(dds_data_writer::GetTypeName).unwrap() == DiscoveredReaderData::type_name()
+            x.send_blocking(dds_data_writer::GetTypeName).unwrap() == DiscoveredReaderData::type_name()
         })
         .unwrap()
-        .send(dds_data_writer::WriteWithTimestamp::new(
+        .send_blocking(dds_data_writer::WriteWithTimestamp::new(
             serialized_data,
             reader_data.get_serialized_key(),
             None,
@@ -1666,10 +1666,10 @@ fn announce_created_data_writer(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send(dds_data_writer::GetTypeName).unwrap() == DiscoveredWriterData::type_name()
+            x.send_blocking(dds_data_writer::GetTypeName).unwrap() == DiscoveredWriterData::type_name()
         })
         .unwrap()
-        .send(dds_data_writer::WriteWithTimestamp::new(
+        .send_blocking(dds_data_writer::WriteWithTimestamp::new(
             serialized_data,
             writer_data.get_serialized_key(),
             None,
@@ -1691,9 +1691,9 @@ fn announce_created_topic(
         .get_builtin_publisher_mut()
         .stateful_data_writer_list()
         .iter()
-        .find(|x| x.send(dds_data_writer::GetTypeName).unwrap() == DiscoveredTopicData::type_name())
+        .find(|x| x.send_blocking(dds_data_writer::GetTypeName).unwrap() == DiscoveredTopicData::type_name())
         .unwrap()
-        .send(dds_data_writer::WriteWithTimestamp::new(
+        .send_blocking(dds_data_writer::WriteWithTimestamp::new(
             serialized_data,
             discovered_topic.get_serialized_key(),
             None,
@@ -1720,10 +1720,10 @@ fn announce_deleted_reader(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send(dds_data_writer::GetTypeName).unwrap() == DiscoveredReaderData::type_name()
+            x.send_blocking(dds_data_writer::GetTypeName).unwrap() == DiscoveredReaderData::type_name()
         })
         .unwrap()
-        .send(dds_data_writer::DisposeWithTimestamp::new(
+        .send_blocking(dds_data_writer::DisposeWithTimestamp::new(
             instance_serialized_key,
             reader_handle,
             timestamp,
@@ -1749,10 +1749,10 @@ fn announce_deleted_writer(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send(dds_data_writer::GetTypeName).unwrap() == DiscoveredWriterData::type_name()
+            x.send_blocking(dds_data_writer::GetTypeName).unwrap() == DiscoveredWriterData::type_name()
         })
         .unwrap()
-        .send(dds_data_writer::DisposeWithTimestamp::new(
+        .send_blocking(dds_data_writer::DisposeWithTimestamp::new(
             instance_serialized_key,
             writer_handle,
             timestamp,

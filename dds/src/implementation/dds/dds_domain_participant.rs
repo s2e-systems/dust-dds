@@ -654,8 +654,8 @@ impl DdsDomainParticipant {
 
         for publisher in self.user_defined_publisher_list() {
             if publisher.stateful_data_writer_list().iter().any(|w| {
-                w.send(dds_data_writer::GetTypeName).unwrap() == topic.get_type_name()
-                    && w.send(dds_data_writer::GetTopicName).unwrap() == topic.get_name()
+                w.send_blocking(dds_data_writer::GetTypeName).unwrap() == topic.get_type_name()
+                    && w.send_blocking(dds_data_writer::GetTopicName).unwrap() == topic.get_name()
             }) {
                 return Err(DdsError::PreconditionNotMet(
                     "Topic still attached to some data writer".to_string(),
@@ -901,7 +901,7 @@ impl DdsDomainParticipant {
                 .iter_mut()
             {
                 builtin_stateful_writer
-                    .send_async(dds_data_writer::Enable)
+                    .send(dds_data_writer::Enable)
                     .await?;
             }
 

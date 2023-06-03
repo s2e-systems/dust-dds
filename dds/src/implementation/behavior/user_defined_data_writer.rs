@@ -33,7 +33,7 @@ pub fn unregister_instance_w_timestamp(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::UnregisterInstanceWithTimestamp::new(
+        .send_blocking(dds_data_writer::UnregisterInstanceWithTimestamp::new(
             instance_serialized_key,
             handle,
             timestamp,
@@ -51,7 +51,7 @@ pub fn lookup_instance(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::LookupInstance::new(
+        .send_blocking(dds_data_writer::LookupInstance::new(
             instance_serialized_key,
         ))?
 }
@@ -79,7 +79,7 @@ pub fn write_w_timestamp(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::WriteWithTimestamp::new(
+        .send_blocking(dds_data_writer::WriteWithTimestamp::new(
             serialized_data,
             instance_serialized_key,
             handle,
@@ -106,7 +106,7 @@ pub fn dispose_w_timestamp(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::DisposeWithTimestamp::new(
+        .send_blocking(dds_data_writer::DisposeWithTimestamp::new(
             instance_serialized_key,
             handle,
             timestamp,
@@ -132,14 +132,14 @@ pub fn are_all_changes_acknowledge(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::IsEnabled)?
+        .send_blocking(dds_data_writer::IsEnabled)?
     {
         Ok(domain_participant
             .get_publisher(publisher_guid)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(writer_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .send(dds_data_writer::AreAllChangesAcknowledge)?)
+            .send_blocking(dds_data_writer::AreAllChangesAcknowledge)?)
     } else {
         Err(DdsError::NotEnabled)
     }
@@ -155,7 +155,7 @@ pub fn get_liveliness_lost_status(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::GetLivelinessLostStatus)?)
+        .send_blocking(dds_data_writer::GetLivelinessLostStatus)?)
 }
 
 pub fn get_offered_deadline_missed_status(
@@ -168,7 +168,7 @@ pub fn get_offered_deadline_missed_status(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::GetOfferedDeadlineMissedStatus)?)
+        .send_blocking(dds_data_writer::GetOfferedDeadlineMissedStatus)?)
 }
 
 pub fn get_offered_incompatible_qos_status(
@@ -181,7 +181,7 @@ pub fn get_offered_incompatible_qos_status(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::GetOfferedIncompatibleQosStatus)?)
+        .send_blocking(dds_data_writer::GetOfferedIncompatibleQosStatus)?)
 }
 
 pub fn get_publication_matched_status(
@@ -194,7 +194,7 @@ pub fn get_publication_matched_status(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::GetPublicationMatchedStatus)?)
+        .send_blocking(dds_data_writer::GetPublicationMatchedStatus)?)
 }
 
 pub fn get_matched_subscription_data(
@@ -218,7 +218,7 @@ pub fn get_matched_subscription_data(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::GetMatchedSubscriptionData::new(
+        .send_blocking(dds_data_writer::GetMatchedSubscriptionData::new(
             subscription_handle,
         ))?
         .ok_or(DdsError::BadParameter)
@@ -244,7 +244,7 @@ pub fn get_matched_subscriptions(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::GetMatchedSubscriptions)?)
+        .send_blocking(dds_data_writer::GetMatchedSubscriptions)?)
 }
 
 pub fn set_qos(
@@ -264,7 +264,7 @@ pub fn set_qos(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::IsEnabled)?;
+        .send_blocking(dds_data_writer::IsEnabled)?;
 
     if is_data_writer_enabled {
         domain_participant
@@ -272,7 +272,7 @@ pub fn set_qos(
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(writer_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .send(dds_data_writer::GetQos)?
+            .send_blocking(dds_data_writer::GetQos)?
             .check_immutability(&qos)?;
     }
 
@@ -281,7 +281,7 @@ pub fn set_qos(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::SetQos::new(qos))?;
+        .send_blocking(dds_data_writer::SetQos::new(qos))?;
 
     if is_data_writer_enabled {
         let type_name = domain_participant
@@ -289,14 +289,14 @@ pub fn set_qos(
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(writer_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .send(dds_data_writer::GetTypeName)?;
+            .send_blocking(dds_data_writer::GetTypeName)?;
 
         let topic_name = domain_participant
             .get_publisher(publisher_guid)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(writer_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .send(dds_data_writer::GetTopicName)?;
+            .send_blocking(dds_data_writer::GetTopicName)?;
 
         let topic = domain_participant
             .get_topic(&topic_name, type_name)
@@ -310,7 +310,7 @@ pub fn set_qos(
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(writer_guid)
             .ok_or(DdsError::AlreadyDeleted)?
-            .send(dds_data_writer::AsDiscoveredWriterData::new(
+            .send_blocking(dds_data_writer::AsDiscoveredWriterData::new(
                 topic.get_qos(),
                 publisher_qos,
             ))?;
@@ -330,7 +330,7 @@ pub fn get_qos(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::GetQos)?)
+        .send_blocking(dds_data_writer::GetQos)?)
 }
 
 pub fn enable(
@@ -360,21 +360,21 @@ fn enable_data_writer(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(data_writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::Enable)?;
+        .send_blocking(dds_data_writer::Enable)?;
 
     let type_name = domain_participant
         .get_publisher(publisher_guid)
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(data_writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::GetTypeName)?;
+        .send_blocking(dds_data_writer::GetTypeName)?;
 
     let topic_name = domain_participant
         .get_publisher(publisher_guid)
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(data_writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::GetTopicName)?;
+        .send_blocking(dds_data_writer::GetTopicName)?;
 
     let topic = domain_participant
         .get_topic(&topic_name, type_name)
@@ -388,7 +388,7 @@ fn enable_data_writer(
         .ok_or(DdsError::AlreadyDeleted)?
         .get_data_writer(data_writer_guid)
         .ok_or(DdsError::AlreadyDeleted)?
-        .send(dds_data_writer::AsDiscoveredWriterData::new(
+        .send_blocking(dds_data_writer::AsDiscoveredWriterData::new(
             topic.get_qos(),
             publisher_qos,
         ))?;
@@ -425,12 +425,12 @@ fn announce_created_data_writer(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send(dds_data_writer::GetTypeName)
+            x.send_blocking(dds_data_writer::GetTypeName)
                 .expect("Should not fail to send message")
                 == DiscoveredWriterData::type_name()
         })
         .unwrap()
-        .send(dds_data_writer::WriteWithTimestamp::new(
+        .send_blocking(dds_data_writer::WriteWithTimestamp::new(
             serialized_data,
             writer_data.get_serialized_key(),
             None,

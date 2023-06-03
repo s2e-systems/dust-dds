@@ -44,7 +44,7 @@ impl<A> ActorAddress<A>
 where
     A: Actor,
 {
-    pub fn send<M>(&self, message: M) -> DdsResult<M::Result>
+    pub fn send_blocking<M>(&self, message: M) -> DdsResult<M::Result>
     where
         A: Handler<M>,
         M: Message + Send + 'static,
@@ -60,7 +60,7 @@ where
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
-    pub async fn send_async<M>(&self, message: M) -> DdsResult<M::Result>
+    pub async fn send<M>(&self, message: M) -> DdsResult<M::Result>
     where
         A: Handler<M>,
         M: Message + Send + 'static,
@@ -226,7 +226,7 @@ mod tests {
 
     impl DataInterface {
         pub fn increment(&self, value: u8) -> DdsResult<u8> {
-            self.0.send(IncrementMessage { value })
+            self.0.send_blocking(IncrementMessage { value })
         }
     }
 
