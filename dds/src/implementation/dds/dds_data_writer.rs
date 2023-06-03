@@ -10,7 +10,7 @@ use crate::{
             history_cache::RtpsWriterCacheChange,
             messages::{
                 submessage_elements::ParameterList,
-                submessages::{AckNackSubmessageRead, NackFragSubmessageRead},
+                submessages::{ack_nack::AckNackSubmessageRead, nack_frag::NackFragSubmessageRead},
             },
             reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
@@ -939,10 +939,9 @@ mod test {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
-            messages::RtpsMessageWrite,
             transport::TransportWrite,
             types::{TopicKind, GUID_UNKNOWN},
-            writer::RtpsWriter,
+            writer::RtpsWriter, messages::overall_structure::RtpsMessageWrite,
         },
         infrastructure::time::DURATION_ZERO,
         topic_definition::type_support::DdsSerializedKey,

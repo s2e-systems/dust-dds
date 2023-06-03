@@ -1,37 +1,26 @@
+use crate::implementation::rtps::{
+    messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite, EndianWriteBytes},
+    transport::TransportWrite,
+    types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
+};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
-use crate::implementation::rtps::{
-    transport::TransportWrite,
-    types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6}, messages::{RtpsMessageRead, RtpsMessageWrite},
-};
-
-use super::mapping_traits::{from_bytes, to_bytes};
-
-const BUFFER_SIZE: usize = 65000;
 pub struct UdpTransportRead {
     socket: tokio::net::UdpSocket,
-    receive_buffer: Box<[u8; BUFFER_SIZE]>,
 }
 
 impl UdpTransportRead {
     pub fn new(socket: tokio::net::UdpSocket) -> Self {
-        Self {
-            socket,
-            receive_buffer: Box::new([0; BUFFER_SIZE]),
-        }
+        Self { socket }
     }
 
-    pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead<'_>)> {
-        match self.socket.recv_from(self.receive_buffer.as_mut()).await {
+    pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
+        let mut message = RtpsMessageRead::new();
+        match self.socket.recv_from(&mut message.data).await {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
-                    if let Ok(message) = from_bytes(&self.receive_buffer[0..bytes]) {
-                        let udp_locator: UdpLocator = source_address.into();
-                        Some((udp_locator.0, message))
-                    } else {
-                        // Invalid message received
-                        None
-                    }
+                    let udp_locator: UdpLocator = source_address.into();
+                    Some((udp_locator.0, message))
                 } else {
                     None
                 }
@@ -53,7 +42,8 @@ impl UdpTransportWrite {
 
 impl TransportWrite for UdpTransportWrite {
     fn write(&mut self, message: &RtpsMessageWrite<'_>, destination_locator_list: &[Locator]) {
-        let buf = to_bytes(message).unwrap();
+        let mut buf = [0u8; 35000];
+        message.endian_write_bytes::<byteorder::LittleEndian>(&mut buf);
 
         for &destination_locator in destination_locator_list {
             if UdpLocator(destination_locator).is_multicast() {

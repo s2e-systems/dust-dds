@@ -11,8 +11,9 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{
-                    DataFragSubmessageRead, DataSubmessageRead, GapSubmessageRead,
-                    HeartbeatFragSubmessageRead, HeartbeatSubmessageRead,
+                    data::DataSubmessageRead, data_frag::DataFragSubmessageRead,
+                    gap::GapSubmessageRead, heartbeat::HeartbeatSubmessageRead,
+                    heartbeat_frag::HeartbeatFragSubmessageRead,
                 },
             },
             reader::{RtpsReaderCacheChange, RtpsReaderResult},

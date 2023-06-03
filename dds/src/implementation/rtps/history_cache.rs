@@ -1,13 +1,14 @@
 use crate::{
-    implementation::rtps::messages::types::{FragmentNumber, ULong, UShort},
+    implementation::rtps::messages::types::FragmentNumber,
     infrastructure::{instance::InstanceHandle, time::Time},
 };
 
 use super::{
     messages::{
-        submessage_elements::{ParameterList, SequenceNumberSet},
-        submessages::{DataFragSubmessageWrite, DataSubmessageWrite, GapSubmessageWrite,},
-        types::SerializedPayload,
+        submessage_elements::{ParameterList, SequenceNumberSet, SerializedPayload},
+        submessages::{
+            data::DataSubmessageWrite, data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
+        },
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
@@ -24,16 +25,15 @@ pub struct RtpsWriterCacheChange {
 
 impl RtpsWriterCacheChange {
     pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessageWrite {
-        GapSubmessageWrite {
-            endianness_flag: true,
+        GapSubmessageWrite::new(
             reader_id,
-            writer_id: self.writer_guid.entity_id(),
-            gap_start: self.sequence_number,
-            gap_list: SequenceNumberSet {
+            self.writer_guid.entity_id(),
+            self.sequence_number,
+            SequenceNumberSet {
                 base: self.sequence_number + 1,
                 set: vec![],
             },
-        }
+        )
     }
 
     pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessageWrite {
@@ -43,18 +43,17 @@ impl RtpsWriterCacheChange {
             _ => todo!(),
         };
 
-        DataSubmessageWrite {
-            endianness_flag: true,
-            inline_qos_flag: true,
+        DataSubmessageWrite::new(
+            true,
             data_flag,
             key_flag,
-            non_standard_payload_flag: false,
+            false,
             reader_id,
-            writer_id: self.writer_guid().entity_id(),
-            writer_sn: self.sequence_number(),
-            inline_qos: &self.inline_qos,
-            serialized_payload: SerializedPayload::new(self.data_value()),
-        }
+            self.writer_guid().entity_id(),
+            self.sequence_number(),
+            &self.inline_qos,
+            SerializedPayload::new(self.data_value()),
+        )
     }
 
     pub fn as_data_frag_submessages(
@@ -63,9 +62,9 @@ impl RtpsWriterCacheChange {
         reader_id: EntityId,
     ) -> Vec<DataFragSubmessageWrite> {
         let data = self.data_value();
-        let data_size = ULong::new(data.len() as u32);
+        let data_size = data.len() as u32;
         let mut fragment_starting_num = FragmentNumber::new(1);
-        const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
+        const FRAGMENTS_IN_SUBMESSAGE: u16 = 1;
 
         let mut messages = Vec::new();
 
@@ -80,7 +79,6 @@ impl RtpsWriterCacheChange {
                 data_remaining = &[];
             }
 
-            let endianness_flag = true;
             let inline_qos_flag = true;
             let key_flag = match self.kind() {
                 ChangeKind::Alive => false,
@@ -92,8 +90,7 @@ impl RtpsWriterCacheChange {
             let writer_sn = self.sequence_number();
             let inline_qos = &self.inline_qos;
             let serialized_payload = SerializedPayload::new(data_fragment);
-            let message = DataFragSubmessageWrite {
-                endianness_flag,
+            let message = DataFragSubmessageWrite::new(
                 inline_qos_flag,
                 non_standard_payload_flag,
                 key_flag,
@@ -101,12 +98,12 @@ impl RtpsWriterCacheChange {
                 writer_id,
                 writer_sn,
                 fragment_starting_num,
-                fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
+                FRAGMENTS_IN_SUBMESSAGE,
                 data_size,
-                fragment_size: UShort::new(max_bytes as u16),
+                max_bytes as u16,
                 inline_qos,
                 serialized_payload,
-            };
+            );
 
             messages.push(message);
 

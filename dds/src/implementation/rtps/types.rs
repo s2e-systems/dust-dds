@@ -1,8 +1,10 @@
-use std::ops::{Add, AddAssign, Sub, SubAssign};
-
+use super::messages::overall_structure::EndianWriteBytes;
 use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS,
-    rtps_udp_psm::mapping_traits::NumberOfBytes,
+};
+use std::{
+    io::Read,
+    ops::{Add, AddAssign, Sub, SubAssign},
 };
 
 ///
@@ -102,6 +104,12 @@ impl GuidPrefix {
     }
 }
 
+impl EndianWriteBytes for GuidPrefix {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.0.as_slice().read(buf).unwrap()
+    }
+}
+
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
@@ -129,17 +137,6 @@ impl EntityId {
     }
 }
 
-impl From<EntityId> for [u8; 4] {
-    fn from(value: EntityId) -> Self {
-        [
-            value.entity_key.0[0],
-            value.entity_key.0[1],
-            value.entity_key.0[2],
-            value.entity_kind.0,
-        ]
-    }
-}
-
 impl Default for EntityId {
     fn default() -> Self {
         ENTITYID_UNKNOWN
@@ -156,6 +153,14 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
     entity_kind: BUILT_IN_PARTICIPANT,
 };
 
+impl EndianWriteBytes for EntityId {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.entity_key().endian_write_bytes::<E>(&mut buf[0..]);
+        self.entity_kind().endian_write_bytes::<E>(&mut buf[3..]);
+        4
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct EntityKind(u8);
 
@@ -165,9 +170,10 @@ impl EntityKind {
     }
 }
 
-impl From<EntityKind> for u8 {
-    fn from(value: EntityKind) -> Self {
-        value.0
+impl EndianWriteBytes for EntityKind {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        buf[0] = self.0;
+        1
     }
 }
 
@@ -215,6 +221,12 @@ impl EntityKey {
     }
 }
 
+impl EndianWriteBytes for EntityKey {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.0.as_slice().read(buf).unwrap()
+    }
+}
+
 /// SequenceNumber_t
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
@@ -241,8 +253,13 @@ impl SequenceNumber {
         Self(value)
     }
 }
-impl NumberOfBytes for SequenceNumber {
-    fn number_of_bytes(&self) -> usize {
+
+impl EndianWriteBytes for SequenceNumber {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        let high = (<i64>::from(*self) >> 32) as i32;
+        let low = <i64>::from(*self) as i32;
+        E::write_i32(&mut buf[0..], high);
+        E::write_i32(&mut buf[4..], low);
         8
     }
 }
@@ -275,6 +292,113 @@ impl Sub<i64> for SequenceNumber {
     }
 }
 
+/// Locator_t
+/// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
+/// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
+/// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDP_V4 LOCATOR_KIND_UDP_V6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Locator {
+    kind: LocatorKind,
+    port: LocatorPort,
+    address: LocatorAddress,
+}
+
+impl EndianWriteBytes for Locator {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.kind.endian_write_bytes::<E>(&mut buf[0..]);
+        self.port.endian_write_bytes::<E>(&mut buf[4..]);
+        self.address.endian_write_bytes::<E>(&mut buf[8..]);
+        24
+    }
+}
+
+#[derive(
+    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
+)]
+pub struct LocatorKind(i32);
+
+impl LocatorKind {
+    pub const fn new(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl EndianWriteBytes for LocatorKind {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.0.endian_write_bytes::<E>(buf)
+    }
+}
+
+#[derive(
+    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
+)]
+pub struct LocatorPort(u32);
+
+impl LocatorPort {
+    pub const fn new(value: u32) -> Self {
+        Self(value)
+    }
+}
+
+impl EndianWriteBytes for LocatorPort {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.0.endian_write_bytes::<E>(buf)
+    }
+}
+
+#[derive(
+    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
+)]
+pub struct LocatorAddress([u8; 16]);
+
+impl LocatorAddress {
+    pub const fn new(value: [u8; 16]) -> Self {
+        Self(value)
+    }
+}
+
+impl EndianWriteBytes for LocatorAddress {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        buf[..self.0.len()].copy_from_slice(&self.0);
+        16
+    }
+}
+
+#[allow(dead_code)]
+pub const LOCATOR_KIND_INVALID: LocatorKind = LocatorKind(-1);
+#[allow(dead_code)]
+pub const LOCATOR_KIND_RESERVED: LocatorKind = LocatorKind(0);
+pub const LOCATOR_KIND_UDP_V4: LocatorKind = LocatorKind(1);
+pub const LOCATOR_KIND_UDP_V6: LocatorKind = LocatorKind(2);
+pub const LOCATOR_PORT_INVALID: LocatorPort = LocatorPort(0);
+pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = LocatorAddress([0; 16]);
+
+#[allow(dead_code)]
+pub const LOCATOR_INVALID: Locator = Locator {
+    kind: LOCATOR_KIND_INVALID,
+    port: LOCATOR_PORT_INVALID,
+    address: LOCATOR_ADDRESS_INVALID,
+};
+
+impl Locator {
+    pub const fn new(kind: LocatorKind, port: LocatorPort, address: LocatorAddress) -> Self {
+        Self {
+            kind,
+            port,
+            address,
+        }
+    }
+    pub const fn kind(&self) -> LocatorKind {
+        self.kind
+    }
+    pub const fn port(&self) -> LocatorPort {
+        self.port
+    }
+    pub const fn address(&self) -> LocatorAddress {
+        self.address
+    }
+}
+
 /// TopicKind_t
 /// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
 /// The following values are reserved by the protocol: NO_KEY
@@ -299,6 +423,20 @@ pub enum ChangeKind {
     NotAliveDisposedUnregistered,
 }
 
+/// ReliabilityKind_t
+/// Enumeration used to indicate the level of the reliability used for communications.
+/// It can take the values: BEST_EFFORT, RELIABLE.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReliabilityKind {
+    BestEffort,
+    Reliable,
+}
+
+/// InstanceHandle_t
+/// Type used to represent the identity of a data-object whose changes in value are communicated by the RTPS protocol.
+// Defined elsewhere in DDS
+
+
 /// ProtocolVersion_t
 /// Type used to represent the version of the RTPS protocol. The version is composed of a major and a minor version number. See also 8.6.
 /// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
@@ -308,6 +446,14 @@ pub enum ChangeKind {
 pub struct ProtocolVersion {
     major: u8,
     minor: u8,
+}
+
+impl EndianWriteBytes for ProtocolVersion {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        buf[0] = self.major;
+        buf[1] = self.minor;
+        2
+    }
 }
 
 pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
@@ -351,133 +497,24 @@ impl VendorId {
     }
 }
 
+impl EndianWriteBytes for VendorId {
+    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+        self.0.as_slice().read(buf).unwrap()
+    }
+}
+
 pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
 pub const VENDOR_ID_S2E: VendorId = VendorId([0x01, 0x14]);
 
-/// Count_t
-/// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    Default,
-    derive_more::Into,
-    derive_more::Add,
-    derive_more::AddAssign,
-    derive_more::Sub,
-    derive_more::SubAssign,
-)]
-pub struct Count(i32);
 
-impl Count {
-    pub const fn new(value: i32) -> Self {
-        Self(value)
-    }
-    pub const fn wrapping_add(self, rhs: i32) -> Self {
-        Self(self.0.wrapping_add(rhs))
-    }
-}
-impl PartialOrd<Count> for Count {
-    fn partial_cmp(&self, other: &Count) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
-    }
-}
-
-/// Locator_t
-/// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
-/// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
-/// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDP_V4 LOCATOR_KIND_UDP_V6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
-pub struct Locator {
-    kind: LocatorKind,
-    port: LocatorPort,
-    address: LocatorAddress,
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct LocatorKind(i32);
-
-impl LocatorKind {
-    pub const fn new(value: i32) -> Self {
-        Self(value)
-    }
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct LocatorPort(u32);
-
-impl LocatorPort {
-    pub const fn new(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct LocatorAddress([u8; 16]);
-
-impl LocatorAddress {
-    pub const fn new(value: [u8; 16]) -> Self {
-        Self(value)
-    }
-}
-
-#[allow(dead_code)]
-pub const LOCATOR_KIND_INVALID: LocatorKind = LocatorKind(-1);
-#[allow(dead_code)]
-pub const LOCATOR_KIND_RESERVED: LocatorKind = LocatorKind(0);
-pub const LOCATOR_KIND_UDP_V4: LocatorKind = LocatorKind(1);
-pub const LOCATOR_KIND_UDP_V6: LocatorKind = LocatorKind(2);
-pub const LOCATOR_PORT_INVALID: LocatorPort = LocatorPort(0);
-pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = LocatorAddress([0; 16]);
-
-#[allow(dead_code)]
-pub const LOCATOR_INVALID: Locator = Locator {
-    kind: LOCATOR_KIND_INVALID,
-    port: LOCATOR_PORT_INVALID,
-    address: LOCATOR_ADDRESS_INVALID,
-};
-
-impl Locator {
-    pub const fn new(kind: LocatorKind, port: LocatorPort, address: LocatorAddress) -> Self {
-        Self {
-            kind,
-            port,
-            address,
-        }
-    }
-    pub const fn kind(&self) -> LocatorKind {
-        self.kind
-    }
-    pub const fn port(&self) -> LocatorPort {
-        self.port
-    }
-    pub const fn address(&self) -> LocatorAddress {
-        self.address
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ReliabilityKind {
-    BestEffort,
-    Reliable,
-}
-
+/// Additionally defined here (should move to DDS)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DurabilityKind {
     Volatile,
     TransientLocal,
 }
 
+/// Additionally defined here (should move to DDS)
 #[derive(
     Debug,
     PartialEq,
@@ -493,5 +530,35 @@ pub struct ExpectsInlineQos(bool);
 impl Default for ExpectsInlineQos {
     fn default() -> Self {
         Self(DEFAULT_EXPECTS_INLINE_QOS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::implementation::rtps::messages::overall_structure::into_bytes_le_vec;
+
+    #[test]
+    fn serialize_sequence_number() {
+        let data = SequenceNumber::new(7);
+        let result = into_bytes_le_vec(data);
+        assert_eq!(
+            result,
+            vec![
+                0, 0, 0, 0, // high (long)
+                7, 0, 0, 0, // low (unsigned long)
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_entity_id() {
+        let data = EntityId::new(EntityKey::new([1, 2, 3]), EntityKind::new(0x04));
+        assert_eq!(
+            into_bytes_le_vec(data),
+            vec![
+            1, 2, 3, 0x04, //value (long)
+        ]
+        );
     }
 }

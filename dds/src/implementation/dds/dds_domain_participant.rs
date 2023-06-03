@@ -21,7 +21,7 @@ use crate::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::RtpsMessageRead,
+            messages::{overall_structure::RtpsMessageRead, types::Count},
             participant::RtpsParticipant,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
@@ -37,7 +37,7 @@ use crate::{
             stateless_reader::RtpsStatelessReader,
             stateless_writer::RtpsStatelessWriter,
             types::{
-                Count, DurabilityKind, EntityId, EntityKey, Guid, Locator, ProtocolVersion,
+                DurabilityKind, EntityId, EntityKey, Guid, Locator, ProtocolVersion,
                 ReliabilityKind, TopicKind, VendorId, BUILT_IN_READER_GROUP,
                 BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
                 BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP,
