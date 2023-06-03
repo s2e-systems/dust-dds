@@ -4,7 +4,7 @@ use std::{
     task::Poll,
 };
 
-use tokio::sync;
+use tokio::{sync, task::JoinHandle};
 
 use crate::{
     domain::domain_participant_factory::THE_TASK_RUNTIME,
@@ -30,6 +30,7 @@ where
 {
     actor: PhantomData<A>,
     sender: sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
+    task_sender: sync::mpsc::Sender<JoinHandle<()>>,
 }
 
 impl<A> Clone for ActorAddress<A>
@@ -40,6 +41,7 @@ where
         Self {
             actor: PhantomData,
             sender: self.sender.clone(),
+            task_sender: self.task_sender.clone(),
         }
     }
 }
@@ -48,12 +50,15 @@ impl<A> ActorAddress<A>
 where
     A: Actor,
 {
-    pub fn spawn_task<T, F>(&self, task: T)
+    pub fn spawn_task<T, F>(&self, task: T) -> DdsResult<()>
     where
         T: FnOnce(Self) -> F,
         F: Future<Output = ()> + Send + 'static,
     {
         let join_handle = THE_TASK_RUNTIME.spawn(task(self.clone()));
+        self.task_sender
+            .blocking_send(join_handle)
+            .map_err(|_| DdsError::AlreadyDeleted)
     }
 
     pub fn send_blocking<M>(&self, message: M) -> DdsResult<M::Result>
@@ -141,6 +146,7 @@ where
 {
     value: T,
     mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<T> + Send>>,
+    task_mailbox: tokio::sync::mpsc::Receiver<JoinHandle<()>>,
     task_set: Vec<tokio::task::JoinHandle<()>>,
 }
 
@@ -159,11 +165,13 @@ pub fn spawn_actor<A>(actor: A) -> (ActorAddress<A>, ActorJoinHandle)
 where
     A: Actor + Send + 'static,
 {
-    let (sender, mailbox) = sync::mpsc::channel(100);
+    let (sender, mailbox) = sync::mpsc::channel(10);
+    let (task_sender, task_mailbox) = sync::mpsc::channel(10);
 
     let mut actor_obj = SpawnedActor {
         value: actor,
         mailbox,
+        task_mailbox,
         task_set: Vec::new(),
     };
     let actor_handle = ActorJoinHandle {
@@ -174,12 +182,19 @@ where
                 }
             }
 
+            while let Poll::Ready(val) = actor_obj.task_mailbox.poll_recv(cx) {
+                if let Some(j) = val {
+                    actor_obj.task_set.push(j)
+                }
+            }
+
             Poll::Pending
         })),
     };
     let actor_address = ActorAddress {
         actor: PhantomData,
         sender,
+        task_sender,
     };
 
     (actor_address, actor_handle)
@@ -273,16 +288,26 @@ mod tests {
     #[test]
     fn actor_increment_task() {
         let my_data = MyData { data: 0 };
+        let task_increment = 5;
+        let message_increment = 10;
+
         let (address, _join_handle) = spawn_actor(my_data);
-        address.spawn_task(|actor| async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
-            loop {
-                actor.send(IncrementMessage { value: 5 }).await.unwrap();
-                interval.tick().await;
-            }
-        });
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+        address
+            .spawn_task(|actor| async move {
+                actor
+                    .send(IncrementMessage {
+                        value: task_increment,
+                    })
+                    .await
+                    .unwrap();
+            })
+            .unwrap();
+
         let data_interface = DataInterface(address);
-        assert!(data_interface.increment(10).unwrap() > 10)
+        
+        assert_eq!(
+            data_interface.increment(message_increment).unwrap(),
+            task_increment + message_increment
+        )
     }
 }
