@@ -4,7 +4,7 @@ use crate::{
             group::RtpsGroup, stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter, types::Guid,
         },
-        utils::actor::{ActorAddress, ActorJoinHandle},
+        utils::actor::{self, Actor, ActorAddress, ActorJoinHandle},
     },
     infrastructure::{
         error::DdsResult,
@@ -26,6 +26,32 @@ pub struct DdsPublisher {
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
+}
+
+impl Actor for DdsPublisher {}
+
+pub struct Enable;
+
+impl actor::Message for Enable {
+    type Result = ();
+}
+
+impl actor::Handler<Enable> for DdsPublisher {
+    fn handle(&mut self, _message: Enable) -> <Enable as actor::Message>::Result {
+        self.enable()
+    }
+}
+
+pub struct IsEnabled;
+
+impl actor::Message for IsEnabled {
+    type Result = bool;
+}
+
+impl actor::Handler<IsEnabled> for DdsPublisher {
+    fn handle(&mut self, _message: IsEnabled) -> <IsEnabled as actor::Message>::Result {
+        self.is_enabled()
+    }
 }
 
 impl DdsPublisher {
