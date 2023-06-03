@@ -1,4 +1,8 @@
-use std::marker::PhantomData;
+use std::{
+    future::{poll_fn, Future},
+    marker::PhantomData,
+    task::Poll,
+};
 
 use tokio::sync;
 
@@ -44,6 +48,14 @@ impl<A> ActorAddress<A>
 where
     A: Actor,
 {
+    pub fn spawn_task<T, F>(&self, task: T)
+    where
+        T: FnOnce(Self) -> F,
+        F: Future<Output = ()> + Send + 'static,
+    {
+        let join_handle = THE_TASK_RUNTIME.spawn(task(self.clone()));
+    }
+
     pub fn send_blocking<M>(&self, message: M) -> DdsResult<M::Result>
     where
         A: Handler<M>,
@@ -129,31 +141,41 @@ where
 {
     value: T,
     mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<T> + Send>>,
+    task_set: Vec<tokio::task::JoinHandle<()>>,
+}
+
+impl<T> Drop for SpawnedActor<T>
+where
+    T: Actor,
+{
+    fn drop(&mut self) {
+        for task in self.task_set.drain(..) {
+            task.abort();
+        }
+    }
 }
 
 pub fn spawn_actor<A>(actor: A) -> (ActorAddress<A>, ActorJoinHandle)
 where
     A: Actor + Send + 'static,
 {
-    async fn run<A>(mut actor: SpawnedActor<A>)
-    where
-        A: Actor,
-    {
-        loop {
-            if let Some(mut m) = actor.mailbox.recv().await {
-                m.handle(&mut actor.value).ok();
-            }
-        }
-    }
+    let (sender, mailbox) = sync::mpsc::channel(100);
 
-    let (sender, mailbox) = sync::mpsc::channel(10);
-
-    let actor_obj = SpawnedActor {
+    let mut actor_obj = SpawnedActor {
         value: actor,
         mailbox,
+        task_set: Vec::new(),
     };
     let actor_handle = ActorJoinHandle {
-        join_handle: THE_TASK_RUNTIME.spawn(run(actor_obj)),
+        join_handle: THE_TASK_RUNTIME.spawn(poll_fn(move |cx| {
+            while let Poll::Ready(val) = actor_obj.mailbox.poll_recv(cx) {
+                if let Some(mut m) = val {
+                    m.handle(&mut actor_obj.value).ok();
+                }
+            }
+
+            Poll::Pending
+        })),
     };
     let actor_address = ActorAddress {
         actor: PhantomData,
@@ -246,5 +268,21 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(100));
         let data_interface = DataInterface(address);
         assert_eq!(data_interface.increment(10), Err(DdsError::AlreadyDeleted))
+    }
+
+    #[test]
+    fn actor_increment_task() {
+        let my_data = MyData { data: 0 };
+        let (address, _join_handle) = spawn_actor(my_data);
+        address.spawn_task(|actor| async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
+            loop {
+                actor.send(IncrementMessage { value: 5 }).await.unwrap();
+                interval.tick().await;
+            }
+        });
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+        let data_interface = DataInterface(address);
+        assert!(data_interface.increment(10).unwrap() > 10)
     }
 }
