@@ -54,7 +54,7 @@ impl DomainParticipantFactory {
                     a_listener,
                     mask.to_vec(),
                 ))?;
-        Ok(DomainParticipant::new(address))
+        Ok(DomainParticipant::new(address?))
     }
 
     /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
@@ -62,33 +62,9 @@ impl DomainParticipantFactory {
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         self.0
-            .send_blocking(dds_domain_participant_factory::DeleteParticipant)
-
-        // let is_participant_empty = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-        //     &participant.node().guid().prefix(),
-        //     |dp| {
-        //         let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-        //         Ok(dp.user_defined_publisher_list().iter().count() == 0
-        //             && dp.user_defined_subscriber_list().iter().count() == 0
-        //             && dp.topic_list().iter().count() == 0)
-        //     },
-        // )?;
-
-        // if is_participant_empty {
-        //     // Explicit external drop to avoid deadlock. Otherwise objects contained in the factory can't access it due to it being blocked
-        //     // while locking
-        //     let object = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .domain_participant_list
-        //         .blocking_write()
-        //         .remove(&participant.node().guid().prefix());
-        //     std::mem::drop(object);
-
-        //     Ok(())
-        // } else {
-        //     Err(DdsError::PreconditionNotMet(
-        //         "Domain participant still contains other entities".to_string(),
-        //     ))
-        // }
+            .send_blocking(dds_domain_participant_factory::DeleteParticipant::new(
+                participant.address().clone(),
+            ))?
     }
 
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
@@ -108,18 +84,6 @@ impl DomainParticipantFactory {
                 domain_id,
             ))
             .map(|option_dp| option_dp.map(|address| DomainParticipant::new(address)))
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //     .domain_participant_list
-        //     .blocking_read()
-        //     .iter()
-        //     .find_map(|(_, dp)| {
-        //         if dp.get_domain_id() == domain_id {
-        //             Some(dp.guid())
-        //         } else {
-        //             None
-        //         }
-        //     })
-        //     .map(|guid| DomainParticipant::new(DomainParticipantNode::new(guid)))
     }
 
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created

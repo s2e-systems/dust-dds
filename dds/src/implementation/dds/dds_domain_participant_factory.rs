@@ -1,7 +1,6 @@
 use std::{
-    net::{Ipv4Addr, SocketAddr, UdpSocket},
+    net::{Ipv4Addr, SocketAddr},
     str::FromStr,
-    sync::atomic,
 };
 
 use jsonschema::JSONSchema;
@@ -12,12 +11,6 @@ use socket2::Socket;
 
 use crate::{
     domain::{
-        domain_participant::{
-            task_metatraffic_multicast_receive, task_metatraffic_unicast_receive,
-            task_send_entity_announce, task_unicast_metatraffic_communication_send,
-            task_unicast_user_defined_communication_send, task_user_defined_receive,
-            DomainParticipant,
-        },
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
     },
@@ -25,12 +18,8 @@ use crate::{
         configuration::DustDdsConfiguration,
         rtps::{
             participant::RtpsParticipant,
-            types::{
-                GuidPrefix, Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4,
-                PROTOCOLVERSION, VENDOR_ID_S2E,
-            },
+            types::{GuidPrefix, LocatorAddress, LocatorPort, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
-        rtps_udp_psm::udp_transport::UdpTransportRead,
         utils::{
             actor::{spawn_actor, Actor, ActorAddress, ActorJoinHandle, Handler, Message},
             condvar::DdsCondvar,
@@ -43,10 +32,7 @@ use crate::{
     },
 };
 
-use super::{
-    dds_domain_participant::{self, DdsDomainParticipant},
-    nodes::DomainParticipantNode,
-};
+use super::dds_domain_participant::{self, DdsDomainParticipant};
 
 lazy_static! {
     pub static ref THE_DDS_CONFIGURATION: DustDdsConfiguration =
@@ -96,7 +82,7 @@ impl CreateParticipant {
 }
 
 impl Message for CreateParticipant {
-    type Result = ActorAddress<DdsDomainParticipant>;
+    type Result = DdsResult<ActorAddress<DdsDomainParticipant>>;
 }
 
 impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
@@ -162,13 +148,10 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
             .push((participant_address.clone(), participant_join_handle));
 
         if self.qos.entity_factory.autoenable_created_entities {
-            todo!()
-            // participant_address
-            //     .send(dds_domain_participant::Enable)
-            //     .await;
+            participant_address.send_blocking(dds_domain_participant::Enable)?;
         }
 
-        participant_address
+        Ok(participant_address)
     }
     // let interface_address_list =
     //     get_interface_address_list(configuration.interface_name.as_ref());
@@ -330,15 +313,45 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
     // Ok(DomainParticipant::new(DomainParticipantNode::new(guid)))
 }
 
-pub struct DeleteParticipant;
+pub struct DeleteParticipant {
+    address: ActorAddress<DdsDomainParticipant>,
+}
+
+impl DeleteParticipant {
+    pub fn new(address: ActorAddress<DdsDomainParticipant>) -> Self {
+        Self { address }
+    }
+}
 
 impl Message for DeleteParticipant {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 
 impl Handler<DeleteParticipant> for DdsDomainParticipantFactory {
     fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Message>::Result {
-        todo!()
+        let is_participant_empty = message
+            .address
+            .send_blocking(dds_domain_participant::IsEmpty)?;
+        if is_participant_empty {
+            let participant_handle = message
+                .address
+                .send_blocking(dds_domain_participant::GetInstanceHandle)?;
+            let idx = self
+                .domain_participant_list
+                .iter()
+                .position(|dp| {
+                    dp.0.send_blocking(dds_domain_participant::GetInstanceHandle)
+                        .expect("Should not fail to send message")
+                        == participant_handle
+                })
+                .expect("Should not fail to find not deleted participant");
+            self.domain_participant_list.remove(idx);
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Domain participant still contains other entities".to_string(),
+            ))
+        }
     }
 }
 
@@ -358,7 +371,15 @@ impl Message for LookupParticipant {
 
 impl Handler<LookupParticipant> for DdsDomainParticipantFactory {
     fn handle(&mut self, message: LookupParticipant) -> <LookupParticipant as Message>::Result {
-        todo!()
+        self.domain_participant_list
+            .iter()
+            .map(|dp| &dp.0)
+            .find(|a| {
+                a.send_blocking(dds_domain_participant::GetDomainId)
+                    .expect("Should not fail to send message")
+                    == message.domain_id
+            })
+            .cloned()
     }
 }
 

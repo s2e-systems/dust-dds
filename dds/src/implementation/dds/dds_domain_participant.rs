@@ -169,6 +169,56 @@ impl Handler<Enable> for DdsDomainParticipant {
     }
 }
 
+pub struct GetQos;
+
+impl Message for GetQos {
+    type Result = DomainParticipantQos;
+}
+
+impl Handler<GetQos> for DdsDomainParticipant {
+    fn handle(&mut self, _message: GetQos) -> <GetQos as Message>::Result {
+        self.qos.clone()
+    }
+}
+
+pub struct GetDomainId;
+
+impl Message for GetDomainId {
+    type Result = DomainId;
+}
+
+impl Handler<GetDomainId> for DdsDomainParticipant {
+    fn handle(&mut self, _message: GetDomainId) -> <GetDomainId as Message>::Result {
+        self.domain_id
+    }
+}
+
+pub struct GetInstanceHandle;
+
+impl Message for GetInstanceHandle {
+    type Result = InstanceHandle;
+}
+
+impl Handler<GetInstanceHandle> for DdsDomainParticipant {
+    fn handle(&mut self, message: GetInstanceHandle) -> <GetInstanceHandle as Message>::Result {
+        self.rtps_participant.guid().into()
+    }
+}
+
+pub struct IsEmpty;
+
+impl Message for IsEmpty {
+    type Result = bool;
+}
+
+impl Handler<IsEmpty> for DdsDomainParticipant {
+    fn handle(&mut self, _message: IsEmpty) -> <IsEmpty as Message>::Result {
+        self.user_defined_publisher_list().iter().count() == 0
+            && self.user_defined_subscriber_list().iter().count() == 0
+            && self.topic_list().iter().count() == 0
+    }
+}
+
 impl DdsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -447,10 +497,6 @@ impl DdsDomainParticipant {
 
     pub fn is_publication_ignored(&self, handle: InstanceHandle) -> bool {
         self.ignored_publications.contains(&handle)
-    }
-
-    pub fn get_domain_id(&self) -> DomainId {
-        self.domain_id
     }
 
     pub fn get_domain_tag(&self) -> &str {

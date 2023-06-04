@@ -135,10 +135,6 @@ pub fn ignore_subscription(
     Ok(())
 }
 
-pub fn get_domain_id(domain_participant: &DdsDomainParticipant) -> DdsResult<DomainId> {
-    Ok(domain_participant.get_domain_id())
-}
-
 pub fn delete_contained_entities(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
     domain_participant.delete_contained_entities()
 }

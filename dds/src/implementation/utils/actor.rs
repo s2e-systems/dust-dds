@@ -185,7 +185,12 @@ where
         join_handle: THE_RUNTIME.spawn(poll_fn(move |cx| {
             while let Poll::Ready(val) = actor_obj.mailbox.poll_recv(cx) {
                 if let Some(mut m) = val {
-                    m.handle(&mut actor_obj.value).ok();
+                    // Handling a message must be synchronous and allowed to call blocking code
+                    // (e.g. send message to other actors). It is not allowed to be an async function
+                    // otherwise multiple messages could interrupt each other and modify the object in between.
+                    // To allow calling blocking code inside the block_in_place method is used to prevent
+                    // the runtime from crashing
+                    tokio::task::block_in_place(|| m.handle(&mut actor_obj.value).ok());
                 }
             }
 

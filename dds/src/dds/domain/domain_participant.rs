@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use fnmatch_regex::glob_to_regex;
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -17,7 +15,8 @@ use crate::{
             dds_data_reader::DdsDataReader,
             dds_data_writer::{self, DdsDataWriter},
             dds_domain_participant::{
-                AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                self, AnnounceKind, DdsDomainParticipant,
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
@@ -117,6 +116,10 @@ pub struct DomainParticipant(ActorAddress<DdsDomainParticipant>);
 impl DomainParticipant {
     pub(crate) fn new(address: ActorAddress<DdsDomainParticipant>) -> Self {
         Self(address)
+    }
+
+    pub(crate) fn address(&self) -> &ActorAddress<DdsDomainParticipant> {
+        &self.0
     }
 }
 
@@ -633,10 +636,7 @@ impl DomainParticipant {
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_qos(dp)
-        // })
+        self.0.send_blocking(dds_domain_participant::GetQos)
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -2460,83 +2460,82 @@ fn add_discovered_participant(
     domain_participant: &mut DdsDomainParticipant,
     discovered_participant_data: SpdpDiscoveredParticipantData,
 ) {
-    if ParticipantDiscovery::new(
-        &discovered_participant_data,
-        domain_participant.get_domain_id(),
-        domain_participant.get_domain_tag(),
-    )
-    .is_ok()
-        && !domain_participant
-            .is_participant_ignored(discovered_participant_data.get_serialized_key().into())
-    {
-        todo!();
-        // add_matched_publications_detector(
-        //     domain_participant
-        //         .get_builtin_publisher_mut()
-        //         .stateful_data_writer_list_mut()
-        //         .iter_mut()
-        //         .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
-        //         .unwrap(),
-        //     &discovered_participant_data,
-        // );
+    todo!();
+    // if ParticipantDiscovery::new(
+    //     &discovered_participant_data,
+    //     domain_participant.get_domain_id(),
+    //     domain_participant.get_domain_tag(),
+    // )
+    // .is_ok()
+    //     && !domain_participant
+    //         .is_participant_ignored(discovered_participant_data.get_serialized_key().into())
+    // {
 
-        add_matched_publications_announcer(
-            domain_participant
-                .get_builtin_subscriber_mut()
-                .stateful_data_reader_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
-                .unwrap(),
-            &discovered_participant_data,
-        );
+    // add_matched_publications_detector(
+    //     domain_participant
+    //         .get_builtin_publisher_mut()
+    //         .stateful_data_writer_list_mut()
+    //         .iter_mut()
+    //         .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
+    //         .unwrap(),
+    //     &discovered_participant_data,
+    // );
 
-        todo!();
+    // add_matched_publications_announcer(
+    //     domain_participant
+    //         .get_builtin_subscriber_mut()
+    //         .stateful_data_reader_list_mut()
+    //         .iter_mut()
+    //         .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
+    //         .unwrap(),
+    //     &discovered_participant_data,
+    // );
 
-        // add_matched_subscriptions_detector(
-        //     domain_participant
-        //         .get_builtin_publisher_mut()
-        //         .stateful_data_writer_list_mut()
-        //         .iter_mut()
-        //         .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
-        //         .unwrap(),
-        //     &discovered_participant_data,
-        // );
+    // add_matched_subscriptions_detector(
+    //     domain_participant
+    //         .get_builtin_publisher_mut()
+    //         .stateful_data_writer_list_mut()
+    //         .iter_mut()
+    //         .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
+    //         .unwrap(),
+    //     &discovered_participant_data,
+    // );
 
-        add_matched_subscriptions_announcer(
-            domain_participant
-                .get_builtin_subscriber_mut()
-                .stateful_data_reader_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
-                .unwrap(),
-            &discovered_participant_data,
-        );
+    // add_matched_subscriptions_announcer(
+    //     domain_participant
+    //         .get_builtin_subscriber_mut()
+    //         .stateful_data_reader_list_mut()
+    //         .iter_mut()
+    //         .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
+    //         .unwrap(),
+    //     &discovered_participant_data,
+    // );
 
-        // add_matched_topics_detector(
-        //     domain_participant
-        //         .get_builtin_publisher_mut()
-        //         .stateful_data_writer_list_mut()
-        //         .iter_mut()
-        //         .find(|x| x.get_topic_name() == DCPS_TOPIC)
-        //         .unwrap(),
-        //     &discovered_participant_data,
-        // );
+    // add_matched_topics_detector(
+    //     domain_participant
+    //         .get_builtin_publisher_mut()
+    //         .stateful_data_writer_list_mut()
+    //         .iter_mut()
+    //         .find(|x| x.get_topic_name() == DCPS_TOPIC)
+    //         .unwrap(),
+    //     &discovered_participant_data,
+    // );
 
-        add_matched_topics_announcer(
-            domain_participant
-                .get_builtin_subscriber_mut()
-                .stateful_data_reader_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_TOPIC)
-                .unwrap(),
-            &discovered_participant_data,
-        );
+    //     add_matched_topics_announcer(
+    //         domain_participant
+    //             .get_builtin_subscriber_mut()
+    //             .stateful_data_reader_list_mut()
+    //             .iter_mut()
+    //             .find(|x| x.get_topic_name() == DCPS_TOPIC)
+    //             .unwrap(),
+    //         &discovered_participant_data,
+    //     );
 
-        domain_participant.discovered_participant_add(
-            discovered_participant_data.get_serialized_key().into(),
-            discovered_participant_data,
-        );
-    }
+    //     domain_participant.discovered_participant_add(
+    //         discovered_participant_data.get_serialized_key().into(),
+    //         discovered_participant_data,
+    //     );
+    // }
 }
 
 fn add_matched_subscriptions_announcer(
