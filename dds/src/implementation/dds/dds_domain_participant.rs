@@ -46,7 +46,7 @@ use crate::{
             writer::RtpsWriter,
         },
         utils::{
-            actor::{self, ActorAddress, ActorJoinSet, Handler, Message},
+            actor::{self, ActorTask, Handler, Message},
             condvar::DdsCondvar,
         },
     },
@@ -165,8 +165,7 @@ impl Handler<Enable> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: Enable,
-        _actor_address: &mut ActorAddress<Self>,
-        _actor_task: &mut ActorJoinSet,
+        _actor_task: &mut ActorTask<Self>,
     ) -> <Enable as Message>::Result {
         self.enabled = true;
     }
@@ -182,8 +181,7 @@ impl Handler<GetQos> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: GetQos,
-        _actor_address: &mut ActorAddress<Self>,
-        _actor_task: &mut ActorJoinSet,
+        _actor_task: &mut ActorTask<Self>,
     ) -> <GetQos as Message>::Result {
         self.qos.clone()
     }
@@ -199,8 +197,7 @@ impl Handler<GetDomainId> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: GetDomainId,
-        _actor_address: &mut ActorAddress<Self>,
-        _actor_task: &mut ActorJoinSet,
+        _actor_task: &mut ActorTask<Self>,
     ) -> <GetDomainId as Message>::Result {
         self.domain_id
     }
@@ -216,8 +213,7 @@ impl Handler<GetInstanceHandle> for DdsDomainParticipant {
     fn handle(
         &mut self,
         message: GetInstanceHandle,
-        _actor_address: &mut ActorAddress<Self>,
-        _actor_task: &mut ActorJoinSet,
+        _actor_task: &mut ActorTask<Self>,
     ) -> <GetInstanceHandle as Message>::Result {
         self.rtps_participant.guid().into()
     }
@@ -233,8 +229,7 @@ impl Handler<IsEmpty> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: IsEmpty,
-        _actor_address: &mut ActorAddress<Self>,
-        _actor_task: &mut ActorJoinSet,
+        _actor_task: &mut ActorTask<Self>,
     ) -> <IsEmpty as Message>::Result {
         self.user_defined_publisher_list().iter().count() == 0
             && self.user_defined_subscriber_list().iter().count() == 0

@@ -26,27 +26,28 @@ where
     M: Message,
     Self: Sized,
 {
-    fn handle(
-        &mut self,
-        message: M,
-        actor_address: &mut ActorAddress<Self>,
-        actor_task: &mut ActorJoinSet,
-    ) -> M::Result;
+    fn handle(&mut self, message: M, actor_task: &mut ActorTask<Self>) -> M::Result;
 }
 
-pub struct ActorJoinSet(task::JoinSet<()>);
+pub struct ActorTask<A> {
+    join_set: task::JoinSet<()>,
+    address: ActorAddress<A>,
+}
 
-impl ActorJoinSet {
-    pub fn new() -> Self {
-        Self(task::JoinSet::new())
+impl<A> ActorTask<A> {
+    pub fn new(address: ActorAddress<A>) -> Self {
+        Self {
+            join_set: task::JoinSet::new(),
+            address,
+        }
     }
 
     pub fn spawn_task<T, F>(&mut self, task: T)
     where
-        T: FnOnce() -> F,
+        T: FnOnce(ActorAddress<A>) -> F,
         F: Future<Output = ()> + Send + 'static,
     {
-        self.0.spawn(task());
+        self.join_set.spawn(task(self.address.clone()));
     }
 }
 
@@ -111,12 +112,7 @@ impl Drop for ActorJoinHandle {
 }
 
 trait GenericHandler<A> {
-    fn handle(
-        &mut self,
-        actor: &mut A,
-        actor_address: &mut ActorAddress<A>,
-        actor_task: &mut ActorJoinSet,
-    ) -> Result<(), ()>;
+    fn handle(&mut self, actor: &mut A, actor_task: &mut ActorTask<A>) -> Result<(), ()>;
 }
 
 struct SyncMessage<M>
@@ -135,18 +131,12 @@ where
     A: Handler<M>,
     M: Message,
 {
-    fn handle(
-        &mut self,
-        actor: &mut A,
-        actor_address: &mut ActorAddress<A>,
-        actor_task: &mut ActorJoinSet,
-    ) -> Result<(), ()> {
+    fn handle(&mut self, actor: &mut A, actor_task: &mut ActorTask<A>) -> Result<(), ()> {
         let result = <A as Handler<M>>::handle(
             actor,
             self.message
                 .take()
                 .expect("Message should be processed only once"),
-            actor_address,
             actor_task,
         );
         self.sender
@@ -160,8 +150,7 @@ where
 struct SpawnedActor<A> {
     value: A,
     mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<A> + Send>>,
-    actor_task: ActorJoinSet,
-    address: ActorAddress<A>,
+    actor_task: ActorTask<A>,
 }
 
 pub fn spawn_actor<A>(actor: A) -> (ActorAddress<A>, ActorJoinHandle)
@@ -177,8 +166,7 @@ where
     let mut actor_obj = SpawnedActor {
         value: actor,
         mailbox,
-        actor_task: ActorJoinSet::new(),
-        address: actor_address.clone(),
+        actor_task: ActorTask::new(actor_address.clone()),
     };
 
     let actor_handle = ActorJoinHandle {
@@ -191,12 +179,8 @@ where
                     // To allow calling blocking code inside the block_in_place method is used to prevent
                     // the runtime from crashing
                     tokio::task::block_in_place(|| {
-                        m.handle(
-                            &mut actor_obj.value,
-                            &mut actor_obj.address,
-                            &mut actor_obj.actor_task,
-                        )
-                        .ok()
+                        m.handle(&mut actor_obj.value, &mut actor_obj.actor_task)
+                            .ok()
                     });
                 }
             }
@@ -257,8 +241,7 @@ mod tests {
         fn handle(
             &mut self,
             message: IncrementMessage,
-            _actor_address: &mut ActorAddress<Self>,
-            _actor_task: &mut ActorJoinSet,
+            _actor_task: &mut ActorTask<Self>,
         ) -> <IncrementMessage as Message>::Result {
             self.increment(message.value)
         }
@@ -268,8 +251,7 @@ mod tests {
         fn handle(
             &mut self,
             _message: DecrementMessage,
-            _actor_address: &mut ActorAddress<Self>,
-            _actor_task: &mut ActorJoinSet,
+            _actor_task: &mut ActorTask<Self>,
         ) -> <DecrementMessage as Message>::Result {
             self.decrement()
         }
@@ -287,11 +269,9 @@ mod tests {
         fn handle(
             &mut self,
             message: EnableIncrementTask,
-            actor_address: &mut ActorAddress<Self>,
-            actor_task: &mut ActorJoinSet,
+            actor_task: &mut ActorTask<Self>,
         ) -> <EnableIncrementTask as Message>::Result {
-            let addr = actor_address.clone();
-            actor_task.spawn_task(|| async move {
+            actor_task.spawn_task(|addr| async move {
                 addr.send(IncrementMessage {
                     value: message.value,
                 })
