@@ -5,7 +5,7 @@ use dust_dds::{
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
     },
-    topic_definition::type_support::{DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -28,7 +28,10 @@ fn get_publisher_parent_participant() {
 
     let publisher_parent_participant = publisher.get_participant().unwrap();
 
-    assert_eq!(participant, publisher_parent_participant);
+    assert_eq!(
+        participant.get_instance_handle(),
+        publisher_parent_participant.get_instance_handle()
+    );
 }
 
 #[test]
@@ -107,7 +110,16 @@ fn different_writers_have_different_instance_handles() {
         .create_datawriter(&topic, QosKind::Default, None, &[])
         .unwrap();
 
-    assert_ne!(writer1_1.get_instance_handle(), writer1_2.get_instance_handle());
-    assert_ne!(writer1_2.get_instance_handle(), writer2_1.get_instance_handle());
-    assert_ne!(writer2_1.get_instance_handle(), writer2_2.get_instance_handle());
+    assert_ne!(
+        writer1_1.get_instance_handle(),
+        writer1_2.get_instance_handle()
+    );
+    assert_ne!(
+        writer1_2.get_instance_handle(),
+        writer2_1.get_instance_handle()
+    );
+    assert_ne!(
+        writer2_1.get_instance_handle(),
+        writer2_2.get_instance_handle()
+    );
 }

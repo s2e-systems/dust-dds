@@ -85,12 +85,13 @@ impl<Foo> Topic<Foo> {
 impl<Foo> Topic<Foo> {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => Ok(DomainParticipant::new(
-                DomainParticipantNode::new(t.parent_participant()),
-            )),
-            TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        }
+        todo!()
+        // match &self.node {
+        //     TopicNodeKind::UserDefined(t) => Ok(DomainParticipant::new(
+        //         DomainParticipantNode::new(t.parent_participant()),
+        //     )),
+        //     TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+        // }
     }
 
     /// The name of the type used to create the [`Topic`]

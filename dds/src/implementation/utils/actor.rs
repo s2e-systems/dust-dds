@@ -30,6 +30,7 @@ where
     fn handle(&mut self, message: M) -> M::Result;
 }
 
+#[derive(Debug)]
 pub struct ActorAddress<A>
 where
     A: Actor,

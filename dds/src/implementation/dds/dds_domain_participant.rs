@@ -46,7 +46,7 @@ use crate::{
             writer::RtpsWriter,
         },
         utils::{
-            actor::{self, Actor},
+            actor::{self, Actor, Handler, Message},
             condvar::DdsCondvar,
         },
     },
@@ -156,6 +156,18 @@ pub struct DdsDomainParticipant {
 }
 
 impl Actor for DdsDomainParticipant {}
+
+pub struct Enable;
+
+impl Message for Enable {
+    type Result = ();
+}
+
+impl Handler<Enable> for DdsDomainParticipant {
+    fn handle(&mut self, _message: Enable) -> <Enable as Message>::Result {
+        self.enabled = true;
+    }
+}
 
 impl DdsDomainParticipant {
     #[allow(clippy::too_many_arguments)]

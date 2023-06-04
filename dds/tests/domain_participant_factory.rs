@@ -8,7 +8,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::{DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -194,6 +194,7 @@ fn all_objects_are_dropped() {
 
     assert!(domain_participant_factory
         .lookup_participant(domain_id)
+        .unwrap()
         .is_none());
 }
 
@@ -259,9 +260,11 @@ fn objects_are_correctly_dropped() {
             .is_none());
         assert!(domain_participant_factory
             .lookup_participant(domain_id)
+            .unwrap()
             .is_some());
     }
     assert!(domain_participant_factory
         .lookup_participant(domain_id)
+        .unwrap()
         .is_none());
 }
