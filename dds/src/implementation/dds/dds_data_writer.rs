@@ -20,7 +20,7 @@ use crate::{
                 ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
         },
-        utils::actor,
+        utils::actor::{self, ActorAddress, ActorJoinSet},
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -183,8 +183,6 @@ pub struct DdsDataWriter<T> {
     enabled: bool,
 }
 
-impl<T> actor::Actor for DdsDataWriter<T> {}
-
 pub struct Enable;
 
 impl actor::Message for Enable {
@@ -192,7 +190,12 @@ impl actor::Message for Enable {
 }
 
 impl<T> actor::Handler<Enable> for DdsDataWriter<T> {
-    fn handle(&mut self, _message: Enable) -> <Enable as actor::Message>::Result {
+    fn handle(
+        &mut self,
+        _message: Enable,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <Enable as actor::Message>::Result {
         self.enable();
     }
 }
@@ -204,7 +207,12 @@ impl actor::Message for GetTypeName {
 }
 
 impl<T> actor::Handler<GetTypeName> for DdsDataWriter<T> {
-    fn handle(&mut self, _message: GetTypeName) -> <GetTypeName as actor::Message>::Result {
+    fn handle(
+        &mut self,
+        _message: GetTypeName,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <GetTypeName as actor::Message>::Result {
         self.get_type_name()
     }
 }
@@ -216,7 +224,12 @@ impl actor::Message for GetTopicName {
 }
 
 impl actor::Handler<GetTopicName> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: GetTopicName) -> <GetTopicName as actor::Message>::Result {
+    fn handle(
+        &mut self,
+        message: GetTopicName,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <GetTopicName as actor::Message>::Result {
         self.get_topic_name().to_string()
     }
 }
@@ -252,6 +265,8 @@ impl actor::Handler<WriteWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: WriteWithTimestamp,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <WriteWithTimestamp as actor::Message>::Result {
         self.write_w_timestamp(
             message.serialized_data,
@@ -287,6 +302,8 @@ impl actor::Handler<UnregisterInstanceWithTimestamp> for DdsDataWriter<RtpsState
     fn handle(
         &mut self,
         message: UnregisterInstanceWithTimestamp,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <UnregisterInstanceWithTimestamp as actor::Message>::Result {
         self.unregister_instance_w_timestamp(
             message.instance_serialized_key,
@@ -313,7 +330,12 @@ impl actor::Message for LookupInstance {
 }
 
 impl actor::Handler<LookupInstance> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: LookupInstance) -> <LookupInstance as actor::Message>::Result {
+    fn handle(
+        &mut self,
+        message: LookupInstance,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <LookupInstance as actor::Message>::Result {
         self.lookup_instance(message.instance_serialized_key)
     }
 }
@@ -342,6 +364,8 @@ impl actor::Handler<DisposeWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> 
     fn handle(
         &mut self,
         message: DisposeWithTimestamp,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <DisposeWithTimestamp as actor::Message>::Result {
         self.dispose_w_timestamp(
             message.instance_serialized_key,
@@ -358,7 +382,12 @@ impl actor::Message for IsEnabled {
 }
 
 impl actor::Handler<IsEnabled> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: IsEnabled) -> <IsEnabled as actor::Message>::Result {
+    fn handle(
+        &mut self,
+        message: IsEnabled,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <IsEnabled as actor::Message>::Result {
         self.is_enabled()
     }
 }
@@ -373,6 +402,8 @@ impl actor::Handler<AreAllChangesAcknowledge> for DdsDataWriter<RtpsStatefulWrit
     fn handle(
         &mut self,
         message: AreAllChangesAcknowledge,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <AreAllChangesAcknowledge as actor::Message>::Result {
         self.are_all_changes_acknowledge()
     }
@@ -388,6 +419,8 @@ impl actor::Handler<GetLivelinessLostStatus> for DdsDataWriter<RtpsStatefulWrite
     fn handle(
         &mut self,
         message: GetLivelinessLostStatus,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <GetLivelinessLostStatus as actor::Message>::Result {
         self.get_liveliness_lost_status()
     }
@@ -403,6 +436,8 @@ impl actor::Handler<GetOfferedDeadlineMissedStatus> for DdsDataWriter<RtpsStatef
     fn handle(
         &mut self,
         message: GetOfferedDeadlineMissedStatus,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <GetOfferedDeadlineMissedStatus as actor::Message>::Result {
         self.get_offered_deadline_missed_status()
     }
@@ -418,6 +453,8 @@ impl actor::Handler<GetOfferedIncompatibleQosStatus> for DdsDataWriter<RtpsState
     fn handle(
         &mut self,
         message: GetOfferedIncompatibleQosStatus,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <GetOfferedIncompatibleQosStatus as actor::Message>::Result {
         self.get_offered_incompatible_qos_status()
     }
@@ -433,6 +470,8 @@ impl actor::Handler<GetPublicationMatchedStatus> for DdsDataWriter<RtpsStatefulW
     fn handle(
         &mut self,
         message: GetPublicationMatchedStatus,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <GetPublicationMatchedStatus as actor::Message>::Result {
         self.get_publication_matched_status()
     }
@@ -456,6 +495,8 @@ impl actor::Handler<GetMatchedSubscriptionData> for DdsDataWriter<RtpsStatefulWr
     fn handle(
         &mut self,
         message: GetMatchedSubscriptionData,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <GetMatchedSubscriptionData as actor::Message>::Result {
         self.get_matched_subscription_data(message.handle)
     }
@@ -471,6 +512,8 @@ impl actor::Handler<GetMatchedSubscriptions> for DdsDataWriter<RtpsStatefulWrite
     fn handle(
         &mut self,
         message: GetMatchedSubscriptions,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <GetMatchedSubscriptions as actor::Message>::Result {
         self.get_matched_subscriptions()
     }
@@ -483,7 +526,12 @@ impl actor::Message for GetQos {
 }
 
 impl actor::Handler<GetQos> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: GetQos) -> <GetQos as actor::Message>::Result {
+    fn handle(
+        &mut self,
+        message: GetQos,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <GetQos as actor::Message>::Result {
         self.get_qos()
     }
 }
@@ -503,7 +551,12 @@ impl actor::Message for SetQos {
 }
 
 impl actor::Handler<SetQos> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: SetQos) -> <SetQos as actor::Message>::Result {
+    fn handle(
+        &mut self,
+        message: SetQos,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <SetQos as actor::Message>::Result {
         self.set_qos(message.qos)
     }
 }
@@ -530,6 +583,8 @@ impl actor::Handler<AsDiscoveredWriterData> for DdsDataWriter<RtpsStatefulWriter
     fn handle(
         &mut self,
         message: AsDiscoveredWriterData,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <AsDiscoveredWriterData as actor::Message>::Result {
         self.as_discovered_writer_data(&message.topic_qos, &message.publisher_qos)
     }
@@ -939,9 +994,10 @@ mod test {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
+            messages::overall_structure::RtpsMessageWrite,
             transport::TransportWrite,
             types::{TopicKind, GUID_UNKNOWN},
-            writer::RtpsWriter, messages::overall_structure::RtpsMessageWrite,
+            writer::RtpsWriter,
         },
         infrastructure::time::DURATION_ZERO,
         topic_definition::type_support::DdsSerializedKey,

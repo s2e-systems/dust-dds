@@ -21,7 +21,7 @@ use crate::{
             types::{GuidPrefix, LocatorAddress, LocatorPort, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress, ActorJoinHandle, Handler, Message},
+            actor::{spawn_actor, ActorAddress, ActorJoinHandle, ActorJoinSet, Handler, Message},
             condvar::DdsCondvar,
         },
     },
@@ -56,8 +56,6 @@ impl Default for DdsDomainParticipantFactory {
     }
 }
 
-impl Actor for DdsDomainParticipantFactory {}
-
 pub struct CreateParticipant {
     domain_id: DomainId,
     qos: QosKind<DomainParticipantQos>,
@@ -86,7 +84,12 @@ impl Message for CreateParticipant {
 }
 
 impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Message>::Result {
+    fn handle(
+        &mut self,
+        message: CreateParticipant,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <CreateParticipant as Message>::Result {
         let domain_participant_qos = match message.qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -328,7 +331,12 @@ impl Message for DeleteParticipant {
 }
 
 impl Handler<DeleteParticipant> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Message>::Result {
+    fn handle(
+        &mut self,
+        message: DeleteParticipant,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <DeleteParticipant as Message>::Result {
         let is_participant_empty = message
             .address
             .send_blocking(dds_domain_participant::IsEmpty)?;
@@ -370,7 +378,12 @@ impl Message for LookupParticipant {
 }
 
 impl Handler<LookupParticipant> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: LookupParticipant) -> <LookupParticipant as Message>::Result {
+    fn handle(
+        &mut self,
+        message: LookupParticipant,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <LookupParticipant as Message>::Result {
         self.domain_participant_list
             .iter()
             .map(|dp| &dp.0)
@@ -390,7 +403,12 @@ impl Message for GetQos {
 }
 
 impl Handler<GetQos> for DdsDomainParticipantFactory {
-    fn handle(&mut self, _message: GetQos) -> <GetQos as Message>::Result {
+    fn handle(
+        &mut self,
+        _message: GetQos,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <GetQos as Message>::Result {
         self.qos.clone()
     }
 }
@@ -410,7 +428,12 @@ impl Message for SetQos {
 }
 
 impl Handler<SetQos> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Message>::Result {
+    fn handle(
+        &mut self,
+        message: SetQos,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <SetQos as Message>::Result {
         let qos = match message.qos_kind {
             QosKind::Default => DomainParticipantFactoryQos::default(),
             QosKind::Specific(q) => q,
@@ -430,6 +453,8 @@ impl Handler<GetDefaultParticipantQos> for DdsDomainParticipantFactory {
     fn handle(
         &mut self,
         _message: GetDefaultParticipantQos,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <GetDefaultParticipantQos as Message>::Result {
         self.default_participant_qos.clone()
     }
@@ -453,6 +478,8 @@ impl Handler<SetDefaultParticipantQos> for DdsDomainParticipantFactory {
     fn handle(
         &mut self,
         message: SetDefaultParticipantQos,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
     ) -> <SetDefaultParticipantQos as Message>::Result {
         let qos = match message.qos_kind {
             QosKind::Default => DomainParticipantQos::default(),

@@ -4,7 +4,7 @@ use crate::{
             group::RtpsGroup, stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter, types::Guid,
         },
-        utils::actor::{self, Actor, ActorAddress, ActorJoinHandle},
+        utils::actor::{self, ActorAddress, ActorJoinHandle, ActorJoinSet},
     },
     infrastructure::{
         error::DdsResult,
@@ -28,8 +28,6 @@ pub struct DdsPublisher {
     default_datawriter_qos: DataWriterQos,
 }
 
-impl Actor for DdsPublisher {}
-
 pub struct Enable;
 
 impl actor::Message for Enable {
@@ -37,7 +35,12 @@ impl actor::Message for Enable {
 }
 
 impl actor::Handler<Enable> for DdsPublisher {
-    fn handle(&mut self, _message: Enable) -> <Enable as actor::Message>::Result {
+    fn handle(
+        &mut self,
+        _message: Enable,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <Enable as actor::Message>::Result {
         self.enable()
     }
 }
@@ -49,7 +52,12 @@ impl actor::Message for IsEnabled {
 }
 
 impl actor::Handler<IsEnabled> for DdsPublisher {
-    fn handle(&mut self, _message: IsEnabled) -> <IsEnabled as actor::Message>::Result {
+    fn handle(
+        &mut self,
+        _message: IsEnabled,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <IsEnabled as actor::Message>::Result {
         self.is_enabled()
     }
 }

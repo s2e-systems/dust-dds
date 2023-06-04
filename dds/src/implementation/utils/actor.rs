@@ -4,7 +4,7 @@ use std::{
     task::Poll,
 };
 
-use tokio::{runtime, sync, task::JoinHandle};
+use tokio::{runtime, sync, task};
 
 use lazy_static::lazy_static;
 
@@ -17,8 +17,6 @@ lazy_static! {
         .expect("Failed to create Tokio runtime");
 }
 
-pub trait Actor {}
-
 pub trait Message {
     type Result;
 }
@@ -26,48 +24,48 @@ pub trait Message {
 pub trait Handler<M>
 where
     M: Message,
+    Self: Sized,
 {
-    fn handle(&mut self, message: M) -> M::Result;
+    fn handle(
+        &mut self,
+        message: M,
+        actor_address: &mut ActorAddress<Self>,
+        actor_task: &mut ActorJoinSet,
+    ) -> M::Result;
+}
+
+pub struct ActorJoinSet(task::JoinSet<()>);
+
+impl ActorJoinSet {
+    pub fn new() -> Self {
+        Self(task::JoinSet::new())
+    }
+
+    pub fn spawn_task<T, F>(&mut self, task: T)
+    where
+        T: FnOnce() -> F,
+        F: Future<Output = ()> + Send + 'static,
+    {
+        self.0.spawn(task());
+    }
 }
 
 #[derive(Debug)]
-pub struct ActorAddress<A>
-where
-    A: Actor,
-{
+pub struct ActorAddress<A> {
     actor: PhantomData<A>,
     sender: sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
-    task_sender: sync::mpsc::Sender<JoinHandle<()>>,
 }
 
-impl<A> Clone for ActorAddress<A>
-where
-    A: Actor,
-{
+impl<A> Clone for ActorAddress<A> {
     fn clone(&self) -> Self {
         Self {
             actor: PhantomData,
             sender: self.sender.clone(),
-            task_sender: self.task_sender.clone(),
         }
     }
 }
 
-impl<A> ActorAddress<A>
-where
-    A: Actor,
-{
-    pub fn spawn_task<T, F>(&self, task: T) -> DdsResult<()>
-    where
-        T: FnOnce(Self) -> F,
-        F: Future<Output = ()> + Send + 'static,
-    {
-        let join_handle = THE_RUNTIME.spawn(task(self.clone()));
-        self.task_sender
-            .blocking_send(join_handle)
-            .map_err(|_| DdsError::AlreadyDeleted)
-    }
-
+impl<A> ActorAddress<A> {
     pub fn send_blocking<M>(&self, message: M) -> DdsResult<M::Result>
     where
         A: Handler<M>,
@@ -113,7 +111,12 @@ impl Drop for ActorJoinHandle {
 }
 
 trait GenericHandler<A> {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()>;
+    fn handle(
+        &mut self,
+        actor: &mut A,
+        actor_address: &mut ActorAddress<A>,
+        actor_task: &mut ActorJoinSet,
+    ) -> Result<(), ()>;
 }
 
 struct SyncMessage<M>
@@ -132,12 +135,19 @@ where
     A: Handler<M>,
     M: Message,
 {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
+    fn handle(
+        &mut self,
+        actor: &mut A,
+        actor_address: &mut ActorAddress<A>,
+        actor_task: &mut ActorJoinSet,
+    ) -> Result<(), ()> {
         let result = <A as Handler<M>>::handle(
             actor,
             self.message
                 .take()
                 .expect("Message should be processed only once"),
+            actor_address,
+            actor_task,
         );
         self.sender
             .take()
@@ -147,40 +157,30 @@ where
     }
 }
 
-struct SpawnedActor<T>
-where
-    T: Actor,
-{
-    value: T,
-    mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<T> + Send>>,
-    task_mailbox: tokio::sync::mpsc::Receiver<JoinHandle<()>>,
-    task_set: Vec<tokio::task::JoinHandle<()>>,
-}
-
-impl<T> Drop for SpawnedActor<T>
-where
-    T: Actor,
-{
-    fn drop(&mut self) {
-        for task in self.task_set.drain(..) {
-            task.abort();
-        }
-    }
+struct SpawnedActor<A> {
+    value: A,
+    mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<A> + Send>>,
+    actor_task: ActorJoinSet,
+    address: ActorAddress<A>,
 }
 
 pub fn spawn_actor<A>(actor: A) -> (ActorAddress<A>, ActorJoinHandle)
 where
-    A: Actor + Send + 'static,
+    A: Send + 'static,
 {
     let (sender, mailbox) = sync::mpsc::channel(10);
-    let (task_sender, task_mailbox) = sync::mpsc::channel(10);
 
+    let actor_address = ActorAddress {
+        actor: PhantomData,
+        sender,
+    };
     let mut actor_obj = SpawnedActor {
         value: actor,
         mailbox,
-        task_mailbox,
-        task_set: Vec::new(),
+        actor_task: ActorJoinSet::new(),
+        address: actor_address.clone(),
     };
+
     let actor_handle = ActorJoinHandle {
         join_handle: THE_RUNTIME.spawn(poll_fn(move |cx| {
             while let Poll::Ready(val) = actor_obj.mailbox.poll_recv(cx) {
@@ -190,23 +190,19 @@ where
                     // otherwise multiple messages could interrupt each other and modify the object in between.
                     // To allow calling blocking code inside the block_in_place method is used to prevent
                     // the runtime from crashing
-                    tokio::task::block_in_place(|| m.handle(&mut actor_obj.value).ok());
-                }
-            }
-
-            while let Poll::Ready(val) = actor_obj.task_mailbox.poll_recv(cx) {
-                if let Some(j) = val {
-                    actor_obj.task_set.push(j)
+                    tokio::task::block_in_place(|| {
+                        m.handle(
+                            &mut actor_obj.value,
+                            &mut actor_obj.address,
+                            &mut actor_obj.actor_task,
+                        )
+                        .ok()
+                    });
                 }
             }
 
             Poll::Pending
         })),
-    };
-    let actor_address = ActorAddress {
-        actor: PhantomData,
-        sender,
-        task_sender,
     };
 
     (actor_address, actor_handle)
@@ -257,17 +253,51 @@ mod tests {
         type Result = ();
     }
 
-    impl Actor for MyData {}
-
     impl Handler<IncrementMessage> for MyData {
-        fn handle(&mut self, message: IncrementMessage) -> <IncrementMessage as Message>::Result {
+        fn handle(
+            &mut self,
+            message: IncrementMessage,
+            _actor_address: &mut ActorAddress<Self>,
+            _actor_task: &mut ActorJoinSet,
+        ) -> <IncrementMessage as Message>::Result {
             self.increment(message.value)
         }
     }
 
     impl Handler<DecrementMessage> for MyData {
-        fn handle(&mut self, _message: DecrementMessage) -> <DecrementMessage as Message>::Result {
+        fn handle(
+            &mut self,
+            _message: DecrementMessage,
+            _actor_address: &mut ActorAddress<Self>,
+            _actor_task: &mut ActorJoinSet,
+        ) -> <DecrementMessage as Message>::Result {
             self.decrement()
+        }
+    }
+
+    pub struct EnableIncrementTask {
+        value: u8,
+    }
+
+    impl Message for EnableIncrementTask {
+        type Result = ();
+    }
+
+    impl Handler<EnableIncrementTask> for MyData {
+        fn handle(
+            &mut self,
+            message: EnableIncrementTask,
+            actor_address: &mut ActorAddress<Self>,
+            actor_task: &mut ActorJoinSet,
+        ) -> <EnableIncrementTask as Message>::Result {
+            let addr = actor_address.clone();
+            actor_task.spawn_task(|| async move {
+                addr.send(IncrementMessage {
+                    value: message.value,
+                })
+                .await
+                .ok();
+            });
         }
     }
 
@@ -276,6 +306,10 @@ mod tests {
     impl DataInterface {
         pub fn increment(&self, value: u8) -> DdsResult<u8> {
             self.0.send_blocking(IncrementMessage { value })
+        }
+
+        pub fn enable_increment_task(&self, value: u8) -> DdsResult<()> {
+            self.0.send_blocking(EnableIncrementTask { value })
         }
     }
 
@@ -304,19 +338,12 @@ mod tests {
         let message_increment = 10;
 
         let (address, _join_handle) = spawn_actor(my_data);
-        address
-            .spawn_task(|actor| async move {
-                actor
-                    .send(IncrementMessage {
-                        value: task_increment,
-                    })
-                    .await
-                    .unwrap();
-            })
-            .unwrap();
 
         let data_interface = DataInterface(address);
 
+        data_interface
+            .enable_increment_task(task_increment)
+            .unwrap();
         assert_eq!(
             data_interface.increment(message_increment).unwrap(),
             task_increment + message_increment

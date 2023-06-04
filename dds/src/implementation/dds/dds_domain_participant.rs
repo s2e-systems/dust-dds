@@ -46,7 +46,7 @@ use crate::{
             writer::RtpsWriter,
         },
         utils::{
-            actor::{self, Actor, Handler, Message},
+            actor::{self, ActorAddress, ActorJoinSet, Handler, Message},
             condvar::DdsCondvar,
         },
     },
@@ -155,8 +155,6 @@ pub struct DdsDomainParticipant {
     task_set: JoinSet<()>,
 }
 
-impl Actor for DdsDomainParticipant {}
-
 pub struct Enable;
 
 impl Message for Enable {
@@ -164,7 +162,12 @@ impl Message for Enable {
 }
 
 impl Handler<Enable> for DdsDomainParticipant {
-    fn handle(&mut self, _message: Enable) -> <Enable as Message>::Result {
+    fn handle(
+        &mut self,
+        _message: Enable,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <Enable as Message>::Result {
         self.enabled = true;
     }
 }
@@ -176,7 +179,12 @@ impl Message for GetQos {
 }
 
 impl Handler<GetQos> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetQos) -> <GetQos as Message>::Result {
+    fn handle(
+        &mut self,
+        _message: GetQos,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <GetQos as Message>::Result {
         self.qos.clone()
     }
 }
@@ -188,7 +196,12 @@ impl Message for GetDomainId {
 }
 
 impl Handler<GetDomainId> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetDomainId) -> <GetDomainId as Message>::Result {
+    fn handle(
+        &mut self,
+        _message: GetDomainId,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <GetDomainId as Message>::Result {
         self.domain_id
     }
 }
@@ -200,7 +213,12 @@ impl Message for GetInstanceHandle {
 }
 
 impl Handler<GetInstanceHandle> for DdsDomainParticipant {
-    fn handle(&mut self, message: GetInstanceHandle) -> <GetInstanceHandle as Message>::Result {
+    fn handle(
+        &mut self,
+        message: GetInstanceHandle,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <GetInstanceHandle as Message>::Result {
         self.rtps_participant.guid().into()
     }
 }
@@ -212,7 +230,12 @@ impl Message for IsEmpty {
 }
 
 impl Handler<IsEmpty> for DdsDomainParticipant {
-    fn handle(&mut self, _message: IsEmpty) -> <IsEmpty as Message>::Result {
+    fn handle(
+        &mut self,
+        _message: IsEmpty,
+        _actor_address: &mut ActorAddress<Self>,
+        _actor_task: &mut ActorJoinSet,
+    ) -> <IsEmpty as Message>::Result {
         self.user_defined_publisher_list().iter().count() == 0
             && self.user_defined_subscriber_list().iter().count() == 0
             && self.topic_list().iter().count() == 0
