@@ -45,7 +45,10 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        utils::{actor, condvar::DdsCondvar},
+        utils::{
+            actor::{self, Actor},
+            condvar::DdsCondvar,
+        },
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -151,6 +154,8 @@ pub struct DdsDomainParticipant {
     sedp_condvar: DdsCondvar,
     task_set: JoinSet<()>,
 }
+
+impl Actor for DdsDomainParticipant {}
 
 impl DdsDomainParticipant {
     #[allow(clippy::too_many_arguments)]

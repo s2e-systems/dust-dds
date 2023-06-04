@@ -4,12 +4,18 @@ use std::{
     task::Poll,
 };
 
-use tokio::{sync, task::JoinHandle};
+use tokio::{runtime, sync, task::JoinHandle};
 
-use crate::{
-    domain::domain_participant_factory::THE_TASK_RUNTIME,
-    infrastructure::error::{DdsError, DdsResult},
-};
+use lazy_static::lazy_static;
+
+use crate::infrastructure::error::{DdsError, DdsResult};
+
+lazy_static! {
+    static ref THE_RUNTIME: runtime::Runtime = runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Failed to create Tokio runtime");
+}
 
 pub trait Actor {}
 
@@ -55,7 +61,7 @@ where
         T: FnOnce(Self) -> F,
         F: Future<Output = ()> + Send + 'static,
     {
-        let join_handle = THE_TASK_RUNTIME.spawn(task(self.clone()));
+        let join_handle = THE_RUNTIME.spawn(task(self.clone()));
         self.task_sender
             .blocking_send(join_handle)
             .map_err(|_| DdsError::AlreadyDeleted)
@@ -175,7 +181,7 @@ where
         task_set: Vec::new(),
     };
     let actor_handle = ActorJoinHandle {
-        join_handle: THE_TASK_RUNTIME.spawn(poll_fn(move |cx| {
+        join_handle: THE_RUNTIME.spawn(poll_fn(move |cx| {
             while let Poll::Ready(val) = actor_obj.mailbox.poll_recv(cx) {
                 if let Some(mut m) = val {
                     m.handle(&mut actor_obj.value).ok();
@@ -304,7 +310,7 @@ mod tests {
             .unwrap();
 
         let data_interface = DataInterface(address);
-        
+
         assert_eq!(
             data_interface.increment(message_increment).unwrap(),
             task_increment + message_increment

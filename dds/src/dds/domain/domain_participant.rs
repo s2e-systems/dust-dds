@@ -89,9 +89,7 @@ use crate::{
 };
 
 use super::{
-    domain_participant_factory::{
-        DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY, THE_PARTICIPANT_FACTORY, THE_TASK_RUNTIME,
-    },
+    domain_participant_factory::{DomainId, THE_PARTICIPANT_FACTORY},
     domain_participant_listener::DomainParticipantListener,
 };
 
@@ -146,17 +144,18 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher = self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::create_publisher(dp, qos)
-        })?;
+        todo!()
+        // let publisher = self.call_participant_mut_method(|dp| {
+        //     crate::implementation::behavior::domain_participant::create_publisher(dp, qos)
+        // })?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_publisher_listener(
-            publisher.guid(),
-            a_listener,
-            mask,
-        );
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_publisher_listener(
+        //     publisher.guid(),
+        //     a_listener,
+        //     mask,
+        // );
 
-        Ok(Publisher::new(publisher))
+        // Ok(Publisher::new(publisher))
     }
 
     /// This operation deletes an existing [`Publisher`].
@@ -167,16 +166,17 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::delete_publisher(
-                dp,
-                a_publisher.node().guid(),
-            )
-        })?;
+        todo!()
+        // self.call_participant_mut_method(|dp| {
+        //     crate::implementation::behavior::domain_participant::delete_publisher(
+        //         dp,
+        //         a_publisher.node().guid(),
+        //     )
+        // })?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_publisher_listener(&a_publisher.node().guid());
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_publisher_listener(&a_publisher.node().guid());
 
-        Ok(())
+        // Ok(())
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
@@ -193,17 +193,18 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber = self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::create_subscriber(dp, qos)
-        })?;
+        todo!()
+        // let subscriber = self.call_participant_mut_method(|dp| {
+        //     crate::implementation::behavior::domain_participant::create_subscriber(dp, qos)
+        // })?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_subscriber_listener(
-            subscriber.guid(),
-            a_listener,
-            mask,
-        );
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_subscriber_listener(
+        //     subscriber.guid(),
+        //     a_listener,
+        //     mask,
+        // );
 
-        Ok(Subscriber::new(SubscriberNodeKind::UserDefined(subscriber)))
+        // Ok(Subscriber::new(SubscriberNodeKind::UserDefined(subscriber)))
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -213,22 +214,23 @@ impl DomainParticipant {
     /// it is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        match a_subscriber.node() {
-            SubscriberNodeKind::Builtin(_) => (),
-            SubscriberNodeKind::UserDefined(s) => {
-                self.call_participant_mut_method(|dp| {
-                    crate::implementation::behavior::domain_participant::delete_subscriber(
-                        dp,
-                        s.guid(),
-                    )
-                })?;
+        todo!()
+        // match a_subscriber.node() {
+        //     SubscriberNodeKind::Builtin(_) => (),
+        //     SubscriberNodeKind::UserDefined(s) => {
+        //         self.call_participant_mut_method(|dp| {
+        //             crate::implementation::behavior::domain_participant::delete_subscriber(
+        //                 dp,
+        //                 s.guid(),
+        //             )
+        //         })?;
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_subscriber_listener(&s.guid());
-            }
-            SubscriberNodeKind::Listener(_) => (),
-        }
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_subscriber_listener(&s.guid());
+        //     }
+        //     SubscriberNodeKind::Listener(_) => (),
+        // }
 
-        Ok(())
+        // Ok(())
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
@@ -250,22 +252,23 @@ impl DomainParticipant {
     where
         Foo: DdsType + 'static,
     {
-        let topic = self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::create_topic(
-                dp,
-                topic_name,
-                Foo::type_name(),
-                qos,
-            )
-        })?;
+        todo!()
+        // let topic = self.call_participant_mut_method(|dp| {
+        //     crate::implementation::behavior::domain_participant::create_topic(
+        //         dp,
+        //         topic_name,
+        //         Foo::type_name(),
+        //         qos,
+        //     )
+        // })?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_topic_listener(
-            topic.guid(),
-            a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
-            mask,
-        );
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_topic_listener(
+        //     topic.guid(),
+        //     a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+        //     mask,
+        // );
 
-        Ok(Topic::new(TopicNodeKind::UserDefined(topic)))
+        // Ok(Topic::new(TopicNodeKind::UserDefined(topic)))
     }
 
     /// This operation deletes a [`Topic`].
@@ -275,17 +278,18 @@ impl DomainParticipant {
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_topic<Foo>(&self, a_topic: &Topic<Foo>) -> DdsResult<()> {
-        match &a_topic.node() {
-            TopicNodeKind::UserDefined(t) => {
-                self.call_participant_mut_method(|dp| {
-                    crate::implementation::behavior::domain_participant::delete_topic(dp, t.guid())
-                })?;
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_topic_listener(&t.guid());
-            }
-            TopicNodeKind::Listener(_) => todo!(),
-        }
+        todo!()
+        // match &a_topic.node() {
+        //     TopicNodeKind::UserDefined(t) => {
+        //         self.call_participant_mut_method(|dp| {
+        //             crate::implementation::behavior::domain_participant::delete_topic(dp, t.guid())
+        //         })?;
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_topic_listener(&t.guid());
+        //     }
+        //     TopicNodeKind::Listener(_) => todo!(),
+        // }
 
-        Ok(())
+        // Ok(())
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
@@ -633,14 +637,15 @@ impl DomainParticipant {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-            &self.0.guid(),
-            |domain_participant_listener| {
-                Ok(domain_participant_listener
-                    .ok_or(DdsError::AlreadyDeleted)?
-                    .get_status_condition())
-            },
-        )
+        todo!()
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+        //     &self.0.guid(),
+        //     |domain_participant_listener| {
+        //         Ok(domain_participant_listener
+        //             .ok_or(DdsError::AlreadyDeleted)?
+        //             .get_status_condition())
+        //     },
+        // )
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -650,14 +655,15 @@ impl DomainParticipant {
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-            &self.0.guid(),
-            |domain_participant_listener| {
-                Ok(domain_participant_listener
-                    .ok_or(DdsError::AlreadyDeleted)?
-                    .get_status_changes())
-            },
-        )
+        todo!()
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+        //     &self.0.guid(),
+        //     |domain_participant_listener| {
+        //         Ok(domain_participant_listener
+        //             .ok_or(DdsError::AlreadyDeleted)?
+        //             .get_status_changes())
+        //     },
+        // )
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -681,11 +687,12 @@ impl DomainParticipant {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            THE_TASK_RUNTIME.block_on(async {
-                crate::implementation::behavior::domain_participant::enable(dp).await
-            })
-        })
+        todo!()
+        // self.call_participant_mut_method(|dp| {
+        //     THE_TASK_RUNTIME.block_on(async {
+        //         crate::implementation::behavior::domain_participant::enable(dp).await
+        //     })
+        // })
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
@@ -697,123 +704,130 @@ impl DomainParticipant {
     where
         F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.guid().prefix(), |dp| {
-            f(dp.ok_or(DdsError::AlreadyDeleted)?)
-        })
+        todo!()
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.guid().prefix(), |dp| {
+        //     f(dp.ok_or(DdsError::AlreadyDeleted)?)
+        // })
     }
 
     fn call_participant_mut_method<F, O>(&self, f: F) -> DdsResult<O>
     where
         F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
-            f(dp.ok_or(DdsError::AlreadyDeleted)?)
-        })
+        todo!()
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
+        //     f(dp.ok_or(DdsError::AlreadyDeleted)?)
+        // })
     }
 }
 
 /////////////////////////////////////////////////////////////////////////
 
 pub async fn task_announce_participant(participant_guid_prefix: GuidPrefix) {
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
-    loop {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    dp.announce_participant().ok();
-                }
-            })
-            .await;
-        interval.tick().await;
-    }
+    todo!()
+    // let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+    // loop {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+    //         .get_participant_mut_async(&participant_guid_prefix, |dp| {
+    //             if let Some(dp) = dp {
+    //                 dp.announce_participant().ok();
+    //             }
+    //         })
+    //         .await;
+    //     interval.tick().await;
+    // }
 }
 
 pub async fn task_unicast_user_defined_communication_send(
     participant_guid_prefix: GuidPrefix,
     _user_defined_data_send_condvar: DdsCondvar,
 ) {
-    let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
-    let mut default_unicast_transport_send = UdpTransportWrite::new(socket);
+    todo!()
+    // let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
+    // let mut default_unicast_transport_send = UdpTransportWrite::new(socket);
 
-    loop {
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    // loop {
+    //     tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        // let _r = user_defined_data_send_condvar.wait_timeout(Duration::new(0, 100_000_000));
+    //     // let _r = user_defined_data_send_condvar.wait_timeout(Duration::new(0, 100_000_000));
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    user_defined_communication_send(dp, &mut default_unicast_transport_send);
-                }
-            })
-            .await
-    }
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+    //         .get_participant_mut_async(&participant_guid_prefix, |dp| {
+    //             if let Some(dp) = dp {
+    //                 user_defined_communication_send(dp, &mut default_unicast_transport_send);
+    //             }
+    //         })
+    //         .await
+    // }
 }
 
 pub async fn task_unicast_metatraffic_communication_send(
     participant_guid_prefix: GuidPrefix,
     _sedp_condvar: DdsCondvar,
 ) {
-    let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
+    todo!()
+    // let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
 
-    let mut metatraffic_unicast_transport_send = UdpTransportWrite::new(socket);
+    // let mut metatraffic_unicast_transport_send = UdpTransportWrite::new(socket);
 
-    loop {
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    // loop {
+    //     tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        // let _r = sedp_condvar.wait_timeout(Duration::new(0, 500000000));
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    send_builtin_message(dp, &mut metatraffic_unicast_transport_send);
-                }
-            })
-            .await;
-    }
+    //     // let _r = sedp_condvar.wait_timeout(Duration::new(0, 500000000));
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+    //         .get_participant_mut_async(&participant_guid_prefix, |dp| {
+    //             if let Some(dp) = dp {
+    //                 send_builtin_message(dp, &mut metatraffic_unicast_transport_send);
+    //             }
+    //         })
+    //         .await;
+    // }
 }
 
 pub async fn task_send_entity_announce(
     participant_guid_prefix: GuidPrefix,
     mut announce_receiver: Receiver<AnnounceKind>,
 ) {
-    loop {
-        if let Some(announce_kind) = announce_receiver.recv().await {
-            THE_TASK_RUNTIME
-                .spawn_blocking(move || {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                        &participant_guid_prefix,
-                        |dp| {
-                            if let Some(dp) = dp {
-                                announce_entity(dp, announce_kind);
-                            }
-                        },
-                    )
-                })
-                .await
-                .unwrap()
-        }
-    }
+    todo!()
+    // loop {
+    //     if let Some(announce_kind) = announce_receiver.recv().await {
+    //         THE_TASK_RUNTIME
+    //             .spawn_blocking(move || {
+    //                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+    //                     &participant_guid_prefix,
+    //                     |dp| {
+    //                         if let Some(dp) = dp {
+    //                             announce_entity(dp, announce_kind);
+    //                         }
+    //                     },
+    //                 )
+    //             })
+    //             .await
+    //             .unwrap()
+    //     }
+    // }
 }
 
 fn announce_entity(domain_participant: &mut DdsDomainParticipant, announce_kind: AnnounceKind) {
-    match announce_kind {
-        AnnounceKind::CreatedDataReader(discovered_reader_data) => {
-            announce_created_data_reader(domain_participant, discovered_reader_data)
-        }
-        AnnounceKind::CreatedDataWriter(discovered_writer_data) => {
-            announce_created_data_writer(domain_participant, discovered_writer_data)
-        }
-        AnnounceKind::CratedTopic(discovered_topic_data) => {
-            announce_created_topic(domain_participant, discovered_topic_data)
-        }
-        AnnounceKind::DeletedDataReader(deleted_reader_handle) => {
-            announce_deleted_reader(domain_participant, deleted_reader_handle)
-        }
-        AnnounceKind::DeletedDataWriter(deleted_writer_handle) => {
-            announce_deleted_writer(domain_participant, deleted_writer_handle)
-        }
-        AnnounceKind::DeletedParticipant => (),
-    }
+    todo!()
+    // match announce_kind {
+    //     AnnounceKind::CreatedDataReader(discovered_reader_data) => {
+    //         announce_created_data_reader(domain_participant, discovered_reader_data)
+    //     }
+    //     AnnounceKind::CreatedDataWriter(discovered_writer_data) => {
+    //         announce_created_data_writer(domain_participant, discovered_writer_data)
+    //     }
+    //     AnnounceKind::CratedTopic(discovered_topic_data) => {
+    //         announce_created_topic(domain_participant, discovered_topic_data)
+    //     }
+    //     AnnounceKind::DeletedDataReader(deleted_reader_handle) => {
+    //         announce_deleted_reader(domain_participant, deleted_reader_handle)
+    //     }
+    //     AnnounceKind::DeletedDataWriter(deleted_writer_handle) => {
+    //         announce_deleted_writer(domain_participant, deleted_writer_handle)
+    //     }
+    //     AnnounceKind::DeletedParticipant => (),
+    // }
 }
 
 pub async fn task_user_defined_receive(
@@ -821,18 +835,19 @@ pub async fn task_user_defined_receive(
     mut default_unicast_transport: UdpTransportRead,
     listener_sender: Sender<ListenerTriggerKind>,
 ) {
-    loop {
-        if let Some((locator, message)) = default_unicast_transport.read().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                    if let Some(dp) = dp {
-                        dp.receive_user_defined_data(locator, message, &listener_sender)
-                            .ok();
-                    }
-                })
-                .await;
-        }
-    }
+    todo!()
+    // loop {
+    //     if let Some((locator, message)) = default_unicast_transport.read().await {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+    //             .get_participant_mut_async(&participant_guid_prefix, |dp| {
+    //                 if let Some(dp) = dp {
+    //                     dp.receive_user_defined_data(locator, message, &listener_sender)
+    //                         .ok();
+    //                 }
+    //             })
+    //             .await;
+    //     }
+    // }
 }
 
 pub async fn task_metatraffic_unicast_receive(
@@ -841,23 +856,24 @@ pub async fn task_metatraffic_unicast_receive(
     sedp_condvar: DdsCondvar,
     listener_sender: Sender<ListenerTriggerKind>,
 ) {
-    loop {
-        if let Some((locator, message)) = metatraffic_unicast_transport.read().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                    if let Some(dp) = dp {
-                        receive_builtin_message(
-                            dp,
-                            message,
-                            locator,
-                            &sedp_condvar,
-                            &listener_sender,
-                        )
-                    }
-                })
-                .await
-        }
-    }
+    todo!()
+    // loop {
+    //     if let Some((locator, message)) = metatraffic_unicast_transport.read().await {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+    //             .get_participant_mut_async(&participant_guid_prefix, |dp| {
+    //                 if let Some(dp) = dp {
+    //                     receive_builtin_message(
+    //                         dp,
+    //                         message,
+    //                         locator,
+    //                         &sedp_condvar,
+    //                         &listener_sender,
+    //                     )
+    //                 }
+    //             })
+    //             .await
+    //     }
+    // }
 }
 
 pub async fn task_metatraffic_multicast_receive(
@@ -866,734 +882,746 @@ pub async fn task_metatraffic_multicast_receive(
     sedp_condvar: DdsCondvar,
     listener_sender: Sender<ListenerTriggerKind>,
 ) {
-    loop {
-        if let Some((locator, message)) = metatraffic_multicast_transport.read().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                    if let Some(dp) = dp {
-                        receive_builtin_message(
-                            dp,
-                            message,
-                            locator,
-                            &sedp_condvar,
-                            &listener_sender,
-                        )
-                    }
-                })
-                .await
-        }
-    }
+    todo!()
+    // loop {
+    //     if let Some((locator, message)) = metatraffic_multicast_transport.read().await {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+    //             .get_participant_mut_async(&participant_guid_prefix, |dp| {
+    //                 if let Some(dp) = dp {
+    //                     receive_builtin_message(
+    //                         dp,
+    //                         message,
+    //                         locator,
+    //                         &sedp_condvar,
+    //                         &listener_sender,
+    //                     )
+    //                 }
+    //             })
+    //             .await
+    //     }
+    // }
 }
 
 pub async fn task_update_communication_status(
     participant_guid_prefix: GuidPrefix,
     listener_sender: Sender<ListenerTriggerKind>,
 ) {
-    loop {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    dp.update_communication_status(&listener_sender).ok();
-                }
-            })
-            .await;
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-    }
+    todo!()
+    // loop {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+    //         .get_participant_mut_async(&participant_guid_prefix, |dp| {
+    //             if let Some(dp) = dp {
+    //                 dp.update_communication_status(&listener_sender).ok();
+    //             }
+    //         })
+    //         .await;
+    //     tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    // }
 }
 
 pub async fn task_listener_receiver(mut listener_receiver: Receiver<ListenerTriggerKind>) {
-    loop {
-        if let Some(l) = listener_receiver.recv().await {
-            match l {
-                ListenerTriggerKind::RequestedDeadlineMissed(dr) => {
-                    THE_TASK_RUNTIME.spawn_blocking(move || {
-                        on_requested_deadline_missed_communication_change(dr)
-                    });
-                }
-                ListenerTriggerKind::OnDataAvailable(dr) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_data_available_communication_change(dr));
-                }
-                ListenerTriggerKind::SubscriptionMatched(dr) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_subscription_matched_communication_change(dr));
-                }
-                ListenerTriggerKind::RequestedIncompatibleQos(dr) => {
-                    THE_TASK_RUNTIME.spawn_blocking(move || {
-                        on_requested_incompatible_qos_communication_change(dr)
-                    });
-                }
-                ListenerTriggerKind::OnSampleRejected(dr) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_sample_rejected_communication_change(dr));
-                }
-                ListenerTriggerKind::OnSampleLost(dr) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_sample_lost_communication_change(dr));
-                }
-                ListenerTriggerKind::OfferedIncompatibleQos(dw) => {
-                    THE_TASK_RUNTIME.spawn_blocking(move || {
-                        on_offered_incompatible_qos_communication_change(dw)
-                    });
-                }
-                ListenerTriggerKind::PublicationMatched(dw) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_publication_matched_communication_change(dw));
-                }
-                ListenerTriggerKind::InconsistentTopic(t) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_inconsistent_topic_communication_change(t));
-                }
-            }
-        }
-    }
+    todo!()
+    // loop {
+    //     if let Some(l) = listener_receiver.recv().await {
+    //         match l {
+    //             ListenerTriggerKind::RequestedDeadlineMissed(dr) => {
+    //                 THE_TASK_RUNTIME.spawn_blocking(move || {
+    //                     on_requested_deadline_missed_communication_change(dr)
+    //                 });
+    //             }
+    //             ListenerTriggerKind::OnDataAvailable(dr) => {
+    //                 THE_TASK_RUNTIME
+    //                     .spawn_blocking(move || on_data_available_communication_change(dr));
+    //             }
+    //             ListenerTriggerKind::SubscriptionMatched(dr) => {
+    //                 THE_TASK_RUNTIME
+    //                     .spawn_blocking(move || on_subscription_matched_communication_change(dr));
+    //             }
+    //             ListenerTriggerKind::RequestedIncompatibleQos(dr) => {
+    //                 THE_TASK_RUNTIME.spawn_blocking(move || {
+    //                     on_requested_incompatible_qos_communication_change(dr)
+    //                 });
+    //             }
+    //             ListenerTriggerKind::OnSampleRejected(dr) => {
+    //                 THE_TASK_RUNTIME
+    //                     .spawn_blocking(move || on_sample_rejected_communication_change(dr));
+    //             }
+    //             ListenerTriggerKind::OnSampleLost(dr) => {
+    //                 THE_TASK_RUNTIME
+    //                     .spawn_blocking(move || on_sample_lost_communication_change(dr));
+    //             }
+    //             ListenerTriggerKind::OfferedIncompatibleQos(dw) => {
+    //                 THE_TASK_RUNTIME.spawn_blocking(move || {
+    //                     on_offered_incompatible_qos_communication_change(dw)
+    //                 });
+    //             }
+    //             ListenerTriggerKind::PublicationMatched(dw) => {
+    //                 THE_TASK_RUNTIME
+    //                     .spawn_blocking(move || on_publication_matched_communication_change(dw));
+    //             }
+    //             ListenerTriggerKind::InconsistentTopic(t) => {
+    //                 THE_TASK_RUNTIME
+    //                     .spawn_blocking(move || on_inconsistent_topic_communication_change(t));
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 fn on_requested_deadline_missed_communication_change(data_reader_node: DataReaderNode) {
-    fn get_requested_deadline_missed_status(
-        data_reader_node: &DataReaderNode,
-    ) -> DdsResult<RequestedDeadlineMissedStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
-            })
-    }
+    todo!()
+    // fn get_requested_deadline_missed_status(
+    //     data_reader_node: &DataReaderNode,
+    // ) -> DdsResult<RequestedDeadlineMissedStatus> {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+    //         .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
+    //             crate::implementation::behavior::user_defined_data_reader::get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
+    //         })
+    // }
 
-    let status_kind = StatusKind::RequestedDeadlineMissed;
-    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| match data_reader_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_requested_deadline_missed(data_reader_node, status);
-                }
-                true
-            }
-            _ => false,
-        },
-    );
+    // let status_kind = StatusKind::RequestedDeadlineMissed;
+    // let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| match data_reader_listener {
+    //         Some(l) if l.is_enabled(&status_kind) => {
+    //             if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node) {
+    //                 l.listener_mut()
+    //                     .as_mut()
+    //                     .expect("Listener should be some")
+    //                     .trigger_on_requested_deadline_missed(data_reader_node, status);
+    //             }
+    //             true
+    //         }
+    //         _ => false,
+    //     },
+    // );
 
-    if !reader_listener {
-        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-            &data_reader_node.parent_subscriber(),
-            |subscriber_listener| match subscriber_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_requested_deadline_missed(&data_reader_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
+    // if !reader_listener {
+    //     let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+    //         &data_reader_node.parent_subscriber(),
+    //         |subscriber_listener| match subscriber_listener {
+    //             Some(l) if l.is_enabled(&status_kind) => {
+    //                 if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node) {
+    //                     l.listener_mut()
+    //                         .as_mut()
+    //                         .expect("Listener should be some")
+    //                         .on_requested_deadline_missed(&data_reader_node, status)
+    //                 }
+    //                 true
+    //             }
+    //             _ => false,
+    //         },
+    //     );
 
-        if !subscriber_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_reader_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node)
-                        {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_requested_deadline_missed(&data_reader_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
+    //     if !subscriber_listener {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+    //             &data_reader_node.parent_participant(),
+    //             |participant_listener| match participant_listener {
+    //                 Some(l) if l.is_enabled(&status_kind) => {
+    //                     if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node)
+    //                     {
+    //                         l.listener_mut()
+    //                             .as_mut()
+    //                             .expect("Listener should be some")
+    //                             .on_requested_deadline_missed(&data_reader_node, status)
+    //                     }
+    //                 }
+    //                 _ => (),
+    //             },
+    //         );
+    //     }
+    // }
 
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
+    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| {
+    //         if let Some(l) = data_reader_listener {
+    //             l.add_communication_state(status_kind);
+    //         }
+    //     },
+    // )
 }
 
 fn on_data_available_communication_change(data_reader_node: DataReaderNode) {
-    let data_on_reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-        &data_reader_node.parent_subscriber(),
-        |subscriber_listener| match subscriber_listener {
-            Some(l) if l.is_enabled(&StatusKind::DataOnReaders) => {
-                l.listener_mut()
-                    .as_mut()
-                    .expect("Listener should be some")
-                    .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
-                        SubscriberNode::new(
-                            data_reader_node.parent_subscriber(),
-                            data_reader_node.parent_participant(),
-                        ),
-                    )));
-                true
-            }
-            _ => false,
-        },
-    );
-    if !data_on_reader_listener {
-        let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-            &data_reader_node.guid(),
-            |data_reader_listener| match data_reader_listener {
-                Some(l) if l.is_enabled(&StatusKind::DataAvailable) => {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_data_available(data_reader_node);
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !reader_listener {
-            let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-                &data_reader_node.parent_subscriber(),
-                |subscriber_listener| match subscriber_listener {
-                    Some(l) if l.is_enabled(&StatusKind::DataAvailable) => {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_data_available(&data_reader_node);
+    todo!()
+    // let data_on_reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+    //     &data_reader_node.parent_subscriber(),
+    //     |subscriber_listener| match subscriber_listener {
+    //         Some(l) if l.is_enabled(&StatusKind::DataOnReaders) => {
+    //             l.listener_mut()
+    //                 .as_mut()
+    //                 .expect("Listener should be some")
+    //                 .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
+    //                     SubscriberNode::new(
+    //                         data_reader_node.parent_subscriber(),
+    //                         data_reader_node.parent_participant(),
+    //                     ),
+    //                 )));
+    //             true
+    //         }
+    //         _ => false,
+    //     },
+    // );
+    // if !data_on_reader_listener {
+    //     let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //         &data_reader_node.guid(),
+    //         |data_reader_listener| match data_reader_listener {
+    //             Some(l) if l.is_enabled(&StatusKind::DataAvailable) => {
+    //                 l.listener_mut()
+    //                     .as_mut()
+    //                     .expect("Listener should be some")
+    //                     .trigger_on_data_available(data_reader_node);
+    //                 true
+    //             }
+    //             _ => false,
+    //         },
+    //     );
+    //     if !reader_listener {
+    //         let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+    //             &data_reader_node.parent_subscriber(),
+    //             |subscriber_listener| match subscriber_listener {
+    //                 Some(l) if l.is_enabled(&StatusKind::DataAvailable) => {
+    //                     l.listener_mut()
+    //                         .as_mut()
+    //                         .expect("Listener should be some")
+    //                         .on_data_available(&data_reader_node);
 
-                        true
-                    }
-                    _ => false,
-                },
-            );
-            if !subscriber_listener {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                    &data_reader_node.parent_participant(),
-                    |participant_listener| match participant_listener {
-                        Some(l) if l.is_enabled(&StatusKind::DataAvailable) => l
-                            .listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_data_available(&data_reader_node),
-                        _ => (),
-                    },
-                );
-            }
-        }
-    }
+    //                     true
+    //                 }
+    //                 _ => false,
+    //             },
+    //         );
+    //         if !subscriber_listener {
+    //             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+    //                 &data_reader_node.parent_participant(),
+    //                 |participant_listener| match participant_listener {
+    //                     Some(l) if l.is_enabled(&StatusKind::DataAvailable) => l
+    //                         .listener_mut()
+    //                         .as_mut()
+    //                         .expect("Listener should be some")
+    //                         .on_data_available(&data_reader_node),
+    //                     _ => (),
+    //                 },
+    //             );
+    //         }
+    //     }
+    // }
 
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-        &data_reader_node.parent_subscriber(),
-        |subscriber_listener| {
-            if let Some(l) = subscriber_listener {
-                l.add_communication_state(StatusKind::DataOnReaders);
-            }
-        },
-    );
+    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+    //     &data_reader_node.parent_subscriber(),
+    //     |subscriber_listener| {
+    //         if let Some(l) = subscriber_listener {
+    //             l.add_communication_state(StatusKind::DataOnReaders);
+    //         }
+    //     },
+    // );
 
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(StatusKind::DataAvailable);
-            }
-        },
-    )
+    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| {
+    //         if let Some(l) = data_reader_listener {
+    //             l.add_communication_state(StatusKind::DataAvailable);
+    //         }
+    //     },
+    // )
 }
 
 fn on_subscription_matched_communication_change(data_reader_node: DataReaderNode) {
-    fn get_subscription_matched_status(
-        data_reader_node: &DataReaderNode,
-    ) -> DdsResult<SubscriptionMatchedStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_reader_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_subscription_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
-            },
-        )
-    }
+    todo!()
+    // fn get_subscription_matched_status(
+    //     data_reader_node: &DataReaderNode,
+    // ) -> DdsResult<SubscriptionMatchedStatus> {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+    //         &data_reader_node.parent_participant().prefix(),
+    //         |dp| {
+    //             crate::implementation::behavior::user_defined_data_reader::get_subscription_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
+    //         },
+    //     )
+    // }
 
-    let status_kind = StatusKind::SubscriptionMatched;
-    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| match data_reader_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_subscription_matched(data_reader_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !reader_listener {
-        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-            &data_reader_node.parent_subscriber(),
-            |subscriber_listener| match subscriber_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_subscription_matched(&data_reader_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !subscriber_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_reader_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_subscription_matched(&data_reader_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
+    // let status_kind = StatusKind::SubscriptionMatched;
+    // let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| match data_reader_listener {
+    //         Some(l) if l.is_enabled(&status_kind) => {
+    //             if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
+    //                 l.listener_mut()
+    //                     .as_mut()
+    //                     .expect("Listener should be some")
+    //                     .trigger_on_subscription_matched(data_reader_node, status)
+    //             }
+    //             true
+    //         }
+    //         _ => false,
+    //     },
+    // );
+    // if !reader_listener {
+    //     let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+    //         &data_reader_node.parent_subscriber(),
+    //         |subscriber_listener| match subscriber_listener {
+    //             Some(l) if l.is_enabled(&status_kind) => {
+    //                 if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
+    //                     l.listener_mut()
+    //                         .as_mut()
+    //                         .expect("Listener should be some")
+    //                         .on_subscription_matched(&data_reader_node, status)
+    //                 }
+    //                 true
+    //             }
+    //             _ => false,
+    //         },
+    //     );
+    //     if !subscriber_listener {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+    //             &data_reader_node.parent_participant(),
+    //             |participant_listener| match participant_listener {
+    //                 Some(l) if l.is_enabled(&status_kind) => {
+    //                     if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
+    //                         l.listener_mut()
+    //                             .as_mut()
+    //                             .expect("Listener should be some")
+    //                             .on_subscription_matched(&data_reader_node, status)
+    //                     }
+    //                 }
+    //                 _ => (),
+    //             },
+    //         );
+    //     }
+    // }
 
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
+    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| {
+    //         if let Some(l) = data_reader_listener {
+    //             l.add_communication_state(status_kind);
+    //         }
+    //     },
+    // )
 }
 
 fn on_requested_incompatible_qos_communication_change(data_reader_node: DataReaderNode) {
-    fn get_requested_incompatible_qos_status(
-        data_reader_node: &DataReaderNode,
-    ) -> DdsResult<RequestedIncompatibleQosStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_reader_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_requested_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
-            },
-        )
-    }
+    todo!()
+    // fn get_requested_incompatible_qos_status(
+    //     data_reader_node: &DataReaderNode,
+    // ) -> DdsResult<RequestedIncompatibleQosStatus> {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+    //         &data_reader_node.parent_participant().prefix(),
+    //         |dp| {
+    //             crate::implementation::behavior::user_defined_data_reader::get_requested_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
+    //         },
+    //     )
+    // }
 
-    let status_kind = StatusKind::RequestedIncompatibleQos;
-    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| match data_reader_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_requested_incompatible_qos(data_reader_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !reader_listener {
-        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-            &data_reader_node.parent_subscriber(),
-            |subscriber_listener| match subscriber_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_requested_incompatible_qos(&data_reader_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !subscriber_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_reader_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node)
-                        {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_requested_incompatible_qos(&data_reader_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
+    // let status_kind = StatusKind::RequestedIncompatibleQos;
+    // let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| match data_reader_listener {
+    //         Some(l) if l.is_enabled(&status_kind) => {
+    //             if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node) {
+    //                 l.listener_mut()
+    //                     .as_mut()
+    //                     .expect("Listener should be some")
+    //                     .trigger_on_requested_incompatible_qos(data_reader_node, status)
+    //             }
+    //             true
+    //         }
+    //         _ => false,
+    //     },
+    // );
+    // if !reader_listener {
+    //     let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+    //         &data_reader_node.parent_subscriber(),
+    //         |subscriber_listener| match subscriber_listener {
+    //             Some(l) if l.is_enabled(&status_kind) => {
+    //                 if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node) {
+    //                     l.listener_mut()
+    //                         .as_mut()
+    //                         .expect("Listener should be some")
+    //                         .on_requested_incompatible_qos(&data_reader_node, status)
+    //                 }
+    //                 true
+    //             }
+    //             _ => false,
+    //         },
+    //     );
+    //     if !subscriber_listener {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+    //             &data_reader_node.parent_participant(),
+    //             |participant_listener| match participant_listener {
+    //                 Some(l) if l.is_enabled(&status_kind) => {
+    //                     if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node)
+    //                     {
+    //                         l.listener_mut()
+    //                             .as_mut()
+    //                             .expect("Listener should be some")
+    //                             .on_requested_incompatible_qos(&data_reader_node, status)
+    //                     }
+    //                 }
+    //                 _ => (),
+    //             },
+    //         );
+    //     }
+    // }
 
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
+    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| {
+    //         if let Some(l) = data_reader_listener {
+    //             l.add_communication_state(status_kind);
+    //         }
+    //     },
+    // )
 }
 
 fn on_sample_rejected_communication_change(data_reader_node: DataReaderNode) {
-    fn get_sample_rejected_status(
-        data_reader_node: &DataReaderNode,
-    ) -> DdsResult<SampleRejectedStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_sample_rejected_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
-            })
-    }
+    todo!()
+    // fn get_sample_rejected_status(
+    //     data_reader_node: &DataReaderNode,
+    // ) -> DdsResult<SampleRejectedStatus> {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+    //         .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
+    //             crate::implementation::behavior::user_defined_data_reader::get_sample_rejected_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
+    //         })
+    // }
 
-    let status_kind = StatusKind::SampleRejected;
-    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| match data_reader_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_sample_rejected(data_reader_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !reader_listener {
-        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-            &data_reader_node.parent_subscriber(),
-            |subscriber_listener| match subscriber_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_sample_rejected(&data_reader_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !subscriber_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_reader_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_sample_rejected(&data_reader_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
+    // let status_kind = StatusKind::SampleRejected;
+    // let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| match data_reader_listener {
+    //         Some(l) if l.is_enabled(&status_kind) => {
+    //             if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
+    //                 l.listener_mut()
+    //                     .as_mut()
+    //                     .expect("Listener should be some")
+    //                     .trigger_on_sample_rejected(data_reader_node, status)
+    //             }
+    //             true
+    //         }
+    //         _ => false,
+    //     },
+    // );
+    // if !reader_listener {
+    //     let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+    //         &data_reader_node.parent_subscriber(),
+    //         |subscriber_listener| match subscriber_listener {
+    //             Some(l) if l.is_enabled(&status_kind) => {
+    //                 if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
+    //                     l.listener_mut()
+    //                         .as_mut()
+    //                         .expect("Listener should be some")
+    //                         .on_sample_rejected(&data_reader_node, status)
+    //                 }
+    //                 true
+    //             }
+    //             _ => false,
+    //         },
+    //     );
+    //     if !subscriber_listener {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+    //             &data_reader_node.parent_participant(),
+    //             |participant_listener| match participant_listener {
+    //                 Some(l) if l.is_enabled(&status_kind) => {
+    //                     if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
+    //                         l.listener_mut()
+    //                             .as_mut()
+    //                             .expect("Listener should be some")
+    //                             .on_sample_rejected(&data_reader_node, status)
+    //                     }
+    //                 }
+    //                 _ => (),
+    //             },
+    //         );
+    //     }
+    // }
 
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
+    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| {
+    //         if let Some(l) = data_reader_listener {
+    //             l.add_communication_state(status_kind);
+    //         }
+    //     },
+    // )
 }
 
 fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
-    fn get_sample_lost_status(data_reader_node: &DataReaderNode) -> DdsResult<SampleLostStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_reader_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_sample_lost_status(
-                    dp.ok_or(DdsError::AlreadyDeleted)?,
-                    data_reader_node.guid(),
-                    data_reader_node.parent_subscriber(),
-                )
-            },
-        )
-    }
+    todo!()
+    // fn get_sample_lost_status(data_reader_node: &DataReaderNode) -> DdsResult<SampleLostStatus> {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+    //         &data_reader_node.parent_participant().prefix(),
+    //         |dp| {
+    //             crate::implementation::behavior::user_defined_data_reader::get_sample_lost_status(
+    //                 dp.ok_or(DdsError::AlreadyDeleted)?,
+    //                 data_reader_node.guid(),
+    //                 data_reader_node.parent_subscriber(),
+    //             )
+    //         },
+    //     )
+    // }
 
-    let status_kind = StatusKind::SampleLost;
-    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| match data_reader_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_sample_lost_status(&data_reader_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_sample_lost(data_reader_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !reader_listener {
-        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-            &data_reader_node.parent_subscriber(),
-            |subscriber_listener| match subscriber_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_sample_lost_status(&data_reader_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_sample_lost(&data_reader_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !subscriber_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_reader_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_sample_lost_status(&data_reader_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_sample_lost(&data_reader_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
+    // let status_kind = StatusKind::SampleLost;
+    // let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| match data_reader_listener {
+    //         Some(l) if l.is_enabled(&status_kind) => {
+    //             if let Ok(status) = get_sample_lost_status(&data_reader_node) {
+    //                 l.listener_mut()
+    //                     .as_mut()
+    //                     .expect("Listener should be some")
+    //                     .trigger_on_sample_lost(data_reader_node, status)
+    //             }
+    //             true
+    //         }
+    //         _ => false,
+    //     },
+    // );
+    // if !reader_listener {
+    //     let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+    //         &data_reader_node.parent_subscriber(),
+    //         |subscriber_listener| match subscriber_listener {
+    //             Some(l) if l.is_enabled(&status_kind) => {
+    //                 if let Ok(status) = get_sample_lost_status(&data_reader_node) {
+    //                     l.listener_mut()
+    //                         .as_mut()
+    //                         .expect("Listener should be some")
+    //                         .on_sample_lost(&data_reader_node, status)
+    //                 }
+    //                 true
+    //             }
+    //             _ => false,
+    //         },
+    //     );
+    //     if !subscriber_listener {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+    //             &data_reader_node.parent_participant(),
+    //             |participant_listener| match participant_listener {
+    //                 Some(l) if l.is_enabled(&status_kind) => {
+    //                     if let Ok(status) = get_sample_lost_status(&data_reader_node) {
+    //                         l.listener_mut()
+    //                             .as_mut()
+    //                             .expect("Listener should be some")
+    //                             .on_sample_lost(&data_reader_node, status)
+    //                     }
+    //                 }
+    //                 _ => (),
+    //             },
+    //         );
+    //     }
+    // }
 
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
+    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    //     &data_reader_node.guid(),
+    //     |data_reader_listener| {
+    //         if let Some(l) = data_reader_listener {
+    //             l.add_communication_state(status_kind);
+    //         }
+    //     },
+    // )
 }
 
 fn on_offered_incompatible_qos_communication_change(data_writer_node: DataWriterNode) {
-    fn get_offered_incompatible_qos_status(
-        data_writer_node: &DataWriterNode,
-    ) -> DdsResult<OfferedIncompatibleQosStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_writer_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_data_writer::get_offered_incompatible_qos_status(
-                    dp.ok_or(DdsError::AlreadyDeleted)?,
-                    data_writer_node.guid(),
-                    data_writer_node.parent_publisher(),
-                )
-            },
-        )
-    }
+    todo!()
+    // fn get_offered_incompatible_qos_status(
+    //     data_writer_node: &DataWriterNode,
+    // ) -> DdsResult<OfferedIncompatibleQosStatus> {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+    //         &data_writer_node.parent_participant().prefix(),
+    //         |dp| {
+    //             crate::implementation::behavior::user_defined_data_writer::get_offered_incompatible_qos_status(
+    //                 dp.ok_or(DdsError::AlreadyDeleted)?,
+    //                 data_writer_node.guid(),
+    //                 data_writer_node.parent_publisher(),
+    //             )
+    //         },
+    //     )
+    // }
 
-    let status_kind = StatusKind::OfferedIncompatibleQos;
-    let writer_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-        &data_writer_node.guid(),
-        |data_writer_listener| match data_writer_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_offered_incompatible_qos(data_writer_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !writer_listener {
-        let publisher_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
-            &data_writer_node.parent_publisher(),
-            |publisher_listener| match publisher_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_offered_incompatible_qos(&data_writer_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !publisher_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_writer_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_offered_incompatible_qos(&data_writer_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
+    // let status_kind = StatusKind::OfferedIncompatibleQos;
+    // let writer_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+    //     &data_writer_node.guid(),
+    //     |data_writer_listener| match data_writer_listener {
+    //         Some(l) if l.is_enabled(&status_kind) => {
+    //             if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
+    //                 l.listener_mut()
+    //                     .as_mut()
+    //                     .expect("Listener should be some")
+    //                     .trigger_on_offered_incompatible_qos(data_writer_node, status)
+    //             }
+    //             true
+    //         }
+    //         _ => false,
+    //     },
+    // );
+    // if !writer_listener {
+    //     let publisher_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
+    //         &data_writer_node.parent_publisher(),
+    //         |publisher_listener| match publisher_listener {
+    //             Some(l) if l.is_enabled(&status_kind) => {
+    //                 if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
+    //                     l.listener_mut()
+    //                         .as_mut()
+    //                         .expect("Listener should be some")
+    //                         .on_offered_incompatible_qos(&data_writer_node, status)
+    //                 }
+    //                 true
+    //             }
+    //             _ => false,
+    //         },
+    //     );
+    //     if !publisher_listener {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+    //             &data_writer_node.parent_participant(),
+    //             |participant_listener| match participant_listener {
+    //                 Some(l) if l.is_enabled(&status_kind) => {
+    //                     if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
+    //                         l.listener_mut()
+    //                             .as_mut()
+    //                             .expect("Listener should be some")
+    //                             .on_offered_incompatible_qos(&data_writer_node, status)
+    //                     }
+    //                 }
+    //                 _ => (),
+    //             },
+    //         );
+    //     }
+    // }
 
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-        &data_writer_node.guid(),
-        |data_writer_listener| {
-            if let Some(l) = data_writer_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
+    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+    //     &data_writer_node.guid(),
+    //     |data_writer_listener| {
+    //         if let Some(l) = data_writer_listener {
+    //             l.add_communication_state(status_kind);
+    //         }
+    //     },
+    // )
 }
 
 fn on_publication_matched_communication_change(data_writer_node: DataWriterNode) {
-    fn get_publication_matched_status(
-        data_writer_node: &DataWriterNode,
-    ) -> DdsResult<PublicationMatchedStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_writer_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_data_writer::get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?,data_writer_node.guid(),
-                data_writer_node.parent_publisher(),)
-            },
-        )
-    }
+    todo!()
+    // fn get_publication_matched_status(
+    //     data_writer_node: &DataWriterNode,
+    // ) -> DdsResult<PublicationMatchedStatus> {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+    //         &data_writer_node.parent_participant().prefix(),
+    //         |dp| {
+    //             crate::implementation::behavior::user_defined_data_writer::get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?,data_writer_node.guid(),
+    //             data_writer_node.parent_publisher(),)
+    //         },
+    //     )
+    // }
 
-    let status_kind = StatusKind::PublicationMatched;
-    let writer_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-        &data_writer_node.guid(),
-        |data_writer_listener| match data_writer_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_publication_matched_status(&data_writer_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_publication_matched(data_writer_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !writer_listener {
-        let publisher_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
-            &data_writer_node.parent_publisher(),
-            |publisher_listener| match publisher_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_publication_matched_status(&data_writer_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_publication_matched(&data_writer_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !publisher_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_writer_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_publication_matched_status(&data_writer_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_publication_matched(&data_writer_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
+    // let status_kind = StatusKind::PublicationMatched;
+    // let writer_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+    //     &data_writer_node.guid(),
+    //     |data_writer_listener| match data_writer_listener {
+    //         Some(l) if l.is_enabled(&status_kind) => {
+    //             if let Ok(status) = get_publication_matched_status(&data_writer_node) {
+    //                 l.listener_mut()
+    //                     .as_mut()
+    //                     .expect("Listener should be some")
+    //                     .trigger_on_publication_matched(data_writer_node, status)
+    //             }
+    //             true
+    //         }
+    //         _ => false,
+    //     },
+    // );
+    // if !writer_listener {
+    //     let publisher_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
+    //         &data_writer_node.parent_publisher(),
+    //         |publisher_listener| match publisher_listener {
+    //             Some(l) if l.is_enabled(&status_kind) => {
+    //                 if let Ok(status) = get_publication_matched_status(&data_writer_node) {
+    //                     l.listener_mut()
+    //                         .as_mut()
+    //                         .expect("Listener should be some")
+    //                         .on_publication_matched(&data_writer_node, status)
+    //                 }
+    //                 true
+    //             }
+    //             _ => false,
+    //         },
+    //     );
+    //     if !publisher_listener {
+    //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+    //             &data_writer_node.parent_participant(),
+    //             |participant_listener| match participant_listener {
+    //                 Some(l) if l.is_enabled(&status_kind) => {
+    //                     if let Ok(status) = get_publication_matched_status(&data_writer_node) {
+    //                         l.listener_mut()
+    //                             .as_mut()
+    //                             .expect("Listener should be some")
+    //                             .on_publication_matched(&data_writer_node, status)
+    //                     }
+    //                 }
+    //                 _ => (),
+    //             },
+    //         );
+    //     }
+    // }
 
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-        &data_writer_node.guid(),
-        |data_writer_listener| {
-            if let Some(l) = data_writer_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
+    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+    //     &data_writer_node.guid(),
+    //     |data_writer_listener| {
+    //         if let Some(l) = data_writer_listener {
+    //             l.add_communication_state(status_kind);
+    //         }
+    //     },
+    // )
 }
 
 fn on_inconsistent_topic_communication_change(topic_node: TopicNode) {
-    fn get_inconsistent_topic_status(topic_node: &TopicNode) -> DdsResult<InconsistentTopicStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &topic_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_topic::get_inconsistent_topic_status(
-                    dp.ok_or(DdsError::AlreadyDeleted)?,
-                    topic_node.guid(),
-                )
-            },
-        )
-    }
+    todo!()
+    // fn get_inconsistent_topic_status(topic_node: &TopicNode) -> DdsResult<InconsistentTopicStatus> {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+    //         &topic_node.parent_participant().prefix(),
+    //         |dp| {
+    //             crate::implementation::behavior::user_defined_topic::get_inconsistent_topic_status(
+    //                 dp.ok_or(DdsError::AlreadyDeleted)?,
+    //                 topic_node.guid(),
+    //             )
+    //         },
+    //     )
+    // }
 
-    let status_kind = StatusKind::InconsistentTopic;
-    let topic_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(
-        &topic_node.guid(),
-        |topic_listener| match topic_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_inconsistent_topic(topic_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !topic_listener {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-            &topic_node.parent_participant(),
-            |participant_listener| match participant_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_inconsistent_topic(&topic_node, status)
-                    }
-                }
-                _ => (),
-            },
-        );
-    }
+    // let status_kind = StatusKind::InconsistentTopic;
+    // let topic_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(
+    //     &topic_node.guid(),
+    //     |topic_listener| match topic_listener {
+    //         Some(l) if l.is_enabled(&status_kind) => {
+    //             if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
+    //                 l.listener_mut()
+    //                     .as_mut()
+    //                     .expect("Listener should be some")
+    //                     .trigger_on_inconsistent_topic(topic_node, status)
+    //             }
+    //             true
+    //         }
+    //         _ => false,
+    //     },
+    // );
+    // if !topic_listener {
+    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+    //         &topic_node.parent_participant(),
+    //         |participant_listener| match participant_listener {
+    //             Some(l) if l.is_enabled(&status_kind) => {
+    //                 if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
+    //                     l.listener_mut()
+    //                         .as_mut()
+    //                         .expect("Listener should be some")
+    //                         .on_inconsistent_topic(&topic_node, status)
+    //                 }
+    //             }
+    //             _ => (),
+    //         },
+    //     );
+    // }
 
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&topic_node.guid(), |topic_listener| {
-        if let Some(l) = topic_listener {
-            l.add_communication_state(status_kind);
-        }
-    })
+    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&topic_node.guid(), |topic_listener| {
+    //     if let Some(l) = topic_listener {
+    //         l.add_communication_state(status_kind);
+    //     }
+    // })
 }
 
 fn announce_created_data_reader(
@@ -1625,7 +1653,8 @@ fn announce_created_data_reader(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send_blocking(dds_data_writer::GetTypeName).unwrap() == DiscoveredReaderData::type_name()
+            x.send_blocking(dds_data_writer::GetTypeName).unwrap()
+                == DiscoveredReaderData::type_name()
         })
         .unwrap()
         .send_blocking(dds_data_writer::WriteWithTimestamp::new(
@@ -1666,7 +1695,8 @@ fn announce_created_data_writer(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send_blocking(dds_data_writer::GetTypeName).unwrap() == DiscoveredWriterData::type_name()
+            x.send_blocking(dds_data_writer::GetTypeName).unwrap()
+                == DiscoveredWriterData::type_name()
         })
         .unwrap()
         .send_blocking(dds_data_writer::WriteWithTimestamp::new(
@@ -1691,7 +1721,10 @@ fn announce_created_topic(
         .get_builtin_publisher_mut()
         .stateful_data_writer_list()
         .iter()
-        .find(|x| x.send_blocking(dds_data_writer::GetTypeName).unwrap() == DiscoveredTopicData::type_name())
+        .find(|x| {
+            x.send_blocking(dds_data_writer::GetTypeName).unwrap()
+                == DiscoveredTopicData::type_name()
+        })
         .unwrap()
         .send_blocking(dds_data_writer::WriteWithTimestamp::new(
             serialized_data,
@@ -1720,7 +1753,8 @@ fn announce_deleted_reader(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send_blocking(dds_data_writer::GetTypeName).unwrap() == DiscoveredReaderData::type_name()
+            x.send_blocking(dds_data_writer::GetTypeName).unwrap()
+                == DiscoveredReaderData::type_name()
         })
         .unwrap()
         .send_blocking(dds_data_writer::DisposeWithTimestamp::new(
@@ -1749,7 +1783,8 @@ fn announce_deleted_writer(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send_blocking(dds_data_writer::GetTypeName).unwrap() == DiscoveredWriterData::type_name()
+            x.send_blocking(dds_data_writer::GetTypeName).unwrap()
+                == DiscoveredWriterData::type_name()
         })
         .unwrap()
         .send_blocking(dds_data_writer::DisposeWithTimestamp::new(

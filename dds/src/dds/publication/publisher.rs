@@ -1,8 +1,5 @@
 use crate::{
-    domain::{
-        domain_participant::DomainParticipant,
-        domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    },
+    domain::domain_participant::DomainParticipant,
     implementation::dds::{
         any_data_writer_listener::AnyDataWriterListener,
         dds_domain_participant::DdsDomainParticipant,
@@ -42,15 +39,16 @@ impl Publisher {
 
 impl Drop for Publisher {
     fn drop(&mut self) {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
-            if let Some(dp) = dp {
-                crate::implementation::behavior::domain_participant::delete_publisher(
-                    dp,
-                    self.0.guid(),
-                )
-                .ok();
-            }
-        })
+        todo!()
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
+        //     if let Some(dp) = dp {
+        //         crate::implementation::behavior::domain_participant::delete_publisher(
+        //             dp,
+        //             self.0.guid(),
+        //         )
+        //         .ok();
+        //     }
+        // })
     }
 }
 
@@ -82,26 +80,27 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
-        let type_name = a_topic.get_type_name()?;
-        let topic_name = a_topic.get_name()?;
+        todo!()
+        // let type_name = a_topic.get_type_name()?;
+        // let topic_name = a_topic.get_name()?;
 
-        let datawriter = self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::user_defined_publisher::create_datawriter::<Foo>(
-                dp,
-                self.0.guid(),
-                type_name,
-                topic_name,
-                qos,
-            )
-        })?;
+        // let datawriter = self.call_participant_mut_method(|dp| {
+        //     crate::implementation::behavior::user_defined_publisher::create_datawriter::<Foo>(
+        //         dp,
+        //         self.0.guid(),
+        //         type_name,
+        //         topic_name,
+        //         qos,
+        //     )
+        // })?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_writer_listener(
-            datawriter.guid(),
-            a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
-            mask,
-        );
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_writer_listener(
+        //     datawriter.guid(),
+        //     a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
+        //     mask,
+        // );
 
-        Ok(DataWriter::new(DataWriterNodeKind::UserDefined(datawriter)))
+        // Ok(DataWriter::new(DataWriterNodeKind::UserDefined(datawriter)))
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -111,23 +110,24 @@ impl Publisher {
     /// [`WriterDataLifecycleQosPolicy`](crate::infrastructure::qos_policy::WriterDataLifecycleQosPolicy), the deletion of the
     /// [`DataWriter`].
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
-        match a_datawriter.node() {
-            DataWriterNodeKind::UserDefined(dw) => {
-                self.call_participant_mut_method(|dp| {
-                    crate::implementation::behavior::user_defined_publisher::delete_datawriter(
-                        dp,
-                        self.0.guid(),
-                        dw.guid(),
-                        dw.parent_publisher(),
-                    )
-                })?;
+        todo!()
+        // match a_datawriter.node() {
+        //     DataWriterNodeKind::UserDefined(dw) => {
+        //         self.call_participant_mut_method(|dp| {
+        //             crate::implementation::behavior::user_defined_publisher::delete_datawriter(
+        //                 dp,
+        //                 self.0.guid(),
+        //                 dw.guid(),
+        //                 dw.parent_publisher(),
+        //             )
+        //         })?;
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_data_writer_listener(&dw.guid());
-            }
-            DataWriterNodeKind::Listener(_) => (),
-        }
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_data_writer_listener(&dw.guid());
+        //     }
+        //     DataWriterNodeKind::Listener(_) => (),
+        // }
 
-        Ok(())
+        // Ok(())
     }
 
     /// This operation retrieves a previously created [`DataWriter`] belonging to the [`Publisher`] that is attached to a [`Topic`] with a matching
@@ -138,17 +138,18 @@ impl Publisher {
     where
         Foo: DdsType,
     {
-        self.call_participant_mut_method(|dp| {
-            Ok(
-                crate::implementation::behavior::user_defined_publisher::lookup_datawriter(
-                    dp,
-                    self.0.guid(),
-                    Foo::type_name(),
-                    topic_name,
-                )?
-                .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x))),
-            )
-        })
+        todo!()
+        // self.call_participant_mut_method(|dp| {
+        //     Ok(
+        //         crate::implementation::behavior::user_defined_publisher::lookup_datawriter(
+        //             dp,
+        //             self.0.guid(),
+        //             Foo::type_name(),
+        //             topic_name,
+        //         )?
+        //         .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x))),
+        //     )
+        // })
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using [`DataWriter`] objects
@@ -219,8 +220,7 @@ impl Publisher {
     /// Once this operation returns successfully, the application may delete the [`Publisher`] knowing that it has no
     /// contained [`DataWriter`] objects
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        crate::implementation::behavior::user_defined_publisher::delete_contained_entities(
-        )
+        crate::implementation::behavior::user_defined_publisher::delete_contained_entities()
     }
 
     /// This operation sets the default value of the [`DataWriterQos`] which will be used for newly created [`DataWriter`] entities in
@@ -230,7 +230,14 @@ impl Publisher {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataWriterQos`].
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| crate::implementation::behavior::user_defined_publisher::set_default_datawriter_qos(dp, self.0.guid(), qos))
+        todo!()
+        // self.call_participant_mut_method(|dp| {
+        //     crate::implementation::behavior::user_defined_publisher::set_default_datawriter_qos(
+        //         dp,
+        //         self.0.guid(),
+        //         qos,
+        //     )
+        // })
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created
@@ -238,7 +245,13 @@ impl Publisher {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Publisher::set_default_datawriter_qos`], or else, if the call was never made, the default values of [`DataWriterQos`].
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        self.call_participant_method(|dp| crate::implementation::behavior::user_defined_publisher::get_default_datawriter_qos(dp, self.0.guid(),))
+        todo!()
+        // self.call_participant_method(|dp| {
+        //     crate::implementation::behavior::user_defined_publisher::get_default_datawriter_qos(
+        //         dp,
+        //         self.0.guid(),
+        //     )
+        // })
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datawriter_qos`.
@@ -276,12 +289,10 @@ impl Publisher {
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::user_defined_publisher::get_qos(
-                dp,
-                self.0.guid(),
-            )
-        })
+        todo!()
+        // self.call_participant_method(|dp| {
+        //     crate::implementation::behavior::user_defined_publisher::get_qos(dp, self.0.guid())
+        // })
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -342,23 +353,5 @@ impl Publisher {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(self.0.guid().into())
-    }
-
-    fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
-    where
-        F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
-    {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.guid().prefix(), |dp| {
-            f(dp.ok_or(DdsError::AlreadyDeleted)?)
-        })
-    }
-
-    fn call_participant_mut_method<F, O>(&self, f: F) -> DdsResult<O>
-    where
-        F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
-    {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
-            f(dp.ok_or(DdsError::AlreadyDeleted)?)
-        })
     }
 }
