@@ -61,23 +61,23 @@ pub struct RtpsWriterCacheChange {
     sequence_number: SequenceNumber,
     _instance_handle: InstanceHandle,
     timestamp: Time,
-    data_value: Data,
+    data_value: Vec<Data>,
     inline_qos: ParameterList,
 }
 
 pub struct RtpsWriterCacheChangeFrag<'a> {
     cache_change: &'a RtpsWriterCacheChange,
     reader_id: EntityId,
-    data: Vec<Data>,
+    // data: Vec<Data>,
 }
 
 impl<'a> RtpsWriterCacheChangeFrag<'a> {
     pub fn new(cache_change: &'a RtpsWriterCacheChange, data_max_size_serialized: usize, reader_id: EntityId) -> Self {
-        let data = cache_change.data_value.chunks(data_max_size_serialized);
+        // let data = cache_change.data_value;//.chunks(data_max_size_serialized);
         Self {
             cache_change,
             reader_id,
-            data,
+            // data,
         }
     }
 }
@@ -92,7 +92,7 @@ impl<'a> IntoIterator for &'a RtpsWriterCacheChangeFrag<'a> {
     type IntoIter = DataFragSubmessagesIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let data = self.data.iter().collect();
+        let data = self.cache_change.data_value.iter().collect();
         Self::IntoIter {
             cache_change: self,
             data,
@@ -102,7 +102,7 @@ impl<'a> IntoIterator for &'a RtpsWriterCacheChangeFrag<'a> {
 
 impl<'a> DataFragSubmessagesIter<'a> {
     pub fn new(cache_change: &'a RtpsWriterCacheChangeFrag<'a>) -> Self {
-        let data = cache_change.data.iter().collect();
+        let data = cache_change.cache_change.data_value.iter().collect();
         Self { cache_change, data }
     }
 }
@@ -222,7 +222,7 @@ impl RtpsWriterCacheChange {
             self.writer_guid().entity_id(),
             self.sequence_number(),
             &self.inline_qos,
-            &self.data_value,
+            &self.data_value[0],
         )
     }
 
@@ -291,7 +291,7 @@ impl RtpsWriterCacheChange {
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
         timestamp: Time,
-        data_value: Data,
+        data_value: Vec<Data>,
         inline_qos: ParameterList,
     ) -> Self {
         Self {
@@ -328,7 +328,7 @@ impl RtpsWriterCacheChange {
     }
 
     pub fn data_value(&self) -> &Data {
-        &self.data_value
+        &self.data_value[0]
     }
 
     pub fn inline_qos(&self) -> &ParameterList {
@@ -390,7 +390,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(1),
             TIME_INVALID,
-            Data::new(vec![]),
+            vec![Data::new(vec![])],
             ParameterList::empty(),
         );
         hc.add_change(change);
@@ -407,7 +407,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(1),
             TIME_INVALID,
-            Data::new(vec![]),
+            vec![Data::new(vec![])],
             ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
@@ -416,7 +416,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(2),
             TIME_INVALID,
-            Data::new(vec![]),
+            vec![Data::new(vec![])],
             ParameterList::empty(),
         );
         hc.add_change(change1);
@@ -433,7 +433,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(1),
             TIME_INVALID,
-            Data::new(vec![]),
+            vec![Data::new(vec![])],
             ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
@@ -442,7 +442,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(2),
             TIME_INVALID,
-            Data::new(vec![]),
+            vec![Data::new(vec![])],
             ParameterList::empty(),
         );
         hc.add_change(change1);

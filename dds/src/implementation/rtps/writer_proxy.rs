@@ -14,7 +14,7 @@ use super::{
         types::{Count, FragmentNumber},
     },
     transport::TransportWrite,
-    types::{EntityId, Guid, Locator, SequenceNumber},
+    types::{EntityId, Guid, Locator, SequenceNumber}, history_cache::Data,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -23,19 +23,18 @@ pub struct OwningDataFragSubmessage {
     data_size: u32,
     fragment_size: u16,
     fragments_in_submessage: u16,
-    serialized_payload: Vec<u8>,
+    serialized_payload: Data,
 }
 
 impl From<&DataFragSubmessageRead<'_>> for OwningDataFragSubmessage {
     fn from(x: &DataFragSubmessageRead<'_>) -> Self {
-        // Self {
-        //     fragment_starting_num: x.fragment_starting_num(),
-        //     data_size: x.data_size(),
-        //     fragment_size: x.fragment_size(),
-        //     fragments_in_submessage: x.fragments_in_submessage(),
-        //     serialized_payload: <&[u8]>::from(&x.serialized_payload()).to_vec(),
-        // }
-        todo!()
+        Self {
+            fragment_starting_num: x.fragment_starting_num(),
+            data_size: x.data_size(),
+            fragment_size: x.fragment_size(),
+            fragments_in_submessage: x.fragments_in_submessage(),
+            serialized_payload: x.serialized_payload(),
+        }
     }
 }
 
@@ -114,8 +113,8 @@ impl RtpsWriterProxy {
                 frag_seq_num_list.sort_by_key(|k| k.fragment_starting_num);
 
                 let mut data = Vec::new();
-                for mut frag in frag_seq_num_list {
-                    data.append(&mut frag.serialized_payload);
+                for frag in frag_seq_num_list {
+                    data.append(&mut frag.serialized_payload.as_ref().to_vec());
                 }
                 return Some(data);
             }
