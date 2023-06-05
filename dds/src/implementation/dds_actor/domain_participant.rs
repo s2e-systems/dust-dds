@@ -8,7 +8,10 @@ use crate::{
             dds_subscriber::DdsSubscriber,
             dds_topic::DdsTopic,
         },
-        rtps::{messages::overall_structure::RtpsMessageRead, types::Locator},
+        rtps::{
+            messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
+            types::Locator,
+        },
         utils::actor::{ActorAddress, Handler, Message},
     },
     infrastructure::{
@@ -42,6 +45,26 @@ impl Message for GetQos {
 impl Handler<GetQos> for DdsDomainParticipant {
     fn handle(&mut self, _message: GetQos) -> <GetQos as Message>::Result {
         self.get_qos()
+    }
+}
+
+pub struct SetQos {
+    qos: QosKind<DomainParticipantQos>,
+}
+
+impl SetQos {
+    pub fn new(qos: QosKind<DomainParticipantQos>) -> Self {
+        Self { qos }
+    }
+}
+
+impl Message for SetQos {
+    type Result = ();
+}
+
+impl Handler<SetQos> for DdsDomainParticipant {
+    fn handle(&mut self, mail: SetQos) -> <SetQos as Message>::Result {
+        self.set_qos(mail.qos).ok();
     }
 }
 
@@ -170,7 +193,7 @@ impl Handler<AnnounceParticipant> for DdsDomainParticipant {
         &mut self,
         _message: AnnounceParticipant,
     ) -> <AnnounceParticipant as Message>::Result {
-        // todo!();
+        self.announce_participant().ok();
     }
 }
 
@@ -327,5 +350,20 @@ impl Handler<DeleteContainedEntities> for DdsDomainParticipant {
         _mail: DeleteContainedEntities,
     ) -> <DeleteContainedEntities as Message>::Result {
         self.delete_contained_entities().ok();
+    }
+}
+
+pub struct GetUserDefinedRtpsMessageChannelSender;
+
+impl Message for GetUserDefinedRtpsMessageChannelSender {
+    type Result = tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>;
+}
+
+impl Handler<GetUserDefinedRtpsMessageChannelSender> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        _mail: GetUserDefinedRtpsMessageChannelSender,
+    ) -> <GetUserDefinedRtpsMessageChannelSender as Message>::Result {
+        self.get_user_defined_rtps_message_channel_sender()
     }
 }

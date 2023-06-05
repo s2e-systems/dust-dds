@@ -89,7 +89,7 @@ impl RtpsReaderLocator {
         writer_cache: &WriterHistoryCache,
         writer_id: EntityId,
         header: RtpsMessageHeader,
-        transport: &mut impl TransportWrite,
+        transport: &tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
     ) {
         let mut submessages = Vec::new();
         while !self.unsent_changes.is_empty() {
@@ -108,7 +108,12 @@ impl RtpsReaderLocator {
             }
         }
         if !submessages.is_empty() {
-            transport.write(&RtpsMessageWrite::new(header, submessages), &[self.locator])
+            transport
+                .blocking_send((
+                    RtpsMessageWrite::new(header, submessages),
+                    vec![self.locator],
+                ))
+                .unwrap();
         }
     }
 }

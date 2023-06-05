@@ -22,7 +22,10 @@ use crate::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::{overall_structure::RtpsMessageRead, types::Count},
+            messages::{
+                overall_structure::{RtpsMessageRead, RtpsMessageWrite},
+                types::Count,
+            },
             participant::RtpsParticipant,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
@@ -83,10 +86,7 @@ use std::{
 };
 
 use super::{
-    dds_data_writer::{self, DdsDataWriter},
-    dds_publisher::DdsPublisher,
-    message_receiver::MessageReceiver,
-    nodes::DataWriterNode,
+    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
     status_listener::ListenerTriggerKind,
 };
 
@@ -152,6 +152,7 @@ pub struct DdsDomainParticipant {
     data_max_size_serialized: usize,
     announce_sender: Sender<AnnounceKind>,
     sedp_condvar: DdsCondvar,
+    user_defined_rtps_message_channel_sender: Sender<(RtpsMessageWrite, Vec<Locator>)>,
 }
 
 impl DdsDomainParticipant {
@@ -166,6 +167,8 @@ impl DdsDomainParticipant {
         data_max_size_serialized: usize,
         announce_sender: Sender<AnnounceKind>,
         sedp_condvar: DdsCondvar,
+        builtin_rtps_message_channel_sender: Sender<(RtpsMessageWrite, Vec<Locator>)>,
+        user_defined_rtps_message_channel_sender: Sender<(RtpsMessageWrite, Vec<Locator>)>,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -267,6 +270,7 @@ impl DdsDomainParticipant {
             )),
             SpdpDiscoveredParticipantData::type_name(),
             String::from(DCPS_PARTICIPANT),
+            builtin_rtps_message_channel_sender.clone(),
         );
 
         for reader_locator in spdp_discovery_locator_list
@@ -283,6 +287,7 @@ impl DdsDomainParticipant {
             )),
             DiscoveredTopicData::type_name(),
             String::from(DCPS_TOPIC),
+            builtin_rtps_message_channel_sender.clone(),
         );
         let (sedp_builtin_topics_writer_address, sedp_builtin_topics_writer_handle) =
             actor::spawn_actor(sedp_builtin_topics_writer);
@@ -294,6 +299,7 @@ impl DdsDomainParticipant {
             )),
             DiscoveredWriterData::type_name(),
             String::from(DCPS_PUBLICATION),
+            builtin_rtps_message_channel_sender.clone(),
         );
         let (sedp_builtin_publications_writer_address, sedp_builtin_publications_writer_handle) =
             actor::spawn_actor(sedp_builtin_publications_writer);
@@ -305,6 +311,7 @@ impl DdsDomainParticipant {
             )),
             DiscoveredReaderData::type_name(),
             String::from(DCPS_SUBSCRIPTION),
+            builtin_rtps_message_channel_sender,
         );
         let (sedp_builtin_subscriptions_writer_address, sedp_builtin_subscriptions_writer_handle) =
             actor::spawn_actor(sedp_builtin_subscriptions_writer);
@@ -358,6 +365,7 @@ impl DdsDomainParticipant {
             data_max_size_serialized,
             announce_sender,
             sedp_condvar,
+            user_defined_rtps_message_channel_sender,
         }
     }
 
@@ -379,6 +387,12 @@ impl DdsDomainParticipant {
 
     pub fn default_unicast_locator_list(&self) -> &[Locator] {
         self.rtps_participant.default_unicast_locator_list()
+    }
+
+    pub fn get_user_defined_rtps_message_channel_sender(
+        &self,
+    ) -> Sender<(RtpsMessageWrite, Vec<Locator>)> {
+        self.user_defined_rtps_message_channel_sender.clone()
     }
 
     pub fn default_multicast_locator_list(&self) -> &[Locator] {
@@ -438,7 +452,7 @@ impl DdsDomainParticipant {
                 .iter_mut()
             {
                 builtin_stateful_writer
-                    .send_blocking(dds_data_writer::Enable)
+                    .send_blocking(dds_actor::data_writer::Enable)
                     .ok();
             }
 
@@ -721,8 +735,8 @@ impl DdsDomainParticipant {
 
         // for publisher in self.user_defined_publisher_list() {
         //     if publisher.stateful_data_writer_list().iter().any(|w| {
-        //         w.send_blocking(dds_data_writer::GetTypeName).unwrap() == topic.get_type_name()
-        //             && w.send_blocking(dds_data_writer::GetTopicName).unwrap() == topic.get_name()
+        //         w.send_blocking(dds_actor::data_writer::GetTypeName).unwrap() == topic.get_type_name()
+        //             && w.send_blocking(dds_actor::data_writer::GetTopicName).unwrap() == topic.get_name()
         //     }) {
         //         return Err(DdsError::PreconditionNotMet(
         //             "Topic still attached to some data writer".to_string(),

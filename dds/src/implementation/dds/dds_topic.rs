@@ -14,9 +14,7 @@ use crate::{
     },
 };
 
-use super::{
-    dds_domain_participant::AnnounceKind, nodes::TopicNode, status_listener::ListenerTriggerKind,
-};
+use super::{dds_domain_participant::AnnounceKind, status_listener::ListenerTriggerKind};
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {

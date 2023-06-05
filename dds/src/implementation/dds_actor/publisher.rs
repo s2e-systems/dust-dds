@@ -3,7 +3,10 @@ use std::marker::PhantomData;
 use crate::{
     implementation::{
         dds::{dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher},
-        rtps::{stateful_writer::RtpsStatefulWriter, types::Locator},
+        rtps::{
+            messages::overall_structure::RtpsMessageWrite, stateful_writer::RtpsStatefulWriter,
+            types::Locator,
+        },
         utils::actor::{ActorAddress, Handler, Message},
     },
     infrastructure::{
@@ -20,6 +23,8 @@ pub struct CreateDataWriter<Foo> {
     default_unicast_locator_list: Vec<Locator>,
     default_multicast_locator_list: Vec<Locator>,
     data_max_size_serialized: usize,
+    user_defined_rtps_message_channel_sender:
+        tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
 }
 
 impl<Foo> CreateDataWriter<Foo> {
@@ -29,6 +34,10 @@ impl<Foo> CreateDataWriter<Foo> {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         data_max_size_serialized: usize,
+        user_defined_rtps_message_channel_sender: tokio::sync::mpsc::Sender<(
+            RtpsMessageWrite,
+            Vec<Locator>,
+        )>,
     ) -> Self {
         Self {
             phantom: PhantomData,
@@ -37,6 +46,7 @@ impl<Foo> CreateDataWriter<Foo> {
             default_unicast_locator_list,
             default_multicast_locator_list,
             data_max_size_serialized,
+            user_defined_rtps_message_channel_sender,
         }
     }
 }
@@ -59,6 +69,7 @@ where
             mail.default_unicast_locator_list,
             mail.default_multicast_locator_list,
             mail.data_max_size_serialized,
+            mail.user_defined_rtps_message_channel_sender,
         )
     }
 }

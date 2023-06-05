@@ -1,22 +1,20 @@
 use fnmatch_regex::glob_to_regex;
-use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
-            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+            discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         dds::{
             any_topic_listener::AnyTopicListener,
             dds_data_reader::DdsDataReader,
-            dds_data_writer::{self, DdsDataWriter},
+            dds_data_writer::DdsDataWriter,
             dds_domain_participant::{
-                self, AnnounceKind, DdsDomainParticipant,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
@@ -24,10 +22,9 @@ use crate::{
             },
             dds_subscriber::DdsSubscriber,
             nodes::{
-                DataReaderNode, DataWriterNode, DomainParticipantNode, PublisherNode,
-                SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind,
+                DataReaderNode, DataWriterNode, PublisherNode, SubscriberNode, SubscriberNodeKind,
+                TopicNode, TopicNodeKind,
             },
-            participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
         },
         dds_actor,
@@ -53,11 +50,10 @@ use crate::{
             transport::TransportWrite,
             types::{
                 DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
-                SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, GUID_UNKNOWN,
+                SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
             },
             writer_proxy::RtpsWriterProxy,
         },
-        rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
         utils::{actor::ActorAddress, condvar::DdsCondvar},
     },
     infrastructure::{
@@ -65,11 +61,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
-        status::{
-            InconsistentTopicStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-            SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
-        },
+        status::StatusKind,
         time::{Duration, DurationKind, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
@@ -623,10 +615,8 @@ impl DomainParticipant {
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::set_qos(dp, qos)
-        // })
+        self.0
+            .send_blocking(dds_actor::domain_participant::SetQos::new(qos))
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
@@ -1426,11 +1416,12 @@ fn announce_created_data_reader(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send_blocking(dds_data_writer::GetTypeName).unwrap()
+            x.send_blocking(dds_actor::data_writer::GetTypeName)
+                .unwrap()
                 == DiscoveredReaderData::type_name()
         })
         .unwrap()
-        .send_blocking(dds_data_writer::WriteWithTimestamp::new(
+        .send_blocking(dds_actor::data_writer::WriteWithTimestamp::new(
             serialized_data,
             reader_data.get_serialized_key(),
             None,
@@ -1468,11 +1459,12 @@ fn announce_created_data_writer(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send_blocking(dds_data_writer::GetTypeName).unwrap()
+            x.send_blocking(dds_actor::data_writer::GetTypeName)
+                .unwrap()
                 == DiscoveredWriterData::type_name()
         })
         .unwrap()
-        .send_blocking(dds_data_writer::WriteWithTimestamp::new(
+        .send_blocking(dds_actor::data_writer::WriteWithTimestamp::new(
             serialized_data,
             writer_data.get_serialized_key(),
             None,
@@ -1495,11 +1487,12 @@ fn announce_created_topic(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send_blocking(dds_data_writer::GetTypeName).unwrap()
+            x.send_blocking(dds_actor::data_writer::GetTypeName)
+                .unwrap()
                 == DiscoveredTopicData::type_name()
         })
         .unwrap()
-        .send_blocking(dds_data_writer::WriteWithTimestamp::new(
+        .send_blocking(dds_actor::data_writer::WriteWithTimestamp::new(
             serialized_data,
             discovered_topic.get_serialized_key(),
             None,
@@ -1526,11 +1519,12 @@ fn announce_deleted_reader(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send_blocking(dds_data_writer::GetTypeName).unwrap()
+            x.send_blocking(dds_actor::data_writer::GetTypeName)
+                .unwrap()
                 == DiscoveredReaderData::type_name()
         })
         .unwrap()
-        .send_blocking(dds_data_writer::DisposeWithTimestamp::new(
+        .send_blocking(dds_actor::data_writer::DisposeWithTimestamp::new(
             instance_serialized_key,
             reader_handle,
             timestamp,
@@ -1556,11 +1550,12 @@ fn announce_deleted_writer(
         .stateful_data_writer_list()
         .iter()
         .find(|x| {
-            x.send_blocking(dds_data_writer::GetTypeName).unwrap()
+            x.send_blocking(dds_actor::data_writer::GetTypeName)
+                .unwrap()
                 == DiscoveredWriterData::type_name()
         })
         .unwrap()
-        .send_blocking(dds_data_writer::DisposeWithTimestamp::new(
+        .send_blocking(dds_actor::data_writer::DisposeWithTimestamp::new(
             instance_serialized_key,
             writer_handle,
             timestamp,

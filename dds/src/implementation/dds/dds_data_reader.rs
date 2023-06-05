@@ -47,9 +47,7 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
-use super::{
-    message_receiver::MessageReceiver, nodes::DataReaderNode, status_listener::ListenerTriggerKind,
-};
+use super::{message_receiver::MessageReceiver, status_listener::ListenerTriggerKind};
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
     NoChange,

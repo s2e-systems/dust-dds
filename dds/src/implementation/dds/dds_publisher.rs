@@ -3,6 +3,7 @@ use crate::{
         rtps::{
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
+            messages::overall_structure::RtpsMessageWrite,
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
             types::{
@@ -65,6 +66,10 @@ impl DdsPublisher {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         data_max_size_serialized: usize,
+        user_defined_rtps_message_channel_sender: tokio::sync::mpsc::Sender<(
+            RtpsMessageWrite,
+            Vec<Locator>,
+        )>,
     ) -> DdsResult<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>>
     where
         Foo: DdsType,
@@ -110,7 +115,12 @@ impl DdsPublisher {
             qos,
         ));
 
-        let mut data_writer = DdsDataWriter::new(rtps_writer_impl, Foo::type_name(), topic_name);
+        let mut data_writer = DdsDataWriter::new(
+            rtps_writer_impl,
+            Foo::type_name(),
+            topic_name,
+            user_defined_rtps_message_channel_sender,
+        );
 
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
             data_writer.enable();

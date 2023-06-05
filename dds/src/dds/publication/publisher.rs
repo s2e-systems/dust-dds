@@ -94,6 +94,10 @@ impl Publisher {
             .0
             .parent_participant()
             .send_blocking(dds_actor::domain_participant::GetDataMaxSizeSerialized)?;
+        let user_defined_rtps_message_channel_sender = self
+            .0
+            .parent_participant()
+            .send_blocking(dds_actor::domain_participant::GetUserDefinedRtpsMessageChannelSender)?;
         let writer_address =
             self.0
                 .address()
@@ -103,6 +107,7 @@ impl Publisher {
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                     data_max_size_serialized,
+                    user_defined_rtps_message_channel_sender,
                 ))?;
 
         Ok(DataWriter::new(DataWriterNodeKind::UserDefined(

@@ -10,7 +10,10 @@ use crate::{
 
 use super::{
     history_cache::RtpsWriterCacheChange,
-    messages::{overall_structure::RtpsMessageHeader, submessage_elements::ParameterList},
+    messages::{
+        overall_structure::{RtpsMessageHeader, RtpsMessageWrite},
+        submessage_elements::ParameterList,
+    },
     reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
     transport::TransportWrite,
     types::{ChangeKind, Guid, Locator},
@@ -132,7 +135,11 @@ impl RtpsStatelessWriter {
         Ok(())
     }
 
-    pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+    pub fn send_message(
+        &mut self,
+        header: RtpsMessageHeader,
+        transport: &tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
+    ) {
         match self.writer.get_qos().reliability.kind {
             ReliabilityQosPolicyKind::BestEffort => {
                 for rl in self.reader_locators.iter_mut() {

@@ -22,6 +22,18 @@ struct KeyedData {
 }
 
 #[test]
+fn create_participant() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+
+    let _participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(11));
+}
+
+#[test]
 fn default_participant_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();

@@ -281,6 +281,12 @@ impl DdsDomainParticipantFactory {
             VENDOR_ID_S2E,
         );
 
+        let (builtin_rtps_message_channel_sender, builtin_rtps_message_channel_receiver) =
+            tokio::sync::mpsc::channel(10);
+
+        let (user_defined_rtps_message_channel_sender, user_defined_rtps_message_channel_receiver) =
+            tokio::sync::mpsc::channel(10);
+
         let domain_participant = DdsDomainParticipant::new(
             rtps_participant,
             domain_id,
@@ -291,6 +297,8 @@ impl DdsDomainParticipantFactory {
             THE_DDS_CONFIGURATION.fragment_size,
             announce_sender,
             sedp_condvar.clone(),
+            builtin_rtps_message_channel_sender,
+            user_defined_rtps_message_channel_sender,
         );
 
         let (participant_address, participant_join_handle) = spawn_actor(domain_participant);
@@ -333,14 +341,10 @@ impl DdsDomainParticipantFactory {
             participant_address.clone(),
         ));
 
-        let (builtin_rtps_message_channel_sender, builtin_rtps_message_channel_receiver) =
-            tokio::sync::mpsc::channel(10);
         THE_RUNTIME.spawn(task_unicast_metatraffic_communication_send(
             builtin_rtps_message_channel_receiver,
         ));
 
-        let (user_defined_rtps_message_channel_sender, user_defined_rtps_message_channel_receiver) =
-            tokio::sync::mpsc::channel(10);
         THE_RUNTIME.spawn(task_unicast_user_defined_communication_send(
             user_defined_rtps_message_channel_receiver,
         ));
