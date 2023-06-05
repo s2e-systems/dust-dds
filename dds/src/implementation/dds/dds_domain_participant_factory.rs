@@ -18,6 +18,7 @@ use crate::{
     implementation::{
         configuration::DustDdsConfiguration,
         dds::dds_domain_participant::AnnounceKind,
+        dds_actor,
         rtps::{
             participant::RtpsParticipant,
             types::{
@@ -27,7 +28,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
         utils::{
-            actor::{spawn_actor, ActorAddress, ActorJoinHandle, Handler, Message, THE_RUNTIME},
+            actor::{spawn_actor, ActorAddress, ActorJoinHandle, THE_RUNTIME},
             condvar::DdsCondvar,
         },
     },
@@ -38,10 +39,10 @@ use crate::{
     },
 };
 
-use super::dds_domain_participant::{self, DdsDomainParticipant};
+use super::dds_domain_participant::DdsDomainParticipant;
 
 lazy_static! {
-    pub static ref THE_DDS_CONFIGURATION: DustDdsConfiguration =
+    static ref THE_DDS_CONFIGURATION: DustDdsConfiguration =
         if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION") {
             configuration_try_from_str(configuration_json.as_str()).unwrap()
         } else {
@@ -62,35 +63,23 @@ impl Default for DdsDomainParticipantFactory {
     }
 }
 
-pub struct CreateParticipant {
-    domain_id: DomainId,
-    qos: QosKind<DomainParticipantQos>,
-    a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-    mask: Vec<StatusKind>,
-}
+impl DdsDomainParticipantFactory {
+    pub fn new() -> Self {
+        Self {
+            domain_participant_list: Vec::new(),
+            domain_participant_counter: 0,
+            qos: DomainParticipantFactoryQos::default(),
+            default_participant_qos: DomainParticipantQos::default(),
+        }
+    }
 
-impl CreateParticipant {
-    pub fn new(
+    pub fn create_participant(
+        &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: Vec<StatusKind>,
-    ) -> Self {
-        Self {
-            domain_id,
-            qos,
-            a_listener,
-            mask,
-        }
-    }
-}
-
-impl Message for CreateParticipant {
-    type Result = DdsResult<ActorAddress<DdsDomainParticipant>>;
-}
-
-impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Message>::Result {
+        mask: &[StatusKind],
+    ) -> DdsResult<ActorAddress<DdsDomainParticipant>> {
         async fn task_send_entity_announce(
             mut announce_receiver: tokio::sync::mpsc::Receiver<AnnounceKind>,
             domain_participant_address: ActorAddress<DdsDomainParticipant>,
@@ -98,7 +87,9 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
             loop {
                 if let Some(announce_kind) = announce_receiver.recv().await {
                     domain_participant_address
-                        .send(dds_domain_participant::AnnounceEntity::new(announce_kind))
+                        .send(dds_actor::domain_participant::AnnounceEntity::new(
+                            announce_kind,
+                        ))
                         .await
                         .unwrap();
                 }
@@ -112,7 +103,7 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
             loop {
                 if let Some((locator, message)) = metatraffic_multicast_transport.read().await {
                     domain_participant_address
-                        .send(dds_domain_participant::ReceiveBuiltinMessage::new(
+                        .send(dds_actor::domain_participant::ReceiveBuiltinMessage::new(
                             locator, message,
                         ))
                         .await
@@ -128,7 +119,7 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
             loop {
                 if let Some((locator, message)) = metatraffic_unicast_transport.read().await {
                     domain_participant_address
-                        .send(dds_domain_participant::ReceiveBuiltinMessage::new(
+                        .send(dds_actor::domain_participant::ReceiveBuiltinMessage::new(
                             locator, message,
                         ))
                         .await
@@ -144,9 +135,11 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
             loop {
                 if let Some((locator, message)) = default_unicast_transport.read().await {
                     domain_participant_address
-                        .send(dds_domain_participant::ReceiveUserDefinedMessage::new(
-                            locator, message,
-                        ))
+                        .send(
+                            dds_actor::domain_participant::ReceiveUserDefinedMessage::new(
+                                locator, message,
+                            ),
+                        )
                         .await
                         .unwrap();
                 }
@@ -163,7 +156,7 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
                 domain_participant_address
-                    .send(dds_domain_participant::SendBuiltinMessage::new(
+                    .send(dds_actor::domain_participant::SendBuiltinMessage::new(
                         metatraffic_unicast_transport_send.clone(),
                     ))
                     .await
@@ -180,7 +173,7 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
                 domain_participant_address
-                    .send(dds_domain_participant::SendUserDefinedMessage::new(
+                    .send(dds_actor::domain_participant::SendUserDefinedMessage::new(
                         default_unicast_transport_send.clone(),
                     ))
                     .await
@@ -194,7 +187,7 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
             loop {
                 domain_participant_address
-                    .send(dds_domain_participant::AnnounceParticipant)
+                    .send(dds_actor::domain_participant::AnnounceParticipant)
                     .await
                     .unwrap();
 
@@ -202,7 +195,7 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
             }
         }
 
-        let domain_participant_qos = match message.qos {
+        let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
         };
@@ -265,7 +258,7 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
 
         let metatraffic_multicast_locator_list = vec![Locator::new(
             LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(message.domain_id),
+            port_builtin_multicast(domain_id),
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
 
@@ -287,7 +280,7 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
 
         let domain_participant = DdsDomainParticipant::new(
             rtps_participant,
-            message.domain_id,
+            domain_id,
             THE_DDS_CONFIGURATION.domain_tag.clone(),
             domain_participant_qos,
             &spdp_discovery_locator_list,
@@ -305,12 +298,11 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
         let metatraffic_multicast_transport = UdpTransportRead::new(
             get_multicast_socket(
                 DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-                port_builtin_multicast(message.domain_id),
+                port_builtin_multicast(domain_id),
             )
             .unwrap(),
         );
 
-        // SPAWN THE TASKS
         THE_RUNTIME.spawn(task_send_entity_announce(
             announce_receiver,
             participant_address.clone(),
@@ -349,41 +341,26 @@ impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
         THE_RUNTIME.spawn(task_announce_participant(participant_address.clone()));
 
         if self.qos.entity_factory.autoenable_created_entities {
-            participant_address.send_blocking(dds_domain_participant::Enable)?;
+            participant_address.send_blocking(dds_actor::domain_participant::Enable)?;
         }
 
         Ok(participant_address)
     }
-}
 
-pub struct DeleteParticipant {
-    address: ActorAddress<DdsDomainParticipant>,
-}
-
-impl DeleteParticipant {
-    pub fn new(address: ActorAddress<DdsDomainParticipant>) -> Self {
-        Self { address }
-    }
-}
-
-impl Message for DeleteParticipant {
-    type Result = DdsResult<()>;
-}
-
-impl Handler<DeleteParticipant> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Message>::Result {
-        let is_participant_empty = message
-            .address
-            .send_blocking(dds_domain_participant::IsEmpty)?;
+    pub fn delete_participant(
+        &mut self,
+        domain_participant_address: &ActorAddress<DdsDomainParticipant>,
+    ) -> DdsResult<()> {
+        let is_participant_empty =
+            domain_participant_address.send_blocking(dds_actor::domain_participant::IsEmpty)?;
         if is_participant_empty {
-            let participant_handle = message
-                .address
-                .send_blocking(dds_domain_participant::GetInstanceHandle)?;
+            let participant_handle = domain_participant_address
+                .send_blocking(dds_actor::domain_participant::GetInstanceHandle)?;
             let idx = self
                 .domain_participant_list
                 .iter()
                 .position(|dp| {
-                    dp.0.send_blocking(dds_domain_participant::GetInstanceHandle)
+                    dp.0.send_blocking(dds_actor::domain_participant::GetInstanceHandle)
                         .expect("Should not fail to send message")
                         == participant_handle
                 })
@@ -396,123 +373,45 @@ impl Handler<DeleteParticipant> for DdsDomainParticipantFactory {
             ))
         }
     }
-}
 
-pub struct LookupParticipant {
-    domain_id: DomainId,
-}
-
-impl LookupParticipant {
-    pub fn new(domain_id: DomainId) -> Self {
-        Self { domain_id }
-    }
-}
-
-impl Message for LookupParticipant {
-    type Result = Option<ActorAddress<DdsDomainParticipant>>;
-}
-
-impl Handler<LookupParticipant> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: LookupParticipant) -> <LookupParticipant as Message>::Result {
+    pub fn lookup_participant(
+        &self,
+        domain_id: DomainId,
+    ) -> Option<ActorAddress<DdsDomainParticipant>> {
         self.domain_participant_list
             .iter()
             .map(|dp| &dp.0)
             .find(|a| {
-                a.send_blocking(dds_domain_participant::GetDomainId)
+                a.send_blocking(dds_actor::domain_participant::GetDomainId)
                     .expect("Should not fail to send message")
-                    == message.domain_id
+                    == domain_id
             })
             .cloned()
     }
-}
 
-pub struct GetQos;
-
-impl Message for GetQos {
-    type Result = DomainParticipantFactoryQos;
-}
-
-impl Handler<GetQos> for DdsDomainParticipantFactory {
-    fn handle(&mut self, _message: GetQos) -> <GetQos as Message>::Result {
-        self.qos.clone()
+    pub fn get_qos(&self) -> &DomainParticipantFactoryQos {
+        &self.qos
     }
-}
 
-pub struct SetQos {
-    qos_kind: QosKind<DomainParticipantFactoryQos>,
-}
-
-impl SetQos {
-    pub fn new(qos_kind: QosKind<DomainParticipantFactoryQos>) -> Self {
-        Self { qos_kind }
-    }
-}
-
-impl Message for SetQos {
-    type Result = ();
-}
-
-impl Handler<SetQos> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Message>::Result {
-        let qos = match message.qos_kind {
+    pub fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) {
+        let qos = match qos {
             QosKind::Default => DomainParticipantFactoryQos::default(),
             QosKind::Specific(q) => q,
         };
 
         self.qos = qos;
     }
-}
 
-pub struct GetDefaultParticipantQos;
-
-impl Message for GetDefaultParticipantQos {
-    type Result = DomainParticipantQos;
-}
-
-impl Handler<GetDefaultParticipantQos> for DdsDomainParticipantFactory {
-    fn handle(
-        &mut self,
-        _message: GetDefaultParticipantQos,
-    ) -> <GetDefaultParticipantQos as Message>::Result {
-        self.default_participant_qos.clone()
+    pub fn get_default_participant_qos(&self) -> &DomainParticipantQos {
+        &self.default_participant_qos
     }
-}
 
-pub struct SetDefaultParticipantQos {
-    qos_kind: QosKind<DomainParticipantQos>,
-}
-
-impl SetDefaultParticipantQos {
-    pub fn new(qos_kind: QosKind<DomainParticipantQos>) -> Self {
-        Self { qos_kind }
-    }
-}
-
-impl Message for SetDefaultParticipantQos {
-    type Result = ();
-}
-
-impl Handler<SetDefaultParticipantQos> for DdsDomainParticipantFactory {
-    fn handle(
-        &mut self,
-        message: SetDefaultParticipantQos,
-    ) -> <SetDefaultParticipantQos as Message>::Result {
-        let qos = match message.qos_kind {
+    pub fn set_default_participant_qos(&mut self, qos: QosKind<DomainParticipantQos>) {
+        let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
             QosKind::Specific(q) => q,
         };
         self.default_participant_qos = qos;
-    }
-}
-
-impl DdsDomainParticipantFactory {
-    pub fn new() -> Self {
-        Self {
-            domain_participant_list: Vec::new(),
-            domain_participant_counter: 0,
-            qos: DomainParticipantFactoryQos::default(),
-            default_participant_qos: DomainParticipantQos::default(),
-        }
     }
 }
 

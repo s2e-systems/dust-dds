@@ -45,9 +45,8 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{self, Handler, Message},
+            actor::{self},
             condvar::DdsCondvar,
         },
     },
@@ -78,10 +77,7 @@ use crate::{
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{
-        atomic::{AtomicU8, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicU8, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -155,241 +151,6 @@ pub struct DdsDomainParticipant {
     data_max_size_serialized: usize,
     announce_sender: Sender<AnnounceKind>,
     sedp_condvar: DdsCondvar,
-}
-
-pub struct Enable;
-
-impl Message for Enable {
-    type Result = ();
-}
-
-impl Handler<Enable> for DdsDomainParticipant {
-    fn handle(&mut self, _message: Enable) -> <Enable as Message>::Result {
-        if !self.enabled {
-            self.enabled = true;
-
-            self.builtin_subscriber.enable().ok();
-            self.builtin_publisher.enable();
-
-            for builtin_stateless_writer in self
-                .builtin_publisher
-                .stateless_data_writer_list_mut()
-                .iter_mut()
-            {
-                builtin_stateless_writer.enable();
-            }
-
-            for builtin_stateful_writer in self
-                .builtin_publisher
-                .stateful_data_writer_list()
-                .iter_mut()
-            {
-                builtin_stateful_writer
-                    .send_blocking(dds_data_writer::Enable)
-                    .ok();
-            }
-
-            if self.qos.entity_factory.autoenable_created_entities {
-                for publisher in self.user_defined_publisher_list_mut() {
-                    publisher.enable();
-                }
-
-                for subscriber in self.user_defined_subscriber_list.iter_mut() {
-                    subscriber.enable().ok();
-                }
-
-                for topic in self.topic_list.iter_mut() {
-                    topic.enable().ok();
-                }
-            }
-        }
-    }
-}
-
-pub struct GetQos;
-
-impl Message for GetQos {
-    type Result = DomainParticipantQos;
-}
-
-impl Handler<GetQos> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetQos) -> <GetQos as Message>::Result {
-        self.qos.clone()
-    }
-}
-
-pub struct GetDomainId;
-
-impl Message for GetDomainId {
-    type Result = DomainId;
-}
-
-impl Handler<GetDomainId> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetDomainId) -> <GetDomainId as Message>::Result {
-        self.domain_id
-    }
-}
-
-pub struct GetInstanceHandle;
-
-impl Message for GetInstanceHandle {
-    type Result = InstanceHandle;
-}
-
-impl Handler<GetInstanceHandle> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetInstanceHandle) -> <GetInstanceHandle as Message>::Result {
-        self.rtps_participant.guid().into()
-    }
-}
-
-pub struct IsEmpty;
-
-impl Message for IsEmpty {
-    type Result = bool;
-}
-
-impl Handler<IsEmpty> for DdsDomainParticipant {
-    fn handle(&mut self, _message: IsEmpty) -> <IsEmpty as Message>::Result {
-        self.user_defined_publisher_list().iter().count() == 0
-            && self.user_defined_subscriber_list().iter().count() == 0
-            && self.topic_list().iter().count() == 0
-    }
-}
-
-pub struct ReceiveBuiltinMessage {
-    locator: Locator,
-    message: RtpsMessageRead,
-}
-
-impl ReceiveBuiltinMessage {
-    pub fn new(locator: Locator, message: RtpsMessageRead) -> Self {
-        Self { locator, message }
-    }
-}
-
-impl Message for ReceiveBuiltinMessage {
-    type Result = ();
-}
-
-impl Handler<ReceiveBuiltinMessage> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: ReceiveBuiltinMessage,
-    ) -> <ReceiveBuiltinMessage as Message>::Result {
-        // self.receive_builtin_data(locator, message, listener_sender)
-        //     .ok();
-
-        // discover_matched_participants(domain_participant, sedp_condvar).ok();
-        // domain_participant
-        //     .discover_matched_readers(listener_sender)
-        //     .ok();
-        // discover_matched_writers(domain_participant, listener_sender).ok();
-        // domain_participant
-        //     .discover_matched_topics(listener_sender)
-        //     .ok();
-    }
-}
-
-pub struct ReceiveUserDefinedMessage {
-    locator: Locator,
-    message: RtpsMessageRead,
-}
-
-impl ReceiveUserDefinedMessage {
-    pub fn new(locator: Locator, message: RtpsMessageRead) -> Self {
-        Self { locator, message }
-    }
-}
-
-impl Message for ReceiveUserDefinedMessage {
-    type Result = ();
-}
-
-impl Handler<ReceiveUserDefinedMessage> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: ReceiveUserDefinedMessage,
-    ) -> <ReceiveUserDefinedMessage as Message>::Result {
-        // todo!();
-    }
-}
-
-pub struct AnnounceEntity {
-    announce_kind: AnnounceKind,
-}
-
-impl AnnounceEntity {
-    pub fn new(announce_kind: AnnounceKind) -> Self {
-        Self { announce_kind }
-    }
-}
-
-impl Message for AnnounceEntity {
-    type Result = ();
-}
-
-impl Handler<AnnounceEntity> for DdsDomainParticipant {
-    fn handle(&mut self, _message: AnnounceEntity) -> <AnnounceEntity as Message>::Result {
-        // todo!();
-    }
-}
-
-pub struct AnnounceParticipant;
-
-impl Message for AnnounceParticipant {
-    type Result = ();
-}
-
-impl Handler<AnnounceParticipant> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: AnnounceParticipant,
-    ) -> <AnnounceParticipant as Message>::Result {
-        // todo!();
-    }
-}
-
-pub struct SendBuiltinMessage {
-    socket: Arc<UdpTransportWrite>,
-}
-
-impl SendBuiltinMessage {
-    pub fn new(socket: Arc<UdpTransportWrite>) -> Self {
-        Self { socket }
-    }
-}
-
-impl Message for SendBuiltinMessage {
-    type Result = ();
-}
-
-impl Handler<SendBuiltinMessage> for DdsDomainParticipant {
-    fn handle(&mut self, _message: SendBuiltinMessage) -> <SendBuiltinMessage as Message>::Result {
-        // todo!();
-    }
-}
-
-pub struct SendUserDefinedMessage {
-    socket: Arc<UdpTransportWrite>,
-}
-
-impl SendUserDefinedMessage {
-    pub fn new(socket: Arc<UdpTransportWrite>) -> Self {
-        Self { socket }
-    }
-}
-
-impl Message for SendUserDefinedMessage {
-    type Result = ();
-}
-
-impl Handler<SendUserDefinedMessage> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: SendUserDefinedMessage,
-    ) -> <SendUserDefinedMessage as Message>::Result {
-        todo!();
-    }
 }
 
 impl DdsDomainParticipant {
@@ -607,6 +368,10 @@ impl DdsDomainParticipant {
         self.rtps_participant.vendor_id()
     }
 
+    pub fn domain_id(&self) -> DomainId {
+        self.domain_id
+    }
+
     pub fn protocol_version(&self) -> ProtocolVersion {
         self.rtps_participant.protocol_version()
     }
@@ -649,6 +414,47 @@ impl DdsDomainParticipant {
             .duration_since(UNIX_EPOCH)
             .expect("Clock time is before Unix epoch start");
         Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
+    }
+
+    pub fn enable(&mut self) {
+        if !self.enabled {
+            self.enabled = true;
+
+            self.builtin_subscriber.enable().ok();
+            self.builtin_publisher.enable();
+
+            for builtin_stateless_writer in self
+                .builtin_publisher
+                .stateless_data_writer_list_mut()
+                .iter_mut()
+            {
+                builtin_stateless_writer.enable();
+            }
+
+            for builtin_stateful_writer in self
+                .builtin_publisher
+                .stateful_data_writer_list()
+                .iter_mut()
+            {
+                builtin_stateful_writer
+                    .send_blocking(dds_data_writer::Enable)
+                    .ok();
+            }
+
+            if self.qos.entity_factory.autoenable_created_entities {
+                for publisher in self.user_defined_publisher_list_mut() {
+                    publisher.enable();
+                }
+
+                for subscriber in self.user_defined_subscriber_list.iter_mut() {
+                    subscriber.enable().ok();
+                }
+
+                for topic in self.topic_list.iter_mut() {
+                    topic.enable().ok();
+                }
+            }
+        }
     }
 
     pub fn is_enabled(&self) -> bool {

@@ -30,6 +30,7 @@ use crate::{
             participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
         },
+        dds_actor,
         rtps::{
             discovery_types::BuiltinEndpointSet,
             history_cache::RtpsWriterCacheChange,
@@ -636,7 +637,7 @@ impl DomainParticipant {
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.0.send_blocking(dds_domain_participant::GetQos)
+        self.0.send_blocking(dds_actor::domain_participant::GetQos)
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
