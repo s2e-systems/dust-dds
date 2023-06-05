@@ -1,4 +1,4 @@
-use std::{future::poll_fn, marker::PhantomData, task::Poll};
+use std::{future::poll_fn, task::Poll};
 
 use tokio::{runtime, sync};
 
@@ -27,14 +27,12 @@ where
 
 #[derive(Debug)]
 pub struct ActorAddress<A> {
-    actor: PhantomData<A>,
     sender: sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
 }
 
 impl<A> Clone for ActorAddress<A> {
     fn clone(&self) -> Self {
         Self {
-            actor: PhantomData,
             sender: self.sender.clone(),
         }
     }
@@ -138,10 +136,7 @@ where
 {
     let (sender, mailbox) = sync::mpsc::channel(10);
 
-    let address = ActorAddress {
-        actor: PhantomData,
-        sender,
-    };
+    let address = ActorAddress { sender };
 
     let mut actor_obj = SpawnedActor {
         value: actor,
