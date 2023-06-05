@@ -4,7 +4,6 @@ use super::{
 };
 use crate::{
     implementation::{
-        dds_actor,
         rtps::{
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
@@ -21,7 +20,7 @@ use crate::{
                 USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
             },
         },
-        utils::actor::{spawn_actor, ActorAddress, Actor},
+        utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -328,9 +327,7 @@ impl DdsSubscriber {
 
         if self.qos.entity_factory.autoenable_created_entities {
             for data_reader in self.stateful_data_reader_list.iter_mut() {
-                data_reader
-                    .address()
-                    .send_blocking(dds_actor::data_reader::Enable)?;
+                data_reader.address().enable()?;
             }
         }
 

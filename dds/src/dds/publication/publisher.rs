@@ -1,16 +1,12 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
-        dds::{
-            any_data_writer_listener::AnyDataWriterListener,
-            dds_domain_participant::DdsDomainParticipant,
-            nodes::{DataWriterNode, DataWriterNodeKind, DomainParticipantNode, PublisherNode},
-        },
+        dds::nodes::{DataWriterNode, DataWriterNodeKind, PublisherNode},
         dds_actor,
     },
     infrastructure::{
         condition::StatusCondition,
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
@@ -85,34 +81,29 @@ impl Publisher {
         let default_unicast_locator_list = self
             .0
             .parent_participant()
-            .send_blocking(dds_actor::domain_participant::GetDefaultUnicastLocatorList)?;
+            .get_default_unicast_locator_list()?;
         let default_multicast_locator_list = self
             .0
             .parent_participant()
-            .send_blocking(dds_actor::domain_participant::GetDefaultMulticastLocatorList)?;
-        let data_max_size_serialized = self
-            .0
-            .parent_participant()
-            .send_blocking(dds_actor::domain_participant::GetDataMaxSizeSerialized)?;
+            .get_default_multicast_locator_list()?;
+        let data_max_size_serialized =
+            self.0.parent_participant().get_data_max_size_serialized()?;
         let user_defined_rtps_message_channel_sender = self
             .0
             .parent_participant()
-            .send_blocking(dds_actor::domain_participant::GetUserDefinedRtpsMessageChannelSender)?;
-        let writer_address =
-            self.0
-                .address()
-                .send_blocking(dds_actor::publisher::CreateDataWriter::<Foo>::new(
-                    a_topic.get_name()?,
-                    qos,
-                    default_unicast_locator_list,
-                    default_multicast_locator_list,
-                    data_max_size_serialized,
-                    user_defined_rtps_message_channel_sender,
-                ))?;
+            .get_user_defined_rtps_message_channel_sender()?;
+        let writer_address = self.0.address().create_datawriter::<Foo>(
+            a_topic.get_name()?,
+            qos,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            data_max_size_serialized,
+            user_defined_rtps_message_channel_sender,
+        )?;
 
         Ok(DataWriter::new(DataWriterNodeKind::UserDefined(
             DataWriterNode::new(
-                writer_address?,
+                writer_address,
                 self.0.address().clone(),
                 self.0.parent_participant().clone(),
             ),

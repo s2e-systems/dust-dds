@@ -17,7 +17,6 @@ use crate::{
     implementation::{
         configuration::DustDdsConfiguration,
         dds::dds_domain_participant::AnnounceKind,
-        dds_actor,
         rtps::{
             messages::overall_structure::RtpsMessageWrite,
             participant::RtpsParticipant,
@@ -87,12 +86,11 @@ impl DdsDomainParticipantFactory {
         ) {
             loop {
                 if let Some(announce_kind) = announce_receiver.recv().await {
-                    domain_participant_address
-                        .send(dds_actor::domain_participant::AnnounceEntity::new(
-                            announce_kind,
-                        ))
-                        .await
-                        .unwrap();
+                    tokio::task::block_in_place(|| {
+                        domain_participant_address
+                            .announce_entity(announce_kind)
+                            .unwrap()
+                    });
                 }
             }
         }
@@ -103,12 +101,11 @@ impl DdsDomainParticipantFactory {
         ) {
             loop {
                 if let Some((locator, message)) = metatraffic_multicast_transport.read().await {
-                    domain_participant_address
-                        .send(dds_actor::domain_participant::ReceiveBuiltinMessage::new(
-                            locator, message,
-                        ))
-                        .await
-                        .unwrap();
+                    tokio::task::block_in_place(|| {
+                        domain_participant_address
+                            .receive_builtin_message(locator, message)
+                            .unwrap()
+                    });
                 }
             }
         }
@@ -119,12 +116,11 @@ impl DdsDomainParticipantFactory {
         ) {
             loop {
                 if let Some((locator, message)) = metatraffic_unicast_transport.read().await {
-                    domain_participant_address
-                        .send(dds_actor::domain_participant::ReceiveBuiltinMessage::new(
-                            locator, message,
-                        ))
-                        .await
-                        .unwrap();
+                    tokio::task::block_in_place(|| {
+                        domain_participant_address
+                            .receive_builtin_message(locator, message)
+                            .unwrap()
+                    });
                 }
             }
         }
@@ -135,14 +131,11 @@ impl DdsDomainParticipantFactory {
         ) {
             loop {
                 if let Some((locator, message)) = default_unicast_transport.read().await {
-                    domain_participant_address
-                        .send(
-                            dds_actor::domain_participant::ReceiveUserDefinedMessage::new(
-                                locator, message,
-                            ),
-                        )
-                        .await
-                        .unwrap();
+                    tokio::task::block_in_place(|| {
+                        domain_participant_address
+                            .receive_user_defined_message(locator, message)
+                            .unwrap()
+                    });
                 }
             }
         }
@@ -189,10 +182,9 @@ impl DdsDomainParticipantFactory {
         ) {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
             loop {
-                domain_participant_address
-                    .send(dds_actor::domain_participant::AnnounceParticipant)
-                    .await
-                    .unwrap();
+                tokio::task::block_in_place(|| {
+                    domain_participant_address.announce_participant().unwrap()
+                });
 
                 interval.tick().await;
             }

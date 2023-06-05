@@ -27,7 +27,6 @@ use crate::{
             },
             status_listener::ListenerTriggerKind,
         },
-        dds_actor,
         rtps::{
             discovery_types::BuiltinEndpointSet,
             history_cache::RtpsWriterCacheChange,
@@ -417,8 +416,7 @@ impl DomainParticipant {
     /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0
-            .send_blocking(dds_actor::domain_participant::DeleteContainedEntities)
+        self.0.delete_contained_entities()
     }
 
     /// This operation manually asserts the liveliness of the [`DomainParticipant`]. This is used in combination
@@ -1490,12 +1488,7 @@ fn announce_deleted_reader(
         .iter()
         .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
         .unwrap()
-        .send_blocking(dds_actor::data_writer::DisposeWithTimestamp::new(
-            instance_serialized_key,
-            reader_handle,
-            timestamp,
-        ))
-        .expect("Should not fail message sending")
+        .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
         .expect("Should not fail to write built-in message");
 }
 
@@ -1517,12 +1510,7 @@ fn announce_deleted_writer(
         .iter()
         .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
         .unwrap()
-        .send_blocking(dds_actor::data_writer::DisposeWithTimestamp::new(
-            instance_serialized_key,
-            writer_handle,
-            timestamp,
-        ))
-        .expect("Shoud not fail message sending")
+        .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
         .expect("Should not fail to write built-in message");
 }
 

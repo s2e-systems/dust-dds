@@ -2,7 +2,6 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         dds::dds_domain_participant_factory::DdsDomainParticipantFactory,
-        dds_actor,
         utils::actor::{spawn_actor, Actor},
     },
     infrastructure::{
@@ -47,26 +46,20 @@ impl DomainParticipantFactory {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
-        let address = self.0.address().send_blocking(
-            dds_actor::domain_participant_factory::CreateParticipant::new(
-                domain_id,
-                qos,
-                a_listener,
-                mask.to_vec(),
-            ),
-        )?;
-        Ok(DomainParticipant::new(address?))
+        let participant_address =
+            self.0
+                .address()
+                .create_participant(domain_id, qos, a_listener, mask.to_vec())?;
+        Ok(DomainParticipant::new(participant_address))
     }
 
     /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
     /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
-        self.0.address().send_blocking(
-            dds_actor::domain_participant_factory::DeleteParticipant::new(
-                participant.address().clone(),
-            ),
-        )?
+        self.0
+            .address()
+            .delete_participant(participant.address().clone())
     }
 
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
@@ -83,7 +76,7 @@ impl DomainParticipantFactory {
     pub fn lookup_participant(&self, domain_id: DomainId) -> DdsResult<Option<DomainParticipant>> {
         self.0
             .address()
-            .send_blocking(dds_actor::domain_participant_factory::LookupParticipant::new(domain_id))
+            .lookup_participant(domain_id)
             .map(|option_dp| option_dp.map(|address| DomainParticipant::new(address)))
     }
 
@@ -92,9 +85,7 @@ impl DomainParticipantFactory {
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
     pub fn set_default_participant_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        self.0.address().send_blocking(
-            dds_actor::domain_participant_factory::SetDefaultParticipantQos::new(qos),
-        )
+        self.0.address().set_default_participant_qos(qos)
     }
 
     /// This operation retrieves the default value of the [`DomainParticipantQos`], that is, the QoS policies which will be used for
@@ -103,9 +94,7 @@ impl DomainParticipantFactory {
     /// The values retrieved by [`DomainParticipantFactory::get_default_participant_qos`] will match the set of values specified on the last successful call to
     /// [`DomainParticipantFactory::set_default_participant_qos`], or else, if the call was never made, the default value of [`DomainParticipantQos`].
     pub fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.0
-            .address()
-            .send_blocking(dds_actor::domain_participant_factory::GetDefaultParticipantQos)
+        self.0.address().get_default_participant_qos()
     }
 
     /// This operation sets the value of the [`DomainParticipantFactoryQos`] policies. These policies control the behavior of the object
@@ -114,15 +103,11 @@ impl DomainParticipantFactory {
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
     pub fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        self.0
-            .address()
-            .send_blocking(dds_actor::domain_participant_factory::SetQos::new(qos))
+        self.0.address().set_qos(qos)
     }
 
     /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
-        self.0
-            .address()
-            .send_blocking(dds_actor::domain_participant_factory::GetQos)
+        self.0.address().get_qos()
     }
 }

@@ -33,7 +33,7 @@ impl ActorAddress<DdsDomainParticipant> {
         }
 
         impl MailHandler<Enable> for DdsDomainParticipant {
-            fn handle(&mut self, _message: Enable) -> <Enable as Mail>::Result {
+            fn handle(&mut self, _mail: Enable) -> <Enable as Mail>::Result {
                 self.enable()
             }
         }
@@ -49,7 +49,7 @@ impl ActorAddress<DdsDomainParticipant> {
         }
 
         impl MailHandler<GetQos> for DdsDomainParticipant {
-            fn handle(&mut self, _message: GetQos) -> <GetQos as Mail>::Result {
+            fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
                 self.get_qos()
             }
         }
@@ -83,7 +83,7 @@ impl ActorAddress<DdsDomainParticipant> {
         }
 
         impl MailHandler<GetDomainId> for DdsDomainParticipant {
-            fn handle(&mut self, _message: GetDomainId) -> <GetDomainId as Mail>::Result {
+            fn handle(&mut self, _mail: GetDomainId) -> <GetDomainId as Mail>::Result {
                 self.domain_id()
             }
         }
@@ -99,10 +99,7 @@ impl ActorAddress<DdsDomainParticipant> {
         }
 
         impl MailHandler<GetInstanceHandle> for DdsDomainParticipant {
-            fn handle(
-                &mut self,
-                _message: GetInstanceHandle,
-            ) -> <GetInstanceHandle as Mail>::Result {
+            fn handle(&mut self, _mail: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
                 self.guid().into()
             }
         }
@@ -111,7 +108,7 @@ impl ActorAddress<DdsDomainParticipant> {
     }
 
     pub fn is_empty(&self) -> DdsResult<bool> {
-        pub struct IsEmpty;
+        struct IsEmpty;
 
         impl Mail for IsEmpty {
             type Result = bool;
@@ -147,8 +144,8 @@ impl ActorAddress<DdsDomainParticipant> {
         }
 
         impl MailHandler<CreateTopic> for DdsDomainParticipant {
-            fn handle(&mut self, message: CreateTopic) -> <CreateTopic as Mail>::Result {
-                self.create_topic(&message.topic_name, message.type_name, message.qos)
+            fn handle(&mut self, mail: CreateTopic) -> <CreateTopic as Mail>::Result {
+                self.create_topic(&mail.topic_name, mail.type_name, mail.qos)
             }
         }
 
@@ -178,8 +175,8 @@ impl ActorAddress<DdsDomainParticipant> {
         }
 
         impl MailHandler<CreatePublisher> for DdsDomainParticipant {
-            fn handle(&mut self, message: CreatePublisher) -> <CreatePublisher as Mail>::Result {
-                self.create_publisher(message.qos)
+            fn handle(&mut self, mail: CreatePublisher) -> <CreatePublisher as Mail>::Result {
+                self.create_publisher(mail.qos)
             }
         }
 
@@ -207,8 +204,8 @@ impl ActorAddress<DdsDomainParticipant> {
         }
 
         impl MailHandler<CreateSubscriber> for DdsDomainParticipant {
-            fn handle(&mut self, message: CreateSubscriber) -> <CreateSubscriber as Mail>::Result {
-                self.create_subscriber(message.qos)
+            fn handle(&mut self, mail: CreateSubscriber) -> <CreateSubscriber as Mail>::Result {
+                self.create_subscriber(mail.qos)
             }
         }
 
@@ -218,169 +215,191 @@ impl ActorAddress<DdsDomainParticipant> {
             mask,
         })?
     }
-}
 
-pub struct ReceiveBuiltinMessage {
-    locator: Locator,
-    message: RtpsMessageRead,
-}
+    pub fn get_default_unicast_locator_list(&self) -> DdsResult<Vec<Locator>> {
+        struct GetDefaultUnicastLocatorList;
 
-impl ReceiveBuiltinMessage {
-    pub fn new(locator: Locator, message: RtpsMessageRead) -> Self {
-        Self { locator, message }
+        impl Mail for GetDefaultUnicastLocatorList {
+            type Result = Vec<Locator>;
+        }
+
+        impl MailHandler<GetDefaultUnicastLocatorList> for DdsDomainParticipant {
+            fn handle(
+                &mut self,
+                _mail: GetDefaultUnicastLocatorList,
+            ) -> <GetDefaultUnicastLocatorList as Mail>::Result {
+                self.default_unicast_locator_list().to_vec()
+            }
+        }
+        self.send_blocking(GetDefaultUnicastLocatorList)
     }
-}
 
-impl Mail for ReceiveBuiltinMessage {
-    type Result = ();
-}
+    pub fn get_default_multicast_locator_list(&self) -> DdsResult<Vec<Locator>> {
+        struct GetDefaultMulticastLocatorList;
 
-impl MailHandler<ReceiveBuiltinMessage> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: ReceiveBuiltinMessage,
-    ) -> <ReceiveBuiltinMessage as Mail>::Result {
-        // self.receive_builtin_data(locator, message, listener_sender)
-        //     .ok();
+        impl Mail for GetDefaultMulticastLocatorList {
+            type Result = Vec<Locator>;
+        }
 
-        // discover_matched_participants(domain_participant, sedp_condvar).ok();
-        // domain_participant
-        //     .discover_matched_readers(listener_sender)
-        //     .ok();
-        // discover_matched_writers(domain_participant, listener_sender).ok();
-        // domain_participant
-        //     .discover_matched_topics(listener_sender)
-        //     .ok();
+        impl MailHandler<GetDefaultMulticastLocatorList> for DdsDomainParticipant {
+            fn handle(
+                &mut self,
+                _mail: GetDefaultMulticastLocatorList,
+            ) -> <GetDefaultMulticastLocatorList as Mail>::Result {
+                self.default_multicast_locator_list().to_vec()
+            }
+        }
+        self.send_blocking(GetDefaultMulticastLocatorList)
     }
-}
 
-pub struct ReceiveUserDefinedMessage {
-    locator: Locator,
-    message: RtpsMessageRead,
-}
+    pub fn get_data_max_size_serialized(&self) -> DdsResult<usize> {
+        struct GetDataMaxSizeSerialized;
 
-impl ReceiveUserDefinedMessage {
-    pub fn new(locator: Locator, message: RtpsMessageRead) -> Self {
-        Self { locator, message }
+        impl Mail for GetDataMaxSizeSerialized {
+            type Result = usize;
+        }
+
+        impl MailHandler<GetDataMaxSizeSerialized> for DdsDomainParticipant {
+            fn handle(
+                &mut self,
+                _mail: GetDataMaxSizeSerialized,
+            ) -> <GetDataMaxSizeSerialized as Mail>::Result {
+                self.data_max_size_serialized()
+            }
+        }
+        self.send_blocking(GetDataMaxSizeSerialized)
     }
-}
+    pub fn delete_contained_entities(&self) -> DdsResult<()> {
+        struct DeleteContainedEntities;
 
-impl Mail for ReceiveUserDefinedMessage {
-    type Result = ();
-}
+        impl Mail for DeleteContainedEntities {
+            type Result = ();
+        }
 
-impl MailHandler<ReceiveUserDefinedMessage> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: ReceiveUserDefinedMessage,
-    ) -> <ReceiveUserDefinedMessage as Mail>::Result {
-        // todo!();
+        impl MailHandler<DeleteContainedEntities> for DdsDomainParticipant {
+            fn handle(
+                &mut self,
+                _mail: DeleteContainedEntities,
+            ) -> <DeleteContainedEntities as Mail>::Result {
+                self.delete_contained_entities().ok();
+            }
+        }
+        self.send_blocking(DeleteContainedEntities)
     }
-}
 
-pub struct AnnounceEntity {
-    announce_kind: AnnounceKind,
-}
+    pub fn receive_builtin_message(
+        &self,
+        locator: Locator,
+        message: RtpsMessageRead,
+    ) -> DdsResult<()> {
+        struct ReceiveBuiltinMessage {
+            locator: Locator,
+            message: RtpsMessageRead,
+        }
 
-impl AnnounceEntity {
-    pub fn new(announce_kind: AnnounceKind) -> Self {
-        Self { announce_kind }
+        impl Mail for ReceiveBuiltinMessage {
+            type Result = ();
+        }
+
+        impl MailHandler<ReceiveBuiltinMessage> for DdsDomainParticipant {
+            fn handle(
+                &mut self,
+                _mail: ReceiveBuiltinMessage,
+            ) -> <ReceiveBuiltinMessage as Mail>::Result {
+                // self.receive_builtin_data(locator, message, listener_sender)
+                //     .ok();
+
+                // discover_matched_participants(domain_participant, sedp_condvar).ok();
+                // domain_participant
+                //     .discover_matched_readers(listener_sender)
+                //     .ok();
+                // discover_matched_writers(domain_participant, listener_sender).ok();
+                // domain_participant
+                //     .discover_matched_topics(listener_sender)
+                //     .ok();
+            }
+        }
+        self.send_blocking(ReceiveBuiltinMessage { locator, message })
     }
-}
 
-impl Mail for AnnounceEntity {
-    type Result = ();
-}
+    pub fn receive_user_defined_message(
+        &self,
+        locator: Locator,
+        message: RtpsMessageRead,
+    ) -> DdsResult<()> {
+        struct ReceiveUserDefinedMessage {
+            locator: Locator,
+            message: RtpsMessageRead,
+        }
 
-impl MailHandler<AnnounceEntity> for DdsDomainParticipant {
-    fn handle(&mut self, _message: AnnounceEntity) -> <AnnounceEntity as Mail>::Result {
-        // todo!();
+        impl Mail for ReceiveUserDefinedMessage {
+            type Result = ();
+        }
+
+        impl MailHandler<ReceiveUserDefinedMessage> for DdsDomainParticipant {
+            fn handle(
+                &mut self,
+                _mail: ReceiveUserDefinedMessage,
+            ) -> <ReceiveUserDefinedMessage as Mail>::Result {
+                // todo!();
+            }
+        }
+
+        self.send_blocking(ReceiveUserDefinedMessage { locator, message })
     }
-}
 
-pub struct AnnounceParticipant;
+    pub fn announce_entity(&self, announce_kind: AnnounceKind) -> DdsResult<()> {
+        struct AnnounceEntity {
+            announce_kind: AnnounceKind,
+        }
 
-impl Mail for AnnounceParticipant {
-    type Result = ();
-}
+        impl Mail for AnnounceEntity {
+            type Result = ();
+        }
 
-impl MailHandler<AnnounceParticipant> for DdsDomainParticipant {
-    fn handle(&mut self, _message: AnnounceParticipant) -> <AnnounceParticipant as Mail>::Result {
-        self.announce_participant().ok();
+        impl MailHandler<AnnounceEntity> for DdsDomainParticipant {
+            fn handle(&mut self, _mail: AnnounceEntity) -> <AnnounceEntity as Mail>::Result {
+                // todo!();
+            }
+        }
+        self.send_blocking(AnnounceEntity { announce_kind })
     }
-}
 
-pub struct GetDefaultUnicastLocatorList;
+    pub fn announce_participant(&self) -> DdsResult<()> {
+        struct AnnounceParticipant;
 
-impl Mail for GetDefaultUnicastLocatorList {
-    type Result = Vec<Locator>;
-}
+        impl Mail for AnnounceParticipant {
+            type Result = ();
+        }
 
-impl MailHandler<GetDefaultUnicastLocatorList> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _mail: GetDefaultUnicastLocatorList,
-    ) -> <GetDefaultUnicastLocatorList as Mail>::Result {
-        self.default_unicast_locator_list().to_vec()
+        impl MailHandler<AnnounceParticipant> for DdsDomainParticipant {
+            fn handle(
+                &mut self,
+                _mail: AnnounceParticipant,
+            ) -> <AnnounceParticipant as Mail>::Result {
+                self.announce_participant().ok();
+            }
+        }
+        self.send_blocking(AnnounceParticipant)
     }
-}
 
-pub struct GetDefaultMulticastLocatorList;
+    pub fn get_user_defined_rtps_message_channel_sender(
+        &self,
+    ) -> DdsResult<tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>> {
+        struct GetUserDefinedRtpsMessageChannelSender;
 
-impl Mail for GetDefaultMulticastLocatorList {
-    type Result = Vec<Locator>;
-}
+        impl Mail for GetUserDefinedRtpsMessageChannelSender {
+            type Result = tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>;
+        }
 
-impl MailHandler<GetDefaultMulticastLocatorList> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _mail: GetDefaultMulticastLocatorList,
-    ) -> <GetDefaultMulticastLocatorList as Mail>::Result {
-        self.default_multicast_locator_list().to_vec()
-    }
-}
-
-pub struct GetDataMaxSizeSerialized;
-
-impl Mail for GetDataMaxSizeSerialized {
-    type Result = usize;
-}
-
-impl MailHandler<GetDataMaxSizeSerialized> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _mail: GetDataMaxSizeSerialized,
-    ) -> <GetDataMaxSizeSerialized as Mail>::Result {
-        self.data_max_size_serialized()
-    }
-}
-
-pub struct DeleteContainedEntities;
-
-impl Mail for DeleteContainedEntities {
-    type Result = ();
-}
-
-impl MailHandler<DeleteContainedEntities> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _mail: DeleteContainedEntities,
-    ) -> <DeleteContainedEntities as Mail>::Result {
-        self.delete_contained_entities().ok();
-    }
-}
-
-pub struct GetUserDefinedRtpsMessageChannelSender;
-
-impl Mail for GetUserDefinedRtpsMessageChannelSender {
-    type Result = tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>;
-}
-
-impl MailHandler<GetUserDefinedRtpsMessageChannelSender> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _mail: GetUserDefinedRtpsMessageChannelSender,
-    ) -> <GetUserDefinedRtpsMessageChannelSender as Mail>::Result {
-        self.get_user_defined_rtps_message_channel_sender()
+        impl MailHandler<GetUserDefinedRtpsMessageChannelSender> for DdsDomainParticipant {
+            fn handle(
+                &mut self,
+                _mail: GetUserDefinedRtpsMessageChannelSender,
+            ) -> <GetUserDefinedRtpsMessageChannelSender as Mail>::Result {
+                self.get_user_defined_rtps_message_channel_sender()
+            }
+        }
+        self.send_blocking(GetUserDefinedRtpsMessageChannelSender)
     }
 }

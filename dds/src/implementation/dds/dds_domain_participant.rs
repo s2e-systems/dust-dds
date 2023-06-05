@@ -17,7 +17,6 @@ use crate::{
             },
         },
         dds::{dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber, dds_topic::DdsTopic},
-        dds_actor,
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
@@ -445,21 +444,15 @@ impl DdsDomainParticipant {
 
             if self.qos.entity_factory.autoenable_created_entities {
                 for publisher in self.user_defined_publisher_list.iter_mut() {
-                    publisher
-                        .address()
-                        .send_blocking(dds_actor::publisher::Enable)
-                        .ok();
+                    publisher.address().enable().ok();
                 }
 
                 for subscriber in self.user_defined_subscriber_list.iter_mut() {
-                    subscriber
-                        .address()
-                        .send_blocking(dds_actor::subscriber::Enable)
-                        .ok();
+                    subscriber.address().enable().ok();
                 }
 
                 for topic in self.topic_list.iter_mut() {
-                    topic.address().send_blocking(dds_actor::topic::Enable).ok();
+                    topic.address().enable().ok();
                 }
             }
         }
@@ -858,13 +851,13 @@ impl DdsDomainParticipant {
         for user_defined_publisher in self.user_defined_publisher_list.drain(..) {
             user_defined_publisher
                 .address()
-                .send_blocking(dds_actor::publisher::DeleteContainedEntities)?;
+                .delete_contained_entities()?;
         }
 
         for user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
             user_defined_subscriber
                 .address()
-                .send_blocking(dds_actor::subscriber::DeleteContainedEntities)?;
+                .delete_contained_entities()?;
         }
 
         self.topic_list.clear();

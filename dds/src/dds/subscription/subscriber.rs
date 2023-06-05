@@ -2,7 +2,6 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         dds::{
-            any_data_reader_listener::AnyDataReaderListener,
             dds_subscriber::DdsSubscriber,
             nodes::{DataReaderNode, DataReaderNodeKind, SubscriberNodeKind},
         },
@@ -94,25 +93,21 @@ impl Subscriber {
                 Err(DdsError::IllegalOperation)
             }
             SubscriberNodeKind::UserDefined(s) => {
-                let default_unicast_locator_list = s
-                    .parent_participant()
-                    .send_blocking(dds_actor::domain_participant::GetDefaultUnicastLocatorList)?;
-                let default_multicast_locator_list = s
-                    .parent_participant()
-                    .send_blocking(dds_actor::domain_participant::GetDefaultMulticastLocatorList)?;
+                let default_unicast_locator_list =
+                    s.parent_participant().get_default_unicast_locator_list()?;
+                let default_multicast_locator_list =
+                    s.parent_participant().get_default_unicast_locator_list()?;
 
-                let reader_address = s.address().send_blocking(
-                    dds_actor::subscriber::CreateDataReader::<Foo>::new(
-                        a_topic.get_name()?,
-                        qos,
-                        default_unicast_locator_list,
-                        default_multicast_locator_list,
-                    ),
+                let reader_address = s.address().create_datareader::<Foo>(
+                    a_topic.get_name()?,
+                    qos,
+                    default_unicast_locator_list,
+                    default_multicast_locator_list,
                 )?;
 
                 Ok(DataReader::new(DataReaderNodeKind::UserDefined(
                     DataReaderNode::new(
-                        reader_address?,
+                        reader_address,
                         s.address().clone(),
                         s.parent_participant().clone(),
                     ),

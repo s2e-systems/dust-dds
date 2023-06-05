@@ -2,10 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::{
-        dds::nodes::{DomainParticipantNode, TopicNodeKind},
-        dds_actor,
-    },
+    implementation::dds::nodes::{DomainParticipantNode, TopicNodeKind},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -116,9 +113,7 @@ impl<Foo> Topic<Foo> {
     /// The name used to create the [`Topic`]
     pub fn get_name(&self) -> DdsResult<String> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
-                t.address().send_blocking(dds_actor::topic::GetName)
-            }
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => t.address().get_name(),
         }
     }
 }
