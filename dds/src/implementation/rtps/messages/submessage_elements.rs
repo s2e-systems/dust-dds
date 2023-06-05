@@ -1,5 +1,5 @@
 use super::{
-    overall_structure::{EndianWriteBytes, FromBytes},
+    overall_structure::{EndianWriteBytes, FromBytes, WriteBytes},
     types::{ParameterId, Time},
 };
 use crate::implementation::{
@@ -9,7 +9,7 @@ use crate::implementation::{
         types::{
             EntityId, EntityKey, EntityKind, GuidPrefix, Locator, LocatorAddress,
             LocatorKind, LocatorPort, ProtocolVersion, SequenceNumber, VendorId,
-        },
+        }, history_cache::Data,
     },
 };
 use std::io::BufRead;
@@ -33,7 +33,7 @@ pub enum SubmessageElement<'a> {
     ProtocolVersion(ProtocolVersion),
     SequenceNumber(SequenceNumber),
     SequenceNumberSet(SequenceNumberSet),
-    SerializedPayload(SerializedPayload<'a>),
+    SerializedData(&'a Data),
     Timestamp(Time),
     ULong(u32),
     UShort(u16),
@@ -54,7 +54,7 @@ impl EndianWriteBytes for SubmessageElement<'_> {
             SubmessageElement::ProtocolVersion(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::SequenceNumber(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::SequenceNumberSet(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::SerializedPayload(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::SerializedData(e) => e.write_bytes(buf),
             SubmessageElement::Timestamp(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::ULong(e) => e.endian_write_bytes::<E>(buf),
             SubmessageElement::UShort(e) => e.endian_write_bytes::<E>(buf),
@@ -301,11 +301,11 @@ impl EndianWriteBytes for &ParameterList {
     }
 }
 
-impl<'a> FromBytes<'a> for SerializedPayload<'a> {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self {
-        Self::new(v)
-    }
-}
+// impl<'a> FromBytes<'a> for SerializedPayload<'a> {
+//     fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self {
+//         Self::new(v)
+//     }
+// }
 
 impl FromBytes<'_> for EntityId {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
@@ -452,29 +452,29 @@ impl FromBytes<'_> for FragmentNumberSet {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, derive_more::Into, derive_more::From)]
-pub struct SerializedPayload<'a>(&'a [u8]);
+// #[derive(Debug, PartialEq, Eq, derive_more::Into, derive_more::From)]
+// pub struct SerializedPayload<'a>(&'a [u8]);
 
-impl<'a> SerializedPayload<'a> {
-    pub fn new(value: &'a [u8]) -> Self {
-        Self(value)
-    }
-}
+// impl<'a> SerializedPayload<'a> {
+//     pub fn new(value: &'a [u8]) -> Self {
+//         Self(value)
+//     }
+// }
 
-impl EndianWriteBytes for SerializedPayload<'_> {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(self.0);
-        let length_inclusive_padding = (self.0.len() + 3) & !3;
-        buf[self.0.len()..length_inclusive_padding].fill(0);
-        length_inclusive_padding
-    }
-}
+// impl EndianWriteBytes for SerializedPayload<'_> {
+//     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+//         buf[..self.0.len()].copy_from_slice(self.0);
+//         let length_inclusive_padding = (self.0.len() + 3) & !3;
+//         buf[self.0.len()..length_inclusive_padding].fill(0);
+//         length_inclusive_padding
+//     }
+// }
 
-impl<'a> From<&'_ SerializedPayload<'a>> for &'a [u8] {
-    fn from(value: &'_ SerializedPayload<'a>) -> Self {
-        value.0
-    }
-}
+// impl<'a> From<&'_ SerializedPayload<'a>> for &'a [u8] {
+//     fn from(value: &'_ SerializedPayload<'a>) -> Self {
+//         value.0
+//     }
+// }
 
 
 #[cfg(test)]

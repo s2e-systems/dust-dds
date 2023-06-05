@@ -177,7 +177,7 @@ impl<'a> RtpsReaderLocatorCacheChange<'a> {
 mod tests {
     use crate::{
         implementation::rtps::{
-            history_cache::RtpsWriterCacheChange,
+            history_cache::{RtpsWriterCacheChange, Data},
             messages::submessage_elements::ParameterList,
             types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
         },
@@ -195,7 +195,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(1),
             TIME_INVALID,
-            vec![],
+            Data::new(vec![]),
             ParameterList::empty(),
         ));
         hc.add_change(RtpsWriterCacheChange::new(
@@ -204,7 +204,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(2),
             TIME_INVALID,
-            vec![],
+            Data::new(vec![]),
             ParameterList::empty(),
         ));
         let mut reader_locator_attributes = RtpsReaderLocator::new(LOCATOR_INVALID, false);

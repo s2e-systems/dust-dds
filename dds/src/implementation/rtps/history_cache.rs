@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::{
     implementation::rtps::messages::types::FragmentNumber,
     infrastructure::{instance::InstanceHandle, time::Time},
@@ -5,13 +7,47 @@ use crate::{
 
 use super::{
     messages::{
-        submessage_elements::{ParameterList, SequenceNumberSet, SerializedPayload},
+        overall_structure::{FromBytes, WriteBytes},
+        submessage_elements::{ParameterList, SequenceNumberSet},
         submessages::{
             data::DataSubmessageWrite, data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
         },
     },
-    types::{ChangeKind, EntityId, Guid, SequenceNumber},
+    types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
 };
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Data(Vec<u8>);
+
+impl Data {
+    pub fn new(data: Vec<u8>) -> Self {
+        Self(data)
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl AsRef<[u8]> for Data {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl WriteBytes for &Data {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        buf[..self.0.len()].copy_from_slice(&self.0);
+        let length_inclusive_padding = (self.0.len() + 3) & !3;
+        buf[self.0.len()..length_inclusive_padding].fill(0);
+        length_inclusive_padding
+    }
+}
+
+impl FromBytes<'_> for Data {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
+        Self::new(v.to_vec())
+    }
+}
 
 pub struct RtpsWriterCacheChange {
     kind: ChangeKind,
@@ -19,8 +55,82 @@ pub struct RtpsWriterCacheChange {
     sequence_number: SequenceNumber,
     _instance_handle: InstanceHandle,
     timestamp: Time,
-    data: Vec<u8>,
+    data_value: Data,
     inline_qos: ParameterList,
+}
+
+impl<'a> IntoIterator for &'a RtpsWriterCacheChange {
+    type Item = DataFragSubmessageWrite<'a>;
+    type IntoIter = DataFragSubmessages<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        DataFragSubmessages::new(
+            RtpsWriterCacheChangeFrag {
+                cache_change: self,
+                data: self.data_value,
+            },
+            ENTITYID_UNKNOWN,
+        )
+    }
+}
+
+struct RtpsWriterCacheChangeFrag<'a> {
+    cache_change: RtpsWriterCacheChange,
+    data: Data,
+}
+pub struct DataFragSubmessages<'a> {
+    cache_change: &'a RtpsWriterCacheChangeFrag<'a>,
+    reader_id: EntityId,
+}
+
+impl<'a> DataFragSubmessages<'a> {
+    fn new(cache_change: &'a RtpsWriterCacheChangeFrag, reader_id: EntityId) -> Self {
+        // let data = cache_change.data_value().clone();
+        Self {
+            cache_change,
+            reader_id,
+        }
+    }
+}
+
+impl<'a> Iterator for DataFragSubmessages<'a>
+where
+    Self: 'a,
+{
+    type Item = DataFragSubmessageWrite<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let inline_qos_flag = true;
+        let key_flag = match self.cache_change.cache_change.kind() {
+            ChangeKind::Alive => false,
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
+            _ => todo!(),
+        };
+        let non_standard_payload_flag = false;
+        let reader_id = self.reader_id;
+        let writer_id = self.cache_change.cache_change.writer_guid().entity_id();
+        let writer_sn = self.cache_change.cache_change.sequence_number();
+        let fragment_starting_num = FragmentNumber::new(1);
+        let fragments_in_submessage = 1;
+        let data_size = 1;
+        let fragment_size = 1;
+        let inline_qos = &self.cache_change.cache_change.inline_qos;
+        let serialized_payload = &self.cache_change.data;
+        Some(DataFragSubmessageWrite::new(
+            inline_qos_flag,
+            non_standard_payload_flag,
+            key_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            fragment_starting_num,
+            fragments_in_submessage,
+            data_size,
+            fragment_size,
+            inline_qos,
+            serialized_payload,
+        ))
+    }
 }
 
 impl RtpsWriterCacheChange {
@@ -52,7 +162,7 @@ impl RtpsWriterCacheChange {
             self.writer_guid().entity_id(),
             self.sequence_number(),
             &self.inline_qos,
-            SerializedPayload::new(self.data_value()),
+            &self.data_value,
         )
     }
 
@@ -61,55 +171,56 @@ impl RtpsWriterCacheChange {
         max_bytes: usize,
         reader_id: EntityId,
     ) -> Vec<DataFragSubmessageWrite> {
-        let data = self.data_value();
-        let data_size = data.len() as u32;
-        let mut fragment_starting_num = FragmentNumber::new(1);
-        const FRAGMENTS_IN_SUBMESSAGE: u16 = 1;
+        // let data_value = self.data_value().as_ref();
+        // let data_size = data_value.len() as u32;
+        // let mut fragment_starting_num = FragmentNumber::new(1);
+        // const FRAGMENTS_IN_SUBMESSAGE: u16 = 1;
 
-        let mut messages = Vec::new();
+        // let mut messages = Vec::new();
 
-        let mut data_fragment;
-        let mut data_remaining = data;
+        // let mut data_fragment;
+        // let mut data_remaining = data_value;
 
-        while !data_remaining.is_empty() {
-            if data_remaining.len() >= max_bytes {
-                (data_fragment, data_remaining) = data_remaining.split_at(max_bytes);
-            } else {
-                data_fragment = data_remaining;
-                data_remaining = &[];
-            }
+        // while !data_remaining.is_empty() {
+        //     if data_remaining.len() >= max_bytes {
+        //         (data_fragment, data_remaining) = data_remaining.split_at(max_bytes);
+        //     } else {
+        //         data_fragment = data_remaining;
+        //         data_remaining = &[];
+        //     }
 
-            let inline_qos_flag = true;
-            let key_flag = match self.kind() {
-                ChangeKind::Alive => false,
-                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
-                _ => todo!(),
-            };
-            let non_standard_payload_flag = false;
-            let writer_id = self.writer_guid().entity_id();
-            let writer_sn = self.sequence_number();
-            let inline_qos = &self.inline_qos;
-            let serialized_payload = SerializedPayload::new(data_fragment);
-            let message = DataFragSubmessageWrite::new(
-                inline_qos_flag,
-                non_standard_payload_flag,
-                key_flag,
-                reader_id,
-                writer_id,
-                writer_sn,
-                fragment_starting_num,
-                FRAGMENTS_IN_SUBMESSAGE,
-                data_size,
-                max_bytes as u16,
-                inline_qos,
-                serialized_payload,
-            );
+        //     let inline_qos_flag = true;
+        //     let key_flag = match self.kind() {
+        //         ChangeKind::Alive => false,
+        //         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
+        //         _ => todo!(),
+        //     };
+        //     let non_standard_payload_flag = false;
+        //     let writer_id = self.writer_guid().entity_id();
+        //     let writer_sn = self.sequence_number();
+        //     let inline_qos = &self.inline_qos;
+        //     let serialized_payload = &Data::new(data_fragment.to_vec());
+        //     let message = DataFragSubmessageWrite::new(
+        //         inline_qos_flag,
+        //         non_standard_payload_flag,
+        //         key_flag,
+        //         reader_id,
+        //         writer_id,
+        //         writer_sn,
+        //         fragment_starting_num,
+        //         FRAGMENTS_IN_SUBMESSAGE,
+        //         data_size,
+        //         max_bytes as u16,
+        //         inline_qos,
+        //         serialized_payload,
+        //     );
 
-            messages.push(message);
+        //     messages.push(message);
 
-            fragment_starting_num += FragmentNumber::new(1);
-        }
-        messages
+        //     fragment_starting_num += FragmentNumber::new(1);
+        // }
+        // messages
+        todo!()
     }
 }
 
@@ -120,7 +231,7 @@ impl RtpsWriterCacheChange {
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
         timestamp: Time,
-        data_value: Vec<u8>,
+        data_value: Data,
         inline_qos: ParameterList,
     ) -> Self {
         Self {
@@ -129,7 +240,7 @@ impl RtpsWriterCacheChange {
             sequence_number,
             _instance_handle: instance_handle,
             timestamp,
-            data: data_value,
+            data_value,
             inline_qos,
         }
     }
@@ -156,8 +267,8 @@ impl RtpsWriterCacheChange {
         self.timestamp
     }
 
-    pub fn data_value(&self) -> &[u8] {
-        self.data.as_ref()
+    pub fn data_value(&self) -> &Data {
+        &self.data_value
     }
 
     pub fn inline_qos(&self) -> &ParameterList {
@@ -219,7 +330,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(1),
             TIME_INVALID,
-            vec![],
+            Data::new(vec![]),
             ParameterList::empty(),
         );
         hc.add_change(change);
@@ -236,7 +347,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(1),
             TIME_INVALID,
-            vec![],
+            Data::new(vec![]),
             ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
@@ -245,7 +356,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(2),
             TIME_INVALID,
-            vec![],
+            Data::new(vec![]),
             ParameterList::empty(),
         );
         hc.add_change(change1);
@@ -262,7 +373,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(1),
             TIME_INVALID,
-            vec![],
+            Data::new(vec![]),
             ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
@@ -271,7 +382,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::new(2),
             TIME_INVALID,
-            vec![],
+            Data::new(vec![]),
             ParameterList::empty(),
         );
         hc.add_change(change1);

@@ -416,14 +416,14 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::{
-            submessage_elements::{Parameter, ParameterList, SerializedPayload},
+            submessage_elements::{Parameter, ParameterList},
             submessages::{data::DataSubmessageRead, heartbeat::HeartbeatSubmessageRead},
             types::ParameterId,
         },
         types::{
             EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
             USER_DEFINED_READER_NO_KEY,
-        },
+        }, history_cache::Data,
     };
 
     #[test]
@@ -463,7 +463,7 @@ mod tests {
         let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
         let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
-        let serialized_payload = SerializedPayload::new(&[]);
+        let serialized_payload = &Data::new(vec![]);
 
         let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
             inline_qos_flag,

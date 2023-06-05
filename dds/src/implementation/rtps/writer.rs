@@ -12,7 +12,7 @@ use crate::{
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
+    history_cache::{RtpsWriterCacheChange, WriterHistoryCache, Data},
     messages::submessage_elements::ParameterList,
     types::{ChangeKind, Guid, Locator, SequenceNumber},
 };
@@ -97,7 +97,7 @@ impl RtpsWriter {
             handle,
             self.last_change_sequence_number,
             timestamp,
-            data,
+            Data::new(data),
             inline_qos,
         )
     }
