@@ -4,6 +4,7 @@ use crate::{
         dds::{
             any_topic_listener::AnyTopicListener,
             dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+            dds_subscriber::DdsSubscriber,
             dds_topic::DdsTopic,
         },
         rtps::{messages::overall_structure::RtpsMessageRead, types::Locator},
@@ -12,9 +13,10 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DomainParticipantQos, QosKind, TopicQos},
+        qos::{DomainParticipantQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
     },
+    subscription::subscriber_listener::SubscriberListener,
 };
 
 pub struct Enable;
@@ -205,5 +207,25 @@ impl Message for CreateTopic {
 impl Handler<CreateTopic> for DdsDomainParticipant {
     fn handle(&mut self, message: CreateTopic) -> <CreateTopic as Message>::Result {
         self.create_topic(&message.topic_name, message.type_name, message.qos)
+    }
+}
+
+pub struct CreateSubscriber {
+    qos: QosKind<SubscriberQos>,
+    a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+    mask: Vec<StatusKind>,
+}
+
+impl CreateSubscriber {
+    pub fn new(qos: QosKind<SubscriberQos>, a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>, mask: Vec<StatusKind>) -> Self { Self { qos, a_listener, mask } }
+}
+
+impl Message for CreateSubscriber {
+    type Result = DdsResult<ActorAddress<DdsSubscriber>>;
+}
+
+impl Handler<CreateSubscriber> for DdsDomainParticipant {
+    fn handle(&mut self, message: CreateSubscriber) -> <CreateSubscriber as Message>::Result {
+        self.create_subscriber(message.qos)
     }
 }

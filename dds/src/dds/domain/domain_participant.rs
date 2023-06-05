@@ -193,18 +193,17 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        todo!()
-        // let subscriber = self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::create_subscriber(dp, qos)
-        // })?;
+        let subscriber_address =
+            self.0
+                .send_blocking(dds_actor::domain_participant::CreateSubscriber::new(
+                    qos,
+                    a_listener,
+                    mask.to_vec(),
+                ))?;
 
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_subscriber_listener(
-        //     subscriber.guid(),
-        //     a_listener,
-        //     mask,
-        // );
-
-        // Ok(Subscriber::new(SubscriberNodeKind::UserDefined(subscriber)))
+        Ok(Subscriber::new(SubscriberNodeKind::UserDefined(
+            SubscriberNode::new(subscriber_address?, self.0.clone()),
+        )))
     }
 
     /// This operation deletes an existing [`Subscriber`].

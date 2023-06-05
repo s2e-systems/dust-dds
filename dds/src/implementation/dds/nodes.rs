@@ -5,9 +5,11 @@ use crate::{
     topic_definition::topic::AnyTopic,
 };
 
-use super::{dds_domain_participant::DdsDomainParticipant, dds_topic::DdsTopic};
+use super::{
+    dds_domain_participant::DdsDomainParticipant, dds_subscriber::DdsSubscriber,
+    dds_topic::DdsTopic,
+};
 
-#[derive(PartialEq, Eq, Debug)]
 pub enum SubscriberNodeKind {
     Builtin(SubscriberNode),
     UserDefined(SubscriberNode),
@@ -33,23 +35,25 @@ pub enum TopicNodeKind {
     Listener(TopicNode),
 }
 
-#[derive(PartialEq, Eq, Debug)]
 pub struct SubscriberNode {
-    this: Guid,
-    parent: Guid,
+    this: ActorAddress<DdsSubscriber>,
+    parent: ActorAddress<DdsDomainParticipant>,
 }
 
 impl SubscriberNode {
-    pub fn new(this: Guid, parent: Guid) -> Self {
+    pub fn new(
+        this: ActorAddress<DdsSubscriber>,
+        parent: ActorAddress<DdsDomainParticipant>,
+    ) -> Self {
         Self { this, parent }
     }
 
-    pub fn guid(&self) -> Guid {
-        self.this
+    pub fn address(&self) -> &ActorAddress<DdsSubscriber> {
+        &self.this
     }
 
-    pub fn parent_participant(&self) -> Guid {
-        self.parent
+    pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {
+        &self.parent
     }
 }
 

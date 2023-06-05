@@ -130,7 +130,7 @@ pub struct DdsDomainParticipant {
     qos: DomainParticipantQos,
     builtin_subscriber: DdsSubscriber,
     builtin_publisher: DdsPublisher,
-    user_defined_subscriber_list: Vec<DdsSubscriber>,
+    user_defined_subscriber_list: Vec<(ActorAddress<DdsSubscriber>, ActorJoinHandle)>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Vec<DdsPublisher>,
@@ -447,7 +447,8 @@ impl DdsDomainParticipant {
                 }
 
                 for subscriber in self.user_defined_subscriber_list.iter_mut() {
-                    subscriber.enable().ok();
+                    todo!()
+                    // subscriber.enable().ok();
                 }
 
                 for topic in self.topic_list.iter_mut() {
@@ -569,7 +570,10 @@ impl DdsDomainParticipant {
             .find(|p| p.guid() == publisher_guid)
     }
 
-    pub fn create_subscriber(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<Guid> {
+    pub fn create_subscriber(
+        &mut self,
+        qos: QosKind<SubscriberQos>,
+    ) -> DdsResult<ActorAddress<DdsSubscriber>> {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
@@ -588,57 +592,65 @@ impl DdsDomainParticipant {
             subscriber.enable()?;
         }
 
-        self.user_defined_subscriber_list.push(subscriber);
+        let (subscriber_address, subscriber_handle) = spawn_actor(subscriber);
 
-        Ok(guid)
+        self.user_defined_subscriber_list
+            .push((subscriber_address.clone(), subscriber_handle));
+
+        Ok(subscriber_address)
     }
 
     pub fn delete_subscriber(&mut self, subscriber_guid: Guid) -> DdsResult<()> {
-        if self.rtps_participant.guid().prefix() != subscriber_guid.prefix() {
-            return Err(DdsError::PreconditionNotMet(
-                "Subscriber can only be deleted from its parent participant".to_string(),
-            ));
-        }
+        todo!()
+        // if self.rtps_participant.guid().prefix() != subscriber_guid.prefix() {
+        //     return Err(DdsError::PreconditionNotMet(
+        //         "Subscriber can only be deleted from its parent participant".to_string(),
+        //     ));
+        // }
 
-        if self
-            .user_defined_subscriber_list()
-            .iter()
-            .find(|&x| x.guid() == subscriber_guid)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .stateful_data_reader_list()
-            .iter()
-            .count()
-            > 0
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Subscriber still contains data readers".to_string(),
-            ));
-        }
+        // if self
+        //     .user_defined_subscriber_list()
+        //     .iter()
+        //     .find(|&x| x.guid() == subscriber_guid)
+        //     .ok_or(DdsError::AlreadyDeleted)?
+        //     .stateful_data_reader_list()
+        //     .iter()
+        //     .count()
+        //     > 0
+        // {
+        //     return Err(DdsError::PreconditionNotMet(
+        //         "Subscriber still contains data readers".to_string(),
+        //     ));
+        // }
 
-        self.user_defined_subscriber_list
-            .retain(|x| x.guid() != subscriber_guid);
+        // self.user_defined_subscriber_list
+        //     .retain(|x| x.guid() != subscriber_guid);
 
-        Ok(())
+        // Ok(())
     }
 
     pub fn user_defined_subscriber_list(&self) -> &[DdsSubscriber] {
-        &self.user_defined_subscriber_list
+        todo!()
+        // &self.user_defined_subscriber_list
     }
 
     pub fn user_defined_subscriber_list_mut(&mut self) -> &mut [DdsSubscriber] {
-        &mut self.user_defined_subscriber_list
+        todo!()
+        // &mut self.user_defined_subscriber_list
     }
 
     pub fn get_subscriber(&self, subscriber_guid: Guid) -> Option<&DdsSubscriber> {
-        self.user_defined_subscriber_list
-            .iter()
-            .find(|s| s.guid() == subscriber_guid)
+        todo!()
+        // self.user_defined_subscriber_list
+        //     .iter()
+        //     .find(|s| s.guid() == subscriber_guid)
     }
 
     pub fn get_subscriber_mut(&mut self, subscriber_guid: Guid) -> Option<&mut DdsSubscriber> {
-        self.user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.guid() == subscriber_guid)
+        todo!()
+        // self.user_defined_subscriber_list
+        //     .iter_mut()
+        //     .find(|s| s.guid() == subscriber_guid)
     }
 
     pub fn create_topic(
@@ -838,15 +850,16 @@ impl DdsDomainParticipant {
         }
 
         for mut user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
-            for data_reader in user_defined_subscriber.stateful_data_reader_drain() {
-                if data_reader.is_enabled() {
-                    self.announce_sender
-                        .try_send(AnnounceKind::DeletedDataReader(
-                            data_reader.get_instance_handle(),
-                        ))
-                        .ok();
-                }
-            }
+            todo!()
+            // for data_reader in user_defined_subscriber.stateful_data_reader_drain() {
+            //     if data_reader.is_enabled() {
+            //         self.announce_sender
+            //             .try_send(AnnounceKind::DeletedDataReader(
+            //                 data_reader.get_instance_handle(),
+            //             ))
+            //             .ok();
+            //     }
+            // }
         }
 
         self.topic_list.clear();
@@ -1035,7 +1048,8 @@ impl DdsDomainParticipant {
         MessageReceiver::new(self.get_current_time()).process_message(
             self.rtps_participant.guid(),
             self.user_defined_publisher_list.as_mut_slice(),
-            self.user_defined_subscriber_list.as_mut_slice(),
+            todo!(),
+            // self.user_defined_subscriber_list.as_mut_slice(),
             source_locator,
             &message,
             listener_sender,
@@ -1225,7 +1239,8 @@ impl DdsDomainParticipant {
         let now = self.get_current_time();
         let guid = self.guid();
         for subscriber in self.user_defined_subscriber_list.iter_mut() {
-            subscriber.update_communication_status(now, guid, listener_sender);
+            todo!()
+            // subscriber.update_communication_status(now, guid, listener_sender);
         }
 
         Ok(())

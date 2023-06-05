@@ -1,7 +1,6 @@
 use std::{
     net::{Ipv4Addr, SocketAddr},
     str::FromStr,
-    sync::Arc,
 };
 
 use jsonschema::JSONSchema;
