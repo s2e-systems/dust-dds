@@ -4,7 +4,7 @@ use crate::{
             group::RtpsGroup, stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter, types::Guid,
         },
-        utils::actor::{self, ActorAddress, ActorJoinHandle, ActorTask},
+        utils::actor::{self, ActorAddress, ActorJoinHandle},
     },
     infrastructure::{
         error::DdsResult,
@@ -35,11 +35,7 @@ impl actor::Message for Enable {
 }
 
 impl actor::Handler<Enable> for DdsPublisher {
-    fn handle(
-        &mut self,
-        _message: Enable,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <Enable as actor::Message>::Result {
+    fn handle(&mut self, _message: Enable) -> <Enable as actor::Message>::Result {
         self.enable()
     }
 }
@@ -51,11 +47,7 @@ impl actor::Message for IsEnabled {
 }
 
 impl actor::Handler<IsEnabled> for DdsPublisher {
-    fn handle(
-        &mut self,
-        _message: IsEnabled,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <IsEnabled as actor::Message>::Result {
+    fn handle(&mut self, _message: IsEnabled) -> <IsEnabled as actor::Message>::Result {
         self.is_enabled()
     }
 }

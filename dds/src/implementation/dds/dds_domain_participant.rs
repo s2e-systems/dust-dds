@@ -47,7 +47,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{self, ActorTask, Handler, Message},
+            actor::{self, Handler, Message},
             condvar::DdsCondvar,
         },
     },
@@ -164,11 +164,7 @@ impl Message for Enable {
 }
 
 impl Handler<Enable> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: Enable,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <Enable as Message>::Result {
+    fn handle(&mut self, _message: Enable) -> <Enable as Message>::Result {
         if !self.enabled {
             self.enabled = true;
 
@@ -217,11 +213,7 @@ impl Message for GetQos {
 }
 
 impl Handler<GetQos> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: GetQos,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <GetQos as Message>::Result {
+    fn handle(&mut self, _message: GetQos) -> <GetQos as Message>::Result {
         self.qos.clone()
     }
 }
@@ -233,11 +225,7 @@ impl Message for GetDomainId {
 }
 
 impl Handler<GetDomainId> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: GetDomainId,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <GetDomainId as Message>::Result {
+    fn handle(&mut self, _message: GetDomainId) -> <GetDomainId as Message>::Result {
         self.domain_id
     }
 }
@@ -249,11 +237,7 @@ impl Message for GetInstanceHandle {
 }
 
 impl Handler<GetInstanceHandle> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: GetInstanceHandle,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <GetInstanceHandle as Message>::Result {
+    fn handle(&mut self, _message: GetInstanceHandle) -> <GetInstanceHandle as Message>::Result {
         self.rtps_participant.guid().into()
     }
 }
@@ -265,11 +249,7 @@ impl Message for IsEmpty {
 }
 
 impl Handler<IsEmpty> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: IsEmpty,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <IsEmpty as Message>::Result {
+    fn handle(&mut self, _message: IsEmpty) -> <IsEmpty as Message>::Result {
         self.user_defined_publisher_list().iter().count() == 0
             && self.user_defined_subscriber_list().iter().count() == 0
             && self.topic_list().iter().count() == 0
@@ -295,7 +275,6 @@ impl Handler<ReceiveBuiltinMessage> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: ReceiveBuiltinMessage,
-        _actor_task: &mut ActorTask<Self>,
     ) -> <ReceiveBuiltinMessage as Message>::Result {
         // self.receive_builtin_data(locator, message, listener_sender)
         //     .ok();
@@ -330,7 +309,6 @@ impl Handler<ReceiveUserDefinedMessage> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: ReceiveUserDefinedMessage,
-        _actor_task: &mut ActorTask<Self>,
     ) -> <ReceiveUserDefinedMessage as Message>::Result {
         // todo!();
     }
@@ -351,11 +329,7 @@ impl Message for AnnounceEntity {
 }
 
 impl Handler<AnnounceEntity> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: AnnounceEntity,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <AnnounceEntity as Message>::Result {
+    fn handle(&mut self, _message: AnnounceEntity) -> <AnnounceEntity as Message>::Result {
         // todo!();
     }
 }
@@ -370,7 +344,6 @@ impl Handler<AnnounceParticipant> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: AnnounceParticipant,
-        _actor_task: &mut ActorTask<Self>,
     ) -> <AnnounceParticipant as Message>::Result {
         // todo!();
     }
@@ -391,11 +364,7 @@ impl Message for SendBuiltinMessage {
 }
 
 impl Handler<SendBuiltinMessage> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: SendBuiltinMessage,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <SendBuiltinMessage as Message>::Result {
+    fn handle(&mut self, _message: SendBuiltinMessage) -> <SendBuiltinMessage as Message>::Result {
         // todo!();
     }
 }
@@ -418,7 +387,6 @@ impl Handler<SendUserDefinedMessage> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: SendUserDefinedMessage,
-        _actor_task: &mut ActorTask<Self>,
     ) -> <SendUserDefinedMessage as Message>::Result {
         todo!();
     }

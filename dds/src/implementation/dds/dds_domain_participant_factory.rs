@@ -27,10 +27,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
         utils::{
-            actor::{
-                spawn_actor, ActorAddress, ActorJoinHandle, ActorTask, Handler, Message,
-                THE_RUNTIME,
-            },
+            actor::{spawn_actor, ActorAddress, ActorJoinHandle, Handler, Message, THE_RUNTIME},
             condvar::DdsCondvar,
         },
     },
@@ -93,11 +90,7 @@ impl Message for CreateParticipant {
 }
 
 impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
-    fn handle(
-        &mut self,
-        message: CreateParticipant,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <CreateParticipant as Message>::Result {
+    fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Message>::Result {
         async fn task_send_entity_announce(
             mut announce_receiver: tokio::sync::mpsc::Receiver<AnnounceKind>,
             domain_participant_address: ActorAddress<DdsDomainParticipant>,
@@ -378,11 +371,7 @@ impl Message for DeleteParticipant {
 }
 
 impl Handler<DeleteParticipant> for DdsDomainParticipantFactory {
-    fn handle(
-        &mut self,
-        message: DeleteParticipant,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <DeleteParticipant as Message>::Result {
+    fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Message>::Result {
         let is_participant_empty = message
             .address
             .send_blocking(dds_domain_participant::IsEmpty)?;
@@ -424,11 +413,7 @@ impl Message for LookupParticipant {
 }
 
 impl Handler<LookupParticipant> for DdsDomainParticipantFactory {
-    fn handle(
-        &mut self,
-        message: LookupParticipant,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <LookupParticipant as Message>::Result {
+    fn handle(&mut self, message: LookupParticipant) -> <LookupParticipant as Message>::Result {
         self.domain_participant_list
             .iter()
             .map(|dp| &dp.0)
@@ -448,11 +433,7 @@ impl Message for GetQos {
 }
 
 impl Handler<GetQos> for DdsDomainParticipantFactory {
-    fn handle(
-        &mut self,
-        _message: GetQos,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <GetQos as Message>::Result {
+    fn handle(&mut self, _message: GetQos) -> <GetQos as Message>::Result {
         self.qos.clone()
     }
 }
@@ -472,11 +453,7 @@ impl Message for SetQos {
 }
 
 impl Handler<SetQos> for DdsDomainParticipantFactory {
-    fn handle(
-        &mut self,
-        message: SetQos,
-        _actor_task: &mut ActorTask<Self>,
-    ) -> <SetQos as Message>::Result {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Message>::Result {
         let qos = match message.qos_kind {
             QosKind::Default => DomainParticipantFactoryQos::default(),
             QosKind::Specific(q) => q,
@@ -496,7 +473,6 @@ impl Handler<GetDefaultParticipantQos> for DdsDomainParticipantFactory {
     fn handle(
         &mut self,
         _message: GetDefaultParticipantQos,
-        _actor_task: &mut ActorTask<Self>,
     ) -> <GetDefaultParticipantQos as Message>::Result {
         self.default_participant_qos.clone()
     }
@@ -520,7 +496,6 @@ impl Handler<SetDefaultParticipantQos> for DdsDomainParticipantFactory {
     fn handle(
         &mut self,
         message: SetDefaultParticipantQos,
-        _actor_task: &mut ActorTask<Self>,
     ) -> <SetDefaultParticipantQos as Message>::Result {
         let qos = match message.qos_kind {
             QosKind::Default => DomainParticipantQos::default(),

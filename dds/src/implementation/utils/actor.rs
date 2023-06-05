@@ -1,10 +1,6 @@
-use std::{
-    future::{poll_fn, Future},
-    marker::PhantomData,
-    task::Poll,
-};
+use std::{future::poll_fn, marker::PhantomData, task::Poll};
 
-use tokio::{runtime, sync, task};
+use tokio::{runtime, sync};
 
 use lazy_static::lazy_static;
 
@@ -26,29 +22,7 @@ where
     M: Message,
     Self: Sized,
 {
-    fn handle(&mut self, mail: M, actor_task: &mut ActorTask<Self>) -> M::Result;
-}
-
-pub struct ActorTask<A> {
-    join_set: task::JoinSet<()>,
-    address: ActorAddress<A>,
-}
-
-impl<A> ActorTask<A> {
-    pub fn new(address: ActorAddress<A>) -> Self {
-        Self {
-            join_set: task::JoinSet::new(),
-            address,
-        }
-    }
-
-    pub fn spawn_task<T, F>(&mut self, task: T)
-    where
-        T: FnOnce(ActorAddress<A>) -> F,
-        F: Future<Output = ()> + Send + 'static,
-    {
-        self.join_set.spawn(task(self.address.clone()));
-    }
+    fn handle(&mut self, mail: M) -> M::Result;
 }
 
 #[derive(Debug)]
@@ -112,7 +86,7 @@ impl Drop for ActorJoinHandle {
 }
 
 trait GenericHandler<A> {
-    fn handle(&mut self, actor: &mut A, actor_task: &mut ActorTask<A>) -> Result<(), ()>;
+    fn handle(&mut self, actor: &mut A) -> Result<(), ()>;
 }
 
 struct SyncMessage<M>
@@ -131,13 +105,12 @@ where
     A: Handler<M>,
     M: Message,
 {
-    fn handle(&mut self, actor: &mut A, actor_task: &mut ActorTask<A>) -> Result<(), ()> {
+    fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
         let result = <A as Handler<M>>::handle(
             actor,
             self.message
                 .take()
                 .expect("Message should be processed only once"),
-            actor_task,
         );
         self.sender
             .take()
@@ -150,7 +123,6 @@ where
 struct SpawnedActor<A> {
     value: A,
     mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<A> + Send>>,
-    actor_task: ActorTask<A>,
 }
 
 pub fn spawn_actor<A>(actor: A) -> (ActorAddress<A>, ActorJoinHandle)
@@ -166,7 +138,6 @@ where
     let mut actor_obj = SpawnedActor {
         value: actor,
         mailbox,
-        actor_task: ActorTask::new(actor_address.clone()),
     };
 
     let actor_handle = ActorJoinHandle {
@@ -178,10 +149,7 @@ where
                     // otherwise multiple messages could interrupt each other and modify the object in between.
                     // To allow calling blocking code inside the block_in_place method is used to prevent
                     // the runtime from crashing
-                    tokio::task::block_in_place(|| {
-                        m.handle(&mut actor_obj.value, &mut actor_obj.actor_task)
-                            .ok()
-                    });
+                    tokio::task::block_in_place(|| m.handle(&mut actor_obj.value).ok());
                 }
             }
 
@@ -238,46 +206,14 @@ mod tests {
     }
 
     impl Handler<IncrementMessage> for MyData {
-        fn handle(
-            &mut self,
-            message: IncrementMessage,
-            _actor_task: &mut ActorTask<Self>,
-        ) -> <IncrementMessage as Message>::Result {
+        fn handle(&mut self, message: IncrementMessage) -> <IncrementMessage as Message>::Result {
             self.increment(message.value)
         }
     }
 
     impl Handler<DecrementMessage> for MyData {
-        fn handle(
-            &mut self,
-            _message: DecrementMessage,
-            _actor_task: &mut ActorTask<Self>,
-        ) -> <DecrementMessage as Message>::Result {
+        fn handle(&mut self, _message: DecrementMessage) -> <DecrementMessage as Message>::Result {
             self.decrement()
-        }
-    }
-
-    pub struct EnableIncrementTask {
-        value: u8,
-    }
-
-    impl Message for EnableIncrementTask {
-        type Result = ();
-    }
-
-    impl Handler<EnableIncrementTask> for MyData {
-        fn handle(
-            &mut self,
-            message: EnableIncrementTask,
-            actor_task: &mut ActorTask<Self>,
-        ) -> <EnableIncrementTask as Message>::Result {
-            actor_task.spawn_task(|addr| async move {
-                addr.send(IncrementMessage {
-                    value: message.value,
-                })
-                .await
-                .ok();
-            });
         }
     }
 
@@ -286,10 +222,6 @@ mod tests {
     impl DataInterface {
         pub fn increment(&self, value: u8) -> DdsResult<u8> {
             self.0.send_blocking(IncrementMessage { value })
-        }
-
-        pub fn enable_increment_task(&self, value: u8) -> DdsResult<()> {
-            self.0.send_blocking(EnableIncrementTask { value })
         }
     }
 
@@ -309,24 +241,5 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(100));
         let data_interface = DataInterface(address);
         assert_eq!(data_interface.increment(10), Err(DdsError::AlreadyDeleted))
-    }
-
-    #[test]
-    fn actor_increment_task() {
-        let my_data = MyData { data: 0 };
-        let task_increment = 5;
-        let message_increment = 10;
-
-        let (address, _join_handle) = spawn_actor(my_data);
-
-        let data_interface = DataInterface(address);
-
-        data_interface
-            .enable_increment_task(task_increment)
-            .unwrap();
-        assert_eq!(
-            data_interface.increment(message_increment).unwrap(),
-            task_increment + message_increment
-        )
     }
 }
