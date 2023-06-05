@@ -213,35 +213,26 @@ pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RtpsMessageWrite<'a> {
-    header: RtpsMessageHeader,
-    submessages: Vec<RtpsSubmessageWriteKind<'a>>,
+pub struct RtpsMessageWrite {
+    buffer: [u8; BUFFER_SIZE],
+    len: usize,
 }
 
-impl EndianWriteBytes for RtpsMessageWrite<'_> {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        let mut len = self.header.endian_write_bytes::<E>(buf);
-        for submessage in &self.submessages {
-            len += submessage.write_bytes(&mut buf[len..]);
+impl RtpsMessageWrite {
+    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageWriteKind<'_>>) -> Self {
+        let mut this = Self {
+            buffer: [0; BUFFER_SIZE],
+            len: 0,
+        };
+        let mut len = header.endian_write_bytes::<byteorder::LittleEndian>(&mut this.buffer[0..]);
+        for submessage in &submessages {
+            len += submessage.write_bytes(&mut this.buffer[len..]);
         }
-        len
-    }
-}
-
-impl<'a> RtpsMessageWrite<'a> {
-    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageWriteKind<'a>>) -> Self {
-        Self {
-            header,
-            submessages,
-        }
+        this
     }
 
-    pub fn header(&self) -> RtpsMessageHeader {
-        self.header
-    }
-
-    pub fn submessages(&self) -> &[RtpsSubmessageWriteKind] {
-        self.submessages.as_ref()
+    pub fn buffer(&self) -> &[u8] {
+        self.buffer.as_slice()
     }
 }
 

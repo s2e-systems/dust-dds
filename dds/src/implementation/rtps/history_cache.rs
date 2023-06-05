@@ -59,63 +59,39 @@ pub struct RtpsWriterCacheChange {
     inline_qos: ParameterList,
 }
 
-impl<'a> IntoIterator for &'a RtpsWriterCacheChange {
-    type Item = DataFragSubmessageWrite<'a>;
-    type IntoIter = DataFragSubmessages<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        DataFragSubmessages::new(
-            RtpsWriterCacheChangeFrag {
-                cache_change: self,
-                data: self.data_value,
-            },
-            ENTITYID_UNKNOWN,
-        )
-    }
-}
-
-struct RtpsWriterCacheChangeFrag<'a> {
-    cache_change: RtpsWriterCacheChange,
-    data: Data,
-}
 pub struct DataFragSubmessages<'a> {
-    cache_change: &'a RtpsWriterCacheChangeFrag<'a>,
+    cache_change: &'a RtpsWriterCacheChange,
     reader_id: EntityId,
+    data: Data,
 }
 
 impl<'a> DataFragSubmessages<'a> {
-    fn new(cache_change: &'a RtpsWriterCacheChangeFrag, reader_id: EntityId) -> Self {
-        // let data = cache_change.data_value().clone();
+    pub fn new(cache_change: &'a RtpsWriterCacheChange, reader_id: EntityId) -> Self {
+        let data = cache_change.data_value().clone();
         Self {
             cache_change,
             reader_id,
+            data,
         }
     }
-}
 
-impl<'a> Iterator for DataFragSubmessages<'a>
-where
-    Self: 'a,
-{
-    type Item = DataFragSubmessageWrite<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn next<'b>(&'b mut self) -> Option<DataFragSubmessageWrite<'b>>{
         let inline_qos_flag = true;
-        let key_flag = match self.cache_change.cache_change.kind() {
+        let key_flag = match self.cache_change.kind() {
             ChangeKind::Alive => false,
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
             _ => todo!(),
         };
         let non_standard_payload_flag = false;
         let reader_id = self.reader_id;
-        let writer_id = self.cache_change.cache_change.writer_guid().entity_id();
-        let writer_sn = self.cache_change.cache_change.sequence_number();
+        let writer_id = self.cache_change.writer_guid().entity_id();
+        let writer_sn = self.cache_change.sequence_number();
         let fragment_starting_num = FragmentNumber::new(1);
         let fragments_in_submessage = 1;
         let data_size = 1;
         let fragment_size = 1;
-        let inline_qos = &self.cache_change.cache_change.inline_qos;
-        let serialized_payload = &self.cache_change.data;
+        let inline_qos = &self.cache_change.inline_qos;
+        let serialized_payload = &self.data;
         Some(DataFragSubmessageWrite::new(
             inline_qos_flag,
             non_standard_payload_flag,
@@ -132,6 +108,7 @@ where
         ))
     }
 }
+
 
 impl RtpsWriterCacheChange {
     pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessageWrite {

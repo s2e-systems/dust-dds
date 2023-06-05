@@ -33,7 +33,7 @@ use crate::{
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
-            history_cache::RtpsWriterCacheChange,
+            history_cache::{DataFragSubmessages, RtpsWriterCacheChange},
             messages::{
                 overall_structure::{
                     RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind,
@@ -1909,9 +1909,8 @@ fn send_message_best_effort_reader_proxy(
             let timestamp = cache_change.timestamp();
 
             if cache_change.data_value().len() > data_max_size_serialized {
-                let data_frag_submessage_list =
-                    cache_change.as_data_frag_submessages(data_max_size_serialized, reader_id);
-                for data_frag_submessage in data_frag_submessage_list {
+                let mut s = DataFragSubmessages::new(cache_change, reader_id);
+                while let Some(data_frag_submessage) = s.next() {
                     let info_dst =
                         info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
 
