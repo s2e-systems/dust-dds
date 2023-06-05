@@ -29,7 +29,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
         utils::{
-            actor::{spawn_actor, ActorAddress, ActorJoinHandle, THE_RUNTIME},
+            actor::{spawn_actor, ActorAddress, OwnedActor, THE_RUNTIME},
             condvar::DdsCondvar,
         },
     },
@@ -52,7 +52,7 @@ lazy_static! {
 }
 
 pub struct DdsDomainParticipantFactory {
-    domain_participant_list: Vec<(ActorAddress<DdsDomainParticipant>, ActorJoinHandle)>,
+    domain_participant_list: Vec<OwnedActor<DdsDomainParticipant>>,
     domain_participant_counter: u32,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
@@ -301,10 +301,9 @@ impl DdsDomainParticipantFactory {
             user_defined_rtps_message_channel_sender,
         );
 
-        let (participant_address, participant_join_handle) = spawn_actor(domain_participant);
-
-        self.domain_participant_list
-            .push((participant_address.clone(), participant_join_handle));
+        let participant_actor = spawn_actor(domain_participant);
+        let participant_address = participant_actor.address();
+        self.domain_participant_list.push(participant_actor);
 
         let metatraffic_multicast_transport = UdpTransportRead::new(
             get_multicast_socket(
@@ -371,7 +370,8 @@ impl DdsDomainParticipantFactory {
                 .domain_participant_list
                 .iter()
                 .position(|dp| {
-                    dp.0.send_blocking(dds_actor::domain_participant::GetInstanceHandle)
+                    dp.address()
+                        .send_blocking(dds_actor::domain_participant::GetInstanceHandle)
                         .expect("Should not fail to send message")
                         == participant_handle
                 })
@@ -391,13 +391,12 @@ impl DdsDomainParticipantFactory {
     ) -> Option<ActorAddress<DdsDomainParticipant>> {
         self.domain_participant_list
             .iter()
-            .map(|dp| &dp.0)
+            .map(|dp| dp.address())
             .find(|a| {
                 a.send_blocking(dds_actor::domain_participant::GetDomainId)
                     .expect("Should not fail to send message")
                     == domain_id
             })
-            .cloned()
     }
 
     pub fn get_qos(&self) -> &DomainParticipantFactoryQos {

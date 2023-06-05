@@ -21,7 +21,7 @@ use crate::{
                 USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
             },
         },
-        utils::actor::{spawn_actor, ActorAddress, ActorJoinHandle},
+        utils::actor::{spawn_actor, ActorAddress, OwnedActor},
     },
     infrastructure::{
         error::DdsResult,
@@ -37,10 +37,7 @@ pub struct DdsSubscriber {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
     stateless_data_reader_list: Vec<DdsDataReader<RtpsStatelessReader>>,
-    stateful_data_reader_list: Vec<(
-        ActorAddress<DdsDataReader<RtpsStatefulReader>>,
-        ActorJoinHandle,
-    )>,
+    stateful_data_reader_list: Vec<OwnedActor<DdsDataReader<RtpsStatefulReader>>>,
     enabled: bool,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
@@ -114,10 +111,9 @@ impl DdsSubscriber {
             data_reader.enable()?;
         }
 
-        let (reader_address, reader_handle) = spawn_actor(data_reader);
-
-        self.stateful_data_reader_list
-            .push((reader_address.clone(), reader_handle));
+        let reader_actor = spawn_actor(data_reader);
+        let reader_address = reader_actor.address();
+        self.stateful_data_reader_list.push(reader_actor);
 
         Ok(reader_address)
     }
@@ -231,10 +227,7 @@ impl DdsSubscriber {
 
     pub fn stateful_data_reader_add(
         &mut self,
-        data_reader: (
-            ActorAddress<DdsDataReader<RtpsStatefulReader>>,
-            ActorJoinHandle,
-        ),
+        data_reader: OwnedActor<DdsDataReader<RtpsStatefulReader>>,
     ) {
         self.stateful_data_reader_list.push(data_reader)
     }
@@ -336,7 +329,7 @@ impl DdsSubscriber {
         if self.qos.entity_factory.autoenable_created_entities {
             for data_reader in self.stateful_data_reader_list.iter_mut() {
                 data_reader
-                    .0
+                    .address()
                     .send_blocking(dds_actor::data_reader::Enable)?;
             }
         }

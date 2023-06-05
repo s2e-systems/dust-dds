@@ -50,7 +50,7 @@ use crate::{
             writer::RtpsWriter,
         },
         utils::{
-            actor::{self, spawn_actor, ActorAddress, ActorJoinHandle},
+            actor::{spawn_actor, ActorAddress, OwnedActor},
             condvar::DdsCondvar,
         },
     },
@@ -131,13 +131,13 @@ pub struct DdsDomainParticipant {
     qos: DomainParticipantQos,
     builtin_subscriber: DdsSubscriber,
     builtin_publisher: DdsPublisher,
-    user_defined_subscriber_list: Vec<(ActorAddress<DdsSubscriber>, ActorJoinHandle)>,
+    user_defined_subscriber_list: Vec<OwnedActor<DdsSubscriber>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Vec<(ActorAddress<DdsPublisher>, ActorJoinHandle)>,
+    user_defined_publisher_list: Vec<OwnedActor<DdsPublisher>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    topic_list: Vec<(ActorAddress<DdsTopic>, ActorJoinHandle)>,
+    topic_list: Vec<OwnedActor<DdsTopic>>,
     user_defined_topic_counter: AtomicU8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
@@ -289,8 +289,7 @@ impl DdsDomainParticipant {
             String::from(DCPS_TOPIC),
             builtin_rtps_message_channel_sender.clone(),
         );
-        let (sedp_builtin_topics_writer_address, sedp_builtin_topics_writer_handle) =
-            actor::spawn_actor(sedp_builtin_topics_writer);
+        let sedp_builtin_topics_writer_actor = spawn_actor(sedp_builtin_topics_writer);
 
         let sedp_builtin_publications_writer = DdsDataWriter::new(
             create_builtin_stateful_writer(Guid::new(
@@ -301,8 +300,7 @@ impl DdsDomainParticipant {
             String::from(DCPS_PUBLICATION),
             builtin_rtps_message_channel_sender.clone(),
         );
-        let (sedp_builtin_publications_writer_address, sedp_builtin_publications_writer_handle) =
-            actor::spawn_actor(sedp_builtin_publications_writer);
+        let sedp_builtin_publications_writer_actor = spawn_actor(sedp_builtin_publications_writer);
 
         let sedp_builtin_subscriptions_writer = DdsDataWriter::new(
             create_builtin_stateful_writer(Guid::new(
@@ -313,8 +311,8 @@ impl DdsDomainParticipant {
             String::from(DCPS_SUBSCRIPTION),
             builtin_rtps_message_channel_sender,
         );
-        let (sedp_builtin_subscriptions_writer_address, sedp_builtin_subscriptions_writer_handle) =
-            actor::spawn_actor(sedp_builtin_subscriptions_writer);
+        let sedp_builtin_subscriptions_writer_actor =
+            spawn_actor(sedp_builtin_subscriptions_writer);
 
         let mut builtin_publisher = DdsPublisher::new(
             PublisherQos::default(),
@@ -324,18 +322,9 @@ impl DdsDomainParticipant {
             )),
         );
         builtin_publisher.stateless_datawriter_add(spdp_builtin_participant_writer);
-        builtin_publisher.stateful_datawriter_add((
-            sedp_builtin_topics_writer_address,
-            sedp_builtin_topics_writer_handle,
-        ));
-        builtin_publisher.stateful_datawriter_add((
-            sedp_builtin_publications_writer_address,
-            sedp_builtin_publications_writer_handle,
-        ));
-        builtin_publisher.stateful_datawriter_add((
-            sedp_builtin_subscriptions_writer_address,
-            sedp_builtin_subscriptions_writer_handle,
-        ));
+        builtin_publisher.stateful_datawriter_add(sedp_builtin_topics_writer_actor);
+        builtin_publisher.stateful_datawriter_add(sedp_builtin_publications_writer_actor);
+        builtin_publisher.stateful_datawriter_add(sedp_builtin_subscriptions_writer_actor);
 
         Self {
             rtps_participant,
@@ -458,18 +447,21 @@ impl DdsDomainParticipant {
 
             if self.qos.entity_factory.autoenable_created_entities {
                 for publisher in self.user_defined_publisher_list.iter_mut() {
-                    publisher.0.send_blocking(dds_actor::publisher::Enable).ok();
+                    publisher
+                        .address()
+                        .send_blocking(dds_actor::publisher::Enable)
+                        .ok();
                 }
 
                 for subscriber in self.user_defined_subscriber_list.iter_mut() {
                     subscriber
-                        .0
+                        .address()
                         .send_blocking(dds_actor::subscriber::Enable)
                         .ok();
                 }
 
                 for topic in self.topic_list.iter_mut() {
-                    topic.0.send_blocking(dds_actor::topic::Enable).ok();
+                    topic.address().send_blocking(dds_actor::topic::Enable).ok();
                 }
             }
         }
@@ -536,10 +528,9 @@ impl DdsDomainParticipant {
             publisher.enable();
         }
 
-        let (publisher_address, publisher_handle) = spawn_actor(publisher);
-
-        self.user_defined_publisher_list
-            .push((publisher_address.clone(), publisher_handle));
+        let publisher_actor = spawn_actor(publisher);
+        let publisher_address = publisher_actor.address();
+        self.user_defined_publisher_list.push(publisher_actor);
 
         Ok(publisher_address)
     }
@@ -621,10 +612,9 @@ impl DdsDomainParticipant {
             subscriber.enable()?;
         }
 
-        let (subscriber_address, subscriber_handle) = spawn_actor(subscriber);
-
-        self.user_defined_subscriber_list
-            .push((subscriber_address.clone(), subscriber_handle));
+        let subscriber_actor = spawn_actor(subscriber);
+        let subscriber_address = subscriber_actor.address();
+        self.user_defined_subscriber_list.push(subscriber_actor);
 
         Ok(subscriber_address)
     }
@@ -713,9 +703,9 @@ impl DdsDomainParticipant {
             topic.enable()?;
         }
 
-        let (topic_address, topic_handle) = spawn_actor(topic);
-
-        self.topic_list.push((topic_address.clone(), topic_handle));
+        let topic_actor = spawn_actor(topic);
+        let topic_address = topic_actor.address();
+        self.topic_list.push(topic_actor);
 
         Ok(topic_address)
     }
@@ -869,13 +859,13 @@ impl DdsDomainParticipant {
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
         for user_defined_publisher in self.user_defined_publisher_list.drain(..) {
             user_defined_publisher
-                .0
+                .address()
                 .send_blocking(dds_actor::publisher::DeleteContainedEntities)?;
         }
 
         for user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
             user_defined_subscriber
-                .0
+                .address()
                 .send_blocking(dds_actor::subscriber::DeleteContainedEntities)?;
         }
 

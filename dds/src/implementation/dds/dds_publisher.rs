@@ -12,7 +12,7 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        utils::actor::{spawn_actor, ActorAddress, ActorJoinHandle},
+        utils::actor::{spawn_actor, ActorAddress, OwnedActor},
     },
     infrastructure::{
         error::DdsResult,
@@ -29,10 +29,7 @@ pub struct DdsPublisher {
     qos: PublisherQos,
     rtps_group: RtpsGroup,
     stateless_data_writer_list: Vec<DdsDataWriter<RtpsStatelessWriter>>,
-    stateful_data_writer_list: Vec<(
-        ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
-        ActorJoinHandle,
-    )>,
+    stateful_data_writer_list: Vec<OwnedActor<DdsDataWriter<RtpsStatefulWriter>>>,
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
@@ -126,10 +123,9 @@ impl DdsPublisher {
             data_writer.enable();
         }
 
-        let (data_writer_address, data_writer_handle) = spawn_actor(data_writer);
-
-        self.stateful_data_writer_list
-            .push((data_writer_address.clone(), data_writer_handle));
+        let data_writer_actor = spawn_actor(data_writer);
+        let data_writer_address = data_writer_actor.address();
+        self.stateful_data_writer_list.push(data_writer_actor);
 
         Ok(data_writer_address)
     }
@@ -218,20 +214,14 @@ impl DdsPublisher {
 
     pub fn stateful_datawriter_add(
         &mut self,
-        data_writer: (
-            ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
-            ActorJoinHandle,
-        ),
+        data_writer: OwnedActor<DdsDataWriter<RtpsStatefulWriter>>,
     ) {
         self.stateful_data_writer_list.push(data_writer)
     }
 
     pub fn stateful_datawriter_drain(
         &mut self,
-    ) -> std::vec::Drain<(
-        ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
-        ActorJoinHandle,
-    )> {
+    ) -> std::vec::Drain<OwnedActor<DdsDataWriter<RtpsStatefulWriter>>> {
         self.stateful_data_writer_list.drain(..)
     }
 
@@ -246,7 +236,7 @@ impl DdsPublisher {
     ) -> Vec<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
         self.stateful_data_writer_list
             .iter()
-            .map(|x| x.0.clone())
+            .map(|x| x.address().clone())
             .collect()
     }
 

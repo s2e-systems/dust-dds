@@ -75,16 +75,6 @@ impl<A> ActorAddress<A> {
     }
 }
 
-pub struct ActorJoinHandle {
-    join_handle: tokio::task::JoinHandle<()>,
-}
-
-impl Drop for ActorJoinHandle {
-    fn drop(&mut self) {
-        self.join_handle.abort();
-    }
-}
-
 trait GenericHandler<A> {
     fn handle(&mut self, actor: &mut A) -> Result<(), ()>;
 }
@@ -120,44 +110,63 @@ where
     }
 }
 
+pub struct OwnedActor<A> {
+    address: ActorAddress<A>,
+    join_handle: tokio::task::JoinHandle<()>,
+}
+
+impl<A> OwnedActor<A> {
+    pub fn address(&self) -> ActorAddress<A> {
+        self.address.clone()
+    }
+}
+
+impl<A> Drop for OwnedActor<A> {
+    fn drop(&mut self) {
+        self.join_handle.abort();
+    }
+}
+
 struct SpawnedActor<A> {
     value: A,
     mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<A> + Send>>,
 }
 
-pub fn spawn_actor<A>(actor: A) -> (ActorAddress<A>, ActorJoinHandle)
+pub fn spawn_actor<A>(actor: A) -> OwnedActor<A>
 where
     A: Send + 'static,
 {
     let (sender, mailbox) = sync::mpsc::channel(10);
 
-    let actor_address = ActorAddress {
+    let address = ActorAddress {
         actor: PhantomData,
         sender,
     };
+
     let mut actor_obj = SpawnedActor {
         value: actor,
         mailbox,
     };
 
-    let actor_handle = ActorJoinHandle {
-        join_handle: THE_RUNTIME.spawn(poll_fn(move |cx| {
-            while let Poll::Ready(val) = actor_obj.mailbox.poll_recv(cx) {
-                if let Some(mut m) = val {
-                    // Handling a message must be synchronous and allowed to call blocking code
-                    // (e.g. send message to other actors). It is not allowed to be an async function
-                    // otherwise multiple messages could interrupt each other and modify the object in between.
-                    // To allow calling blocking code inside the block_in_place method is used to prevent
-                    // the runtime from crashing
-                    tokio::task::block_in_place(|| m.handle(&mut actor_obj.value).ok());
-                }
+    let join_handle = THE_RUNTIME.spawn(poll_fn(move |cx| {
+        while let Poll::Ready(val) = actor_obj.mailbox.poll_recv(cx) {
+            if let Some(mut m) = val {
+                // Handling a message must be synchronous and allowed to call blocking code
+                // (e.g. send message to other actors). It is not allowed to be an async function
+                // otherwise multiple messages could interrupt each other and modify the object in between.
+                // To allow calling blocking code inside the block_in_place method is used to prevent
+                // the runtime from crashing
+                tokio::task::block_in_place(|| m.handle(&mut actor_obj.value).ok());
             }
+        }
 
-            Poll::Pending
-        })),
-    };
+        Poll::Pending
+    }));
 
-    (actor_address, actor_handle)
+    OwnedActor {
+        address,
+        join_handle,
+    }
 }
 
 impl<M> SyncMessage<M>
@@ -228,18 +237,18 @@ mod tests {
     #[test]
     fn actor_increment() {
         let my_data = MyData { data: 0 };
-        let (address, _join_handle) = spawn_actor(my_data);
-        let data_interface = DataInterface(address);
+        let actor = spawn_actor(my_data);
+        let data_interface = DataInterface(actor.address());
         assert_eq!(data_interface.increment(10).unwrap(), 10)
     }
 
     #[test]
     fn actor_already_deleted() {
         let my_data = MyData { data: 0 };
-        let (address, handle) = spawn_actor(my_data);
-        std::mem::drop(handle);
+        let actor = spawn_actor(my_data);
+        let data_interface = DataInterface(actor.address());
+        std::mem::drop(actor);
         std::thread::sleep(std::time::Duration::from_millis(100));
-        let data_interface = DataInterface(address);
         assert_eq!(data_interface.increment(10), Err(DdsError::AlreadyDeleted))
     }
 }
