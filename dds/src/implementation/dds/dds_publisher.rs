@@ -12,7 +12,7 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        utils::actor::{spawn_actor, ActorAddress, OwnedActor},
+        utils::actor::{spawn_actor, ActorAddress, Actor},
     },
     infrastructure::{
         error::DdsResult,
@@ -29,7 +29,7 @@ pub struct DdsPublisher {
     qos: PublisherQos,
     rtps_group: RtpsGroup,
     stateless_data_writer_list: Vec<DdsDataWriter<RtpsStatelessWriter>>,
-    stateful_data_writer_list: Vec<OwnedActor<DdsDataWriter<RtpsStatefulWriter>>>,
+    stateful_data_writer_list: Vec<Actor<DdsDataWriter<RtpsStatefulWriter>>>,
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
@@ -214,14 +214,14 @@ impl DdsPublisher {
 
     pub fn stateful_datawriter_add(
         &mut self,
-        data_writer: OwnedActor<DdsDataWriter<RtpsStatefulWriter>>,
+        data_writer: Actor<DdsDataWriter<RtpsStatefulWriter>>,
     ) {
         self.stateful_data_writer_list.push(data_writer)
     }
 
     pub fn stateful_datawriter_drain(
         &mut self,
-    ) -> std::vec::Drain<OwnedActor<DdsDataWriter<RtpsStatefulWriter>>> {
+    ) -> std::vec::Drain<Actor<DdsDataWriter<RtpsStatefulWriter>>> {
         self.stateful_data_writer_list.drain(..)
     }
 

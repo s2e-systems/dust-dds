@@ -29,7 +29,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
         utils::{
-            actor::{spawn_actor, ActorAddress, OwnedActor, THE_RUNTIME},
+            actor::{spawn_actor, ActorAddress, Actor, THE_RUNTIME},
             condvar::DdsCondvar,
         },
     },
@@ -52,7 +52,7 @@ lazy_static! {
 }
 
 pub struct DdsDomainParticipantFactory {
-    domain_participant_list: Vec<OwnedActor<DdsDomainParticipant>>,
+    domain_participant_list: Vec<Actor<DdsDomainParticipant>>,
     domain_participant_counter: u32,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,

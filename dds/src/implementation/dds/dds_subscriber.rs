@@ -21,7 +21,7 @@ use crate::{
                 USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
             },
         },
-        utils::actor::{spawn_actor, ActorAddress, OwnedActor},
+        utils::actor::{spawn_actor, ActorAddress, Actor},
     },
     infrastructure::{
         error::DdsResult,
@@ -37,7 +37,7 @@ pub struct DdsSubscriber {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
     stateless_data_reader_list: Vec<DdsDataReader<RtpsStatelessReader>>,
-    stateful_data_reader_list: Vec<OwnedActor<DdsDataReader<RtpsStatefulReader>>>,
+    stateful_data_reader_list: Vec<Actor<DdsDataReader<RtpsStatefulReader>>>,
     enabled: bool,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
@@ -227,7 +227,7 @@ impl DdsSubscriber {
 
     pub fn stateful_data_reader_add(
         &mut self,
-        data_reader: OwnedActor<DdsDataReader<RtpsStatefulReader>>,
+        data_reader: Actor<DdsDataReader<RtpsStatefulReader>>,
     ) {
         self.stateful_data_reader_list.push(data_reader)
     }

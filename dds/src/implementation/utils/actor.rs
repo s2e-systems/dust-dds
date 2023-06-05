@@ -110,18 +110,18 @@ where
     }
 }
 
-pub struct OwnedActor<A> {
+pub struct Actor<A> {
     address: ActorAddress<A>,
     join_handle: tokio::task::JoinHandle<()>,
 }
 
-impl<A> OwnedActor<A> {
+impl<A> Actor<A> {
     pub fn address(&self) -> ActorAddress<A> {
         self.address.clone()
     }
 }
 
-impl<A> Drop for OwnedActor<A> {
+impl<A> Drop for Actor<A> {
     fn drop(&mut self) {
         self.join_handle.abort();
     }
@@ -132,7 +132,7 @@ struct SpawnedActor<A> {
     mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<A> + Send>>,
 }
 
-pub fn spawn_actor<A>(actor: A) -> OwnedActor<A>
+pub fn spawn_actor<A>(actor: A) -> Actor<A>
 where
     A: Send + 'static,
 {
@@ -163,7 +163,7 @@ where
         Poll::Pending
     }));
 
-    OwnedActor {
+    Actor {
         address,
         join_handle,
     }

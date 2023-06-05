@@ -3,7 +3,7 @@ use crate::{
     implementation::{
         dds::dds_domain_participant_factory::DdsDomainParticipantFactory,
         dds_actor,
-        utils::actor::{spawn_actor, OwnedActor},
+        utils::actor::{spawn_actor, Actor},
     },
     infrastructure::{
         error::DdsResult,
@@ -30,7 +30,7 @@ lazy_static! {
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory(OwnedActor<DdsDomainParticipantFactory>);
+pub struct DomainParticipantFactory(Actor<DdsDomainParticipantFactory>);
 
 impl DomainParticipantFactory {
     /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
