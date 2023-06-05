@@ -199,6 +199,13 @@ impl DdsPublisher {
         counter
     }
 
+    pub fn delete_contained_entities(&mut self) {
+        todo!()
+        // for data_writer in self.stateful_data_writer_list.drain(..) {
+        //     data_writer.0.
+        // }
+    }
+
     pub fn stateful_datawriter_add(
         &mut self,
         data_writer: (

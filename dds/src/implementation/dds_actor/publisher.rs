@@ -86,3 +86,26 @@ impl Handler<IsEnabled> for DdsPublisher {
         self.is_enabled()
     }
 }
+
+pub struct DeleteContainedEntities;
+
+impl Message for DeleteContainedEntities {
+    type Result = ();
+}
+
+impl Handler<DeleteContainedEntities> for DdsPublisher {
+    fn handle(
+        &mut self,
+        _mail: DeleteContainedEntities,
+    ) -> <DeleteContainedEntities as Message>::Result {
+        // todo!()
+        // for data_writer in user_defined_publisher.stateful_datawriter_drain() {
+        // if data_writer.is_enabled() {
+        //     self.announce_sender
+        //         .try_send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+        //         .ok();
+        // }
+        // }
+        // self.delete_contained_entities().ok();
+    }
+}

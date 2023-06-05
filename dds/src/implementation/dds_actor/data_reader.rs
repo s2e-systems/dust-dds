@@ -10,7 +10,7 @@ impl Message for Enable {
 }
 
 impl<T> Handler<Enable> for DdsDataReader<T> {
-    fn handle(&mut self, mail: Enable) -> <Enable as Message>::Result {
+    fn handle(&mut self, _mail: Enable) -> <Enable as Message>::Result {
         self.enable().ok();
     }
 }

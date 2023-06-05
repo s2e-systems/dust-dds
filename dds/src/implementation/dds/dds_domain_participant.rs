@@ -853,28 +853,16 @@ impl DdsDomainParticipant {
     }
 
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
-        for mut user_defined_publisher in self.user_defined_publisher_list.drain(..) {
-            // for data_writer in user_defined_publisher.stateful_datawriter_drain() {
-            todo!()
-            // if data_writer.is_enabled() {
-            //     self.announce_sender
-            //         .try_send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
-            //         .ok();
-            // }
-            // }
+        for user_defined_publisher in self.user_defined_publisher_list.drain(..) {
+            user_defined_publisher
+                .0
+                .send_blocking(dds_actor::publisher::DeleteContainedEntities)?;
         }
 
-        for mut user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
-            todo!()
-            // for data_reader in user_defined_subscriber.stateful_data_reader_drain() {
-            //     if data_reader.is_enabled() {
-            //         self.announce_sender
-            //             .try_send(AnnounceKind::DeletedDataReader(
-            //                 data_reader.get_instance_handle(),
-            //             ))
-            //             .ok();
-            //     }
-            // }
+        for user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
+            user_defined_subscriber
+                .0
+                .send_blocking(dds_actor::subscriber::DeleteContainedEntities)?;
         }
 
         self.topic_list.clear();

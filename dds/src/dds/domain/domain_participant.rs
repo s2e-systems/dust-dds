@@ -439,10 +439,8 @@ impl DomainParticipant {
     /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::delete_contained_entities(dp)
-        // })
+        self.0
+            .send_blocking(dds_actor::domain_participant::DeleteContainedEntities)
     }
 
     /// This operation manually asserts the liveliness of the [`DomainParticipant`]. This is used in combination

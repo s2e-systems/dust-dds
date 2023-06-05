@@ -279,7 +279,7 @@ impl Message for GetDefaultUnicastLocatorList {
 impl Handler<GetDefaultUnicastLocatorList> for DdsDomainParticipant {
     fn handle(
         &mut self,
-        message: GetDefaultUnicastLocatorList,
+        _mail: GetDefaultUnicastLocatorList,
     ) -> <GetDefaultUnicastLocatorList as Message>::Result {
         self.default_unicast_locator_list().to_vec()
     }
@@ -294,7 +294,7 @@ impl Message for GetDefaultMulticastLocatorList {
 impl Handler<GetDefaultMulticastLocatorList> for DdsDomainParticipant {
     fn handle(
         &mut self,
-        message: GetDefaultMulticastLocatorList,
+        _mail: GetDefaultMulticastLocatorList,
     ) -> <GetDefaultMulticastLocatorList as Message>::Result {
         self.default_multicast_locator_list().to_vec()
     }
@@ -309,8 +309,23 @@ impl Message for GetDataMaxSizeSerialized {
 impl Handler<GetDataMaxSizeSerialized> for DdsDomainParticipant {
     fn handle(
         &mut self,
-        message: GetDataMaxSizeSerialized,
+        _mail: GetDataMaxSizeSerialized,
     ) -> <GetDataMaxSizeSerialized as Message>::Result {
         self.data_max_size_serialized()
+    }
+}
+
+pub struct DeleteContainedEntities;
+
+impl Message for DeleteContainedEntities {
+    type Result = ();
+}
+
+impl Handler<DeleteContainedEntities> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        _mail: DeleteContainedEntities,
+    ) -> <DeleteContainedEntities as Message>::Result {
+        self.delete_contained_entities().ok();
     }
 }
