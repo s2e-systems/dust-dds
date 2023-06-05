@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
 use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         dds::dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
         rtps::{messages::overall_structure::RtpsMessageRead, types::Locator},
-        rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{Handler, Message},
     },
     infrastructure::{instance::InstanceHandle, qos::DomainParticipantQos},
@@ -163,48 +160,5 @@ impl Handler<AnnounceParticipant> for DdsDomainParticipant {
         _message: AnnounceParticipant,
     ) -> <AnnounceParticipant as Message>::Result {
         // todo!();
-    }
-}
-
-pub struct SendBuiltinMessage {
-    socket: Arc<UdpTransportWrite>,
-}
-
-impl SendBuiltinMessage {
-    pub fn new(socket: Arc<UdpTransportWrite>) -> Self {
-        Self { socket }
-    }
-}
-
-impl Message for SendBuiltinMessage {
-    type Result = ();
-}
-
-impl Handler<SendBuiltinMessage> for DdsDomainParticipant {
-    fn handle(&mut self, _message: SendBuiltinMessage) -> <SendBuiltinMessage as Message>::Result {
-        // todo!();
-    }
-}
-
-pub struct SendUserDefinedMessage {
-    socket: Arc<UdpTransportWrite>,
-}
-
-impl SendUserDefinedMessage {
-    pub fn new(socket: Arc<UdpTransportWrite>) -> Self {
-        Self { socket }
-    }
-}
-
-impl Message for SendUserDefinedMessage {
-    type Result = ();
-}
-
-impl Handler<SendUserDefinedMessage> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: SendUserDefinedMessage,
-    ) -> <SendUserDefinedMessage as Message>::Result {
-        todo!();
     }
 }

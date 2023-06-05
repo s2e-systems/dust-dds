@@ -20,7 +20,9 @@ use crate::{
         dds::dds_domain_participant::AnnounceKind,
         dds_actor,
         rtps::{
+            messages::overall_structure::RtpsMessageWrite,
             participant::RtpsParticipant,
+            transport::TransportWrite,
             types::{
                 GuidPrefix, Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4,
                 PROTOCOLVERSION, VENDOR_ID_S2E,
@@ -147,37 +149,39 @@ impl DdsDomainParticipantFactory {
         }
 
         async fn task_unicast_metatraffic_communication_send(
-            domain_participant_address: ActorAddress<DdsDomainParticipant>,
+            mut rtps_message_channel_receiver: tokio::sync::mpsc::Receiver<(
+                RtpsMessageWrite<'static>,
+                Vec<Locator>,
+            )>,
         ) {
             let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
 
-            let metatraffic_unicast_transport_send = Arc::new(UdpTransportWrite::new(socket));
+            let metatraffic_unicast_transport_send = UdpTransportWrite::new(socket);
 
             loop {
-                tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-                domain_participant_address
-                    .send(dds_actor::domain_participant::SendBuiltinMessage::new(
-                        metatraffic_unicast_transport_send.clone(),
-                    ))
-                    .await
-                    .unwrap();
+                if let Some((message, destination_locator_list)) =
+                    rtps_message_channel_receiver.recv().await
+                {
+                    metatraffic_unicast_transport_send.write(&message, &destination_locator_list);
+                }
             }
         }
 
         async fn task_unicast_user_defined_communication_send(
-            domain_participant_address: ActorAddress<DdsDomainParticipant>,
+            mut rtps_message_channel_receiver: tokio::sync::mpsc::Receiver<(
+                RtpsMessageWrite<'static>,
+                Vec<Locator>,
+            )>,
         ) {
             let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
-            let default_unicast_transport_send = Arc::new(UdpTransportWrite::new(socket));
+            let default_unicast_transport_send = UdpTransportWrite::new(socket);
 
             loop {
-                tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-                domain_participant_address
-                    .send(dds_actor::domain_participant::SendUserDefinedMessage::new(
-                        default_unicast_transport_send.clone(),
-                    ))
-                    .await
-                    .unwrap();
+                if let Some((message, destination_locator_list)) =
+                    rtps_message_channel_receiver.recv().await
+                {
+                    default_unicast_transport_send.write(&message, &destination_locator_list);
+                }
             }
         }
 
@@ -330,12 +334,16 @@ impl DdsDomainParticipantFactory {
             participant_address.clone(),
         ));
 
+        let (builtin_rtps_message_channel_sender, builtin_rtps_message_channel_receiver) =
+            tokio::sync::mpsc::channel(10);
         THE_RUNTIME.spawn(task_unicast_metatraffic_communication_send(
-            participant_address.clone(),
+            builtin_rtps_message_channel_receiver,
         ));
 
+        let (user_defined_rtps_message_channel_sender, user_defined_rtps_message_channel_receiver) =
+            tokio::sync::mpsc::channel(10);
         THE_RUNTIME.spawn(task_unicast_user_defined_communication_send(
-            participant_address.clone(),
+            user_defined_rtps_message_channel_receiver,
         ));
 
         THE_RUNTIME.spawn(task_announce_participant(participant_address.clone()));
