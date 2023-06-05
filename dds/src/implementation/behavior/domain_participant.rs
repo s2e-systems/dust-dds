@@ -1,6 +1,5 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::{domain_participant::task_announce_participant, domain_participant_factory::DomainId},
     implementation::{
         dds::{
             dds_domain_participant::DdsDomainParticipant,
@@ -237,13 +236,13 @@ pub fn get_qos(domain_participant: &DdsDomainParticipant) -> DdsResult<DomainPar
     Ok(domain_participant.get_qos())
 }
 
-pub async fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
-    domain_participant.enable().await?;
+// pub async fn enable(domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
+//     domain_participant.enable().await?;
 
-    domain_participant.announce_participant()?;
-    domain_participant.spawn(task_announce_participant(
-        domain_participant.guid().prefix(),
-    ));
+//     domain_participant.announce_participant()?;
+//     domain_participant.spawn(task_announce_participant(
+//         domain_participant.guid().prefix(),
+//     ));
 
-    Ok(())
-}
+//     Ok(())
+// }

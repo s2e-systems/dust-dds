@@ -1,5 +1,5 @@
 use fnmatch_regex::glob_to_regex;
-use tokio::{sync::mpsc::Sender, task::JoinSet};
+use tokio::sync::mpsc::Sender;
 
 use crate::{
     builtin_topics::{
@@ -45,6 +45,7 @@ use crate::{
             },
             writer::RtpsWriter,
         },
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
             actor::{self, ActorTask, Handler, Message},
             condvar::DdsCondvar,
@@ -77,8 +78,10 @@ use crate::{
 
 use std::{
     collections::{HashMap, HashSet},
-    future::Future,
-    sync::atomic::{AtomicU8, Ordering},
+    sync::{
+        atomic::{AtomicU8, Ordering},
+        Arc,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -152,7 +155,6 @@ pub struct DdsDomainParticipant {
     data_max_size_serialized: usize,
     announce_sender: Sender<AnnounceKind>,
     sedp_condvar: DdsCondvar,
-    task_set: JoinSet<()>,
 }
 
 pub struct Enable;
@@ -167,7 +169,44 @@ impl Handler<Enable> for DdsDomainParticipant {
         _message: Enable,
         _actor_task: &mut ActorTask<Self>,
     ) -> <Enable as Message>::Result {
-        self.enabled = true;
+        if !self.enabled {
+            self.enabled = true;
+
+            self.builtin_subscriber.enable().ok();
+            self.builtin_publisher.enable();
+
+            for builtin_stateless_writer in self
+                .builtin_publisher
+                .stateless_data_writer_list_mut()
+                .iter_mut()
+            {
+                builtin_stateless_writer.enable();
+            }
+
+            for builtin_stateful_writer in self
+                .builtin_publisher
+                .stateful_data_writer_list()
+                .iter_mut()
+            {
+                builtin_stateful_writer
+                    .send_blocking(dds_data_writer::Enable)
+                    .ok();
+            }
+
+            if self.qos.entity_factory.autoenable_created_entities {
+                for publisher in self.user_defined_publisher_list_mut() {
+                    publisher.enable();
+                }
+
+                for subscriber in self.user_defined_subscriber_list.iter_mut() {
+                    subscriber.enable().ok();
+                }
+
+                for topic in self.topic_list.iter_mut() {
+                    topic.enable().ok();
+                }
+            }
+        }
     }
 }
 
@@ -212,7 +251,7 @@ impl Message for GetInstanceHandle {
 impl Handler<GetInstanceHandle> for DdsDomainParticipant {
     fn handle(
         &mut self,
-        message: GetInstanceHandle,
+        _message: GetInstanceHandle,
         _actor_task: &mut ActorTask<Self>,
     ) -> <GetInstanceHandle as Message>::Result {
         self.rtps_participant.guid().into()
@@ -234,6 +273,154 @@ impl Handler<IsEmpty> for DdsDomainParticipant {
         self.user_defined_publisher_list().iter().count() == 0
             && self.user_defined_subscriber_list().iter().count() == 0
             && self.topic_list().iter().count() == 0
+    }
+}
+
+pub struct ReceiveBuiltinMessage {
+    locator: Locator,
+    message: RtpsMessageRead,
+}
+
+impl ReceiveBuiltinMessage {
+    pub fn new(locator: Locator, message: RtpsMessageRead) -> Self {
+        Self { locator, message }
+    }
+}
+
+impl Message for ReceiveBuiltinMessage {
+    type Result = ();
+}
+
+impl Handler<ReceiveBuiltinMessage> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        _message: ReceiveBuiltinMessage,
+        _actor_task: &mut ActorTask<Self>,
+    ) -> <ReceiveBuiltinMessage as Message>::Result {
+        // self.receive_builtin_data(locator, message, listener_sender)
+        //     .ok();
+
+        // discover_matched_participants(domain_participant, sedp_condvar).ok();
+        // domain_participant
+        //     .discover_matched_readers(listener_sender)
+        //     .ok();
+        // discover_matched_writers(domain_participant, listener_sender).ok();
+        // domain_participant
+        //     .discover_matched_topics(listener_sender)
+        //     .ok();
+    }
+}
+
+pub struct ReceiveUserDefinedMessage {
+    locator: Locator,
+    message: RtpsMessageRead,
+}
+
+impl ReceiveUserDefinedMessage {
+    pub fn new(locator: Locator, message: RtpsMessageRead) -> Self {
+        Self { locator, message }
+    }
+}
+
+impl Message for ReceiveUserDefinedMessage {
+    type Result = ();
+}
+
+impl Handler<ReceiveUserDefinedMessage> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        _message: ReceiveUserDefinedMessage,
+        _actor_task: &mut ActorTask<Self>,
+    ) -> <ReceiveUserDefinedMessage as Message>::Result {
+        // todo!();
+    }
+}
+
+pub struct AnnounceEntity {
+    announce_kind: AnnounceKind,
+}
+
+impl AnnounceEntity {
+    pub fn new(announce_kind: AnnounceKind) -> Self {
+        Self { announce_kind }
+    }
+}
+
+impl Message for AnnounceEntity {
+    type Result = ();
+}
+
+impl Handler<AnnounceEntity> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        _message: AnnounceEntity,
+        _actor_task: &mut ActorTask<Self>,
+    ) -> <AnnounceEntity as Message>::Result {
+        // todo!();
+    }
+}
+
+pub struct AnnounceParticipant;
+
+impl Message for AnnounceParticipant {
+    type Result = ();
+}
+
+impl Handler<AnnounceParticipant> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        _message: AnnounceParticipant,
+        _actor_task: &mut ActorTask<Self>,
+    ) -> <AnnounceParticipant as Message>::Result {
+        // todo!();
+    }
+}
+
+pub struct SendBuiltinMessage {
+    socket: Arc<UdpTransportWrite>,
+}
+
+impl SendBuiltinMessage {
+    pub fn new(socket: Arc<UdpTransportWrite>) -> Self {
+        Self { socket }
+    }
+}
+
+impl Message for SendBuiltinMessage {
+    type Result = ();
+}
+
+impl Handler<SendBuiltinMessage> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        _message: SendBuiltinMessage,
+        _actor_task: &mut ActorTask<Self>,
+    ) -> <SendBuiltinMessage as Message>::Result {
+        // todo!();
+    }
+}
+
+pub struct SendUserDefinedMessage {
+    socket: Arc<UdpTransportWrite>,
+}
+
+impl SendUserDefinedMessage {
+    pub fn new(socket: Arc<UdpTransportWrite>) -> Self {
+        Self { socket }
+    }
+}
+
+impl Message for SendUserDefinedMessage {
+    type Result = ();
+}
+
+impl Handler<SendUserDefinedMessage> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        _message: SendUserDefinedMessage,
+        _actor_task: &mut ActorTask<Self>,
+    ) -> <SendUserDefinedMessage as Message>::Result {
+        todo!();
     }
 }
 
@@ -441,12 +628,7 @@ impl DdsDomainParticipant {
             data_max_size_serialized,
             announce_sender,
             sedp_condvar,
-            task_set: JoinSet::new(),
         }
-    }
-
-    pub fn spawn(&mut self, future: impl Future<Output = ()> + Send + 'static) {
-        self.task_set.spawn(future);
     }
 
     pub fn guid(&self) -> Guid {
@@ -958,48 +1140,6 @@ impl DdsDomainParticipant {
         };
         self.announce_participant().ok();
 
-        Ok(())
-    }
-
-    pub async fn enable(&mut self) -> DdsResult<()> {
-        if !self.enabled {
-            self.enabled = true;
-
-            self.builtin_subscriber.enable()?;
-            self.builtin_publisher.enable();
-
-            for builtin_stateless_writer in self
-                .builtin_publisher
-                .stateless_data_writer_list_mut()
-                .iter_mut()
-            {
-                builtin_stateless_writer.enable();
-            }
-
-            for builtin_stateful_writer in self
-                .builtin_publisher
-                .stateful_data_writer_list()
-                .iter_mut()
-            {
-                builtin_stateful_writer
-                    .send(dds_data_writer::Enable)
-                    .await?;
-            }
-
-            if self.qos.entity_factory.autoenable_created_entities {
-                for publisher in self.user_defined_publisher_list_mut() {
-                    publisher.enable();
-                }
-
-                for subscriber in self.user_defined_subscriber_list.iter_mut() {
-                    subscriber.enable()?;
-                }
-
-                for topic in self.topic_list.iter_mut() {
-                    topic.enable()?;
-                }
-            }
-        }
         Ok(())
     }
 

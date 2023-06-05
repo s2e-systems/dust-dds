@@ -1,5 +1,5 @@
 use crate::implementation::rtps::{
-    messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite, EndianWriteBytes},
+    messages::overall_structure::{EndianWriteBytes, RtpsMessageRead, RtpsMessageWrite},
     transport::TransportWrite,
     types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
 };
@@ -41,7 +41,7 @@ impl UdpTransportWrite {
 }
 
 impl TransportWrite for UdpTransportWrite {
-    fn write(&mut self, message: &RtpsMessageWrite<'_>, destination_locator_list: &[Locator]) {
+    fn write(&self, message: &RtpsMessageWrite<'_>, destination_locator_list: &[Locator]) {
         let mut buf = [0u8; 35000];
         message.endian_write_bytes::<byteorder::LittleEndian>(&mut buf);
 

@@ -11,7 +11,7 @@ use lazy_static::lazy_static;
 use crate::infrastructure::error::{DdsError, DdsResult};
 
 lazy_static! {
-    static ref THE_RUNTIME: runtime::Runtime = runtime::Builder::new_multi_thread()
+    pub static ref THE_RUNTIME: runtime::Runtime = runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("Failed to create Tokio runtime");
@@ -26,7 +26,7 @@ where
     M: Message,
     Self: Sized,
 {
-    fn handle(&mut self, message: M, actor_task: &mut ActorTask<Self>) -> M::Result;
+    fn handle(&mut self, mail: M, actor_task: &mut ActorTask<Self>) -> M::Result;
 }
 
 pub struct ActorTask<A> {
@@ -67,7 +67,7 @@ impl<A> Clone for ActorAddress<A> {
 }
 
 impl<A> ActorAddress<A> {
-    pub fn send_blocking<M>(&self, message: M) -> DdsResult<M::Result>
+    pub fn send_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
     where
         A: Handler<M>,
         M: Message + Send + 'static,
@@ -76,14 +76,14 @@ impl<A> ActorAddress<A> {
         let (response_sender, response_receiver) = sync::oneshot::channel();
 
         self.sender
-            .blocking_send(Box::new(SyncMessage::new(message, response_sender)))
+            .blocking_send(Box::new(SyncMessage::new(mail, response_sender)))
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
             .blocking_recv()
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
-    pub async fn send<M>(&self, message: M) -> DdsResult<M::Result>
+    pub async fn send<M>(&self, mail: M) -> DdsResult<M::Result>
     where
         A: Handler<M>,
         M: Message + Send + 'static,
@@ -92,7 +92,7 @@ impl<A> ActorAddress<A> {
         let (response_sender, response_receiver) = sync::oneshot::channel();
 
         self.sender
-            .send(Box::new(SyncMessage::new(message, response_sender)))
+            .send(Box::new(SyncMessage::new(mail, response_sender)))
             .await
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
