@@ -4,7 +4,7 @@ use crate::{
     implementation::{
         dds::{dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber},
         rtps::{stateful_reader::RtpsStatefulReader, types::Locator},
-        utils::actor::{ActorAddress, Handler, Message},
+        utils::actor::{ActorAddress, MailHandler, Mail},
     },
     infrastructure::{
         error::DdsResult,
@@ -39,18 +39,18 @@ impl<Foo> CreateDataReader<Foo> {
     }
 }
 
-impl<Foo> Message for CreateDataReader<Foo> {
+impl<Foo> Mail for CreateDataReader<Foo> {
     type Result = DdsResult<ActorAddress<DdsDataReader<RtpsStatefulReader>>>;
 }
 
-impl<Foo> Handler<CreateDataReader<Foo>> for DdsSubscriber
+impl<Foo> MailHandler<CreateDataReader<Foo>> for DdsSubscriber
 where
     Foo: DdsType + for<'de> DdsDeserialize<'de>,
 {
     fn handle(
         &mut self,
         mail: CreateDataReader<Foo>,
-    ) -> <CreateDataReader<Foo> as Message>::Result {
+    ) -> <CreateDataReader<Foo> as Mail>::Result {
         self.create_datareader::<Foo>(
             mail.topic_name,
             mail.qos,
@@ -62,27 +62,27 @@ where
 
 pub struct Enable;
 
-impl Message for Enable {
+impl Mail for Enable {
     type Result = ();
 }
 
-impl Handler<Enable> for DdsSubscriber {
-    fn handle(&mut self, _mail: Enable) -> <Enable as Message>::Result {
+impl MailHandler<Enable> for DdsSubscriber {
+    fn handle(&mut self, _mail: Enable) -> <Enable as Mail>::Result {
         self.enable().ok();
     }
 }
 
 pub struct DeleteContainedEntities;
 
-impl Message for DeleteContainedEntities {
+impl Mail for DeleteContainedEntities {
     type Result = ();
 }
 
-impl Handler<DeleteContainedEntities> for DdsSubscriber {
+impl MailHandler<DeleteContainedEntities> for DdsSubscriber {
     fn handle(
         &mut self,
         _mail: DeleteContainedEntities,
-    ) -> <DeleteContainedEntities as Message>::Result {
+    ) -> <DeleteContainedEntities as Mail>::Result {
         // todo!()
 
         // for data_reader in user_defined_subscriber.stateful_data_reader_drain() {

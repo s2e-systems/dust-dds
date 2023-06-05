@@ -12,7 +12,7 @@ use crate::{
             messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
             types::Locator,
         },
-        utils::actor::{ActorAddress, Handler, Message},
+        utils::actor::{ActorAddress, MailHandler, Mail},
     },
     infrastructure::{
         error::DdsResult,
@@ -26,24 +26,24 @@ use crate::{
 
 pub struct Enable;
 
-impl Message for Enable {
+impl Mail for Enable {
     type Result = ();
 }
 
-impl Handler<Enable> for DdsDomainParticipant {
-    fn handle(&mut self, _message: Enable) -> <Enable as Message>::Result {
+impl MailHandler<Enable> for DdsDomainParticipant {
+    fn handle(&mut self, _message: Enable) -> <Enable as Mail>::Result {
         self.enable()
     }
 }
 
 pub struct GetQos;
 
-impl Message for GetQos {
+impl Mail for GetQos {
     type Result = DomainParticipantQos;
 }
 
-impl Handler<GetQos> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetQos) -> <GetQos as Message>::Result {
+impl MailHandler<GetQos> for DdsDomainParticipant {
+    fn handle(&mut self, _message: GetQos) -> <GetQos as Mail>::Result {
         self.get_qos()
     }
 }
@@ -58,48 +58,48 @@ impl SetQos {
     }
 }
 
-impl Message for SetQos {
+impl Mail for SetQos {
     type Result = ();
 }
 
-impl Handler<SetQos> for DdsDomainParticipant {
-    fn handle(&mut self, mail: SetQos) -> <SetQos as Message>::Result {
+impl MailHandler<SetQos> for DdsDomainParticipant {
+    fn handle(&mut self, mail: SetQos) -> <SetQos as Mail>::Result {
         self.set_qos(mail.qos).ok();
     }
 }
 
 pub struct GetDomainId;
 
-impl Message for GetDomainId {
+impl Mail for GetDomainId {
     type Result = DomainId;
 }
 
-impl Handler<GetDomainId> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetDomainId) -> <GetDomainId as Message>::Result {
+impl MailHandler<GetDomainId> for DdsDomainParticipant {
+    fn handle(&mut self, _message: GetDomainId) -> <GetDomainId as Mail>::Result {
         self.domain_id()
     }
 }
 
 pub struct GetInstanceHandle;
 
-impl Message for GetInstanceHandle {
+impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 
-impl Handler<GetInstanceHandle> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetInstanceHandle) -> <GetInstanceHandle as Message>::Result {
+impl MailHandler<GetInstanceHandle> for DdsDomainParticipant {
+    fn handle(&mut self, _message: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         self.guid().into()
     }
 }
 
 pub struct IsEmpty;
 
-impl Message for IsEmpty {
+impl Mail for IsEmpty {
     type Result = bool;
 }
 
-impl Handler<IsEmpty> for DdsDomainParticipant {
-    fn handle(&mut self, _message: IsEmpty) -> <IsEmpty as Message>::Result {
+impl MailHandler<IsEmpty> for DdsDomainParticipant {
+    fn handle(&mut self, _message: IsEmpty) -> <IsEmpty as Mail>::Result {
         self.is_empty()
     }
 }
@@ -115,15 +115,15 @@ impl ReceiveBuiltinMessage {
     }
 }
 
-impl Message for ReceiveBuiltinMessage {
+impl Mail for ReceiveBuiltinMessage {
     type Result = ();
 }
 
-impl Handler<ReceiveBuiltinMessage> for DdsDomainParticipant {
+impl MailHandler<ReceiveBuiltinMessage> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: ReceiveBuiltinMessage,
-    ) -> <ReceiveBuiltinMessage as Message>::Result {
+    ) -> <ReceiveBuiltinMessage as Mail>::Result {
         // self.receive_builtin_data(locator, message, listener_sender)
         //     .ok();
 
@@ -149,15 +149,15 @@ impl ReceiveUserDefinedMessage {
     }
 }
 
-impl Message for ReceiveUserDefinedMessage {
+impl Mail for ReceiveUserDefinedMessage {
     type Result = ();
 }
 
-impl Handler<ReceiveUserDefinedMessage> for DdsDomainParticipant {
+impl MailHandler<ReceiveUserDefinedMessage> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: ReceiveUserDefinedMessage,
-    ) -> <ReceiveUserDefinedMessage as Message>::Result {
+    ) -> <ReceiveUserDefinedMessage as Mail>::Result {
         // todo!();
     }
 }
@@ -172,27 +172,27 @@ impl AnnounceEntity {
     }
 }
 
-impl Message for AnnounceEntity {
+impl Mail for AnnounceEntity {
     type Result = ();
 }
 
-impl Handler<AnnounceEntity> for DdsDomainParticipant {
-    fn handle(&mut self, _message: AnnounceEntity) -> <AnnounceEntity as Message>::Result {
+impl MailHandler<AnnounceEntity> for DdsDomainParticipant {
+    fn handle(&mut self, _message: AnnounceEntity) -> <AnnounceEntity as Mail>::Result {
         // todo!();
     }
 }
 
 pub struct AnnounceParticipant;
 
-impl Message for AnnounceParticipant {
+impl Mail for AnnounceParticipant {
     type Result = ();
 }
 
-impl Handler<AnnounceParticipant> for DdsDomainParticipant {
+impl MailHandler<AnnounceParticipant> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _message: AnnounceParticipant,
-    ) -> <AnnounceParticipant as Message>::Result {
+    ) -> <AnnounceParticipant as Mail>::Result {
         self.announce_participant().ok();
     }
 }
@@ -223,12 +223,12 @@ impl CreateTopic {
     }
 }
 
-impl Message for CreateTopic {
+impl Mail for CreateTopic {
     type Result = DdsResult<ActorAddress<DdsTopic>>;
 }
 
-impl Handler<CreateTopic> for DdsDomainParticipant {
-    fn handle(&mut self, message: CreateTopic) -> <CreateTopic as Message>::Result {
+impl MailHandler<CreateTopic> for DdsDomainParticipant {
+    fn handle(&mut self, message: CreateTopic) -> <CreateTopic as Mail>::Result {
         self.create_topic(&message.topic_name, message.type_name, message.qos)
     }
 }
@@ -253,12 +253,12 @@ impl CreatePublisher {
     }
 }
 
-impl Message for CreatePublisher {
+impl Mail for CreatePublisher {
     type Result = DdsResult<ActorAddress<DdsPublisher>>;
 }
 
-impl Handler<CreatePublisher> for DdsDomainParticipant {
-    fn handle(&mut self, message: CreatePublisher) -> <CreatePublisher as Message>::Result {
+impl MailHandler<CreatePublisher> for DdsDomainParticipant {
+    fn handle(&mut self, message: CreatePublisher) -> <CreatePublisher as Mail>::Result {
         self.create_publisher(message.qos)
     }
 }
@@ -283,87 +283,87 @@ impl CreateSubscriber {
     }
 }
 
-impl Message for CreateSubscriber {
+impl Mail for CreateSubscriber {
     type Result = DdsResult<ActorAddress<DdsSubscriber>>;
 }
 
-impl Handler<CreateSubscriber> for DdsDomainParticipant {
-    fn handle(&mut self, message: CreateSubscriber) -> <CreateSubscriber as Message>::Result {
+impl MailHandler<CreateSubscriber> for DdsDomainParticipant {
+    fn handle(&mut self, message: CreateSubscriber) -> <CreateSubscriber as Mail>::Result {
         self.create_subscriber(message.qos)
     }
 }
 
 pub struct GetDefaultUnicastLocatorList;
 
-impl Message for GetDefaultUnicastLocatorList {
+impl Mail for GetDefaultUnicastLocatorList {
     type Result = Vec<Locator>;
 }
 
-impl Handler<GetDefaultUnicastLocatorList> for DdsDomainParticipant {
+impl MailHandler<GetDefaultUnicastLocatorList> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _mail: GetDefaultUnicastLocatorList,
-    ) -> <GetDefaultUnicastLocatorList as Message>::Result {
+    ) -> <GetDefaultUnicastLocatorList as Mail>::Result {
         self.default_unicast_locator_list().to_vec()
     }
 }
 
 pub struct GetDefaultMulticastLocatorList;
 
-impl Message for GetDefaultMulticastLocatorList {
+impl Mail for GetDefaultMulticastLocatorList {
     type Result = Vec<Locator>;
 }
 
-impl Handler<GetDefaultMulticastLocatorList> for DdsDomainParticipant {
+impl MailHandler<GetDefaultMulticastLocatorList> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _mail: GetDefaultMulticastLocatorList,
-    ) -> <GetDefaultMulticastLocatorList as Message>::Result {
+    ) -> <GetDefaultMulticastLocatorList as Mail>::Result {
         self.default_multicast_locator_list().to_vec()
     }
 }
 
 pub struct GetDataMaxSizeSerialized;
 
-impl Message for GetDataMaxSizeSerialized {
+impl Mail for GetDataMaxSizeSerialized {
     type Result = usize;
 }
 
-impl Handler<GetDataMaxSizeSerialized> for DdsDomainParticipant {
+impl MailHandler<GetDataMaxSizeSerialized> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _mail: GetDataMaxSizeSerialized,
-    ) -> <GetDataMaxSizeSerialized as Message>::Result {
+    ) -> <GetDataMaxSizeSerialized as Mail>::Result {
         self.data_max_size_serialized()
     }
 }
 
 pub struct DeleteContainedEntities;
 
-impl Message for DeleteContainedEntities {
+impl Mail for DeleteContainedEntities {
     type Result = ();
 }
 
-impl Handler<DeleteContainedEntities> for DdsDomainParticipant {
+impl MailHandler<DeleteContainedEntities> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _mail: DeleteContainedEntities,
-    ) -> <DeleteContainedEntities as Message>::Result {
+    ) -> <DeleteContainedEntities as Mail>::Result {
         self.delete_contained_entities().ok();
     }
 }
 
 pub struct GetUserDefinedRtpsMessageChannelSender;
 
-impl Message for GetUserDefinedRtpsMessageChannelSender {
+impl Mail for GetUserDefinedRtpsMessageChannelSender {
     type Result = tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>;
 }
 
-impl Handler<GetUserDefinedRtpsMessageChannelSender> for DdsDomainParticipant {
+impl MailHandler<GetUserDefinedRtpsMessageChannelSender> for DdsDomainParticipant {
     fn handle(
         &mut self,
         _mail: GetUserDefinedRtpsMessageChannelSender,
-    ) -> <GetUserDefinedRtpsMessageChannelSender as Message>::Result {
+    ) -> <GetUserDefinedRtpsMessageChannelSender as Mail>::Result {
         self.get_user_defined_rtps_message_channel_sender()
     }
 }

@@ -13,13 +13,13 @@ lazy_static! {
         .expect("Failed to create Tokio runtime");
 }
 
-pub trait Message {
+pub trait Mail {
     type Result;
 }
 
-pub trait Handler<M>
+pub trait MailHandler<M>
 where
-    M: Message,
+    M: Mail,
     Self: Sized,
 {
     fn handle(&mut self, mail: M) -> M::Result;
@@ -43,14 +43,14 @@ impl<A> Clone for ActorAddress<A> {
 impl<A> ActorAddress<A> {
     pub fn send_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
     where
-        A: Handler<M>,
-        M: Message + Send + 'static,
+        A: MailHandler<M>,
+        M: Mail + Send + 'static,
         M::Result: Send,
     {
         let (response_sender, response_receiver) = sync::oneshot::channel();
 
         self.sender
-            .blocking_send(Box::new(SyncMessage::new(mail, response_sender)))
+            .blocking_send(Box::new(SyncMail::new(mail, response_sender)))
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
             .blocking_recv()
@@ -59,14 +59,14 @@ impl<A> ActorAddress<A> {
 
     pub async fn send<M>(&self, mail: M) -> DdsResult<M::Result>
     where
-        A: Handler<M>,
-        M: Message + Send + 'static,
+        A: MailHandler<M>,
+        M: Mail + Send + 'static,
         M::Result: Send,
     {
         let (response_sender, response_receiver) = sync::oneshot::channel();
 
         self.sender
-            .send(Box::new(SyncMessage::new(mail, response_sender)))
+            .send(Box::new(SyncMail::new(mail, response_sender)))
             .await
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
@@ -79,32 +79,32 @@ trait GenericHandler<A> {
     fn handle(&mut self, actor: &mut A) -> Result<(), ()>;
 }
 
-struct SyncMessage<M>
+struct SyncMail<M>
 where
-    M: Message,
+    M: Mail,
 {
     // Both fields have to be inside an option because later on the contents
     // have to be moved out and the struct. Because the struct is passed as a Boxed
     // trait object this is only feasible by using the Option fields.
-    message: Option<M>,
+    mail: Option<M>,
     sender: Option<sync::oneshot::Sender<M::Result>>,
 }
 
-impl<A, M> GenericHandler<A> for SyncMessage<M>
+impl<A, M> GenericHandler<A> for SyncMail<M>
 where
-    A: Handler<M>,
-    M: Message,
+    A: MailHandler<M>,
+    M: Mail,
 {
     fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
-        let result = <A as Handler<M>>::handle(
+        let result = <A as MailHandler<M>>::handle(
             actor,
-            self.message
+            self.mail
                 .take()
-                .expect("Message should be processed only once"),
+                .expect("Mail should be processed only once"),
         );
         self.sender
             .take()
-            .expect("Message should be processed only once")
+            .expect("Mail should be processed only once")
             .send(result)
             .map_err(|_| ())
     }
@@ -151,9 +151,9 @@ where
     let join_handle = THE_RUNTIME.spawn(poll_fn(move |cx| {
         while let Poll::Ready(val) = actor_obj.mailbox.poll_recv(cx) {
             if let Some(mut m) = val {
-                // Handling a message must be synchronous and allowed to call blocking code
-                // (e.g. send message to other actors). It is not allowed to be an async function
-                // otherwise multiple messages could interrupt each other and modify the object in between.
+                // Handling mail can be synchronous and allowed to call blocking code
+                // (e.g. send mail to other actors). It is not allowed to be an async function
+                // otherwise multiple mails could interrupt each other and modify the object in between.
                 // To allow calling blocking code inside the block_in_place method is used to prevent
                 // the runtime from crashing
                 tokio::task::block_in_place(|| m.handle(&mut actor_obj.value).ok());
@@ -169,13 +169,13 @@ where
     }
 }
 
-impl<M> SyncMessage<M>
+impl<M> SyncMail<M>
 where
-    M: Message,
+    M: Mail,
 {
     fn new(message: M, sender: sync::oneshot::Sender<M::Result>) -> Self {
         Self {
-            message: Some(message),
+            mail: Some(message),
             sender: Some(sender),
         }
     }
@@ -200,28 +200,28 @@ mod tests {
         }
     }
 
-    pub struct IncrementMessage {
+    pub struct IncrementMail {
         pub value: u8,
     }
 
-    impl Message for IncrementMessage {
+    impl Mail for IncrementMail {
         type Result = u8;
     }
 
-    pub struct DecrementMessage;
+    pub struct DecrementMail;
 
-    impl Message for DecrementMessage {
+    impl Mail for DecrementMail {
         type Result = ();
     }
 
-    impl Handler<IncrementMessage> for MyData {
-        fn handle(&mut self, message: IncrementMessage) -> <IncrementMessage as Message>::Result {
-            self.increment(message.value)
+    impl MailHandler<IncrementMail> for MyData {
+        fn handle(&mut self, mail: IncrementMail) -> <IncrementMail as Mail>::Result {
+            self.increment(mail.value)
         }
     }
 
-    impl Handler<DecrementMessage> for MyData {
-        fn handle(&mut self, _message: DecrementMessage) -> <DecrementMessage as Message>::Result {
+    impl MailHandler<DecrementMail> for MyData {
+        fn handle(&mut self, _: DecrementMail) -> <DecrementMail as Mail>::Result {
             self.decrement()
         }
     }
@@ -230,7 +230,7 @@ mod tests {
 
     impl DataInterface {
         pub fn increment(&self, value: u8) -> DdsResult<u8> {
-            self.0.send_blocking(IncrementMessage { value })
+            self.0.send_blocking(IncrementMail { value })
         }
     }
 

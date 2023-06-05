@@ -4,7 +4,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::dds_data_writer::DdsDataWriter,
         rtps::stateful_writer::RtpsStatefulWriter,
-        utils::actor::{Handler, Message},
+        utils::actor::{MailHandler, Mail},
     },
     infrastructure::{
         error::DdsResult,
@@ -21,36 +21,36 @@ use crate::{
 
 pub struct Enable;
 
-impl Message for Enable {
+impl Mail for Enable {
     type Result = ();
 }
 
-impl<T> Handler<Enable> for DdsDataWriter<T> {
-    fn handle(&mut self, _message: Enable) -> <Enable as Message>::Result {
+impl<T> MailHandler<Enable> for DdsDataWriter<T> {
+    fn handle(&mut self, _message: Enable) -> <Enable as Mail>::Result {
         self.enable();
     }
 }
 
 pub struct GetTypeName;
 
-impl Message for GetTypeName {
+impl Mail for GetTypeName {
     type Result = &'static str;
 }
 
-impl<T> Handler<GetTypeName> for DdsDataWriter<T> {
-    fn handle(&mut self, _message: GetTypeName) -> <GetTypeName as Message>::Result {
+impl<T> MailHandler<GetTypeName> for DdsDataWriter<T> {
+    fn handle(&mut self, _message: GetTypeName) -> <GetTypeName as Mail>::Result {
         self.get_type_name()
     }
 }
 
 pub struct GetTopicName;
 
-impl Message for GetTopicName {
+impl Mail for GetTopicName {
     type Result = String;
 }
 
-impl Handler<GetTopicName> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: GetTopicName) -> <GetTopicName as Message>::Result {
+impl MailHandler<GetTopicName> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: GetTopicName) -> <GetTopicName as Mail>::Result {
         self.get_topic_name().to_string()
     }
 }
@@ -78,12 +78,12 @@ impl WriteWithTimestamp {
     }
 }
 
-impl Message for WriteWithTimestamp {
+impl Mail for WriteWithTimestamp {
     type Result = DdsResult<()>;
 }
 
-impl Handler<WriteWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: WriteWithTimestamp) -> <WriteWithTimestamp as Message>::Result {
+impl MailHandler<WriteWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: WriteWithTimestamp) -> <WriteWithTimestamp as Mail>::Result {
         self.write_w_timestamp(
             message.serialized_data,
             message.instance_serialized_key,
@@ -110,15 +110,15 @@ impl UnregisterInstanceWithTimestamp {
     }
 }
 
-impl Message for UnregisterInstanceWithTimestamp {
+impl Mail for UnregisterInstanceWithTimestamp {
     type Result = DdsResult<()>;
 }
 
-impl Handler<UnregisterInstanceWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
+impl MailHandler<UnregisterInstanceWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: UnregisterInstanceWithTimestamp,
-    ) -> <UnregisterInstanceWithTimestamp as Message>::Result {
+    ) -> <UnregisterInstanceWithTimestamp as Mail>::Result {
         self.unregister_instance_w_timestamp(
             message.instance_serialized_key,
             message.handle,
@@ -139,12 +139,12 @@ impl LookupInstance {
     }
 }
 
-impl Message for LookupInstance {
+impl Mail for LookupInstance {
     type Result = DdsResult<Option<InstanceHandle>>;
 }
 
-impl Handler<LookupInstance> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Message>::Result {
+impl MailHandler<LookupInstance> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
         self.lookup_instance(message.instance_serialized_key)
     }
 }
@@ -165,15 +165,15 @@ impl DisposeWithTimestamp {
     }
 }
 
-impl Message for DisposeWithTimestamp {
+impl Mail for DisposeWithTimestamp {
     type Result = DdsResult<()>;
 }
 
-impl Handler<DisposeWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
+impl MailHandler<DisposeWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: DisposeWithTimestamp,
-    ) -> <DisposeWithTimestamp as Message>::Result {
+    ) -> <DisposeWithTimestamp as Mail>::Result {
         self.dispose_w_timestamp(
             message.instance_serialized_key,
             message.handle,
@@ -184,87 +184,87 @@ impl Handler<DisposeWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
 
 pub struct IsEnabled;
 
-impl Message for IsEnabled {
+impl Mail for IsEnabled {
     type Result = bool;
 }
 
-impl Handler<IsEnabled> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: IsEnabled) -> <IsEnabled as Message>::Result {
+impl MailHandler<IsEnabled> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.is_enabled()
     }
 }
 
 pub struct AreAllChangesAcknowledge;
 
-impl Message for AreAllChangesAcknowledge {
+impl Mail for AreAllChangesAcknowledge {
     type Result = bool;
 }
 
-impl Handler<AreAllChangesAcknowledge> for DdsDataWriter<RtpsStatefulWriter> {
+impl MailHandler<AreAllChangesAcknowledge> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: AreAllChangesAcknowledge,
-    ) -> <AreAllChangesAcknowledge as Message>::Result {
+    ) -> <AreAllChangesAcknowledge as Mail>::Result {
         self.are_all_changes_acknowledge()
     }
 }
 
 pub struct GetLivelinessLostStatus;
 
-impl Message for GetLivelinessLostStatus {
+impl Mail for GetLivelinessLostStatus {
     type Result = LivelinessLostStatus;
 }
 
-impl Handler<GetLivelinessLostStatus> for DdsDataWriter<RtpsStatefulWriter> {
+impl MailHandler<GetLivelinessLostStatus> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: GetLivelinessLostStatus,
-    ) -> <GetLivelinessLostStatus as Message>::Result {
+    ) -> <GetLivelinessLostStatus as Mail>::Result {
         self.get_liveliness_lost_status()
     }
 }
 
 pub struct GetOfferedDeadlineMissedStatus;
 
-impl Message for GetOfferedDeadlineMissedStatus {
+impl Mail for GetOfferedDeadlineMissedStatus {
     type Result = OfferedDeadlineMissedStatus;
 }
 
-impl Handler<GetOfferedDeadlineMissedStatus> for DdsDataWriter<RtpsStatefulWriter> {
+impl MailHandler<GetOfferedDeadlineMissedStatus> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: GetOfferedDeadlineMissedStatus,
-    ) -> <GetOfferedDeadlineMissedStatus as Message>::Result {
+    ) -> <GetOfferedDeadlineMissedStatus as Mail>::Result {
         self.get_offered_deadline_missed_status()
     }
 }
 
 pub struct GetOfferedIncompatibleQosStatus;
 
-impl Message for GetOfferedIncompatibleQosStatus {
+impl Mail for GetOfferedIncompatibleQosStatus {
     type Result = OfferedIncompatibleQosStatus;
 }
 
-impl Handler<GetOfferedIncompatibleQosStatus> for DdsDataWriter<RtpsStatefulWriter> {
+impl MailHandler<GetOfferedIncompatibleQosStatus> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: GetOfferedIncompatibleQosStatus,
-    ) -> <GetOfferedIncompatibleQosStatus as Message>::Result {
+    ) -> <GetOfferedIncompatibleQosStatus as Mail>::Result {
         self.get_offered_incompatible_qos_status()
     }
 }
 
 pub struct GetPublicationMatchedStatus;
 
-impl Message for GetPublicationMatchedStatus {
+impl Mail for GetPublicationMatchedStatus {
     type Result = PublicationMatchedStatus;
 }
 
-impl Handler<GetPublicationMatchedStatus> for DdsDataWriter<RtpsStatefulWriter> {
+impl MailHandler<GetPublicationMatchedStatus> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: GetPublicationMatchedStatus,
-    ) -> <GetPublicationMatchedStatus as Message>::Result {
+    ) -> <GetPublicationMatchedStatus as Mail>::Result {
         self.get_publication_matched_status()
     }
 }
@@ -279,42 +279,42 @@ impl GetMatchedSubscriptionData {
     }
 }
 
-impl Message for GetMatchedSubscriptionData {
+impl Mail for GetMatchedSubscriptionData {
     type Result = Option<SubscriptionBuiltinTopicData>;
 }
 
-impl Handler<GetMatchedSubscriptionData> for DdsDataWriter<RtpsStatefulWriter> {
+impl MailHandler<GetMatchedSubscriptionData> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: GetMatchedSubscriptionData,
-    ) -> <GetMatchedSubscriptionData as Message>::Result {
+    ) -> <GetMatchedSubscriptionData as Mail>::Result {
         self.get_matched_subscription_data(message.handle)
     }
 }
 
 pub struct GetMatchedSubscriptions;
 
-impl Message for GetMatchedSubscriptions {
+impl Mail for GetMatchedSubscriptions {
     type Result = Vec<InstanceHandle>;
 }
 
-impl Handler<GetMatchedSubscriptions> for DdsDataWriter<RtpsStatefulWriter> {
+impl MailHandler<GetMatchedSubscriptions> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: GetMatchedSubscriptions,
-    ) -> <GetMatchedSubscriptions as Message>::Result {
+    ) -> <GetMatchedSubscriptions as Mail>::Result {
         self.get_matched_subscriptions()
     }
 }
 
 pub struct GetQos;
 
-impl Message for GetQos {
+impl Mail for GetQos {
     type Result = DataWriterQos;
 }
 
-impl Handler<GetQos> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: GetQos) -> <GetQos as Message>::Result {
+impl MailHandler<GetQos> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: GetQos) -> <GetQos as Mail>::Result {
         self.get_qos()
     }
 }
@@ -329,12 +329,12 @@ impl SetQos {
     }
 }
 
-impl Message for SetQos {
+impl Mail for SetQos {
     type Result = ();
 }
 
-impl Handler<SetQos> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Message>::Result {
+impl MailHandler<SetQos> for DdsDataWriter<RtpsStatefulWriter> {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         self.set_qos(message.qos)
     }
 }
@@ -353,15 +353,15 @@ impl AsDiscoveredWriterData {
     }
 }
 
-impl Message for AsDiscoveredWriterData {
+impl Mail for AsDiscoveredWriterData {
     type Result = DiscoveredWriterData;
 }
 
-impl Handler<AsDiscoveredWriterData> for DdsDataWriter<RtpsStatefulWriter> {
+impl MailHandler<AsDiscoveredWriterData> for DdsDataWriter<RtpsStatefulWriter> {
     fn handle(
         &mut self,
         message: AsDiscoveredWriterData,
-    ) -> <AsDiscoveredWriterData as Message>::Result {
+    ) -> <AsDiscoveredWriterData as Mail>::Result {
         self.as_discovered_writer_data(&message.topic_qos, &message.publisher_qos)
     }
 }

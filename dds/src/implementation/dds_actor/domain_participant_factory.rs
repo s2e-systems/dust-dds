@@ -8,7 +8,7 @@ use crate::{
             dds_domain_participant::DdsDomainParticipant,
             dds_domain_participant_factory::DdsDomainParticipantFactory,
         },
-        utils::actor::{ActorAddress, Handler, Message},
+        utils::actor::{ActorAddress, MailHandler, Mail},
     },
     infrastructure::{
         error::DdsResult,
@@ -40,12 +40,12 @@ impl CreateParticipant {
     }
 }
 
-impl Message for CreateParticipant {
+impl Mail for CreateParticipant {
     type Result = DdsResult<ActorAddress<DdsDomainParticipant>>;
 }
 
-impl Handler<CreateParticipant> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Message>::Result {
+impl MailHandler<CreateParticipant> for DdsDomainParticipantFactory {
+    fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Mail>::Result {
         self.create_participant(
             message.domain_id,
             message.qos,
@@ -65,12 +65,12 @@ impl DeleteParticipant {
     }
 }
 
-impl Message for DeleteParticipant {
+impl Mail for DeleteParticipant {
     type Result = DdsResult<()>;
 }
 
-impl Handler<DeleteParticipant> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Message>::Result {
+impl MailHandler<DeleteParticipant> for DdsDomainParticipantFactory {
+    fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Mail>::Result {
         self.delete_participant(&message.address)
     }
 }
@@ -85,24 +85,24 @@ impl LookupParticipant {
     }
 }
 
-impl Message for LookupParticipant {
+impl Mail for LookupParticipant {
     type Result = Option<ActorAddress<DdsDomainParticipant>>;
 }
 
-impl Handler<LookupParticipant> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: LookupParticipant) -> <LookupParticipant as Message>::Result {
+impl MailHandler<LookupParticipant> for DdsDomainParticipantFactory {
+    fn handle(&mut self, message: LookupParticipant) -> <LookupParticipant as Mail>::Result {
         self.lookup_participant(message.domain_id)
     }
 }
 
 pub struct GetQos;
 
-impl Message for GetQos {
+impl Mail for GetQos {
     type Result = DomainParticipantFactoryQos;
 }
 
-impl Handler<GetQos> for DdsDomainParticipantFactory {
-    fn handle(&mut self, _message: GetQos) -> <GetQos as Message>::Result {
+impl MailHandler<GetQos> for DdsDomainParticipantFactory {
+    fn handle(&mut self, _message: GetQos) -> <GetQos as Mail>::Result {
         self.get_qos().clone()
     }
 }
@@ -117,27 +117,27 @@ impl SetQos {
     }
 }
 
-impl Message for SetQos {
+impl Mail for SetQos {
     type Result = ();
 }
 
-impl Handler<SetQos> for DdsDomainParticipantFactory {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Message>::Result {
+impl MailHandler<SetQos> for DdsDomainParticipantFactory {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         self.set_qos(message.qos_kind)
     }
 }
 
 pub struct GetDefaultParticipantQos;
 
-impl Message for GetDefaultParticipantQos {
+impl Mail for GetDefaultParticipantQos {
     type Result = DomainParticipantQos;
 }
 
-impl Handler<GetDefaultParticipantQos> for DdsDomainParticipantFactory {
+impl MailHandler<GetDefaultParticipantQos> for DdsDomainParticipantFactory {
     fn handle(
         &mut self,
         _message: GetDefaultParticipantQos,
-    ) -> <GetDefaultParticipantQos as Message>::Result {
+    ) -> <GetDefaultParticipantQos as Mail>::Result {
         self.get_default_participant_qos().clone()
     }
 }
@@ -152,15 +152,15 @@ impl SetDefaultParticipantQos {
     }
 }
 
-impl Message for SetDefaultParticipantQos {
+impl Mail for SetDefaultParticipantQos {
     type Result = ();
 }
 
-impl Handler<SetDefaultParticipantQos> for DdsDomainParticipantFactory {
+impl MailHandler<SetDefaultParticipantQos> for DdsDomainParticipantFactory {
     fn handle(
         &mut self,
         message: SetDefaultParticipantQos,
-    ) -> <SetDefaultParticipantQos as Message>::Result {
+    ) -> <SetDefaultParticipantQos as Mail>::Result {
         self.set_default_participant_qos(message.qos_kind)
     }
 }

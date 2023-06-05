@@ -1,28 +1,28 @@
 use crate::implementation::{
     dds::dds_topic::DdsTopic,
-    utils::actor::{Handler, Message},
+    utils::actor::{MailHandler, Mail},
 };
 
 pub struct GetName;
 
-impl Message for GetName {
+impl Mail for GetName {
     type Result = String;
 }
 
-impl Handler<GetName> for DdsTopic {
-    fn handle(&mut self, _mail: GetName) -> <GetName as Message>::Result {
+impl MailHandler<GetName> for DdsTopic {
+    fn handle(&mut self, _mail: GetName) -> <GetName as Mail>::Result {
         self.get_name()
     }
 }
 
 pub struct Enable;
 
-impl Message for Enable {
+impl Mail for Enable {
     type Result = ();
 }
 
-impl Handler<Enable> for DdsTopic {
-    fn handle(&mut self, _mail: Enable) -> <Enable as Message>::Result {
+impl MailHandler<Enable> for DdsTopic {
+    fn handle(&mut self, _mail: Enable) -> <Enable as Mail>::Result {
         self.enable().ok();
     }
 }

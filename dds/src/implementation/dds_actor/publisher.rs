@@ -7,7 +7,7 @@ use crate::{
             messages::overall_structure::RtpsMessageWrite, stateful_writer::RtpsStatefulWriter,
             types::Locator,
         },
-        utils::actor::{ActorAddress, Handler, Message},
+        utils::actor::{ActorAddress, MailHandler, Mail},
     },
     infrastructure::{
         error::DdsResult,
@@ -51,18 +51,18 @@ impl<Foo> CreateDataWriter<Foo> {
     }
 }
 
-impl<Foo> Message for CreateDataWriter<Foo> {
+impl<Foo> Mail for CreateDataWriter<Foo> {
     type Result = DdsResult<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>>;
 }
 
-impl<Foo> Handler<CreateDataWriter<Foo>> for DdsPublisher
+impl<Foo> MailHandler<CreateDataWriter<Foo>> for DdsPublisher
 where
     Foo: DdsType,
 {
     fn handle(
         &mut self,
         mail: CreateDataWriter<Foo>,
-    ) -> <CreateDataWriter<Foo> as Message>::Result {
+    ) -> <CreateDataWriter<Foo> as Mail>::Result {
         self.create_datawriter::<Foo>(
             mail.topic_name,
             mail.qos,
@@ -76,39 +76,39 @@ where
 
 pub struct Enable;
 
-impl Message for Enable {
+impl Mail for Enable {
     type Result = ();
 }
 
-impl Handler<Enable> for DdsPublisher {
-    fn handle(&mut self, _mail: Enable) -> <Enable as Message>::Result {
+impl MailHandler<Enable> for DdsPublisher {
+    fn handle(&mut self, _mail: Enable) -> <Enable as Mail>::Result {
         self.enable()
     }
 }
 
 pub struct IsEnabled;
 
-impl Message for IsEnabled {
+impl Mail for IsEnabled {
     type Result = bool;
 }
 
-impl Handler<IsEnabled> for DdsPublisher {
-    fn handle(&mut self, _message: IsEnabled) -> <IsEnabled as Message>::Result {
+impl MailHandler<IsEnabled> for DdsPublisher {
+    fn handle(&mut self, _message: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.is_enabled()
     }
 }
 
 pub struct DeleteContainedEntities;
 
-impl Message for DeleteContainedEntities {
+impl Mail for DeleteContainedEntities {
     type Result = ();
 }
 
-impl Handler<DeleteContainedEntities> for DdsPublisher {
+impl MailHandler<DeleteContainedEntities> for DdsPublisher {
     fn handle(
         &mut self,
         _mail: DeleteContainedEntities,
-    ) -> <DeleteContainedEntities as Message>::Result {
+    ) -> <DeleteContainedEntities as Mail>::Result {
         // todo!()
         // for data_writer in user_defined_publisher.stateful_datawriter_drain() {
         // if data_writer.is_enabled() {
