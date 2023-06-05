@@ -140,21 +140,22 @@ impl DdsTopic {
         parent_participant_guid: Guid,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
-        if discovered_topic_data
-            .topic_builtin_topic_data()
-            .get_type_name()
-            == self.get_type_name()
-            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
-            && !is_discovered_topic_consistent(&self.qos, discovered_topic_data)
-        {
-            self.inconsistent_topic_status.increment();
-            listener_sender
-                .try_send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
-                    self.guid(),
-                    parent_participant_guid,
-                )))
-                .ok();
-        }
+        todo!()
+        // if discovered_topic_data
+        //     .topic_builtin_topic_data()
+        //     .get_type_name()
+        //     == self.get_type_name()
+        //     && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
+        //     && !is_discovered_topic_consistent(&self.qos, discovered_topic_data)
+        // {
+        //     self.inconsistent_topic_status.increment();
+        //     listener_sender
+        //         .try_send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
+        //             self.guid(),
+        //             parent_participant_guid,
+        //         )))
+        //         .ok();
+        // }
     }
 }
 

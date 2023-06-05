@@ -47,17 +47,6 @@ pub fn delete_subscriber(
     domain_participant.delete_subscriber(subscriber_guid)
 }
 
-pub fn create_topic(
-    domain_participant: &mut DdsDomainParticipant,
-    topic_name: &str,
-    type_name: &'static str,
-    qos: QosKind<TopicQos>,
-) -> DdsResult<TopicNode> {
-    domain_participant
-        .create_topic(topic_name, type_name, qos)
-        .map(|x| TopicNode::new(x, domain_participant.guid()))
-}
-
 pub fn delete_topic(
     domain_participant: &mut DdsDomainParticipant,
     topic_guid: Guid,
@@ -65,26 +54,17 @@ pub fn delete_topic(
     domain_participant.delete_topic(topic_guid)
 }
 
-pub fn find_topic(
-    domain_participant: &mut DdsDomainParticipant,
-    topic_name: &str,
-    type_name: &'static str,
-) -> Option<TopicNode> {
-    domain_participant
-        .find_topic(topic_name, type_name)
-        .map(|x| TopicNode::new(x, domain_participant.guid()))
-}
-
 pub fn lookup_topicdescription(
     domain_participant: &DdsDomainParticipant,
     topic_name: &str,
     type_name: &str,
 ) -> DdsResult<Option<TopicNode>> {
-    Ok(domain_participant
-        .topic_list()
-        .iter()
-        .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
-        .map(|x| TopicNode::new(x.guid(), domain_participant.guid())))
+    todo!()
+    // Ok(domain_participant
+    //     .topic_list()
+    //     .iter()
+    //     .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
+    //     .map(|x| TopicNode::new(x.guid(), domain_participant.guid())))
 }
 
 pub fn get_builtin_subscriber(

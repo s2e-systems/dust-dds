@@ -53,7 +53,7 @@ use crate::{
             transport::TransportWrite,
             types::{
                 DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
-                SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
+                SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, GUID_UNKNOWN,
             },
             writer_proxy::RtpsWriterProxy,
         },
@@ -252,31 +252,20 @@ impl DomainParticipant {
     where
         Foo: DdsType + 'static,
     {
-        self.0
-            .send_blocking(dds_actor::domain_participant::CreateTopic::new(
-                topic_name.to_string(),
-                Foo::type_name(),
-                qos,
-                a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
-                mask.to_vec(),
-            ));
-        todo!()
-        // let topic = self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::create_topic(
-        //         dp,
-        //         topic_name,
-        //         Foo::type_name(),
-        //         qos,
-        //     )
-        // })?;
+        let topic_address =
+            self.0
+                .send_blocking(dds_actor::domain_participant::CreateTopic::new(
+                    topic_name.to_string(),
+                    Foo::type_name(),
+                    qos,
+                    a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+                    mask.to_vec(),
+                ))?;
 
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_topic_listener(
-        //     topic.guid(),
-        //
-        //     mask,
-        // );
-
-        // Ok(Topic::new(TopicNodeKind::UserDefined(topic)))
+        Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
+            topic_address?,
+            self.0.clone(),
+        ))))
     }
 
     /// This operation deletes a [`Topic`].

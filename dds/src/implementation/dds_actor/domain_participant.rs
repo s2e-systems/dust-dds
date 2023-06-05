@@ -4,11 +4,13 @@ use crate::{
         dds::{
             any_topic_listener::AnyTopicListener,
             dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+            dds_topic::DdsTopic,
         },
         rtps::{messages::overall_structure::RtpsMessageRead, types::Locator},
-        utils::actor::{Handler, Message},
+        utils::actor::{ActorAddress, Handler, Message},
     },
     infrastructure::{
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, QosKind, TopicQos},
         status::StatusKind,
@@ -197,12 +199,11 @@ impl CreateTopic {
 }
 
 impl Message for CreateTopic {
-    type Result = ();
+    type Result = DdsResult<ActorAddress<DdsTopic>>;
 }
 
 impl Handler<CreateTopic> for DdsDomainParticipant {
     fn handle(&mut self, message: CreateTopic) -> <CreateTopic as Message>::Result {
-        self.create_topic(&message.topic_name, message.type_name, message.qos);
-        // todo!();
+        self.create_topic(&message.topic_name, message.type_name, message.qos)
     }
 }

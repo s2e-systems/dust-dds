@@ -261,7 +261,8 @@ pub fn get_topicdescription(
         })
         .expect("Topic must exist");
 
-    Ok(TopicNode::new(topic.guid(), domain_participant.guid()))
+    // Ok(TopicNode::new(topic.guid(), domain_participant.guid()))
+    todo!()
 }
 
 pub fn get_subscriber(

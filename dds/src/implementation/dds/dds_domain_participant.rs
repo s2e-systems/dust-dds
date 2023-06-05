@@ -46,7 +46,7 @@ use crate::{
             writer::RtpsWriter,
         },
         utils::{
-            actor::{self},
+            actor::{self, spawn_actor, ActorAddress, ActorJoinHandle},
             condvar::DdsCondvar,
         },
     },
@@ -136,7 +136,7 @@ pub struct DdsDomainParticipant {
     user_defined_publisher_list: Vec<DdsPublisher>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    topic_list: Vec<DdsTopic>,
+    topic_list: Vec<(ActorAddress<DdsTopic>, ActorJoinHandle)>,
     user_defined_topic_counter: AtomicU8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
@@ -451,7 +451,8 @@ impl DdsDomainParticipant {
                 }
 
                 for topic in self.topic_list.iter_mut() {
-                    topic.enable().ok();
+                    todo!()
+                    // topic.enable().ok();
                 }
             }
         }
@@ -645,7 +646,7 @@ impl DdsDomainParticipant {
         topic_name: &str,
         type_name: &'static str,
         qos: QosKind<TopicQos>,
-    ) -> DdsResult<Guid> {
+    ) -> DdsResult<ActorAddress<DdsTopic>> {
         let topic_counter = self
             .user_defined_topic_counter
             .fetch_add(1, Ordering::Relaxed);
@@ -671,55 +672,60 @@ impl DdsDomainParticipant {
             topic.enable()?;
         }
 
-        self.topic_list.push(topic);
+        let (topic_address, topic_handle) = spawn_actor(topic);
 
-        Ok(topic_guid)
+        self.topic_list.push((topic_address.clone(), topic_handle));
+
+        Ok(topic_address)
     }
 
     pub fn delete_topic(&mut self, topic_guid: Guid) -> DdsResult<()> {
-        if self.rtps_participant.guid().prefix() != topic_guid.prefix() {
-            return Err(DdsError::PreconditionNotMet(
-                "Topic can only be deleted from its parent participant".to_string(),
-            ));
-        }
+        // if self.rtps_participant.guid().prefix() != topic_guid.prefix() {
+        //     return Err(DdsError::PreconditionNotMet(
+        //         "Topic can only be deleted from its parent participant".to_string(),
+        //     ));
+        // }
 
-        let topic = self
-            .topic_list
-            .iter()
-            .find(|&topic| topic.guid() == topic_guid)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        // let topic = self
+        //     .topic_list
+        //     .iter()
+        //     .find(|&topic| topic.guid() == topic_guid)
+        //     .ok_or(DdsError::AlreadyDeleted)?;
 
-        for publisher in self.user_defined_publisher_list() {
-            if publisher.stateful_data_writer_list().iter().any(|w| {
-                w.send_blocking(dds_data_writer::GetTypeName).unwrap() == topic.get_type_name()
-                    && w.send_blocking(dds_data_writer::GetTopicName).unwrap() == topic.get_name()
-            }) {
-                return Err(DdsError::PreconditionNotMet(
-                    "Topic still attached to some data writer".to_string(),
-                ));
-            }
-        }
+        // for publisher in self.user_defined_publisher_list() {
+        //     if publisher.stateful_data_writer_list().iter().any(|w| {
+        //         w.send_blocking(dds_data_writer::GetTypeName).unwrap() == topic.get_type_name()
+        //             && w.send_blocking(dds_data_writer::GetTopicName).unwrap() == topic.get_name()
+        //     }) {
+        //         return Err(DdsError::PreconditionNotMet(
+        //             "Topic still attached to some data writer".to_string(),
+        //         ));
+        //     }
+        // }
 
-        for subscriber in self.user_defined_subscriber_list() {
-            if subscriber.stateful_data_reader_list().iter().any(|r| {
-                r.get_type_name() == topic.get_type_name() && r.get_topic_name() == topic.get_name()
-            }) {
-                return Err(DdsError::PreconditionNotMet(
-                    "Topic still attached to some data reader".to_string(),
-                ));
-            }
-        }
+        // for subscriber in self.user_defined_subscriber_list() {
+        //     if subscriber.stateful_data_reader_list().iter().any(|r| {
+        //         r.get_type_name() == topic.get_type_name() && r.get_topic_name() == topic.get_name()
+        //     }) {
+        //         return Err(DdsError::PreconditionNotMet(
+        //             "Topic still attached to some data reader".to_string(),
+        //         ));
+        //     }
+        // }
 
-        self.topic_list.retain(|x| x.guid() != topic_guid);
-        Ok(())
+        // self.topic_list.retain(|x| x.guid() != topic_guid);
+        // Ok(())
+        todo!()
     }
 
     pub fn topic_list(&self) -> &[DdsTopic] {
-        &self.topic_list
+        todo!()
+        // &self.topic_list
     }
 
     pub fn topic_list_mut(&mut self) -> &mut [DdsTopic] {
-        &mut self.topic_list
+        todo!()
+        // &mut self.topic_list
     }
 
     pub fn get_topic(&self, topic_name: &str, type_name: &str) -> Option<&DdsTopic> {
@@ -736,46 +742,51 @@ impl DdsDomainParticipant {
         self.data_max_size_serialized
     }
 
-    pub fn find_topic(&mut self, topic_name: &str, type_name: &'static str) -> Option<Guid> {
-        // Check if a topic exists locally. If topic doesn't exist locally check if it has already been
-        // discovered and, if so, create a new local topic representing the discovered topic
-        if let Some(topic) = self
-            .topic_list
-            .iter()
-            .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
-        {
-            Some(topic.guid())
-        } else if let Some(discovered_topic_info) = self
-            .discovered_topic_list
-            .values()
-            .find(|t| t.name() == topic_name && t.get_type_name() == type_name)
-            .cloned()
-        {
-            let qos = TopicQos {
-                topic_data: discovered_topic_info.topic_data().clone(),
-                durability: discovered_topic_info.durability().clone(),
-                deadline: discovered_topic_info.deadline().clone(),
-                latency_budget: discovered_topic_info.latency_budget().clone(),
-                liveliness: discovered_topic_info.liveliness().clone(),
-                reliability: discovered_topic_info.reliability().clone(),
-                destination_order: discovered_topic_info.destination_order().clone(),
-                history: discovered_topic_info.history().clone(),
-                resource_limits: discovered_topic_info.resource_limits().clone(),
-                transport_priority: discovered_topic_info.transport_priority().clone(),
-                lifespan: discovered_topic_info.lifespan().clone(),
-                ownership: discovered_topic_info.ownership().clone(),
-            };
-            Some(
-                self.create_topic(
-                    discovered_topic_info.name(),
-                    type_name,
-                    QosKind::Specific(qos),
-                )
-                .unwrap(),
-            )
-        } else {
-            None
-        }
+    pub fn find_topic(
+        &mut self,
+        topic_name: &str,
+        type_name: &'static str,
+    ) -> Option<ActorAddress<DdsTopic>> {
+        todo!()
+        // // Check if a topic exists locally. If topic doesn't exist locally check if it has already been
+        // // discovered and, if so, create a new local topic representing the discovered topic
+        // if let Some(topic) = self
+        //     .topic_list
+        //     .iter()
+        //     .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
+        // {
+        //     Some(topic.guid())
+        // } else if let Some(discovered_topic_info) = self
+        //     .discovered_topic_list
+        //     .values()
+        //     .find(|t| t.name() == topic_name && t.get_type_name() == type_name)
+        //     .cloned()
+        // {
+        //     let qos = TopicQos {
+        //         topic_data: discovered_topic_info.topic_data().clone(),
+        //         durability: discovered_topic_info.durability().clone(),
+        //         deadline: discovered_topic_info.deadline().clone(),
+        //         latency_budget: discovered_topic_info.latency_budget().clone(),
+        //         liveliness: discovered_topic_info.liveliness().clone(),
+        //         reliability: discovered_topic_info.reliability().clone(),
+        //         destination_order: discovered_topic_info.destination_order().clone(),
+        //         history: discovered_topic_info.history().clone(),
+        //         resource_limits: discovered_topic_info.resource_limits().clone(),
+        //         transport_priority: discovered_topic_info.transport_priority().clone(),
+        //         lifespan: discovered_topic_info.lifespan().clone(),
+        //         ownership: discovered_topic_info.ownership().clone(),
+        //     };
+        //     Some(
+        //         self.create_topic(
+        //             discovered_topic_info.name(),
+        //             type_name,
+        //             QosKind::Specific(qos),
+        //         )
+        //         .unwrap(),
+        //     )
+        // } else {
+        //     None
+        // }
     }
 
     pub fn ignore_participant(&mut self, handle: InstanceHandle) {

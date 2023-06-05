@@ -1,7 +1,11 @@
 use crate::{
-    implementation::rtps::types::Guid, publication::data_writer::AnyDataWriter,
-    subscription::data_reader::AnyDataReader, topic_definition::topic::AnyTopic,
+    implementation::{rtps::types::Guid, utils::actor::ActorAddress},
+    publication::data_writer::AnyDataWriter,
+    subscription::data_reader::AnyDataReader,
+    topic_definition::topic::AnyTopic,
 };
+
+use super::{dds_domain_participant::DdsDomainParticipant, dds_topic::DdsTopic};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum SubscriberNodeKind {
@@ -24,7 +28,6 @@ pub enum DataReaderNodeKind {
     Listener(DataReaderNode),
 }
 
-#[derive(PartialEq, Eq, Debug)]
 pub enum TopicNodeKind {
     UserDefined(TopicNode),
     Listener(TopicNode),
@@ -81,23 +84,23 @@ impl DataReaderNode {
 
 impl AnyDataReader for DataReaderNode {}
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(Clone)]
 pub struct TopicNode {
-    this: Guid,
-    parent: Guid,
+    this: ActorAddress<DdsTopic>,
+    parent: ActorAddress<DdsDomainParticipant>,
 }
 
 impl TopicNode {
-    pub fn new(this: Guid, parent: Guid) -> Self {
+    pub fn new(this: ActorAddress<DdsTopic>, parent: ActorAddress<DdsDomainParticipant>) -> Self {
         Self { this, parent }
     }
 
-    pub fn guid(&self) -> Guid {
-        self.this
+    pub fn address(&self) -> &ActorAddress<DdsTopic> {
+        &self.this
     }
 
-    pub fn parent_participant(&self) -> Guid {
-        self.parent
+    pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {
+        &self.parent
     }
 }
 
