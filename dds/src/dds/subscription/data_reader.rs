@@ -59,28 +59,28 @@ impl<Foo> DataReader<Foo> {
     }
 }
 
-impl<Foo> Drop for DataReader<Foo> {
-    fn drop(&mut self) {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateful(_)
-        //     | DataReaderNodeKind::BuiltinStateless(_)
-        //     | DataReaderNodeKind::Listener(_) => (),
+// impl<Foo> Drop for DataReader<Foo> {
+//     fn drop(&mut self) {
+//         todo!()
+//         // match &self.0 {
+//         //     DataReaderNodeKind::BuiltinStateful(_)
+//         //     | DataReaderNodeKind::BuiltinStateless(_)
+//         //     | DataReaderNodeKind::Listener(_) => (),
 
-        //     DataReaderNodeKind::UserDefined(dr) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&dr.guid().prefix(), |dp| {
-        //             if let Some(dp) = dp {
-        //                 crate::implementation::behavior::user_defined_subscriber::delete_datareader(
-        //                     dp,
-        //                     dr.parent_subscriber(),
-        //                     dr.guid(),
-        //                 )
-        //                 .ok();
-        //             }
-        //         }),
-        // }
-    }
-}
+//         //     DataReaderNodeKind::UserDefined(dr) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+//         //         .get_participant_mut(&dr.guid().prefix(), |dp| {
+//         //             if let Some(dp) = dp {
+//         //                 crate::implementation::behavior::user_defined_subscriber::delete_datareader(
+//         //                     dp,
+//         //                     dr.parent_subscriber(),
+//         //                     dr.guid(),
+//         //                 )
+//         //                 .ok();
+//         //             }
+//         //         }),
+//         // }
+//     }
+// }
 
 impl<Foo> DataReader<Foo>
 where

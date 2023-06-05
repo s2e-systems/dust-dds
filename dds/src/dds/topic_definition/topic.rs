@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::dds::nodes::{DomainParticipantNode, TopicNodeKind},
+    implementation::{
+        dds::nodes::{DomainParticipantNode, TopicNodeKind},
+        dds_actor,
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -35,24 +38,24 @@ impl<Foo> Topic<Foo> {
     }
 }
 
-impl<Foo> Drop for Topic<Foo> {
-    fn drop(&mut self) {
-        todo!()
-        // match &self.node {
-        //     TopicNodeKind::Listener(_) => (),
-        //     TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&t.guid().prefix(), |dp| {
-        //             if let Some(dp) = dp {
-        //                 crate::implementation::behavior::domain_participant::delete_topic(
-        //                     dp,
-        //                     t.guid(),
-        //                 )
-        //                 .ok();
-        //             }
-        //         }),
-        // }
-    }
-}
+// impl<Foo> Drop for Topic<Foo> {
+//     fn drop(&mut self) {
+//         todo!()
+//         // match &self.node {
+//         //     TopicNodeKind::Listener(_) => (),
+//         //     TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+//         //         .get_participant_mut(&t.guid().prefix(), |dp| {
+//         //             if let Some(dp) = dp {
+//         //                 crate::implementation::behavior::domain_participant::delete_topic(
+//         //                     dp,
+//         //                     t.guid(),
+//         //                 )
+//         //                 .ok();
+//         //             }
+//         //         }),
+//         // }
+//     }
+// }
 
 impl<Foo> Topic<Foo> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
@@ -112,18 +115,11 @@ impl<Foo> Topic<Foo> {
 
     /// The name used to create the [`Topic`]
     pub fn get_name(&self) -> DdsResult<String> {
-        todo!()
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(t) => {
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_topic::get_name(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 t.guid(),
-        //             )
-        //         })
-        //     }
-        //     TopicNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.node {
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                t.address().send_blocking(dds_actor::topic::GetName)
+            }
+        }
     }
 }
 

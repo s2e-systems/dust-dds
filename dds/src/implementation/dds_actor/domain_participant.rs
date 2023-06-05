@@ -4,6 +4,7 @@ use crate::{
         dds::{
             any_topic_listener::AnyTopicListener,
             dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+            dds_publisher::DdsPublisher,
             dds_subscriber::DdsSubscriber,
             dds_topic::DdsTopic,
         },
@@ -13,9 +14,10 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DomainParticipantQos, QosKind, SubscriberQos, TopicQos},
+        qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
     },
+    publication::publisher_listener::PublisherListener,
     subscription::subscriber_listener::SubscriberListener,
 };
 
@@ -75,9 +77,7 @@ impl Message for IsEmpty {
 
 impl Handler<IsEmpty> for DdsDomainParticipant {
     fn handle(&mut self, _message: IsEmpty) -> <IsEmpty as Message>::Result {
-        self.user_defined_publisher_list().iter().count() == 0
-            && self.user_defined_subscriber_list().iter().count() == 0
-            && self.topic_list().iter().count() == 0
+        self.is_empty()
     }
 }
 
@@ -210,6 +210,36 @@ impl Handler<CreateTopic> for DdsDomainParticipant {
     }
 }
 
+pub struct CreatePublisher {
+    qos: QosKind<PublisherQos>,
+    a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+    mask: Vec<StatusKind>,
+}
+
+impl CreatePublisher {
+    pub fn new(
+        qos: QosKind<PublisherQos>,
+        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        mask: Vec<StatusKind>,
+    ) -> Self {
+        Self {
+            qos,
+            a_listener,
+            mask,
+        }
+    }
+}
+
+impl Message for CreatePublisher {
+    type Result = DdsResult<ActorAddress<DdsPublisher>>;
+}
+
+impl Handler<CreatePublisher> for DdsDomainParticipant {
+    fn handle(&mut self, message: CreatePublisher) -> <CreatePublisher as Message>::Result {
+        self.create_publisher(message.qos)
+    }
+}
+
 pub struct CreateSubscriber {
     qos: QosKind<SubscriberQos>,
     a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
@@ -217,7 +247,17 @@ pub struct CreateSubscriber {
 }
 
 impl CreateSubscriber {
-    pub fn new(qos: QosKind<SubscriberQos>, a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>, mask: Vec<StatusKind>) -> Self { Self { qos, a_listener, mask } }
+    pub fn new(
+        qos: QosKind<SubscriberQos>,
+        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        mask: Vec<StatusKind>,
+    ) -> Self {
+        Self {
+            qos,
+            a_listener,
+            mask,
+        }
+    }
 }
 
 impl Message for CreateSubscriber {
@@ -227,5 +267,50 @@ impl Message for CreateSubscriber {
 impl Handler<CreateSubscriber> for DdsDomainParticipant {
     fn handle(&mut self, message: CreateSubscriber) -> <CreateSubscriber as Message>::Result {
         self.create_subscriber(message.qos)
+    }
+}
+
+pub struct GetDefaultUnicastLocatorList;
+
+impl Message for GetDefaultUnicastLocatorList {
+    type Result = Vec<Locator>;
+}
+
+impl Handler<GetDefaultUnicastLocatorList> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        message: GetDefaultUnicastLocatorList,
+    ) -> <GetDefaultUnicastLocatorList as Message>::Result {
+        self.default_unicast_locator_list().to_vec()
+    }
+}
+
+pub struct GetDefaultMulticastLocatorList;
+
+impl Message for GetDefaultMulticastLocatorList {
+    type Result = Vec<Locator>;
+}
+
+impl Handler<GetDefaultMulticastLocatorList> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        message: GetDefaultMulticastLocatorList,
+    ) -> <GetDefaultMulticastLocatorList as Message>::Result {
+        self.default_multicast_locator_list().to_vec()
+    }
+}
+
+pub struct GetDataMaxSizeSerialized;
+
+impl Message for GetDataMaxSizeSerialized {
+    type Result = usize;
+}
+
+impl Handler<GetDataMaxSizeSerialized> for DdsDomainParticipant {
+    fn handle(
+        &mut self,
+        message: GetDataMaxSizeSerialized,
+    ) -> <GetDataMaxSizeSerialized as Message>::Result {
+        self.data_max_size_serialized()
     }
 }

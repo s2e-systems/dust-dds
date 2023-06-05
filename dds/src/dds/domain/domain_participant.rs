@@ -24,8 +24,8 @@ use crate::{
             },
             dds_subscriber::DdsSubscriber,
             nodes::{
-                DataReaderNode, DataWriterNode, DomainParticipantNode, SubscriberNode,
-                SubscriberNodeKind, TopicNode, TopicNodeKind,
+                DataReaderNode, DataWriterNode, DomainParticipantNode, PublisherNode,
+                SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind,
             },
             participant_discovery::ParticipantDiscovery,
             status_listener::ListenerTriggerKind,
@@ -144,18 +144,18 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        todo!()
-        // let publisher = self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::create_publisher(dp, qos)
-        // })?;
+        let publisher_address =
+            self.0
+                .send_blocking(dds_actor::domain_participant::CreatePublisher::new(
+                    qos,
+                    a_listener,
+                    mask.to_vec(),
+                ))?;
 
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_publisher_listener(
-        //     publisher.guid(),
-        //     a_listener,
-        //     mask,
-        // );
-
-        // Ok(Publisher::new(publisher))
+        Ok(Publisher::new(PublisherNode::new(
+            publisher_address?,
+            self.0.clone(),
+        )))
     }
 
     /// This operation deletes an existing [`Publisher`].

@@ -1,9 +1,12 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::dds::{
-        any_data_writer_listener::AnyDataWriterListener,
-        dds_domain_participant::DdsDomainParticipant,
-        nodes::{DataWriterNodeKind, DomainParticipantNode, PublisherNode},
+    implementation::{
+        dds::{
+            any_data_writer_listener::AnyDataWriterListener,
+            dds_domain_participant::DdsDomainParticipant,
+            nodes::{DataWriterNode, DataWriterNodeKind, DomainParticipantNode, PublisherNode},
+        },
+        dds_actor,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -24,7 +27,6 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// data associated with one of its [`DataWriter`] objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
-#[derive(Eq, PartialEq, Debug)]
 pub struct Publisher(PublisherNode);
 
 impl Publisher {
@@ -37,20 +39,20 @@ impl Publisher {
     }
 }
 
-impl Drop for Publisher {
-    fn drop(&mut self) {
-        todo!()
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
-        //     if let Some(dp) = dp {
-        //         crate::implementation::behavior::domain_participant::delete_publisher(
-        //             dp,
-        //             self.0.guid(),
-        //         )
-        //         .ok();
-        //     }
-        // })
-    }
-}
+// impl Drop for Publisher {
+//     fn drop(&mut self) {
+//         todo!()
+//         // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
+//         //     if let Some(dp) = dp {
+//         //         crate::implementation::behavior::domain_participant::delete_publisher(
+//         //             dp,
+//         //             self.0.guid(),
+//         //         )
+//         //         .ok();
+//         //     }
+//         // })
+//     }
+// }
 
 impl Publisher {
     /// This operation creates a [`DataWriter`]. The returned [`DataWriter`] will be attached and belongs to the [`Publisher`].
@@ -78,29 +80,38 @@ impl Publisher {
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
-        Foo: DdsType + DdsSerialize + 'static,
+        Foo: DdsType + DdsSerialize + Send + 'static,
     {
-        todo!()
-        // let type_name = a_topic.get_type_name()?;
-        // let topic_name = a_topic.get_name()?;
+        let default_unicast_locator_list = self
+            .0
+            .parent_participant()
+            .send_blocking(dds_actor::domain_participant::GetDefaultUnicastLocatorList)?;
+        let default_multicast_locator_list = self
+            .0
+            .parent_participant()
+            .send_blocking(dds_actor::domain_participant::GetDefaultMulticastLocatorList)?;
+        let data_max_size_serialized = self
+            .0
+            .parent_participant()
+            .send_blocking(dds_actor::domain_participant::GetDataMaxSizeSerialized)?;
+        let writer_address =
+            self.0
+                .address()
+                .send_blocking(dds_actor::publisher::CreateDataWriter::<Foo>::new(
+                    a_topic.get_name()?,
+                    qos,
+                    default_unicast_locator_list,
+                    default_multicast_locator_list,
+                    data_max_size_serialized,
+                ))?;
 
-        // let datawriter = self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::user_defined_publisher::create_datawriter::<Foo>(
-        //         dp,
-        //         self.0.guid(),
-        //         type_name,
-        //         topic_name,
-        //         qos,
-        //     )
-        // })?;
-
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_writer_listener(
-        //     datawriter.guid(),
-        //     a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
-        //     mask,
-        // );
-
-        // Ok(DataWriter::new(DataWriterNodeKind::UserDefined(datawriter)))
+        Ok(DataWriter::new(DataWriterNodeKind::UserDefined(
+            DataWriterNode::new(
+                writer_address?,
+                self.0.address().clone(),
+                self.0.parent_participant().clone(),
+            ),
+        )))
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -221,7 +232,8 @@ impl Publisher {
     /// Once this operation returns successfully, the application may delete the [`Publisher`] knowing that it has no
     /// contained [`DataWriter`] objects
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        crate::implementation::behavior::user_defined_publisher::delete_contained_entities()
+        todo!()
+        // crate::implementation::behavior::user_defined_publisher::delete_contained_entities()
     }
 
     /// This operation sets the default value of the [`DataWriterQos`] which will be used for newly created [`DataWriter`] entities in
@@ -348,11 +360,13 @@ impl Publisher {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        crate::implementation::behavior::user_defined_publisher::enable()
+        todo!()
+        // crate::implementation::behavior::user_defined_publisher::enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.0.guid().into())
+        todo!()
+        // Ok(self.0.address().into())
     }
 }

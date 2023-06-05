@@ -17,6 +17,7 @@ use crate::{
             },
         },
         dds::{dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber, dds_topic::DdsTopic},
+        dds_actor,
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
@@ -133,7 +134,7 @@ pub struct DdsDomainParticipant {
     user_defined_subscriber_list: Vec<(ActorAddress<DdsSubscriber>, ActorJoinHandle)>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Vec<DdsPublisher>,
+    user_defined_publisher_list: Vec<(ActorAddress<DdsPublisher>, ActorJoinHandle)>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
     topic_list: Vec<(ActorAddress<DdsTopic>, ActorJoinHandle)>,
@@ -219,32 +220,32 @@ impl DdsDomainParticipant {
             String::from(DCPS_PARTICIPANT),
         );
 
-        let sedp_builtin_topics_reader = DdsDataReader::new(
+        let sedp_builtin_topics_reader = spawn_actor(DdsDataReader::new(
             create_builtin_stateful_reader::<DiscoveredTopicData>(Guid::new(
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             )),
             TopicBuiltinTopicData::type_name(),
             String::from(DCPS_TOPIC),
-        );
+        ));
 
-        let sedp_builtin_publications_reader = DdsDataReader::new(
+        let sedp_builtin_publications_reader = spawn_actor(DdsDataReader::new(
             create_builtin_stateful_reader::<DiscoveredWriterData>(Guid::new(
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             )),
             PublicationBuiltinTopicData::type_name(),
             String::from(DCPS_PUBLICATION),
-        );
+        ));
 
-        let sedp_builtin_subscriptions_reader = DdsDataReader::new(
+        let sedp_builtin_subscriptions_reader = spawn_actor(DdsDataReader::new(
             create_builtin_stateful_reader::<DiscoveredReaderData>(Guid::new(
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             )),
             SubscriptionBuiltinTopicData::type_name(),
             String::from(DCPS_SUBSCRIPTION),
-        );
+        ));
 
         let mut builtin_subscriber = DdsSubscriber::new(
             SubscriberQos::default(),
@@ -442,18 +443,19 @@ impl DdsDomainParticipant {
             }
 
             if self.qos.entity_factory.autoenable_created_entities {
-                for publisher in self.user_defined_publisher_list_mut() {
-                    publisher.enable();
+                for publisher in self.user_defined_publisher_list.iter_mut() {
+                    publisher.0.send_blocking(dds_actor::publisher::Enable).ok();
                 }
 
                 for subscriber in self.user_defined_subscriber_list.iter_mut() {
-                    todo!()
-                    // subscriber.enable().ok();
+                    subscriber
+                        .0
+                        .send_blocking(dds_actor::subscriber::Enable)
+                        .ok();
                 }
 
                 for topic in self.topic_list.iter_mut() {
-                    todo!()
-                    // topic.enable().ok();
+                    topic.0.send_blocking(dds_actor::topic::Enable).ok();
                 }
             }
         }
@@ -498,7 +500,10 @@ impl DdsDomainParticipant {
         self.discovered_participant_list.iter()
     }
 
-    pub fn create_publisher(&mut self, qos: QosKind<PublisherQos>) -> DdsResult<Guid> {
+    pub fn create_publisher(
+        &mut self,
+        qos: QosKind<PublisherQos>,
+    ) -> DdsResult<ActorAddress<DdsPublisher>> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.clone(),
             QosKind::Specific(q) => q,
@@ -517,51 +522,61 @@ impl DdsDomainParticipant {
             publisher.enable();
         }
 
-        self.user_defined_publisher_list.push(publisher);
+        let (publisher_address, publisher_handle) = spawn_actor(publisher);
 
-        Ok(guid)
+        self.user_defined_publisher_list
+            .push((publisher_address.clone(), publisher_handle));
+
+        Ok(publisher_address)
     }
 
     pub fn delete_publisher(&mut self, publisher_guid: Guid) -> DdsResult<()> {
-        if self.rtps_participant.guid().prefix() != publisher_guid.prefix() {
-            return Err(DdsError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant".to_string(),
-            ));
-        }
+        todo!()
+        // if self.rtps_participant.guid().prefix() != publisher_guid.prefix() {
+        //     return Err(DdsError::PreconditionNotMet(
+        //         "Publisher can only be deleted from its parent participant".to_string(),
+        //     ));
+        // }
 
-        if self
-            .user_defined_publisher_list()
-            .iter()
-            .find(|x| x.guid() == publisher_guid)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .stateful_data_writer_list()
-            .iter()
-            .count()
-            > 0
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Publisher still contains data writers".to_string(),
-            ));
-        }
+        // if self
+        //     .user_defined_publisher_list()
+        //     .iter()
+        //     .find(|x| x.guid() == publisher_guid)
+        //     .ok_or(DdsError::AlreadyDeleted)?
+        //     .stateful_data_writer_list()
+        //     .iter()
+        //     .count()
+        //     > 0
+        // {
+        //     return Err(DdsError::PreconditionNotMet(
+        //         "Publisher still contains data writers".to_string(),
+        //     ));
+        // }
 
-        self.user_defined_publisher_list
-            .retain(|x| x.guid() != publisher_guid);
+        // self.user_defined_publisher_list
+        //     .retain(|x| x.guid() != publisher_guid);
 
-        Ok(())
+        // Ok(())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.user_defined_publisher_list.iter().count() == 0
+            && self.user_defined_subscriber_list.iter().count() == 0
+            && self.topic_list.iter().count() == 0
     }
 
     pub fn user_defined_publisher_list(&self) -> &[DdsPublisher] {
-        self.user_defined_publisher_list.as_slice()
+        todo!()
+        // self.user_defined_publisher_list.as_slice()
     }
 
     pub fn user_defined_publisher_list_mut(&mut self) -> &mut [DdsPublisher] {
-        self.user_defined_publisher_list.as_mut_slice()
+        todo!()
+        // self.user_defined_publisher_list.as_mut_slice()
     }
 
     pub fn get_publisher(&self, publisher_guid: Guid) -> Option<&DdsPublisher> {
-        self.user_defined_publisher_list()
-            .iter()
-            .find(|p| p.guid() == publisher_guid)
+        todo!()
     }
 
     pub fn get_publisher_mut(&mut self, publisher_guid: Guid) -> Option<&mut DdsPublisher> {
@@ -839,14 +854,14 @@ impl DdsDomainParticipant {
 
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
         for mut user_defined_publisher in self.user_defined_publisher_list.drain(..) {
-            for data_writer in user_defined_publisher.stateful_datawriter_drain() {
-                todo!()
-                // if data_writer.is_enabled() {
-                //     self.announce_sender
-                //         .try_send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
-                //         .ok();
-                // }
-            }
+            // for data_writer in user_defined_publisher.stateful_datawriter_drain() {
+            todo!()
+            // if data_writer.is_enabled() {
+            //     self.announce_sender
+            //         .try_send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+            //         .ok();
+            // }
+            // }
         }
 
         for mut user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
@@ -1047,7 +1062,8 @@ impl DdsDomainParticipant {
     ) -> DdsResult<()> {
         MessageReceiver::new(self.get_current_time()).process_message(
             self.rtps_participant.guid(),
-            self.user_defined_publisher_list.as_mut_slice(),
+            todo!(),
+            // self.user_defined_publisher_list.as_mut_slice(),
             todo!(),
             // self.user_defined_subscriber_list.as_mut_slice(),
             source_locator,
@@ -1418,15 +1434,16 @@ fn on_writer_publication_matched(
     parent_participant_guid: Guid,
     listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
-    listener_sender
-        .try_send(ListenerTriggerKind::PublicationMatched(
-            DataWriterNode::new(
-                writer.guid(),
-                parent_publisher_guid,
-                parent_participant_guid,
-            ),
-        ))
-        .ok();
+    todo!()
+    // listener_sender
+    //     .try_send(ListenerTriggerKind::PublicationMatched(
+    //         DataWriterNode::new(
+    //             writer.guid(),
+    //             parent_publisher_guid,
+    //             parent_participant_guid,
+    //         ),
+    //     ))
+    //     .ok();
 }
 
 pub fn remove_writer_matched_reader(
@@ -1458,18 +1475,19 @@ fn writer_on_offered_incompatible_qos(
     parent_participant_guid: Guid,
     listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
-    if !writer.get_incompatible_subscriptions().contains(&handle) {
-        writer.add_offered_incompatible_qos(handle, incompatible_qos_policy_list);
-        listener_sender
-            .try_send(ListenerTriggerKind::OfferedIncompatibleQos(
-                DataWriterNode::new(
-                    writer.guid(),
-                    parent_publisher_guid,
-                    parent_participant_guid,
-                ),
-            ))
-            .ok();
-    }
+    todo!()
+    // if !writer.get_incompatible_subscriptions().contains(&handle) {
+    //     writer.add_offered_incompatible_qos(handle, incompatible_qos_policy_list);
+    //     listener_sender
+    //         .try_send(ListenerTriggerKind::OfferedIncompatibleQos(
+    //             DataWriterNode::new(
+    //                 writer.guid(),
+    //                 parent_publisher_guid,
+    //                 parent_participant_guid,
+    //             ),
+    //         ))
+    //         .ok();
+    // }
 }
 
 fn create_builtin_stateful_writer(guid: Guid) -> RtpsStatefulWriter {

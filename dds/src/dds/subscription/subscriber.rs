@@ -1,9 +1,12 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::dds::{
-        any_data_reader_listener::AnyDataReaderListener,
-        dds_subscriber::DdsSubscriber,
-        nodes::{DataReaderNodeKind, SubscriberNodeKind},
+    implementation::{
+        dds::{
+            any_data_reader_listener::AnyDataReaderListener,
+            dds_subscriber::DdsSubscriber,
+            nodes::{DataReaderNode, DataReaderNodeKind, SubscriberNodeKind},
+        },
+        dds_actor,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -40,24 +43,24 @@ impl Subscriber {
     }
 }
 
-impl Drop for Subscriber {
-    fn drop(&mut self) {
-        todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => (),
-        //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&s.guid().prefix(), |dp| {
-        //             if let Some(dp) = dp {
-        //                 crate::implementation::behavior::domain_participant::delete_subscriber(
-        //                     dp,
-        //                     s.guid(),
-        //                 )
-        //                 .ok();
-        //             }
-        //         }),
-        // }
-    }
-}
+// impl Drop for Subscriber {
+//     fn drop(&mut self) {
+//         todo!()
+//         // match &self.0 {
+//         //     SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => (),
+//         //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+//         //         .get_participant_mut(&s.guid().prefix(), |dp| {
+//         //             if let Some(dp) = dp {
+//         //                 crate::implementation::behavior::domain_participant::delete_subscriber(
+//         //                     dp,
+//         //                     s.guid(),
+//         //                 )
+//         //                 .ok();
+//         //             }
+//         //         }),
+//         // }
+//     }
+// }
 
 impl Subscriber {
     /// This operation creates a [`DataReader`]. The returned [`DataReader`] will be attached and belong to the [`Subscriber`].
@@ -84,39 +87,38 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsType + for<'de> serde::Deserialize<'de> + 'static,
+        Foo: DdsType + for<'de> serde::Deserialize<'de> + Send + 'static,
     {
-        todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-        //     SubscriberNodeKind::UserDefined(s) => {
-        //         let type_name = a_topic.get_type_name()?;
-        //         let topic_name = a_topic.get_name()?;
-        //         let reader = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-        //             &s.guid().prefix(),
-        //             |dp| {
-        //                 crate::implementation::behavior::user_defined_subscriber::create_datareader::<Foo>(
-        //                     dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                     s.guid(),
-        //                     type_name,
-        //                     topic_name,
-        //                     qos,
-        //                 )
-        //             },
-        //         )?;
+        match &self.0 {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
+                Err(DdsError::IllegalOperation)
+            }
+            SubscriberNodeKind::UserDefined(s) => {
+                let default_unicast_locator_list = s
+                    .parent_participant()
+                    .send_blocking(dds_actor::domain_participant::GetDefaultUnicastLocatorList)?;
+                let default_multicast_locator_list = s
+                    .parent_participant()
+                    .send_blocking(dds_actor::domain_participant::GetDefaultMulticastLocatorList)?;
 
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_reader_listener(
-        //             reader.guid(),
-        //             a_listener
-        //                 .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
-        //             mask,
-        //         );
+                let reader_address = s.address().send_blocking(
+                    dds_actor::subscriber::CreateDataReader::<Foo>::new(
+                        a_topic.get_name()?,
+                        qos,
+                        default_unicast_locator_list,
+                        default_multicast_locator_list,
+                    ),
+                )?;
 
-        //         Ok(DataReader::new(DataReaderNodeKind::UserDefined(reader)))
-        //     }
-
-        //     SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
+                Ok(DataReader::new(DataReaderNodeKind::UserDefined(
+                    DataReaderNode::new(
+                        reader_address?,
+                        s.address().clone(),
+                        s.parent_participant().clone(),
+                    ),
+                )))
+            }
+        }
     }
 
     /// This operation deletes a [`DataReader`] that belongs to the [`Subscriber`]. This operation must be called on the
