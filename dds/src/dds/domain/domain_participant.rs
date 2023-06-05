@@ -252,6 +252,14 @@ impl DomainParticipant {
     where
         Foo: DdsType + 'static,
     {
+        self.0
+            .send_blocking(dds_actor::domain_participant::CreateTopic::new(
+                topic_name.to_string(),
+                Foo::type_name(),
+                qos,
+                a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+                mask.to_vec(),
+            ));
         todo!()
         // let topic = self.call_participant_mut_method(|dp| {
         //     crate::implementation::behavior::domain_participant::create_topic(
@@ -264,7 +272,7 @@ impl DomainParticipant {
 
         // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_topic_listener(
         //     topic.guid(),
-        //     a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+        //
         //     mask,
         // );
 

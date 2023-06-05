@@ -220,19 +220,16 @@ pub struct RtpsMessageWrite {
 
 impl RtpsMessageWrite {
     pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageWriteKind<'_>>) -> Self {
-        let mut this = Self {
-            buffer: [0; BUFFER_SIZE],
-            len: 0,
-        };
-        let mut len = header.endian_write_bytes::<byteorder::LittleEndian>(&mut this.buffer[0..]);
+        let mut buffer = [0; BUFFER_SIZE];
+        let mut len = header.endian_write_bytes::<byteorder::LittleEndian>(&mut buffer[0..]);
         for submessage in &submessages {
-            len += submessage.write_bytes(&mut this.buffer[len..]);
+            len += submessage.write_bytes(&mut buffer[len..]);
         }
-        this
+        Self { buffer, len }
     }
 
     pub fn buffer(&self) -> &[u8] {
-        self.buffer.as_slice()
+        &self.buffer[0..self.len]
     }
 }
 
@@ -427,7 +424,7 @@ mod tests {
         };
         let message = RtpsMessageWrite::new(header, Vec::new());
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(message), vec![
+        assert_eq!(message.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -469,7 +466,7 @@ mod tests {
         ));
         let value = RtpsMessageWrite::new(header, vec![submessage]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(value), vec![
+        assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix

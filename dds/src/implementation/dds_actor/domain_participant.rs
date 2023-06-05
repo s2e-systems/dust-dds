@@ -1,11 +1,18 @@
 use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
-        dds::dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+        dds::{
+            any_topic_listener::AnyTopicListener,
+            dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+        },
         rtps::{messages::overall_structure::RtpsMessageRead, types::Locator},
         utils::actor::{Handler, Message},
     },
-    infrastructure::{instance::InstanceHandle, qos::DomainParticipantQos},
+    infrastructure::{
+        instance::InstanceHandle,
+        qos::{DomainParticipantQos, QosKind, TopicQos},
+        status::StatusKind,
+    },
 };
 
 pub struct Enable;
@@ -159,6 +166,43 @@ impl Handler<AnnounceParticipant> for DdsDomainParticipant {
         &mut self,
         _message: AnnounceParticipant,
     ) -> <AnnounceParticipant as Message>::Result {
+        // todo!();
+    }
+}
+
+pub struct CreateTopic {
+    topic_name: String,
+    type_name: &'static str,
+    qos: QosKind<TopicQos>,
+    a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
+    mask: Vec<StatusKind>,
+}
+
+impl CreateTopic {
+    pub fn new(
+        topic_name: String,
+        type_name: &'static str,
+        qos: QosKind<TopicQos>,
+        a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
+        mask: Vec<StatusKind>,
+    ) -> Self {
+        Self {
+            topic_name,
+            type_name,
+            qos,
+            a_listener,
+            mask,
+        }
+    }
+}
+
+impl Message for CreateTopic {
+    type Result = ();
+}
+
+impl Handler<CreateTopic> for DdsDomainParticipant {
+    fn handle(&mut self, message: CreateTopic) -> <CreateTopic as Message>::Result {
+        self.create_topic(&message.topic_name, message.type_name, message.qos);
         // todo!();
     }
 }

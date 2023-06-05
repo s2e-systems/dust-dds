@@ -150,7 +150,7 @@ impl DdsDomainParticipantFactory {
 
         async fn task_unicast_metatraffic_communication_send(
             mut rtps_message_channel_receiver: tokio::sync::mpsc::Receiver<(
-                RtpsMessageWrite<'static>,
+                RtpsMessageWrite,
                 Vec<Locator>,
             )>,
         ) {
@@ -169,7 +169,7 @@ impl DdsDomainParticipantFactory {
 
         async fn task_unicast_user_defined_communication_send(
             mut rtps_message_channel_receiver: tokio::sync::mpsc::Receiver<(
-                RtpsMessageWrite<'static>,
+                RtpsMessageWrite,
                 Vec<Locator>,
             )>,
         ) {
