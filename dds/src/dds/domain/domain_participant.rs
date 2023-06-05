@@ -136,16 +136,10 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher_address =
-            self.0
-                .send_blocking(dds_actor::domain_participant::CreatePublisher::new(
-                    qos,
-                    a_listener,
-                    mask.to_vec(),
-                ))?;
+        let publisher_address = self.0.create_publisher(qos, a_listener, mask.to_vec())?;
 
         Ok(Publisher::new(PublisherNode::new(
-            publisher_address?,
+            publisher_address,
             self.0.clone(),
         )))
     }
@@ -185,16 +179,10 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber_address =
-            self.0
-                .send_blocking(dds_actor::domain_participant::CreateSubscriber::new(
-                    qos,
-                    a_listener,
-                    mask.to_vec(),
-                ))?;
+        let subscriber_address = self.0.create_subscriber(qos, a_listener, mask.to_vec())?;
 
         Ok(Subscriber::new(SubscriberNodeKind::UserDefined(
-            SubscriberNode::new(subscriber_address?, self.0.clone()),
+            SubscriberNode::new(subscriber_address, self.0.clone()),
         )))
     }
 
@@ -243,18 +231,16 @@ impl DomainParticipant {
     where
         Foo: DdsType + 'static,
     {
-        let topic_address =
-            self.0
-                .send_blocking(dds_actor::domain_participant::CreateTopic::new(
-                    topic_name.to_string(),
-                    Foo::type_name(),
-                    qos,
-                    a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
-                    mask.to_vec(),
-                ))?;
+        let topic_address = self.0.create_topic(
+            topic_name.to_string(),
+            Foo::type_name(),
+            qos,
+            a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+            mask.to_vec(),
+        )?;
 
         Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
-            topic_address?,
+            topic_address,
             self.0.clone(),
         ))))
     }
@@ -615,13 +601,12 @@ impl DomainParticipant {
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        self.0
-            .send_blocking(dds_actor::domain_participant::SetQos::new(qos))
+        self.0.set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.0.send_blocking(dds_actor::domain_participant::GetQos)
+        self.0.get_qos()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -1415,19 +1400,14 @@ fn announce_created_data_reader(
         .get_builtin_publisher_mut()
         .stateful_data_writer_list()
         .iter()
-        .find(|x| {
-            x.send_blocking(dds_actor::data_writer::GetTypeName)
-                .unwrap()
-                == DiscoveredReaderData::type_name()
-        })
+        .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
         .unwrap()
-        .send_blocking(dds_actor::data_writer::WriteWithTimestamp::new(
+        .write_w_timestamp(
             serialized_data,
             reader_data.get_serialized_key(),
             None,
             timestamp,
-        ))
-        .expect("Message sending should not fail")
+        )
         .expect("Should not fail to write built-in message");
 }
 
@@ -1458,19 +1438,14 @@ fn announce_created_data_writer(
         .get_builtin_publisher_mut()
         .stateful_data_writer_list()
         .iter()
-        .find(|x| {
-            x.send_blocking(dds_actor::data_writer::GetTypeName)
-                .unwrap()
-                == DiscoveredWriterData::type_name()
-        })
+        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
         .unwrap()
-        .send_blocking(dds_actor::data_writer::WriteWithTimestamp::new(
+        .write_w_timestamp(
             serialized_data,
             writer_data.get_serialized_key(),
             None,
             timestamp,
-        ))
-        .expect("Message sending failed")
+        )
         .expect("Should not fail to write built-in message");
 }
 
@@ -1486,19 +1461,14 @@ fn announce_created_topic(
         .get_builtin_publisher_mut()
         .stateful_data_writer_list()
         .iter()
-        .find(|x| {
-            x.send_blocking(dds_actor::data_writer::GetTypeName)
-                .unwrap()
-                == DiscoveredTopicData::type_name()
-        })
+        .find(|x| x.get_type_name().unwrap() == DiscoveredTopicData::type_name())
         .unwrap()
-        .send_blocking(dds_actor::data_writer::WriteWithTimestamp::new(
+        .write_w_timestamp(
             serialized_data,
             discovered_topic.get_serialized_key(),
             None,
             timestamp,
-        ))
-        .expect("Failed to send builtin message")
+        )
         .expect("Should not fail to write built-in message")
 }
 
@@ -1518,11 +1488,7 @@ fn announce_deleted_reader(
         .get_builtin_publisher_mut()
         .stateful_data_writer_list()
         .iter()
-        .find(|x| {
-            x.send_blocking(dds_actor::data_writer::GetTypeName)
-                .unwrap()
-                == DiscoveredReaderData::type_name()
-        })
+        .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
         .unwrap()
         .send_blocking(dds_actor::data_writer::DisposeWithTimestamp::new(
             instance_serialized_key,
@@ -1549,11 +1515,7 @@ fn announce_deleted_writer(
         .get_builtin_publisher_mut()
         .stateful_data_writer_list()
         .iter()
-        .find(|x| {
-            x.send_blocking(dds_actor::data_writer::GetTypeName)
-                .unwrap()
-                == DiscoveredWriterData::type_name()
-        })
+        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
         .unwrap()
         .send_blocking(dds_actor::data_writer::DisposeWithTimestamp::new(
             instance_serialized_key,

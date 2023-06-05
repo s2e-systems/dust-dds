@@ -29,7 +29,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
         utils::{
-            actor::{spawn_actor, ActorAddress, Actor, THE_RUNTIME},
+            actor::{spawn_actor, Actor, ActorAddress, THE_RUNTIME},
             condvar::DdsCondvar,
         },
     },
@@ -351,7 +351,7 @@ impl DdsDomainParticipantFactory {
         THE_RUNTIME.spawn(task_announce_participant(participant_address.clone()));
 
         if self.qos.entity_factory.autoenable_created_entities {
-            participant_address.send_blocking(dds_actor::domain_participant::Enable)?;
+            participant_address.enable()?;
         }
 
         Ok(participant_address)
@@ -361,17 +361,15 @@ impl DdsDomainParticipantFactory {
         &mut self,
         domain_participant_address: &ActorAddress<DdsDomainParticipant>,
     ) -> DdsResult<()> {
-        let is_participant_empty =
-            domain_participant_address.send_blocking(dds_actor::domain_participant::IsEmpty)?;
+        let is_participant_empty = domain_participant_address.is_empty()?;
         if is_participant_empty {
-            let participant_handle = domain_participant_address
-                .send_blocking(dds_actor::domain_participant::GetInstanceHandle)?;
+            let participant_handle = domain_participant_address.get_instance_handle()?;
             let idx = self
                 .domain_participant_list
                 .iter()
                 .position(|dp| {
                     dp.address()
-                        .send_blocking(dds_actor::domain_participant::GetInstanceHandle)
+                        .get_instance_handle()
                         .expect("Should not fail to send message")
                         == participant_handle
                 })
@@ -392,11 +390,7 @@ impl DdsDomainParticipantFactory {
         self.domain_participant_list
             .iter()
             .map(|dp| dp.address())
-            .find(|a| {
-                a.send_blocking(dds_actor::domain_participant::GetDomainId)
-                    .expect("Should not fail to send message")
-                    == domain_id
-            })
+            .find(|a| a.get_domain_id().expect("Should not fail to send message") == domain_id)
     }
 
     pub fn get_qos(&self) -> &DomainParticipantFactoryQos {

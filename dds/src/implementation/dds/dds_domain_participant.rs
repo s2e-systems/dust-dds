@@ -50,7 +50,7 @@ use crate::{
             writer::RtpsWriter,
         },
         utils::{
-            actor::{spawn_actor, ActorAddress, Actor},
+            actor::{spawn_actor, Actor, ActorAddress},
             condvar::DdsCondvar,
         },
     },
@@ -440,9 +440,7 @@ impl DdsDomainParticipant {
                 .stateful_data_writer_list()
                 .iter_mut()
             {
-                builtin_stateful_writer
-                    .send_blocking(dds_actor::data_writer::Enable)
-                    .ok();
+                builtin_stateful_writer.enable().ok();
             }
 
             if self.qos.entity_factory.autoenable_created_entities {

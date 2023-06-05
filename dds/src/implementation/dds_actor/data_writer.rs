@@ -4,7 +4,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::dds_data_writer::DdsDataWriter,
         rtps::stateful_writer::RtpsStatefulWriter,
-        utils::actor::{MailHandler, Mail},
+        utils::actor::{ActorAddress, Mail, MailHandler},
     },
     infrastructure::{
         error::DdsResult,
@@ -19,133 +19,153 @@ use crate::{
     topic_definition::type_support::DdsSerializedKey,
 };
 
-pub struct Enable;
+impl<T> ActorAddress<DdsDataWriter<T>> {
+    pub fn enable(&self) -> DdsResult<()> {
+        struct Enable;
 
-impl Mail for Enable {
-    type Result = ();
-}
+        impl Mail for Enable {
+            type Result = ();
+        }
 
-impl<T> MailHandler<Enable> for DdsDataWriter<T> {
-    fn handle(&mut self, _message: Enable) -> <Enable as Mail>::Result {
-        self.enable();
+        impl<T> MailHandler<Enable> for DdsDataWriter<T> {
+            fn handle(&mut self, _message: Enable) -> <Enable as Mail>::Result {
+                self.enable();
+            }
+        }
+
+        self.send_blocking(Enable)
+    }
+
+    pub fn get_type_name(&self) -> DdsResult<&'static str> {
+        struct GetTypeName;
+
+        impl Mail for GetTypeName {
+            type Result = &'static str;
+        }
+
+        impl<T> MailHandler<GetTypeName> for DdsDataWriter<T> {
+            fn handle(&mut self, _message: GetTypeName) -> <GetTypeName as Mail>::Result {
+                self.get_type_name()
+            }
+        }
+
+        self.send_blocking(GetTypeName)
+    }
+
+    pub fn get_topic_name(&self) -> DdsResult<String> {
+        pub struct GetTopicName;
+
+        impl Mail for GetTopicName {
+            type Result = String;
+        }
+
+        impl<T> MailHandler<GetTopicName> for DdsDataWriter<T> {
+            fn handle(&mut self, message: GetTopicName) -> <GetTopicName as Mail>::Result {
+                self.get_topic_name().to_string()
+            }
+        }
+
+        self.send_blocking(GetTopicName)
     }
 }
 
-pub struct GetTypeName;
-
-impl Mail for GetTypeName {
-    type Result = &'static str;
-}
-
-impl<T> MailHandler<GetTypeName> for DdsDataWriter<T> {
-    fn handle(&mut self, _message: GetTypeName) -> <GetTypeName as Mail>::Result {
-        self.get_type_name()
-    }
-}
-
-pub struct GetTopicName;
-
-impl Mail for GetTopicName {
-    type Result = String;
-}
-
-impl MailHandler<GetTopicName> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: GetTopicName) -> <GetTopicName as Mail>::Result {
-        self.get_topic_name().to_string()
-    }
-}
-
-pub struct WriteWithTimestamp {
-    serialized_data: Vec<u8>,
-    instance_serialized_key: DdsSerializedKey,
-    handle: Option<InstanceHandle>,
-    timestamp: Time,
-}
-
-impl WriteWithTimestamp {
-    pub fn new(
+impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
+    pub fn write_w_timestamp(
+        &self,
         serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> Self {
-        Self {
+    ) -> DdsResult<()> {
+        struct WriteWithTimestamp {
+            serialized_data: Vec<u8>,
+            instance_serialized_key: DdsSerializedKey,
+            handle: Option<InstanceHandle>,
+            timestamp: Time,
+        }
+
+        impl Mail for WriteWithTimestamp {
+            type Result = DdsResult<()>;
+        }
+
+        impl MailHandler<WriteWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
+            fn handle(
+                &mut self,
+                message: WriteWithTimestamp,
+            ) -> <WriteWithTimestamp as Mail>::Result {
+                self.write_w_timestamp(
+                    message.serialized_data,
+                    message.instance_serialized_key,
+                    message.handle,
+                    message.timestamp,
+                )
+            }
+        }
+
+        self.send_blocking(WriteWithTimestamp {
             serialized_data,
             instance_serialized_key,
             handle,
             timestamp,
+        })?
+    }
+
+    pub fn unregister_instance_w_timestamp(
+        &self,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
+        timestamp: Time,
+    ) -> DdsResult<()> {
+        struct UnregisterInstanceWithTimestamp {
+            instance_serialized_key: Vec<u8>,
+            handle: InstanceHandle,
+            timestamp: Time,
         }
-    }
-}
 
-impl Mail for WriteWithTimestamp {
-    type Result = DdsResult<()>;
-}
+        impl Mail for UnregisterInstanceWithTimestamp {
+            type Result = DdsResult<()>;
+        }
 
-impl MailHandler<WriteWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: WriteWithTimestamp) -> <WriteWithTimestamp as Mail>::Result {
-        self.write_w_timestamp(
-            message.serialized_data,
-            message.instance_serialized_key,
-            message.handle,
-            message.timestamp,
-        );
-        Ok(())
-    }
-}
+        impl MailHandler<UnregisterInstanceWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
+            fn handle(
+                &mut self,
+                message: UnregisterInstanceWithTimestamp,
+            ) -> <UnregisterInstanceWithTimestamp as Mail>::Result {
+                self.unregister_instance_w_timestamp(
+                    message.instance_serialized_key,
+                    message.handle,
+                    message.timestamp,
+                )
+            }
+        }
 
-pub struct UnregisterInstanceWithTimestamp {
-    instance_serialized_key: Vec<u8>,
-    handle: InstanceHandle,
-    timestamp: Time,
-}
-
-impl UnregisterInstanceWithTimestamp {
-    pub fn new(instance_serialized_key: Vec<u8>, handle: InstanceHandle, timestamp: Time) -> Self {
-        Self {
+        self.send_blocking(UnregisterInstanceWithTimestamp {
             instance_serialized_key,
             handle,
             timestamp,
+        })?
+    }
+
+    pub fn lookup_instance(
+        &self,
+        instance_serialized_key: DdsSerializedKey,
+    ) -> DdsResult<Option<InstanceHandle>> {
+        pub struct LookupInstance {
+            instance_serialized_key: DdsSerializedKey,
         }
-    }
-}
 
-impl Mail for UnregisterInstanceWithTimestamp {
-    type Result = DdsResult<()>;
-}
+        impl Mail for LookupInstance {
+            type Result = DdsResult<Option<InstanceHandle>>;
+        }
 
-impl MailHandler<UnregisterInstanceWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(
-        &mut self,
-        message: UnregisterInstanceWithTimestamp,
-    ) -> <UnregisterInstanceWithTimestamp as Mail>::Result {
-        self.unregister_instance_w_timestamp(
-            message.instance_serialized_key,
-            message.handle,
-            message.timestamp,
-        )
-    }
-}
-
-pub struct LookupInstance {
-    instance_serialized_key: DdsSerializedKey,
-}
-
-impl LookupInstance {
-    pub fn new(instance_serialized_key: DdsSerializedKey) -> Self {
-        Self {
+        impl MailHandler<LookupInstance> for DdsDataWriter<RtpsStatefulWriter> {
+            fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
+                self.lookup_instance(message.instance_serialized_key)
+            }
+        }
+        self.send_blocking(LookupInstance {
             instance_serialized_key,
-        }
-    }
-}
-
-impl Mail for LookupInstance {
-    type Result = DdsResult<Option<InstanceHandle>>;
-}
-
-impl MailHandler<LookupInstance> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
-        self.lookup_instance(message.instance_serialized_key)
+        })?
     }
 }
 
@@ -170,10 +190,7 @@ impl Mail for DisposeWithTimestamp {
 }
 
 impl MailHandler<DisposeWithTimestamp> for DdsDataWriter<RtpsStatefulWriter> {
-    fn handle(
-        &mut self,
-        message: DisposeWithTimestamp,
-    ) -> <DisposeWithTimestamp as Mail>::Result {
+    fn handle(&mut self, message: DisposeWithTimestamp) -> <DisposeWithTimestamp as Mail>::Result {
         self.dispose_w_timestamp(
             message.instance_serialized_key,
             message.handle,

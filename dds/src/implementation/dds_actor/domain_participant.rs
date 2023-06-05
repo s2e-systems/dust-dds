@@ -12,7 +12,7 @@ use crate::{
             messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
             types::Locator,
         },
-        utils::actor::{ActorAddress, MailHandler, Mail},
+        utils::actor::{ActorAddress, Mail, MailHandler},
     },
     infrastructure::{
         error::DdsResult,
@@ -24,83 +24,199 @@ use crate::{
     subscription::subscriber_listener::SubscriberListener,
 };
 
-pub struct Enable;
+impl ActorAddress<DdsDomainParticipant> {
+    pub fn enable(&self) -> DdsResult<()> {
+        struct Enable;
 
-impl Mail for Enable {
-    type Result = ();
-}
+        impl Mail for Enable {
+            type Result = ();
+        }
 
-impl MailHandler<Enable> for DdsDomainParticipant {
-    fn handle(&mut self, _message: Enable) -> <Enable as Mail>::Result {
-        self.enable()
+        impl MailHandler<Enable> for DdsDomainParticipant {
+            fn handle(&mut self, _message: Enable) -> <Enable as Mail>::Result {
+                self.enable()
+            }
+        }
+
+        self.send_blocking(Enable)
     }
-}
 
-pub struct GetQos;
+    pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
+        struct GetQos;
 
-impl Mail for GetQos {
-    type Result = DomainParticipantQos;
-}
+        impl Mail for GetQos {
+            type Result = DomainParticipantQos;
+        }
 
-impl MailHandler<GetQos> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetQos) -> <GetQos as Mail>::Result {
-        self.get_qos()
+        impl MailHandler<GetQos> for DdsDomainParticipant {
+            fn handle(&mut self, _message: GetQos) -> <GetQos as Mail>::Result {
+                self.get_qos()
+            }
+        }
+
+        self.send_blocking(GetQos)
     }
-}
 
-pub struct SetQos {
-    qos: QosKind<DomainParticipantQos>,
-}
+    pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
+        struct SetQos {
+            qos: QosKind<DomainParticipantQos>,
+        }
 
-impl SetQos {
-    pub fn new(qos: QosKind<DomainParticipantQos>) -> Self {
-        Self { qos }
+        impl Mail for SetQos {
+            type Result = ();
+        }
+
+        impl MailHandler<SetQos> for DdsDomainParticipant {
+            fn handle(&mut self, mail: SetQos) -> <SetQos as Mail>::Result {
+                self.set_qos(mail.qos).ok();
+            }
+        }
+
+        self.send_blocking(SetQos { qos })
     }
-}
 
-impl Mail for SetQos {
-    type Result = ();
-}
+    pub fn get_domain_id(&self) -> DdsResult<DomainId> {
+        struct GetDomainId;
 
-impl MailHandler<SetQos> for DdsDomainParticipant {
-    fn handle(&mut self, mail: SetQos) -> <SetQos as Mail>::Result {
-        self.set_qos(mail.qos).ok();
+        impl Mail for GetDomainId {
+            type Result = DomainId;
+        }
+
+        impl MailHandler<GetDomainId> for DdsDomainParticipant {
+            fn handle(&mut self, _message: GetDomainId) -> <GetDomainId as Mail>::Result {
+                self.domain_id()
+            }
+        }
+
+        self.send_blocking(GetDomainId)
     }
-}
 
-pub struct GetDomainId;
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        struct GetInstanceHandle;
 
-impl Mail for GetDomainId {
-    type Result = DomainId;
-}
+        impl Mail for GetInstanceHandle {
+            type Result = InstanceHandle;
+        }
 
-impl MailHandler<GetDomainId> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetDomainId) -> <GetDomainId as Mail>::Result {
-        self.domain_id()
+        impl MailHandler<GetInstanceHandle> for DdsDomainParticipant {
+            fn handle(
+                &mut self,
+                _message: GetInstanceHandle,
+            ) -> <GetInstanceHandle as Mail>::Result {
+                self.guid().into()
+            }
+        }
+
+        self.send_blocking(GetInstanceHandle)
     }
-}
 
-pub struct GetInstanceHandle;
+    pub fn is_empty(&self) -> DdsResult<bool> {
+        pub struct IsEmpty;
 
-impl Mail for GetInstanceHandle {
-    type Result = InstanceHandle;
-}
+        impl Mail for IsEmpty {
+            type Result = bool;
+        }
 
-impl MailHandler<GetInstanceHandle> for DdsDomainParticipant {
-    fn handle(&mut self, _message: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
-        self.guid().into()
+        impl MailHandler<IsEmpty> for DdsDomainParticipant {
+            fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
+                self.is_empty()
+            }
+        }
+
+        self.send_blocking(IsEmpty)
     }
-}
 
-pub struct IsEmpty;
+    pub fn create_topic(
+        &self,
+        topic_name: String,
+        type_name: &'static str,
+        qos: QosKind<TopicQos>,
+        a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
+        mask: Vec<StatusKind>,
+    ) -> DdsResult<ActorAddress<DdsTopic>> {
+        struct CreateTopic {
+            topic_name: String,
+            type_name: &'static str,
+            qos: QosKind<TopicQos>,
+            a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
+            mask: Vec<StatusKind>,
+        }
 
-impl Mail for IsEmpty {
-    type Result = bool;
-}
+        impl Mail for CreateTopic {
+            type Result = DdsResult<ActorAddress<DdsTopic>>;
+        }
 
-impl MailHandler<IsEmpty> for DdsDomainParticipant {
-    fn handle(&mut self, _message: IsEmpty) -> <IsEmpty as Mail>::Result {
-        self.is_empty()
+        impl MailHandler<CreateTopic> for DdsDomainParticipant {
+            fn handle(&mut self, message: CreateTopic) -> <CreateTopic as Mail>::Result {
+                self.create_topic(&message.topic_name, message.type_name, message.qos)
+            }
+        }
+
+        self.send_blocking(CreateTopic {
+            topic_name,
+            type_name,
+            qos,
+            a_listener,
+            mask,
+        })?
+    }
+
+    pub fn create_publisher(
+        &self,
+        qos: QosKind<PublisherQos>,
+        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        mask: Vec<StatusKind>,
+    ) -> DdsResult<ActorAddress<DdsPublisher>> {
+        struct CreatePublisher {
+            qos: QosKind<PublisherQos>,
+            a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+            mask: Vec<StatusKind>,
+        }
+
+        impl Mail for CreatePublisher {
+            type Result = DdsResult<ActorAddress<DdsPublisher>>;
+        }
+
+        impl MailHandler<CreatePublisher> for DdsDomainParticipant {
+            fn handle(&mut self, message: CreatePublisher) -> <CreatePublisher as Mail>::Result {
+                self.create_publisher(message.qos)
+            }
+        }
+
+        self.send_blocking(CreatePublisher {
+            qos,
+            a_listener,
+            mask,
+        })?
+    }
+
+    pub fn create_subscriber(
+        &self,
+        qos: QosKind<SubscriberQos>,
+        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        mask: Vec<StatusKind>,
+    ) -> DdsResult<ActorAddress<DdsSubscriber>> {
+        struct CreateSubscriber {
+            qos: QosKind<SubscriberQos>,
+            a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+            mask: Vec<StatusKind>,
+        }
+
+        impl Mail for CreateSubscriber {
+            type Result = DdsResult<ActorAddress<DdsSubscriber>>;
+        }
+
+        impl MailHandler<CreateSubscriber> for DdsDomainParticipant {
+            fn handle(&mut self, message: CreateSubscriber) -> <CreateSubscriber as Mail>::Result {
+                self.create_subscriber(message.qos)
+            }
+        }
+
+        self.send_blocking(CreateSubscriber {
+            qos,
+            a_listener,
+            mask,
+        })?
     }
 }
 
@@ -189,107 +305,8 @@ impl Mail for AnnounceParticipant {
 }
 
 impl MailHandler<AnnounceParticipant> for DdsDomainParticipant {
-    fn handle(
-        &mut self,
-        _message: AnnounceParticipant,
-    ) -> <AnnounceParticipant as Mail>::Result {
+    fn handle(&mut self, _message: AnnounceParticipant) -> <AnnounceParticipant as Mail>::Result {
         self.announce_participant().ok();
-    }
-}
-
-pub struct CreateTopic {
-    topic_name: String,
-    type_name: &'static str,
-    qos: QosKind<TopicQos>,
-    a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
-    mask: Vec<StatusKind>,
-}
-
-impl CreateTopic {
-    pub fn new(
-        topic_name: String,
-        type_name: &'static str,
-        qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
-        mask: Vec<StatusKind>,
-    ) -> Self {
-        Self {
-            topic_name,
-            type_name,
-            qos,
-            a_listener,
-            mask,
-        }
-    }
-}
-
-impl Mail for CreateTopic {
-    type Result = DdsResult<ActorAddress<DdsTopic>>;
-}
-
-impl MailHandler<CreateTopic> for DdsDomainParticipant {
-    fn handle(&mut self, message: CreateTopic) -> <CreateTopic as Mail>::Result {
-        self.create_topic(&message.topic_name, message.type_name, message.qos)
-    }
-}
-
-pub struct CreatePublisher {
-    qos: QosKind<PublisherQos>,
-    a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-    mask: Vec<StatusKind>,
-}
-
-impl CreatePublisher {
-    pub fn new(
-        qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: Vec<StatusKind>,
-    ) -> Self {
-        Self {
-            qos,
-            a_listener,
-            mask,
-        }
-    }
-}
-
-impl Mail for CreatePublisher {
-    type Result = DdsResult<ActorAddress<DdsPublisher>>;
-}
-
-impl MailHandler<CreatePublisher> for DdsDomainParticipant {
-    fn handle(&mut self, message: CreatePublisher) -> <CreatePublisher as Mail>::Result {
-        self.create_publisher(message.qos)
-    }
-}
-
-pub struct CreateSubscriber {
-    qos: QosKind<SubscriberQos>,
-    a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-    mask: Vec<StatusKind>,
-}
-
-impl CreateSubscriber {
-    pub fn new(
-        qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: Vec<StatusKind>,
-    ) -> Self {
-        Self {
-            qos,
-            a_listener,
-            mask,
-        }
-    }
-}
-
-impl Mail for CreateSubscriber {
-    type Result = DdsResult<ActorAddress<DdsSubscriber>>;
-}
-
-impl MailHandler<CreateSubscriber> for DdsDomainParticipant {
-    fn handle(&mut self, message: CreateSubscriber) -> <CreateSubscriber as Mail>::Result {
-        self.create_subscriber(message.qos)
     }
 }
 
