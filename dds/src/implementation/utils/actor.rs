@@ -54,23 +54,6 @@ impl<A> ActorAddress<A> {
             .blocking_recv()
             .map_err(|_| DdsError::AlreadyDeleted)
     }
-
-    pub async fn send<M>(&self, mail: M) -> DdsResult<M::Result>
-    where
-        A: MailHandler<M>,
-        M: Mail + Send + 'static,
-        M::Result: Send,
-    {
-        let (response_sender, response_receiver) = sync::oneshot::channel();
-
-        self.sender
-            .send(Box::new(SyncMail::new(mail, response_sender)))
-            .await
-            .map_err(|_| DdsError::AlreadyDeleted)?;
-        response_receiver
-            .await
-            .map_err(|_| DdsError::AlreadyDeleted)
-    }
 }
 
 trait GenericHandler<A> {
