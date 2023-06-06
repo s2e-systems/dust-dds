@@ -63,16 +63,16 @@ where
     }
 }
 
-pub trait FromBytes<'a> {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self;
+pub trait FromBytes {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self;
 }
 
 pub trait SubmessageHeader {
     fn submessage_header(&self) -> SubmessageHeaderRead;
 }
 
-pub trait RtpsMap<'a>: SubmessageHeader {
-    fn map<T: FromBytes<'a>>(&self, data: &'a [u8]) -> T {
+pub trait RtpsMap: SubmessageHeader {
+    fn map<T: FromBytes>(&self, data: &[u8]) -> T {
         if self.submessage_header().endianness_flag() {
             T::from_bytes::<byteorder::LittleEndian>(data)
         } else {
@@ -81,7 +81,7 @@ pub trait RtpsMap<'a>: SubmessageHeader {
     }
 }
 
-impl<'a, T: SubmessageHeader> RtpsMap<'a> for T {}
+impl<T: SubmessageHeader> RtpsMap for T {}
 
 pub trait EndiannessFlag {
     fn endianness_flag(&self) -> bool;

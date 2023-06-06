@@ -239,7 +239,7 @@ impl ParameterList {
     }
 }
 
-impl<'a> FromBytes<'a> for Parameter {
+impl FromBytes for Parameter {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let parameter_id = E::read_u16(&v[0..]);
         let length = E::read_i16(&v[2..]);
@@ -253,7 +253,7 @@ impl<'a> FromBytes<'a> for Parameter {
     }
 }
 
-impl<'a> FromBytes<'a> for ParameterList {
+impl FromBytes for ParameterList {
     fn from_bytes<E: byteorder::ByteOrder>(mut v: &[u8]) -> Self {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
@@ -301,19 +301,13 @@ impl EndianWriteBytes for &ParameterList {
     }
 }
 
-// impl<'a> FromBytes<'a> for SerializedPayload<'a> {
-//     fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self {
-//         Self::new(v)
-//     }
-// }
-
-impl FromBytes<'_> for EntityId {
+impl FromBytes for EntityId {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         Self::new(EntityKey::new([v[0], v[1], v[2]]), EntityKind::new(v[3]))
     }
 }
 
-impl FromBytes<'_> for GuidPrefix {
+impl FromBytes for GuidPrefix {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         Self::new([
             v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11],
@@ -321,7 +315,7 @@ impl FromBytes<'_> for GuidPrefix {
     }
 }
 
-impl FromBytes<'_> for SequenceNumber {
+impl FromBytes for SequenceNumber {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let high = E::read_i32(&v[0..]);
         let low = E::read_i32(&v[4..]);
@@ -330,13 +324,13 @@ impl FromBytes<'_> for SequenceNumber {
     }
 }
 
-impl FromBytes<'_> for Count {
+impl FromBytes for Count {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         Self::new(E::read_i32(v))
     }
 }
 
-impl FromBytes<'_> for SequenceNumberSet {
+impl FromBytes for SequenceNumberSet {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let high = E::read_i32(&v[0..]);
         let low = E::read_i32(&v[4..]);
@@ -361,31 +355,31 @@ impl FromBytes<'_> for SequenceNumberSet {
     }
 }
 
-impl FromBytes<'_> for u16 {
+impl FromBytes for u16 {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         E::read_u16(v)
     }
 }
 
-impl FromBytes<'_> for i16 {
+impl FromBytes for i16 {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         E::read_i16(v)
     }
 }
 
-impl FromBytes<'_> for u32 {
+impl FromBytes for u32 {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         E::read_u32(v)
     }
 }
 
-impl FromBytes<'_> for FragmentNumber {
+impl FromBytes for FragmentNumber {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         Self::new(E::read_u32(v))
     }
 }
 
-impl FromBytes<'_> for Locator {
+impl FromBytes for Locator {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let kind = LocatorKind::new(E::read_i32(&v[0..]));
         let port = LocatorPort::new(E::read_u32(&v[4..]));
@@ -397,7 +391,7 @@ impl FromBytes<'_> for Locator {
     }
 }
 
-impl FromBytes<'_> for LocatorList {
+impl FromBytes for LocatorList {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let num_locators = E::read_u32(v);
         let mut buf = &v[4..];
@@ -410,19 +404,19 @@ impl FromBytes<'_> for LocatorList {
     }
 }
 
-impl FromBytes<'_> for ProtocolVersion {
+impl FromBytes for ProtocolVersion {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         Self::new(v[0], v[1])
     }
 }
 
-impl FromBytes<'_> for VendorId {
+impl FromBytes for VendorId {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         Self::new([v[0], v[1]])
     }
 }
 
-impl FromBytes<'_> for Time {
+impl FromBytes for Time {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let seconds = E::read_i32(&v[0..]);
         let fractions = E::read_u32(&v[4..]);
@@ -430,7 +424,7 @@ impl FromBytes<'_> for Time {
     }
 }
 
-impl FromBytes<'_> for FragmentNumberSet {
+impl FromBytes for FragmentNumberSet {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let base = E::read_u32(&v[0..]);
         let num_bits = E::read_u32(&v[4..]);

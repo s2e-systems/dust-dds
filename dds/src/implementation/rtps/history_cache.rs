@@ -40,7 +40,7 @@ impl WriteBytes for &Data {
     }
 }
 
-impl FromBytes<'_> for Data {
+impl FromBytes for Data {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         Self::new(v.to_vec())
     }
