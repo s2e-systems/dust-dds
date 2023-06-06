@@ -1,5 +1,4 @@
 use crate::{
-    implementation::dds::message_receiver::MessageReceiver,
     infrastructure::{
         error::DdsResult, instance::InstanceHandle, qos::DataReaderQos,
         qos_policy::ReliabilityQosPolicyKind, status::SampleRejectedStatusKind, time::Time,
@@ -152,7 +151,8 @@ impl RtpsStatelessReader {
     pub fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead<'_>,
-        message_receiver: &MessageReceiver,
+        source_timestamp: Option<Time>,
+        source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
     ) -> StatelessReaderDataReceivedResult {
         if data_submessage.reader_id() == ENTITYID_UNKNOWN
@@ -160,8 +160,8 @@ impl RtpsStatelessReader {
         {
             let change_result = self.0.convert_data_to_cache_change(
                 data_submessage,
-                Some(message_receiver.timestamp()),
-                message_receiver.source_guid_prefix(),
+                source_timestamp,
+                source_guid_prefix,
                 reception_timestamp,
             );
             match change_result {

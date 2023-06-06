@@ -1,5 +1,4 @@
 use fnmatch_regex::glob_to_regex;
-use tokio::sync::mpsc::Sender;
 
 use crate::{
     builtin_topics::{
@@ -49,7 +48,7 @@ use crate::{
             writer::RtpsWriter,
         },
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress},
+            actor::{spawn_actor, Actor, ActorAddress, THE_RUNTIME},
             condvar::DdsCondvar,
         },
     },
@@ -85,7 +84,7 @@ use std::{
 };
 
 use super::{
-    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
+    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher,
     status_listener::ListenerTriggerKind,
 };
 
@@ -149,9 +148,12 @@ pub struct DdsDomainParticipant {
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
-    announce_sender: Sender<AnnounceKind>,
+    announce_sender: tokio::sync::mpsc::Sender<AnnounceKind>,
     sedp_condvar: DdsCondvar,
-    user_defined_rtps_message_channel_sender: Sender<(RtpsMessageWrite, Vec<Locator>)>,
+    user_defined_rtps_message_channel_sender:
+        tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
+    builtin_message_broadcast_receiver_sender:
+        tokio::sync::broadcast::Sender<(Locator, RtpsMessageRead)>,
 }
 
 impl DdsDomainParticipant {
@@ -164,10 +166,20 @@ impl DdsDomainParticipant {
         spdp_discovery_locator_list: &[Locator],
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
-        announce_sender: Sender<AnnounceKind>,
+        announce_sender: tokio::sync::mpsc::Sender<AnnounceKind>,
         sedp_condvar: DdsCondvar,
-        builtin_rtps_message_channel_sender: Sender<(RtpsMessageWrite, Vec<Locator>)>,
-        user_defined_rtps_message_channel_sender: Sender<(RtpsMessageWrite, Vec<Locator>)>,
+        builtin_rtps_message_channel_sender: tokio::sync::mpsc::Sender<(
+            RtpsMessageWrite,
+            Vec<Locator>,
+        )>,
+        builtin_message_broadcast_receiver_sender: tokio::sync::broadcast::Sender<(
+            Locator,
+            RtpsMessageRead,
+        )>,
+        user_defined_rtps_message_channel_sender: tokio::sync::mpsc::Sender<(
+            RtpsMessageWrite,
+            Vec<Locator>,
+        )>,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -213,14 +225,28 @@ impl DdsDomainParticipant {
         );
 
         // Built-in subscriber creation
-        let spdp_builtin_participant_reader = DdsDataReader::new(
+        let spdp_builtin_participant_reader = spawn_actor(DdsDataReader::new(
             create_builtin_stateless_reader::<SpdpDiscoveredParticipantData>(Guid::new(
                 guid_prefix,
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             )),
             ParticipantBuiltinTopicData::type_name(),
             String::from(DCPS_PARTICIPANT),
-        );
+        ));
+        let spdp_builtin_participant_reader_address = spdp_builtin_participant_reader.address();
+        let mut builtin_message_broadcast_receiver =
+            builtin_message_broadcast_receiver_sender.subscribe();
+        THE_RUNTIME.spawn(async move {
+            loop {
+                if let Ok((locator, message)) = builtin_message_broadcast_receiver.recv().await {
+                    tokio::task::block_in_place(|| {
+                        spdp_builtin_participant_reader_address
+                            .process_rtps_message(message)
+                            .ok();
+                    });
+                }
+            }
+        });
 
         let sedp_builtin_topics_reader = spawn_actor(DdsDataReader::new(
             create_builtin_stateful_reader::<DiscoveredTopicData>(Guid::new(
@@ -354,6 +380,7 @@ impl DdsDomainParticipant {
             announce_sender,
             sedp_condvar,
             user_defined_rtps_message_channel_sender,
+            builtin_message_broadcast_receiver_sender,
         }
     }
 
@@ -379,7 +406,7 @@ impl DdsDomainParticipant {
 
     pub fn get_user_defined_rtps_message_channel_sender(
         &self,
-    ) -> Sender<(RtpsMessageWrite, Vec<Locator>)> {
+    ) -> tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)> {
         self.user_defined_rtps_message_channel_sender.clone()
     }
 
@@ -1241,7 +1268,7 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn announce_sender(&self) -> &Sender<AnnounceKind> {
+    pub fn announce_sender(&self) -> &tokio::sync::mpsc::Sender<AnnounceKind> {
         &self.announce_sender
     }
 

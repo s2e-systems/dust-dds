@@ -286,6 +286,8 @@ impl DdsDomainParticipantFactory {
         let (user_defined_rtps_message_channel_sender, user_defined_rtps_message_channel_receiver) =
             tokio::sync::mpsc::channel(10);
 
+        let (builtin_message_broadcast_sender, _) = tokio::sync::broadcast::channel(10);
+
         let domain_participant = DdsDomainParticipant::new(
             rtps_participant,
             domain_id,
@@ -297,6 +299,7 @@ impl DdsDomainParticipantFactory {
             announce_sender,
             sedp_condvar.clone(),
             builtin_rtps_message_channel_sender,
+            builtin_message_broadcast_sender.clone(),
             user_defined_rtps_message_channel_sender,
         );
 
@@ -317,8 +320,6 @@ impl DdsDomainParticipantFactory {
             participant_address.clone(),
         ));
 
-        let (builtin_message_broadcast_sender, _builtin_message_broadcast_receiver) =
-            tokio::sync::broadcast::channel(10);
         THE_RUNTIME.spawn(task_metatraffic_multicast_receive(
             metatraffic_multicast_transport,
             builtin_message_broadcast_sender,

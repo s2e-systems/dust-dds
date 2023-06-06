@@ -35,7 +35,7 @@ use crate::{
 pub struct DdsSubscriber {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
-    stateless_data_reader_list: Vec<DdsDataReader<RtpsStatelessReader>>,
+    stateless_data_reader_list: Vec<Actor<DdsDataReader<RtpsStatelessReader>>>,
     stateful_data_reader_list: Vec<Actor<DdsDataReader<RtpsStatefulReader>>>,
     enabled: bool,
     user_defined_data_reader_counter: u8,
@@ -189,39 +189,41 @@ impl DdsSubscriber {
         counter
     }
 
-    pub fn stateless_data_reader_add(&mut self, data_reader: DdsDataReader<RtpsStatelessReader>) {
+    pub fn stateless_data_reader_add(
+        &mut self,
+        data_reader: Actor<DdsDataReader<RtpsStatelessReader>>,
+    ) {
         self.stateless_data_reader_list.push(data_reader)
     }
 
-    pub fn _stateless_data_reader_delete(&mut self, a_datareader_handle: InstanceHandle) {
-        self.stateless_data_reader_list
-            .retain(|x| x._get_instance_handle() != a_datareader_handle)
-    }
-
     pub fn stateless_data_reader_list(&self) -> &[DdsDataReader<RtpsStatelessReader>] {
-        &self.stateless_data_reader_list
+        todo!()
+        // &self.stateless_data_reader_list
     }
 
     pub fn stateless_data_reader_list_mut(&mut self) -> &mut [DdsDataReader<RtpsStatelessReader>] {
-        &mut self.stateless_data_reader_list
+        todo!()
+        // &mut self.stateless_data_reader_list
     }
 
     pub fn get_stateless_data_reader(
         &self,
         data_reader: Guid,
     ) -> Option<&DdsDataReader<RtpsStatelessReader>> {
-        self.stateless_data_reader_list
-            .iter()
-            .find(|s| s.guid() == data_reader)
+        todo!()
+        // self.stateless_data_reader_list
+        //     .iter()
+        //     .find(|s| s.guid() == data_reader)
     }
 
     pub fn get_stateless_data_reader_mut(
         &mut self,
         data_reader: Guid,
     ) -> Option<&mut DdsDataReader<RtpsStatelessReader>> {
-        self.stateless_data_reader_list
-            .iter_mut()
-            .find(|s| s.guid() == data_reader)
+        todo!()
+        // self.stateless_data_reader_list
+        //     .iter_mut()
+        //     .find(|s| s.guid() == data_reader)
     }
 
     pub fn stateful_data_reader_add(
@@ -371,14 +373,14 @@ impl DdsSubscriber {
         parent_participant_guid: Guid,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
-        let guid = self.guid();
-        for stateless_data_reader in self.stateless_data_reader_list.iter_mut() {
-            stateless_data_reader.on_data_submessage_received(
-                data_submessage,
-                message_receiver,
-                reception_timestamp,
-            );
-        }
+        // let guid = self.guid();
+        // for stateless_data_reader in self.stateless_data_reader_list.iter_mut() {
+        //     stateless_data_reader.on_data_submessage_received(
+        //         data_submessage,
+        //         message_receiver,
+        //         reception_timestamp,
+        //     );
+        // }
         todo!()
 
         // for data_reader in self.stateful_data_reader_list.iter_mut() {

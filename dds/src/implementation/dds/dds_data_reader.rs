@@ -258,28 +258,6 @@ impl DdsDataReader<RtpsStatefulReader> {
             }
             message_receiver.source_version();
         }
-        // for submessage in message.submessages() {
-        //     match submessage {
-        //         RtpsSubmessageReadKind::AckNack(_) => todo!(),
-        //         RtpsSubmessageReadKind::Data(d) => self.on_data_submessage_received(
-        //             data_submessage,
-        //             message_receiver,
-        //             parent_subscriber_guid,
-        //             parent_participant_guid,
-        //             listener_sender,
-        //         ),
-        //         RtpsSubmessageReadKind::DataFrag(_) => todo!(),
-        //         RtpsSubmessageReadKind::Gap(_) => todo!(),
-        //         RtpsSubmessageReadKind::Heartbeat(_) => todo!(),
-        //         RtpsSubmessageReadKind::HeartbeatFrag(_) => todo!(),
-        //         RtpsSubmessageReadKind::InfoDestination(_) => todo!(),
-        //         RtpsSubmessageReadKind::InfoReply(_) => todo!(),
-        //         RtpsSubmessageReadKind::InfoSource(_) => todo!(),
-        //         RtpsSubmessageReadKind::InfoTimestamp(_) => todo!(),
-        //         RtpsSubmessageReadKind::NackFrag(_) => todo!(),
-        //         RtpsSubmessageReadKind::Pad(_) => todo!(),
-        //     }
-        // }
     }
 
     pub fn on_data_submessage_received(
@@ -932,6 +910,28 @@ impl DdsDataReader<RtpsStatefulReader> {
 }
 
 impl DdsDataReader<RtpsStatelessReader> {
+    pub fn process_rtps_message(&mut self, message: RtpsMessageRead) {
+        let mut message_receiver = MessageReceiver::new(&message);
+        while let Some(submessage) = message_receiver.next() {
+            match &submessage {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    self.on_data_submessage_received(
+                        data_submessage,
+                        Some(message_receiver.timestamp()),
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.timestamp(), //reception_timestamp,
+                    );
+                }
+                RtpsSubmessageReadKind::DataFrag(_) => todo!(),
+                RtpsSubmessageReadKind::Gap(_) => todo!(),
+                RtpsSubmessageReadKind::Heartbeat(_) => todo!(),
+                RtpsSubmessageReadKind::HeartbeatFrag(_) => todo!(),
+                _ => (),
+            }
+            message_receiver.source_version();
+        }
+    }
+
     pub fn guid(&self) -> Guid {
         self.rtps_reader.guid()
     }
@@ -1049,12 +1049,14 @@ impl DdsDataReader<RtpsStatelessReader> {
     pub fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead<'_>,
-        message_receiver: &MessageReceiver,
+        source_timestamp: Option<Time>,
+        source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
     ) -> StatelessReaderDataReceivedResult {
         self.rtps_reader.on_data_submessage_received(
             data_submessage,
-            message_receiver,
+            source_timestamp,
+            source_guid_prefix,
             reception_timestamp,
         )
     }
