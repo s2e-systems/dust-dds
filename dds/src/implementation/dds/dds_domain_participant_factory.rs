@@ -18,7 +18,7 @@ use crate::{
         configuration::DustDdsConfiguration,
         dds::dds_domain_participant::AnnounceKind,
         rtps::{
-            messages::overall_structure::RtpsMessageWrite,
+            messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
             participant::RtpsParticipant,
             transport::TransportWrite,
             types::{
@@ -98,15 +98,21 @@ impl DdsDomainParticipantFactory {
 
         async fn task_metatraffic_multicast_receive(
             mut metatraffic_multicast_transport: UdpTransportRead,
-            domain_participant_address: ActorAddress<DdsDomainParticipant>,
+            builtin_message_broadcast_sender: tokio::sync::broadcast::Sender<(
+                Locator,
+                RtpsMessageRead,
+            )>,
         ) {
             loop {
                 if let Some((locator, message)) = metatraffic_multicast_transport.read().await {
-                    tokio::task::block_in_place(|| {
-                        domain_participant_address
-                            .receive_builtin_message(locator, message)
-                            .unwrap()
-                    });
+                    builtin_message_broadcast_sender
+                        .send((locator, message))
+                        .ok();
+                    // tokio::task::block_in_place(|| {
+                    //     domain_participant_address
+                    //         .receive_builtin_message(locator, message)
+                    //         .unwrap()
+                    // });
                 }
             }
         }
@@ -311,9 +317,11 @@ impl DdsDomainParticipantFactory {
             participant_address.clone(),
         ));
 
+        let (builtin_message_broadcast_sender, _builtin_message_broadcast_receiver) =
+            tokio::sync::broadcast::channel(10);
         THE_RUNTIME.spawn(task_metatraffic_multicast_receive(
             metatraffic_multicast_transport,
-            participant_address.clone(),
+            builtin_message_broadcast_sender,
         ));
 
         let metatraffic_unicast_transport = UdpTransportRead::new(

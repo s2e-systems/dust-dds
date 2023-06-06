@@ -87,7 +87,7 @@ pub trait EndiannessFlag {
     fn endianness_flag(&self) -> bool;
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsMessageRead {
     pub data: [u8; BUFFER_SIZE],
 }
