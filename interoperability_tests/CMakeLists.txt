@@ -37,3 +37,17 @@ target_link_libraries(CycloneDdsBigDataPublisher PRIVATE
   CycloneDDS::ddsc
   BigDataGeneratedIdl
 )
+
+# Add targets such that the binaries can be run like so:
+# cmake --build . --target CycloneDdsBigDataSubscriber
+add_custom_command(
+    TARGET CycloneDdsBigDataSubscriber
+    POST_BUILD
+    COMMAND CycloneDdsBigDataSubscriber
+)
+
+add_custom_command(
+    TARGET CycloneDdsBigDataPublisher
+    POST_BUILD
+    COMMAND CycloneDdsBigDataPublisher
+)

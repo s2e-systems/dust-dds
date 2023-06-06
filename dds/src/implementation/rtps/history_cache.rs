@@ -73,7 +73,7 @@ impl<'a> Iterator for DataFragSubmessagesIter<'a> {
             let reader_id = self.reader_id;
             let writer_id = self.cache_change.writer_guid().entity_id();
             let writer_sn = self.cache_change.sequence_number();
-            let fragment_starting_num = FragmentNumber::new(self.pos as u32);
+            let fragment_starting_num = FragmentNumber::new(self.pos as u32 + 1);
             let fragments_in_submessage = 1;
             let data_size = self.data.iter().map(|d| d.len()).sum::<usize>() as u32;
             let fragment_size = self.data[0].len() as u16;
