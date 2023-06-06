@@ -32,11 +32,11 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     messages::{
-        submessage_elements::{Parameter, ParameterList},
+        submessage_elements::{Data, Parameter, ParameterList},
         submessages::{data::DataSubmessageRead, data_frag::DataFragSubmessageRead},
         types::ParameterId,
     },
-    types::{ChangeKind, Guid, GuidPrefix}, history_cache::Data,
+    types::{ChangeKind, Guid, GuidPrefix},
 };
 
 pub type RtpsReaderResult<T> = Result<T, RtpsReaderError>;
@@ -423,7 +423,11 @@ impl RtpsReader {
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder
-                            .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
+                            .build_instance_handle(
+                                cc.kind,
+                                cc.data.as_ref(),
+                                cc.inline_qos.parameter(),
+                            )
                             .unwrap()
                             == change_instance_handle
                             && cc.kind == ChangeKind::Alive

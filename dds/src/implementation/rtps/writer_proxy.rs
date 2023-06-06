@@ -6,7 +6,7 @@ use std::{
 use super::{
     messages::{
         overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind},
-        submessage_elements::{FragmentNumberSet, SequenceNumberSet},
+        submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessageWrite, data_frag::DataFragSubmessageRead,
             info_destination::InfoDestinationSubmessageWrite, nack_frag::NackFragSubmessageWrite,
@@ -14,7 +14,7 @@ use super::{
         types::{Count, FragmentNumber},
     },
     transport::TransportWrite,
-    types::{EntityId, Guid, Locator, SequenceNumber}, history_cache::Data,
+    types::{EntityId, Guid, Locator, SequenceNumber},
 };
 
 #[derive(Debug, PartialEq, Eq)]

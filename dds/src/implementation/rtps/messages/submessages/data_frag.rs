@@ -7,12 +7,10 @@ use crate::implementation::{
             overall_structure::{
                 RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
-            submessage_elements::{ParameterList, SubmessageElement},
-            types::{
-                FragmentNumber, SubmessageFlag, SubmessageKind,
-            },
+            submessage_elements::{Data, ParameterList, SubmessageElement},
+            types::{FragmentNumber, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber}, history_cache::Data,
+        types::{EntityId, SequenceNumber},
     },
 };
 

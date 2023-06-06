@@ -12,8 +12,8 @@ use crate::{
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::{RtpsWriterCacheChange, WriterHistoryCache, Data},
-    messages::submessage_elements::ParameterList,
+    history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
+    messages::submessage_elements::{Data, ParameterList},
     types::{ChangeKind, Guid, Locator, SequenceNumber},
 };
 
@@ -97,7 +97,9 @@ impl RtpsWriter {
             handle,
             self.last_change_sequence_number,
             timestamp,
-            data.chunks(self.data_max_size_serialized).map(|c| Data::new(c.to_vec())).collect(),
+            data.chunks(self.data_max_size_serialized)
+                .map(|c| Data::new(c.to_vec()))
+                .collect(),
             inline_qos,
         )
     }

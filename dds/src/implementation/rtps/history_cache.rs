@@ -1,7 +1,6 @@
 use super::{
     messages::{
-        overall_structure::{FromBytes, WriteBytes},
-        submessage_elements::{ParameterList, SequenceNumberSet},
+        submessage_elements::{Data, ParameterList, SequenceNumberSet},
         submessages::{
             data::DataSubmessageWrite, data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
         },
@@ -12,39 +11,6 @@ use crate::{
     implementation::rtps::messages::types::FragmentNumber,
     infrastructure::{instance::InstanceHandle, time::Time},
 };
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Data(Vec<u8>);
-
-impl Data {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self(data)
-    }
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl AsRef<[u8]> for Data {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-impl WriteBytes for &Data {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(&self.0);
-        let length_inclusive_padding = (self.0.len() + 3) & !3;
-        buf[self.0.len()..length_inclusive_padding].fill(0);
-        length_inclusive_padding
-    }
-}
-
-impl FromBytes for Data {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(v.to_vec())
-    }
-}
 
 pub struct RtpsWriterCacheChange {
     kind: ChangeKind,

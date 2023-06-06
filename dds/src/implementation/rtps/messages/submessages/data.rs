@@ -5,13 +5,12 @@ use crate::implementation::{
     rtps::{
         messages::{
             overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead,
-                SubmessageHeaderWrite,
+                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
-            submessage_elements::{ParameterList, SubmessageElement},
+            submessage_elements::{Data, ParameterList, SubmessageElement},
             types::{SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber}, history_cache::Data,
+        types::{EntityId, SequenceNumber},
     },
 };
 

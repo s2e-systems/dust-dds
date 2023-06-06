@@ -404,14 +404,14 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::{
-            submessage_elements::{Parameter, ParameterList},
+            submessage_elements::{Data, Parameter, ParameterList},
             submessages::{data::DataSubmessageRead, heartbeat::HeartbeatSubmessageRead},
             types::ParameterId,
         },
         types::{
             EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
             USER_DEFINED_READER_NO_KEY,
-        }, history_cache::Data,
+        },
     };
 
     #[test]
