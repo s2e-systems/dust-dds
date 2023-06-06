@@ -128,8 +128,8 @@ pub struct DdsDomainParticipant {
     domain_id: DomainId,
     domain_tag: String,
     qos: DomainParticipantQos,
-    builtin_subscriber: DdsSubscriber,
-    builtin_publisher: DdsPublisher,
+    builtin_subscriber: Actor<DdsSubscriber>,
+    builtin_publisher: Actor<DdsPublisher>,
     user_defined_subscriber_list: Vec<Actor<DdsSubscriber>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
@@ -266,25 +266,33 @@ impl DdsDomainParticipant {
             String::from(DCPS_SUBSCRIPTION),
         ));
 
-        let mut builtin_subscriber = DdsSubscriber::new(
+        let builtin_subscriber = spawn_actor(DdsSubscriber::new(
             SubscriberQos::default(),
             RtpsGroup::new(Guid::new(
                 guid_prefix,
                 EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_READER_GROUP),
             )),
-        );
+        ));
 
         let sedp_builtin_subscriptions_reader_address = sedp_builtin_subscriptions_reader.address();
         let sedp_builtin_publications_reader_address = sedp_builtin_publications_reader.address();
         let sedp_builtin_topics_reader_address = sedp_builtin_topics_reader.address();
 
-        builtin_subscriber.stateless_data_reader_add(spdp_builtin_participant_reader);
-        builtin_subscriber.stateful_data_reader_add(sedp_builtin_topics_reader);
-        builtin_subscriber.stateful_data_reader_add(sedp_builtin_publications_reader);
-        builtin_subscriber.stateful_data_reader_add(sedp_builtin_subscriptions_reader);
+        builtin_subscriber
+            .address()
+            .stateless_data_reader_add(spdp_builtin_participant_reader);
+        builtin_subscriber
+            .address()
+            .stateful_data_reader_add(sedp_builtin_topics_reader);
+        builtin_subscriber
+            .address()
+            .stateful_data_reader_add(sedp_builtin_publications_reader);
+        builtin_subscriber
+            .address()
+            .stateful_data_reader_add(sedp_builtin_subscriptions_reader);
 
         // Built-in publisher creation
-        let mut spdp_builtin_participant_writer = DdsDataWriter::new(
+        let mut spdp_builtin_participant_writer = spawn_actor(DdsDataWriter::new(
             create_builtin_stateless_writer(Guid::new(
                 guid_prefix,
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
@@ -292,13 +300,15 @@ impl DdsDomainParticipant {
             SpdpDiscoveredParticipantData::type_name(),
             String::from(DCPS_PARTICIPANT),
             builtin_rtps_message_channel_sender.clone(),
-        );
+        ));
 
         for reader_locator in spdp_discovery_locator_list
             .iter()
             .map(|&locator| RtpsReaderLocator::new(locator, false))
         {
-            spdp_builtin_participant_writer.reader_locator_add(reader_locator);
+            spdp_builtin_participant_writer
+                .address()
+                .reader_locator_add(reader_locator);
         }
 
         let sedp_builtin_topics_writer = DdsDataWriter::new(
@@ -335,13 +345,13 @@ impl DdsDomainParticipant {
         let sedp_builtin_subscriptions_writer_actor =
             spawn_actor(sedp_builtin_subscriptions_writer);
 
-        let mut builtin_publisher = DdsPublisher::new(
+        let builtin_publisher = spawn_actor(DdsPublisher::new(
             PublisherQos::default(),
             RtpsGroup::new(Guid::new(
                 guid_prefix,
                 EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_WRITER_GROUP),
             )),
-        );
+        ));
 
         let sedp_builtin_publications_writer_address =
             sedp_builtin_publications_writer_actor.address();
@@ -349,10 +359,18 @@ impl DdsDomainParticipant {
             sedp_builtin_subscriptions_writer_actor.address();
         let sedp_builtin_topics_writer_address = sedp_builtin_topics_writer_actor.address();
 
-        builtin_publisher.stateless_datawriter_add(spdp_builtin_participant_writer);
-        builtin_publisher.stateful_datawriter_add(sedp_builtin_topics_writer_actor);
-        builtin_publisher.stateful_datawriter_add(sedp_builtin_publications_writer_actor);
-        builtin_publisher.stateful_datawriter_add(sedp_builtin_subscriptions_writer_actor);
+        builtin_publisher
+            .address()
+            .stateless_datawriter_add(spdp_builtin_participant_writer);
+        builtin_publisher
+            .address()
+            .stateful_datawriter_add(sedp_builtin_topics_writer_actor);
+        builtin_publisher
+            .address()
+            .stateful_datawriter_add(sedp_builtin_publications_writer_actor);
+        builtin_publisher
+            .address()
+            .stateful_datawriter_add(sedp_builtin_subscriptions_writer_actor);
 
         let domain_tag_clone = domain_tag.clone();
         THE_RUNTIME.spawn(async move {
@@ -493,20 +511,12 @@ impl DdsDomainParticipant {
         self.rtps_participant.metatraffic_multicast_locator_list()
     }
 
-    pub fn get_builtin_subscriber(&self) -> &DdsSubscriber {
-        &self.builtin_subscriber
+    pub fn get_builtin_subscriber(&self) -> ActorAddress<DdsSubscriber> {
+        self.builtin_subscriber.address()
     }
 
-    pub fn get_builtin_subscriber_mut(&mut self) -> &mut DdsSubscriber {
-        &mut self.builtin_subscriber
-    }
-
-    pub fn get_builtin_publisher(&self) -> &DdsPublisher {
-        &self.builtin_publisher
-    }
-
-    pub fn get_builtin_publisher_mut(&mut self) -> &mut DdsPublisher {
-        &mut self.builtin_publisher
+    pub fn get_builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
+        self.builtin_publisher.address()
     }
 
     pub fn get_current_time(&self) -> Time {
@@ -521,38 +531,38 @@ impl DdsDomainParticipant {
         if !self.enabled {
             self.enabled = true;
 
-            self.builtin_subscriber.enable().ok();
-            self.builtin_publisher.enable();
+            //     self.builtin_subscriber.enable().ok();
+            //     self.builtin_publisher.enable();
 
-            for builtin_stateless_writer in self
-                .builtin_publisher
-                .stateless_data_writer_list_mut()
-                .iter_mut()
-            {
-                builtin_stateless_writer.enable();
-            }
+            //     for builtin_stateless_writer in self
+            //         .builtin_publisher
+            //         .stateless_data_writer_list_mut()
+            //         .iter_mut()
+            //     {
+            //         builtin_stateless_writer.enable();
+            //     }
 
-            for builtin_stateful_writer in self
-                .builtin_publisher
-                .stateful_data_writer_list()
-                .iter_mut()
-            {
-                builtin_stateful_writer.enable().ok();
-            }
+            //     for builtin_stateful_writer in self
+            //         .builtin_publisher
+            //         .stateful_data_writer_list()
+            //         .iter_mut()
+            //     {
+            //         builtin_stateful_writer.enable().ok();
+            //     }
 
-            if self.qos.entity_factory.autoenable_created_entities {
-                for publisher in self.user_defined_publisher_list.iter_mut() {
-                    publisher.address().enable().ok();
-                }
+            //     if self.qos.entity_factory.autoenable_created_entities {
+            //         for publisher in self.user_defined_publisher_list.iter_mut() {
+            //             publisher.address().enable().ok();
+            //         }
 
-                for subscriber in self.user_defined_subscriber_list.iter_mut() {
-                    subscriber.address().enable().ok();
-                }
+            //         for subscriber in self.user_defined_subscriber_list.iter_mut() {
+            //             subscriber.address().enable().ok();
+            //         }
 
-                for topic in self.topic_list.iter_mut() {
-                    topic.address().enable().ok();
-                }
-            }
+            //         for topic in self.topic_list.iter_mut() {
+            //             topic.address().enable().ok();
+            //         }
+            //     }
         }
     }
 
@@ -1070,17 +1080,19 @@ impl DdsDomainParticipant {
             dds_serialize(&spdp_discovered_participant_data).map_err(|_err| DdsError::Error)?;
 
         let current_time = self.get_current_time();
-        self.builtin_publisher
-            .stateless_data_writer_list_mut()
-            .iter_mut()
-            .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
-            .unwrap()
-            .write_w_timestamp(
-                serialized_data,
-                spdp_discovered_participant_data.get_serialized_key(),
-                None,
-                current_time,
-            )
+        // todo!()
+        // self.builtin_publisher
+        //     .stateless_data_writer_list_mut()
+        //     .iter_mut()
+        //     .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
+        //     .unwrap()
+        //     .write_w_timestamp(
+        //         serialized_data,
+        //         spdp_discovered_participant_data.get_serialized_key(),
+        //         None,
+        //         current_time,
+        //     )
+        Ok(())
     }
 
     // pub fn remove_discovered_participant(&self, participant_handle: InstanceHandle) {
@@ -1155,174 +1167,176 @@ impl DdsDomainParticipant {
         &mut self,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
-        let samples = self
-            .get_builtin_subscriber_mut()
-            .stateful_data_reader_list_mut()
-            .iter_mut()
-            .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
-            .unwrap()
-            .read::<DiscoveredReaderData>(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                None,
-            )?;
+        todo!();
+        // let samples = self
+        //     .get_builtin_subscriber_mut()
+        //     .stateful_data_reader_list_mut()
+        //     .iter_mut()
+        //     .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
+        //     .unwrap()
+        //     .read::<DiscoveredReaderData>(
+        //         i32::MAX,
+        //         ANY_SAMPLE_STATE,
+        //         ANY_VIEW_STATE,
+        //         ANY_INSTANCE_STATE,
+        //         None,
+        //     )?;
 
-        for discovered_reader_data_sample in samples.into_iter() {
-            match discovered_reader_data_sample.sample_info.instance_state {
-                InstanceStateKind::Alive => {
-                    if let Some(discovered_reader_data) = discovered_reader_data_sample.data {
-                        if !self.is_subscription_ignored(
-                            discovered_reader_data
-                                .reader_proxy()
-                                .remote_reader_guid()
-                                .into(),
-                        ) {
-                            let remote_reader_guid_prefix = discovered_reader_data
-                                .reader_proxy()
-                                .remote_reader_guid()
-                                .prefix();
-                            let reader_parent_participant_guid =
-                                Guid::new(remote_reader_guid_prefix, ENTITYID_PARTICIPANT);
+        // for discovered_reader_data_sample in samples.into_iter() {
+        //     match discovered_reader_data_sample.sample_info.instance_state {
+        //         InstanceStateKind::Alive => {
+        //             if let Some(discovered_reader_data) = discovered_reader_data_sample.data {
+        //                 if !self.is_subscription_ignored(
+        //                     discovered_reader_data
+        //                         .reader_proxy()
+        //                         .remote_reader_guid()
+        //                         .into(),
+        //                 ) {
+        //                     let remote_reader_guid_prefix = discovered_reader_data
+        //                         .reader_proxy()
+        //                         .remote_reader_guid()
+        //                         .prefix();
+        //                     let reader_parent_participant_guid =
+        //                         Guid::new(remote_reader_guid_prefix, ENTITYID_PARTICIPANT);
 
-                            let participant_guid = self.guid();
-                            if let Some((
-                                default_unicast_locator_list,
-                                default_multicast_locator_list,
-                            )) = self
-                                .discovered_participant_list
-                                .get(&reader_parent_participant_guid.into())
-                                .map(|discovered_participant_data| {
-                                    (
-                                        discovered_participant_data
-                                            .participant_proxy()
-                                            .default_unicast_locator_list()
-                                            .to_vec(),
-                                        discovered_participant_data
-                                            .participant_proxy()
-                                            .default_multicast_locator_list()
-                                            .to_vec(),
-                                    )
-                                })
-                            {
-                                for publisher in self.user_defined_publisher_list_mut() {
-                                    let publisher_qos = publisher.get_qos();
-                                    let publisher_guid = publisher.guid();
-                                    let is_discovered_reader_regex_matched_to_publisher =
-                                        if let Ok(d) = glob_to_regex(
-                                            &discovered_reader_data
-                                                .subscription_builtin_topic_data()
-                                                .partition()
-                                                .name,
-                                        ) {
-                                            d.is_match(&publisher.get_qos().partition.name)
-                                        } else {
-                                            false
-                                        };
+        //                     let participant_guid = self.guid();
+        //                     if let Some((
+        //                         default_unicast_locator_list,
+        //                         default_multicast_locator_list,
+        //                     )) = self
+        //                         .discovered_participant_list
+        //                         .get(&reader_parent_participant_guid.into())
+        //                         .map(|discovered_participant_data| {
+        //                             (
+        //                                 discovered_participant_data
+        //                                     .participant_proxy()
+        //                                     .default_unicast_locator_list()
+        //                                     .to_vec(),
+        //                                 discovered_participant_data
+        //                                     .participant_proxy()
+        //                                     .default_multicast_locator_list()
+        //                                     .to_vec(),
+        //                             )
+        //                         })
+        //                     {
+        //                         for publisher in self.user_defined_publisher_list_mut() {
+        //                             let publisher_qos = publisher.get_qos();
+        //                             let publisher_guid = publisher.guid();
+        //                             let is_discovered_reader_regex_matched_to_publisher =
+        //                                 if let Ok(d) = glob_to_regex(
+        //                                     &discovered_reader_data
+        //                                         .subscription_builtin_topic_data()
+        //                                         .partition()
+        //                                         .name,
+        //                                 ) {
+        //                                     d.is_match(&publisher.get_qos().partition.name)
+        //                                 } else {
+        //                                     false
+        //                                 };
 
-                                    let is_publisher_regex_matched_to_discovered_reader =
-                                        if let Ok(d) =
-                                            glob_to_regex(&publisher.get_qos().partition.name)
-                                        {
-                                            d.is_match(
-                                                &discovered_reader_data
-                                                    .subscription_builtin_topic_data()
-                                                    .partition()
-                                                    .name,
-                                            )
-                                        } else {
-                                            false
-                                        };
+        //                             let is_publisher_regex_matched_to_discovered_reader =
+        //                                 if let Ok(d) =
+        //                                     glob_to_regex(&publisher.get_qos().partition.name)
+        //                                 {
+        //                                     d.is_match(
+        //                                         &discovered_reader_data
+        //                                             .subscription_builtin_topic_data()
+        //                                             .partition()
+        //                                             .name,
+        //                                     )
+        //                                 } else {
+        //                                     false
+        //                                 };
 
-                                    let is_partition_string_matched = discovered_reader_data
-                                        .subscription_builtin_topic_data()
-                                        .partition()
-                                        .name
-                                        == publisher.get_qos().partition.name;
+        //                             let is_partition_string_matched = discovered_reader_data
+        //                                 .subscription_builtin_topic_data()
+        //                                 .partition()
+        //                                 .name
+        //                                 == publisher.get_qos().partition.name;
 
-                                    if is_discovered_reader_regex_matched_to_publisher
-                                        || is_publisher_regex_matched_to_discovered_reader
-                                        || is_partition_string_matched
-                                    {
-                                        todo!()
-                                        // for data_writer in publisher.stateful_data_writer_list_mut()
-                                        // {
-                                        //     add_matched_reader(
-                                        //         data_writer,
-                                        //         &discovered_reader_data,
-                                        //         &default_unicast_locator_list,
-                                        //         &default_multicast_locator_list,
-                                        //         &publisher_qos,
-                                        //         publisher_guid,
-                                        //         participant_guid,
-                                        //         listener_sender,
-                                        //     )
-                                        // }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                InstanceStateKind::NotAliveDisposed => {
-                    let participant_guid = self.guid();
-                    for publisher in self.user_defined_publisher_list_mut() {
-                        let publisher_guid = publisher.guid();
-                        todo!()
-                        // for data_writer in publisher.stateful_data_writer_list_mut() {
-                        //     remove_writer_matched_reader(
-                        //         data_writer,
-                        //         discovered_reader_data_sample.sample_info.instance_handle,
-                        //         publisher_guid,
-                        //         participant_guid,
-                        //         listener_sender,
-                        //     )
-                        // }
-                    }
-                }
+        //                             if is_discovered_reader_regex_matched_to_publisher
+        //                                 || is_publisher_regex_matched_to_discovered_reader
+        //                                 || is_partition_string_matched
+        //                             {
+        //                                 todo!()
+        //                                 // for data_writer in publisher.stateful_data_writer_list_mut()
+        //                                 // {
+        //                                 //     add_matched_reader(
+        //                                 //         data_writer,
+        //                                 //         &discovered_reader_data,
+        //                                 //         &default_unicast_locator_list,
+        //                                 //         &default_multicast_locator_list,
+        //                                 //         &publisher_qos,
+        //                                 //         publisher_guid,
+        //                                 //         participant_guid,
+        //                                 //         listener_sender,
+        //                                 //     )
+        //                                 // }
+        //                             }
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         InstanceStateKind::NotAliveDisposed => {
+        //             let participant_guid = self.guid();
+        //             for publisher in self.user_defined_publisher_list_mut() {
+        //                 let publisher_guid = publisher.guid();
+        //                 todo!()
+        //                 // for data_writer in publisher.stateful_data_writer_list_mut() {
+        //                 //     remove_writer_matched_reader(
+        //                 //         data_writer,
+        //                 //         discovered_reader_data_sample.sample_info.instance_handle,
+        //                 //         publisher_guid,
+        //                 //         participant_guid,
+        //                 //         listener_sender,
+        //                 //     )
+        //                 // }
+        //             }
+        //         }
 
-                InstanceStateKind::NotAliveNoWriters => todo!(),
-            }
-        }
+        //         InstanceStateKind::NotAliveNoWriters => todo!(),
+        //     }
+        // }
 
-        Ok(())
+        // Ok(())
     }
 
     pub fn discover_matched_topics(
         &mut self,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
-        while let Ok(samples) = self
-            .get_builtin_subscriber_mut()
-            .stateful_data_reader_list_mut()
-            .iter_mut()
-            .find(|x| x.get_topic_name() == DCPS_TOPIC)
-            .unwrap()
-            .read::<DiscoveredTopicData>(
-                1,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                None,
-            )
-        {
-            let guid = self.guid();
-            for sample in samples {
-                if let Some(topic_data) = sample.data.as_ref() {
-                    for topic in self.topic_list_mut() {
-                        topic.process_discovered_topic(topic_data, guid, listener_sender);
-                    }
+        todo!()
+        // while let Ok(samples) = self
+        //     .get_builtin_subscriber_mut()
+        //     .stateful_data_reader_list_mut()
+        //     .iter_mut()
+        //     .find(|x| x.get_topic_name() == DCPS_TOPIC)
+        //     .unwrap()
+        //     .read::<DiscoveredTopicData>(
+        //         1,
+        //         &[SampleStateKind::NotRead],
+        //         ANY_VIEW_STATE,
+        //         ANY_INSTANCE_STATE,
+        //         None,
+        //     )
+        // {
+        //     let guid = self.guid();
+        //     for sample in samples {
+        //         if let Some(topic_data) = sample.data.as_ref() {
+        //             for topic in self.topic_list_mut() {
+        //                 topic.process_discovered_topic(topic_data, guid, listener_sender);
+        //             }
 
-                    self.discovered_topic_list.insert(
-                        topic_data.get_serialized_key().into(),
-                        topic_data.topic_builtin_topic_data().clone(),
-                    );
-                }
-            }
-        }
+        //             self.discovered_topic_list.insert(
+        //                 topic_data.get_serialized_key().into(),
+        //                 topic_data.topic_builtin_topic_data().clone(),
+        //             );
+        //         }
+        //     }
+        // }
 
-        Ok(())
+        // Ok(())
     }
 
     pub fn update_communication_status(

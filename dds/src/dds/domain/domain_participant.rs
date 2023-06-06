@@ -1359,167 +1359,167 @@ fn announce_created_data_reader(
     domain_participant: &mut DdsDomainParticipant,
     discovered_reader_data: DiscoveredReaderData,
 ) {
-    let reader_proxy = ReaderProxy::new(
-        discovered_reader_data.reader_proxy().remote_reader_guid(),
-        discovered_reader_data
-            .reader_proxy()
-            .remote_group_entity_id(),
-        domain_participant.default_unicast_locator_list().to_vec(),
-        domain_participant.default_multicast_locator_list().to_vec(),
-        discovered_reader_data.reader_proxy().expects_inline_qos(),
-    );
-    let reader_data = &DiscoveredReaderData::new(
-        reader_proxy,
-        discovered_reader_data
-            .subscription_builtin_topic_data()
-            .clone(),
-    );
+    // let reader_proxy = ReaderProxy::new(
+    //     discovered_reader_data.reader_proxy().remote_reader_guid(),
+    //     discovered_reader_data
+    //         .reader_proxy()
+    //         .remote_group_entity_id(),
+    //     domain_participant.default_unicast_locator_list().to_vec(),
+    //     domain_participant.default_multicast_locator_list().to_vec(),
+    //     discovered_reader_data.reader_proxy().expects_inline_qos(),
+    // );
+    // let reader_data = &DiscoveredReaderData::new(
+    //     reader_proxy,
+    //     discovered_reader_data
+    //         .subscription_builtin_topic_data()
+    //         .clone(),
+    // );
 
-    let serialized_data = dds_serialize(reader_data).expect("Failed to serialize data");
+    // let serialized_data = dds_serialize(reader_data).expect("Failed to serialize data");
 
-    let timestamp = domain_participant.get_current_time();
+    // let timestamp = domain_participant.get_current_time();
 
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list()
-        .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            reader_data.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list()
+    //     .iter()
+    //     .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
+    //     .unwrap()
+    //     .write_w_timestamp(
+    //         serialized_data,
+    //         reader_data.get_serialized_key(),
+    //         None,
+    //         timestamp,
+    //     )
+    //     .expect("Should not fail to write built-in message");
 }
 
 fn announce_created_data_writer(
     domain_participant: &mut DdsDomainParticipant,
     discovered_writer_data: DiscoveredWriterData,
 ) {
-    let writer_data = &DiscoveredWriterData::new(
-        discovered_writer_data.dds_publication_data().clone(),
-        WriterProxy::new(
-            discovered_writer_data.writer_proxy().remote_writer_guid(),
-            discovered_writer_data
-                .writer_proxy()
-                .remote_group_entity_id(),
-            domain_participant.default_unicast_locator_list().to_vec(),
-            domain_participant.default_multicast_locator_list().to_vec(),
-            discovered_writer_data
-                .writer_proxy()
-                .data_max_size_serialized(),
-        ),
-    );
+    // let writer_data = &DiscoveredWriterData::new(
+    //     discovered_writer_data.dds_publication_data().clone(),
+    //     WriterProxy::new(
+    //         discovered_writer_data.writer_proxy().remote_writer_guid(),
+    //         discovered_writer_data
+    //             .writer_proxy()
+    //             .remote_group_entity_id(),
+    //         domain_participant.default_unicast_locator_list().to_vec(),
+    //         domain_participant.default_multicast_locator_list().to_vec(),
+    //         discovered_writer_data
+    //             .writer_proxy()
+    //             .data_max_size_serialized(),
+    //     ),
+    // );
 
-    let serialized_data = dds_serialize(writer_data).expect("Failed to serialize data");
+    // let serialized_data = dds_serialize(writer_data).expect("Failed to serialize data");
 
-    let timestamp = domain_participant.get_current_time();
+    // let timestamp = domain_participant.get_current_time();
 
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list()
-        .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            writer_data.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list()
+    //     .iter()
+    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+    //     .unwrap()
+    //     .write_w_timestamp(
+    //         serialized_data,
+    //         writer_data.get_serialized_key(),
+    //         None,
+    //         timestamp,
+    //     )
+    //     .expect("Should not fail to write built-in message");
 }
 
 fn announce_created_topic(
     domain_participant: &mut DdsDomainParticipant,
     discovered_topic: DiscoveredTopicData,
 ) {
-    let serialized_data = dds_serialize(&discovered_topic).expect("Failed to serialize data");
+    // let serialized_data = dds_serialize(&discovered_topic).expect("Failed to serialize data");
 
-    let timestamp = domain_participant.get_current_time();
+    // let timestamp = domain_participant.get_current_time();
 
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list()
-        .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredTopicData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            discovered_topic.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message")
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list()
+    //     .iter()
+    //     .find(|x| x.get_type_name().unwrap() == DiscoveredTopicData::type_name())
+    //     .unwrap()
+    //     .write_w_timestamp(
+    //         serialized_data,
+    //         discovered_topic.get_serialized_key(),
+    //         None,
+    //         timestamp,
+    //     )
+    //     .expect("Should not fail to write built-in message")
 }
 
 fn announce_deleted_reader(
     domain_participant: &mut DdsDomainParticipant,
     reader_handle: InstanceHandle,
 ) {
-    let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
-    let instance_serialized_key =
-        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
-            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-            .expect("Failed to serialize data");
+    // let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
+    // let instance_serialized_key =
+    //     cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+    //         .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+    //         .expect("Failed to serialize data");
 
-    let timestamp = domain_participant.get_current_time();
+    // let timestamp = domain_participant.get_current_time();
 
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list()
-        .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
-        .unwrap()
-        .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
-        .expect("Should not fail to write built-in message");
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list()
+    //     .iter()
+    //     .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
+    //     .unwrap()
+    //     .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
+    //     .expect("Should not fail to write built-in message");
 }
 
 fn announce_deleted_writer(
     domain_participant: &mut DdsDomainParticipant,
     writer_handle: InstanceHandle,
 ) {
-    let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
-    let instance_serialized_key =
-        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
-            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-            .expect("Failed to serialize data");
+    // let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
+    // let instance_serialized_key =
+    //     cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+    //         .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+    //         .expect("Failed to serialize data");
 
-    let timestamp = domain_participant.get_current_time();
+    // let timestamp = domain_participant.get_current_time();
 
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list()
-        .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
-        .unwrap()
-        .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
-        .expect("Should not fail to write built-in message");
+    // domain_participant
+    //     .get_builtin_publisher_mut()
+    //     .stateful_data_writer_list()
+    //     .iter()
+    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+    //     .unwrap()
+    //     .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
+    //     .expect("Should not fail to write built-in message");
 }
 
 fn send_builtin_message(
     domain_participant: &mut DdsDomainParticipant,
     metatraffic_unicast_transport_send: &mut impl TransportWrite,
 ) {
-    let header = RtpsMessageHeader::new(
-        domain_participant.protocol_version(),
-        domain_participant.vendor_id(),
-        domain_participant.guid().prefix(),
-    );
+    // let header = RtpsMessageHeader::new(
+    //     domain_participant.protocol_version(),
+    //     domain_participant.vendor_id(),
+    //     domain_participant.guid().prefix(),
+    // );
 
-    let _now = domain_participant.get_current_time();
-    stateless_writer_send_message(
-        domain_participant
-            .get_builtin_publisher_mut()
-            .stateless_data_writer_list_mut()
-            .iter_mut()
-            .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
-            .unwrap(),
-        header,
-        metatraffic_unicast_transport_send,
-    );
+    // let _now = domain_participant.get_current_time();
+    // stateless_writer_send_message(
+    //     domain_participant
+    //         .get_builtin_publisher_mut()
+    //         .stateless_data_writer_list_mut()
+    //         .iter_mut()
+    //         .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
+    //         .unwrap(),
+    //     header,
+    //     metatraffic_unicast_transport_send,
+    // );
 
     todo!();
 
@@ -1556,12 +1556,12 @@ fn send_builtin_message(
     //     metatraffic_unicast_transport_send,
     // );
 
-    for stateful_readers in domain_participant
-        .get_builtin_subscriber_mut()
-        .stateful_data_reader_list_mut()
-    {
-        stateful_readers.send_message(header, metatraffic_unicast_transport_send)
-    }
+    // for stateful_readers in domain_participant
+    //     .get_builtin_subscriber_mut()
+    //     .stateful_data_reader_list_mut()
+    // {
+    //     stateful_readers.send_message(header, metatraffic_unicast_transport_send)
+    // }
 }
 
 fn user_defined_communication_send(
@@ -1980,93 +1980,94 @@ fn discover_matched_writers(
     domain_participant: &mut DdsDomainParticipant,
     listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) -> DdsResult<()> {
-    let samples = domain_participant
-        .get_builtin_subscriber_mut()
-        .stateful_data_reader_list_mut()
-        .iter_mut()
-        .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
-        .unwrap()
-        .read::<DiscoveredWriterData>(
-            i32::MAX,
-            ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
-            None,
-        )?;
+    todo!()
+    // let samples = domain_participant
+    //     .get_builtin_subscriber_mut()
+    //     .stateful_data_reader_list_mut()
+    //     .iter_mut()
+    //     .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
+    //     .unwrap()
+    //     .read::<DiscoveredWriterData>(
+    //         i32::MAX,
+    //         ANY_SAMPLE_STATE,
+    //         ANY_VIEW_STATE,
+    //         ANY_INSTANCE_STATE,
+    //         None,
+    //     )?;
 
-    for discovered_writer_data_sample in samples.into_iter() {
-        match discovered_writer_data_sample.sample_info.instance_state {
-            InstanceStateKind::Alive => {
-                if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                    if !domain_participant.is_publication_ignored(
-                        discovered_writer_data
-                            .writer_proxy()
-                            .remote_writer_guid()
-                            .into(),
-                    ) {
-                        let remote_writer_guid_prefix = discovered_writer_data
-                            .writer_proxy()
-                            .remote_writer_guid()
-                            .prefix();
-                        let writer_parent_participant_guid =
-                            Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
+    // for discovered_writer_data_sample in samples.into_iter() {
+    //     match discovered_writer_data_sample.sample_info.instance_state {
+    //         InstanceStateKind::Alive => {
+    //             if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
+    //                 if !domain_participant.is_publication_ignored(
+    //                     discovered_writer_data
+    //                         .writer_proxy()
+    //                         .remote_writer_guid()
+    //                         .into(),
+    //                 ) {
+    //                     let remote_writer_guid_prefix = discovered_writer_data
+    //                         .writer_proxy()
+    //                         .remote_writer_guid()
+    //                         .prefix();
+    //                     let writer_parent_participant_guid =
+    //                         Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
 
-                        if let Some((
-                            default_unicast_locator_list,
-                            default_multicast_locator_list,
-                        )) = domain_participant
-                            .discovered_participant_list()
-                            .find(|&(h, _)| {
-                                h == &InstanceHandle::from(writer_parent_participant_guid)
-                            })
-                            .map(|(_, discovered_participant_data)| {
-                                (
-                                    discovered_participant_data
-                                        .participant_proxy()
-                                        .default_unicast_locator_list()
-                                        .to_vec(),
-                                    discovered_participant_data
-                                        .participant_proxy()
-                                        .default_multicast_locator_list()
-                                        .to_vec(),
-                                )
-                            })
-                        {
-                            let domain_participant_guid = domain_participant.guid();
-                            for subscriber in domain_participant.user_defined_subscriber_list_mut()
-                            {
-                                subscriber_add_matched_writer(
-                                    subscriber,
-                                    &discovered_writer_data,
-                                    &default_unicast_locator_list,
-                                    &default_multicast_locator_list,
-                                    domain_participant_guid,
-                                    listener_sender,
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            InstanceStateKind::NotAliveDisposed => {
-                let domain_participant_guid = domain_participant.guid();
-                for subscriber in domain_participant.user_defined_subscriber_list_mut() {
-                    let subscriber_guid = subscriber.guid();
-                    for data_reader in subscriber.stateful_data_reader_list_mut() {
-                        data_reader.remove_matched_writer(
-                            discovered_writer_data_sample.sample_info.instance_handle,
-                            domain_participant_guid,
-                            subscriber_guid,
-                            listener_sender,
-                        )
-                    }
-                }
-            }
-            InstanceStateKind::NotAliveNoWriters => todo!(),
-        }
-    }
+    //                     if let Some((
+    //                         default_unicast_locator_list,
+    //                         default_multicast_locator_list,
+    //                     )) = domain_participant
+    //                         .discovered_participant_list()
+    //                         .find(|&(h, _)| {
+    //                             h == &InstanceHandle::from(writer_parent_participant_guid)
+    //                         })
+    //                         .map(|(_, discovered_participant_data)| {
+    //                             (
+    //                                 discovered_participant_data
+    //                                     .participant_proxy()
+    //                                     .default_unicast_locator_list()
+    //                                     .to_vec(),
+    //                                 discovered_participant_data
+    //                                     .participant_proxy()
+    //                                     .default_multicast_locator_list()
+    //                                     .to_vec(),
+    //                             )
+    //                         })
+    //                     {
+    //                         let domain_participant_guid = domain_participant.guid();
+    //                         for subscriber in domain_participant.user_defined_subscriber_list_mut()
+    //                         {
+    //                             subscriber_add_matched_writer(
+    //                                 subscriber,
+    //                                 &discovered_writer_data,
+    //                                 &default_unicast_locator_list,
+    //                                 &default_multicast_locator_list,
+    //                                 domain_participant_guid,
+    //                                 listener_sender,
+    //                             );
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //         InstanceStateKind::NotAliveDisposed => {
+    //             let domain_participant_guid = domain_participant.guid();
+    //             for subscriber in domain_participant.user_defined_subscriber_list_mut() {
+    //                 let subscriber_guid = subscriber.guid();
+    //                 for data_reader in subscriber.stateful_data_reader_list_mut() {
+    //                     data_reader.remove_matched_writer(
+    //                         discovered_writer_data_sample.sample_info.instance_handle,
+    //                         domain_participant_guid,
+    //                         subscriber_guid,
+    //                         listener_sender,
+    //                     )
+    //                 }
+    //             }
+    //         }
+    //         InstanceStateKind::NotAliveNoWriters => todo!(),
+    //     }
+    // }
 
-    Ok(())
+    // Ok(())
 }
 
 pub fn subscriber_add_matched_writer(
@@ -2133,29 +2134,30 @@ fn discover_matched_participants(
     domain_participant: &mut DdsDomainParticipant,
     sedp_condvar: &DdsCondvar,
 ) -> DdsResult<()> {
-    while let Ok(samples) = domain_participant
-        .get_builtin_subscriber_mut()
-        .stateless_data_reader_list_mut()
-        .iter_mut()
-        .find(|x| x.get_topic_name() == DCPS_PARTICIPANT)
-        .unwrap()
-        .read(
-            1,
-            &[SampleStateKind::NotRead],
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
-            None,
-        )
-    {
-        for discovered_participant_data_sample in samples.into_iter() {
-            if let Some(discovered_participant_data) = discovered_participant_data_sample.data {
-                add_discovered_participant(domain_participant, discovered_participant_data);
-                sedp_condvar.notify_all();
-            }
-        }
-    }
+    todo!()
+    // while let Ok(samples) = domain_participant
+    //     .get_builtin_subscriber_mut()
+    //     .stateless_data_reader_list_mut()
+    //     .iter_mut()
+    //     .find(|x| x.get_topic_name() == DCPS_PARTICIPANT)
+    //     .unwrap()
+    //     .read(
+    //         1,
+    //         &[SampleStateKind::NotRead],
+    //         ANY_VIEW_STATE,
+    //         ANY_INSTANCE_STATE,
+    //         None,
+    //     )
+    // {
+    //     for discovered_participant_data_sample in samples.into_iter() {
+    //         if let Some(discovered_participant_data) = discovered_participant_data_sample.data {
+    //             add_discovered_participant(domain_participant, discovered_participant_data);
+    //             sedp_condvar.notify_all();
+    //         }
+    //     }
+    // }
 
-    Ok(())
+    // Ok(())
 }
 
 fn add_discovered_participant(

@@ -3,8 +3,11 @@ use std::marker::PhantomData;
 use crate::{
     implementation::{
         dds::{dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber},
-        rtps::{stateful_reader::RtpsStatefulReader, types::Locator},
-        utils::actor::{ActorAddress, Mail, MailHandler},
+        rtps::{
+            stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader,
+            types::Locator,
+        },
+        utils::actor::{Actor, ActorAddress, Mail, MailHandler},
     },
     infrastructure::{
         error::DdsResult,
@@ -15,6 +18,54 @@ use crate::{
 };
 
 impl ActorAddress<DdsSubscriber> {
+    pub fn stateless_data_reader_add(
+        &self,
+        data_reader: Actor<DdsDataReader<RtpsStatelessReader>>,
+    ) -> DdsResult<()> {
+        struct StatelessDataReaderAdd {
+            data_reader: Actor<DdsDataReader<RtpsStatelessReader>>,
+        }
+
+        impl Mail for StatelessDataReaderAdd {
+            type Result = ();
+        }
+
+        impl MailHandler<StatelessDataReaderAdd> for DdsSubscriber {
+            fn handle(
+                &mut self,
+                mail: StatelessDataReaderAdd,
+            ) -> <StatelessDataReaderAdd as Mail>::Result {
+                self.stateless_data_reader_add(mail.data_reader)
+            }
+        }
+
+        self.send_blocking(StatelessDataReaderAdd { data_reader })
+    }
+
+    pub fn stateful_data_reader_add(
+        &self,
+        data_reader: Actor<DdsDataReader<RtpsStatefulReader>>,
+    ) -> DdsResult<()> {
+        struct StatefulDataReaderAdd {
+            data_reader: Actor<DdsDataReader<RtpsStatefulReader>>,
+        }
+
+        impl Mail for StatefulDataReaderAdd {
+            type Result = ();
+        }
+
+        impl MailHandler<StatefulDataReaderAdd> for DdsSubscriber {
+            fn handle(
+                &mut self,
+                mail: StatefulDataReaderAdd,
+            ) -> <StatefulDataReaderAdd as Mail>::Result {
+                self.stateful_data_reader_add(mail.data_reader)
+            }
+        }
+
+        self.send_blocking(StatefulDataReaderAdd { data_reader })
+    }
+
     pub fn create_datareader<Foo>(
         &self,
         topic_name: String,

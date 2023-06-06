@@ -5,9 +5,9 @@ use crate::{
         dds::{dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher},
         rtps::{
             messages::overall_structure::RtpsMessageWrite, stateful_writer::RtpsStatefulWriter,
-            types::Locator,
+            stateless_writer::RtpsStatelessWriter, types::Locator,
         },
-        utils::actor::{ActorAddress, Mail, MailHandler},
+        utils::actor::{Actor, ActorAddress, Mail, MailHandler},
     },
     infrastructure::{
         error::DdsResult,
@@ -18,6 +18,54 @@ use crate::{
 };
 
 impl ActorAddress<DdsPublisher> {
+    pub fn stateless_datawriter_add(
+        &self,
+        data_writer: Actor<DdsDataWriter<RtpsStatelessWriter>>,
+    ) -> DdsResult<()> {
+        struct StatelessDataWriterAdd {
+            data_writer: Actor<DdsDataWriter<RtpsStatelessWriter>>,
+        }
+
+        impl Mail for StatelessDataWriterAdd {
+            type Result = ();
+        }
+
+        impl MailHandler<StatelessDataWriterAdd> for DdsPublisher {
+            fn handle(
+                &mut self,
+                mail: StatelessDataWriterAdd,
+            ) -> <StatelessDataWriterAdd as Mail>::Result {
+                self.stateless_datawriter_add(mail.data_writer)
+            }
+        }
+
+        self.send_blocking(StatelessDataWriterAdd { data_writer })
+    }
+
+    pub fn stateful_datawriter_add(
+        &self,
+        data_writer: Actor<DdsDataWriter<RtpsStatefulWriter>>,
+    ) -> DdsResult<()> {
+        struct StatefulDataWriterAdd {
+            data_writer: Actor<DdsDataWriter<RtpsStatefulWriter>>,
+        }
+
+        impl Mail for StatefulDataWriterAdd {
+            type Result = ();
+        }
+
+        impl MailHandler<StatefulDataWriterAdd> for DdsPublisher {
+            fn handle(
+                &mut self,
+                mail: StatefulDataWriterAdd,
+            ) -> <StatefulDataWriterAdd as Mail>::Result {
+                self.stateful_datawriter_add(mail.data_writer)
+            }
+        }
+
+        self.send_blocking(StatefulDataWriterAdd { data_writer })
+    }
+
     pub fn create_datawriter<Foo>(
         &self,
         topic_name: String,

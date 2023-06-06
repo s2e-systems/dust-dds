@@ -28,7 +28,7 @@ use super::dds_data_writer::DdsDataWriter;
 pub struct DdsPublisher {
     qos: PublisherQos,
     rtps_group: RtpsGroup,
-    stateless_data_writer_list: Vec<DdsDataWriter<RtpsStatelessWriter>>,
+    stateless_data_writer_list: Vec<Actor<DdsDataWriter<RtpsStatelessWriter>>>,
     stateful_data_writer_list: Vec<Actor<DdsDataWriter<RtpsStatefulWriter>>>,
     enabled: bool,
     user_defined_data_writer_counter: u8,
@@ -244,27 +244,21 @@ impl DdsPublisher {
             .collect()
     }
 
-    pub fn stateless_datawriter_add(&mut self, data_writer: DdsDataWriter<RtpsStatelessWriter>) {
+    pub fn stateless_datawriter_add(
+        &mut self,
+        data_writer: Actor<DdsDataWriter<RtpsStatelessWriter>>,
+    ) {
         self.stateless_data_writer_list.push(data_writer)
     }
 
-    pub fn _stateless_datawriter_drain(
-        &mut self,
-    ) -> std::vec::Drain<DdsDataWriter<RtpsStatelessWriter>> {
-        self.stateless_data_writer_list.drain(..)
-    }
-
-    pub fn _stateless_datawriter_delete(&mut self, data_writer_handle: InstanceHandle) {
-        self.stateless_data_writer_list
-            .retain(|x| InstanceHandle::from(x.guid()) != data_writer_handle);
-    }
-
     pub fn stateless_data_writer_list(&self) -> &[DdsDataWriter<RtpsStatelessWriter>] {
-        &self.stateless_data_writer_list
+        todo!()
+        // &self.stateless_data_writer_list
     }
 
     pub fn stateless_data_writer_list_mut(&mut self) -> &mut [DdsDataWriter<RtpsStatelessWriter>] {
-        &mut self.stateless_data_writer_list
+        todo!()
+        // &mut self.stateless_data_writer_list
     }
 
     pub fn get_data_writer(

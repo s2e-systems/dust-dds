@@ -716,18 +716,25 @@ where
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        todo!()
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&w.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_writer::enable(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 w.guid(),
-        //                 w.parent_publisher(),
-        //             )
-        //         }),
-        //     DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => {
+                if !w.address().is_enabled()? {
+                    w.address().enable()?;
+                    // let builtin_publisher = w.parent_participant().get_builtin_publisher()?;
+                    // if let Some(anouncer) =
+                    //     builtin_publisher.lookup_datawriter(sedp_publications_announcer)?
+                    // {
+                    //     announcer.writer(
+                    //         w.address()
+                    //             .as_discovered_writer_data(topic_qos, publisher_qos),
+                    //     );
+                    // }
+                }
+                Ok(())
+            }
+
+            DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+        }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
