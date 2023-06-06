@@ -34,6 +34,7 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
+        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
@@ -349,23 +350,20 @@ impl DdsDomainParticipantFactory {
         Ok(participant_address)
     }
 
-    pub fn delete_participant(
-        &mut self,
-        domain_participant_address: &ActorAddress<DdsDomainParticipant>,
-    ) -> DdsResult<()> {
-        let is_participant_empty = domain_participant_address.is_empty()?;
+    pub fn delete_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        let idx = self
+            .domain_participant_list
+            .iter()
+            .position(|dp| {
+                dp.address()
+                    .get_instance_handle()
+                    .expect("Should not fail to send message")
+                    == handle
+            })
+            .ok_or(DdsError::BadParameter)?;
+
+        let is_participant_empty = self.domain_participant_list[idx].address().is_empty()?;
         if is_participant_empty {
-            let participant_handle = domain_participant_address.get_instance_handle()?;
-            let idx = self
-                .domain_participant_list
-                .iter()
-                .position(|dp| {
-                    dp.address()
-                        .get_instance_handle()
-                        .expect("Should not fail to send message")
-                        == participant_handle
-                })
-                .expect("Should not fail to find not deleted participant");
             self.domain_participant_list.remove(idx);
             Ok(())
         } else {

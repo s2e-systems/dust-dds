@@ -11,6 +11,7 @@ use crate::{
     },
     infrastructure::{
         error::DdsResult,
+        instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},
     },
     DdsType,
@@ -132,5 +133,21 @@ impl ActorAddress<DdsPublisher> {
         }
 
         self.send_blocking(DeleteContainedEntities)
+    }
+
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        struct GetInstanceHandle;
+
+        impl Mail for GetInstanceHandle {
+            type Result = InstanceHandle;
+        }
+
+        impl MailHandler<GetInstanceHandle> for DdsPublisher {
+            fn handle(&mut self, _mail: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+                self.get_instance_handle()
+            }
+        }
+
+        self.send_blocking(GetInstanceHandle)
     }
 }

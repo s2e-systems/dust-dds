@@ -109,10 +109,6 @@ impl DomainParticipant {
     pub(crate) fn new(address: ActorAddress<DdsDomainParticipant>) -> Self {
         Self(address)
     }
-
-    pub(crate) fn address(&self) -> &ActorAddress<DdsDomainParticipant> {
-        &self.0
-    }
 }
 
 impl Drop for DomainParticipant {
@@ -685,8 +681,7 @@ impl DomainParticipant {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
-        // Ok(self.0.guid().into())
+        self.0.get_instance_handle()
     }
 }
 

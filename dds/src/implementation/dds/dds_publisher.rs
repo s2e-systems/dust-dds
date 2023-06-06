@@ -12,7 +12,7 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        utils::actor::{spawn_actor, ActorAddress, Actor},
+        utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -309,5 +309,9 @@ impl DdsPublisher {
 
     pub fn guid(&self) -> Guid {
         self.rtps_group.guid()
+    }
+
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_group.guid().into()
     }
 }

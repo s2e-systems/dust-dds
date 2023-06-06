@@ -356,8 +356,7 @@ impl Publisher {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        todo!()
-        // crate::implementation::behavior::user_defined_publisher::enable()
+        self.0.address().enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.

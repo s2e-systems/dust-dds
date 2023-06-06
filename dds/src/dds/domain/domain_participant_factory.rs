@@ -59,7 +59,7 @@ impl DomainParticipantFactory {
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         self.0
             .address()
-            .delete_participant(participant.address().clone())
+            .delete_participant(participant.get_instance_handle()?)
     }
 
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple

@@ -12,6 +12,7 @@ use crate::{
     },
     infrastructure::{
         error::DdsResult,
+        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
@@ -50,9 +51,9 @@ impl ActorAddress<DdsDomainParticipantFactory> {
         })?
     }
 
-    pub fn delete_participant(&self, address: ActorAddress<DdsDomainParticipant>) -> DdsResult<()> {
+    pub fn delete_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
         struct DeleteParticipant {
-            address: ActorAddress<DdsDomainParticipant>,
+            handle: InstanceHandle,
         }
 
         impl Mail for DeleteParticipant {
@@ -61,11 +62,11 @@ impl ActorAddress<DdsDomainParticipantFactory> {
 
         impl MailHandler<DeleteParticipant> for DdsDomainParticipantFactory {
             fn handle(&mut self, mail: DeleteParticipant) -> <DeleteParticipant as Mail>::Result {
-                self.delete_participant(&mail.address)
+                self.delete_participant(mail.handle)
             }
         }
 
-        self.send_blocking(DeleteParticipant { address })?
+        self.send_blocking(DeleteParticipant { handle })?
     }
 
     pub fn lookup_participant(
