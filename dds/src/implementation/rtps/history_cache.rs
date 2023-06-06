@@ -179,8 +179,8 @@ impl RtpsWriterCacheChange {
         self.timestamp
     }
 
-    pub fn data_value(&self) -> &Data {
-        &self.data_value[0]
+    pub fn data_value(&self) -> &[Data] {
+        &self.data_value
     }
 
     pub fn inline_qos(&self) -> &ParameterList {

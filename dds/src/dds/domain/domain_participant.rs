@@ -1910,7 +1910,7 @@ fn send_message_best_effort_reader_proxy(
             let cache_change = change.cache_change();
             let timestamp = cache_change.timestamp();
 
-            if cache_change.data_value().len() > data_max_size_serialized {
+            if cache_change.data_value().len() > 1 {
                 let cache_change_frag = DataFragSubmessages::new(cache_change, reader_id);
                 for data_frag_submessage in cache_change_frag.into_iter() {
                     let info_dst =
@@ -1980,7 +1980,7 @@ fn send_message_reliable_reader_proxy(
             // should be full-filled by next_unsent_change()
             if change.is_relevant() {
                 let cache_change = change.cache_change();
-                if cache_change.data_value().len() > data_max_size_serialized {
+                if cache_change.data_value().len() > 1 {
                     directly_send_data_frag(
                         reader_proxy,
                         cache_change,
@@ -2034,7 +2034,7 @@ fn send_message_reliable_reader_proxy(
             // should be full-filled by next_requested_change()
             if change_for_reader.is_relevant() {
                 let cache_change = change_for_reader.cache_change();
-                if cache_change.data_value().len() > data_max_size_serialized {
+                if cache_change.data_value().len() > 1 {
                     directly_send_data_frag(
                         reader_proxy,
                         cache_change,
