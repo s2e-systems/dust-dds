@@ -1812,7 +1812,6 @@ fn user_defined_communication_send(
     for publisher in domain_participant.user_defined_publisher_list_mut() {
         for data_writer in publisher.stateful_data_writer_list_mut() {
             let writer_id = data_writer.guid().entity_id();
-            let data_max_size_serialized = data_writer.data_max_size_serialized();
             let heartbeat_period = data_writer.heartbeat_period();
             let first_sn = data_writer
                 .change_list()
@@ -1831,13 +1830,11 @@ fn user_defined_communication_send(
                 match reader_proxy.reliability() {
                     ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
                         reader_proxy,
-                        data_max_size_serialized,
                         header,
                         default_unicast_transport_send,
                     ),
                     ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
                         reader_proxy,
-                        data_max_size_serialized,
                         header,
                         default_unicast_transport_send,
                         writer_id,
@@ -1893,7 +1890,6 @@ fn send_message_best_effort_reader_locator(
 
 fn send_message_best_effort_reader_proxy(
     reader_proxy: &mut WriterAssociatedReaderProxy,
-    data_max_size_serialized: usize,
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
 ) {
@@ -1949,10 +1945,8 @@ fn send_message_best_effort_reader_proxy(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn send_message_reliable_reader_proxy(
     reader_proxy: &mut WriterAssociatedReaderProxy,
-    data_max_size_serialized: usize,
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
     writer_id: EntityId,
@@ -2164,7 +2158,6 @@ fn stateful_writer_send_message(
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
 ) {
-    let data_max_size_serialized = writer.data_max_size_serialized();
     let writer_id = writer.guid().entity_id();
     let first_sn = writer
         .change_list()
@@ -2183,13 +2176,11 @@ fn stateful_writer_send_message(
         match reader_proxy.reliability() {
             ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
                 reader_proxy,
-                data_max_size_serialized,
                 header,
                 transport,
             ),
             ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
                 reader_proxy,
-                data_max_size_serialized,
                 header,
                 transport,
                 writer_id,
