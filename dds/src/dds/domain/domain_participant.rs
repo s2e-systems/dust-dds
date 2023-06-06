@@ -1985,7 +1985,6 @@ fn send_message_reliable_reader_proxy(
                         reader_proxy,
                         cache_change,
                         writer_id,
-                        data_max_size_serialized,
                         header,
                         first_sn,
                         last_sn,
@@ -2040,7 +2039,6 @@ fn send_message_reliable_reader_proxy(
                         reader_proxy,
                         cache_change,
                         writer_id,
-                        data_max_size_serialized,
                         header,
                         first_sn,
                         last_sn,
@@ -2103,12 +2101,10 @@ fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWri
     RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite::new(guid_prefix))
 }
 
-#[allow(clippy::too_many_arguments)]
 fn directly_send_data_frag(
     reader_proxy: &mut WriterAssociatedReaderProxy,
     cache_change: &RtpsWriterCacheChange,
     writer_id: EntityId,
-    data_max_size_serialized: usize,
     header: RtpsMessageHeader,
     first_sn: SequenceNumber,
     last_sn: SequenceNumber,

@@ -1,12 +1,3 @@
-use std::marker::PhantomData;
-
-use itertools::Itertools;
-
-use crate::{
-    implementation::rtps::messages::types::FragmentNumber,
-    infrastructure::{instance::InstanceHandle, time::Time},
-};
-
 use super::{
     messages::{
         overall_structure::{FromBytes, WriteBytes},
@@ -15,7 +6,11 @@ use super::{
             data::DataSubmessageWrite, data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
         },
     },
-    types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{ChangeKind, EntityId, Guid, SequenceNumber},
+};
+use crate::{
+    implementation::rtps::messages::types::FragmentNumber,
+    infrastructure::{instance::InstanceHandle, time::Time},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -27,10 +22,6 @@ impl Data {
     }
     pub fn len(&self) -> usize {
         self.0.len()
-    }
-
-    pub fn chunks(&self, size: usize) -> Vec<Data> {
-        self.0.chunks(size).map(|c| Data(c.into())).collect()
     }
 }
 

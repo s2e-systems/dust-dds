@@ -97,7 +97,7 @@ impl RtpsWriter {
             handle,
             self.last_change_sequence_number,
             timestamp,
-            Data::new(data).chunks(self.data_max_size_serialized),
+            data.chunks(self.data_max_size_serialized).map(|c| Data::new(c.to_vec())).collect(),
             inline_qos,
         )
     }
