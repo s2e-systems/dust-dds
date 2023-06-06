@@ -526,33 +526,29 @@ impl DdsDomainParticipant {
         Ok(publisher_address)
     }
 
-    pub fn delete_publisher(&mut self, publisher_guid: Guid) -> DdsResult<()> {
-        todo!()
-        // if self.rtps_participant.guid().prefix() != publisher_guid.prefix() {
-        //     return Err(DdsError::PreconditionNotMet(
-        //         "Publisher can only be deleted from its parent participant".to_string(),
-        //     ));
-        // }
+    pub fn delete_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        let idx = self
+            .user_defined_publisher_list
+            .iter()
+            .position(|p| {
+                p.address()
+                    .get_instance_handle()
+                    .expect("Should not fail to get handle")
+                    == handle
+            })
+            .ok_or(DdsError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ))?;
 
-        // if self
-        //     .user_defined_publisher_list()
-        //     .iter()
-        //     .find(|x| x.guid() == publisher_guid)
-        //     .ok_or(DdsError::AlreadyDeleted)?
-        //     .stateful_data_writer_list()
-        //     .iter()
-        //     .count()
-        //     > 0
-        // {
-        //     return Err(DdsError::PreconditionNotMet(
-        //         "Publisher still contains data writers".to_string(),
-        //     ));
-        // }
-
-        // self.user_defined_publisher_list
-        //     .retain(|x| x.guid() != publisher_guid);
-
-        // Ok(())
+        let is_publisher_empty = self.user_defined_publisher_list[idx].address().is_empty()?;
+        if is_publisher_empty {
+            self.user_defined_publisher_list.remove(idx);
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Publisher still contains data writers".to_string(),
+            ))
+        }
     }
 
     pub fn is_empty(&self) -> bool {

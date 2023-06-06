@@ -12,7 +12,7 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DataWriterQos, QosKind},
+        qos::{DataWriterQos, PublisherQos, QosKind},
     },
     DdsType,
 };
@@ -108,6 +108,22 @@ impl ActorAddress<DdsPublisher> {
         self.send_blocking(IsEnabled)
     }
 
+    pub fn is_empty(&self) -> DdsResult<bool> {
+        struct IsEmpty;
+
+        impl Mail for IsEmpty {
+            type Result = bool;
+        }
+
+        impl MailHandler<IsEmpty> for DdsPublisher {
+            fn handle(&mut self, _mail: IsEmpty) -> <IsEmpty as Mail>::Result {
+                self.is_empty()
+            }
+        }
+
+        self.send_blocking(IsEmpty)
+    }
+
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         struct DeleteContainedEntities;
 
@@ -133,6 +149,22 @@ impl ActorAddress<DdsPublisher> {
         }
 
         self.send_blocking(DeleteContainedEntities)
+    }
+
+    pub fn get_qos(&self) -> DdsResult<PublisherQos> {
+        struct GetQos;
+
+        impl Mail for GetQos {
+            type Result = PublisherQos;
+        }
+
+        impl MailHandler<GetQos> for DdsPublisher {
+            fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
+                self.get_qos()
+            }
+        }
+
+        self.send_blocking(GetQos)
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

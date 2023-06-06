@@ -298,10 +298,7 @@ impl Publisher {
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::user_defined_publisher::get_qos(dp, self.0.guid())
-        // })
+        self.0.address().get_qos()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -361,7 +358,6 @@ impl Publisher {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
-        // Ok(self.0.address().into())
+        self.0.address().get_instance_handle()
     }
 }

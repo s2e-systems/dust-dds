@@ -56,6 +56,10 @@ impl DdsPublisher {
         self.enabled
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.stateful_data_writer_list.is_empty() && self.stateless_data_writer_list.is_empty()
+    }
+
     pub fn create_datawriter<Foo>(
         &mut self,
         topic_name: String,

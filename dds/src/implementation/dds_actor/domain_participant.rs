@@ -187,6 +187,24 @@ impl ActorAddress<DdsDomainParticipant> {
         })?
     }
 
+    pub fn delete_publisher(&self, handle: InstanceHandle) -> DdsResult<()> {
+        struct DeletePublisher {
+            handle: InstanceHandle,
+        }
+
+        impl Mail for DeletePublisher {
+            type Result = DdsResult<()>;
+        }
+
+        impl MailHandler<DeletePublisher> for DdsDomainParticipant {
+            fn handle(&mut self, mail: DeletePublisher) -> <DeletePublisher as Mail>::Result {
+                self.delete_publisher(mail.handle)
+            }
+        }
+
+        self.send_blocking(DeletePublisher { handle })?
+    }
+
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
@@ -269,6 +287,7 @@ impl ActorAddress<DdsDomainParticipant> {
         }
         self.send_blocking(GetDataMaxSizeSerialized)
     }
+
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         struct DeleteContainedEntities;
 

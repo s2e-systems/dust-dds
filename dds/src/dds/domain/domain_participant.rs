@@ -147,17 +147,7 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::delete_publisher(
-        //         dp,
-        //         a_publisher.node().guid(),
-        //     )
-        // })?;
-
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_publisher_listener(&a_publisher.node().guid());
-
-        // Ok(())
+        self.0.delete_publisher(a_publisher.get_instance_handle()?)
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
