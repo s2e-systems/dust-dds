@@ -1021,15 +1021,15 @@ impl DdsDomainParticipant {
         message: RtpsMessageRead,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
-        MessageReceiver::new(self.get_current_time()).process_message(
-            self.rtps_participant.guid(),
-            core::slice::from_mut(&mut self.builtin_publisher),
-            core::slice::from_mut(&mut self.builtin_subscriber),
-            source_locator,
-            &message,
-            listener_sender,
-        )?;
-        self.user_defined_data_send_condvar.notify_all();
+        // MessageReceiver::new(self.get_current_time()).process_message(
+        //     self.rtps_participant.guid(),
+        //     core::slice::from_mut(&mut self.builtin_publisher),
+        //     core::slice::from_mut(&mut self.builtin_subscriber),
+        //     source_locator,
+        //     &message,
+        //     listener_sender,
+        // )?;
+        // self.user_defined_data_send_condvar.notify_all();
         Ok(())
     }
 
@@ -1039,17 +1039,17 @@ impl DdsDomainParticipant {
         message: RtpsMessageRead,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
-        MessageReceiver::new(self.get_current_time()).process_message(
-            self.rtps_participant.guid(),
-            todo!(),
-            // self.user_defined_publisher_list.as_mut_slice(),
-            todo!(),
-            // self.user_defined_subscriber_list.as_mut_slice(),
-            source_locator,
-            &message,
-            listener_sender,
-        )?;
-        self.user_defined_data_send_condvar.notify_all();
+        // MessageReceiver::new(self.get_current_time()).process_message(
+        //     self.rtps_participant.guid(),
+        //     todo!(),
+        //     // self.user_defined_publisher_list.as_mut_slice(),
+        //     todo!(),
+        //     // self.user_defined_subscriber_list.as_mut_slice(),
+        //     source_locator,
+        //     &message,
+        //     listener_sender,
+        // )?;
+        // self.user_defined_data_send_condvar.notify_all();
         Ok(())
     }
 

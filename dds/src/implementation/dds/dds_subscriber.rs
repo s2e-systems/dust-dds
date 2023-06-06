@@ -367,12 +367,17 @@ impl DdsSubscriber {
         &mut self,
         data_submessage: &DataSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
+        reception_timestamp: Time,
         parent_participant_guid: Guid,
         listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let guid = self.guid();
         for stateless_data_reader in self.stateless_data_reader_list.iter_mut() {
-            stateless_data_reader.on_data_submessage_received(data_submessage, message_receiver);
+            stateless_data_reader.on_data_submessage_received(
+                data_submessage,
+                message_receiver,
+                reception_timestamp,
+            );
         }
         todo!()
 

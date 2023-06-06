@@ -213,6 +213,7 @@ impl RtpsStatefulReader {
         &mut self,
         data_submessage: &DataSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
+        reception_timestamp: Time,
     ) -> StatefulReaderDataReceivedResult {
         let sequence_number = data_submessage.writer_sn();
         let writer_guid = Guid::new(
@@ -233,7 +234,7 @@ impl RtpsStatefulReader {
                             data_submessage,
                             Some(message_receiver.timestamp()),
                             message_receiver.source_guid_prefix(),
-                            message_receiver.reception_timestamp(),
+                            reception_timestamp,
                         );
                         match change_result {
                             Ok(change) => {
@@ -268,7 +269,7 @@ impl RtpsStatefulReader {
                             data_submessage,
                             Some(message_receiver.timestamp()),
                             message_receiver.source_guid_prefix(),
-                            message_receiver.reception_timestamp(),
+                            reception_timestamp,
                         );
                         match change_result {
                             Ok(change) => {
@@ -303,6 +304,7 @@ impl RtpsStatefulReader {
         &mut self,
         data_frag_submessage: &DataFragSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
+        reception_timestamp: Time,
     ) -> StatefulReaderDataReceivedResult {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(
@@ -326,7 +328,7 @@ impl RtpsStatefulReader {
                                 data,
                                 Some(message_receiver.timestamp()),
                                 message_receiver.source_guid_prefix(),
-                                message_receiver.reception_timestamp(),
+                                reception_timestamp,
                             );
                             match change_results {
                                 Ok(change) => {
@@ -366,7 +368,7 @@ impl RtpsStatefulReader {
                                 data,
                                 Some(message_receiver.timestamp()),
                                 message_receiver.source_guid_prefix(),
-                                message_receiver.reception_timestamp(),
+                                reception_timestamp,
                             );
 
                             match change_result {

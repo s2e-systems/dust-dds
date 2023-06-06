@@ -153,6 +153,7 @@ impl RtpsStatelessReader {
         &mut self,
         data_submessage: &DataSubmessageRead<'_>,
         message_receiver: &MessageReceiver,
+        reception_timestamp: Time,
     ) -> StatelessReaderDataReceivedResult {
         if data_submessage.reader_id() == ENTITYID_UNKNOWN
             || data_submessage.reader_id() == self.0.guid().entity_id()
@@ -161,7 +162,7 @@ impl RtpsStatelessReader {
                 data_submessage,
                 Some(message_receiver.timestamp()),
                 message_receiver.source_guid_prefix(),
-                message_receiver.reception_timestamp(),
+                reception_timestamp,
             );
             match change_result {
                 Ok(change) => {
