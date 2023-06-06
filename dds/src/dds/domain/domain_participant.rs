@@ -34,7 +34,7 @@ use crate::{
         rtps::{
             discovery_types::BuiltinEndpointSet,
             history_cache::{
-                DataFragSubmessages, RtpsWriterCacheChange, RtpsWriterCacheChangeFrag,
+               RtpsWriterCacheChange, DataFragSubmessages,
             },
             messages::{
                 overall_structure::{
@@ -1911,8 +1911,8 @@ fn send_message_best_effort_reader_proxy(
             let timestamp = cache_change.timestamp();
 
             if cache_change.data_value().len() > data_max_size_serialized {
-                let mut s = DataFragSubmessages::new(cache_change, reader_id);
-                while let Some(data_frag_submessage) = s.next() {
+                let cache_change_frag = DataFragSubmessages::new(cache_change, reader_id);
+                for data_frag_submessage in cache_change_frag.into_iter() {
                     let info_dst =
                         info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
 
@@ -2117,7 +2117,7 @@ fn directly_send_data_frag(
     let reader_id = reader_proxy.remote_reader_guid().entity_id();
     let timestamp = cache_change.timestamp();
 
-    let cache_change_frag = RtpsWriterCacheChangeFrag::new(cache_change, data_max_size_serialized, reader_id);
+    let cache_change_frag = DataFragSubmessages::new(cache_change, reader_id);
     let mut data_frag_submessage_list = cache_change_frag.into_iter().peekable();
     while let Some(data_frag_submessage) = data_frag_submessage_list.next() {
         let writer_sn = data_frag_submessage.writer_sn();

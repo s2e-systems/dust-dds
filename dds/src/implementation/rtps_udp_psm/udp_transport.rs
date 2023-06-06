@@ -1,5 +1,5 @@
 use crate::implementation::rtps::{
-    messages::overall_structure::{EndianWriteBytes, RtpsMessageRead, RtpsMessageWrite},
+    messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
     transport::TransportWrite,
     types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
 };
