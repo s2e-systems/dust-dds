@@ -3,7 +3,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::dds_data_writer::DdsDataWriter,
-        rtps::stateful_writer::RtpsStatefulWriter,
+        rtps::{reader_proxy::RtpsReaderProxy, stateful_writer::RtpsStatefulWriter},
         utils::actor::{ActorAddress, Mail, MailHandler},
     },
     infrastructure::{
@@ -402,5 +402,23 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
             }
         }
         self.send_blocking(AreAllChangesAcknowledge)
+    }
+
+    pub fn matched_reader_add(&self, a_reader_proxy: RtpsReaderProxy) -> DdsResult<()> {
+        struct MatchedReaderAdd {
+            a_reader_proxy: RtpsReaderProxy,
+        }
+
+        impl Mail for MatchedReaderAdd {
+            type Result = ();
+        }
+
+        impl MailHandler<MatchedReaderAdd> for DdsDataWriter<RtpsStatefulWriter> {
+            fn handle(&mut self, mail: MatchedReaderAdd) -> <MatchedReaderAdd as Mail>::Result {
+                self.matched_reader_add(mail.a_reader_proxy)
+            }
+        }
+
+        self.send_blocking(MatchedReaderAdd { a_reader_proxy })
     }
 }

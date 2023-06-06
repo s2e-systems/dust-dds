@@ -42,10 +42,11 @@ use crate::{
                 DurabilityKind, EntityId, EntityKey, Guid, Locator, ProtocolVersion,
                 ReliabilityKind, TopicKind, VendorId, BUILT_IN_READER_GROUP,
                 BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
-                BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP,
-                USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
+                BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
+                USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
             writer::RtpsWriter,
+            writer_proxy::RtpsWriterProxy,
         },
         utils::{
             actor::{spawn_actor, Actor, ActorAddress, THE_RUNTIME},
@@ -233,20 +234,10 @@ impl DdsDomainParticipant {
             ParticipantBuiltinTopicData::type_name(),
             String::from(DCPS_PARTICIPANT),
         ));
+
         let spdp_builtin_participant_reader_address = spdp_builtin_participant_reader.address();
         let mut builtin_message_broadcast_receiver =
             builtin_message_broadcast_receiver_sender.subscribe();
-        THE_RUNTIME.spawn(async move {
-            loop {
-                if let Ok((locator, message)) = builtin_message_broadcast_receiver.recv().await {
-                    tokio::task::block_in_place(|| {
-                        spdp_builtin_participant_reader_address
-                            .process_rtps_message(message)
-                            .ok();
-                    });
-                }
-            }
-        });
 
         let sedp_builtin_topics_reader = spawn_actor(DdsDataReader::new(
             create_builtin_stateful_reader::<DiscoveredTopicData>(Guid::new(
@@ -282,6 +273,11 @@ impl DdsDomainParticipant {
                 EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_READER_GROUP),
             )),
         );
+
+        let sedp_builtin_subscriptions_reader_address = sedp_builtin_subscriptions_reader.address();
+        let sedp_builtin_publications_reader_address = sedp_builtin_publications_reader.address();
+        let sedp_builtin_topics_reader_address = sedp_builtin_topics_reader.address();
+
         builtin_subscriber.stateless_data_reader_add(spdp_builtin_participant_reader);
         builtin_subscriber.stateful_data_reader_add(sedp_builtin_topics_reader);
         builtin_subscriber.stateful_data_reader_add(sedp_builtin_publications_reader);
@@ -346,10 +342,85 @@ impl DdsDomainParticipant {
                 EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_WRITER_GROUP),
             )),
         );
+
+        let sedp_builtin_publications_writer_address =
+            sedp_builtin_publications_writer_actor.address();
+        let sedp_builtin_subscriptions_writer_address =
+            sedp_builtin_subscriptions_writer_actor.address();
+        let sedp_builtin_topics_writer_address = sedp_builtin_topics_writer_actor.address();
+
         builtin_publisher.stateless_datawriter_add(spdp_builtin_participant_writer);
         builtin_publisher.stateful_datawriter_add(sedp_builtin_topics_writer_actor);
         builtin_publisher.stateful_datawriter_add(sedp_builtin_publications_writer_actor);
         builtin_publisher.stateful_datawriter_add(sedp_builtin_subscriptions_writer_actor);
+
+        let domain_tag_clone = domain_tag.clone();
+        THE_RUNTIME.spawn(async move {
+            loop {
+                if let Ok((_locator, message)) = builtin_message_broadcast_receiver.recv().await {
+                    tokio::task::block_in_place(|| {
+                        if let Ok(_) =
+                            spdp_builtin_participant_reader_address.process_rtps_message(message)
+                        {
+                            while let Ok(samples) = spdp_builtin_participant_reader_address
+                                .read::<SpdpDiscoveredParticipantData>(
+                                1,
+                                &[SampleStateKind::NotRead],
+                                ANY_VIEW_STATE,
+                                ANY_INSTANCE_STATE,
+                                None,
+                            ) {
+                                for discovered_participant_data_sample in samples.into_iter() {
+                                    if let Some(discovered_participant_data) =
+                                        discovered_participant_data_sample.data
+                                    {
+                                        if discovered_participant_data
+                                            .participant_proxy()
+                                            .domain_id()
+                                            == domain_id
+                                            && discovered_participant_data
+                                                .participant_proxy()
+                                                .domain_tag()
+                                                == domain_tag_clone
+                                        {
+                                            add_matched_subscriptions_detector(
+                                                &sedp_builtin_subscriptions_writer_address,
+                                                &discovered_participant_data,
+                                            );
+
+                                            add_matched_publications_detector(
+                                                &sedp_builtin_publications_writer_address,
+                                                &discovered_participant_data,
+                                            );
+
+                                            add_matched_topics_detector(
+                                                &sedp_builtin_topics_writer_address,
+                                                &discovered_participant_data,
+                                            );
+
+                                            add_matched_subscriptions_announcer(
+                                                &sedp_builtin_subscriptions_reader_address,
+                                                &discovered_participant_data,
+                                            );
+
+                                            add_matched_publications_announcer(
+                                                &sedp_builtin_publications_reader_address,
+                                                &discovered_participant_data,
+                                            );
+
+                                            add_matched_topics_announcer(
+                                                &sedp_builtin_topics_reader_address,
+                                                &discovered_participant_data,
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
 
         Self {
             rtps_participant,
@@ -1636,4 +1707,209 @@ where
         expects_inline_qos,
         qos,
     ))
+}
+
+fn add_matched_publications_detector(
+    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
+    {
+        let remote_reader_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let expects_inline_qos = false;
+        let proxy = RtpsReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            expects_inline_qos,
+            true,
+            ReliabilityKind::Reliable,
+            DurabilityKind::TransientLocal,
+        );
+        writer.matched_reader_add(proxy).unwrap();
+    }
+}
+
+fn add_matched_subscriptions_detector(
+    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
+    {
+        let remote_reader_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let expects_inline_qos = false;
+        let proxy = RtpsReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            expects_inline_qos,
+            true,
+            ReliabilityKind::Reliable,
+            DurabilityKind::TransientLocal,
+        );
+        writer.matched_reader_add(proxy).unwrap();
+    }
+}
+
+fn add_matched_topics_detector(
+    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
+    {
+        let remote_reader_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let expects_inline_qos = false;
+        let proxy = RtpsReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            expects_inline_qos,
+            true,
+            ReliabilityKind::Reliable,
+            DurabilityKind::TransientLocal,
+        );
+        writer.matched_reader_add(proxy).unwrap();
+    }
+}
+
+fn add_matched_subscriptions_announcer(
+    reader: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = None;
+
+        let proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            data_max_size_serialized,
+            remote_group_entity_id,
+        );
+        reader.matched_writer_add(proxy).unwrap();
+    }
+}
+
+fn add_matched_publications_announcer(
+    reader: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = None;
+
+        let proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            data_max_size_serialized,
+            remote_group_entity_id,
+        );
+
+        reader.matched_writer_add(proxy).unwrap();
+    }
+}
+
+fn add_matched_topics_announcer(
+    reader: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = None;
+
+        let proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            data_max_size_serialized,
+            remote_group_entity_id,
+        );
+        reader.matched_writer_add(proxy).unwrap();
+    }
 }
