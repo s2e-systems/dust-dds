@@ -56,7 +56,7 @@ fn main() {
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
     let data = big_data::BigDataType {
-        msg: vec![1; 100000],
+        msg: vec![b'a'; 100000],
     };
     writer.write(&data, None).unwrap();
 

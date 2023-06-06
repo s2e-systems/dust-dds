@@ -63,16 +63,16 @@ where
     }
 }
 
-pub trait FromBytes<'a> {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &'a [u8]) -> Self;
+pub trait FromBytes {
+    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self;
 }
 
 pub trait SubmessageHeader {
     fn submessage_header(&self) -> SubmessageHeaderRead;
 }
 
-pub trait RtpsMap<'a>: SubmessageHeader {
-    fn map<T: FromBytes<'a>>(&self, data: &'a [u8]) -> T {
+pub trait RtpsMap: SubmessageHeader {
+    fn map<T: FromBytes>(&self, data: &[u8]) -> T {
         if self.submessage_header().endianness_flag() {
             T::from_bytes::<byteorder::LittleEndian>(data)
         } else {
@@ -81,7 +81,7 @@ pub trait RtpsMap<'a>: SubmessageHeader {
     }
 }
 
-impl<'a, T: SubmessageHeader> RtpsMap<'a> for T {}
+impl<T: SubmessageHeader> RtpsMap for T {}
 
 pub trait EndiannessFlag {
     fn endianness_flag(&self) -> bool;
@@ -213,35 +213,23 @@ pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RtpsMessageWrite<'a> {
-    header: RtpsMessageHeader,
-    submessages: Vec<RtpsSubmessageWriteKind<'a>>,
+pub struct RtpsMessageWrite {
+    buffer: [u8; BUFFER_SIZE],
+    len: usize,
 }
 
-impl EndianWriteBytes for RtpsMessageWrite<'_> {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        let mut len = self.header.endian_write_bytes::<E>(buf);
-        for submessage in &self.submessages {
-            len += submessage.write_bytes(&mut buf[len..]);
+impl RtpsMessageWrite {
+    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageWriteKind<'_>>) -> Self {
+        let mut buffer = [0; BUFFER_SIZE];
+        let mut len = header.endian_write_bytes::<byteorder::LittleEndian>(&mut buffer[0..]);
+        for submessage in &submessages {
+            len += submessage.write_bytes(&mut buffer[len..]);
         }
-        len
-    }
-}
-
-impl<'a> RtpsMessageWrite<'a> {
-    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageWriteKind<'a>>) -> Self {
-        Self {
-            header,
-            submessages,
-        }
+        Self { buffer, len }
     }
 
-    pub fn header(&self) -> RtpsMessageHeader {
-        self.header
-    }
-
-    pub fn submessages(&self) -> &[RtpsSubmessageWriteKind] {
-        self.submessages.as_ref()
+    pub fn buffer(&self) -> &[u8] {
+        &self.buffer[0..self.len]
     }
 }
 
@@ -416,7 +404,7 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::{
-            submessage_elements::{Parameter, ParameterList, SerializedPayload},
+            submessage_elements::{Data, Parameter, ParameterList},
             submessages::{data::DataSubmessageRead, heartbeat::HeartbeatSubmessageRead},
             types::ParameterId,
         },
@@ -436,7 +424,7 @@ mod tests {
         };
         let message = RtpsMessageWrite::new(header, Vec::new());
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(message), vec![
+        assert_eq!(message.buffer(), &[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -463,7 +451,7 @@ mod tests {
         let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
         let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
-        let serialized_payload = SerializedPayload::new(&[]);
+        let serialized_payload = &Data::new(vec![]);
 
         let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
             inline_qos_flag,
@@ -478,7 +466,7 @@ mod tests {
         ));
         let value = RtpsMessageWrite::new(header, vec![submessage]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(value), vec![
+        assert_eq!(value.buffer(), &[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix

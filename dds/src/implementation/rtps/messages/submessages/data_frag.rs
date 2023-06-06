@@ -7,10 +7,8 @@ use crate::implementation::{
             overall_structure::{
                 RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
-            submessage_elements::{SerializedPayload, ParameterList, SubmessageElement},
-            types::{
-                FragmentNumber, SubmessageFlag, SubmessageKind,
-            },
+            submessage_elements::{Data, ParameterList, SubmessageElement},
+            types::{FragmentNumber, SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber},
     },
@@ -109,7 +107,7 @@ impl<'a> DataFragSubmessageRead<'a> {
         }
     }
 
-    pub fn serialized_payload(&self) -> SerializedPayload<'a> {
+    pub fn serialized_payload(&self) -> Data {
         self.map(&self.data[8 + self.octets_to_inline_qos() as usize + self.inline_qos_len()..])
     }
 }
@@ -137,7 +135,7 @@ impl<'a> DataFragSubmessageWrite<'a> {
         data_size: u32,
         fragment_size: u16,
         inline_qos: &'a ParameterList,
-        serialized_payload: SerializedPayload<'a>,
+        serialized_payload: &'a Data,
     ) -> Self {
         const EXTRA_FLAGS: u16 = 0;
         const OCTETS_TO_INLINE_QOS: u16 = 28;
@@ -155,7 +153,7 @@ impl<'a> DataFragSubmessageWrite<'a> {
         if inline_qos_flag {
             submessage_elements.push(SubmessageElement::ParameterList(inline_qos));
         }
-        submessage_elements.push(SubmessageElement::SerializedPayload(serialized_payload));
+        submessage_elements.push(SubmessageElement::SerializedData(serialized_payload));
 
         Self {
             endianness_flag: true,
@@ -224,6 +222,7 @@ mod tests {
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
         let inline_qos = &ParameterList::empty();
+        let serialized_payload = &Data::new(vec![]);
         let submessage = DataFragSubmessageWrite::new(
             false,
             false,
@@ -236,7 +235,7 @@ mod tests {
             4,
             5,
             inline_qos,
-            SerializedPayload::new(&[]),
+            serialized_payload,
         );
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
@@ -257,6 +256,7 @@ mod tests {
     fn serialize_with_inline_qos_with_serialized_payload() {
         let inline_qos =
             ParameterList::new(vec![Parameter::new(ParameterId(8), vec![71, 72, 73, 74])]);
+        let serialized_payload = Data::new(vec![1, 2, 3]);
         let submessage = DataFragSubmessageWrite::new(
             true,
             false,
@@ -269,7 +269,7 @@ mod tests {
             8,
             5,
             &inline_qos,
-            SerializedPayload::new(&[1, 2, 3]),
+            &serialized_payload,
         );
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
@@ -318,7 +318,7 @@ mod tests {
         let expected_data_size = 4;
         let expected_fragment_size = 5;
         let expected_inline_qos = ParameterList::empty();
-        let expected_serialized_payload = SerializedPayload::new(&[]);
+        let expected_serialized_payload = Data::new(vec![]);
 
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());
         assert_eq!(
@@ -376,7 +376,7 @@ mod tests {
         let expected_fragment_size = 5;
         let expected_inline_qos =
             ParameterList::new(vec![Parameter::new(ParameterId(8), vec![71, 72, 73, 74])]);
-        let expected_serialized_payload = SerializedPayload::new(&[1, 2, 3, 0]);
+        let expected_serialized_payload = Data::new(vec![1, 2, 3, 0]);
 
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());
         assert_eq!(

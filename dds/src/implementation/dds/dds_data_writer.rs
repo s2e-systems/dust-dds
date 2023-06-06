@@ -602,7 +602,7 @@ mod test {
         Transport{}
 
         impl TransportWrite for Transport {
-            fn write<'a>(&'a mut self, message: &RtpsMessageWrite<'a>, destination_locator_list: &[Locator]);
+            fn write(&self, message: &RtpsMessageWrite, destination_locator_list: &[Locator]);
         }
     }
 

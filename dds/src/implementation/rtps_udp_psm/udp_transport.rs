@@ -1,5 +1,5 @@
 use crate::implementation::rtps::{
-    messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite, EndianWriteBytes},
+    messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
     transport::TransportWrite,
     types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
 };
@@ -41,9 +41,8 @@ impl UdpTransportWrite {
 }
 
 impl TransportWrite for UdpTransportWrite {
-    fn write(&mut self, message: &RtpsMessageWrite<'_>, destination_locator_list: &[Locator]) {
-        let mut buf = [0u8; 35000];
-        message.endian_write_bytes::<byteorder::LittleEndian>(&mut buf);
+    fn write(&self, message: &RtpsMessageWrite, destination_locator_list: &[Locator]) {
+        let buf = message.buffer();
 
         for &destination_locator in destination_locator_list {
             if UdpLocator(destination_locator).is_multicast() {
@@ -61,13 +60,13 @@ impl TransportWrite for UdpTransportWrite {
                 for address in interface_addresses {
                     if socket2.set_multicast_if_v4(&address).is_ok() {
                         self.socket
-                            .send_to(buf.as_slice(), UdpLocator(destination_locator))
+                            .send_to(buf, UdpLocator(destination_locator))
                             .ok();
                     }
                 }
             } else {
                 self.socket
-                    .send_to(buf.as_slice(), UdpLocator(destination_locator))
+                    .send_to(buf, UdpLocator(destination_locator))
                     .ok();
             }
         }
