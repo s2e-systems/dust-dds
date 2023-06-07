@@ -12,7 +12,7 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::actor::{actor_interface, spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -47,7 +47,10 @@ impl DdsPublisher {
             default_datawriter_qos: DataWriterQos::default(),
         }
     }
+}
 
+actor_interface! {
+impl DdsPublisher {
     pub fn enable(&mut self) {
         self.enabled = true;
     }
@@ -60,79 +63,79 @@ impl DdsPublisher {
         self.stateful_data_writer_list.is_empty() && self.stateless_data_writer_list.is_empty()
     }
 
-    pub fn create_datawriter<Foo>(
-        &mut self,
-        topic_name: String,
-        qos: QosKind<DataWriterQos>,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        data_max_size_serialized: usize,
-        user_defined_rtps_message_channel_sender: tokio::sync::mpsc::Sender<(
-            RtpsMessageWrite,
-            Vec<Locator>,
-        )>,
-    ) -> DdsResult<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>>
-    where
-        Foo: DdsType,
-    {
-        let qos = match qos {
-            QosKind::Default => self.default_datawriter_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
-        qos.is_consistent()?;
+    // pub fn create_datawriter<Foo>(
+    //     &mut self,
+    //     topic_name: String,
+    //     qos: QosKind<DataWriterQos>,
+    //     default_unicast_locator_list: Vec<Locator>,
+    //     default_multicast_locator_list: Vec<Locator>,
+    //     data_max_size_serialized: usize,
+    //     user_defined_rtps_message_channel_sender: tokio::sync::mpsc::Sender<(
+    //         RtpsMessageWrite,
+    //         Vec<Locator>,
+    //     )>,
+    // ) -> DdsResult<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>>
+    // where
+    //     Foo: DdsType,
+    // {
+    //     let qos = match qos {
+    //         QosKind::Default => self.default_datawriter_qos.clone(),
+    //         QosKind::Specific(q) => q,
+    //     };
+    //     qos.is_consistent()?;
 
-        let entity_kind = match Foo::has_key() {
-            true => USER_DEFINED_WRITER_WITH_KEY,
-            false => USER_DEFINED_WRITER_NO_KEY,
-        };
+    //     let entity_kind = match Foo::has_key() {
+    //         true => USER_DEFINED_WRITER_WITH_KEY,
+    //         false => USER_DEFINED_WRITER_NO_KEY,
+    //     };
 
-        let entity_key = EntityKey::new([
-            <[u8; 3]>::from(self.guid().entity_id().entity_key())[0],
-            self.get_unique_writer_id(),
-            0,
-        ]);
+    //     let entity_key = EntityKey::new([
+    //         <[u8; 3]>::from(self.guid().entity_id().entity_key())[0],
+    //         self.get_unique_writer_id(),
+    //         0,
+    //     ]);
 
-        let entity_id = EntityId::new(entity_key, entity_kind);
+    //     let entity_id = EntityId::new(entity_key, entity_kind);
 
-        let guid = Guid::new(self.guid().prefix(), entity_id);
+    //     let guid = Guid::new(self.guid().prefix(), entity_id);
 
-        let topic_kind = match Foo::has_key() {
-            true => TopicKind::WithKey,
-            false => TopicKind::NoKey,
-        };
+    //     let topic_kind = match Foo::has_key() {
+    //         true => TopicKind::WithKey,
+    //         false => TopicKind::NoKey,
+    //     };
 
-        let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(
-                guid,
-                topic_kind,
-                &default_unicast_locator_list,
-                &default_multicast_locator_list,
-            ),
-            true,
-            Duration::new(0, 200_000_000),
-            DURATION_ZERO,
-            DURATION_ZERO,
-            data_max_size_serialized,
-            qos,
-        ));
+    //     let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
+    //         RtpsEndpoint::new(
+    //             guid,
+    //             topic_kind,
+    //             &default_unicast_locator_list,
+    //             &default_multicast_locator_list,
+    //         ),
+    //         true,
+    //         Duration::new(0, 200_000_000),
+    //         DURATION_ZERO,
+    //         DURATION_ZERO,
+    //         data_max_size_serialized,
+    //         qos,
+    //     ));
 
-        let mut data_writer = DdsDataWriter::new(
-            rtps_writer_impl,
-            Foo::type_name(),
-            topic_name,
-            user_defined_rtps_message_channel_sender,
-        );
+    //     let mut data_writer = DdsDataWriter::new(
+    //         rtps_writer_impl,
+    //         Foo::type_name(),
+    //         topic_name,
+    //         user_defined_rtps_message_channel_sender,
+    //     );
 
-        if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-            data_writer.enable();
-        }
+    //     if self.enabled && self.qos.entity_factory.autoenable_created_entities {
+    //         data_writer.enable();
+    //     }
 
-        let data_writer_actor = spawn_actor(data_writer);
-        let data_writer_address = data_writer_actor.address();
-        self.stateful_data_writer_list.push(data_writer_actor);
+    //     let data_writer_actor = spawn_actor(data_writer);
+    //     let data_writer_address = data_writer_actor.address();
+    //     self.stateful_data_writer_list.push(data_writer_actor);
 
-        Ok(data_writer_address)
-    }
+    //     Ok(data_writer_address)
+    // }
 
     pub fn delete_datawriter(&mut self, data_writer_guid: Guid) -> DdsResult<()> {
         todo!()
@@ -188,7 +191,7 @@ impl DdsPublisher {
     pub fn lookup_datawriter(
         &mut self,
         type_name: &'static str,
-        topic_name: &str,
+        topic_name: String,
     ) -> DdsResult<Option<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>>> {
         todo!()
         // Ok(domain_participant
@@ -223,12 +226,6 @@ impl DdsPublisher {
         self.stateful_data_writer_list.push(data_writer)
     }
 
-    pub fn stateful_datawriter_drain(
-        &mut self,
-    ) -> std::vec::Drain<Actor<DdsDataWriter<RtpsStatefulWriter>>> {
-        self.stateful_data_writer_list.drain(..)
-    }
-
     pub fn stateful_datawriter_delete(&mut self, data_writer_handle: InstanceHandle) {
         todo!()
         // self.stateful_data_writer_list
@@ -249,16 +246,6 @@ impl DdsPublisher {
         data_writer: Actor<DdsDataWriter<RtpsStatelessWriter>>,
     ) {
         self.stateless_data_writer_list.push(data_writer)
-    }
-
-    pub fn stateless_data_writer_list(&self) -> &[DdsDataWriter<RtpsStatelessWriter>] {
-        todo!()
-        // &self.stateless_data_writer_list
-    }
-
-    pub fn stateless_data_writer_list_mut(&mut self) -> &mut [DdsDataWriter<RtpsStatelessWriter>] {
-        todo!()
-        // &mut self.stateless_data_writer_list
     }
 
     pub fn get_data_writer(
@@ -312,4 +299,5 @@ impl DdsPublisher {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
+}
 }

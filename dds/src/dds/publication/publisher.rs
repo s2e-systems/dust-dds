@@ -86,22 +86,23 @@ impl Publisher {
             .0
             .parent_participant()
             .get_user_defined_rtps_message_channel_sender()?;
-        let writer_address = self.0.address().create_datawriter::<Foo>(
-            a_topic.get_name()?,
-            qos,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            data_max_size_serialized,
-            user_defined_rtps_message_channel_sender,
-        )?;
+        todo!()
+        // let writer_address = self.0.address().create_datawriter::<Foo>(
+        //     a_topic.get_name()?,
+        //     qos,
+        //     default_unicast_locator_list,
+        //     default_multicast_locator_list,
+        //     data_max_size_serialized,
+        //     user_defined_rtps_message_channel_sender,
+        // )?;
 
-        Ok(DataWriter::new(DataWriterNodeKind::UserDefined(
-            DataWriterNode::new(
-                writer_address,
-                self.0.address().clone(),
-                self.0.parent_participant().clone(),
-            ),
-        )))
+        // Ok(DataWriter::new(DataWriterNodeKind::UserDefined(
+        //     DataWriterNode::new(
+        //         writer_address,
+        //         self.0.address().clone(),
+        //         self.0.parent_participant().clone(),
+        //     ),
+        // )))
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the

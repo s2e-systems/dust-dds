@@ -95,20 +95,21 @@ impl Subscriber {
                 let default_multicast_locator_list =
                     s.parent_participant().default_unicast_locator_list()?;
 
-                let reader_address = s.address().create_datareader::<Foo>(
-                    a_topic.get_name()?,
-                    qos,
-                    default_unicast_locator_list,
-                    default_multicast_locator_list,
-                )?;
+                // let reader_address = s.address().create_datareader::<Foo>(
+                //     a_topic.get_name()?,
+                //     qos,
+                //     default_unicast_locator_list,
+                //     default_multicast_locator_list,
+                // )?;
 
-                Ok(DataReader::new(DataReaderNodeKind::UserDefined(
-                    DataReaderNode::new(
-                        reader_address,
-                        s.address().clone(),
-                        s.parent_participant().clone(),
-                    ),
-                )))
+                // Ok(DataReader::new(DataReaderNodeKind::UserDefined(
+                //     DataReaderNode::new(
+                //         reader_address,
+                //         s.address().clone(),
+                //         s.parent_participant().clone(),
+                //     ),
+                // )))
+                todo!()
             }
         }
     }
@@ -277,7 +278,7 @@ impl Subscriber {
         a_datareader_qos: &mut DataReaderQos,
         a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
-        DdsSubscriber::copy_from_topic_qos(a_datareader_qos, a_topic_qos)
+        todo!()
     }
 
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.

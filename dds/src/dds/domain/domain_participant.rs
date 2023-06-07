@@ -2118,17 +2118,18 @@ pub fn subscriber_add_matched_writer(
     {
         let user_defined_subscriber_qos = user_defined_subscriber.get_qos();
         let user_defined_subscriber_guid = user_defined_subscriber.guid();
-        for data_reader in user_defined_subscriber.stateful_data_reader_list_mut() {
-            data_reader.add_matched_writer(
-                discovered_writer_data,
-                default_unicast_locator_list,
-                default_multicast_locator_list,
-                &user_defined_subscriber_qos,
-                user_defined_subscriber_guid,
-                parent_participant_guid,
-                listener_sender,
-            )
-        }
+        todo!()
+        // for data_reader in user_defined_subscriber.stateful_data_reader_list_mut() {
+        //     data_reader.add_matched_writer(
+        //         discovered_writer_data,
+        //         default_unicast_locator_list,
+        //         default_multicast_locator_list,
+        //         &user_defined_subscriber_qos,
+        //         user_defined_subscriber_guid,
+        //         parent_participant_guid,
+        //         listener_sender,
+        //     )
+        // }
     }
 }
 

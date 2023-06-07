@@ -20,7 +20,7 @@ use crate::{
                 USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
             },
         },
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::actor::{actor_interface, spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -54,68 +54,71 @@ impl DdsSubscriber {
             default_data_reader_qos: Default::default(),
         }
     }
+}
 
-    pub fn create_datareader<Foo>(
-        &mut self,
-        topic_name: String,
-        qos: QosKind<DataReaderQos>,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-    ) -> DdsResult<ActorAddress<DdsDataReader<RtpsStatefulReader>>>
-    where
-        Foo: DdsType + for<'de> DdsDeserialize<'de>,
-    {
-        let qos = match qos {
-            QosKind::Default => self.default_data_reader_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
-        qos.is_consistent()?;
+actor_interface! {
+impl DdsSubscriber {
+    // pub fn create_datareader<Foo>(
+    //     &mut self,
+    //     topic_name: String,
+    //     qos: QosKind<DataReaderQos>,
+    //     default_unicast_locator_list: Vec<Locator>,
+    //     default_multicast_locator_list: Vec<Locator>,
+    // ) -> DdsResult<ActorAddress<DdsDataReader<RtpsStatefulReader>>>
+    // where
+    //     Foo: DdsType + for<'de> DdsDeserialize<'de>,
+    // {
+    //     let qos = match qos {
+    //         QosKind::Default => self.default_data_reader_qos.clone(),
+    //         QosKind::Specific(q) => q,
+    //     };
+    //     qos.is_consistent()?;
 
-        let entity_kind = match Foo::has_key() {
-            true => USER_DEFINED_READER_WITH_KEY,
-            false => USER_DEFINED_READER_NO_KEY,
-        };
+    //     let entity_kind = match Foo::has_key() {
+    //         true => USER_DEFINED_READER_WITH_KEY,
+    //         false => USER_DEFINED_READER_NO_KEY,
+    //     };
 
-        let entity_key = EntityKey::new([
-            <[u8; 3]>::from(self.guid().entity_id().entity_key())[0],
-            self.get_unique_reader_id(),
-            0,
-        ]);
+    //     let entity_key = EntityKey::new([
+    //         <[u8; 3]>::from(self.guid().entity_id().entity_key())[0],
+    //         self.get_unique_reader_id(),
+    //         0,
+    //     ]);
 
-        let entity_id = EntityId::new(entity_key, entity_kind);
+    //     let entity_id = EntityId::new(entity_key, entity_kind);
 
-        let guid = Guid::new(self.guid().prefix(), entity_id);
+    //     let guid = Guid::new(self.guid().prefix(), entity_id);
 
-        let topic_kind = match Foo::has_key() {
-            true => TopicKind::WithKey,
-            false => TopicKind::NoKey,
-        };
+    //     let topic_kind = match Foo::has_key() {
+    //         true => TopicKind::WithKey,
+    //         false => TopicKind::NoKey,
+    //     };
 
-        let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<Foo>(
-            RtpsEndpoint::new(
-                guid,
-                topic_kind,
-                &default_unicast_locator_list,
-                &default_multicast_locator_list,
-            ),
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-        ));
+    //     let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<Foo>(
+    //         RtpsEndpoint::new(
+    //             guid,
+    //             topic_kind,
+    //             &default_unicast_locator_list,
+    //             &default_multicast_locator_list,
+    //         ),
+    //         DURATION_ZERO,
+    //         DURATION_ZERO,
+    //         false,
+    //         qos,
+    //     ));
 
-        let mut data_reader = DdsDataReader::new(rtps_reader, Foo::type_name(), topic_name);
+    //     let mut data_reader = DdsDataReader::new(rtps_reader, Foo::type_name(), topic_name);
 
-        if self.is_enabled() && self.qos.entity_factory.autoenable_created_entities {
-            data_reader.enable()?;
-        }
+    //     if self.is_enabled() && self.qos.entity_factory.autoenable_created_entities {
+    //         data_reader.enable()?;
+    //     }
 
-        let reader_actor = spawn_actor(data_reader);
-        let reader_address = reader_actor.address();
-        self.stateful_data_reader_list.push(reader_actor);
+    //     let reader_actor = spawn_actor(data_reader);
+    //     let reader_address = reader_actor.address();
+    //     self.stateful_data_reader_list.push(reader_actor);
 
-        Ok(reader_address)
-    }
+    //     Ok(reader_address)
+    // }
 
     pub fn delete_datareader(&mut self, datareader_guid: Guid) -> DdsResult<()> {
         todo!()
@@ -148,10 +151,14 @@ impl DdsSubscriber {
         // Ok(())
     }
 
+    pub fn delete_contained_entities(&mut self) {
+
+    }
+
     pub fn lookup_datareader(
         &self,
-        type_name: &str,
-        topic_name: &str,
+        type_name: &'static str,
+        topic_name: String,
     ) -> DdsResult<Option<ActorAddress<DdsDataReader<RtpsStatefulReader>>>> {
         todo!()
         // Ok(self
@@ -166,13 +173,6 @@ impl DdsSubscriber {
 
     pub fn guid(&self) -> Guid {
         self.rtps_group.guid()
-    }
-
-    pub fn copy_from_topic_qos(
-        _a_datareader_qos: &mut DataReaderQos,
-        _a_topic_qos: &TopicQos,
-    ) -> DdsResult<()> {
-        todo!()
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -196,36 +196,6 @@ impl DdsSubscriber {
         self.stateless_data_reader_list.push(data_reader)
     }
 
-    pub fn stateless_data_reader_list(&self) -> &[DdsDataReader<RtpsStatelessReader>] {
-        todo!()
-        // &self.stateless_data_reader_list
-    }
-
-    pub fn stateless_data_reader_list_mut(&mut self) -> &mut [DdsDataReader<RtpsStatelessReader>] {
-        todo!()
-        // &mut self.stateless_data_reader_list
-    }
-
-    pub fn get_stateless_data_reader(
-        &self,
-        data_reader: Guid,
-    ) -> Option<&DdsDataReader<RtpsStatelessReader>> {
-        todo!()
-        // self.stateless_data_reader_list
-        //     .iter()
-        //     .find(|s| s.guid() == data_reader)
-    }
-
-    pub fn get_stateless_data_reader_mut(
-        &mut self,
-        data_reader: Guid,
-    ) -> Option<&mut DdsDataReader<RtpsStatelessReader>> {
-        todo!()
-        // self.stateless_data_reader_list
-        //     .iter_mut()
-        //     .find(|s| s.guid() == data_reader)
-    }
-
     pub fn stateful_data_reader_add(
         &mut self,
         data_reader: Actor<DdsDataReader<RtpsStatefulReader>>,
@@ -237,43 +207,6 @@ impl DdsSubscriber {
         todo!()
         // self.stateful_data_reader_list
         //     .retain(|x| x.guid() != datareader_guid)
-    }
-
-    pub fn stateful_data_reader_list(&self) -> &[DdsDataReader<RtpsStatefulReader>] {
-        todo!()
-        // &self.stateful_data_reader_list
-    }
-
-    pub fn stateful_data_reader_list_mut(&mut self) -> &mut [DdsDataReader<RtpsStatefulReader>] {
-        todo!()
-        // &mut self.stateful_data_reader_list
-    }
-
-    pub fn get_stateful_data_reader(
-        &self,
-        data_reader: Guid,
-    ) -> Option<&DdsDataReader<RtpsStatefulReader>> {
-        todo!()
-        // self.stateful_data_reader_list
-        //     .iter()
-        //     .find(|s| s.guid() == data_reader)
-    }
-
-    pub fn get_stateful_data_reader_mut(
-        &mut self,
-        data_reader: Guid,
-    ) -> Option<&mut DdsDataReader<RtpsStatefulReader>> {
-        todo!()
-        // self.stateful_data_reader_list
-        //     .iter_mut()
-        //     .find(|s| s.guid() == data_reader)
-    }
-
-    pub fn stateful_data_reader_drain(
-        &mut self,
-    ) -> std::vec::Drain<DdsDataReader<RtpsStatefulReader>> {
-        todo!()
-        // self.stateful_data_reader_list.drain(..)
     }
 
     pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
@@ -289,24 +222,6 @@ impl DdsSubscriber {
 
     pub fn get_default_datareader_qos(&self) -> DataReaderQos {
         self.default_data_reader_qos.clone()
-    }
-
-    pub fn update_communication_status(
-        &mut self,
-        now: Time,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) {
-        todo!()
-        // let guid = self.guid();
-        // for data_reader in self.stateful_data_reader_list.iter_mut() {
-        //     data_reader.update_communication_status(
-        //         now,
-        //         parent_participant_guid,
-        //         guid,
-        //         listener_sender,
-        //     );
-        // }
     }
 
     pub fn set_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
@@ -339,90 +254,4 @@ impl DdsSubscriber {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
-
-    pub fn on_heartbeat_submessage_received(
-        &mut self,
-        heartbeat_submessage: &HeartbeatSubmessageRead,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        todo!()
-        // for data_reader in self.stateful_data_reader_list.iter_mut() {
-        //     data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
-        // }
-    }
-
-    pub fn on_heartbeat_frag_submessage_received(
-        &mut self,
-        heartbeat_frag_submessage: &HeartbeatFragSubmessageRead,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        todo!()
-        // for data_reader in self.stateful_data_reader_list.iter_mut() {
-        //     data_reader.on_heartbeat_frag_submessage_received(
-        //         heartbeat_frag_submessage,
-        //         source_guid_prefix,
-        //     )
-        // }
-    }
-
-    pub fn on_data_submessage_received(
-        &mut self,
-        data_submessage: &DataSubmessageRead<'_>,
-        message_receiver: &MessageReceiver,
-        reception_timestamp: Time,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) {
-        // let guid = self.guid();
-        // for stateless_data_reader in self.stateless_data_reader_list.iter_mut() {
-        //     stateless_data_reader.on_data_submessage_received(
-        //         data_submessage,
-        //         message_receiver,
-        //         reception_timestamp,
-        //     );
-        // }
-        todo!()
-
-        // for data_reader in self.stateful_data_reader_list.iter_mut() {
-        //     data_reader.on_data_submessage_received(
-        //         data_submessage,
-        //         message_receiver,
-        //         guid,
-        //         parent_participant_guid,
-        //         listener_sender,
-        //     );
-        // }
-    }
-
-    pub fn on_data_frag_submessage_received(
-        &mut self,
-        data_frag_submessage: &DataFragSubmessageRead<'_>,
-        message_receiver: &MessageReceiver,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) {
-        let guid = self.guid();
-        todo!()
-        // for data_reader in self.stateful_data_reader_list.iter_mut() {
-        //     data_reader.on_data_frag_submessage_received(
-        //         data_frag_submessage,
-        //         message_receiver,
-        //         guid,
-        //         parent_participant_guid,
-        //         listener_sender,
-        //     );
-        // }
-    }
-
-    pub fn on_gap_submessage_received(
-        &mut self,
-        gap_submessage: &GapSubmessageRead,
-        message_receiver: &MessageReceiver,
-    ) {
-        todo!()
-        // for data_reader in self.stateful_data_reader_list.iter_mut() {
-        //     data_reader
-        //         .on_gap_submessage_received(gap_submessage, message_receiver.source_guid_prefix());
-        // }
-    }
-}
+}}
