@@ -1,11 +1,8 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::{
-        dds::{
-            dds_subscriber::DdsSubscriber,
-            nodes::{DataReaderNode, DataReaderNodeKind, SubscriberNodeKind},
-        },
-        dds_actor,
+    implementation::dds::{
+        dds_subscriber::DdsSubscriber,
+        nodes::{DataReaderNode, DataReaderNodeKind, SubscriberNodeKind},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -94,9 +91,9 @@ impl Subscriber {
             }
             SubscriberNodeKind::UserDefined(s) => {
                 let default_unicast_locator_list =
-                    s.parent_participant().get_default_unicast_locator_list()?;
+                    s.parent_participant().default_unicast_locator_list()?;
                 let default_multicast_locator_list =
-                    s.parent_participant().get_default_unicast_locator_list()?;
+                    s.parent_participant().default_unicast_locator_list()?;
 
                 let reader_address = s.address().create_datareader::<Foo>(
                     a_topic.get_name()?,

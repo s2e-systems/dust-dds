@@ -131,7 +131,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher_address = self.0.create_publisher(qos, a_listener, mask.to_vec())?;
+        let publisher_address = self.0.create_publisher(qos)??;
 
         Ok(Publisher::new(PublisherNode::new(
             publisher_address,
@@ -147,7 +147,8 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        self.0.delete_publisher(a_publisher.get_instance_handle()?)
+        self.0
+            .delete_publisher(a_publisher.get_instance_handle()?)?
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
@@ -164,7 +165,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber_address = self.0.create_subscriber(qos, a_listener, mask.to_vec())?;
+        let subscriber_address = self.0.create_subscriber(qos)??;
 
         Ok(Subscriber::new(SubscriberNodeKind::UserDefined(
             SubscriberNode::new(subscriber_address, self.0.clone()),
@@ -216,18 +217,19 @@ impl DomainParticipant {
     where
         Foo: DdsType + 'static,
     {
-        let topic_address = self.0.create_topic(
-            topic_name.to_string(),
-            Foo::type_name(),
-            qos,
-            a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
-            mask.to_vec(),
-        )?;
+        todo!();
+        // let topic_address = self.0.create_topic(
+        //     topic_name.to_string(),
+        //     Foo::type_name(),
+        //     qos,
+        //     a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+        //     mask.to_vec(),
+        // )?;
 
-        Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
-            topic_address,
-            self.0.clone(),
-        ))))
+        // Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
+        // topic_address,
+        // self.0.clone(),
+        // ))))
     }
 
     /// This operation deletes a [`Topic`].
@@ -402,7 +404,7 @@ impl DomainParticipant {
     /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.delete_contained_entities()
+        self.0.delete_contained_entities()?
     }
 
     /// This operation manually asserts the liveliness of the [`DomainParticipant`]. This is used in combination
@@ -1575,53 +1577,53 @@ fn user_defined_communication_send(
     );
     let now = domain_participant.get_current_time();
 
-    for publisher in domain_participant.user_defined_publisher_list_mut() {
-        todo!()
-        // for data_writer in publisher.stateful_data_writer_list_mut() {
-        //     let writer_id = data_writer.guid().entity_id();
-        //     let data_max_size_serialized = data_writer.data_max_size_serialized();
-        //     let heartbeat_period = data_writer.heartbeat_period();
-        //     let first_sn = data_writer
-        //         .change_list()
-        //         .iter()
-        //         .map(|x| x.sequence_number())
-        //         .min()
-        //         .unwrap_or(SequenceNumber::new(1));
-        //     let last_sn = data_writer
-        //         .change_list()
-        //         .iter()
-        //         .map(|x| x.sequence_number())
-        //         .max()
-        //         .unwrap_or_else(|| SequenceNumber::new(0));
-        //     remove_stale_writer_changes(data_writer, now);
-        //     for reader_proxy in &mut data_writer.matched_reader_list() {
-        //         match reader_proxy.reliability() {
-        //             ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
-        //                 reader_proxy,
-        //                 data_max_size_serialized,
-        //                 header,
-        //                 default_unicast_transport_send,
-        //             ),
-        //             ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
-        //                 reader_proxy,
-        //                 data_max_size_serialized,
-        //                 header,
-        //                 default_unicast_transport_send,
-        //                 writer_id,
-        //                 first_sn,
-        //                 last_sn,
-        //                 heartbeat_period,
-        //             ),
-        //         }
-        //     }
-        // }
-    }
+    // for publisher in domain_participant.user_defined_publisher_list_mut() {
+    todo!()
+    // for data_writer in publisher.stateful_data_writer_list_mut() {
+    //     let writer_id = data_writer.guid().entity_id();
+    //     let data_max_size_serialized = data_writer.data_max_size_serialized();
+    //     let heartbeat_period = data_writer.heartbeat_period();
+    //     let first_sn = data_writer
+    //         .change_list()
+    //         .iter()
+    //         .map(|x| x.sequence_number())
+    //         .min()
+    //         .unwrap_or(SequenceNumber::new(1));
+    //     let last_sn = data_writer
+    //         .change_list()
+    //         .iter()
+    //         .map(|x| x.sequence_number())
+    //         .max()
+    //         .unwrap_or_else(|| SequenceNumber::new(0));
+    //     remove_stale_writer_changes(data_writer, now);
+    //     for reader_proxy in &mut data_writer.matched_reader_list() {
+    //         match reader_proxy.reliability() {
+    //             ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
+    //                 reader_proxy,
+    //                 data_max_size_serialized,
+    //                 header,
+    //                 default_unicast_transport_send,
+    //             ),
+    //             ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
+    //                 reader_proxy,
+    //                 data_max_size_serialized,
+    //                 header,
+    //                 default_unicast_transport_send,
+    //                 writer_id,
+    //                 first_sn,
+    //                 last_sn,
+    //                 heartbeat_period,
+    //             ),
+    //         }
+    //     }
+    // }
+    // }
 
-    for subscriber in domain_participant.user_defined_subscriber_list_mut() {
-        for data_reader in subscriber.stateful_data_reader_list_mut() {
-            data_reader.send_message(header, default_unicast_transport_send)
-        }
-    }
+    // for subscriber in domain_participant.user_defined_subscriber_list_mut() {
+    //     for data_reader in subscriber.stateful_data_reader_list_mut() {
+    //         data_reader.send_message(header, default_unicast_transport_send)
+    //     }
+    // }
 }
 
 fn remove_stale_writer_changes(writer: &mut DdsDataWriter<RtpsStatefulWriter>, now: Time) {
@@ -2249,16 +2251,16 @@ fn receive_builtin_message(
     sedp_condvar: &DdsCondvar,
     listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
-    domain_participant
-        .receive_builtin_data(locator, message, listener_sender)
-        .ok();
+    // domain_participant
+    //     .receive_builtin_data(locator, message, listener_sender)
+    //     .ok();
 
     discover_matched_participants(domain_participant, sedp_condvar).ok();
     domain_participant
-        .discover_matched_readers(listener_sender)
+        .discover_matched_readers(listener_sender.clone())
         .ok();
     discover_matched_writers(domain_participant, listener_sender).ok();
     domain_participant
-        .discover_matched_topics(listener_sender)
+        .discover_matched_topics(listener_sender.clone())
         .ok();
 }

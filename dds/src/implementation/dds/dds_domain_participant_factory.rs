@@ -28,7 +28,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress, THE_RUNTIME},
+            actor::{actor_interface, spawn_actor, Actor, ActorAddress, THE_RUNTIME},
             condvar::DdsCondvar,
         },
     },
@@ -73,13 +73,16 @@ impl DdsDomainParticipantFactory {
             default_participant_qos: DomainParticipantQos::default(),
         }
     }
+}
 
+actor_interface! {
+impl DdsDomainParticipantFactory {
     pub fn create_participant(
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: &[StatusKind],
+        mask: Vec<StatusKind>,
     ) -> DdsResult<ActorAddress<DdsDomainParticipant>> {
         async fn task_send_entity_announce(
             mut announce_receiver: tokio::sync::mpsc::Receiver<AnnounceKind>,
@@ -88,9 +91,9 @@ impl DdsDomainParticipantFactory {
             loop {
                 if let Some(announce_kind) = announce_receiver.recv().await {
                     tokio::task::block_in_place(|| {
-                        domain_participant_address
-                            .announce_entity(announce_kind)
-                            .unwrap()
+                        // domain_participant_address
+                        // .announce_entity(announce_kind)
+                        // .unwrap()
                     });
                 }
             }
@@ -124,9 +127,9 @@ impl DdsDomainParticipantFactory {
             loop {
                 if let Some((locator, message)) = metatraffic_unicast_transport.read().await {
                     tokio::task::block_in_place(|| {
-                        domain_participant_address
-                            .receive_builtin_message(locator, message)
-                            .unwrap()
+                        // domain_participant_address
+                        // .receive_builtin_message(locator, message)
+                        // .unwrap()
                     });
                 }
             }
@@ -139,9 +142,9 @@ impl DdsDomainParticipantFactory {
             loop {
                 if let Some((locator, message)) = default_unicast_transport.read().await {
                     tokio::task::block_in_place(|| {
-                        domain_participant_address
-                            .receive_user_defined_message(locator, message)
-                            .unwrap()
+                        // domain_participant_address
+                        //     .receive_user_defined_message(locator, message)
+                        //     .unwrap()
                     });
                 }
             }
@@ -392,8 +395,8 @@ impl DdsDomainParticipantFactory {
             .find(|a| a.get_domain_id().expect("Should not fail to send message") == domain_id)
     }
 
-    pub fn get_qos(&self) -> &DomainParticipantFactoryQos {
-        &self.qos
+    pub fn get_qos(&self) -> DomainParticipantFactoryQos {
+        self.qos.clone()
     }
 
     pub fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) {
@@ -405,8 +408,8 @@ impl DdsDomainParticipantFactory {
         self.qos = qos;
     }
 
-    pub fn get_default_participant_qos(&self) -> &DomainParticipantQos {
-        &self.default_participant_qos
+    pub fn get_default_participant_qos(&self) -> DomainParticipantQos {
+        self.default_participant_qos.clone()
     }
 
     pub fn set_default_participant_qos(&mut self, qos: QosKind<DomainParticipantQos>) {
@@ -416,6 +419,7 @@ impl DdsDomainParticipantFactory {
         };
         self.default_participant_qos = qos;
     }
+}
 }
 
 // As of 9.6.1.4.1  Default multicast address

@@ -159,6 +159,93 @@ where
     }
 }
 
+// Macro to create both a function for the method and the equivalent wrapper for the actor
+macro_rules! actor_function {
+    // Match a function definition with return type
+    ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) -> $ret_type:ty $body:block) => {
+        impl $type_name {
+            pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) -> $ret_type{
+                $body
+            }
+        }
+
+        impl ActorAddress<$type_name> {
+            pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> DdsResult<$ret_type> {
+                #[allow(non_camel_case_types)]
+                struct $fn_name {
+                    $($arg_name:$arg_type,)*
+                }
+
+                impl crate::implementation::utils::actor::Mail for $fn_name {
+                    type Result = $ret_type;
+                }
+
+                impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
+                    #[allow(unused_variables)]
+                    fn handle(&mut self, mail: $fn_name) -> $ret_type {
+                        self.$fn_name($(mail.$arg_name,)*)
+                    }
+                }
+
+                self.send_blocking($fn_name{
+                    $($arg_name, )*
+                })
+
+            }
+        }
+
+    };
+
+    // Match a function definition without return type
+    ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $body:block ) => {
+        impl $type_name {
+            pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type),*) {
+                $body
+            }
+        }
+
+        impl ActorAddress<$type_name> {
+            pub fn $fn_name(&self $(, $arg_name:$arg_type),*) -> DdsResult<()> {
+                #[allow(non_camel_case_types)]
+                struct $fn_name {
+                    $($arg_name:$arg_type)*
+                }
+
+                impl crate::implementation::utils::actor::Mail for $fn_name {
+                    type Result = ();
+                }
+
+                impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
+                    #[allow(unused_variables)]
+                    fn handle(&mut self, mail: $fn_name) {
+                        self.$fn_name($(mail.$arg_name)*)
+                    }
+                }
+
+                self.send_blocking($fn_name{
+                    $($arg_name)*
+                })
+
+            }
+        }
+    };
+}
+pub(crate) use actor_function;
+
+// This macro should wrap an impl block and create the actor address wrapper methods with exactly the same interface
+// It is kept around the "impl" block because otherwise there is no way to find the type name it refers to ($type_name)
+macro_rules! actor_interface {
+    (impl $type_name:ident {
+        $(
+        pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $(-> $ret_type:ty)?
+            $body:block
+        )+
+    }) => {
+        $(crate::implementation::utils::actor::actor_function!($type_name, pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) $(-> $ret_type)? $body );)+
+    };
+}
+pub(crate) use actor_interface;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -166,49 +253,29 @@ mod tests {
     pub struct MyData {
         data: u8,
     }
-
+    actor_interface!(
     impl MyData {
-        fn increment(&mut self, value: u8) -> u8 {
+        pub fn increment(&mut self, value: u8) -> u8 {
             self.data += value;
             self.data
         }
 
-        fn decrement(&mut self) {
+        pub fn decrement(&mut self) {
             self.data -= 1;
         }
-    }
 
-    pub struct IncrementMail {
-        pub value: u8,
-    }
-
-    impl Mail for IncrementMail {
-        type Result = u8;
-    }
-
-    pub struct DecrementMail;
-
-    impl Mail for DecrementMail {
-        type Result = ();
-    }
-
-    impl MailHandler<IncrementMail> for MyData {
-        fn handle(&mut self, mail: IncrementMail) -> <IncrementMail as Mail>::Result {
-            self.increment(mail.value)
+        pub fn try_increment(&mut self) -> DdsResult<()> {
+            self.data -= 1;
+            Ok(())
         }
     }
-
-    impl MailHandler<DecrementMail> for MyData {
-        fn handle(&mut self, _: DecrementMail) -> <DecrementMail as Mail>::Result {
-            self.decrement()
-        }
-    }
+    );
 
     pub struct DataInterface(ActorAddress<MyData>);
 
     impl DataInterface {
         pub fn increment(&self, value: u8) -> DdsResult<u8> {
-            self.0.send_blocking(IncrementMail { value })
+            self.0.increment(value)
         }
     }
 

@@ -49,7 +49,7 @@ impl DomainParticipantFactory {
         let participant_address =
             self.0
                 .address()
-                .create_participant(domain_id, qos, a_listener, mask.to_vec())?;
+                .create_participant(domain_id, qos, a_listener, mask.to_vec())??;
         Ok(DomainParticipant::new(participant_address))
     }
 
@@ -59,7 +59,7 @@ impl DomainParticipantFactory {
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         self.0
             .address()
-            .delete_participant(participant.get_instance_handle()?)
+            .delete_participant(participant.get_instance_handle()?)?
     }
 
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple

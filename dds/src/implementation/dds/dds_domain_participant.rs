@@ -49,7 +49,7 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress, THE_RUNTIME},
+            actor::{self, actor_interface, spawn_actor, Actor, ActorAddress, THE_RUNTIME},
             condvar::DdsCondvar,
         },
     },
@@ -472,16 +472,23 @@ impl DdsDomainParticipant {
             builtin_message_broadcast_receiver_sender,
         }
     }
+}
 
+actor_interface! {
+impl DdsDomainParticipant {
     pub fn guid(&self) -> Guid {
         self.rtps_participant.guid()
+    }
+
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_participant.guid().into()
     }
 
     pub fn vendor_id(&self) -> VendorId {
         self.rtps_participant.vendor_id()
     }
 
-    pub fn domain_id(&self) -> DomainId {
+    pub fn get_domain_id(&self) -> DomainId {
         self.domain_id
     }
 
@@ -489,8 +496,10 @@ impl DdsDomainParticipant {
         self.rtps_participant.protocol_version()
     }
 
-    pub fn default_unicast_locator_list(&self) -> &[Locator] {
-        self.rtps_participant.default_unicast_locator_list()
+    pub fn default_unicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_participant
+            .default_unicast_locator_list()
+            .to_vec()
     }
 
     pub fn get_user_defined_rtps_message_channel_sender(
@@ -499,16 +508,22 @@ impl DdsDomainParticipant {
         self.user_defined_rtps_message_channel_sender.clone()
     }
 
-    pub fn default_multicast_locator_list(&self) -> &[Locator] {
-        self.rtps_participant.default_multicast_locator_list()
+    pub fn default_multicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_participant
+            .default_multicast_locator_list()
+            .to_vec()
     }
 
-    pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
-        self.rtps_participant.metatraffic_unicast_locator_list()
+    pub fn metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_participant
+            .metatraffic_unicast_locator_list()
+            .to_vec()
     }
 
-    pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
-        self.rtps_participant.metatraffic_multicast_locator_list()
+    pub fn metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_participant
+            .metatraffic_multicast_locator_list()
+            .to_vec()
     }
 
     pub fn get_builtin_subscriber(&self) -> ActorAddress<DdsSubscriber> {
@@ -582,27 +597,19 @@ impl DdsDomainParticipant {
         self.ignored_publications.contains(&handle)
     }
 
-    pub fn get_domain_tag(&self) -> &str {
-        &self.domain_tag
+    pub fn get_domain_tag(&self) -> String {
+        self.domain_tag.clone()
     }
 
-    pub fn discovered_participant_add(
-        &mut self,
-        handle: InstanceHandle,
-        discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) {
-        self.discovered_participant_list
-            .insert(handle, discovered_participant_data);
-    }
+    // pub fn discovered_participant_add(
+    //     &mut self, handle: InstanceHandle, discovered_participant_data: SpdpDiscoveredParticipantData,
+    // ) {
+    //     self.discovered_participant_list
+    //         .insert(handle, discovered_participant_data);
+    // }
 
     pub fn _discovered_participant_remove(&mut self, handle: InstanceHandle) {
         self.discovered_participant_list.remove(&handle);
-    }
-
-    pub fn discovered_participant_list(
-        &self,
-    ) -> std::collections::hash_map::Iter<InstanceHandle, SpdpDiscoveredParticipantData> {
-        self.discovered_participant_list.iter()
     }
 
     pub fn create_publisher(
@@ -665,26 +672,6 @@ impl DdsDomainParticipant {
             && self.topic_list.iter().count() == 0
     }
 
-    pub fn user_defined_publisher_list(&self) -> &[DdsPublisher] {
-        todo!()
-        // self.user_defined_publisher_list.as_slice()
-    }
-
-    pub fn user_defined_publisher_list_mut(&mut self) -> &mut [DdsPublisher] {
-        todo!()
-        // self.user_defined_publisher_list.as_mut_slice()
-    }
-
-    pub fn get_publisher(&self, publisher_guid: Guid) -> Option<&DdsPublisher> {
-        todo!()
-    }
-
-    pub fn get_publisher_mut(&mut self, publisher_guid: Guid) -> Option<&mut DdsPublisher> {
-        self.user_defined_publisher_list_mut()
-            .iter_mut()
-            .find(|p| p.guid() == publisher_guid)
-    }
-
     pub fn create_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
@@ -743,33 +730,9 @@ impl DdsDomainParticipant {
         // Ok(())
     }
 
-    pub fn user_defined_subscriber_list(&self) -> &[DdsSubscriber] {
-        todo!()
-        // &self.user_defined_subscriber_list
-    }
-
-    pub fn user_defined_subscriber_list_mut(&mut self) -> &mut [DdsSubscriber] {
-        todo!()
-        // &mut self.user_defined_subscriber_list
-    }
-
-    pub fn get_subscriber(&self, subscriber_guid: Guid) -> Option<&DdsSubscriber> {
-        todo!()
-        // self.user_defined_subscriber_list
-        //     .iter()
-        //     .find(|s| s.guid() == subscriber_guid)
-    }
-
-    pub fn get_subscriber_mut(&mut self, subscriber_guid: Guid) -> Option<&mut DdsSubscriber> {
-        todo!()
-        // self.user_defined_subscriber_list
-        //     .iter_mut()
-        //     .find(|s| s.guid() == subscriber_guid)
-    }
-
     pub fn create_topic(
         &mut self,
-        topic_name: &str,
+        topic_name: String,
         type_name: &'static str,
         qos: QosKind<TopicQos>,
     ) -> DdsResult<ActorAddress<DdsTopic>> {
@@ -790,7 +753,7 @@ impl DdsDomainParticipant {
             topic_guid,
             qos,
             type_name,
-            topic_name,
+            &topic_name,
             self.announce_sender.clone(),
         );
 
@@ -844,22 +807,6 @@ impl DdsDomainParticipant {
         todo!()
     }
 
-    pub fn topic_list(&self) -> &[DdsTopic] {
-        todo!()
-        // &self.topic_list
-    }
-
-    pub fn topic_list_mut(&mut self) -> &mut [DdsTopic] {
-        todo!()
-        // &mut self.topic_list
-    }
-
-    pub fn get_topic(&self, topic_name: &str, type_name: &str) -> Option<&DdsTopic> {
-        self.topic_list()
-            .iter()
-            .find(|t| t.get_name() == topic_name && t.get_type_name() == type_name)
-    }
-
     pub fn get_qos(&self) -> DomainParticipantQos {
         self.qos.clone()
     }
@@ -870,7 +817,7 @@ impl DdsDomainParticipant {
 
     pub fn find_topic(
         &mut self,
-        topic_name: &str,
+        topic_name: String,
         type_name: &'static str,
     ) -> Option<ActorAddress<DdsTopic>> {
         todo!()
@@ -1033,14 +980,12 @@ impl DdsDomainParticipant {
         todo!()
     }
 
-    pub fn set_qos(&mut self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
+    pub fn set_qos(&mut self, qos: QosKind<DomainParticipantQos>) {
         self.qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
             QosKind::Specific(q) => q,
         };
         self.announce_participant().ok();
-
-        Ok(())
     }
 
     pub fn announce_participant(&mut self) -> DdsResult<()> {
@@ -1129,7 +1074,7 @@ impl DdsDomainParticipant {
         &mut self,
         source_locator: Locator,
         message: RtpsMessageRead,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         // MessageReceiver::new(self.get_current_time()).process_message(
         //     self.rtps_participant.guid(),
@@ -1147,7 +1092,7 @@ impl DdsDomainParticipant {
         &mut self,
         source_locator: Locator,
         message: RtpsMessageRead,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         // MessageReceiver::new(self.get_current_time()).process_message(
         //     self.rtps_participant.guid(),
@@ -1165,7 +1110,7 @@ impl DdsDomainParticipant {
 
     pub fn discover_matched_readers(
         &mut self,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         todo!();
         // let samples = self
@@ -1304,7 +1249,7 @@ impl DdsDomainParticipant {
 
     pub fn discover_matched_topics(
         &mut self,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         todo!()
         // while let Ok(samples) = self
@@ -1341,7 +1286,7 @@ impl DdsDomainParticipant {
 
     pub fn update_communication_status(
         &mut self,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         let now = self.get_current_time();
         let guid = self.guid();
@@ -1352,18 +1297,7 @@ impl DdsDomainParticipant {
 
         Ok(())
     }
-
-    pub fn announce_sender(&self) -> &tokio::sync::mpsc::Sender<AnnounceKind> {
-        &self.announce_sender
-    }
-
-    pub fn user_defined_data_send_condvar(&self) -> &DdsCondvar {
-        &self.user_defined_data_send_condvar
-    }
-
-    pub fn sedp_condvar(&self) -> &DdsCondvar {
-        &self.sedp_condvar
-    }
+}
 }
 
 #[allow(clippy::too_many_arguments)]
