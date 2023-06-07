@@ -134,9 +134,9 @@ impl DdsTopic {
 
     pub fn process_discovered_topic(
         &mut self,
-        discovered_topic_data: &DiscoveredTopicData,
+        discovered_topic_data: DiscoveredTopicData,
         parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         todo!()
         // if discovered_topic_data
