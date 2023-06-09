@@ -87,13 +87,8 @@ impl DdsTopic {
         self.qos.clone()
     }
 
-    pub fn enable(&mut self) -> DdsResult<()> {
-        // self.announce_sender
-        //     .try_send(AnnounceKind::CratedTopic(self.as_discovered_topic_data()))
-        //     .ok();
-
+    pub fn enable(&mut self) {
         self.enabled = true;
-        Ok(())
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {

@@ -253,6 +253,8 @@ impl DomainParticipantFactory {
         let participant_address = participant_actor.address();
         self.0.address().add_participant(participant_actor)?;
 
+        let _enter_guard = THE_RUNTIME.enter();
+
         let metatraffic_multicast_transport = UdpTransportRead::new(
             get_multicast_socket(
                 DEFAULT_MULTICAST_LOCATOR_ADDRESS,
