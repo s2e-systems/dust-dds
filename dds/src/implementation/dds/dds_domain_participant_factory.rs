@@ -50,7 +50,7 @@ impl DdsDomainParticipantFactory {
 
     pub fn delete_participant(&mut self, handle: InstanceHandle) {
         self.domain_participant_list.retain(|x|
-            if let Ok(h) = x.address().instance_handle() {
+            if let Ok(h) = x.address().get_instance_handle() {
                 h != handle
             } else {
                 false

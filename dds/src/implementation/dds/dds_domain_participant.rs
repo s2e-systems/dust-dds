@@ -40,8 +40,7 @@ use crate::{
                 DurabilityKind, EntityId, EntityKey, Guid, Locator, ProtocolVersion,
                 ReliabilityKind, TopicKind, VendorId, BUILT_IN_READER_GROUP,
                 BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
-                BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP,
-                USER_DEFINED_TOPIC,
+                BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, USER_DEFINED_TOPIC,
             },
             writer::RtpsWriter,
             writer_proxy::RtpsWriterProxy,
@@ -124,7 +123,7 @@ pub struct DdsDomainParticipant {
     builtin_subscriber: Actor<DdsSubscriber>,
     builtin_publisher: Actor<DdsPublisher>,
     user_defined_subscriber_list: Vec<Actor<DdsSubscriber>>,
-    user_defined_subscriber_counter: AtomicU8,
+    user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Vec<Actor<DdsPublisher>>,
     user_defined_publisher_counter: u8,
@@ -437,7 +436,7 @@ impl DdsDomainParticipant {
             builtin_subscriber,
             builtin_publisher,
             user_defined_subscriber_list: Vec::new(),
-            user_defined_subscriber_counter: AtomicU8::new(0),
+            user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list: Vec::new(),
             user_defined_publisher_counter: 0,
@@ -464,7 +463,7 @@ impl DdsDomainParticipant {
 actor_interface! {
 // Rtps Entity methods
 impl DdsDomainParticipant {
-        pub fn guid(&self) -> Guid {
+        pub fn get_guid(&self) -> Guid {
             self.rtps_participant.guid()
         }
 }
@@ -473,23 +472,23 @@ impl DdsDomainParticipant {
 actor_interface! {
 // Rtps Participant methods
 impl DdsDomainParticipant {
-    pub fn default_unicast_locator_list(&self) -> Vec<Locator> {
+    pub fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_unicast_locator_list()
             .to_vec()
     }
 
-    pub fn default_multicast_locator_list(&self) -> Vec<Locator> {
+    pub fn get_default_multicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_multicast_locator_list()
             .to_vec()
     }
 
-    pub fn protocol_version(&self) -> ProtocolVersion {
+    pub fn get_protocol_version(&self) -> ProtocolVersion {
         self.rtps_participant.protocol_version()
     }
 
-    pub fn vendor_id(&self) -> VendorId {
+    pub fn get_vendor_id(&self) -> VendorId {
         self.rtps_participant.vendor_id()
     }
 }
@@ -497,23 +496,35 @@ impl DdsDomainParticipant {
 
 actor_interface! {
 impl DdsDomainParticipant {
-    pub fn builtin_subscriber(&self) -> ActorAddress<DdsSubscriber> {
+    pub fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_participant
+            .metatraffic_unicast_locator_list()
+            .to_vec()
+    }
+
+    pub fn get_metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_participant
+            .metatraffic_multicast_locator_list()
+            .to_vec()
+    }
+
+    pub fn get_builtin_subscriber(&self) -> ActorAddress<DdsSubscriber> {
         self.builtin_subscriber.address()
     }
 
-    pub fn builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
+    pub fn get_builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
         self.builtin_publisher.address()
     }
 
-    pub fn instance_handle(&self) -> InstanceHandle {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_participant.guid().into()
     }
 
-    pub fn domain_id(&self) -> DomainId {
+    pub fn get_domain_id(&self) -> DomainId {
         self.domain_id
     }
 
-    pub fn domain_tag(&self) -> String {
+    pub fn get_domain_tag(&self) -> String {
         self.domain_tag.clone()
     }
 
@@ -523,19 +534,7 @@ impl DdsDomainParticipant {
         self.user_defined_rtps_message_channel_sender.clone()
     }
 
-    pub fn metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_participant
-            .metatraffic_unicast_locator_list()
-            .to_vec()
-    }
-
-    pub fn metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_participant
-            .metatraffic_multicast_locator_list()
-            .to_vec()
-    }
-
-    pub fn current_time(&self) -> Time {
+    pub fn get_current_time(&self) -> Time {
         let now_system_time = SystemTime::now();
         let unix_time = now_system_time
             .duration_since(UNIX_EPOCH)
@@ -544,57 +543,43 @@ impl DdsDomainParticipant {
     }
 
     pub fn enable(&mut self) {
-
         self.enabled = true;
-
-            //     self.builtin_subscriber.enable().ok();
-            //     self.builtin_publisher.enable();
-
-            //     for builtin_stateless_writer in self
-            //         .builtin_publisher
-            //         .stateless_data_writer_list_mut()
-            //         .iter_mut()
-            //     {
-            //         builtin_stateless_writer.enable();
-            //     }
-
-            //     for builtin_stateful_writer in self
-            //         .builtin_publisher
-            //         .stateful_data_writer_list()
-            //         .iter_mut()
-            //     {
-            //         builtin_stateful_writer.enable().ok();
-            //     }
-
-            //     if self.qos.entity_factory.autoenable_created_entities {
-            //         for publisher in self.user_defined_publisher_list.iter_mut() {
-            //             publisher.address().enable().ok();
-            //         }
-
-            //         for subscriber in self.user_defined_subscriber_list.iter_mut() {
-            //             subscriber.address().enable().ok();
-            //         }
-
-            //         for topic in self.topic_list.iter_mut() {
-            //             topic.address().enable().ok();
-            //         }
-            //     }
     }
 
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
 
+    pub fn ignore_participant(&mut self, handle: InstanceHandle) {
+        self.ignored_participants.insert(handle);
+    }
+
     pub fn is_participant_ignored(&self, handle: InstanceHandle) -> bool {
         self.ignored_participants.contains(&handle)
+    }
+
+    pub fn ignore_subscription(&mut self, handle: InstanceHandle) {
+        self.ignored_subcriptions.insert(handle);
     }
 
     pub fn is_subscription_ignored(&self, handle: InstanceHandle) -> bool {
         self.ignored_subcriptions.contains(&handle)
     }
 
+    pub fn ignore_publication(&mut self, handle: InstanceHandle) {
+        self.ignored_publications.insert(handle);
+    }
+
     pub fn is_publication_ignored(&self, handle: InstanceHandle) -> bool {
         self.ignored_publications.contains(&handle)
+    }
+
+    pub fn ignore_topic(&self, _handle: InstanceHandle) {
+        todo!()
+    }
+
+    pub fn is_topic_ignored(&self, _handle: InstanceHandle) -> bool {
+        todo!()
     }
 
     pub fn discovered_participant_add(
@@ -620,51 +605,50 @@ impl DdsDomainParticipant {
         self.user_defined_publisher_list.push(publisher)
     }
 
-    pub fn user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
+    pub fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
         self.user_defined_publisher_list.iter().map(|a| a.address()).collect()
     }
 
-    pub fn delete_publisher(&mut self, handle: InstanceHandle) {
+    pub fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
         self.user_defined_publisher_list
             .retain(|p|
-                p.address()
-                    .get_instance_handle()
-                    .expect("Should not fail to send message") != handle);
+                if let Ok(h) = p.address()
+                    .get_instance_handle() {
+                        h != handle
+                    } else {
+                        false
+                    });
+    }
+
+    pub fn create_unique_subscriber_id(&mut self) -> u8 {
+        let counter = self.user_defined_subscriber_counter;
+        self.user_defined_subscriber_counter += 1;
+        counter
+    }
+
+    pub fn add_user_defined_subscriber(&mut self, subscriber: Actor<DdsSubscriber>) {
+        self.user_defined_subscriber_list.push(subscriber)
+    }
+
+    pub fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
+        self.user_defined_subscriber_list.iter().map(|a| a.address()).collect()
+    }
+
+    pub fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
+        self.user_defined_subscriber_list
+            .retain(|p|
+                if let Ok(h) = p.address()
+                    .get_instance_handle() {
+                        h != handle
+                    } else {
+                        false
+                    });
     }
 
     pub fn is_empty(&self) -> bool {
         self.user_defined_publisher_list.iter().count() == 0
             && self.user_defined_subscriber_list.iter().count() == 0
             && self.topic_list.iter().count() == 0
-    }
-
-    pub fn create_subscriber(
-        &mut self,
-        qos: QosKind<SubscriberQos>,
-    ) -> DdsResult<ActorAddress<DdsSubscriber>> {
-        let subscriber_qos = match qos {
-            QosKind::Default => self.default_subscriber_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
-        let subcriber_counter = self
-            .user_defined_subscriber_counter
-            .fetch_add(1, Ordering::Relaxed);
-        let entity_id = EntityId::new(
-            EntityKey::new([subcriber_counter, 0, 0]),
-            USER_DEFINED_READER_GROUP,
-        );
-        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroup::new(guid);
-        let mut subscriber = DdsSubscriber::new(subscriber_qos, rtps_group);
-        if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-            subscriber.enable()?;
-        }
-
-        let subscriber_actor = spawn_actor(subscriber);
-        let subscriber_address = subscriber_actor.address();
-        self.user_defined_subscriber_list.push(subscriber_actor);
-
-        Ok(subscriber_address)
     }
 
     pub fn delete_subscriber(&mut self, subscriber_guid: Guid) -> DdsResult<()> {
@@ -773,7 +757,7 @@ impl DdsDomainParticipant {
         todo!()
     }
 
-    pub fn qos(&self) -> DomainParticipantQos {
+    pub fn get_qos(&self) -> DomainParticipantQos {
         self.qos.clone()
     }
 
@@ -828,42 +812,6 @@ impl DdsDomainParticipant {
         // }
     }
 
-    pub fn ignore_participant(&mut self, handle: InstanceHandle) {
-        self.ignored_participants.insert(handle);
-    }
-
-    pub fn ignore_topic(&self, _handle: InstanceHandle) {
-        // todo!()
-    }
-
-    pub fn ignore_publication(&mut self, handle: InstanceHandle) {
-        self.ignored_publications.insert(handle);
-
-        // for subscriber in self.user_defined_subscriber_list() {
-        //     for data_reader in subscriber.stateful_data_reader_list() {
-        //         data_reader.remove_matched_writer(
-        //             handle,
-        //             &mut subscriber.get_status_listener_lock(),
-        //             &mut self.get_status_listener_lock(),
-        //         )
-        //     }
-        // }
-    }
-
-    pub fn ignore_subscription(&mut self, handle: InstanceHandle) {
-        self.ignored_subcriptions.insert(handle);
-        // for publisher in self.user_defined_publisher_list() {
-        //     for data_writer in publisher.stateful_data_writer_list() {
-        //         remove_writer_matched_reader(
-        //             data_writer,
-        //             handle,
-        //             &mut publisher.get_status_listener_lock(),
-        //             &mut self.status_listener.write_lock(),
-        //         )
-        //     }
-        // }
-    }
-
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
         for user_defined_publisher in self.user_defined_publisher_list.drain(..) {
             user_defined_publisher
@@ -886,42 +834,24 @@ impl DdsDomainParticipant {
         todo!()
     }
 
-    pub fn set_default_publisher_qos(&mut self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        match qos {
-            QosKind::Default => self.default_publisher_qos = PublisherQos::default(),
-            QosKind::Specific(q) => self.default_publisher_qos = q,
-        }
-
-        Ok(())
+    pub fn set_default_publisher_qos(&mut self, qos: PublisherQos){
+        self.default_publisher_qos = qos;
     }
 
     pub fn default_publisher_qos(&self) -> PublisherQos {
         self.default_publisher_qos.clone()
     }
 
-    pub fn set_default_subscriber_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        match qos {
-            QosKind::Default => self.default_subscriber_qos = SubscriberQos::default(),
-            QosKind::Specific(q) => self.default_subscriber_qos = q,
-        }
-
-        Ok(())
+    pub fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) {
+        self.default_subscriber_qos = qos;
     }
 
     pub fn default_subscriber_qos(&self) -> SubscriberQos {
         self.default_subscriber_qos.clone()
     }
 
-    pub fn set_default_topic_qos(&mut self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        match qos {
-            QosKind::Default => self.default_topic_qos = TopicQos::default(),
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                self.default_topic_qos = q;
-            }
-        }
-
-        Ok(())
+    pub fn set_default_topic_qos(&mut self, qos: TopicQos) {
+        self.default_topic_qos = qos;
     }
 
     pub fn default_topic_qos(&self) -> TopicQos {
@@ -946,12 +876,8 @@ impl DdsDomainParticipant {
         todo!()
     }
 
-    pub fn set_qos(&mut self, qos: QosKind<DomainParticipantQos>) {
-        self.qos = match qos {
-            QosKind::Default => DomainParticipantQos::default(),
-            QosKind::Specific(q) => q,
-        };
-        self.announce_participant().ok();
+    pub fn set_qos(&mut self, qos: DomainParticipantQos) {
+        self.qos = qos;
     }
 
     pub fn announce_participant(&mut self) -> DdsResult<()> {
@@ -990,7 +916,7 @@ impl DdsDomainParticipant {
         let serialized_data =
             dds_serialize(&spdp_discovered_participant_data).map_err(|_err| DdsError::Error)?;
 
-        let current_time = self.current_time();
+        let current_time = self.get_current_time();
         // todo!()
         // self.builtin_publisher
         //     .stateless_data_writer_list_mut()
@@ -1216,8 +1142,8 @@ impl DdsDomainParticipant {
         &mut self,
         listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
-        let now = self.current_time();
-        let guid = self.guid();
+        let now = self.get_current_time();
+        let guid = self.get_guid();
         for subscriber in self.user_defined_subscriber_list.iter_mut() {
             todo!()
             // subscriber.update_communication_status(now, guid, listener_sender);

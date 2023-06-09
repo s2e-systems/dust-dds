@@ -305,7 +305,7 @@ impl DomainParticipantFactory {
         let participant = participant_list
             .iter()
             .find(|x| {
-                if let Ok(h) = x.instance_handle() {
+                if let Ok(h) = x.get_instance_handle() {
                     h == handle
                 } else {
                     false
@@ -341,7 +341,7 @@ impl DomainParticipantFactory {
             .get_participant_list()?
             .iter()
             .find(|&a| {
-                if let Ok(id) = a.domain_id() {
+                if let Ok(id) = a.get_domain_id() {
                     id == domain_id
                 } else {
                     false

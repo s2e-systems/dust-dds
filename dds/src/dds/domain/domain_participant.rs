@@ -4,31 +4,24 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+            discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
-            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         dds::{
-            any_topic_listener::AnyTopicListener,
-            dds_data_reader::DdsDataReader,
             dds_data_writer::DdsDataWriter,
-            dds_domain_participant::{
-                AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            },
+            dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+            dds_publisher::DdsPublisher,
             dds_subscriber::DdsSubscriber,
             nodes::{
                 DataReaderNode, DataWriterNode, PublisherNode, SubscriberNode, SubscriberNodeKind,
-                TopicNode, TopicNodeKind,
+                TopicNode,
             },
             status_listener::ListenerTriggerKind,
         },
         rtps::{
-            discovery_types::BuiltinEndpointSet,
+            group::RtpsGroup,
             history_cache::RtpsWriterCacheChange,
             messages::{
                 overall_structure::{
@@ -42,41 +35,31 @@ use crate::{
                 types::FragmentNumber,
             },
             reader_locator::WriterAssociatedReaderLocator,
-            reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
-            stateful_reader::RtpsStatefulReader,
+            reader_proxy::WriterAssociatedReaderProxy,
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
             transport::TransportWrite,
             types::{
-                DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
-                SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
+                EntityId, EntityKey, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+                ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP,
             },
-            writer_proxy::RtpsWriterProxy,
         },
-        utils::{actor::ActorAddress, condvar::DdsCondvar},
+        utils::{
+            actor::{spawn_actor, ActorAddress},
+            condvar::DdsCondvar,
+        },
     },
     infrastructure::{
         condition::StatusCondition,
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::{Duration, DurationKind, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    subscription::{
-        sample_info::{
-            InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-        },
-        subscriber::Subscriber,
-        subscriber_listener::SubscriberListener,
-    },
-    topic_definition::{
-        topic::Topic,
-        topic_listener::TopicListener,
-        type_support::{dds_serialize, DdsSerializedKey, DdsType},
-    },
+    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
+    topic_definition::{topic::Topic, topic_listener::TopicListener, type_support::DdsType},
 };
 
 use super::{
@@ -128,36 +111,32 @@ impl DomainParticipant {
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        // let publisher_qos = match qos {
-        //     QosKind::Default => self.default_publisher_qos.clone(),
-        //     QosKind::Specific(q) => q,
-        // };
-        // let publisher_counter = self
-        //     .user_defined_publisher_counter
-        //     .fetch_add(1, Ordering::Relaxed);
-        // let entity_id = EntityId::new(
-        //     EntityKey::new([publisher_counter, 0, 0]),
-        //     USER_DEFINED_WRITER_GROUP,
-        // );
-        // let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        // let rtps_group = RtpsGroup::new(guid);
-        // let mut publisher = DdsPublisher::new(publisher_qos, rtps_group);
-        // if self.is_enabled() && self.qos().entity_factory.autoenable_created_entities {
-        //     publisher.enable();
-        // }
+        let publisher_qos = match qos {
+            QosKind::Default => self.0.default_publisher_qos()?,
+            QosKind::Specific(q) => q,
+        };
+        let publisher_counter = self.0.create_unique_publisher_id()?;
+        let entity_id = EntityId::new(
+            EntityKey::new([publisher_counter, 0, 0]),
+            USER_DEFINED_WRITER_GROUP,
+        );
+        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
+        let rtps_group = RtpsGroup::new(guid);
+        let publisher = DdsPublisher::new(publisher_qos, rtps_group);
 
-        // let publisher_actor = spawn_actor(publisher);
-        // let publisher_address = publisher_actor.address();
-        // self.user_defined_publisher_list.push(publisher_actor);
+        let publisher_actor = spawn_actor(publisher);
+        let publisher_address = publisher_actor.address();
+        self.0.add_user_defined_publisher(publisher_actor)?;
 
-        // Ok(Publisher::new(PublisherNode::new(
-        //     publisher_address,
-        //     self.0.clone(),
-        // )))
-        todo!()
+        let publisher = Publisher::new(PublisherNode::new(publisher_address, self.0.clone()));
+        if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
+            publisher.enable()?;
+        }
+
+        Ok(publisher)
     }
 
     /// This operation deletes an existing [`Publisher`].
@@ -204,14 +183,34 @@ impl DomainParticipant {
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber_address = self.0.create_subscriber(qos)??;
+        let subscriber_qos = match qos {
+            QosKind::Default => self.0.default_subscriber_qos()?,
+            QosKind::Specific(q) => q,
+        };
+        let subcriber_counter = self.0.create_unique_subscriber_id()?;
+        let entity_id = EntityId::new(
+            EntityKey::new([subcriber_counter, 0, 0]),
+            USER_DEFINED_READER_GROUP,
+        );
+        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
+        let rtps_group = RtpsGroup::new(guid);
+        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group);
 
-        Ok(Subscriber::new(SubscriberNodeKind::UserDefined(
-            SubscriberNode::new(subscriber_address, self.0.clone()),
-        )))
+        let subscriber_actor = spawn_actor(subscriber);
+        let subscriber = Subscriber::new(SubscriberNodeKind::UserDefined(SubscriberNode::new(
+            subscriber_actor.address(),
+            self.0.clone(),
+        )));
+        self.0.add_user_defined_subscriber(subscriber_actor)?;
+
+        if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
+            subscriber.enable()?;
+        }
+
+        Ok(subscriber)
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -362,11 +361,9 @@ impl DomainParticipant {
     /// The built-in topics are used to communicate information about other [`DomainParticipant`], [`Topic`], [`DataReader`](crate::subscription::data_reader::DataReader), and [`DataWriter`](crate::publication::data_writer::DataWriter)
     /// objects.
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_builtin_subscriber(dp)
-        //         .map(|x| Subscriber::new(SubscriberNodeKind::Builtin(x)))
-        // })
+        Ok(Subscriber::new(SubscriberNodeKind::Builtin(
+            SubscriberNode::new(self.0.get_builtin_subscriber()?, self.0.clone()),
+        )))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
@@ -381,10 +378,7 @@ impl DomainParticipant {
     /// [`DataReader`](crate::subscription::data_reader::DataReader) is read with the same read/take operations used for any DataReader.
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::ignore_participant(dp, handle)
-        // })
+        self.0.ignore_participant(handle)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote topic. This means it will locally ignore any
@@ -395,10 +389,7 @@ impl DomainParticipant {
     /// reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSTopic” topic.
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::ignore_topic(dp, handle)
-        // })
+        self.0.ignore_topic(handle)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote publication; a publication is defined by
@@ -407,10 +398,7 @@ impl DomainParticipant {
     /// when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSPublication” topic.
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::ignore_publication(dp, handle)
-        // })
+        self.0.ignore_publication(handle)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote subscription; a subscription is defined by
@@ -420,19 +408,13 @@ impl DomainParticipant {
     /// retrieved when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSSubscription” topic.
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::ignore_subscription(dp, handle)
-        // })
+        self.0.ignore_subscription(handle)
     }
 
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_domain_id(dp)
-        // })
+        self.0.get_domain_id()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -470,10 +452,11 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values the default values of [`PublisherQos`].
     pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::set_default_publisher_qos(dp, qos)
-        // })
+        let qos = match qos {
+            QosKind::Default => PublisherQos::default(),
+            QosKind::Specific(q) => q,
+        };
+        self.0.set_default_publisher_qos(qos)
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -481,10 +464,7 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_default_publisher_qos(dp)
-        // })
+        self.0.default_publisher_qos()
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created [`Subscriber`] entities in the
@@ -494,10 +474,12 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the default values of [`SubscriberQos`].
     pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::set_default_subscriber_qos(dp, qos)
-        // })
+        let qos = match qos {
+            QosKind::Default => SubscriberQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.0.set_default_subscriber_qos(qos)
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -505,10 +487,7 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_subscriber_qos()`], or else, if the call was never made, the default values of [`SubscriberQos`].
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_default_subscriber_qos(dp)
-        // })
+        self.0.default_subscriber_qos()
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created [`Topic`] entities in the case
@@ -518,10 +497,14 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
     pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::set_default_topic_qos(dp, qos)
-        // })
+        let qos = match qos {
+            QosKind::Default => TopicQos::default(),
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
+        self.0.set_default_topic_qos(qos)
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created [`Topic`]
@@ -529,19 +512,13 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_default_topic_qos(dp)
-        // })
+        self.0.default_topic_qos()
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the [`DomainParticipant::ignore_participant()`] operation.
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_discovered_participants(dp)
-        // })
     }
 
     /// This operation retrieves information on a [`DomainParticipant`] that has been discovered on the network. The participant must
@@ -607,10 +584,7 @@ impl DomainParticipant {
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_current_time(dp)
-        // })
+        self.0.get_current_time()
     }
 }
 
@@ -629,12 +603,19 @@ impl DomainParticipant {
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => THE_PARTICIPANT_FACTORY.get_default_participant_qos()?,
+            QosKind::Specific(q) => q,
+        };
+
         self.0.set_qos(qos)
+
+        // self.announce_participant().ok();
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.0.qos()
+        self.0.get_qos()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -705,6 +686,8 @@ impl DomainParticipant {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
+        self.0.enable()?;
+
         todo!()
         // self.call_participant_mut_method(|dp| {
         //     THE_TASK_RUNTIME.block_on(async {
@@ -715,7 +698,7 @@ impl DomainParticipant {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.instance_handle()
+        self.0.get_instance_handle()
     }
 }
 
@@ -1613,11 +1596,11 @@ fn user_defined_communication_send(
     default_unicast_transport_send: &mut impl TransportWrite,
 ) {
     let header = RtpsMessageHeader::new(
-        domain_participant.protocol_version(),
-        domain_participant.vendor_id(),
-        domain_participant.guid().prefix(),
+        domain_participant.get_protocol_version(),
+        domain_participant.get_vendor_id(),
+        domain_participant.get_guid().prefix(),
     );
-    let now = domain_participant.current_time();
+    let now = domain_participant.get_current_time();
 
     // for publisher in domain_participant.user_defined_publisher_list_mut() {
     todo!()

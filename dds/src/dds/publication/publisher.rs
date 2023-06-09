@@ -76,11 +76,11 @@ impl Publisher {
         Foo: DdsType + DdsSerialize + Send + 'static,
     {
         let default_unicast_locator_list =
-            self.0.parent_participant().default_unicast_locator_list()?;
+            self.0.parent_participant().get_default_unicast_locator_list()?;
         let default_multicast_locator_list = self
             .0
             .parent_participant()
-            .default_multicast_locator_list()?;
+            .get_default_multicast_locator_list()?;
         let data_max_size_serialized = self.0.parent_participant().data_max_size_serialized()?;
         let user_defined_rtps_message_channel_sender = self
             .0
