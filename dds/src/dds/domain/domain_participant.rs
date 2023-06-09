@@ -14,9 +14,10 @@ use crate::{
             dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
             dds_publisher::DdsPublisher,
             dds_subscriber::DdsSubscriber,
+            dds_topic::DdsTopic,
             nodes::{
                 DataReaderNode, DataWriterNode, PublisherNode, SubscriberNode, SubscriberNodeKind,
-                TopicNode,
+                TopicNode, TopicNodeKind,
             },
             status_listener::ListenerTriggerKind,
         },
@@ -41,7 +42,8 @@ use crate::{
             transport::TransportWrite,
             types::{
                 EntityId, EntityKey, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
-                ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP,
+                ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+                USER_DEFINED_WRITER_GROUP,
             },
         },
         utils::{
@@ -258,19 +260,29 @@ impl DomainParticipant {
     where
         Foo: DdsType + 'static,
     {
-        todo!();
-        // let topic_address = self.0.create_topic(
-        //     topic_name.to_string(),
-        //     Foo::type_name(),
-        //     qos,
-        //     a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
-        //     mask.to_vec(),
-        // )?;
+        let topic_qos = match qos {
+            QosKind::Default => self.0.default_topic_qos()?,
+            QosKind::Specific(q) => q,
+        };
+        let topic_counter = self.0.create_unique_topic_id()?;
+        let entity_id = EntityId::new(EntityKey::new([topic_counter, 0, 0]), USER_DEFINED_TOPIC);
+        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
 
-        // Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
-        // topic_address,
-        // self.0.clone(),
-        // ))))
+        let topic = DdsTopic::new(guid, qos, Foo::type_name(), topic_name);
+
+        let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
+        let topic_address = topic_actor.address();
+        self.0.add_user_defined_topic(topic_actor)?;
+
+        let topic = Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
+            topic_address,
+            self.0.clone(),
+        )));
+        if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
+            topic.enable()?;
+        }
+
+        Ok(topic)
     }
 
     /// This operation deletes a [`Topic`].

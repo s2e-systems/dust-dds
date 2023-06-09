@@ -1,5 +1,3 @@
-use tokio::sync::mpsc::Sender;
-
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     implementation::{
@@ -36,17 +34,10 @@ pub struct DdsTopic {
     topic_name: String,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    announce_sender: Sender<AnnounceKind>,
 }
 
 impl DdsTopic {
-    pub fn new(
-        guid: Guid,
-        qos: TopicQos,
-        type_name: &'static str,
-        topic_name: &str,
-        announce_sender: Sender<AnnounceKind>,
-    ) -> Self {
+    pub fn new(guid: Guid, qos: TopicQos, type_name: &'static str, topic_name: &str) -> Self {
         Self {
             guid,
             qos,
@@ -54,7 +45,6 @@ impl DdsTopic {
             topic_name: topic_name.to_string(),
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
-            announce_sender,
         }
     }
 }
@@ -216,8 +206,7 @@ mod tests {
             GuidPrefix::new([2; 12]),
             EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
-        let (announce_sender, _) = tokio::sync::mpsc::channel(1);
-        let mut topic = DdsTopic::new(guid, TopicQos::default(), "", "", announce_sender);
+        let mut topic = DdsTopic::new(guid, TopicQos::default(), "", "");
         topic.enabled = true;
 
         let expected_instance_handle: InstanceHandle = guid.into();

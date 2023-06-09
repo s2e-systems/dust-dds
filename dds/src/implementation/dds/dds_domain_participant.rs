@@ -40,7 +40,7 @@ use crate::{
                 DurabilityKind, EntityId, EntityKey, Guid, Locator, ProtocolVersion,
                 ReliabilityKind, TopicKind, VendorId, BUILT_IN_READER_GROUP,
                 BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
-                BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, USER_DEFINED_TOPIC,
+                BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN,
             },
             writer::RtpsWriter,
             writer_proxy::RtpsWriterProxy,
@@ -49,7 +49,7 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
-        qos::{DataReaderQos, DataWriterQos, QosKind},
+        qos::{DataReaderQos, DataWriterQos},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
             QosPolicyId, ReliabilityQosPolicy, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
@@ -72,7 +72,6 @@ use crate::{
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::atomic::{AtomicU8, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -129,7 +128,7 @@ pub struct DdsDomainParticipant {
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
     topic_list: Vec<Actor<DdsTopic>>,
-    user_defined_topic_counter: AtomicU8,
+    user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
     lease_duration: Duration,
@@ -180,7 +179,6 @@ impl DdsDomainParticipant {
             TopicQos::default(),
             SpdpDiscoveredParticipantData::type_name(),
             DCPS_PARTICIPANT,
-            announce_sender.clone(),
         );
 
         let sedp_topics_entity_id = EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_TOPIC);
@@ -190,7 +188,6 @@ impl DdsDomainParticipant {
             TopicQos::default(),
             DiscoveredTopicData::type_name(),
             DCPS_TOPIC,
-            announce_sender.clone(),
         );
 
         let sedp_publications_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
@@ -200,7 +197,6 @@ impl DdsDomainParticipant {
             TopicQos::default(),
             DiscoveredWriterData::type_name(),
             DCPS_PUBLICATION,
-            announce_sender.clone(),
         );
 
         let sedp_subscriptions_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
@@ -210,7 +206,6 @@ impl DdsDomainParticipant {
             TopicQos::default(),
             DiscoveredReaderData::type_name(),
             DCPS_SUBSCRIPTION,
-            announce_sender.clone(),
         );
 
         // Built-in subscriber creation
@@ -442,7 +437,7 @@ impl DdsDomainParticipant {
             user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
             topic_list: Vec::new(),
-            user_defined_topic_counter: AtomicU8::new(0),
+            user_defined_topic_counter: 0,
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: Count::new(0),
             lease_duration,
@@ -645,6 +640,31 @@ impl DdsDomainParticipant {
                     });
     }
 
+    pub fn create_unique_topic_id(&mut self) -> u8 {
+        let counter = self.user_defined_topic_counter;
+        self.user_defined_topic_counter += 1;
+        counter
+    }
+
+    pub fn add_user_defined_topic(&mut self, topic: Actor<DdsTopic>) {
+        self.user_defined_topic_list.push(topic)
+    }
+
+    pub fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
+        self.user_defined_topic_list.iter().map(|a| a.address()).collect()
+    }
+
+    pub fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
+        self.user_defined_topic_list
+            .retain(|p|
+                if let Ok(h) = p.address()
+                    .get_instance_handle() {
+                        h != handle
+                    } else {
+                        false
+                    });
+    }
+
     pub fn is_empty(&self) -> bool {
         self.user_defined_publisher_list.iter().count() == 0
             && self.user_defined_subscriber_list.iter().count() == 0
@@ -678,44 +698,6 @@ impl DdsDomainParticipant {
         //     .retain(|x| x.guid() != subscriber_guid);
 
         // Ok(())
-    }
-
-    pub fn create_topic(
-        &mut self,
-        topic_name: String,
-        type_name: &'static str,
-        qos: QosKind<TopicQos>,
-    ) -> DdsResult<ActorAddress<DdsTopic>> {
-        let topic_counter = self
-            .user_defined_topic_counter
-            .fetch_add(1, Ordering::Relaxed);
-        let topic_guid = Guid::new(
-            self.rtps_participant.guid().prefix(),
-            EntityId::new(EntityKey::new([topic_counter, 0, 0]), USER_DEFINED_TOPIC),
-        );
-        let qos = match qos {
-            QosKind::Default => self.default_topic_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
-
-        // /////// Create topic
-        let mut topic = DdsTopic::new(
-            topic_guid,
-            qos,
-            type_name,
-            &topic_name,
-            self.announce_sender.clone(),
-        );
-
-        if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-            topic.enable()?;
-        }
-
-        let topic_actor = spawn_actor(topic);
-        let topic_address = topic_actor.address();
-        self.topic_list.push(topic_actor);
-
-        Ok(topic_address)
     }
 
     pub fn delete_topic(&mut self, topic_guid: Guid) -> DdsResult<()> {
