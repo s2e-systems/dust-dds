@@ -4,7 +4,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        rtps::types::Guid,
+        rtps::types::Guid, utils::actor::actor_interface,
     },
     infrastructure::{
         error::DdsResult,
@@ -59,6 +59,7 @@ impl DdsTopic {
     }
 }
 
+actor_interface! {
 impl DdsTopic {
     pub fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
         self.inconsistent_topic_status.read_and_reset()
@@ -155,6 +156,7 @@ impl DdsTopic {
         //         .ok();
         // }
     }
+}
 }
 
 fn is_discovered_topic_consistent(

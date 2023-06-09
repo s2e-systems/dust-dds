@@ -297,10 +297,8 @@ impl DdsDomainParticipantFactory {
             THE_DDS_CONFIGURATION.domain_tag.clone(),
             domain_participant_qos,
             &spdp_discovery_locator_list,
-            user_defined_data_send_condvar.clone(),
             THE_DDS_CONFIGURATION.fragment_size,
             announce_sender,
-            sedp_condvar.clone(),
             builtin_rtps_message_channel_sender,
             builtin_message_broadcast_sender.clone(),
             user_defined_rtps_message_channel_sender,
@@ -368,7 +366,7 @@ impl DdsDomainParticipantFactory {
             .iter()
             .position(|dp| {
                 dp.address()
-                    .get_instance_handle()
+                    .instance_handle()
                     .expect("Should not fail to send message")
                     == handle
             })
@@ -392,7 +390,7 @@ impl DdsDomainParticipantFactory {
         self.domain_participant_list
             .iter()
             .map(|dp| dp.address())
-            .find(|a| a.get_domain_id().expect("Should not fail to send message") == domain_id)
+            .find(|a| a.domain_id().expect("Should not fail to send message") == domain_id)
     }
 
     pub fn get_qos(&self) -> DomainParticipantFactoryQos {

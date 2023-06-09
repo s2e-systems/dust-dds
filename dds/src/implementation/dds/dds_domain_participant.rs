@@ -1,5 +1,3 @@
-use fnmatch_regex::glob_to_regex;
-
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
@@ -42,16 +40,13 @@ use crate::{
                 DurabilityKind, EntityId, EntityKey, Guid, Locator, ProtocolVersion,
                 ReliabilityKind, TopicKind, VendorId, BUILT_IN_READER_GROUP,
                 BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
-                BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
-                USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
+                BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_TOPIC,
             },
             writer::RtpsWriter,
             writer_proxy::RtpsWriterProxy,
         },
-        utils::{
-            actor::{self, actor_interface, spawn_actor, Actor, ActorAddress, THE_RUNTIME},
-            condvar::DdsCondvar,
-        },
+        utils::actor::{actor_interface, spawn_actor, Actor, ActorAddress, THE_RUNTIME},
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -64,9 +59,7 @@ use crate::{
         },
         time::{DurationKind, DURATION_ZERO},
     },
-    subscription::sample_info::{
-        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
-    },
+    subscription::sample_info::{SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::{dds_serialize, DdsType},
     {
         builtin_topics::TopicBuiltinTopicData,
@@ -134,7 +127,7 @@ pub struct DdsDomainParticipant {
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Vec<Actor<DdsPublisher>>,
-    user_defined_publisher_counter: AtomicU8,
+    user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
     topic_list: Vec<Actor<DdsTopic>>,
     user_defined_topic_counter: AtomicU8,
@@ -144,13 +137,11 @@ pub struct DdsDomainParticipant {
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
     enabled: bool,
-    user_defined_data_send_condvar: DdsCondvar,
     ignored_participants: HashSet<InstanceHandle>,
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
     announce_sender: tokio::sync::mpsc::Sender<AnnounceKind>,
-    sedp_condvar: DdsCondvar,
     user_defined_rtps_message_channel_sender:
         tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
     builtin_message_broadcast_receiver_sender:
@@ -165,10 +156,8 @@ impl DdsDomainParticipant {
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
         spdp_discovery_locator_list: &[Locator],
-        user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
         announce_sender: tokio::sync::mpsc::Sender<AnnounceKind>,
-        sedp_condvar: DdsCondvar,
         builtin_rtps_message_channel_sender: tokio::sync::mpsc::Sender<(
             RtpsMessageWrite,
             Vec<Locator>,
@@ -451,7 +440,7 @@ impl DdsDomainParticipant {
             user_defined_subscriber_counter: AtomicU8::new(0),
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list: Vec::new(),
-            user_defined_publisher_counter: AtomicU8::new(0),
+            user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
             topic_list: Vec::new(),
             user_defined_topic_counter: AtomicU8::new(0),
@@ -461,13 +450,11 @@ impl DdsDomainParticipant {
             discovered_participant_list: HashMap::new(),
             discovered_topic_list: HashMap::new(),
             enabled: false,
-            user_defined_data_send_condvar,
             ignored_participants: HashSet::new(),
             ignored_publications: HashSet::new(),
             ignored_subcriptions: HashSet::new(),
             data_max_size_serialized,
             announce_sender,
-            sedp_condvar,
             user_defined_rtps_message_channel_sender,
             builtin_message_broadcast_receiver_sender,
         }
@@ -475,43 +462,65 @@ impl DdsDomainParticipant {
 }
 
 actor_interface! {
+// Rtps Entity methods
 impl DdsDomainParticipant {
-    pub fn guid(&self) -> Guid {
-        self.rtps_participant.guid()
-    }
+        pub fn guid(&self) -> Guid {
+            self.rtps_participant.guid()
+        }
+}
+}
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_participant.guid().into()
-    }
-
-    pub fn vendor_id(&self) -> VendorId {
-        self.rtps_participant.vendor_id()
-    }
-
-    pub fn get_domain_id(&self) -> DomainId {
-        self.domain_id
-    }
-
-    pub fn protocol_version(&self) -> ProtocolVersion {
-        self.rtps_participant.protocol_version()
-    }
-
+actor_interface! {
+// Rtps Participant methods
+impl DdsDomainParticipant {
     pub fn default_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_unicast_locator_list()
             .to_vec()
     }
 
-    pub fn get_user_defined_rtps_message_channel_sender(
-        &self,
-    ) -> tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)> {
-        self.user_defined_rtps_message_channel_sender.clone()
-    }
-
     pub fn default_multicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_multicast_locator_list()
             .to_vec()
+    }
+
+    pub fn protocol_version(&self) -> ProtocolVersion {
+        self.rtps_participant.protocol_version()
+    }
+
+    pub fn vendor_id(&self) -> VendorId {
+        self.rtps_participant.vendor_id()
+    }
+}
+}
+
+actor_interface! {
+impl DdsDomainParticipant {
+    pub fn builtin_subscriber(&self) -> ActorAddress<DdsSubscriber> {
+        self.builtin_subscriber.address()
+    }
+
+    pub fn builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
+        self.builtin_publisher.address()
+    }
+
+    pub fn instance_handle(&self) -> InstanceHandle {
+        self.rtps_participant.guid().into()
+    }
+
+    pub fn domain_id(&self) -> DomainId {
+        self.domain_id
+    }
+
+    pub fn domain_tag(&self) -> String {
+        self.domain_tag.clone()
+    }
+
+    pub fn user_defined_rtps_message_channel_sender(
+        &self,
+    ) -> tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)> {
+        self.user_defined_rtps_message_channel_sender.clone()
     }
 
     pub fn metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
@@ -526,15 +535,7 @@ impl DdsDomainParticipant {
             .to_vec()
     }
 
-    pub fn get_builtin_subscriber(&self) -> ActorAddress<DdsSubscriber> {
-        self.builtin_subscriber.address()
-    }
-
-    pub fn get_builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
-        self.builtin_publisher.address()
-    }
-
-    pub fn get_current_time(&self) -> Time {
+    pub fn current_time(&self) -> Time {
         let now_system_time = SystemTime::now();
         let unix_time = now_system_time
             .duration_since(UNIX_EPOCH)
@@ -543,8 +544,8 @@ impl DdsDomainParticipant {
     }
 
     pub fn enable(&mut self) {
-        if !self.enabled {
-            self.enabled = true;
+
+        self.enabled = true;
 
             //     self.builtin_subscriber.enable().ok();
             //     self.builtin_publisher.enable();
@@ -578,7 +579,6 @@ impl DdsDomainParticipant {
             //             topic.address().enable().ok();
             //         }
             //     }
-        }
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -597,73 +597,39 @@ impl DdsDomainParticipant {
         self.ignored_publications.contains(&handle)
     }
 
-    pub fn get_domain_tag(&self) -> String {
-        self.domain_tag.clone()
+    pub fn discovered_participant_add(
+        &mut self,
+        handle: InstanceHandle,
+        discovered_participant_data: SpdpDiscoveredParticipantData,
+    ) {
+        self.discovered_participant_list
+            .insert(handle, discovered_participant_data);
     }
-
-    // pub fn discovered_participant_add(
-    //     &mut self, handle: InstanceHandle, discovered_participant_data: SpdpDiscoveredParticipantData,
-    // ) {
-    //     self.discovered_participant_list
-    //         .insert(handle, discovered_participant_data);
-    // }
 
     pub fn _discovered_participant_remove(&mut self, handle: InstanceHandle) {
         self.discovered_participant_list.remove(&handle);
     }
 
-    pub fn create_publisher(
-        &mut self,
-        qos: QosKind<PublisherQos>,
-    ) -> DdsResult<ActorAddress<DdsPublisher>> {
-        let publisher_qos = match qos {
-            QosKind::Default => self.default_publisher_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
-        let publisher_counter = self
-            .user_defined_publisher_counter
-            .fetch_add(1, Ordering::Relaxed);
-        let entity_id = EntityId::new(
-            EntityKey::new([publisher_counter, 0, 0]),
-            USER_DEFINED_WRITER_GROUP,
-        );
-        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroup::new(guid);
-        let mut publisher = DdsPublisher::new(publisher_qos, rtps_group);
-        if self.is_enabled() && self.get_qos().entity_factory.autoenable_created_entities {
-            publisher.enable();
-        }
-
-        let publisher_actor = spawn_actor(publisher);
-        let publisher_address = publisher_actor.address();
-        self.user_defined_publisher_list.push(publisher_actor);
-
-        Ok(publisher_address)
+    pub fn create_unique_publisher_id(&mut self) -> u8 {
+        let counter = self.user_defined_publisher_counter;
+        self.user_defined_publisher_counter += 1;
+        counter
     }
 
-    pub fn delete_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        let idx = self
-            .user_defined_publisher_list
-            .iter()
-            .position(|p| {
+    pub fn add_user_defined_publisher(&mut self, publisher: Actor<DdsPublisher>) {
+        self.user_defined_publisher_list.push(publisher)
+    }
+
+    pub fn user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
+        self.user_defined_publisher_list.iter().map(|a| a.address()).collect()
+    }
+
+    pub fn delete_publisher(&mut self, handle: InstanceHandle) {
+        self.user_defined_publisher_list
+            .retain(|p|
                 p.address()
                     .get_instance_handle()
-                    .expect("Should not fail to get handle")
-                    == handle
-            })
-            .ok_or(DdsError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant".to_string(),
-            ))?;
-
-        let is_publisher_empty = self.user_defined_publisher_list[idx].address().is_empty()?;
-        if is_publisher_empty {
-            self.user_defined_publisher_list.remove(idx);
-            Ok(())
-        } else {
-            Err(DdsError::PreconditionNotMet(
-                "Publisher still contains data writers".to_string(),
-            ))
-        }
+                    .expect("Should not fail to send message") != handle);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -807,7 +773,7 @@ impl DdsDomainParticipant {
         todo!()
     }
 
-    pub fn get_qos(&self) -> DomainParticipantQos {
+    pub fn qos(&self) -> DomainParticipantQos {
         self.qos.clone()
     }
 
@@ -929,7 +895,7 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn get_default_publisher_qos(&self) -> PublisherQos {
+    pub fn default_publisher_qos(&self) -> PublisherQos {
         self.default_publisher_qos.clone()
     }
 
@@ -942,7 +908,7 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn get_default_subscriber_qos(&self) -> SubscriberQos {
+    pub fn default_subscriber_qos(&self) -> SubscriberQos {
         self.default_subscriber_qos.clone()
     }
 
@@ -958,15 +924,15 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn get_default_topic_qos(&self) -> TopicQos {
+    pub fn default_topic_qos(&self) -> TopicQos {
         self.default_topic_qos.clone()
     }
 
-    pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        Ok(self.discovered_topic_list.keys().cloned().collect())
+    pub fn discovered_topic_list(&self) -> Vec<InstanceHandle> {
+        self.discovered_topic_list.keys().cloned().collect()
     }
 
-    pub fn get_discovered_topic_data(
+    pub fn discovered_topic_data(
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
@@ -1024,7 +990,7 @@ impl DdsDomainParticipant {
         let serialized_data =
             dds_serialize(&spdp_discovered_participant_data).map_err(|_err| DdsError::Error)?;
 
-        let current_time = self.get_current_time();
+        let current_time = self.current_time();
         // todo!()
         // self.builtin_publisher
         //     .stateless_data_writer_list_mut()
@@ -1069,44 +1035,6 @@ impl DdsDomainParticipant {
 
     //     self.discovered_participant_remove(participant_handle);
     // }
-
-    pub fn receive_builtin_data(
-        &mut self,
-        source_locator: Locator,
-        message: RtpsMessageRead,
-        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) -> DdsResult<()> {
-        // MessageReceiver::new(self.get_current_time()).process_message(
-        //     self.rtps_participant.guid(),
-        //     core::slice::from_mut(&mut self.builtin_publisher),
-        //     core::slice::from_mut(&mut self.builtin_subscriber),
-        //     source_locator,
-        //     &message,
-        //     listener_sender,
-        // )?;
-        // self.user_defined_data_send_condvar.notify_all();
-        Ok(())
-    }
-
-    pub fn receive_user_defined_data(
-        &mut self,
-        source_locator: Locator,
-        message: RtpsMessageRead,
-        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) -> DdsResult<()> {
-        // MessageReceiver::new(self.get_current_time()).process_message(
-        //     self.rtps_participant.guid(),
-        //     todo!(),
-        //     // self.user_defined_publisher_list.as_mut_slice(),
-        //     todo!(),
-        //     // self.user_defined_subscriber_list.as_mut_slice(),
-        //     source_locator,
-        //     &message,
-        //     listener_sender,
-        // )?;
-        // self.user_defined_data_send_condvar.notify_all();
-        Ok(())
-    }
 
     pub fn discover_matched_readers(
         &mut self,
@@ -1288,7 +1216,7 @@ impl DdsDomainParticipant {
         &mut self,
         listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
-        let now = self.get_current_time();
+        let now = self.current_time();
         let guid = self.guid();
         for subscriber in self.user_defined_subscriber_list.iter_mut() {
             todo!()

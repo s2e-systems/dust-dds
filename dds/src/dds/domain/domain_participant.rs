@@ -131,12 +131,33 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher_address = self.0.create_publisher(qos)??;
+        // let publisher_qos = match qos {
+        //     QosKind::Default => self.default_publisher_qos.clone(),
+        //     QosKind::Specific(q) => q,
+        // };
+        // let publisher_counter = self
+        //     .user_defined_publisher_counter
+        //     .fetch_add(1, Ordering::Relaxed);
+        // let entity_id = EntityId::new(
+        //     EntityKey::new([publisher_counter, 0, 0]),
+        //     USER_DEFINED_WRITER_GROUP,
+        // );
+        // let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+        // let rtps_group = RtpsGroup::new(guid);
+        // let mut publisher = DdsPublisher::new(publisher_qos, rtps_group);
+        // if self.is_enabled() && self.qos().entity_factory.autoenable_created_entities {
+        //     publisher.enable();
+        // }
 
-        Ok(Publisher::new(PublisherNode::new(
-            publisher_address,
-            self.0.clone(),
-        )))
+        // let publisher_actor = spawn_actor(publisher);
+        // let publisher_address = publisher_actor.address();
+        // self.user_defined_publisher_list.push(publisher_actor);
+
+        // Ok(Publisher::new(PublisherNode::new(
+        //     publisher_address,
+        //     self.0.clone(),
+        // )))
+        todo!()
     }
 
     /// This operation deletes an existing [`Publisher`].
@@ -147,8 +168,29 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        self.0
-            .delete_publisher(a_publisher.get_instance_handle()?)?
+        // let idx = self
+        //     .user_defined_publisher_list
+        //     .iter()
+        //     .position(|p| {
+        //         p.address()
+        //             .get_instance_handle()
+        //             .expect("Should not fail to get handle")
+        //             == handle
+        //     })
+        //     .ok_or(DdsError::PreconditionNotMet(
+        //         "Publisher can only be deleted from its parent participant".to_string(),
+        //     ))?;
+
+        // let is_publisher_empty = self.user_defined_publisher_list[idx].address().is_empty()?;
+        // if is_publisher_empty {
+        //     self.user_defined_publisher_list.remove(idx);
+        //     Ok(())
+        // } else {
+        //     Err(DdsError::PreconditionNotMet(
+        //         "Publisher still contains data writers".to_string(),
+        //     ))
+        // }
+        todo!()
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
@@ -592,7 +634,7 @@ impl DomainParticipant {
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.0.get_qos()
+        self.0.qos()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -673,7 +715,7 @@ impl DomainParticipant {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.get_instance_handle()
+        self.0.instance_handle()
     }
 }
 
@@ -1575,7 +1617,7 @@ fn user_defined_communication_send(
         domain_participant.vendor_id(),
         domain_participant.guid().prefix(),
     );
-    let now = domain_participant.get_current_time();
+    let now = domain_participant.current_time();
 
     // for publisher in domain_participant.user_defined_publisher_list_mut() {
     todo!()

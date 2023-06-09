@@ -169,7 +169,7 @@ macro_rules! actor_function {
             }
         }
 
-        impl ActorAddress<$type_name> {
+        impl crate::implementation::utils::actor::ActorAddress<$type_name> {
             pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> DdsResult<$ret_type> {
                 #[allow(non_camel_case_types)]
                 struct $fn_name {
@@ -199,16 +199,16 @@ macro_rules! actor_function {
     // Match a function definition without return type
     ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $body:block ) => {
         impl $type_name {
-            pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type),*) {
+            pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)* ) {
                 $body
             }
         }
 
-        impl ActorAddress<$type_name> {
-            pub fn $fn_name(&self $(, $arg_name:$arg_type),*) -> DdsResult<()> {
+        impl crate::implementation::utils::actor::ActorAddress<$type_name> {
+            pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> DdsResult<()> {
                 #[allow(non_camel_case_types)]
                 struct $fn_name {
-                    $($arg_name:$arg_type)*
+                    $($arg_name:$arg_type,)*
                 }
 
                 impl crate::implementation::utils::actor::Mail for $fn_name {
@@ -218,12 +218,12 @@ macro_rules! actor_function {
                 impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
                     #[allow(unused_variables)]
                     fn handle(&mut self, mail: $fn_name) {
-                        self.$fn_name($(mail.$arg_name)*)
+                        self.$fn_name($(mail.$arg_name,)*)
                     }
                 }
 
                 self.send_blocking($fn_name{
-                    $($arg_name)*
+                    $($arg_name, )*
                 })
 
             }
@@ -294,6 +294,6 @@ mod tests {
         let data_interface = DataInterface(actor.address());
         std::mem::drop(actor);
         std::thread::sleep(std::time::Duration::from_millis(100));
-        assert_eq!(data_interface.increment(10), Err(DdsError::AlreadyDeleted))
+        assert_eq!(data_interface.increment(10), Err(DdsError::AlreadyDeleted));
     }
 }

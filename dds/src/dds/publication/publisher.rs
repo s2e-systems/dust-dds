@@ -85,7 +85,7 @@ impl Publisher {
         let user_defined_rtps_message_channel_sender = self
             .0
             .parent_participant()
-            .get_user_defined_rtps_message_channel_sender()?;
+            .user_defined_rtps_message_channel_sender()?;
         todo!()
         // let writer_address = self.0.address().create_datawriter::<Foo>(
         //     a_topic.get_name()?,
