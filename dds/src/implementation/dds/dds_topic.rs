@@ -12,7 +12,7 @@ use crate::{
     },
 };
 
-use super::{dds_domain_participant::AnnounceKind, status_listener::ListenerTriggerKind};
+use super::status_listener::ListenerTriggerKind;
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -88,9 +88,9 @@ impl DdsTopic {
     }
 
     pub fn enable(&mut self) -> DdsResult<()> {
-        self.announce_sender
-            .try_send(AnnounceKind::CratedTopic(self.as_discovered_topic_data()))
-            .ok();
+        // self.announce_sender
+        //     .try_send(AnnounceKind::CratedTopic(self.as_discovered_topic_data()))
+        //     .ok();
 
         self.enabled = true;
         Ok(())

@@ -667,7 +667,7 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let (sender, receiver) = tokio::sync::mpsc::channel(10);
+        let (sender, _receiver) = tokio::sync::mpsc::channel(10);
         let mut data_writer = DdsDataWriter::new(rtps_writer, "", String::from(""), sender);
         data_writer.enabled = true;
         data_writer

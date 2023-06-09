@@ -1,26 +1,16 @@
 use crate::{
     implementation::{
         rtps::{
-            endpoint::RtpsEndpoint,
-            group::RtpsGroup,
-            messages::overall_structure::RtpsMessageWrite,
-            stateful_writer::RtpsStatefulWriter,
-            stateless_writer::RtpsStatelessWriter,
-            types::{
-                EntityId, EntityKey, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-                USER_DEFINED_WRITER_WITH_KEY,
-            },
-            writer::RtpsWriter,
+            group::RtpsGroup, stateful_writer::RtpsStatefulWriter,
+            stateless_writer::RtpsStatelessWriter, types::Guid,
         },
-        utils::actor::{actor_interface, spawn_actor, Actor, ActorAddress},
+        utils::actor::{actor_interface, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
-        time::{Duration, DURATION_ZERO},
     },
-    DdsType,
 };
 
 use super::dds_data_writer::DdsDataWriter;

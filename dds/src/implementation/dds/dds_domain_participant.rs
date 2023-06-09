@@ -647,15 +647,15 @@ impl DdsDomainParticipant {
     }
 
     pub fn add_user_defined_topic(&mut self, topic: Actor<DdsTopic>) {
-        self.user_defined_topic_list.push(topic)
+        self.topic_list.push(topic)
     }
 
     pub fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
-        self.user_defined_topic_list.iter().map(|a| a.address()).collect()
+        self.topic_list.iter().map(|a| a.address()).collect()
     }
 
-    pub fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
-        self.user_defined_topic_list
+    pub fn delete_user_defined_topic(&mut self, handle: InstanceHandle) {
+        self.topic_list
             .retain(|p|
                 if let Ok(h) = p.address()
                     .get_instance_handle() {
@@ -669,35 +669,6 @@ impl DdsDomainParticipant {
         self.user_defined_publisher_list.iter().count() == 0
             && self.user_defined_subscriber_list.iter().count() == 0
             && self.topic_list.iter().count() == 0
-    }
-
-    pub fn delete_subscriber(&mut self, subscriber_guid: Guid) -> DdsResult<()> {
-        todo!()
-        // if self.rtps_participant.guid().prefix() != subscriber_guid.prefix() {
-        //     return Err(DdsError::PreconditionNotMet(
-        //         "Subscriber can only be deleted from its parent participant".to_string(),
-        //     ));
-        // }
-
-        // if self
-        //     .user_defined_subscriber_list()
-        //     .iter()
-        //     .find(|&x| x.guid() == subscriber_guid)
-        //     .ok_or(DdsError::AlreadyDeleted)?
-        //     .stateful_data_reader_list()
-        //     .iter()
-        //     .count()
-        //     > 0
-        // {
-        //     return Err(DdsError::PreconditionNotMet(
-        //         "Subscriber still contains data readers".to_string(),
-        //     ));
-        // }
-
-        // self.user_defined_subscriber_list
-        //     .retain(|x| x.guid() != subscriber_guid);
-
-        // Ok(())
     }
 
     pub fn delete_topic(&mut self, topic_guid: Guid) -> DdsResult<()> {
@@ -812,10 +783,6 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn assert_liveliness(&self) -> DdsResult<()> {
-        todo!()
-    }
-
     pub fn set_default_publisher_qos(&mut self, qos: PublisherQos){
         self.default_publisher_qos = qos;
     }
@@ -852,10 +819,6 @@ impl DdsDomainParticipant {
             .get(&topic_handle)
             .cloned()
             .ok_or(DdsError::BadParameter)
-    }
-
-    pub fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
-        todo!()
     }
 
     pub fn set_qos(&mut self, qos: DomainParticipantQos) {

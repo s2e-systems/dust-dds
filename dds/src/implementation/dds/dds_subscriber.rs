@@ -175,6 +175,10 @@ impl DdsSubscriber {
         self.rtps_group.guid()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.stateless_data_reader_list.is_empty() && self.stateful_data_reader_list.is_empty()
+    }
+
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }

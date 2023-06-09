@@ -53,7 +53,7 @@ use crate::{
     },
     infrastructure::{
         condition::StatusCondition,
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
@@ -149,29 +149,20 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        // let idx = self
-        //     .user_defined_publisher_list
-        //     .iter()
-        //     .position(|p| {
-        //         p.address()
-        //             .get_instance_handle()
-        //             .expect("Should not fail to get handle")
-        //             == handle
-        //     })
-        //     .ok_or(DdsError::PreconditionNotMet(
-        //         "Publisher can only be deleted from its parent participant".to_string(),
-        //     ))?;
+        if self.0.get_guid()?.prefix() != a_publisher.node().address().guid()?.prefix() {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ));
+        }
 
-        // let is_publisher_empty = self.user_defined_publisher_list[idx].address().is_empty()?;
-        // if is_publisher_empty {
-        //     self.user_defined_publisher_list.remove(idx);
-        //     Ok(())
-        // } else {
-        //     Err(DdsError::PreconditionNotMet(
-        //         "Publisher still contains data writers".to_string(),
-        //     ))
-        // }
-        todo!()
+        if self.0.is_empty()? {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher still contains data readers".to_string(),
+            ));
+        }
+
+        self.0
+            .delete_user_defined_publisher(a_publisher.get_instance_handle()?)
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
@@ -222,23 +213,25 @@ impl DomainParticipant {
     /// it is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        todo!()
-        // match a_subscriber.node() {
-        //     SubscriberNodeKind::Builtin(_) => (),
-        //     SubscriberNodeKind::UserDefined(s) => {
-        //         self.call_participant_mut_method(|dp| {
-        //             crate::implementation::behavior::domain_participant::delete_subscriber(
-        //                 dp,
-        //                 s.guid(),
-        //             )
-        //         })?;
+        match a_subscriber.node() {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => Ok(()),
+            SubscriberNodeKind::UserDefined(s) => {
+                if self.0.get_guid()?.prefix() != s.address().guid()?.prefix() {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Subscriber can only be deleted from its parent participant".to_string(),
+                    ));
+                }
 
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_subscriber_listener(&s.guid());
-        //     }
-        //     SubscriberNodeKind::Listener(_) => (),
-        // }
+                if self.0.is_empty()? {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Subscriber still contains data readers".to_string(),
+                    ));
+                }
 
-        // Ok(())
+                self.0
+                    .delete_user_defined_subscriber(s.address().get_instance_handle()?)
+            }
+        }
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
@@ -254,13 +247,13 @@ impl DomainParticipant {
         &self,
         topic_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<Topic<Foo>>
     where
         Foo: DdsType + 'static,
     {
-        let topic_qos = match qos {
+        let qos = match qos {
             QosKind::Default => self.0.default_topic_qos()?,
             QosKind::Specific(q) => q,
         };
@@ -292,18 +285,16 @@ impl DomainParticipant {
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_topic<Foo>(&self, a_topic: &Topic<Foo>) -> DdsResult<()> {
-        todo!()
-        // match &a_topic.node() {
-        //     TopicNodeKind::UserDefined(t) => {
-        //         self.call_participant_mut_method(|dp| {
-        //             crate::implementation::behavior::domain_participant::delete_topic(dp, t.guid())
-        //         })?;
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_topic_listener(&t.guid());
-        //     }
-        //     TopicNodeKind::Listener(_) => todo!(),
-        // }
-
-        // Ok(())
+        match &a_topic.node() {
+            TopicNodeKind::UserDefined(t) => {
+                todo!()
+                //         self.call_participant_mut_method(|dp| {
+                //             crate::implementation::behavior::domain_participant::delete_topic(dp, t.guid())
+                //         })?;
+                //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_topic_listener(&t.guid());
+            }
+            TopicNodeKind::Listener(_) => Ok(()),
+        }
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
