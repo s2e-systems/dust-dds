@@ -81,7 +81,7 @@ impl DataReaderNode {
         }
     }
 
-    pub fn guid(&self) -> &ActorAddress<DdsDataReader<RtpsStatefulReader>> {
+    pub fn address(&self) -> &ActorAddress<DdsDataReader<RtpsStatefulReader>> {
         &self.this
     }
 

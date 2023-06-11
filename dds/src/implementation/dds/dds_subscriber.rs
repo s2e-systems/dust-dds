@@ -1,35 +1,17 @@
-use super::{
-    dds_data_reader::DdsDataReader, message_receiver::MessageReceiver,
-    status_listener::ListenerTriggerKind,
-};
+use super::dds_data_reader::DdsDataReader;
 use crate::{
     implementation::{
         rtps::{
-            endpoint::RtpsEndpoint,
-            group::RtpsGroup,
-            messages::submessages::{
-                data::DataSubmessageRead, data_frag::DataFragSubmessageRead,
-                gap::GapSubmessageRead, heartbeat::HeartbeatSubmessageRead,
-                heartbeat_frag::HeartbeatFragSubmessageRead,
-            },
-            reader::RtpsReader,
-            stateful_reader::RtpsStatefulReader,
-            stateless_reader::RtpsStatelessReader,
-            types::{
-                EntityId, EntityKey, Guid, GuidPrefix, Locator, TopicKind,
-                USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
-            },
+            group::RtpsGroup, stateful_reader::RtpsStatefulReader,
+            stateless_reader::RtpsStatelessReader, types::Guid,
         },
-        utils::actor::{actor_interface, spawn_actor, Actor, ActorAddress},
+        utils::actor::{actor_interface, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
-        time::{Time, DURATION_ZERO},
+        qos::{DataReaderQos, QosKind, SubscriberQos},
     },
-    topic_definition::type_support::DdsDeserialize,
-    DdsType,
 };
 
 pub struct DdsSubscriber {
@@ -58,68 +40,6 @@ impl DdsSubscriber {
 
 actor_interface! {
 impl DdsSubscriber {
-    // pub fn create_datareader<Foo>(
-    //     &mut self,
-    //     topic_name: String,
-    //     qos: QosKind<DataReaderQos>,
-    //     default_unicast_locator_list: Vec<Locator>,
-    //     default_multicast_locator_list: Vec<Locator>,
-    // ) -> DdsResult<ActorAddress<DdsDataReader<RtpsStatefulReader>>>
-    // where
-    //     Foo: DdsType + for<'de> DdsDeserialize<'de>,
-    // {
-    //     let qos = match qos {
-    //         QosKind::Default => self.default_data_reader_qos.clone(),
-    //         QosKind::Specific(q) => q,
-    //     };
-    //     qos.is_consistent()?;
-
-    //     let entity_kind = match Foo::has_key() {
-    //         true => USER_DEFINED_READER_WITH_KEY,
-    //         false => USER_DEFINED_READER_NO_KEY,
-    //     };
-
-    //     let entity_key = EntityKey::new([
-    //         <[u8; 3]>::from(self.guid().entity_id().entity_key())[0],
-    //         self.get_unique_reader_id(),
-    //         0,
-    //     ]);
-
-    //     let entity_id = EntityId::new(entity_key, entity_kind);
-
-    //     let guid = Guid::new(self.guid().prefix(), entity_id);
-
-    //     let topic_kind = match Foo::has_key() {
-    //         true => TopicKind::WithKey,
-    //         false => TopicKind::NoKey,
-    //     };
-
-    //     let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<Foo>(
-    //         RtpsEndpoint::new(
-    //             guid,
-    //             topic_kind,
-    //             &default_unicast_locator_list,
-    //             &default_multicast_locator_list,
-    //         ),
-    //         DURATION_ZERO,
-    //         DURATION_ZERO,
-    //         false,
-    //         qos,
-    //     ));
-
-    //     let mut data_reader = DdsDataReader::new(rtps_reader, Foo::type_name(), topic_name);
-
-    //     if self.is_enabled() && self.qos.entity_factory.autoenable_created_entities {
-    //         data_reader.enable()?;
-    //     }
-
-    //     let reader_actor = spawn_actor(data_reader);
-    //     let reader_address = reader_actor.address();
-    //     self.stateful_data_reader_list.push(reader_actor);
-
-    //     Ok(reader_address)
-    // }
-
     pub fn delete_datareader(&mut self, datareader_guid: Guid) -> DdsResult<()> {
         todo!()
         // let data_reader = domain_participant
@@ -213,6 +133,10 @@ impl DdsSubscriber {
         //     .retain(|x| x.guid() != datareader_guid)
     }
 
+    pub fn stateful_data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader<RtpsStatefulReader>>> {
+        self.stateful_data_reader_list.iter().map(|dr| dr.address()).collect()
+    }
+
     pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match qos {
             QosKind::Default => self.default_data_reader_qos = DataReaderQos::default(),
@@ -243,16 +167,8 @@ impl DdsSubscriber {
         Ok(())
     }
 
-    pub fn enable(&mut self) -> DdsResult<()> {
+    pub fn enable(&mut self) {
         self.enabled = true;
-
-        if self.qos.entity_factory.autoenable_created_entities {
-            for data_reader in self.stateful_data_reader_list.iter_mut() {
-                data_reader.address().enable()?;
-            }
-        }
-
-        Ok(())
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {

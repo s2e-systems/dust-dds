@@ -205,8 +205,8 @@ impl<T> DdsDataReader<T> {
         self.type_name
     }
 
-    pub fn get_topic_name(&self) -> &str {
-        &self.topic_name
+    pub fn get_topic_name(&self) -> String {
+        self.topic_name.clone()
     }
 
     pub fn get_liveliness_changed_status(&mut self) -> LivelinessChangedStatus {
@@ -238,9 +238,8 @@ impl<T> DdsDataReader<T> {
         self.enabled
     }
 
-    pub fn enable(&mut self) -> DdsResult<()> {
+    pub fn enable(&mut self) {
         self.enabled = true;
-        Ok(())
     }
 }
 

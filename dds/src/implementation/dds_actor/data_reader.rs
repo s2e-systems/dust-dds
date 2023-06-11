@@ -27,10 +27,41 @@ impl<T> ActorAddress<DdsDataReader<T>> {
 
         impl<T> MailHandler<Enable> for DdsDataReader<T> {
             fn handle(&mut self, _mail: Enable) -> <Enable as Mail>::Result {
-                self.enable().ok();
+                self.enable()
             }
         }
         self.send_blocking(Enable)
+    }
+
+    pub fn get_type_name(&self) -> DdsResult<&'static str> {
+        struct GetTypeName;
+
+        impl Mail for GetTypeName {
+            type Result = &'static str;
+        }
+
+        impl<T> MailHandler<GetTypeName> for DdsDataReader<T> {
+            fn handle(&mut self, _mail: GetTypeName) -> <GetTypeName as Mail>::Result {
+                self.get_type_name()
+            }
+        }
+        self.send_blocking(GetTypeName)
+    }
+
+    pub fn get_topic_name(&self) -> DdsResult<String> {
+        struct GetTopicName;
+
+        impl Mail for GetTopicName {
+            type Result = String;
+        }
+
+        impl<T> MailHandler<GetTopicName> for DdsDataReader<T> {
+            fn handle(&mut self, _mail: GetTopicName) -> <GetTopicName as Mail>::Result {
+                self.get_topic_name()
+            }
+        }
+
+        self.send_blocking(GetTopicName)
     }
 }
 

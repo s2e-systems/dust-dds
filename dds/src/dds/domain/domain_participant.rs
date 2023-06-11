@@ -155,9 +155,14 @@ impl DomainParticipant {
             ));
         }
 
-        if self.0.is_empty()? {
+        if !a_publisher
+            .node()
+            .address()
+            .stateful_data_writer_list()?
+            .is_empty()
+        {
             return Err(DdsError::PreconditionNotMet(
-                "Publisher still contains data readers".to_string(),
+                "Publisher still contains data writers".to_string(),
             ));
         }
 
@@ -222,7 +227,7 @@ impl DomainParticipant {
                     ));
                 }
 
-                if self.0.is_empty()? {
+                if !s.address().stateful_data_reader_list()?.is_empty() {
                     return Err(DdsError::PreconditionNotMet(
                         "Subscriber still contains data readers".to_string(),
                     ));
@@ -287,11 +292,35 @@ impl DomainParticipant {
     pub fn delete_topic<Foo>(&self, a_topic: &Topic<Foo>) -> DdsResult<()> {
         match &a_topic.node() {
             TopicNodeKind::UserDefined(t) => {
-                todo!()
-                //         self.call_participant_mut_method(|dp| {
-                //             crate::implementation::behavior::domain_participant::delete_topic(dp, t.guid())
-                //         })?;
-                //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_topic_listener(&t.guid());
+                if self.0.get_guid()?.prefix() != t.address().guid()?.prefix() {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic can only be deleted from its parent participant".to_string(),
+                    ));
+                }
+
+                for publisher in self.0.get_user_defined_publisher_list()? {
+                    if publisher.stateful_data_writer_list()?.iter().any(|w| {
+                        w.get_type_name() == t.address().get_type_name()
+                            && w.get_topic_name() == t.address().get_name()
+                    }) {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Topic still attached to some data writer".to_string(),
+                        ));
+                    }
+                }
+
+                for subscriber in self.0.get_user_defined_subscriber_list()? {
+                    if subscriber.stateful_data_reader_list()?.iter().any(|r| {
+                        r.get_type_name() == t.address().get_type_name()
+                            && r.get_topic_name() == t.address().get_name()
+                    }) {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Topic still attached to some data reader".to_string(),
+                        ));
+                    }
+                }
+
+                self.0.delete_topic(t.address().get_instance_handle()?)
             }
             TopicNodeKind::Listener(_) => Ok(()),
         }

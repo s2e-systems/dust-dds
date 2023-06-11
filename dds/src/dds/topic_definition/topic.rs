@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::dds::nodes::{DomainParticipantNode, TopicNodeKind},
+    implementation::dds::nodes::TopicNodeKind,
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -133,36 +133,30 @@ impl<Foo> Topic<Foo> {
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        todo!()
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&t.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_topic::set_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 t.guid(),
-        //                 qos,
-        //             )
-        //         }),
-        //     TopicNodeKind::Listener(_) => todo!(),
-        // }
-        // self.node.upgrade()?.set_qos(qos)
+        match &self.node {
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                let qos = match qos {
+                    QosKind::Default => t.parent_participant().default_topic_qos()?,
+                    QosKind::Specific(q) => {
+                        q.is_consistent()?;
+                        q
+                    }
+                };
+
+                if t.address().is_enabled()? {
+                    t.address().get_qos()?.check_immutability(&qos)?
+                }
+
+                t.address().set_qos(qos)
+            }
+        }
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        todo!()
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(t) => {
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_topic::get_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 t.guid(),
-        //             )
-        //         })
-        //     }
-        //     TopicNodeKind::Listener(_) => todo!(),
-        // }
-        // Ok(self.node.upgrade()?.get_qos())
+        match &self.node {
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => t.address().get_qos(),
+        }
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

@@ -53,129 +53,9 @@ impl DdsPublisher {
         self.stateful_data_writer_list.is_empty() && self.stateless_data_writer_list.is_empty()
     }
 
-    // pub fn create_datawriter<Foo>(
-    //     &mut self,
-    //     topic_name: String,
-    //     qos: QosKind<DataWriterQos>,
-    //     default_unicast_locator_list: Vec<Locator>,
-    //     default_multicast_locator_list: Vec<Locator>,
-    //     data_max_size_serialized: usize,
-    //     user_defined_rtps_message_channel_sender: tokio::sync::mpsc::Sender<(
-    //         RtpsMessageWrite,
-    //         Vec<Locator>,
-    //     )>,
-    // ) -> DdsResult<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>>
-    // where
-    //     Foo: DdsType,
-    // {
-    //     let qos = match qos {
-    //         QosKind::Default => self.default_datawriter_qos.clone(),
-    //         QosKind::Specific(q) => q,
-    //     };
-    //     qos.is_consistent()?;
-
-    //     let entity_kind = match Foo::has_key() {
-    //         true => USER_DEFINED_WRITER_WITH_KEY,
-    //         false => USER_DEFINED_WRITER_NO_KEY,
-    //     };
-
-    //     let entity_key = EntityKey::new([
-    //         <[u8; 3]>::from(self.guid().entity_id().entity_key())[0],
-    //         self.get_unique_writer_id(),
-    //         0,
-    //     ]);
-
-    //     let entity_id = EntityId::new(entity_key, entity_kind);
-
-    //     let guid = Guid::new(self.guid().prefix(), entity_id);
-
-    //     let topic_kind = match Foo::has_key() {
-    //         true => TopicKind::WithKey,
-    //         false => TopicKind::NoKey,
-    //     };
-
-    //     let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
-    //         RtpsEndpoint::new(
-    //             guid,
-    //             topic_kind,
-    //             &default_unicast_locator_list,
-    //             &default_multicast_locator_list,
-    //         ),
-    //         true,
-    //         Duration::new(0, 200_000_000),
-    //         DURATION_ZERO,
-    //         DURATION_ZERO,
-    //         data_max_size_serialized,
-    //         qos,
-    //     ));
-
-    //     let mut data_writer = DdsDataWriter::new(
-    //         rtps_writer_impl,
-    //         Foo::type_name(),
-    //         topic_name,
-    //         user_defined_rtps_message_channel_sender,
-    //     );
-
-    //     if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-    //         data_writer.enable();
-    //     }
-
-    //     let data_writer_actor = spawn_actor(data_writer);
-    //     let data_writer_address = data_writer_actor.address();
-    //     self.stateful_data_writer_list.push(data_writer_actor);
-
-    //     Ok(data_writer_address)
-    // }
-
     pub fn delete_datawriter(&mut self, data_writer_guid: Guid) -> DdsResult<()> {
         todo!()
-        // if publisher_guid != data_writer_parent_publisher_guid {
-        //     return Err(DdsError::PreconditionNotMet(
-        //         "Data writer can only be deleted from its parent publisher".to_string(),
-        //     ));
-        // }
 
-        // let data_writer_guid = domain_participant
-        //     .user_defined_publisher_list_mut()
-        //     .iter_mut()
-        //     .find(|p| p.guid() == publisher_guid)
-        //     .ok_or(DdsError::AlreadyDeleted)?
-        //     .stateful_data_writer_list()
-        //     .iter()
-        //     .find(|x| x.guid() == data_writer_guid)
-        //     .ok_or(DdsError::AlreadyDeleted)?
-        //     .guid();
-
-        // // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
-        // if domain_participant
-        //     .user_defined_publisher_list_mut()
-        //     .iter_mut()
-        //     .find(|p| p.guid() == publisher_guid)
-        //     .ok_or(DdsError::AlreadyDeleted)?
-        //     .stateful_data_writer_list()
-        //     .iter()
-        //     .find(|x| x.guid() == data_writer_guid)
-        //     .ok_or_else(|| {
-        //         DdsError::PreconditionNotMet(
-        //             "Data writer can only be deleted from its parent publisher".to_string(),
-        //         )
-        //     })?
-        //     .is_enabled()
-        // {
-        //     domain_participant
-        //         .announce_sender()
-        //         .try_send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
-        //         .ok();
-        // }
-
-        // domain_participant
-        //     .user_defined_publisher_list_mut()
-        //     .iter_mut()
-        //     .find(|p| p.guid() == publisher_guid)
-        //     .ok_or(DdsError::AlreadyDeleted)?
-        //     .stateful_datawriter_delete(InstanceHandle::from(data_writer_guid));
-
-        // Ok(())
     }
 
     pub fn lookup_datawriter(
@@ -236,16 +116,6 @@ impl DdsPublisher {
         data_writer: Actor<DdsDataWriter<RtpsStatelessWriter>>,
     ) {
         self.stateless_data_writer_list.push(data_writer)
-    }
-
-    pub fn get_data_writer(
-        &self,
-        data_writer_guid: Guid,
-    ) -> Option<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
-        todo!()
-        // self.stateful_data_writer_list()
-        //     .iter()
-        //     .find(|dw| dw.guid() == data_writer_guid)
     }
 
     pub fn set_default_datawriter_qos(&mut self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {

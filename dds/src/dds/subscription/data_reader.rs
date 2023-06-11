@@ -962,20 +962,14 @@ impl<Foo> DataReader<Foo> {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_reader::enable(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //                 r.parent_subscriber(),
-        //             )
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_)
+            | DataReaderNodeKind::BuiltinStateful(_)
+            | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::UserDefined(r) => {
+                r.address().enable()
+            },
+        }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.

@@ -671,43 +671,15 @@ impl DdsDomainParticipant {
             && self.topic_list.iter().count() == 0
     }
 
-    pub fn delete_topic(&mut self, topic_guid: Guid) -> DdsResult<()> {
-        // if self.rtps_participant.guid().prefix() != topic_guid.prefix() {
-        //     return Err(DdsError::PreconditionNotMet(
-        //         "Topic can only be deleted from its parent participant".to_string(),
-        //     ));
-        // }
-
-        // let topic = self
-        //     .topic_list
-        //     .iter()
-        //     .find(|&topic| topic.guid() == topic_guid)
-        //     .ok_or(DdsError::AlreadyDeleted)?;
-
-        // for publisher in self.user_defined_publisher_list() {
-        //     if publisher.stateful_data_writer_list().iter().any(|w| {
-        //         w.send_blocking(dds_actor::data_writer::GetTypeName).unwrap() == topic.get_type_name()
-        //             && w.send_blocking(dds_actor::data_writer::GetTopicName).unwrap() == topic.get_name()
-        //     }) {
-        //         return Err(DdsError::PreconditionNotMet(
-        //             "Topic still attached to some data writer".to_string(),
-        //         ));
-        //     }
-        // }
-
-        // for subscriber in self.user_defined_subscriber_list() {
-        //     if subscriber.stateful_data_reader_list().iter().any(|r| {
-        //         r.get_type_name() == topic.get_type_name() && r.get_topic_name() == topic.get_name()
-        //     }) {
-        //         return Err(DdsError::PreconditionNotMet(
-        //             "Topic still attached to some data reader".to_string(),
-        //         ));
-        //     }
-        // }
-
-        // self.topic_list.retain(|x| x.guid() != topic_guid);
-        // Ok(())
-        todo!()
+    pub fn delete_topic(&mut self, handle: InstanceHandle) {
+        self.topic_list
+            .retain(|t|
+                if let Ok(h) = t.address()
+                    .get_instance_handle() {
+                        h != handle
+                    } else {
+                        false
+                    });
     }
 
     pub fn get_qos(&self) -> DomainParticipantQos {

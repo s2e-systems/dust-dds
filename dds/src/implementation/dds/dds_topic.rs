@@ -5,10 +5,7 @@ use crate::{
         rtps::types::Guid, utils::actor::actor_interface,
     },
     infrastructure::{
-        error::DdsResult,
-        instance::InstanceHandle,
-        qos::{QosKind, TopicQos},
-        status::InconsistentTopicStatus,
+        error::DdsResult, instance::InstanceHandle, qos::TopicQos, status::InconsistentTopicStatus,
     },
 };
 
@@ -67,20 +64,8 @@ impl DdsTopic {
         self.guid
     }
 
-    pub fn set_qos(&mut self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => Default::default(),
-            QosKind::Specific(q) => q,
-        };
-
-        qos.is_consistent()?;
-        if self.enabled {
-            self.qos.check_immutability(&qos)?;
-        }
-
+    pub fn set_qos(&mut self, qos: TopicQos) {
         self.qos = qos;
-
-        Ok(())
     }
 
     pub fn get_qos(&self) -> TopicQos {
@@ -89,6 +74,10 @@ impl DdsTopic {
 
     pub fn enable(&mut self) {
         self.enabled = true;
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {

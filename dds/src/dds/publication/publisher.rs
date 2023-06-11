@@ -1,13 +1,28 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::dds::nodes::{DataWriterNode, DataWriterNodeKind, PublisherNode},
+    implementation::{
+        dds::{
+            dds_data_writer::DdsDataWriter,
+            nodes::{DataWriterNode, DataWriterNodeKind, PublisherNode},
+        },
+        rtps::{
+            endpoint::RtpsEndpoint,
+            stateful_writer::RtpsStatefulWriter,
+            types::{
+                EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+                USER_DEFINED_WRITER_WITH_KEY,
+            },
+            writer::RtpsWriter,
+        },
+        utils::actor::spawn_actor,
+    },
     infrastructure::{
         condition::StatusCondition,
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
-        time::Duration,
+        time::{Duration, DURATION_ZERO},
     },
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
@@ -75,8 +90,10 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + Send + 'static,
     {
-        let default_unicast_locator_list =
-            self.0.parent_participant().get_default_unicast_locator_list()?;
+        let default_unicast_locator_list = self
+            .0
+            .parent_participant()
+            .get_default_unicast_locator_list()?;
         let default_multicast_locator_list = self
             .0
             .parent_participant()
@@ -86,23 +103,77 @@ impl Publisher {
             .0
             .parent_participant()
             .user_defined_rtps_message_channel_sender()?;
-        todo!()
-        // let writer_address = self.0.address().create_datawriter::<Foo>(
-        //     a_topic.get_name()?,
-        //     qos,
-        //     default_unicast_locator_list,
-        //     default_multicast_locator_list,
-        //     data_max_size_serialized,
-        //     user_defined_rtps_message_channel_sender,
-        // )?;
 
-        // Ok(DataWriter::new(DataWriterNodeKind::UserDefined(
-        //     DataWriterNode::new(
-        //         writer_address,
-        //         self.0.address().clone(),
-        //         self.0.parent_participant().clone(),
-        //     ),
-        // )))
+        let qos = match qos {
+            QosKind::Default => self.0.address().get_default_datawriter_qos()?,
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
+
+        let guid_prefix = self.0.address().guid()?.prefix();
+        let entity_kind = match Foo::has_key() {
+            true => USER_DEFINED_WRITER_WITH_KEY,
+            false => USER_DEFINED_WRITER_NO_KEY,
+        };
+        let entity_key = EntityKey::new([
+            <[u8; 3]>::from(self.0.address().guid()?.entity_id().entity_key())[0],
+            self.0.address().get_unique_writer_id()?,
+            0,
+        ]);
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let guid = Guid::new(guid_prefix, entity_id);
+
+        let topic_kind = match Foo::has_key() {
+            true => TopicKind::WithKey,
+            false => TopicKind::NoKey,
+        };
+
+        let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
+            RtpsEndpoint::new(
+                guid,
+                topic_kind,
+                &default_unicast_locator_list,
+                &default_multicast_locator_list,
+            ),
+            true,
+            Duration::new(0, 200_000_000),
+            DURATION_ZERO,
+            DURATION_ZERO,
+            data_max_size_serialized,
+            qos,
+        ));
+        let topic_name = a_topic.get_name()?;
+        let data_writer = DdsDataWriter::new(
+            rtps_writer_impl,
+            Foo::type_name(),
+            topic_name,
+            user_defined_rtps_message_channel_sender,
+        );
+        let data_writer_actor = spawn_actor(data_writer);
+        let data_writer_address = data_writer_actor.address();
+        self.0
+            .address()
+            .stateful_datawriter_add(data_writer_actor)?;
+        let data_writer = DataWriter::new(DataWriterNodeKind::UserDefined(DataWriterNode::new(
+            data_writer_address,
+            self.0.address().clone(),
+            self.0.parent_participant().clone(),
+        )));
+
+        if self.0.address().is_enabled()?
+            && self
+                .0
+                .address()
+                .get_qos()?
+                .entity_factory
+                .autoenable_created_entities
+        {
+            data_writer.enable()?
+        }
+
+        Ok(data_writer)
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -112,22 +183,59 @@ impl Publisher {
     /// [`WriterDataLifecycleQosPolicy`](crate::infrastructure::qos_policy::WriterDataLifecycleQosPolicy), the deletion of the
     /// [`DataWriter`].
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
-        todo!()
-        // match a_datawriter.node() {
-        //     DataWriterNodeKind::UserDefined(dw) => {
-        //         self.call_participant_mut_method(|dp| {
-        //             crate::implementation::behavior::user_defined_publisher::delete_datawriter(
-        //                 dp,
-        //                 self.0.guid(),
-        //                 dw.guid(),
-        //                 dw.parent_publisher(),
-        //             )
-        //         })?;
+        match a_datawriter.node() {
+            DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+            DataWriterNodeKind::UserDefined(dw) => {
+                todo!()
+                // if publisher_guid != data_writer_parent_publisher_guid {
+                //     return Err(DdsError::PreconditionNotMet(
+                //         "Data writer can only be deleted from its parent publisher".to_string(),
+                //     ));
+                // }
 
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_data_writer_listener(&dw.guid());
-        //     }
-        //     DataWriterNodeKind::Listener(_) => (),
-        // }
+                // let data_writer_guid = domain_participant
+                //     .user_defined_publisher_list_mut()
+                //     .iter_mut()
+                //     .find(|p| p.guid() == publisher_guid)
+                //     .ok_or(DdsError::AlreadyDeleted)?
+                //     .stateful_data_writer_list()
+                //     .iter()
+                //     .find(|x| x.guid() == data_writer_guid)
+                //     .ok_or(DdsError::AlreadyDeleted)?
+                //     .guid();
+
+                // // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
+                // if domain_participant
+                //     .user_defined_publisher_list_mut()
+                //     .iter_mut()
+                //     .find(|p| p.guid() == publisher_guid)
+                //     .ok_or(DdsError::AlreadyDeleted)?
+                //     .stateful_data_writer_list()
+                //     .iter()
+                //     .find(|x| x.guid() == data_writer_guid)
+                //     .ok_or_else(|| {
+                //         DdsError::PreconditionNotMet(
+                //             "Data writer can only be deleted from its parent publisher".to_string(),
+                //         )
+                //     })?
+                //     .is_enabled()
+                // {
+                //     domain_participant
+                //         .announce_sender()
+                //         .try_send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
+                //         .ok();
+                // }
+
+                // domain_participant
+                //     .user_defined_publisher_list_mut()
+                //     .iter_mut()
+                //     .find(|p| p.guid() == publisher_guid)
+                //     .ok_or(DdsError::AlreadyDeleted)?
+                //     .stateful_datawriter_delete(InstanceHandle::from(data_writer_guid));
+
+                // Ok(())
+            }
+        }
 
         // Ok(())
     }

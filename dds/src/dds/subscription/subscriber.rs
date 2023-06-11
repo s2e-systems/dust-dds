@@ -1,8 +1,20 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::dds::{
-        dds_subscriber::DdsSubscriber,
-        nodes::{DataReaderNode, DataReaderNodeKind, SubscriberNodeKind},
+    implementation::{
+        dds::{
+            dds_data_reader::DdsDataReader,
+            nodes::{DataReaderNode, DataReaderNodeKind, SubscriberNodeKind},
+        },
+        rtps::{
+            endpoint::RtpsEndpoint,
+            reader::RtpsReader,
+            stateful_reader::RtpsStatefulReader,
+            types::{
+                EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_READER_NO_KEY,
+                USER_DEFINED_READER_WITH_KEY,
+            },
+        },
+        utils::actor::spawn_actor,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -10,6 +22,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
+        time::DURATION_ZERO,
     },
     topic_definition::{
         topic::Topic,
@@ -95,21 +108,71 @@ impl Subscriber {
                 let default_multicast_locator_list =
                     s.parent_participant().get_default_unicast_locator_list()?;
 
-                // let reader_address = s.address().create_datareader::<Foo>(
-                //     a_topic.get_name()?,
-                //     qos,
-                //     default_unicast_locator_list,
-                //     default_multicast_locator_list,
-                // )?;
+                let qos = match qos {
+                    QosKind::Default => s.address().get_default_datareader_qos()?,
+                    QosKind::Specific(q) => {
+                        q.is_consistent()?;
+                        q
+                    }
+                };
 
-                // Ok(DataReader::new(DataReaderNodeKind::UserDefined(
-                //     DataReaderNode::new(
-                //         reader_address,
-                //         s.address().clone(),
-                //         s.parent_participant().clone(),
-                //     ),
-                // )))
-                todo!()
+                let entity_kind = match Foo::has_key() {
+                    true => USER_DEFINED_READER_WITH_KEY,
+                    false => USER_DEFINED_READER_NO_KEY,
+                };
+                let subscriber_guid = s.address().guid()?;
+
+                let entity_key = EntityKey::new([
+                    <[u8; 3]>::from(subscriber_guid.entity_id().entity_key())[0],
+                    s.address().get_unique_reader_id()?,
+                    0,
+                ]);
+
+                let entity_id = EntityId::new(entity_key, entity_kind);
+                let guid = Guid::new(subscriber_guid.prefix(), entity_id);
+
+                let topic_kind = match Foo::has_key() {
+                    true => TopicKind::WithKey,
+                    false => TopicKind::NoKey,
+                };
+
+                let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<Foo>(
+                    RtpsEndpoint::new(
+                        guid,
+                        topic_kind,
+                        &default_unicast_locator_list,
+                        &default_multicast_locator_list,
+                    ),
+                    DURATION_ZERO,
+                    DURATION_ZERO,
+                    false,
+                    qos,
+                ));
+
+                let data_reader =
+                    DdsDataReader::new(rtps_reader, Foo::type_name(), a_topic.get_name()?);
+
+                let reader_actor = spawn_actor(data_reader);
+                let reader_address = reader_actor.address();
+                s.address().stateful_data_reader_add(reader_actor)?;
+
+                let data_reader =
+                    DataReader::new(DataReaderNodeKind::UserDefined(DataReaderNode::new(
+                        reader_address,
+                        s.address().clone(),
+                        s.parent_participant().clone(),
+                    )));
+
+                if s.address().is_enabled()?
+                    && s.address()
+                        .get_qos()?
+                        .entity_factory
+                        .autoenable_created_entities
+                {
+                    data_reader.enable()?;
+                }
+
+                Ok(data_reader)
             }
         }
     }
@@ -311,24 +374,11 @@ impl Subscriber {
 
     /// This operation allows access to the existing set of [`SubscriberQos`] policies.
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
-        todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(s) => {
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::builtin_subscriber::get_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //             )
-        //         })
-        //     }
-        //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&s.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_subscriber::get_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 s.guid(),
-        //             )
-        //         }),
-        //     SubscriberNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            SubscriberNodeKind::Builtin(s)
+            | SubscriberNodeKind::UserDefined(s)
+            | SubscriberNodeKind::Listener(s) => s.address().get_qos(),
+        }
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -403,18 +453,28 @@ impl Subscriber {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-        //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&s.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_subscriber::enable(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 s.guid(),
-        //             )
-        //         }),
-        //     SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
+        match &self.0 {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
+                Err(DdsError::IllegalOperation)
+            }
+            SubscriberNodeKind::UserDefined(s) => {
+                if !s.address().is_enabled()? {
+                    s.address().enable()?;
+
+                    if s.address()
+                        .get_qos()?
+                        .entity_factory
+                        .autoenable_created_entities
+                    {
+                        for data_reader in s.address().stateful_data_reader_list()? {
+                            data_reader.enable()?;
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+        }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
