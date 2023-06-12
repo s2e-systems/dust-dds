@@ -181,30 +181,29 @@ impl Subscriber {
     /// same [`Subscriber`] object used to create the [`DataReader`]. If [`Subscriber::delete_datareader`] is called on a
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
-        todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-        //     SubscriberNodeKind::UserDefined(s) => match a_datareader.node() {
-        //         DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-        //         DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-        //         DataReaderNodeKind::UserDefined(dr) => {
-        //             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-        //                 &s.guid().prefix(),
-        //                 |dp| {
-        //                     crate::implementation::behavior::user_defined_subscriber::delete_datareader(
-        //                         dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                         s.guid(),
-        //                         dr.guid(),
-        //                     )
-        //                 },
-        //             )?;
-        //             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_data_reader_listener(&dr.guid());
-        //             Ok(())
-        //         }
-        //         DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        //     },
-        //     SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
+        match &self.0 {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
+                Err(DdsError::IllegalOperation)
+            }
+            SubscriberNodeKind::UserDefined(s) => match a_datareader.node() {
+                DataReaderNodeKind::BuiltinStateful(_)
+                | DataReaderNodeKind::BuiltinStateless(_)
+                | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+                DataReaderNodeKind::UserDefined(dr) => {
+                    if s.address().guid()? != dr.parent_subscriber().guid()? {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Data reader can only be deleted from its parent subscriber"
+                                .to_string(),
+                        ));
+                    }
+
+                    s.address()
+                        .stateful_data_reader_delete(dr.address().get_instance_handle()?);
+
+                    Ok(())
+                }
+            },
+        }
     }
 
     /// This operation retrieves a previously created [`DataReader`] belonging to the [`Subscriber`] that is attached to a [`Topic`].
@@ -217,6 +216,15 @@ impl Subscriber {
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
         todo!()
+        // Ok(self
+        //     .stateful_data_reader_list
+        //     .iter()
+        //     .find(|data_reader| {
+        //         data_reader.get_topic_name() == topic_name
+        //             && data_reader.get_type_name() == type_name
+        //     })
+        //     .map(|x| DataReaderNode::new(x.guid(), subscriber_guid, domain_participant.guid())))
+
         // match &self.0 {
         //     SubscriberNodeKind::Builtin(s) => {
         //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid().prefix(), |dp| {

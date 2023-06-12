@@ -101,6 +101,22 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
 
         self.send_blocking(MatchedWriterAdd { a_writer_proxy })
     }
+
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        struct GetInstanceHandle;
+
+        impl Mail for GetInstanceHandle {
+            type Result = InstanceHandle;
+        }
+
+        impl MailHandler<GetInstanceHandle> for DdsDataReader<RtpsStatefulReader> {
+            fn handle(&mut self, _mail: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+                self.guid().into()
+            }
+        }
+
+        self.send_blocking(GetInstanceHandle)
+    }
 }
 
 impl ActorAddress<DdsDataReader<RtpsStatelessReader>> {

@@ -40,55 +40,8 @@ impl DdsSubscriber {
 
 actor_interface! {
 impl DdsSubscriber {
-    pub fn delete_datareader(&mut self, datareader_guid: Guid) -> DdsResult<()> {
-        todo!()
-        // let data_reader = domain_participant
-        //     .get_subscriber(subscriber_guid)
-        //     .ok_or(DdsError::AlreadyDeleted)?
-        //     .stateful_data_reader_list()
-        //     .iter()
-        //     .find(|x| x.guid() == datareader_guid)
-        //     .ok_or_else(|| {
-        //         DdsError::PreconditionNotMet(
-        //             "Data reader can only be deleted from its parent subscriber".to_string(),
-        //         )
-        //     })?;
-
-        // if data_reader.is_enabled() {
-        //     domain_participant
-        //         .announce_sender()
-        //         .try_send(AnnounceKind::DeletedDataReader(
-        //             data_reader.get_instance_handle(),
-        //         ))
-        //         .ok();
-        // }
-
-        // domain_participant
-        //     .get_subscriber_mut(subscriber_guid)
-        //     .ok_or(DdsError::AlreadyDeleted)?
-        //     .stateful_data_reader_delete(datareader_guid);
-
-        // Ok(())
-    }
-
     pub fn delete_contained_entities(&mut self) {
 
-    }
-
-    pub fn lookup_datareader(
-        &self,
-        type_name: &'static str,
-        topic_name: String,
-    ) -> DdsResult<Option<ActorAddress<DdsDataReader<RtpsStatefulReader>>>> {
-        todo!()
-        // Ok(self
-        //     .stateful_data_reader_list
-        //     .iter()
-        //     .find(|data_reader| {
-        //         data_reader.get_topic_name() == topic_name
-        //             && data_reader.get_type_name() == type_name
-        //     })
-        //     .map(|x| DataReaderNode::new(x.guid(), subscriber_guid, domain_participant.guid())))
     }
 
     pub fn guid(&self) -> Guid {
@@ -127,10 +80,15 @@ impl DdsSubscriber {
         self.stateful_data_reader_list.push(data_reader)
     }
 
-    pub fn stateful_data_reader_delete(&mut self, datareader_guid: Guid) {
-        todo!()
-        // self.stateful_data_reader_list
-        //     .retain(|x| x.guid() != datareader_guid)
+    pub fn stateful_data_reader_delete(&mut self, handle: InstanceHandle) {
+        self.stateful_data_reader_list
+            .retain(|dr|
+                if let Ok(h) = dr.address()
+                    .get_instance_handle() {
+                        h != handle
+                    } else {
+                        false
+                    });
     }
 
     pub fn stateful_data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader<RtpsStatefulReader>>> {

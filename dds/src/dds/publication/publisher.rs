@@ -84,8 +84,8 @@ impl Publisher {
         &self,
         a_topic: &Topic<Foo>,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
         Foo: DdsType + DdsSerialize + Send + 'static,
@@ -186,54 +186,19 @@ impl Publisher {
         match a_datawriter.node() {
             DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
             DataWriterNodeKind::UserDefined(dw) => {
-                todo!()
-                // if publisher_guid != data_writer_parent_publisher_guid {
-                //     return Err(DdsError::PreconditionNotMet(
-                //         "Data writer can only be deleted from its parent publisher".to_string(),
-                //     ));
-                // }
+                if self.0.address().guid()? != dw.parent_publisher().guid()? {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Data writer can only be deleted from its parent publisher".to_string(),
+                    ));
+                }
 
-                // let data_writer_guid = domain_participant
-                //     .user_defined_publisher_list_mut()
-                //     .iter_mut()
-                //     .find(|p| p.guid() == publisher_guid)
-                //     .ok_or(DdsError::AlreadyDeleted)?
-                //     .stateful_data_writer_list()
-                //     .iter()
-                //     .find(|x| x.guid() == data_writer_guid)
-                //     .ok_or(DdsError::AlreadyDeleted)?
-                //     .guid();
+                self.0
+                    .address()
+                    .delete_datawriter(dw.address().get_instance_handle()?)?;
 
-                // // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
-                // if domain_participant
-                //     .user_defined_publisher_list_mut()
-                //     .iter_mut()
-                //     .find(|p| p.guid() == publisher_guid)
-                //     .ok_or(DdsError::AlreadyDeleted)?
-                //     .stateful_data_writer_list()
-                //     .iter()
-                //     .find(|x| x.guid() == data_writer_guid)
-                //     .ok_or_else(|| {
-                //         DdsError::PreconditionNotMet(
-                //             "Data writer can only be deleted from its parent publisher".to_string(),
-                //         )
-                //     })?
-                //     .is_enabled()
-                // {
-                //     domain_participant
-                //         .announce_sender()
-                //         .try_send(AnnounceKind::DeletedDataWriter(data_writer_guid.into()))
-                //         .ok();
-                // }
+                // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
 
-                // domain_participant
-                //     .user_defined_publisher_list_mut()
-                //     .iter_mut()
-                //     .find(|p| p.guid() == publisher_guid)
-                //     .ok_or(DdsError::AlreadyDeleted)?
-                //     .stateful_datawriter_delete(InstanceHandle::from(data_writer_guid));
-
-                // Ok(())
+                Ok(())
             }
         }
 
@@ -342,14 +307,15 @@ impl Publisher {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataWriterQos`].
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     crate::implementation::behavior::user_defined_publisher::set_default_datawriter_qos(
-        //         dp,
-        //         self.0.guid(),
-        //         qos,
-        //     )
-        // })
+        let qos = match qos {
+            QosKind::Default => self.0.address().get_default_datawriter_qos()?,
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
+
+        self.0.address().set_default_datawriter_qos(qos)
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created

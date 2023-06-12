@@ -6,6 +6,7 @@ use crate::{
         rtps::{
             reader_locator::RtpsReaderLocator, reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter,
+            types::Guid,
         },
         utils::actor::{ActorAddress, Mail, MailHandler},
     },
@@ -423,6 +424,38 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
         }
 
         self.send_blocking(MatchedReaderAdd { a_reader_proxy })
+    }
+
+    pub fn guid(&self) -> DdsResult<Guid> {
+        struct GetGuid;
+
+        impl Mail for GetGuid {
+            type Result = Guid;
+        }
+
+        impl MailHandler<GetGuid> for DdsDataWriter<RtpsStatefulWriter> {
+            fn handle(&mut self, _mail: GetGuid) -> <GetGuid as Mail>::Result {
+                self.guid()
+            }
+        }
+
+        self.send_blocking(GetGuid)
+    }
+
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        struct GetInstanceHandle;
+
+        impl Mail for GetInstanceHandle {
+            type Result = InstanceHandle;
+        }
+
+        impl MailHandler<GetInstanceHandle> for DdsDataWriter<RtpsStatefulWriter> {
+            fn handle(&mut self, _mail: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+                self.guid().into()
+            }
+        }
+
+        self.send_blocking(GetInstanceHandle)
     }
 }
 
