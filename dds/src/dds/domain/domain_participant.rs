@@ -337,7 +337,7 @@ impl DomainParticipant {
     /// of times using [`DomainParticipant::delete_topic()`].
     /// Regardless of whether the middleware chooses to propagate topics, the [`DomainParticipant::delete_topic()`] operation deletes only the local proxy.
     /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
-    pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic<Foo>>
+    pub fn find_topic<Foo>(&self, _topic_name: &str, _timeout: Duration) -> DdsResult<Topic<Foo>>
     where
         Foo: DdsType,
     {
@@ -371,7 +371,7 @@ impl DomainParticipant {
     /// deletion. It is still possible to delete the [`Topic`] returned by [`DomainParticipant::lookup_topicdescription()`], provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a [`Topic`], the operation succeeds and a [`None`] value is returned.
-    pub fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> DdsResult<Option<Topic<Foo>>>
+    pub fn lookup_topicdescription<Foo>(&self, _topic_name: &str) -> DdsResult<Option<Topic<Foo>>>
     where
         Foo: DdsType,
     {
@@ -561,7 +561,7 @@ impl DomainParticipant {
     /// Use the operation [`DomainParticipant::get_discovered_participants()`] to find the DomainParticipants that are currently discovered.
     pub fn get_discovered_participant_data(
         &self,
-        participant_handle: InstanceHandle,
+        _participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
         todo!()
         // self.call_participant_method(|dp| {
@@ -589,7 +589,7 @@ impl DomainParticipant {
     /// Use the operation [`DomainParticipant::get_discovered_topics()`] to find the topics that are currently discovered.
     pub fn get_discovered_topic_data(
         &self,
-        topic_handle: InstanceHandle,
+        _topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
         todo!()
         // self.call_participant_method(|dp| {
@@ -606,7 +606,7 @@ impl DomainParticipant {
     /// so forth.
     /// The instance handle for an Entity may be obtained from built-in topic data, from various statuses, or from the Entity operation
     /// `get_instance_handle`.
-    pub fn contains_entity(&self, a_handle: InstanceHandle) -> DdsResult<bool> {
+    pub fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
         todo!()
         // self.call_participant_method(|dp| {
         //     crate::implementation::behavior::domain_participant::contains_entity(dp, a_handle)
@@ -736,7 +736,7 @@ impl DomainParticipant {
 
 /////////////////////////////////////////////////////////////////////////
 
-fn announce_entity(domain_participant: &mut DdsDomainParticipant, announce_kind: AnnounceKind) {
+fn announce_entity(_domain_participant: &mut DdsDomainParticipant, _announce_kind: AnnounceKind) {
     todo!()
     // match announce_kind {
     //     AnnounceKind::CreatedDataReader(discovered_reader_data) => {
@@ -758,7 +758,7 @@ fn announce_entity(domain_participant: &mut DdsDomainParticipant, announce_kind:
     // }
 }
 
-fn on_requested_deadline_missed_communication_change(data_reader_node: DataReaderNode) {
+fn on_requested_deadline_missed_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_requested_deadline_missed_status(
     //     data_reader_node: &DataReaderNode,
@@ -832,7 +832,7 @@ fn on_requested_deadline_missed_communication_change(data_reader_node: DataReade
     // )
 }
 
-fn on_data_available_communication_change(data_reader_node: DataReaderNode) {
+fn on_data_available_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // let data_on_reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
     //     &data_reader_node.parent_subscriber(),
@@ -916,7 +916,7 @@ fn on_data_available_communication_change(data_reader_node: DataReaderNode) {
     // )
 }
 
-fn on_subscription_matched_communication_change(data_reader_node: DataReaderNode) {
+fn on_subscription_matched_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_subscription_matched_status(
     //     data_reader_node: &DataReaderNode,
@@ -989,7 +989,7 @@ fn on_subscription_matched_communication_change(data_reader_node: DataReaderNode
     // )
 }
 
-fn on_requested_incompatible_qos_communication_change(data_reader_node: DataReaderNode) {
+fn on_requested_incompatible_qos_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_requested_incompatible_qos_status(
     //     data_reader_node: &DataReaderNode,
@@ -1063,7 +1063,7 @@ fn on_requested_incompatible_qos_communication_change(data_reader_node: DataRead
     // )
 }
 
-fn on_sample_rejected_communication_change(data_reader_node: DataReaderNode) {
+fn on_sample_rejected_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_sample_rejected_status(
     //     data_reader_node: &DataReaderNode,
@@ -1134,7 +1134,7 @@ fn on_sample_rejected_communication_change(data_reader_node: DataReaderNode) {
     // )
 }
 
-fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
+fn on_sample_lost_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_sample_lost_status(data_reader_node: &DataReaderNode) -> DdsResult<SampleLostStatus> {
     //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
@@ -1209,7 +1209,7 @@ fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
     // )
 }
 
-fn on_offered_incompatible_qos_communication_change(data_writer_node: DataWriterNode) {
+fn on_offered_incompatible_qos_communication_change(_data_writer_node: DataWriterNode) {
     todo!()
     // fn get_offered_incompatible_qos_status(
     //     data_writer_node: &DataWriterNode,
@@ -1286,7 +1286,7 @@ fn on_offered_incompatible_qos_communication_change(data_writer_node: DataWriter
     // )
 }
 
-fn on_publication_matched_communication_change(data_writer_node: DataWriterNode) {
+fn on_publication_matched_communication_change(_data_writer_node: DataWriterNode) {
     todo!()
     // fn get_publication_matched_status(
     //     data_writer_node: &DataWriterNode,
@@ -1360,7 +1360,7 @@ fn on_publication_matched_communication_change(data_writer_node: DataWriterNode)
     // )
 }
 
-fn on_inconsistent_topic_communication_change(topic_node: TopicNode) {
+fn on_inconsistent_topic_communication_change(_topic_node: TopicNode) {
     todo!()
     // fn get_inconsistent_topic_status(topic_node: &TopicNode) -> DdsResult<InconsistentTopicStatus> {
     //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
@@ -1415,8 +1415,8 @@ fn on_inconsistent_topic_communication_change(topic_node: TopicNode) {
 }
 
 fn announce_created_data_reader(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_reader_data: DiscoveredReaderData,
+    _domain_participant: &mut DdsDomainParticipant,
+    _discovered_reader_data: DiscoveredReaderData,
 ) {
     // let reader_proxy = ReaderProxy::new(
     //     discovered_reader_data.reader_proxy().remote_reader_guid(),
@@ -1454,8 +1454,8 @@ fn announce_created_data_reader(
 }
 
 fn announce_created_data_writer(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_writer_data: DiscoveredWriterData,
+    _domain_participant: &mut DdsDomainParticipant,
+    _discovered_writer_data: DiscoveredWriterData,
 ) {
     // let writer_data = &DiscoveredWriterData::new(
     //     discovered_writer_data.dds_publication_data().clone(),
@@ -1492,8 +1492,8 @@ fn announce_created_data_writer(
 }
 
 fn announce_created_topic(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_topic: DiscoveredTopicData,
+    _domain_participant: &mut DdsDomainParticipant,
+    _discovered_topic: DiscoveredTopicData,
 ) {
     // let serialized_data = dds_serialize(&discovered_topic).expect("Failed to serialize data");
 
@@ -1515,8 +1515,8 @@ fn announce_created_topic(
 }
 
 fn announce_deleted_reader(
-    domain_participant: &mut DdsDomainParticipant,
-    reader_handle: InstanceHandle,
+    _domain_participant: &mut DdsDomainParticipant,
+    _reader_handle: InstanceHandle,
 ) {
     // let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
     // let instance_serialized_key =
@@ -1537,8 +1537,8 @@ fn announce_deleted_reader(
 }
 
 fn announce_deleted_writer(
-    domain_participant: &mut DdsDomainParticipant,
-    writer_handle: InstanceHandle,
+    _domain_participant: &mut DdsDomainParticipant,
+    _writer_handle: InstanceHandle,
 ) {
     // let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
     // let instance_serialized_key =
@@ -1559,8 +1559,8 @@ fn announce_deleted_writer(
 }
 
 fn send_builtin_message(
-    domain_participant: &mut DdsDomainParticipant,
-    metatraffic_unicast_transport_send: &mut impl TransportWrite,
+    _domain_participant: &mut DdsDomainParticipant,
+    _metatraffic_unicast_transport_send: &mut impl TransportWrite,
 ) {
     // let header = RtpsMessageHeader::new(
     //     domain_participant.protocol_version(),
@@ -1625,14 +1625,14 @@ fn send_builtin_message(
 
 fn user_defined_communication_send(
     domain_participant: &mut DdsDomainParticipant,
-    default_unicast_transport_send: &mut impl TransportWrite,
+    _default_unicast_transport_send: &mut impl TransportWrite,
 ) {
-    let header = RtpsMessageHeader::new(
+    let _header = RtpsMessageHeader::new(
         domain_participant.get_protocol_version(),
         domain_participant.get_vendor_id(),
         domain_participant.get_guid().prefix(),
     );
-    let now = domain_participant.get_current_time();
+    let _now = domain_participant.get_current_time();
 
     // for publisher in domain_participant.user_defined_publisher_list_mut() {
     todo!()
@@ -2036,8 +2036,8 @@ fn stateful_writer_send_message(
 }
 
 fn discover_matched_writers(
-    domain_participant: &mut DdsDomainParticipant,
-    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+    _domain_participant: &mut DdsDomainParticipant,
+    _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) -> DdsResult<()> {
     todo!()
     // let samples = domain_participant
@@ -2132,10 +2132,10 @@ fn discover_matched_writers(
 pub fn subscriber_add_matched_writer(
     user_defined_subscriber: &mut DdsSubscriber,
     discovered_writer_data: &DiscoveredWriterData,
-    default_unicast_locator_list: &[Locator],
-    default_multicast_locator_list: &[Locator],
-    parent_participant_guid: Guid,
-    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+    _default_unicast_locator_list: &[Locator],
+    _default_multicast_locator_list: &[Locator],
+    _parent_participant_guid: Guid,
+    _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
     let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
         &discovered_writer_data
@@ -2173,8 +2173,8 @@ pub fn subscriber_add_matched_writer(
         || is_subscriber_regex_matched_to_discovered_writer
         || is_partition_string_matched
     {
-        let user_defined_subscriber_qos = user_defined_subscriber.get_qos();
-        let user_defined_subscriber_guid = user_defined_subscriber.guid();
+        let _user_defined_subscriber_qos = user_defined_subscriber.get_qos();
+        let _user_defined_subscriber_guid = user_defined_subscriber.guid();
         todo!()
         // for data_reader in user_defined_subscriber.stateful_data_reader_list_mut() {
         //     data_reader.add_matched_writer(
@@ -2191,8 +2191,8 @@ pub fn subscriber_add_matched_writer(
 }
 
 fn discover_matched_participants(
-    domain_participant: &mut DdsDomainParticipant,
-    sedp_condvar: &DdsCondvar,
+    _domain_participant: &mut DdsDomainParticipant,
+    _sedp_condvar: &DdsCondvar,
 ) -> DdsResult<()> {
     todo!()
     // while let Ok(samples) = domain_participant
@@ -2221,8 +2221,8 @@ fn discover_matched_participants(
 }
 
 fn add_discovered_participant(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_participant_data: SpdpDiscoveredParticipantData,
+    _domain_participant: &mut DdsDomainParticipant,
+    _discovered_participant_data: SpdpDiscoveredParticipantData,
 ) {
     todo!();
     // if ParticipantDiscovery::new(
@@ -2304,8 +2304,8 @@ fn add_discovered_participant(
 
 fn receive_builtin_message(
     domain_participant: &mut DdsDomainParticipant,
-    message: RtpsMessageRead,
-    locator: Locator,
+    _message: RtpsMessageRead,
+    _locator: Locator,
     sedp_condvar: &DdsCondvar,
     listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {

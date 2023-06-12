@@ -1,8 +1,8 @@
-use std::{marker::PhantomData, time::Instant};
+use std::{marker::PhantomData};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::dds::nodes::{DataWriterNodeKind, PublisherNode},
+    implementation::dds::nodes::{DataWriterNodeKind},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -146,10 +146,10 @@ where
         &self,
         instance: &Foo,
         handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _timestamp: Time,
     ) -> DdsResult<()> {
         if Foo::has_key() {
-            let instance_handle = match handle {
+            let _instance_handle = match handle {
                 Some(h) => {
                     if let Some(stored_handle) = self.lookup_instance(instance)? {
                         if stored_handle == h {
@@ -174,11 +174,11 @@ where
                 }
             }?;
 
-            let serialized_key =
+            let _serialized_key =
                 dds_serialize(&instance.get_serialized_key()).map_err(|_err| DdsError::Error)?;
 
             match &self.0 {
-                DataWriterNodeKind::UserDefined(w) => todo!(),
+                DataWriterNodeKind::UserDefined(_w) => todo!(),
                 // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 //     .get_participant_mut(&w.guid().prefix(), |dp| {
                 //         crate::implementation::behavior::user_defined_data_writer::unregister_instance_w_timestamp(
@@ -213,9 +213,9 @@ where
     /// fields that define the key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
-    pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub fn lookup_instance(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => todo!(),
+            DataWriterNodeKind::UserDefined(_w) => todo!(),
             // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             //     .get_participant_mut(&w.guid().prefix(), |dp| {
             //         crate::implementation::behavior::user_defined_data_writer::lookup_instance(
@@ -277,13 +277,13 @@ where
     pub fn write_w_timestamp(
         &self,
         data: &Foo,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
     ) -> DdsResult<()> {
-        let serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
+        let _serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => todo!(),
+            DataWriterNodeKind::UserDefined(_w) => todo!(),
             // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             //     .get_participant_mut(&w.guid().prefix(), |dp| {
             //         crate::implementation::behavior::user_defined_data_writer::write_w_timestamp(
@@ -329,9 +329,9 @@ where
         &self,
         data: &Foo,
         handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _timestamp: Time,
     ) -> DdsResult<()> {
-        let instance_handle = match handle {
+        let _instance_handle = match handle {
             Some(h) => {
                 if let Some(stored_handle) = self.lookup_instance(data)? {
                     if stored_handle == h {
@@ -356,11 +356,11 @@ where
             }
         }?;
 
-        let serialized_key =
+        let _serialized_key =
             dds_serialize(&data.get_serialized_key()).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => todo!(),
+            DataWriterNodeKind::UserDefined(_w) => todo!(),
             // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             //     .get_participant_mut(&w.guid().prefix(), |dp| {
             //         crate::implementation::behavior::user_defined_data_writer::dispose_w_timestamp(
@@ -386,7 +386,7 @@ impl<Foo> DataWriter<Foo> {
     /// indicates that `max_wait` elapsed before all the data was acknowledged.
     /// This operation is intended to be used only if the DataWriter has [`ReliabilityQosPolicyKind::Reliable`](crate::infrastructure::qos_policy::ReliabilityQosPolicyKind).
     /// Otherwise the operation will return immediately with [`Ok`].
-    pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
+    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
         todo!()
         // match &self.0 {
         //     DataWriterNodeKind::UserDefined(w) => {
@@ -549,7 +549,7 @@ impl<Foo> DataWriter<Foo> {
     /// can be used to find the subscriptions that are currently matched with the [`DataWriter`].
     pub fn get_matched_subscription_data(
         &self,
-        subscription_handle: InstanceHandle,
+        _subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         todo!()
         // match &self.0 {
@@ -602,7 +602,7 @@ where
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, _qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         todo!()
         // match &self.0 {
         //     DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY

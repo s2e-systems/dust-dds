@@ -92,8 +92,8 @@ impl Subscriber {
         &self,
         a_topic: &Topic<Foo>,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
         Foo: DdsType + for<'de> serde::Deserialize<'de> + Send + 'static,
@@ -211,7 +211,7 @@ impl Subscriber {
     /// If multiple [`DataReader`] attached to the [`Subscriber`] satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in [`Subscriber`] allows access to the built-in [`DataReader`] entities for the built-in topics.
-    pub fn lookup_datareader<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataReader<Foo>>>
+    pub fn lookup_datareader<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataReader<Foo>>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -311,7 +311,7 @@ impl Subscriber {
     /// return [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataReaderQos`].
-    pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+    pub fn set_default_datareader_qos(&self, _qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         todo!()
         // match &self.0 {
         //     SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
@@ -346,8 +346,8 @@ impl Subscriber {
     /// This operation does not check the resulting `a_datareader_qos` for consistency. This is because the merged `a_datareader_qos`
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the [`DataReader`].
     pub fn copy_from_topic_qos(
-        a_datareader_qos: &mut DataReaderQos,
-        a_topic_qos: &TopicQos,
+        _a_datareader_qos: &mut DataReaderQos,
+        _a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
         todo!()
     }
@@ -364,7 +364,7 @@ impl Subscriber {
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, _qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         todo!()
         // match &self.0 {
         //     SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),

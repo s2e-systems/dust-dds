@@ -767,9 +767,9 @@ impl DdsDataReader<RtpsStatefulReader> {
     pub fn update_communication_status(
         &mut self,
         now: Time,
-        parent_participant_guid: Guid,
-        parent_subcriber_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        _parent_participant_guid: Guid,
+        _parent_subcriber_guid: Guid,
+        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let (missed_deadline_instances, instance_reception_time) = self
             .instance_reception_time
@@ -809,9 +809,9 @@ impl DdsDataReader<RtpsStatefulReader> {
 
     pub fn on_data_available(
         &self,
-        parent_subcriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        _parent_subcriber_guid: Guid,
+        _parent_participant_guid: Guid,
+        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         todo!()
         // listener_sender
@@ -825,9 +825,9 @@ impl DdsDataReader<RtpsStatefulReader> {
 
     fn on_sample_lost(
         &mut self,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        _parent_subscriber_guid: Guid,
+        _parent_participant_guid: Guid,
+        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         self.sample_lost_status.increment();
         todo!()
@@ -843,9 +843,9 @@ impl DdsDataReader<RtpsStatefulReader> {
     fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        _parent_subscriber_guid: Guid,
+        _parent_participant_guid: Guid,
+        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         self.subscription_matched_status.increment(instance_handle);
         todo!()
@@ -860,9 +860,9 @@ impl DdsDataReader<RtpsStatefulReader> {
         &mut self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        _parent_subscriber_guid: Guid,
+        _parent_participant_guid: Guid,
+        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
@@ -879,9 +879,9 @@ impl DdsDataReader<RtpsStatefulReader> {
     fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        _parent_subscriber_guid: Guid,
+        _parent_participant_guid: Guid,
+        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);

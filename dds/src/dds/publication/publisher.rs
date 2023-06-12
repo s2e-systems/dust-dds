@@ -209,7 +209,7 @@ impl Publisher {
     /// `topic_name`. If no such [`DataWriter`] exists, the operation will succeed but return [`None`].
     /// If multiple [`DataWriter`] attached to the [`Publisher`] satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>>
+    pub fn lookup_datawriter<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>>
     where
         Foo: DdsType,
     {

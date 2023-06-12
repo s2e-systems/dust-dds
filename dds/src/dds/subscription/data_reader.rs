@@ -1,5 +1,5 @@
 use crate::{
-    implementation::dds::nodes::{DataReaderNodeKind, SubscriberNodeKind, TopicNodeKind},
+    implementation::dds::nodes::{DataReaderNodeKind},
     infrastructure::{
         error::DdsError, instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration,
     },
@@ -27,8 +27,7 @@ use std::marker::PhantomData;
 
 use super::{
     sample_info::{
-        InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
-        ANY_VIEW_STATE,
+        InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind,
     },
     subscriber::Subscriber,
 };
@@ -128,10 +127,10 @@ where
     /// [`DdsError::NoData`](crate::infrastructure::error::DdsError).
     pub fn read(
         &self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _max_samples: i32,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         todo!()
         // match &self.0 {
@@ -181,10 +180,10 @@ where
     /// sampled returned by [`DataReader::take`] will no longer be accessible to successive calls to read or take.
     pub fn take(
         &self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _max_samples: i32,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         todo!()
         // match &self.0 {
@@ -305,11 +304,11 @@ where
     /// data object known to the [`DataReader`].
     pub fn read_instance(
         &self,
-        max_samples: i32,
-        a_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _max_samples: i32,
+        _a_handle: InstanceHandle,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         todo!()
         // match &self.0 {
@@ -364,11 +363,11 @@ where
     /// data object known to the [`DataReader`].
     pub fn take_instance(
         &self,
-        max_samples: i32,
-        a_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _max_samples: i32,
+        _a_handle: InstanceHandle,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         todo!()
         // match &self.0 {
@@ -416,11 +415,11 @@ where
     /// and post-conditions and returned values.
     pub fn read_next_instance(
         &self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _max_samples: i32,
+        _previous_handle: Option<InstanceHandle>,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         todo!()
         // match &self.0 {
@@ -469,11 +468,11 @@ where
     /// that they are no longer accessible via subsequent ‘read’ or ‘take’ operations.
     pub fn take_next_instance(
         &self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _max_samples: i32,
+        _previous_handle: Option<InstanceHandle>,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         todo!()
         // match &self.0 {
@@ -500,7 +499,7 @@ where
     /// The operation will only fill the fields that form the key inside the `key_holder` instance.
     /// This operation may return [`DdsError::BadParameter`](crate::infrastructure::error::DdsError)
     /// if the [`InstanceHandle`] `handle` does not correspond to an existing data object known to the [`DataReader`].
-    pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
+    pub fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
         todo!()
         // match &self.0 {
         //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
@@ -525,7 +524,7 @@ where
     /// key. This operation does not register the instance in question. If the instance has not
     /// been previously registered, or if for any other reason the Service is unable to provide
     /// an instance handle, the operation will succeed and return [`None`].
-    pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub fn lookup_instance(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         todo!()
         // match &self.0 {
         //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
@@ -756,7 +755,7 @@ impl<Foo> DataReader<Foo> {
     /// domain, as well as any new data written by the [`DataWriter`](crate::publication::data_writer::DataWriter) entities.
     /// There are situations where the application logic may require the application to wait until all “historical”
     /// data is received.
-    pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
+    pub fn wait_for_historical_data(&self, _max_wait: Duration) -> DdsResult<()> {
         todo!()
         // match &self.0 {
         //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
@@ -790,7 +789,7 @@ impl<Foo> DataReader<Foo> {
     /// currently matched with the [`DataReader`].
     pub fn get_matched_publication_data(
         &self,
-        publication_handle: InstanceHandle,
+        _publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
         todo!()
         // match &self.0 {
@@ -843,7 +842,7 @@ impl<Foo> DataReader<Foo> {
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, _qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         todo!()
         // match &self.0 {
         //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),

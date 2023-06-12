@@ -275,7 +275,7 @@ impl DdsDomainParticipant {
             .stateful_data_reader_add(sedp_builtin_subscriptions_reader);
 
         // Built-in publisher creation
-        let mut spdp_builtin_participant_writer = spawn_actor(DdsDataWriter::new(
+        let spdp_builtin_participant_writer = spawn_actor(DdsDataWriter::new(
             create_builtin_stateless_writer(Guid::new(
                 guid_prefix,
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
@@ -692,8 +692,8 @@ impl DdsDomainParticipant {
 
     pub fn find_topic(
         &mut self,
-        topic_name: String,
-        type_name: &'static str,
+        _topic_name: String,
+        _type_name: &'static str,
     ) -> Option<ActorAddress<DdsTopic>> {
         todo!()
         // // Check if a topic exists locally. If topic doesn't exist locally check if it has already been
@@ -830,10 +830,10 @@ impl DdsDomainParticipant {
             ),
             self.lease_duration,
         );
-        let serialized_data =
+        let _serialized_data =
             dds_serialize(&spdp_discovered_participant_data).map_err(|_err| DdsError::Error)?;
 
-        let current_time = self.get_current_time();
+        let _current_time = self.get_current_time();
         // todo!()
         // self.builtin_publisher
         //     .stateless_data_writer_list_mut()
@@ -881,7 +881,7 @@ impl DdsDomainParticipant {
 
     pub fn discover_matched_readers(
         &mut self,
-        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        _listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         todo!();
         // let samples = self
@@ -1020,7 +1020,7 @@ impl DdsDomainParticipant {
 
     pub fn discover_matched_topics(
         &mut self,
-        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        _listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         todo!()
         // while let Ok(samples) = self
@@ -1057,11 +1057,11 @@ impl DdsDomainParticipant {
 
     pub fn update_communication_status(
         &mut self,
-        listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        _listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
-        let now = self.get_current_time();
-        let guid = self.get_guid();
-        for subscriber in self.user_defined_subscriber_list.iter_mut() {
+        let _now = self.get_current_time();
+        let _guid = self.get_guid();
+        for _subscriber in self.user_defined_subscriber_list.iter_mut() {
             todo!()
             // subscriber.update_communication_status(now, guid, listener_sender);
         }
@@ -1225,10 +1225,10 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 fn on_writer_publication_matched(
-    writer: &DdsDataWriter<RtpsStatefulWriter>,
-    parent_publisher_guid: Guid,
-    parent_participant_guid: Guid,
-    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+    _writer: &DdsDataWriter<RtpsStatefulWriter>,
+    _parent_publisher_guid: Guid,
+    _parent_participant_guid: Guid,
+    _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
     todo!()
     // listener_sender
@@ -1264,12 +1264,12 @@ pub fn remove_writer_matched_reader(
 }
 
 fn writer_on_offered_incompatible_qos(
-    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
-    handle: InstanceHandle,
-    incompatible_qos_policy_list: Vec<QosPolicyId>,
-    parent_publisher_guid: Guid,
-    parent_participant_guid: Guid,
-    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+    _writer: &mut DdsDataWriter<RtpsStatefulWriter>,
+    _handle: InstanceHandle,
+    _incompatible_qos_policy_list: Vec<QosPolicyId>,
+    _parent_publisher_guid: Guid,
+    _parent_participant_guid: Guid,
+    _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
     todo!()
     // if !writer.get_incompatible_subscriptions().contains(&handle) {

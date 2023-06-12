@@ -7,7 +7,6 @@ use super::{
         submessage_elements::SequenceNumberSet,
         submessages::{gap::GapSubmessageWrite, info_timestamp::InfoTimestampSubmessageWrite},
     },
-    transport::TransportWrite,
     types::{EntityId, Locator, SequenceNumber, ENTITYID_UNKNOWN},
     writer::RtpsWriter,
 };

@@ -15,7 +15,6 @@ use super::{
         submessage_elements::ParameterList,
     },
     reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
-    transport::TransportWrite,
     types::{ChangeKind, Guid, Locator},
     writer::RtpsWriter,
 };
