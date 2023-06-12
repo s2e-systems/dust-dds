@@ -83,17 +83,15 @@ impl DomainParticipantFactory {
                 RtpsMessageRead,
             )>,
         ) {
-            loop {
-                if let Some((locator, message)) = metatraffic_multicast_transport.read().await {
-                    builtin_message_broadcast_sender
-                        .send((locator, message))
-                        .ok();
-                    // tokio::task::block_in_place(|| {
-                    //     domain_participant_address
-                    //         .receive_builtin_message(locator, message)
-                    //         .unwrap()
-                    // });
-                }
+            while let Some((locator, message)) = metatraffic_multicast_transport.read().await {
+                builtin_message_broadcast_sender
+                    .send((locator, message))
+                    .ok();
+                // tokio::task::block_in_place(|| {
+                //     domain_participant_address
+                //         .receive_builtin_message(locator, message)
+                //         .unwrap()
+                // });
             }
         }
 
@@ -107,12 +105,10 @@ impl DomainParticipantFactory {
 
             let metatraffic_unicast_transport_send = UdpTransportWrite::new(socket);
 
-            loop {
-                if let Some((message, destination_locator_list)) =
-                    rtps_message_channel_receiver.recv().await
-                {
-                    metatraffic_unicast_transport_send.write(&message, &destination_locator_list);
-                }
+            while let Some((message, destination_locator_list)) =
+                rtps_message_channel_receiver.recv().await
+            {
+                metatraffic_unicast_transport_send.write(&message, &destination_locator_list);
             }
         }
 
@@ -125,12 +121,10 @@ impl DomainParticipantFactory {
             let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
             let default_unicast_transport_send = UdpTransportWrite::new(socket);
 
-            loop {
-                if let Some((message, destination_locator_list)) =
-                    rtps_message_channel_receiver.recv().await
-                {
-                    default_unicast_transport_send.write(&message, &destination_locator_list);
-                }
+            while let Some((message, destination_locator_list)) =
+                rtps_message_channel_receiver.recv().await
+            {
+                default_unicast_transport_send.write(&message, &destination_locator_list);
             }
         }
 
@@ -139,10 +133,13 @@ impl DomainParticipantFactory {
         ) {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
             loop {
-                tokio::task::block_in_place(|| {
-                    domain_participant_address.announce_participant().unwrap()
-                })
-                .unwrap();
+                let r = tokio::task::block_in_place(|| {
+                    domain_participant_address.announce_participant()
+                });
+
+                if r.is_err() {
+                    break;
+                }
 
                 interval.tick().await;
             }
@@ -177,7 +174,9 @@ impl DomainParticipantFactory {
         let default_unicast_socket =
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
                 .map_err(|_| DdsError::Error)?;
-        default_unicast_socket.set_nonblocking(true).unwrap();
+        default_unicast_socket
+            .set_nonblocking(true)
+            .map_err(|_| DdsError::Error)?;
         let user_defined_unicast_port = default_unicast_socket
             .local_addr()
             .map_err(|_| DdsError::Error)?
@@ -194,7 +193,9 @@ impl DomainParticipantFactory {
         let metattrafic_unicast_socket =
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
                 .map_err(|_| DdsError::Error)?;
-        metattrafic_unicast_socket.set_nonblocking(true).unwrap();
+        metattrafic_unicast_socket
+            .set_nonblocking(true)
+            .map_err(|_| DdsError::Error)?;
 
         let metattrafic_unicast_locator_port = LocatorPort::new(
             metattrafic_unicast_socket
