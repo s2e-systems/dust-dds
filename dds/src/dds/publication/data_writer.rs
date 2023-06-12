@@ -1,8 +1,8 @@
-use std::{marker::PhantomData};
+use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::dds::nodes::{DataWriterNodeKind},
+    implementation::dds::nodes::DataWriterNodeKind,
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -739,12 +739,11 @@ where
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) | DataWriterNodeKind::Listener(w) => {
-        //         Ok(w.guid().into())
-        //     }
-        // }
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) | DataWriterNodeKind::Listener(w) => {
+                w.address().get_instance_handle()
+            }
+        }
     }
 }
 
