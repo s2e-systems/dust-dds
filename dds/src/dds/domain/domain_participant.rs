@@ -410,7 +410,11 @@ impl DomainParticipant {
     /// [`DataReader`](crate::subscription::data_reader::DataReader) is read with the same read/take operations used for any DataReader.
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.ignore_participant(handle)
+        if self.0.is_enabled()? {
+            self.0.ignore_participant(handle)
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote topic. This means it will locally ignore any
@@ -421,7 +425,11 @@ impl DomainParticipant {
     /// reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSTopic” topic.
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.ignore_topic(handle)
+        if self.0.is_enabled()? {
+            self.0.ignore_topic(handle)
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote publication; a publication is defined by
@@ -430,7 +438,11 @@ impl DomainParticipant {
     /// when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSPublication” topic.
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.ignore_publication(handle)
+        if self.0.is_enabled()? {
+            self.0.ignore_publication(handle)
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote subscription; a subscription is defined by
@@ -440,7 +452,11 @@ impl DomainParticipant {
     /// retrieved when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSSubscription” topic.
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.ignore_subscription(handle)
+        if self.0.is_enabled()? {
+            self.0.ignore_subscription(handle)
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to

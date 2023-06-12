@@ -60,10 +60,7 @@ impl DdsPublisher {
     }
 
     pub fn delete_contained_entities(&mut self) {
-        todo!()
-        // for data_writer in self.stateful_data_writer_list.drain(..) {
-        //     data_writer.0.
-        // }
+        self.stateful_data_writer_list.clear()
     }
 
     pub fn stateful_datawriter_add(
@@ -74,14 +71,13 @@ impl DdsPublisher {
     }
 
     pub fn stateful_datawriter_delete(&mut self, handle: InstanceHandle) {
-        self.stateful_data_writer_list
-            .retain(|dw|
-                if let Ok(h) = dw.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
+        self.stateful_data_writer_list.retain(|dw| {
+            if let Ok(h) = dw.address().get_instance_handle() {
+                h != handle
+            } else {
+                false
+            }
+        });
     }
 
     pub fn stateful_data_writer_list(
