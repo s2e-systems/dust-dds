@@ -219,7 +219,7 @@ impl DomainParticipant {
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
         match a_subscriber.node() {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => Ok(()),
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::_Listener(_) => Ok(()),
             SubscriberNodeKind::UserDefined(s) => {
                 if self.0.get_guid()?.prefix() != s.address().guid()?.prefix() {
                     return Err(DdsError::PreconditionNotMet(
@@ -736,7 +736,7 @@ impl DomainParticipant {
 
 /////////////////////////////////////////////////////////////////////////
 
-fn announce_entity(_domain_participant: &mut DdsDomainParticipant, _announce_kind: AnnounceKind) {
+fn _announce_entity(_domain_participant: &mut DdsDomainParticipant, _announce_kind: AnnounceKind) {
     todo!()
     // match announce_kind {
     //     AnnounceKind::CreatedDataReader(discovered_reader_data) => {
@@ -758,7 +758,7 @@ fn announce_entity(_domain_participant: &mut DdsDomainParticipant, _announce_kin
     // }
 }
 
-fn on_requested_deadline_missed_communication_change(_data_reader_node: DataReaderNode) {
+fn _on_requested_deadline_missed_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_requested_deadline_missed_status(
     //     data_reader_node: &DataReaderNode,
@@ -832,7 +832,7 @@ fn on_requested_deadline_missed_communication_change(_data_reader_node: DataRead
     // )
 }
 
-fn on_data_available_communication_change(_data_reader_node: DataReaderNode) {
+fn _on_data_available_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // let data_on_reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
     //     &data_reader_node.parent_subscriber(),
@@ -916,7 +916,7 @@ fn on_data_available_communication_change(_data_reader_node: DataReaderNode) {
     // )
 }
 
-fn on_subscription_matched_communication_change(_data_reader_node: DataReaderNode) {
+fn _on_subscription_matched_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_subscription_matched_status(
     //     data_reader_node: &DataReaderNode,
@@ -989,7 +989,7 @@ fn on_subscription_matched_communication_change(_data_reader_node: DataReaderNod
     // )
 }
 
-fn on_requested_incompatible_qos_communication_change(_data_reader_node: DataReaderNode) {
+fn _on_requested_incompatible_qos_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_requested_incompatible_qos_status(
     //     data_reader_node: &DataReaderNode,
@@ -1063,7 +1063,7 @@ fn on_requested_incompatible_qos_communication_change(_data_reader_node: DataRea
     // )
 }
 
-fn on_sample_rejected_communication_change(_data_reader_node: DataReaderNode) {
+fn _on_sample_rejected_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_sample_rejected_status(
     //     data_reader_node: &DataReaderNode,
@@ -1134,7 +1134,7 @@ fn on_sample_rejected_communication_change(_data_reader_node: DataReaderNode) {
     // )
 }
 
-fn on_sample_lost_communication_change(_data_reader_node: DataReaderNode) {
+fn _on_sample_lost_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_sample_lost_status(data_reader_node: &DataReaderNode) -> DdsResult<SampleLostStatus> {
     //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
@@ -1209,7 +1209,7 @@ fn on_sample_lost_communication_change(_data_reader_node: DataReaderNode) {
     // )
 }
 
-fn on_offered_incompatible_qos_communication_change(_data_writer_node: DataWriterNode) {
+fn _on_offered_incompatible_qos_communication_change(_data_writer_node: DataWriterNode) {
     todo!()
     // fn get_offered_incompatible_qos_status(
     //     data_writer_node: &DataWriterNode,
@@ -1286,7 +1286,7 @@ fn on_offered_incompatible_qos_communication_change(_data_writer_node: DataWrite
     // )
 }
 
-fn on_publication_matched_communication_change(_data_writer_node: DataWriterNode) {
+fn _on_publication_matched_communication_change(_data_writer_node: DataWriterNode) {
     todo!()
     // fn get_publication_matched_status(
     //     data_writer_node: &DataWriterNode,
@@ -1360,7 +1360,7 @@ fn on_publication_matched_communication_change(_data_writer_node: DataWriterNode
     // )
 }
 
-fn on_inconsistent_topic_communication_change(_topic_node: TopicNode) {
+fn _on_inconsistent_topic_communication_change(_topic_node: TopicNode) {
     todo!()
     // fn get_inconsistent_topic_status(topic_node: &TopicNode) -> DdsResult<InconsistentTopicStatus> {
     //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
@@ -1414,7 +1414,7 @@ fn on_inconsistent_topic_communication_change(_topic_node: TopicNode) {
     // })
 }
 
-fn announce_created_data_reader(
+fn _announce_created_data_reader(
     _domain_participant: &mut DdsDomainParticipant,
     _discovered_reader_data: DiscoveredReaderData,
 ) {
@@ -1453,7 +1453,7 @@ fn announce_created_data_reader(
     //     .expect("Should not fail to write built-in message");
 }
 
-fn announce_created_data_writer(
+fn _announce_created_data_writer(
     _domain_participant: &mut DdsDomainParticipant,
     _discovered_writer_data: DiscoveredWriterData,
 ) {
@@ -1491,7 +1491,7 @@ fn announce_created_data_writer(
     //     .expect("Should not fail to write built-in message");
 }
 
-fn announce_created_topic(
+fn _announce_created_topic(
     _domain_participant: &mut DdsDomainParticipant,
     _discovered_topic: DiscoveredTopicData,
 ) {
@@ -1514,7 +1514,7 @@ fn announce_created_topic(
     //     .expect("Should not fail to write built-in message")
 }
 
-fn announce_deleted_reader(
+fn _announce_deleted_reader(
     _domain_participant: &mut DdsDomainParticipant,
     _reader_handle: InstanceHandle,
 ) {
@@ -1536,7 +1536,7 @@ fn announce_deleted_reader(
     //     .expect("Should not fail to write built-in message");
 }
 
-fn announce_deleted_writer(
+fn _announce_deleted_writer(
     _domain_participant: &mut DdsDomainParticipant,
     _writer_handle: InstanceHandle,
 ) {
@@ -1558,7 +1558,7 @@ fn announce_deleted_writer(
     //     .expect("Should not fail to write built-in message");
 }
 
-fn send_builtin_message(
+fn _send_builtin_message(
     _domain_participant: &mut DdsDomainParticipant,
     _metatraffic_unicast_transport_send: &mut impl TransportWrite,
 ) {
@@ -1623,7 +1623,7 @@ fn send_builtin_message(
     // }
 }
 
-fn user_defined_communication_send(
+fn _user_defined_communication_send(
     domain_participant: &mut DdsDomainParticipant,
     _default_unicast_transport_send: &mut impl TransportWrite,
 ) {
@@ -1683,12 +1683,12 @@ fn user_defined_communication_send(
     // }
 }
 
-fn remove_stale_writer_changes(writer: &mut DdsDataWriter<RtpsStatefulWriter>, now: Time) {
+fn _remove_stale_writer_changes(writer: &mut DdsDataWriter<RtpsStatefulWriter>, now: Time) {
     let timespan_duration = writer.get_qos().lifespan.duration;
     writer.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
 }
 
-fn send_message_best_effort_reader_locator(
+fn _send_message_best_effort_reader_locator(
     reader_locator: &mut WriterAssociatedReaderLocator,
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
@@ -1700,12 +1700,12 @@ fn send_message_best_effort_reader_locator(
         // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
         // should be full-filled by next_unsent_change()
         if let Some(cache_change) = change.cache_change() {
-            let info_ts_submessage = info_timestamp_submessage(cache_change.timestamp());
+            let info_ts_submessage = _info_timestamp_submessage(cache_change.timestamp());
             let data_submessage = cache_change.as_data_submessage(ENTITYID_UNKNOWN);
             submessages.push(info_ts_submessage);
             submessages.push(RtpsSubmessageWriteKind::Data(data_submessage));
         } else {
-            let gap_submessage = gap_submessage(writer_id, change.sequence_number());
+            let gap_submessage = _gap_submessage(writer_id, change.sequence_number());
             submessages.push(gap_submessage);
         }
     }
@@ -1717,13 +1717,13 @@ fn send_message_best_effort_reader_locator(
     }
 }
 
-fn send_message_best_effort_reader_proxy(
+fn _send_message_best_effort_reader_proxy(
     reader_proxy: &mut WriterAssociatedReaderProxy,
     data_max_size_serialized: usize,
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
 ) {
-    let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
+    let info_dst = _info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
     let mut submessages = vec![info_dst];
 
     while !reader_proxy.unsent_changes().is_empty() {
@@ -1741,9 +1741,9 @@ fn send_message_best_effort_reader_proxy(
                     cache_change.as_data_frag_submessages(data_max_size_serialized, reader_id);
                 for data_frag_submessage in data_frag_submessage_list {
                     let info_dst =
-                        info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
+                        _info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
 
-                    let into_timestamp = info_timestamp_submessage(timestamp);
+                    let into_timestamp = _info_timestamp_submessage(timestamp);
                     let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     let submessages = vec![info_dst, into_timestamp, data_frag];
@@ -1754,7 +1754,7 @@ fn send_message_best_effort_reader_proxy(
                     )
                 }
             } else {
-                submessages.push(info_timestamp_submessage(timestamp));
+                submessages.push(_info_timestamp_submessage(timestamp));
                 submessages.push(RtpsSubmessageWriteKind::Data(
                     cache_change.as_data_submessage(reader_id),
                 ))
@@ -1777,7 +1777,7 @@ fn send_message_best_effort_reader_proxy(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn send_message_reliable_reader_proxy(
+fn _send_message_reliable_reader_proxy(
     reader_proxy: &mut WriterAssociatedReaderProxy,
     data_max_size_serialized: usize,
     header: RtpsMessageHeader,
@@ -1789,7 +1789,7 @@ fn send_message_reliable_reader_proxy(
 ) {
     let reader_id = reader_proxy.remote_reader_guid().entity_id();
 
-    let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
+    let info_dst = _info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
 
     let mut submessages = vec![info_dst];
 
@@ -1808,7 +1808,7 @@ fn send_message_reliable_reader_proxy(
             if change.is_relevant() {
                 let cache_change = change.cache_change();
                 if cache_change.data_value().len() > data_max_size_serialized {
-                    directly_send_data_frag(
+                    _directly_send_data_frag(
                         reader_proxy,
                         cache_change,
                         writer_id,
@@ -1820,7 +1820,7 @@ fn send_message_reliable_reader_proxy(
                     );
                     return;
                 } else {
-                    submessages.push(info_timestamp_submessage(cache_change.timestamp()));
+                    submessages.push(_info_timestamp_submessage(cache_change.timestamp()));
                     submessages.push(RtpsSubmessageWriteKind::Data(
                         cache_change.as_data_submessage(reader_id),
                     ))
@@ -1863,7 +1863,7 @@ fn send_message_reliable_reader_proxy(
             if change_for_reader.is_relevant() {
                 let cache_change = change_for_reader.cache_change();
                 if cache_change.data_value().len() > data_max_size_serialized {
-                    directly_send_data_frag(
+                    _directly_send_data_frag(
                         reader_proxy,
                         cache_change,
                         writer_id,
@@ -1875,7 +1875,7 @@ fn send_message_reliable_reader_proxy(
                     );
                     return;
                 } else {
-                    submessages.push(info_timestamp_submessage(cache_change.timestamp()));
+                    submessages.push(_info_timestamp_submessage(cache_change.timestamp()));
                     submessages.push(RtpsSubmessageWriteKind::Data(
                         cache_change.as_data_submessage(reader_id),
                     ))
@@ -1901,7 +1901,7 @@ fn send_message_reliable_reader_proxy(
     }
 }
 
-fn gap_submessage<'a>(
+fn _gap_submessage<'a>(
     writer_id: EntityId,
     gap_sequence_number: SequenceNumber,
 ) -> RtpsSubmessageWriteKind<'a> {
@@ -1916,7 +1916,7 @@ fn gap_submessage<'a>(
     ))
 }
 
-fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
+fn _info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
     RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
         false,
         crate::implementation::rtps::messages::types::Time::new(
@@ -1926,12 +1926,12 @@ fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a>
     ))
 }
 
-fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWriteKind<'a> {
+fn _info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWriteKind<'a> {
     RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite::new(guid_prefix))
 }
 
 #[allow(clippy::too_many_arguments)]
-fn directly_send_data_frag(
+fn _directly_send_data_frag(
     reader_proxy: &mut WriterAssociatedReaderProxy,
     cache_change: &RtpsWriterCacheChange,
     writer_id: EntityId,
@@ -1957,8 +1957,8 @@ fn directly_send_data_frag(
                 - 1,
         );
 
-        let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
-        let into_timestamp = info_timestamp_submessage(timestamp);
+        let info_dst = _info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
+        let into_timestamp = _info_timestamp_submessage(timestamp);
         let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
         let is_last_fragment = data_frag_submessage_list.peek().is_none();
@@ -1982,18 +1982,18 @@ fn directly_send_data_frag(
     }
 }
 
-fn stateless_writer_send_message(
+fn _stateless_writer_send_message(
     writer: &mut DdsDataWriter<RtpsStatelessWriter>,
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
 ) {
     let writer_id = writer.guid().entity_id();
     for mut rl in &mut writer.reader_locator_list().into_iter() {
-        send_message_best_effort_reader_locator(&mut rl, header, transport, writer_id);
+        _send_message_best_effort_reader_locator(&mut rl, header, transport, writer_id);
     }
 }
 
-fn stateful_writer_send_message(
+fn _stateful_writer_send_message(
     writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
@@ -2015,13 +2015,13 @@ fn stateful_writer_send_message(
     let heartbeat_period = writer.heartbeat_period();
     for reader_proxy in &mut writer.matched_reader_list() {
         match reader_proxy.reliability() {
-            ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
+            ReliabilityKind::BestEffort => _send_message_best_effort_reader_proxy(
                 reader_proxy,
                 data_max_size_serialized,
                 header,
                 transport,
             ),
-            ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
+            ReliabilityKind::Reliable => _send_message_reliable_reader_proxy(
                 reader_proxy,
                 data_max_size_serialized,
                 header,
@@ -2035,7 +2035,7 @@ fn stateful_writer_send_message(
     }
 }
 
-fn discover_matched_writers(
+fn _discover_matched_writers(
     _domain_participant: &mut DdsDomainParticipant,
     _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) -> DdsResult<()> {
@@ -2190,7 +2190,7 @@ pub fn subscriber_add_matched_writer(
     }
 }
 
-fn discover_matched_participants(
+fn _discover_matched_participants(
     _domain_participant: &mut DdsDomainParticipant,
     _sedp_condvar: &DdsCondvar,
 ) -> DdsResult<()> {
@@ -2220,7 +2220,7 @@ fn discover_matched_participants(
     // Ok(())
 }
 
-fn add_discovered_participant(
+fn _add_discovered_participant(
     _domain_participant: &mut DdsDomainParticipant,
     _discovered_participant_data: SpdpDiscoveredParticipantData,
 ) {
@@ -2302,7 +2302,7 @@ fn add_discovered_participant(
     // }
 }
 
-fn receive_builtin_message(
+fn _receive_builtin_message(
     domain_participant: &mut DdsDomainParticipant,
     _message: RtpsMessageRead,
     _locator: Locator,
@@ -2313,11 +2313,11 @@ fn receive_builtin_message(
     //     .receive_builtin_data(locator, message, listener_sender)
     //     .ok();
 
-    discover_matched_participants(domain_participant, sedp_condvar).ok();
+    _discover_matched_participants(domain_participant, sedp_condvar).ok();
     domain_participant
         .discover_matched_readers(listener_sender.clone())
         .ok();
-    discover_matched_writers(domain_participant, listener_sender).ok();
+    _discover_matched_writers(domain_participant, listener_sender).ok();
     domain_participant
         .discover_matched_topics(listener_sender.clone())
         .ok();

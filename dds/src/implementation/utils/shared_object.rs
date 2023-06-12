@@ -7,7 +7,7 @@ use std::{
 pub struct DdsShared<T: ?Sized>(Arc<T>);
 
 impl<T> DdsShared<T> {
-    pub fn new(t: T) -> Self {
+    pub fn _new(t: T) -> Self {
         DdsShared(Arc::new(t))
     }
 }
@@ -23,7 +23,7 @@ impl<T: ?Sized> Deref for DdsShared<T> {
 pub struct DdsRwLock<T>(RwLock<T>);
 
 impl<T> DdsRwLock<T> {
-    pub fn new(t: T) -> Self {
+    pub fn _new(t: T) -> Self {
         Self(RwLock::new(t))
     }
 

@@ -8,47 +8,47 @@ use super::{
     status_condition_impl::StatusConditionImpl,
 };
 
-pub struct StatusListener<T: ?Sized> {
+pub struct _StatusListener<T: ?Sized> {
     listener: Option<Box<T>>,
     status_kind: Vec<StatusKind>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
-impl<T: ?Sized> StatusListener<T> {
-    pub fn new(listener: Option<Box<T>>, status_kind: &[StatusKind]) -> Self {
+impl<T: ?Sized> _StatusListener<T> {
+    pub fn _new(listener: Option<Box<T>>, status_kind: &[StatusKind]) -> Self {
         Self {
             listener,
             status_kind: status_kind.to_vec(),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            status_condition: DdsShared::_new(DdsRwLock::_new(StatusConditionImpl::default())),
         }
     }
 
-    pub fn is_enabled(&self, status_kind: &StatusKind) -> bool {
+    pub fn _is_enabled(&self, status_kind: &StatusKind) -> bool {
         self.listener.is_some() && self.status_kind.contains(status_kind)
     }
 
-    pub fn listener_mut(&mut self) -> &mut Option<Box<T>> {
+    pub fn _listener_mut(&mut self) -> &mut Option<Box<T>> {
         &mut self.listener
     }
 
-    pub fn add_communication_state(&self, state: StatusKind) {
+    pub fn _add_communication_state(&self, state: StatusKind) {
         self.status_condition
             .write_lock()
-            .add_communication_state(state)
+            ._add_communication_state(state)
     }
 
-    pub fn remove_communication_state(&self, state: StatusKind) {
+    pub fn _remove_communication_state(&self, state: StatusKind) {
         self.status_condition
             .write_lock()
             .remove_communication_state(state)
     }
 
-    pub fn get_status_condition(&self) -> StatusCondition {
-        StatusCondition::new(self.status_condition.clone())
+    pub fn _get_status_condition(&self) -> StatusCondition {
+        StatusCondition::_new(self.status_condition.clone())
     }
 
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
+    pub fn _get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock()._get_status_changes()
     }
 }
 

@@ -51,7 +51,7 @@ impl StatusConditionImpl {
         false
     }
 
-    pub fn add_communication_state(&mut self, state: StatusKind) {
+    pub fn _add_communication_state(&mut self, state: StatusKind) {
         self.status_changes.push(state);
 
         if self.get_trigger_value() {
@@ -69,7 +69,7 @@ impl StatusConditionImpl {
         self.cvar_list.push(cvar)
     }
 
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+    pub fn _get_status_changes(&self) -> Vec<StatusKind> {
         self.status_changes.clone()
     }
 }

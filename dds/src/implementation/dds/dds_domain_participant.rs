@@ -139,10 +139,10 @@ pub struct DdsDomainParticipant {
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
-    announce_sender: tokio::sync::mpsc::Sender<AnnounceKind>,
+    _announce_sender: tokio::sync::mpsc::Sender<AnnounceKind>,
     user_defined_rtps_message_channel_sender:
         tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
-    builtin_message_broadcast_receiver_sender:
+    _builtin_message_broadcast_receiver_sender:
         tokio::sync::broadcast::Sender<(Locator, RtpsMessageRead)>,
 }
 
@@ -263,16 +263,20 @@ impl DdsDomainParticipant {
 
         builtin_subscriber
             .address()
-            .stateless_data_reader_add(spdp_builtin_participant_reader);
+            .stateless_data_reader_add(spdp_builtin_participant_reader)
+            .unwrap();
         builtin_subscriber
             .address()
-            .stateful_data_reader_add(sedp_builtin_topics_reader);
+            .stateful_data_reader_add(sedp_builtin_topics_reader)
+            .unwrap();
         builtin_subscriber
             .address()
-            .stateful_data_reader_add(sedp_builtin_publications_reader);
+            .stateful_data_reader_add(sedp_builtin_publications_reader)
+            .unwrap();
         builtin_subscriber
             .address()
-            .stateful_data_reader_add(sedp_builtin_subscriptions_reader);
+            .stateful_data_reader_add(sedp_builtin_subscriptions_reader)
+            .unwrap();
 
         // Built-in publisher creation
         let spdp_builtin_participant_writer = spawn_actor(DdsDataWriter::new(
@@ -291,7 +295,8 @@ impl DdsDomainParticipant {
         {
             spdp_builtin_participant_writer
                 .address()
-                .reader_locator_add(reader_locator);
+                .reader_locator_add(reader_locator)
+                .unwrap();
         }
 
         let sedp_builtin_topics_writer = DdsDataWriter::new(
@@ -344,16 +349,20 @@ impl DdsDomainParticipant {
 
         builtin_publisher
             .address()
-            .stateless_datawriter_add(spdp_builtin_participant_writer);
+            .stateless_datawriter_add(spdp_builtin_participant_writer)
+            .unwrap();
         builtin_publisher
             .address()
-            .stateful_datawriter_add(sedp_builtin_topics_writer_actor);
+            .stateful_datawriter_add(sedp_builtin_topics_writer_actor)
+            .unwrap();
         builtin_publisher
             .address()
-            .stateful_datawriter_add(sedp_builtin_publications_writer_actor);
+            .stateful_datawriter_add(sedp_builtin_publications_writer_actor)
+            .unwrap();
         builtin_publisher
             .address()
-            .stateful_datawriter_add(sedp_builtin_subscriptions_writer_actor);
+            .stateful_datawriter_add(sedp_builtin_subscriptions_writer_actor)
+            .unwrap();
 
         let domain_tag_clone = domain_tag.clone();
         THE_RUNTIME.spawn(async move {
@@ -448,9 +457,9 @@ impl DdsDomainParticipant {
             ignored_publications: HashSet::new(),
             ignored_subcriptions: HashSet::new(),
             data_max_size_serialized,
-            announce_sender,
+            _announce_sender: announce_sender,
             user_defined_rtps_message_channel_sender,
-            builtin_message_broadcast_receiver_sender,
+            _builtin_message_broadcast_receiver_sender: builtin_message_broadcast_receiver_sender,
         }
     }
 }
@@ -1072,7 +1081,7 @@ impl DdsDomainParticipant {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn add_matched_reader(
+fn _add_matched_reader(
     writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     discovered_reader_data: &DiscoveredReaderData,
     default_unicast_locator_list: &[Locator],
@@ -1092,7 +1101,7 @@ fn add_matched_reader(
         == writer.get_type_name();
 
     if is_matched_topic_name && is_matched_type_name {
-        let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
+        let incompatible_qos_policy_list = _get_discovered_reader_incompatible_qos_policy_list(
             &writer.get_qos(),
             discovered_reader_data.subscription_builtin_topic_data(),
             publisher_qos,
@@ -1169,7 +1178,7 @@ fn add_matched_reader(
                         .subscription_builtin_topic_data()
                         .clone(),
                 );
-                on_writer_publication_matched(
+                _on_writer_publication_matched(
                     writer,
                     parent_publisher_guid,
                     parent_participant_guid,
@@ -1177,7 +1186,7 @@ fn add_matched_reader(
                 )
             }
         } else {
-            writer_on_offered_incompatible_qos(
+            _writer_on_offered_incompatible_qos(
                 writer,
                 instance_handle,
                 incompatible_qos_policy_list,
@@ -1189,7 +1198,7 @@ fn add_matched_reader(
     }
 }
 
-fn get_discovered_reader_incompatible_qos_policy_list(
+fn _get_discovered_reader_incompatible_qos_policy_list(
     writer_qos: &DataWriterQos,
     discovered_reader_data: &SubscriptionBuiltinTopicData,
     publisher_qos: &PublisherQos,
@@ -1224,7 +1233,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     incompatible_qos_policy_list
 }
 
-fn on_writer_publication_matched(
+fn _on_writer_publication_matched(
     _writer: &DdsDataWriter<RtpsStatefulWriter>,
     _parent_publisher_guid: Guid,
     _parent_participant_guid: Guid,
@@ -1242,7 +1251,7 @@ fn on_writer_publication_matched(
     //     .ok();
 }
 
-pub fn remove_writer_matched_reader(
+pub fn _remove_writer_matched_reader(
     writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     discovered_reader_handle: InstanceHandle,
     parent_publisher_guid: Guid,
@@ -1254,7 +1263,7 @@ pub fn remove_writer_matched_reader(
         writer.matched_reader_remove(handle);
         writer.remove_matched_subscription(handle.into());
 
-        on_writer_publication_matched(
+        _on_writer_publication_matched(
             writer,
             parent_publisher_guid,
             parent_participant_guid,
@@ -1263,7 +1272,7 @@ pub fn remove_writer_matched_reader(
     }
 }
 
-fn writer_on_offered_incompatible_qos(
+fn _writer_on_offered_incompatible_qos(
     _writer: &mut DdsDataWriter<RtpsStatefulWriter>,
     _handle: InstanceHandle,
     _incompatible_qos_policy_list: Vec<QosPolicyId>,

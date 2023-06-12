@@ -962,8 +962,8 @@ impl<Foo> DataReader<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_)
-            | DataReaderNodeKind::BuiltinStateful(_)
+            DataReaderNodeKind::_BuiltinStateless(_)
+            | DataReaderNodeKind::_BuiltinStateful(_)
             | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
             DataReaderNodeKind::UserDefined(r) => {
                 r.address().enable()

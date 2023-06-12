@@ -16,7 +16,7 @@ use super::dds_domain_participant::{
     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
 };
 
-pub struct ParticipantDiscovery<'a> {
+pub struct _ParticipantDiscovery<'a> {
     _participant_data: &'a SpdpDiscoveredParticipantData,
 }
 
@@ -31,8 +31,8 @@ impl core::fmt::Display for MismatchedDomain {
     }
 }
 
-impl<'a> ParticipantDiscovery<'a> {
-    pub fn new(
+impl<'a> _ParticipantDiscovery<'a> {
+    pub fn _new(
         participant_data: &'a SpdpDiscoveredParticipantData,
         local_participant_domain_id: DomainId,
         local_participant_domain_tag: &'a str,

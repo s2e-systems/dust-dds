@@ -12,7 +12,7 @@ use crate::{
 use super::status_listener::ListenerTriggerKind;
 
 impl InconsistentTopicStatus {
-    fn increment(&mut self) {
+    fn _increment(&mut self) {
         self.total_count += 1;
         self.total_count_change += 1;
     }
@@ -133,7 +133,7 @@ impl DdsTopic {
 }
 }
 
-fn is_discovered_topic_consistent(
+fn _is_discovered_topic_consistent(
     topic_qos: &TopicQos,
     discovered_topic_data: &DiscoveredTopicData,
 ) -> bool {

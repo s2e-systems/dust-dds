@@ -99,7 +99,7 @@ impl Subscriber {
         Foo: DdsType + for<'de> serde::Deserialize<'de> + Send + 'static,
     {
         match &self.0 {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::_Listener(_) => {
                 Err(DdsError::IllegalOperation)
             }
             SubscriberNodeKind::UserDefined(s) => {
@@ -182,12 +182,12 @@ impl Subscriber {
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::_Listener(_) => {
                 Err(DdsError::IllegalOperation)
             }
             SubscriberNodeKind::UserDefined(s) => match a_datareader.node() {
-                DataReaderNodeKind::BuiltinStateful(_)
-                | DataReaderNodeKind::BuiltinStateless(_)
+                DataReaderNodeKind::_BuiltinStateful(_)
+                | DataReaderNodeKind::_BuiltinStateless(_)
                 | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
                 DataReaderNodeKind::UserDefined(dr) => {
                     if s.address().guid()? != dr.parent_subscriber().guid()? {
@@ -198,7 +198,7 @@ impl Subscriber {
                     }
 
                     s.address()
-                        .stateful_data_reader_delete(dr.address().get_instance_handle()?);
+                        .stateful_data_reader_delete(dr.address().get_instance_handle()?)?;
 
                     Ok(())
                 }
@@ -260,7 +260,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(_) => todo!(),
-            SubscriberNodeKind::Listener(_) => todo!(),
+            SubscriberNodeKind::_Listener(_) => todo!(),
         }
     }
 
@@ -283,7 +283,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(_) => todo!(),
-            SubscriberNodeKind::Listener(_) => todo!(),
+            SubscriberNodeKind::_Listener(_) => todo!(),
         }
     }
 
@@ -385,7 +385,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
             | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::Listener(s) => s.address().get_qos(),
+            | SubscriberNodeKind::_Listener(s) => s.address().get_qos(),
         }
     }
 
@@ -403,7 +403,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(_) => todo!(),
-            SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::_Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
@@ -462,7 +462,7 @@ impl Subscriber {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::_Listener(_) => {
                 Err(DdsError::IllegalOperation)
             }
             SubscriberNodeKind::UserDefined(s) => {

@@ -19,7 +19,7 @@ use super::{
 pub enum SubscriberNodeKind {
     Builtin(SubscriberNode),
     UserDefined(SubscriberNode),
-    Listener(SubscriberNode),
+    _Listener(SubscriberNode),
 }
 
 pub enum DataWriterNodeKind {
@@ -28,8 +28,8 @@ pub enum DataWriterNodeKind {
 }
 
 pub enum DataReaderNodeKind {
-    BuiltinStateful(DataReaderNode),
-    BuiltinStateless(DataReaderNode),
+    _BuiltinStateful(DataReaderNode),
+    _BuiltinStateless(DataReaderNode),
     UserDefined(DataReaderNode),
     Listener(DataReaderNode),
 }
@@ -179,11 +179,11 @@ impl PublisherNode {
 pub struct DomainParticipantNode(Guid);
 
 impl DomainParticipantNode {
-    pub fn new(node: Guid) -> Self {
+    pub fn _new(node: Guid) -> Self {
         Self(node)
     }
 
-    pub fn guid(&self) -> Guid {
+    pub fn _guid(&self) -> Guid {
         self.0
     }
 }
