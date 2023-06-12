@@ -1,16 +1,18 @@
-use std::{future::poll_fn, task::Poll};
-
-use tokio::{runtime, sync};
+use std::sync::{
+    atomic::{self, AtomicBool},
+    Arc,
+};
 
 use lazy_static::lazy_static;
 
 use crate::infrastructure::error::{DdsError, DdsResult};
 
 lazy_static! {
-    pub static ref THE_RUNTIME: runtime::Runtime = runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Failed to create Tokio runtime");
+    pub static ref THE_RUNTIME: tokio::runtime::Runtime =
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("Failed to create Tokio runtime");
 }
 
 pub trait Mail {
@@ -27,7 +29,7 @@ where
 
 #[derive(Debug)]
 pub struct ActorAddress<A> {
-    sender: sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
+    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
 }
 
 impl<A> Clone for ActorAddress<A> {
@@ -45,7 +47,7 @@ impl<A> ActorAddress<A> {
         M: Mail + Send + 'static,
         M::Result: Send,
     {
-        let (response_sender, response_receiver) = sync::oneshot::channel();
+        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
 
         self.sender
             .blocking_send(Box::new(SyncMail::new(mail, response_sender)))
@@ -68,7 +70,7 @@ where
     // have to be moved out and the struct. Because the struct is passed as a Boxed
     // trait object this is only feasible by using the Option fields.
     mail: Option<M>,
-    sender: Option<sync::oneshot::Sender<M::Result>>,
+    sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
 }
 
 impl<A, M> GenericHandler<A> for SyncMail<M>
@@ -94,6 +96,7 @@ where
 pub struct Actor<A> {
     address: ActorAddress<A>,
     join_handle: tokio::task::JoinHandle<()>,
+    cancellation_token: Arc<AtomicBool>,
 }
 
 impl<A> Actor<A> {
@@ -104,6 +107,8 @@ impl<A> Actor<A> {
 
 impl<A> Drop for Actor<A> {
     fn drop(&mut self) {
+        self.cancellation_token
+            .store(true, atomic::Ordering::Release);
         self.join_handle.abort();
     }
 }
@@ -117,7 +122,7 @@ pub fn spawn_actor<A>(actor: A) -> Actor<A>
 where
     A: Send + 'static,
 {
-    let (sender, mailbox) = sync::mpsc::channel(10);
+    let (sender, mailbox) = tokio::sync::mpsc::channel(10);
 
     let address = ActorAddress { sender };
 
@@ -125,10 +130,12 @@ where
         value: actor,
         mailbox,
     };
+    let cancellation_token = Arc::new(AtomicBool::new(false));
+    let cancellation_token_cloned = cancellation_token.clone();
 
-    let join_handle = THE_RUNTIME.spawn(poll_fn(move |cx| {
-        while let Poll::Ready(val) = actor_obj.mailbox.poll_recv(cx) {
-            if let Some(mut m) = val {
+    let join_handle = THE_RUNTIME.spawn(async move {
+        while let Some(mut m) = actor_obj.mailbox.recv().await {
+            if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
                 // Handling mail can be synchronous and allowed to call blocking code
                 // (e.g. send mail to other actors). It is not allowed to be an async function
                 // otherwise multiple mails could interrupt each other and modify the object in between.
@@ -137,13 +144,12 @@ where
                 tokio::task::block_in_place(|| m.handle(&mut actor_obj.value).ok());
             }
         }
-
-        Poll::Pending
-    }));
+    });
 
     Actor {
         address,
         join_handle,
+        cancellation_token,
     }
 }
 
@@ -151,7 +157,7 @@ impl<M> SyncMail<M>
 where
     M: Mail,
 {
-    fn new(message: M, sender: sync::oneshot::Sender<M::Result>) -> Self {
+    fn new(message: M, sender: tokio::sync::oneshot::Sender<M::Result>) -> Self {
         Self {
             mail: Some(message),
             sender: Some(sender),
