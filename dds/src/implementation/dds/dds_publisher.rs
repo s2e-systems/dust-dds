@@ -53,17 +53,6 @@ impl DdsPublisher {
         self.stateful_data_writer_list.is_empty() && self.stateless_data_writer_list.is_empty()
     }
 
-    pub fn delete_datawriter(&mut self, handle: InstanceHandle) {
-        self.stateful_data_writer_list
-            .retain(|dw|
-                if let Ok(h) = dw.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
-    }
-
     pub fn get_unique_writer_id(&mut self) -> u8 {
         let counter = self.user_defined_data_writer_counter;
         self.user_defined_data_writer_counter += 1;

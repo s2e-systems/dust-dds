@@ -194,7 +194,7 @@ impl Publisher {
 
                 self.0
                     .address()
-                    .delete_datawriter(dw.address().get_instance_handle()?)?;
+                    .stateful_datawriter_delete(dw.address().get_instance_handle()?)?;
 
                 // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
 
