@@ -2,12 +2,16 @@ use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::dds::nodes::DataWriterNodeKind,
+    implementation::{
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
+        dds::{dds_domain_participant::DdsDomainParticipant, nodes::DataWriterNodeKind},
+        utils::actor::ActorAddress,
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, QosKind},
+        qos::{DataWriterQos, QosKind, TopicQos},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, StatusKind,
@@ -720,15 +724,14 @@ where
             DataWriterNodeKind::UserDefined(w) => {
                 if !w.address().is_enabled()? {
                     w.address().enable()?;
-                    // let builtin_publisher = w.parent_participant().get_builtin_publisher()?;
-                    // if let Some(anouncer) =
-                    //     builtin_publisher.lookup_datawriter(sedp_publications_announcer)?
-                    // {
-                    //     announcer.writer(
-                    //         w.address()
-                    //             .as_discovered_writer_data(topic_qos, publisher_qos),
-                    //     );
-                    // }
+
+                    announce_data_writer(
+                        w.parent_participant(),
+                        &w.address().as_discovered_writer_data(
+                            TopicQos::default(),
+                            w.parent_publisher().get_qos()?,
+                        )?,
+                    )?;
                 }
                 Ok(())
             }
@@ -748,3 +751,42 @@ where
 }
 
 pub trait AnyDataWriter {}
+
+fn announce_data_writer(
+    domain_participant: &ActorAddress<DdsDomainParticipant>,
+    discovered_writer_data: &DiscoveredWriterData,
+) -> DdsResult<()> {
+    // let writer_data = &DiscoveredWriterData::new(
+    //     discovered_writer_data.dds_publication_data().clone(),
+    //     WriterProxy::new(
+    //         discovered_writer_data.writer_proxy().remote_writer_guid(),
+    //         discovered_writer_data
+    //             .writer_proxy()
+    //             .remote_group_entity_id(),
+    //         domain_participant.default_unicast_locator_list().to_vec(),
+    //         domain_participant.default_multicast_locator_list().to_vec(),
+    //         discovered_writer_data
+    //             .writer_proxy()
+    //             .data_max_size_serialized(),
+    //     ),
+    // );
+
+    let serialized_data = dds_serialize(discovered_writer_data)?;
+    let timestamp = domain_participant.get_current_time()?;
+
+    if let Some(sedp_writer_announcer) = domain_participant
+        .get_builtin_publisher()?
+        .stateful_data_writer_list()?
+        .iter()
+        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+    {
+        sedp_writer_announcer.write_w_timestamp(
+            serialized_data,
+            discovered_writer_data.get_serialized_key(),
+            None,
+            timestamp,
+        )?
+    }
+
+    Ok(())
+}

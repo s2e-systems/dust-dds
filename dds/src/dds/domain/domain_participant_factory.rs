@@ -629,9 +629,15 @@ impl DomainParticipantFactory {
             }
         });
 
-        let _metatraffic_unicast_transport = UdpTransportRead::new(
-            tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).unwrap(),
-        );
+        THE_RUNTIME.spawn(async move {
+            let mut metatraffic_unicast_transport = UdpTransportRead::new(
+                tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).unwrap(),
+            );
+
+            while let Some((_locator, message)) = metatraffic_unicast_transport.read().await {
+                println!("Received header: {:?}", message.header())
+            }
+        });
 
         let _default_unicast_transport =
             UdpTransportRead::new(tokio::net::UdpSocket::from_std(default_unicast_socket).unwrap());
