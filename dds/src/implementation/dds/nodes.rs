@@ -28,8 +28,8 @@ pub enum DataWriterNodeKind {
 }
 
 pub enum DataReaderNodeKind {
-    _BuiltinStateful(DataReaderNode),
-    _BuiltinStateless(DataReaderNode),
+    BuiltinStateful(DataReaderNode),
+    BuiltinStateless(DataReaderNode),
     UserDefined(DataReaderNode),
     Listener(DataReaderNode),
 }

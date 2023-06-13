@@ -1,12 +1,21 @@
 use crate::{
-    implementation::dds::nodes::{DataReaderNodeKind},
+    implementation::{
+        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
+        dds::{dds_domain_participant::DdsDomainParticipant, nodes::DataReaderNodeKind},
+        rtps::messages::overall_structure::RtpsMessageHeader,
+        utils::actor::ActorAddress,
+    },
     infrastructure::{
-        error::DdsError, instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration,
+        error::DdsError,
+        instance::InstanceHandle,
+        qos::{QosKind, TopicQos},
+        status::StatusKind,
+        time::Duration,
     },
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{DdsDeserialize, DdsType},
+        type_support::{dds_serialize, DdsDeserialize, DdsType},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -26,9 +35,7 @@ use crate::{
 use std::marker::PhantomData;
 
 use super::{
-    sample_info::{
-        InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind,
-    },
+    sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     subscriber::Subscriber,
 };
 
@@ -962,24 +969,39 @@ impl<Foo> DataReader<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            DataReaderNodeKind::_BuiltinStateless(_)
-            | DataReaderNodeKind::_BuiltinStateful(_)
+            DataReaderNodeKind::BuiltinStateless(_)
+            | DataReaderNodeKind::BuiltinStateful(_)
             | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+
             DataReaderNodeKind::UserDefined(r) => {
-                r.address().enable()
-            },
+                if !r.address().is_enabled()? {
+                    r.address().enable()?;
+                }
+
+                announce_data_reader(
+                    r.parent_participant(),
+                    r.address().as_discovered_reader_data(
+                        TopicQos::default(),
+                        r.parent_subscriber().get_qos()?,
+                        r.parent_participant().get_default_unicast_locator_list()?,
+                        r.parent_participant()
+                            .get_default_multicast_locator_list()?,
+                    )?,
+                )?;
+
+                Ok(())
+            }
         }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(r)
-        //     | DataReaderNodeKind::BuiltinStateful(r)
-        //     | DataReaderNodeKind::UserDefined(r)
-        //     | DataReaderNodeKind::Listener(r) => Ok(r.guid().into()),
-        // }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(r)
+            | DataReaderNodeKind::BuiltinStateful(r)
+            | DataReaderNodeKind::UserDefined(r)
+            | DataReaderNodeKind::Listener(r) => r.address().get_instance_handle(),
+        }
     }
 }
 
@@ -1016,3 +1038,36 @@ where
     }
 }
 pub trait AnyDataReader {}
+
+fn announce_data_reader(
+    domain_participant: &ActorAddress<DdsDomainParticipant>,
+    discovered_reader_data: DiscoveredReaderData,
+) -> DdsResult<()> {
+    let serialized_data = dds_serialize(&discovered_reader_data)?;
+    let timestamp = domain_participant.get_current_time()?;
+
+    if let Some(sedp_reader_announcer) = domain_participant
+        .get_builtin_publisher()?
+        .stateful_data_writer_list()?
+        .iter()
+        .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
+    {
+        sedp_reader_announcer.write_w_timestamp(
+            serialized_data,
+            discovered_reader_data.get_serialized_key(),
+            None,
+            timestamp,
+        )?;
+
+        sedp_reader_announcer.send_message(
+            RtpsMessageHeader::new(
+                domain_participant.get_protocol_version()?,
+                domain_participant.get_vendor_id()?,
+                domain_participant.get_guid()?.prefix(),
+            ),
+            domain_participant.get_udp_transport_write()?,
+        )?;
+    }
+
+    Ok(())
+}

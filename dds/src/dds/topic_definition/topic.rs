@@ -2,7 +2,11 @@ use std::marker::PhantomData;
 
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::dds::nodes::TopicNodeKind,
+    implementation::{
+        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
+        dds::{dds_domain_participant::DdsDomainParticipant, nodes::TopicNodeKind},
+        utils::actor::ActorAddress, rtps::messages::overall_structure::RtpsMessageHeader,
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -10,9 +14,10 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
+    DdsType,
 };
 
-use super::topic_listener::TopicListener;
+use super::{topic_listener::TopicListener, type_support::dds_serialize};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
@@ -218,7 +223,18 @@ impl<Foo> Topic<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.address().enable(),
+            TopicNodeKind::UserDefined(t) => {
+                if !t.address().is_enabled()? {
+                    t.address().enable()?;
+
+                    announce_topic(
+                        t.parent_participant(),
+                        t.address().as_discovered_topic_data()?,
+                    )?;
+                }
+
+                Ok(())
+            }
             TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
 
@@ -267,3 +283,36 @@ where
 }
 
 pub trait AnyTopic {}
+
+fn announce_topic(
+    domain_participant: &ActorAddress<DdsDomainParticipant>,
+    discovered_topic_data: DiscoveredTopicData,
+) -> DdsResult<()> {
+    let serialized_data = dds_serialize(&discovered_topic_data)?;
+    let timestamp = domain_participant.get_current_time()?;
+
+    if let Some(sedp_topic_announcer) = domain_participant
+        .get_builtin_publisher()?
+        .stateful_data_writer_list()?
+        .iter()
+        .find(|x| x.get_type_name().unwrap() == DiscoveredTopicData::type_name())
+    {
+        sedp_topic_announcer.write_w_timestamp(
+            serialized_data,
+            discovered_topic_data.get_serialized_key(),
+            None,
+            timestamp,
+        )?;
+
+        sedp_topic_announcer.send_message(
+            RtpsMessageHeader::new(
+                domain_participant.get_protocol_version()?,
+                domain_participant.get_vendor_id()?,
+                domain_participant.get_guid()?.prefix(),
+            ),
+            domain_participant.get_udp_transport_write()?,
+        )?;
+    }
+
+    Ok(())
+}

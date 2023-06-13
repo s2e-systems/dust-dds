@@ -476,10 +476,24 @@ impl DdsDataWriter<RtpsStatefulWriter> {
 
     pub fn as_discovered_writer_data(
         &self,
-        topic_qos: &TopicQos,
-        publisher_qos: &PublisherQos,
+        topic_qos: TopicQos,
+        publisher_qos: PublisherQos,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
     ) -> DiscoveredWriterData {
         let writer_qos = self.rtps_writer.get_qos().clone();
+        let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
+            default_unicast_locator_list
+        } else {
+            self.rtps_writer.unicast_locator_list().to_vec()
+        };
+
+        let multicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
+            default_multicast_locator_list
+        } else {
+            self.rtps_writer.multicast_locator_list().to_vec()
+        };
+
         DiscoveredWriterData::new(
             PublicationBuiltinTopicData::new(
                 BuiltInTopicKey {
@@ -507,8 +521,8 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             WriterProxy::new(
                 self.rtps_writer.guid(),
                 EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
-                self.rtps_writer.unicast_locator_list().to_vec(),
-                self.rtps_writer.multicast_locator_list().to_vec(),
+                unicast_locator_list,
+                multicast_locator_list,
                 None,
             ),
         )

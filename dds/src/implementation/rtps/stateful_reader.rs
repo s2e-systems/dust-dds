@@ -27,7 +27,7 @@ use super::{
         RtpsReaderResult,
     },
     transport::TransportWrite,
-    types::{Guid, GuidPrefix, SequenceNumber},
+    types::{Guid, GuidPrefix, Locator, SequenceNumber},
     writer_proxy::RtpsWriterProxy,
 };
 
@@ -81,6 +81,14 @@ impl RtpsStatefulReader {
 
     pub fn guid(&self) -> Guid {
         self.reader.guid()
+    }
+
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        self.reader.unicast_locator_list()
+    }
+
+    pub fn multicast_locator_list(&self) -> &[Locator] {
+        self.reader.multicast_locator_list()
     }
 
     pub fn _convert_data_to_cache_change(

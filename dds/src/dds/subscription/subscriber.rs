@@ -186,8 +186,8 @@ impl Subscriber {
                 Err(DdsError::IllegalOperation)
             }
             SubscriberNodeKind::UserDefined(s) => match a_datareader.node() {
-                DataReaderNodeKind::_BuiltinStateful(_)
-                | DataReaderNodeKind::_BuiltinStateless(_)
+                DataReaderNodeKind::BuiltinStateful(_)
+                | DataReaderNodeKind::BuiltinStateless(_)
                 | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
                 DataReaderNodeKind::UserDefined(dr) => {
                     if s.address().guid()? != dr.parent_subscriber().guid()? {

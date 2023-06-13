@@ -5,6 +5,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::{dds_domain_participant::DdsDomainParticipant, nodes::DataWriterNodeKind},
+        rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -730,6 +731,9 @@ where
                         &w.address().as_discovered_writer_data(
                             TopicQos::default(),
                             w.parent_publisher().get_qos()?,
+                            w.parent_participant().get_default_unicast_locator_list()?,
+                            w.parent_participant()
+                                .get_default_multicast_locator_list()?,
                         )?,
                     )?;
                 }
@@ -756,21 +760,6 @@ fn announce_data_writer(
     domain_participant: &ActorAddress<DdsDomainParticipant>,
     discovered_writer_data: &DiscoveredWriterData,
 ) -> DdsResult<()> {
-    // let writer_data = &DiscoveredWriterData::new(
-    //     discovered_writer_data.dds_publication_data().clone(),
-    //     WriterProxy::new(
-    //         discovered_writer_data.writer_proxy().remote_writer_guid(),
-    //         discovered_writer_data
-    //             .writer_proxy()
-    //             .remote_group_entity_id(),
-    //         domain_participant.default_unicast_locator_list().to_vec(),
-    //         domain_participant.default_multicast_locator_list().to_vec(),
-    //         discovered_writer_data
-    //             .writer_proxy()
-    //             .data_max_size_serialized(),
-    //     ),
-    // );
-
     let serialized_data = dds_serialize(discovered_writer_data)?;
     let timestamp = domain_participant.get_current_time()?;
 
@@ -785,7 +774,16 @@ fn announce_data_writer(
             discovered_writer_data.get_serialized_key(),
             None,
             timestamp,
-        )?
+        )?;
+
+        sedp_writer_announcer.send_message(
+            RtpsMessageHeader::new(
+                domain_participant.get_protocol_version()?,
+                domain_participant.get_vendor_id()?,
+                domain_participant.get_guid()?.prefix(),
+            ),
+            domain_participant.get_udp_transport_write()?,
+        )?;
     }
 
     Ok(())

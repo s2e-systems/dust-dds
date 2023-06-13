@@ -4,7 +4,6 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
@@ -791,28 +790,6 @@ impl DomainParticipant {
 
 /////////////////////////////////////////////////////////////////////////
 
-fn _announce_entity(_domain_participant: &mut DdsDomainParticipant) {
-    todo!()
-    // match announce_kind {
-    //     AnnounceKind::CreatedDataReader(discovered_reader_data) => {
-    //         announce_created_data_reader(domain_participant, discovered_reader_data)
-    //     }
-    //     AnnounceKind::CreatedDataWriter(discovered_writer_data) => {
-    //         announce_created_data_writer(domain_participant, discovered_writer_data)
-    //     }
-    //     AnnounceKind::CratedTopic(discovered_topic_data) => {
-    //         announce_created_topic(domain_participant, discovered_topic_data)
-    //     }
-    //     AnnounceKind::DeletedDataReader(deleted_reader_handle) => {
-    //         announce_deleted_reader(domain_participant, deleted_reader_handle)
-    //     }
-    //     AnnounceKind::DeletedDataWriter(deleted_writer_handle) => {
-    //         announce_deleted_writer(domain_participant, deleted_writer_handle)
-    //     }
-    //     AnnounceKind::DeletedParticipant => (),
-    // }
-}
-
 fn _on_requested_deadline_missed_communication_change(_data_reader_node: DataReaderNode) {
     todo!()
     // fn get_requested_deadline_missed_status(
@@ -1467,106 +1444,6 @@ fn _on_inconsistent_topic_communication_change(_topic_node: TopicNode) {
     //         l.add_communication_state(status_kind);
     //     }
     // })
-}
-
-fn _announce_created_data_reader(
-    _domain_participant: &mut DdsDomainParticipant,
-    _discovered_reader_data: DiscoveredReaderData,
-) {
-    // let reader_proxy = ReaderProxy::new(
-    //     discovered_reader_data.reader_proxy().remote_reader_guid(),
-    //     discovered_reader_data
-    //         .reader_proxy()
-    //         .remote_group_entity_id(),
-    //     domain_participant.default_unicast_locator_list().to_vec(),
-    //     domain_participant.default_multicast_locator_list().to_vec(),
-    //     discovered_reader_data.reader_proxy().expects_inline_qos(),
-    // );
-    // let reader_data = &DiscoveredReaderData::new(
-    //     reader_proxy,
-    //     discovered_reader_data
-    //         .subscription_builtin_topic_data()
-    //         .clone(),
-    // );
-
-    // let serialized_data = dds_serialize(reader_data).expect("Failed to serialize data");
-
-    // let timestamp = domain_participant.get_current_time();
-
-    // domain_participant
-    //     .get_builtin_publisher_mut()
-    //     .stateful_data_writer_list()
-    //     .iter()
-    //     .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
-    //     .unwrap()
-    //     .write_w_timestamp(
-    //         serialized_data,
-    //         reader_data.get_serialized_key(),
-    //         None,
-    //         timestamp,
-    //     )
-    //     .expect("Should not fail to write built-in message");
-}
-
-fn _announce_created_data_writer(
-    _domain_participant: &mut DdsDomainParticipant,
-    _discovered_writer_data: DiscoveredWriterData,
-) {
-    // let writer_data = &DiscoveredWriterData::new(
-    //     discovered_writer_data.dds_publication_data().clone(),
-    //     WriterProxy::new(
-    //         discovered_writer_data.writer_proxy().remote_writer_guid(),
-    //         discovered_writer_data
-    //             .writer_proxy()
-    //             .remote_group_entity_id(),
-    //         domain_participant.default_unicast_locator_list().to_vec(),
-    //         domain_participant.default_multicast_locator_list().to_vec(),
-    //         discovered_writer_data
-    //             .writer_proxy()
-    //             .data_max_size_serialized(),
-    //     ),
-    // );
-
-    // let serialized_data = dds_serialize(writer_data).expect("Failed to serialize data");
-
-    // let timestamp = domain_participant.get_current_time();
-
-    // domain_participant
-    //     .get_builtin_publisher_mut()
-    //     .stateful_data_writer_list()
-    //     .iter()
-    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
-    //     .unwrap()
-    //     .write_w_timestamp(
-    //         serialized_data,
-    //         writer_data.get_serialized_key(),
-    //         None,
-    //         timestamp,
-    //     )
-    //     .expect("Should not fail to write built-in message");
-}
-
-fn _announce_created_topic(
-    _domain_participant: &mut DdsDomainParticipant,
-    _discovered_topic: DiscoveredTopicData,
-) {
-    // let serialized_data = dds_serialize(&discovered_topic).expect("Failed to serialize data");
-
-    // let timestamp = domain_participant.get_current_time();
-
-    // domain_participant
-    //     .get_builtin_publisher_mut()
-    //     .stateful_data_writer_list()
-    //     .iter()
-    //     .find(|x| x.get_type_name().unwrap() == DiscoveredTopicData::type_name())
-    //     .unwrap()
-    //     .write_w_timestamp(
-    //         serialized_data,
-    //         discovered_topic.get_serialized_key(),
-    //         None,
-    //         timestamp,
-    //     )
-    //     .expect("Should not fail to write built-in message")
 }
 
 fn _announce_deleted_reader(

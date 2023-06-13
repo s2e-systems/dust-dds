@@ -747,14 +747,34 @@ impl DdsDataReader<RtpsStatefulReader> {
 
     pub fn as_discovered_reader_data(
         &self,
-        topic_qos: &TopicQos,
-        subscriber_qos: &SubscriberQos,
+        topic_qos: TopicQos,
+        subscriber_qos: SubscriberQos,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
     ) -> DiscoveredReaderData {
         let guid = self.rtps_reader.guid();
         let reader_qos = self.rtps_reader.get_qos().clone();
 
+        let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
+            default_unicast_locator_list
+        } else {
+            self.rtps_reader.unicast_locator_list().to_vec()
+        };
+
+        let multicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
+            default_multicast_locator_list
+        } else {
+            self.rtps_reader.multicast_locator_list().to_vec()
+        };
+
         DiscoveredReaderData::new(
-            ReaderProxy::new(guid, guid.entity_id(), vec![], vec![], false),
+            ReaderProxy::new(
+                guid,
+                guid.entity_id(),
+                unicast_locator_list,
+                multicast_locator_list,
+                false,
+            ),
             SubscriptionBuiltinTopicData::new(
                 BuiltInTopicKey { value: guid.into() },
                 BuiltInTopicKey {

@@ -2,14 +2,20 @@ use std::marker::PhantomData;
 
 use crate::{
     implementation::{
+        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         dds::dds_data_reader::DdsDataReader,
         rtps::{
             messages::overall_structure::RtpsMessageRead, stateful_reader::RtpsStatefulReader,
-            stateless_reader::RtpsStatelessReader, writer_proxy::RtpsWriterProxy,
+            stateless_reader::RtpsStatelessReader, types::Locator, writer_proxy::RtpsWriterProxy,
         },
         utils::actor::{ActorAddress, Mail, MailHandler},
     },
-    infrastructure::{error::DdsResult, instance::InstanceHandle, time::Time},
+    infrastructure::{
+        error::DdsResult,
+        instance::InstanceHandle,
+        qos::{SubscriberQos, TopicQos},
+        time::Time,
+    },
     subscription::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
@@ -31,6 +37,22 @@ impl<T> ActorAddress<DdsDataReader<T>> {
             }
         }
         self.send_blocking(Enable)
+    }
+
+    pub fn is_enabled(&self) -> DdsResult<bool> {
+        struct IsEnabled;
+
+        impl Mail for IsEnabled {
+            type Result = bool;
+        }
+
+        impl<T> MailHandler<IsEnabled> for DdsDataReader<T> {
+            fn handle(&mut self, _mail: IsEnabled) -> <IsEnabled as Mail>::Result {
+                self.is_enabled()
+            }
+        }
+
+        self.send_blocking(IsEnabled)
     }
 
     pub fn get_type_name(&self) -> DdsResult<&'static str> {
@@ -124,6 +146,95 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
         }
 
         self.send_blocking(GetInstanceHandle)
+    }
+
+    pub fn read<Foo>(
+        &self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de> + Send + 'static,
+    {
+        struct Read<Foo> {
+            phantom: PhantomData<Foo>,
+            max_samples: i32,
+            sample_states: Vec<SampleStateKind>,
+            view_states: Vec<ViewStateKind>,
+            instance_states: Vec<InstanceStateKind>,
+            specific_instance_handle: Option<InstanceHandle>,
+        }
+
+        impl<Foo> Mail for Read<Foo> {
+            type Result = DdsResult<Vec<Sample<Foo>>>;
+        }
+
+        impl<Foo> MailHandler<Read<Foo>> for DdsDataReader<RtpsStatefulReader>
+        where
+            Foo: for<'de> DdsDeserialize<'de>,
+        {
+            fn handle(&mut self, mail: Read<Foo>) -> <Read<Foo> as Mail>::Result {
+                self.read(
+                    mail.max_samples,
+                    &mail.sample_states,
+                    &mail.view_states,
+                    &mail.instance_states,
+                    mail.specific_instance_handle,
+                )
+            }
+        }
+
+        self.send_blocking(Read {
+            phantom: PhantomData,
+            max_samples,
+            sample_states: sample_states.to_vec(),
+            view_states: view_states.to_vec(),
+            instance_states: instance_states.to_vec(),
+            specific_instance_handle,
+        })?
+    }
+
+    pub fn as_discovered_reader_data(
+        &self,
+        topic_qos: TopicQos,
+        subscriber_qos: SubscriberQos,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+    ) -> DdsResult<DiscoveredReaderData> {
+        struct AsDiscoveredReaderData {
+            topic_qos: TopicQos,
+            subscriber_qos: SubscriberQos,
+            default_unicast_locator_list: Vec<Locator>,
+            default_multicast_locator_list: Vec<Locator>,
+        }
+
+        impl Mail for AsDiscoveredReaderData {
+            type Result = DiscoveredReaderData;
+        }
+
+        impl MailHandler<AsDiscoveredReaderData> for DdsDataReader<RtpsStatefulReader> {
+            fn handle(
+                &mut self,
+                mail: AsDiscoveredReaderData,
+            ) -> <AsDiscoveredReaderData as Mail>::Result {
+                self.as_discovered_reader_data(
+                    mail.topic_qos,
+                    mail.subscriber_qos,
+                    mail.default_unicast_locator_list,
+                    mail.default_multicast_locator_list,
+                )
+            }
+        }
+
+        self.send_blocking(AsDiscoveredReaderData {
+            topic_qos,
+            subscriber_qos,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+        })
     }
 }
 

@@ -8,8 +8,9 @@ use crate::{
     implementation::{
         configuration::DustDdsConfiguration,
         data_representation_builtin_endpoints::{
-            discovered_reader_data::DCPS_SUBSCRIPTION, discovered_topic_data::DCPS_TOPIC,
-            discovered_writer_data::DCPS_PUBLICATION,
+            discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         dds::{
@@ -755,6 +756,46 @@ fn process_sedp_metatraffic(
     for stateful_builtin_reader in builtin_subscriber.stateful_data_reader_list()? {
         stateful_builtin_reader
             .process_rtps_message(message.clone(), participant_address.get_current_time()?)?;
+        println!("Processing sedp metatraffic");
+        match stateful_builtin_reader.get_topic_name()?.as_str() {
+            DCPS_PUBLICATION => {
+                while let Ok(discovered_writer_sample_list) = stateful_builtin_reader
+                    .read::<DiscoveredWriterData>(
+                    1,
+                    &[SampleStateKind::NotRead],
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                    None,
+                ) {
+                    println!("Discovered writer")
+                }
+            }
+            DCPS_SUBSCRIPTION => {
+                while let Ok(discovered_reader_sample_list) = stateful_builtin_reader
+                    .read::<DiscoveredReaderData>(
+                    1,
+                    &[SampleStateKind::NotRead],
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                    None,
+                ) {
+                    println!("Discovered reader")
+                }
+            }
+            DCPS_TOPIC => {
+                while let Ok(discovered_topic_sample_list) = stateful_builtin_reader
+                    .read::<DiscoveredTopicData>(
+                    1,
+                    &[SampleStateKind::NotRead],
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                    None,
+                ) {
+                    println!("Discovered topic")
+                }
+            }
+            _ => (),
+        };
     }
 
     Ok(())

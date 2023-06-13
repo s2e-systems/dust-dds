@@ -36,7 +36,7 @@ use super::{
         submessages::{data::DataSubmessageRead, data_frag::DataFragSubmessageRead},
         types::ParameterId,
     },
-    types::{ChangeKind, Guid, GuidPrefix},
+    types::{ChangeKind, Guid, GuidPrefix, Locator},
 };
 
 pub type RtpsReaderResult<T> = Result<T, RtpsReaderError>;
@@ -248,6 +248,14 @@ impl RtpsReader {
 
     pub fn guid(&self) -> Guid {
         self.endpoint.guid()
+    }
+
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        self.endpoint.unicast_locator_list()
+    }
+
+    pub fn multicast_locator_list(&self) -> &[Locator] {
+        self.endpoint.multicast_locator_list()
     }
 
     pub fn convert_data_to_cache_change(

@@ -4,9 +4,12 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::dds_data_writer::DdsDataWriter,
         rtps::{
-            messages::overall_structure::RtpsMessageHeader, reader_locator::RtpsReaderLocator,
-            reader_proxy::RtpsReaderProxy, stateful_writer::RtpsStatefulWriter,
-            stateless_writer::RtpsStatelessWriter, types::Guid,
+            messages::overall_structure::RtpsMessageHeader,
+            reader_locator::RtpsReaderLocator,
+            reader_proxy::RtpsReaderProxy,
+            stateful_writer::RtpsStatefulWriter,
+            stateless_writer::RtpsStatelessWriter,
+            types::{Guid, Locator},
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{ActorAddress, Mail, MailHandler},
@@ -393,10 +396,14 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
         &self,
         topic_qos: TopicQos,
         publisher_qos: PublisherQos,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
     ) -> DdsResult<DiscoveredWriterData> {
         struct AsDiscoveredWriterData {
             topic_qos: TopicQos,
             publisher_qos: PublisherQos,
+            default_unicast_locator_list: Vec<Locator>,
+            default_multicast_locator_list: Vec<Locator>,
         }
 
         impl Mail for AsDiscoveredWriterData {
@@ -408,12 +415,19 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
                 &mut self,
                 mail: AsDiscoveredWriterData,
             ) -> <AsDiscoveredWriterData as Mail>::Result {
-                self.as_discovered_writer_data(&mail.topic_qos, &mail.publisher_qos)
+                self.as_discovered_writer_data(
+                    mail.topic_qos,
+                    mail.publisher_qos,
+                    mail.default_unicast_locator_list,
+                    mail.default_multicast_locator_list,
+                )
             }
         }
         self.send_blocking(AsDiscoveredWriterData {
             topic_qos,
             publisher_qos,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
         })
     }
 
