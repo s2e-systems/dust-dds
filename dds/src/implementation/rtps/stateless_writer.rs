@@ -1,4 +1,5 @@
 use crate::{
+    implementation::{rtps_udp_psm::udp_transport::UdpTransportWrite, utils::actor::ActorAddress},
     infrastructure::{
         error::DdsResult,
         instance::{InstanceHandle, HANDLE_NIL},
@@ -137,7 +138,7 @@ impl RtpsStatelessWriter {
     pub fn send_message(
         &mut self,
         header: RtpsMessageHeader,
-        transport: &tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
+        udp_transport_write: &ActorAddress<UdpTransportWrite>,
     ) {
         match self.writer.get_qos().reliability.kind {
             ReliabilityQosPolicyKind::BestEffort => {
@@ -146,7 +147,7 @@ impl RtpsStatelessWriter {
                         self.writer.writer_cache(),
                         self.writer.guid().entity_id(),
                         header,
-                        transport,
+                        udp_transport_write,
                     );
                 }
             }

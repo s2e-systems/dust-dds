@@ -47,7 +47,7 @@ use crate::{
             },
         },
         utils::{
-            actor::{spawn_actor, ActorAddress},
+            actor::{spawn_actor, ActorAddress, THE_RUNTIME},
             condvar::DdsCondvar,
         },
     },
@@ -61,7 +61,11 @@ use crate::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
-    topic_definition::{topic::Topic, topic_listener::TopicListener, type_support::DdsType},
+    topic_definition::{
+        topic::Topic,
+        topic_listener::TopicListener,
+        type_support::{dds_serialize, DdsType},
+    },
 };
 
 use super::{
@@ -734,9 +738,57 @@ impl DomainParticipant {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.0.enable()?;
+        if !self.0.is_enabled()? {
+            self.0.enable()?;
 
-        todo!()
+            let domain_participant_address = self.0.clone();
+
+            // Spawn the task that regularly announces the domain participant
+            THE_RUNTIME.spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+                loop {
+                    let r: DdsResult<()> = tokio::task::block_in_place(|| {
+                        let builtin_publisher =
+                            domain_participant_address.get_builtin_publisher()?;
+                        if let Some(participant_announcer) = builtin_publisher
+                            .stateless_datawriter_list()?
+                            .iter()
+                            .find(|dw| {
+                                if let Ok(name) = dw.get_type_name() {
+                                    name == SpdpDiscoveredParticipantData::type_name()
+                                } else {
+                                    false
+                                }
+                            })
+                        {
+                            let spdp_discovered_participant_data =
+                                domain_participant_address.as_spdp_discovered_participant_data()?;
+                            let serialized_data = dds_serialize(&spdp_discovered_participant_data)
+                                .map_err(|_err| DdsError::Error)?;
+                            let timestamp = domain_participant_address.get_current_time()?;
+                            participant_announcer.write_w_timestamp(
+                                serialized_data,
+                                spdp_discovered_participant_data.get_serialized_key(),
+                                None,
+                                timestamp,
+                                domain_participant_address.get_udp_transport_write()?,
+                            )?;
+                            println!("Announce participant");
+                        }
+
+                        Ok(())
+                    });
+
+                    if r.is_err() {
+                        break;
+                    }
+
+                    interval.tick().await;
+                }
+            });
+        }
+
+        Ok(())
         // self.call_participant_mut_method(|dp| {
         //     THE_TASK_RUNTIME.block_on(async {
         //         crate::implementation::behavior::domain_participant::enable(dp).await

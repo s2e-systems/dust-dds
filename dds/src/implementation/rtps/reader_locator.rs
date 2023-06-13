@@ -1,4 +1,7 @@
-use crate::infrastructure::time::Time;
+use crate::{
+    implementation::{rtps_udp_psm::udp_transport::UdpTransportWrite, utils::actor::ActorAddress},
+    infrastructure::time::Time,
+};
 
 use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
@@ -88,7 +91,7 @@ impl RtpsReaderLocator {
         writer_cache: &WriterHistoryCache,
         writer_id: EntityId,
         header: RtpsMessageHeader,
-        transport: &tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
+        udp_transport_write: &ActorAddress<UdpTransportWrite>,
     ) {
         let mut submessages = Vec::new();
         while !self.unsent_changes.is_empty() {
@@ -107,12 +110,11 @@ impl RtpsReaderLocator {
             }
         }
         if !submessages.is_empty() {
-            transport
-                .blocking_send((
-                    RtpsMessageWrite::new(header, submessages),
-                    vec![self.locator],
-                ))
-                .unwrap();
+            udp_transport_write.write(
+                RtpsMessageWrite::new(header, submessages),
+                vec![self.locator],
+            )
+            .unwrap();
         }
     }
 }

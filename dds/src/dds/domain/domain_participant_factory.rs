@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    domain::domain_participant_listener::DomainParticipantListener,
+    domain::{domain_participant, domain_participant_listener::DomainParticipantListener},
     implementation::{
         configuration::DustDdsConfiguration,
         dds::{
@@ -102,7 +102,7 @@ impl DomainParticipantFactory {
             while let Some((message, destination_locator_list)) =
                 rtps_message_channel_receiver.recv().await
             {
-                metatraffic_unicast_transport_send.write(&message, &destination_locator_list);
+                // metatraffic_unicast_transport_send.write(&message, &destination_locator_list);
             }
         }
 
@@ -118,7 +118,7 @@ impl DomainParticipantFactory {
             while let Some((message, destination_locator_list)) =
                 rtps_message_channel_receiver.recv().await
             {
-                default_unicast_transport_send.write(&message, &destination_locator_list);
+                // default_unicast_transport_send.write(&message, &destination_locator_list);
             }
         }
 
@@ -211,6 +211,9 @@ impl DomainParticipantFactory {
 
         let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
+        let udp_transport_write = spawn_actor(UdpTransportWrite::new(socket));
+
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,
             default_unicast_locator_list,
@@ -228,6 +231,7 @@ impl DomainParticipantFactory {
             domain_participant_qos,
             &spdp_discovery_locator_list,
             THE_DDS_CONFIGURATION.fragment_size,
+            udp_transport_write,
         );
 
         let participant_actor = spawn_actor(domain_participant);
@@ -264,6 +268,7 @@ impl DomainParticipantFactory {
         // ));
 
         // THE_RUNTIME.spawn(task_announce_participant(participant_address.clone()));
+        let domain_participant = DomainParticipant::new(participant_address);
 
         if self
             .0
@@ -272,10 +277,10 @@ impl DomainParticipantFactory {
             .entity_factory
             .autoenable_created_entities
         {
-            participant_address.enable()?;
+            domain_participant.enable()?;
         }
 
-        Ok(DomainParticipant::new(participant_address))
+        Ok(domain_participant)
     }
 
     /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to

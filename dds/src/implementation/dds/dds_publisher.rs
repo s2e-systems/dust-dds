@@ -96,6 +96,13 @@ impl DdsPublisher {
         self.stateless_data_writer_list.push(data_writer)
     }
 
+    pub fn stateless_datawriter_list(&self) -> Vec<ActorAddress<DdsDataWriter<RtpsStatelessWriter>>> {
+        self.stateless_data_writer_list
+            .iter()
+            .map(|x| x.address().clone())
+            .collect()
+    }
+
     pub fn set_default_datawriter_qos(&mut self, qos: DataWriterQos) {
         self.default_datawriter_qos = qos;
     }

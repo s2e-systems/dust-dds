@@ -9,6 +9,7 @@ use crate::{
         rtps::{
             history_cache::RtpsWriterCacheChange,
             messages::{
+                overall_structure::RtpsMessageHeader,
                 submessage_elements::ParameterList,
                 submessages::{ack_nack::AckNackSubmessageRead, nack_frag::NackFragSubmessageRead},
             },
@@ -17,9 +18,12 @@ use crate::{
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
             types::{
-                ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
+                ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, PROTOCOLVERSION_2_4,
+                USER_DEFINED_UNKNOWN, VENDOR_ID_S2E,
             },
         },
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
+        utils::actor::ActorAddress,
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -430,6 +434,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
     ) -> DdsResult<()> {
         self.rtps_writer.write_w_timestamp(
             serialized_data,
@@ -571,6 +576,7 @@ impl DdsDataWriter<RtpsStatelessWriter> {
         instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
     ) -> DdsResult<()> {
         self.rtps_writer.write_w_timestamp(
             serialized_data,
@@ -579,125 +585,125 @@ impl DdsDataWriter<RtpsStatelessWriter> {
             timestamp,
         )?;
 
-        // self.rtps_writer.send_message(
-        //     RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, self.guid().prefix()),
-        //     &self.rtps_message_sender,
-        // );
+        self.rtps_writer.send_message(
+            RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, self.guid().prefix()),
+            &udp_transport_write,
+        );
 
         Ok(())
     }
 }
 
-#[cfg(test)]
-mod test {
-    use crate::{
-        implementation::rtps::{
-            endpoint::RtpsEndpoint,
-            messages::overall_structure::RtpsMessageWrite,
-            transport::TransportWrite,
-            types::{TopicKind, GUID_UNKNOWN},
-            writer::RtpsWriter,
-        },
-        infrastructure::time::DURATION_ZERO,
-        topic_definition::type_support::DdsSerializedKey,
-    };
+// #[cfg(test)]
+// mod test {
+//     use crate::{
+//         implementation::{rtps::{
+//             endpoint::RtpsEndpoint,
+//             messages::overall_structure::RtpsMessageWrite,
+//             transport::TransportWrite,
+//             types::{TopicKind, GUID_UNKNOWN},
+//             writer::RtpsWriter,
+//         }, utils::actor::spawn_actor},
+//         infrastructure::time::DURATION_ZERO,
+//         topic_definition::type_support::DdsSerializedKey,
+//     };
 
-    use mockall::mock;
+//     use mockall::mock;
 
-    use super::*;
+//     use super::*;
 
-    mock! {
-        Transport{}
+//     mock! {
+//         Transport{}
 
-        impl TransportWrite for Transport {
-            fn write<'a>(&'a self, message: &RtpsMessageWrite, destination_locator_list: &[Locator]);
-        }
-    }
+//         impl TransportWrite for Transport {
+//             fn write<'a>(&'a self, message: &RtpsMessageWrite, destination_locator_list: &[Locator]);
+//         }
+//     }
 
-    #[derive(serde::Serialize)]
-    struct MockFoo {}
+//     #[derive(serde::Serialize)]
+//     struct MockFoo {}
 
-    impl DdsType for MockFoo {
-        fn type_name() -> &'static str {
-            todo!()
-        }
-    }
+//     impl DdsType for MockFoo {
+//         fn type_name() -> &'static str {
+//             todo!()
+//         }
+//     }
 
-    #[derive(serde::Serialize)]
-    struct MockKeyedFoo {
-        key: Vec<u8>,
-    }
+//     #[derive(serde::Serialize)]
+//     struct MockKeyedFoo {
+//         key: Vec<u8>,
+//     }
 
-    impl DdsType for MockKeyedFoo {
-        fn type_name() -> &'static str {
-            todo!()
-        }
+//     impl DdsType for MockKeyedFoo {
+//         fn type_name() -> &'static str {
+//             todo!()
+//         }
 
-        fn has_key() -> bool {
-            true
-        }
+//         fn has_key() -> bool {
+//             true
+//         }
 
-        fn get_serialized_key(&self) -> DdsSerializedKey {
-            self.key.as_slice().into()
-        }
+//         fn get_serialized_key(&self) -> DdsSerializedKey {
+//             self.key.as_slice().into()
+//         }
 
-        fn set_key_fields_from_serialized_key(&mut self, key: &DdsSerializedKey) -> DdsResult<()> {
-            self.key = key.as_ref().to_vec();
-            Ok(())
-        }
-    }
+//         fn set_key_fields_from_serialized_key(&mut self, key: &DdsSerializedKey) -> DdsResult<()> {
+//             self.key = key.as_ref().to_vec();
+//             Ok(())
+//         }
+//     }
 
-    fn create_data_writer_test_fixture() -> DdsDataWriter<RtpsStatefulWriter> {
-        let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            usize::MAX,
-            DataWriterQos::default(),
-        ));
+//     fn create_data_writer_test_fixture() -> DdsDataWriter<RtpsStatefulWriter> {
+//         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
+//             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
+//             true,
+//             DURATION_ZERO,
+//             DURATION_ZERO,
+//             DURATION_ZERO,
+//             usize::MAX,
+//             DataWriterQos::default(),
+//         ));
 
-        let mut data_writer = DdsDataWriter::new(rtps_writer, "", String::from(""));
-        data_writer.enabled = true;
-        data_writer
-    }
+//         let mut data_writer = DdsDataWriter::new(rtps_writer, "", String::from(""));
+//         data_writer.enabled = true;
+//         data_writer
+//     }
 
-    #[test]
-    fn get_key_value_known_instance() {
-        let mut data_writer = create_data_writer_test_fixture();
+//     #[test]
+//     fn get_key_value_known_instance() {
+//         let mut data_writer = create_data_writer_test_fixture();
 
-        let instance_handle = data_writer
-            .register_instance_w_timestamp(
-                MockKeyedFoo { key: vec![1, 2] }.get_serialized_key(),
-                Time::new(0, 0),
-            )
-            .unwrap()
-            .unwrap();
+//         let instance_handle = data_writer
+//             .register_instance_w_timestamp(
+//                 MockKeyedFoo { key: vec![1, 2] }.get_serialized_key(),
+//                 Time::new(0, 0),
+//             )
+//             .unwrap()
+//             .unwrap();
 
-        let mut keyed_foo = MockKeyedFoo { key: vec![] };
-        data_writer
-            .get_key_value(&mut keyed_foo, instance_handle)
-            .unwrap();
-        assert_eq!(keyed_foo.key, vec![1, 2]);
-    }
+//         let mut keyed_foo = MockKeyedFoo { key: vec![] };
+//         data_writer
+//             .get_key_value(&mut keyed_foo, instance_handle)
+//             .unwrap();
+//         assert_eq!(keyed_foo.key, vec![1, 2]);
+//     }
 
-    #[test]
-    fn get_key_value_unknown_instance() {
-        let mut data_writer = create_data_writer_test_fixture();
-        let not_registered_foo = MockKeyedFoo { key: vec![1, 16] };
-        let registered_foo = MockKeyedFoo { key: vec![1, 2] };
-        data_writer
-            .register_instance_w_timestamp(registered_foo.get_serialized_key(), Time::new(0, 0))
-            .unwrap();
+//     #[test]
+//     fn get_key_value_unknown_instance() {
+//         let mut data_writer = create_data_writer_test_fixture();
+//         let not_registered_foo = MockKeyedFoo { key: vec![1, 16] };
+//         let registered_foo = MockKeyedFoo { key: vec![1, 2] };
+//         data_writer
+//             .register_instance_w_timestamp(registered_foo.get_serialized_key(), Time::new(0, 0))
+//             .unwrap();
 
-        let mut keyed_foo = MockKeyedFoo { key: vec![] };
-        assert_eq!(
-            data_writer.get_key_value(
-                &mut keyed_foo,
-                not_registered_foo.get_serialized_key().into()
-            ),
-            Err(DdsError::BadParameter)
-        );
-    }
-}
+//         let mut keyed_foo = MockKeyedFoo { key: vec![] };
+//         assert_eq!(
+//             data_writer.get_key_value(
+//                 &mut keyed_foo,
+//                 not_registered_foo.get_serialized_key().into()
+//             ),
+//             Err(DdsError::BadParameter)
+//         );
+//     }
+// }

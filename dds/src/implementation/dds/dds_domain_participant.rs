@@ -42,6 +42,7 @@ use crate::{
             writer::RtpsWriter,
             writer_proxy::RtpsWriterProxy,
         },
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{actor_interface, spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
@@ -125,6 +126,7 @@ pub struct DdsDomainParticipant {
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
+    udp_transport_write: Actor<UdpTransportWrite>,
 }
 
 impl DdsDomainParticipant {
@@ -136,6 +138,7 @@ impl DdsDomainParticipant {
         domain_participant_qos: DomainParticipantQos,
         spdp_discovery_locator_list: &[Locator],
         data_max_size_serialized: usize,
+        udp_transport_write: Actor<UdpTransportWrite>,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -407,6 +410,7 @@ impl DdsDomainParticipant {
             ignored_publications: HashSet::new(),
             ignored_subcriptions: HashSet::new(),
             data_max_size_serialized,
+            udp_transport_write,
         }
     }
 }
@@ -745,6 +749,45 @@ impl DdsDomainParticipant {
 
     pub fn set_qos(&mut self, qos: DomainParticipantQos) {
         self.qos = qos;
+    }
+
+    pub fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
+        SpdpDiscoveredParticipantData::new(
+            ParticipantBuiltinTopicData::new(
+                BuiltInTopicKey {
+                    value: self.rtps_participant.guid().into(),
+                },
+                self.qos.user_data.clone(),
+            ),
+            ParticipantProxy::new(
+                self.domain_id,
+                self.domain_tag.clone(),
+                self.rtps_participant.protocol_version(),
+                self.rtps_participant.guid().prefix(),
+                self.rtps_participant.vendor_id(),
+                false,
+                self.rtps_participant
+                    .metatraffic_unicast_locator_list()
+                    .to_vec(),
+                self.rtps_participant
+                    .metatraffic_multicast_locator_list()
+                    .to_vec(),
+                self.rtps_participant
+                    .default_unicast_locator_list()
+                    .to_vec(),
+                self.rtps_participant
+                    .default_multicast_locator_list()
+                    .to_vec(),
+                BuiltinEndpointSet::default(),
+                self.manual_liveliness_count,
+                BuiltinEndpointQos::default(),
+            ),
+            self.lease_duration,
+        )
+    }
+
+    pub fn get_udp_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
+        self.udp_transport_write.address()
     }
 
     pub fn announce_participant(&mut self) -> DdsResult<()> {

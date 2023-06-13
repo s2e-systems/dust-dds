@@ -8,6 +8,7 @@ use crate::{
             stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter,
             types::Guid,
         },
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{ActorAddress, Mail, MailHandler},
     },
     infrastructure::{
@@ -210,12 +211,14 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
         instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
     ) -> DdsResult<()> {
         struct WriteWithTimestamp {
             serialized_data: Vec<u8>,
             instance_serialized_key: DdsSerializedKey,
             handle: Option<InstanceHandle>,
             timestamp: Time,
+            udp_transport_write: ActorAddress<UdpTransportWrite>,
         }
 
         impl Mail for WriteWithTimestamp {
@@ -229,6 +232,7 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
                     mail.instance_serialized_key,
                     mail.handle,
                     mail.timestamp,
+                    mail.udp_transport_write,
                 )
             }
         }
@@ -238,6 +242,7 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
             instance_serialized_key,
             handle,
             timestamp,
+            udp_transport_write,
         })?
     }
 
@@ -460,6 +465,47 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
 }
 
 impl ActorAddress<DdsDataWriter<RtpsStatelessWriter>> {
+    pub fn write_w_timestamp(
+        &self,
+        serialized_data: Vec<u8>,
+        instance_serialized_key: DdsSerializedKey,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
+    ) -> DdsResult<()> {
+        struct WriteWithTimestamp {
+            serialized_data: Vec<u8>,
+            instance_serialized_key: DdsSerializedKey,
+            handle: Option<InstanceHandle>,
+            timestamp: Time,
+            udp_transport_write: ActorAddress<UdpTransportWrite>,
+        }
+
+        impl Mail for WriteWithTimestamp {
+            type Result = DdsResult<()>;
+        }
+
+        impl MailHandler<WriteWithTimestamp> for DdsDataWriter<RtpsStatelessWriter> {
+            fn handle(&mut self, mail: WriteWithTimestamp) -> <WriteWithTimestamp as Mail>::Result {
+                self.write_w_timestamp(
+                    mail.serialized_data,
+                    mail.instance_serialized_key,
+                    mail.handle,
+                    mail.timestamp,
+                    mail.udp_transport_write,
+                )
+            }
+        }
+
+        self.send_blocking(WriteWithTimestamp {
+            serialized_data,
+            instance_serialized_key,
+            handle,
+            timestamp,
+            udp_transport_write,
+        })?
+    }
+
     pub fn reader_locator_add(&self, a_locator: RtpsReaderLocator) -> DdsResult<()> {
         struct ReaderLocatorAdd {
             a_locator: RtpsReaderLocator,

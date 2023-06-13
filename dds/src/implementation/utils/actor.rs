@@ -176,7 +176,7 @@ macro_rules! actor_function {
         }
 
         impl crate::implementation::utils::actor::ActorAddress<$type_name> {
-            pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> DdsResult<$ret_type> {
+            pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> crate::infrastructure::error::DdsResult<$ret_type> {
                 #[allow(non_camel_case_types)]
                 struct $fn_name {
                     $($arg_name:$arg_type,)*
@@ -211,7 +211,7 @@ macro_rules! actor_function {
         }
 
         impl crate::implementation::utils::actor::ActorAddress<$type_name> {
-            pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> DdsResult<()> {
+            pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> crate::infrastructure::error::DdsResult<()> {
                 #[allow(non_camel_case_types)]
                 struct $fn_name {
                     $($arg_name:$arg_type,)*
