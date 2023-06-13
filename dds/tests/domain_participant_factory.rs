@@ -26,8 +26,24 @@ fn create_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
-    let _participant = domain_participant_factory
+    let dp = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<KeyedData>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _data_writer: dust_dds::publication::data_writer::DataWriter<_> = publisher
+        .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _data_reader = subscriber
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(11));

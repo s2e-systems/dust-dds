@@ -4,9 +4,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid, utils::actor::actor_interface,
     },
-    infrastructure::{
-        error::DdsResult, instance::InstanceHandle, qos::TopicQos, status::InconsistentTopicStatus,
-    },
+    infrastructure::{instance::InstanceHandle, qos::TopicQos, status::InconsistentTopicStatus},
 };
 
 use super::status_listener::ListenerTriggerKind;

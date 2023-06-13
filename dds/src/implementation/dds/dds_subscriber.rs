@@ -73,6 +73,10 @@ impl DdsSubscriber {
         self.stateless_data_reader_list.push(data_reader)
     }
 
+    pub fn stateless_data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader<RtpsStatelessReader>>> {
+        self.stateless_data_reader_list.iter().map(|dr| dr.address()).collect()
+    }
+
     pub fn stateful_data_reader_add(
         &mut self,
         data_reader: Actor<DdsDataReader<RtpsStatefulReader>>,

@@ -1,7 +1,6 @@
 use crate::{
     implementation::utils::actor::{actor_interface, Actor, ActorAddress},
     infrastructure::{
-        error::{DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos},
     },

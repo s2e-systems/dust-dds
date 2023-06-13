@@ -11,10 +11,7 @@ use crate::{
 
 use super::{
     history_cache::RtpsWriterCacheChange,
-    messages::{
-        overall_structure::{RtpsMessageHeader, RtpsMessageWrite},
-        submessage_elements::ParameterList,
-    },
+    messages::{overall_structure::RtpsMessageHeader, submessage_elements::ParameterList},
     reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
     types::{ChangeKind, Guid, Locator},
     writer::RtpsWriter,
