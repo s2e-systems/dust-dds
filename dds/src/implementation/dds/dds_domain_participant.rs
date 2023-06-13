@@ -18,10 +18,7 @@ use crate::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::{
-                overall_structure::{RtpsMessageRead, RtpsMessageWrite},
-                types::Count,
-            },
+            messages::types::Count,
             participant::RtpsParticipant,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
@@ -45,7 +42,7 @@ use crate::{
             writer::RtpsWriter,
             writer_proxy::RtpsWriterProxy,
         },
-        utils::actor::{actor_interface, spawn_actor, Actor, ActorAddress, THE_RUNTIME},
+        utils::actor::{actor_interface, spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -58,7 +55,6 @@ use crate::{
         },
         time::{DurationKind, DURATION_ZERO},
     },
-    subscription::sample_info::{SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::{dds_serialize, DdsType},
     {
         builtin_topics::TopicBuiltinTopicData,
@@ -104,16 +100,6 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new(EntityKey::new([0, 0, 0x04]), BUILT_IN_READER_WITH_KEY);
 
-#[derive(Debug)]
-pub enum AnnounceKind {
-    CreatedDataReader(DiscoveredReaderData),
-    CreatedDataWriter(DiscoveredWriterData),
-    CratedTopic(DiscoveredTopicData),
-    DeletedDataReader(InstanceHandle),
-    DeletedDataWriter(InstanceHandle),
-    DeletedParticipant,
-}
-
 pub struct DdsDomainParticipant {
     rtps_participant: RtpsParticipant,
     domain_id: DomainId,
@@ -139,11 +125,6 @@ pub struct DdsDomainParticipant {
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
-    _announce_sender: tokio::sync::mpsc::Sender<AnnounceKind>,
-    user_defined_rtps_message_channel_sender:
-        tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
-    _builtin_message_broadcast_receiver_sender:
-        tokio::sync::broadcast::Sender<(Locator, RtpsMessageRead)>,
 }
 
 impl DdsDomainParticipant {
@@ -155,19 +136,6 @@ impl DdsDomainParticipant {
         domain_participant_qos: DomainParticipantQos,
         spdp_discovery_locator_list: &[Locator],
         data_max_size_serialized: usize,
-        announce_sender: tokio::sync::mpsc::Sender<AnnounceKind>,
-        builtin_rtps_message_channel_sender: tokio::sync::mpsc::Sender<(
-            RtpsMessageWrite,
-            Vec<Locator>,
-        )>,
-        builtin_message_broadcast_receiver_sender: tokio::sync::broadcast::Sender<(
-            Locator,
-            RtpsMessageRead,
-        )>,
-        user_defined_rtps_message_channel_sender: tokio::sync::mpsc::Sender<(
-            RtpsMessageWrite,
-            Vec<Locator>,
-        )>,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -218,10 +186,6 @@ impl DdsDomainParticipant {
             String::from(DCPS_PARTICIPANT),
         ));
 
-        let spdp_builtin_participant_reader_address = spdp_builtin_participant_reader.address();
-        let mut builtin_message_broadcast_receiver =
-            builtin_message_broadcast_receiver_sender.subscribe();
-
         let sedp_builtin_topics_reader = spawn_actor(DdsDataReader::new(
             create_builtin_stateful_reader::<DiscoveredTopicData>(Guid::new(
                 guid_prefix,
@@ -257,10 +221,6 @@ impl DdsDomainParticipant {
             )),
         ));
 
-        let sedp_builtin_subscriptions_reader_address = sedp_builtin_subscriptions_reader.address();
-        let sedp_builtin_publications_reader_address = sedp_builtin_publications_reader.address();
-        let sedp_builtin_topics_reader_address = sedp_builtin_topics_reader.address();
-
         builtin_subscriber
             .address()
             .stateless_data_reader_add(spdp_builtin_participant_reader)
@@ -286,7 +246,6 @@ impl DdsDomainParticipant {
             )),
             SpdpDiscoveredParticipantData::type_name(),
             String::from(DCPS_PARTICIPANT),
-            builtin_rtps_message_channel_sender.clone(),
         ));
 
         for reader_locator in spdp_discovery_locator_list
@@ -306,7 +265,6 @@ impl DdsDomainParticipant {
             )),
             DiscoveredTopicData::type_name(),
             String::from(DCPS_TOPIC),
-            builtin_rtps_message_channel_sender.clone(),
         );
         let sedp_builtin_topics_writer_actor = spawn_actor(sedp_builtin_topics_writer);
 
@@ -317,7 +275,6 @@ impl DdsDomainParticipant {
             )),
             DiscoveredWriterData::type_name(),
             String::from(DCPS_PUBLICATION),
-            builtin_rtps_message_channel_sender.clone(),
         );
         let sedp_builtin_publications_writer_actor = spawn_actor(sedp_builtin_publications_writer);
 
@@ -328,7 +285,6 @@ impl DdsDomainParticipant {
             )),
             DiscoveredReaderData::type_name(),
             String::from(DCPS_SUBSCRIPTION),
-            builtin_rtps_message_channel_sender,
         );
         let sedp_builtin_subscriptions_writer_actor =
             spawn_actor(sedp_builtin_subscriptions_writer);
@@ -340,12 +296,6 @@ impl DdsDomainParticipant {
                 EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_WRITER_GROUP),
             )),
         ));
-
-        let sedp_builtin_publications_writer_address =
-            sedp_builtin_publications_writer_actor.address();
-        let sedp_builtin_subscriptions_writer_address =
-            sedp_builtin_subscriptions_writer_actor.address();
-        let sedp_builtin_topics_writer_address = sedp_builtin_topics_writer_actor.address();
 
         builtin_publisher
             .address()
@@ -364,73 +314,73 @@ impl DdsDomainParticipant {
             .stateful_datawriter_add(sedp_builtin_subscriptions_writer_actor)
             .unwrap();
 
-        let domain_tag_clone = domain_tag.clone();
-        THE_RUNTIME.spawn(async move {
-            loop {
-                if let Ok((_locator, message)) = builtin_message_broadcast_receiver.recv().await {
-                    tokio::task::block_in_place(|| {
-                        if let Ok(_) =
-                            spdp_builtin_participant_reader_address.process_rtps_message(message)
-                        {
-                            while let Ok(samples) = spdp_builtin_participant_reader_address
-                                .read::<SpdpDiscoveredParticipantData>(
-                                1,
-                                &[SampleStateKind::NotRead],
-                                ANY_VIEW_STATE,
-                                ANY_INSTANCE_STATE,
-                                None,
-                            ) {
-                                for discovered_participant_data_sample in samples.into_iter() {
-                                    if let Some(discovered_participant_data) =
-                                        discovered_participant_data_sample.data
-                                    {
-                                        if discovered_participant_data
-                                            .participant_proxy()
-                                            .domain_id()
-                                            == domain_id
-                                            && discovered_participant_data
-                                                .participant_proxy()
-                                                .domain_tag()
-                                                == domain_tag_clone
-                                        {
-                                            add_matched_subscriptions_detector(
-                                                &sedp_builtin_subscriptions_writer_address,
-                                                &discovered_participant_data,
-                                            );
+        // let domain_tag_clone = domain_tag.clone();
+        // THE_RUNTIME.spawn(async move {
+        //     loop {
+        //         if let Ok((_locator, message)) = builtin_message_broadcast_receiver.recv().await {
+        //             tokio::task::block_in_place(|| {
+        //                 if let Ok(_) =
+        //                     spdp_builtin_participant_reader_address.process_rtps_message(message)
+        //                 {
+        //                     while let Ok(samples) = spdp_builtin_participant_reader_address
+        //                         .read::<SpdpDiscoveredParticipantData>(
+        //                         1,
+        //                         &[SampleStateKind::NotRead],
+        //                         ANY_VIEW_STATE,
+        //                         ANY_INSTANCE_STATE,
+        //                         None,
+        //                     ) {
+        //                         for discovered_participant_data_sample in samples.into_iter() {
+        //                             if let Some(discovered_participant_data) =
+        //                                 discovered_participant_data_sample.data
+        //                             {
+        //                                 if discovered_participant_data
+        //                                     .participant_proxy()
+        //                                     .domain_id()
+        //                                     == domain_id
+        //                                     && discovered_participant_data
+        //                                         .participant_proxy()
+        //                                         .domain_tag()
+        //                                         == domain_tag_clone
+        //                                 {
+        //                                     add_matched_subscriptions_detector(
+        //                                         &sedp_builtin_subscriptions_writer_address,
+        //                                         &discovered_participant_data,
+        //                                     );
 
-                                            add_matched_publications_detector(
-                                                &sedp_builtin_publications_writer_address,
-                                                &discovered_participant_data,
-                                            );
+        //                                     add_matched_publications_detector(
+        //                                         &sedp_builtin_publications_writer_address,
+        //                                         &discovered_participant_data,
+        //                                     );
 
-                                            add_matched_topics_detector(
-                                                &sedp_builtin_topics_writer_address,
-                                                &discovered_participant_data,
-                                            );
+        //                                     add_matched_topics_detector(
+        //                                         &sedp_builtin_topics_writer_address,
+        //                                         &discovered_participant_data,
+        //                                     );
 
-                                            add_matched_subscriptions_announcer(
-                                                &sedp_builtin_subscriptions_reader_address,
-                                                &discovered_participant_data,
-                                            );
+        //                                     add_matched_subscriptions_announcer(
+        //                                         &sedp_builtin_subscriptions_reader_address,
+        //                                         &discovered_participant_data,
+        //                                     );
 
-                                            add_matched_publications_announcer(
-                                                &sedp_builtin_publications_reader_address,
-                                                &discovered_participant_data,
-                                            );
+        //                                     add_matched_publications_announcer(
+        //                                         &sedp_builtin_publications_reader_address,
+        //                                         &discovered_participant_data,
+        //                                     );
 
-                                            add_matched_topics_announcer(
-                                                &sedp_builtin_topics_reader_address,
-                                                &discovered_participant_data,
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            }
-        });
+        //                                     add_matched_topics_announcer(
+        //                                         &sedp_builtin_topics_reader_address,
+        //                                         &discovered_participant_data,
+        //                                     );
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 }
+        //             });
+        //         }
+        //     }
+        // });
 
         Self {
             rtps_participant,
@@ -457,9 +407,6 @@ impl DdsDomainParticipant {
             ignored_publications: HashSet::new(),
             ignored_subcriptions: HashSet::new(),
             data_max_size_serialized,
-            _announce_sender: announce_sender,
-            user_defined_rtps_message_channel_sender,
-            _builtin_message_broadcast_receiver_sender: builtin_message_broadcast_receiver_sender,
         }
     }
 }
@@ -530,12 +477,6 @@ impl DdsDomainParticipant {
 
     pub fn get_domain_tag(&self) -> String {
         self.domain_tag.clone()
-    }
-
-    pub fn user_defined_rtps_message_channel_sender(
-        &self,
-    ) -> tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)> {
-        self.user_defined_rtps_message_channel_sender.clone()
     }
 
     pub fn get_current_time(&self) -> Time {

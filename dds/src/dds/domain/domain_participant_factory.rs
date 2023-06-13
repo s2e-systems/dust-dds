@@ -12,7 +12,7 @@ use crate::{
             dds_domain_participant_factory::DdsDomainParticipantFactory,
         },
         rtps::{
-            messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
+            messages::overall_structure::RtpsMessageWrite,
             participant::RtpsParticipant,
             transport::TransportWrite,
             types::{
@@ -78,15 +78,9 @@ impl DomainParticipantFactory {
     ) -> DdsResult<DomainParticipant> {
         async fn task_metatraffic_multicast_receive(
             mut metatraffic_multicast_transport: UdpTransportRead,
-            builtin_message_broadcast_sender: tokio::sync::broadcast::Sender<(
-                Locator,
-                RtpsMessageRead,
-            )>,
         ) {
             while let Some((locator, message)) = metatraffic_multicast_transport.read().await {
-                builtin_message_broadcast_sender
-                    .send((locator, message))
-                    .ok();
+
                 // tokio::task::block_in_place(|| {
                 //     domain_participant_address
                 //         .receive_builtin_message(locator, message)
@@ -217,8 +211,6 @@ impl DomainParticipantFactory {
 
         let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
-        let (announce_sender, _announce_receiver) = tokio::sync::mpsc::channel(500);
-
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,
             default_unicast_locator_list,
@@ -229,14 +221,6 @@ impl DomainParticipantFactory {
             VENDOR_ID_S2E,
         );
 
-        let (builtin_rtps_message_channel_sender, builtin_rtps_message_channel_receiver) =
-            tokio::sync::mpsc::channel(10);
-
-        let (user_defined_rtps_message_channel_sender, user_defined_rtps_message_channel_receiver) =
-            tokio::sync::mpsc::channel(10);
-
-        let (builtin_message_broadcast_sender, _) = tokio::sync::broadcast::channel(10);
-
         let domain_participant = DdsDomainParticipant::new(
             rtps_participant,
             domain_id,
@@ -244,10 +228,6 @@ impl DomainParticipantFactory {
             domain_participant_qos,
             &spdp_discovery_locator_list,
             THE_DDS_CONFIGURATION.fragment_size,
-            announce_sender,
-            builtin_rtps_message_channel_sender,
-            builtin_message_broadcast_sender.clone(),
-            user_defined_rtps_message_channel_sender,
         );
 
         let participant_actor = spawn_actor(domain_participant);
@@ -266,7 +246,6 @@ impl DomainParticipantFactory {
 
         THE_RUNTIME.spawn(task_metatraffic_multicast_receive(
             metatraffic_multicast_transport,
-            builtin_message_broadcast_sender,
         ));
 
         let _metatraffic_unicast_transport = UdpTransportRead::new(
@@ -276,15 +255,15 @@ impl DomainParticipantFactory {
         let _default_unicast_transport =
             UdpTransportRead::new(tokio::net::UdpSocket::from_std(default_unicast_socket).unwrap());
 
-        THE_RUNTIME.spawn(task_unicast_metatraffic_communication_send(
-            builtin_rtps_message_channel_receiver,
-        ));
+        // THE_RUNTIME.spawn(task_unicast_metatraffic_communication_send(
+        //     builtin_rtps_message_channel_receiver,
+        // ));
 
-        THE_RUNTIME.spawn(task_unicast_user_defined_communication_send(
-            user_defined_rtps_message_channel_receiver,
-        ));
+        // THE_RUNTIME.spawn(task_unicast_user_defined_communication_send(
+        //     user_defined_rtps_message_channel_receiver,
+        // ));
 
-        THE_RUNTIME.spawn(task_announce_participant(participant_address.clone()));
+        // THE_RUNTIME.spawn(task_announce_participant(participant_address.clone()));
 
         if self
             .0

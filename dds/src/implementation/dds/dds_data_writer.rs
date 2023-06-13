@@ -9,7 +9,6 @@ use crate::{
         rtps::{
             history_cache::RtpsWriterCacheChange,
             messages::{
-                overall_structure::{RtpsMessageHeader, RtpsMessageWrite},
                 submessage_elements::ParameterList,
                 submessages::{ack_nack::AckNackSubmessageRead, nack_frag::NackFragSubmessageRead},
             },
@@ -18,8 +17,7 @@ use crate::{
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
             types::{
-                ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, PROTOCOLVERSION_2_4,
-                USER_DEFINED_UNKNOWN, VENDOR_ID_S2E,
+                ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
         },
     },
@@ -182,16 +180,10 @@ pub struct DdsDataWriter<T> {
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
-    rtps_message_sender: tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
 }
 
 impl<T> DdsDataWriter<T> {
-    pub fn new(
-        rtps_writer: T,
-        type_name: &'static str,
-        topic_name: String,
-        rtps_message_sender: tokio::sync::mpsc::Sender<(RtpsMessageWrite, Vec<Locator>)>,
-    ) -> Self {
+    pub fn new(rtps_writer: T, type_name: &'static str, topic_name: String) -> Self {
         DdsDataWriter {
             rtps_writer,
             type_name,
@@ -199,7 +191,6 @@ impl<T> DdsDataWriter<T> {
             matched_subscriptions: MatchedSubscriptions::new(),
             incompatible_subscriptions: IncompatibleSubscriptions::new(),
             enabled: false,
-            rtps_message_sender,
         }
     }
 
@@ -588,10 +579,10 @@ impl DdsDataWriter<RtpsStatelessWriter> {
             timestamp,
         )?;
 
-        self.rtps_writer.send_message(
-            RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, self.guid().prefix()),
-            &self.rtps_message_sender,
-        );
+        // self.rtps_writer.send_message(
+        //     RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, self.guid().prefix()),
+        //     &self.rtps_message_sender,
+        // );
 
         Ok(())
     }
@@ -667,8 +658,7 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let (sender, _receiver) = tokio::sync::mpsc::channel(10);
-        let mut data_writer = DdsDataWriter::new(rtps_writer, "", String::from(""), sender);
+        let mut data_writer = DdsDataWriter::new(rtps_writer, "", String::from(""));
         data_writer.enabled = true;
         data_writer
     }

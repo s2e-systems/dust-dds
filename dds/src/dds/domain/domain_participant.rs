@@ -11,7 +11,7 @@ use crate::{
         },
         dds::{
             dds_data_writer::DdsDataWriter,
-            dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+            dds_domain_participant::DdsDomainParticipant,
             dds_publisher::DdsPublisher,
             dds_subscriber::DdsSubscriber,
             dds_topic::DdsTopic,
@@ -752,7 +752,7 @@ impl DomainParticipant {
 
 /////////////////////////////////////////////////////////////////////////
 
-fn _announce_entity(_domain_participant: &mut DdsDomainParticipant, _announce_kind: AnnounceKind) {
+fn _announce_entity(_domain_participant: &mut DdsDomainParticipant) {
     todo!()
     // match announce_kind {
     //     AnnounceKind::CreatedDataReader(discovered_reader_data) => {

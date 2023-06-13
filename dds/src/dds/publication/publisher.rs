@@ -99,10 +99,6 @@ impl Publisher {
             .parent_participant()
             .get_default_multicast_locator_list()?;
         let data_max_size_serialized = self.0.parent_participant().data_max_size_serialized()?;
-        let user_defined_rtps_message_channel_sender = self
-            .0
-            .parent_participant()
-            .user_defined_rtps_message_channel_sender()?;
 
         let qos = match qos {
             QosKind::Default => self.0.address().get_default_datawriter_qos()?,
@@ -145,12 +141,7 @@ impl Publisher {
             qos,
         ));
         let topic_name = a_topic.get_name()?;
-        let data_writer = DdsDataWriter::new(
-            rtps_writer_impl,
-            Foo::type_name(),
-            topic_name,
-            user_defined_rtps_message_channel_sender,
-        );
+        let data_writer = DdsDataWriter::new(rtps_writer_impl, Foo::type_name(), topic_name);
         let data_writer_actor = spawn_actor(data_writer);
         let data_writer_address = data_writer_actor.address();
         self.0
