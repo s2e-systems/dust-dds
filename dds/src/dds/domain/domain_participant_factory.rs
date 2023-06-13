@@ -611,14 +611,19 @@ fn process_spdp_metatraffic(
         spdp_data_reader.process_rtps_message(message)?;
 
         // Read data from each of the readers
-        while let Ok(spdp_data_sample) = spdp_data_reader.read::<SpdpDiscoveredParticipantData>(
-            1,
-            &[SampleStateKind::NotRead],
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
-            None,
-        ) {
-            if let Some(discovered_participant_data) = &spdp_data_sample[0].data {
+        while let Ok(spdp_data_sample_list) = spdp_data_reader
+            .read::<SpdpDiscoveredParticipantData>(
+                1,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
+        {
+            for spdp_data_sample in spdp_data_sample_list {
+                let discovered_participant_data =
+                    spdp_data_sample.data.expect("Should contain data");
+
                 // Check that the domainId of the discovered participant equals the local one.
                 // If it is not equal then there the local endpoints are not configured to
                 // communicate with the discovered participant.
@@ -651,7 +656,7 @@ fn process_spdp_metatraffic(
                     ) {
                         add_matched_publications_detector(
                             &sedp_publications_announcer,
-                            discovered_participant_data,
+                            &discovered_participant_data,
                         );
 
                         sedp_publications_announcer.send_message(
@@ -730,10 +735,10 @@ fn process_spdp_metatraffic(
                         );
                     }
 
-                    //     domain_participant.discovered_participant_add(
-                    //         discovered_participant_data.get_serialized_key().into(),
-                    //         discovered_participant_data,
-                    //     );
+                    participant_address.discovered_participant_add(
+                        discovered_participant_data.get_serialized_key().into(),
+                        discovered_participant_data,
+                    )?;
                 }
             }
         }
