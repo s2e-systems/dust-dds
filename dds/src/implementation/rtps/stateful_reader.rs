@@ -1,5 +1,4 @@
 use crate::{
-    implementation::dds::message_receiver::MessageReceiver,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -212,14 +211,12 @@ impl RtpsStatefulReader {
     pub fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead<'_>,
-        message_receiver: &MessageReceiver,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
         reception_timestamp: Time,
     ) -> StatefulReaderDataReceivedResult {
         let sequence_number = data_submessage.writer_sn();
-        let writer_guid = Guid::new(
-            message_receiver.source_guid_prefix(),
-            data_submessage.writer_id(),
-        );
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
 
         if let Some(writer_proxy) = self
             .matched_writers
@@ -232,8 +229,8 @@ impl RtpsStatefulReader {
                     if sequence_number >= expected_seq_num {
                         let change_result = self.reader.convert_data_to_cache_change(
                             data_submessage,
-                            Some(message_receiver.timestamp()),
-                            message_receiver.source_guid_prefix(),
+                            source_timestamp,
+                            source_guid_prefix,
                             reception_timestamp,
                         );
                         match change_result {
@@ -267,8 +264,8 @@ impl RtpsStatefulReader {
                     if sequence_number == expected_seq_num {
                         let change_result = self.reader.convert_data_to_cache_change(
                             data_submessage,
-                            Some(message_receiver.timestamp()),
-                            message_receiver.source_guid_prefix(),
+                            source_timestamp,
+                            source_guid_prefix,
                             reception_timestamp,
                         );
                         match change_result {
@@ -303,14 +300,12 @@ impl RtpsStatefulReader {
     pub fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessageRead<'_>,
-        message_receiver: &MessageReceiver,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
         reception_timestamp: Time,
     ) -> StatefulReaderDataReceivedResult {
         let sequence_number = data_frag_submessage.writer_sn();
-        let writer_guid = Guid::new(
-            message_receiver.source_guid_prefix(),
-            data_frag_submessage.writer_id(),
-        );
+        let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
 
         if let Some(writer_proxy) = self
             .matched_writers
@@ -326,8 +321,8 @@ impl RtpsStatefulReader {
                             let change_results = convert_data_frag_to_cache_change(
                                 data_frag_submessage,
                                 data,
-                                Some(message_receiver.timestamp()),
-                                message_receiver.source_guid_prefix(),
+                                source_timestamp,
+                                source_guid_prefix,
                                 reception_timestamp,
                             );
                             match change_results {
@@ -366,8 +361,8 @@ impl RtpsStatefulReader {
                             let change_result = convert_data_frag_to_cache_change(
                                 data_frag_submessage,
                                 data,
-                                Some(message_receiver.timestamp()),
-                                message_receiver.source_guid_prefix(),
+                                source_timestamp,
+                                source_guid_prefix,
                                 reception_timestamp,
                             );
 

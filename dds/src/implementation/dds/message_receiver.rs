@@ -97,11 +97,11 @@ impl<'a> MessageReceiver<'a> {
         self.multicast_reply_locator_list.as_ref()
     }
 
-    pub fn have_timestamp(&self) -> bool {
-        self.have_timestamp
-    }
-
-    pub fn timestamp(&self) -> Time {
-        self.timestamp
+    pub fn source_timestamp(&self) -> Option<Time> {
+        if self.have_timestamp {
+            Some(self.timestamp)
+        } else {
+            None
+        }
     }
 }

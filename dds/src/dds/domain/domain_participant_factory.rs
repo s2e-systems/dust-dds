@@ -608,7 +608,7 @@ fn process_spdp_metatraffic(
         })
     {
         // Receive the data on the builtin spdp reader
-        spdp_data_reader.process_rtps_message(message)?;
+        spdp_data_reader.process_rtps_message(message, participant_address.get_current_time()?)?;
 
         // Read data from each of the readers
         while let Ok(spdp_data_sample_list) = spdp_data_reader
@@ -753,7 +753,8 @@ fn process_sedp_metatraffic(
 ) -> DdsResult<()> {
     let builtin_subscriber = participant_address.get_builtin_subscriber()?;
     for stateful_builtin_reader in builtin_subscriber.stateful_data_reader_list()? {
-        stateful_builtin_reader.process_rtps_message(message.clone())?;
+        stateful_builtin_reader
+            .process_rtps_message(message.clone(), participant_address.get_current_time()?)?;
     }
 
     Ok(())

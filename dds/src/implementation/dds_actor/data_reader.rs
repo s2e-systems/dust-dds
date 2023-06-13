@@ -9,7 +9,7 @@ use crate::{
         },
         utils::actor::{ActorAddress, Mail, MailHandler},
     },
-    infrastructure::{error::DdsResult, instance::InstanceHandle},
+    infrastructure::{error::DdsResult, instance::InstanceHandle, time::Time},
     subscription::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
@@ -66,9 +66,14 @@ impl<T> ActorAddress<DdsDataReader<T>> {
 }
 
 impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
-    pub fn process_rtps_message(&self, message: RtpsMessageRead) -> DdsResult<()> {
+    pub fn process_rtps_message(
+        &self,
+        message: RtpsMessageRead,
+        reception_timestamp: Time,
+    ) -> DdsResult<()> {
         struct ProcessRtpsMessage {
             message: RtpsMessageRead,
+            reception_timestamp: Time,
         }
 
         impl Mail for ProcessRtpsMessage {
@@ -77,11 +82,14 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
 
         impl MailHandler<ProcessRtpsMessage> for DdsDataReader<RtpsStatefulReader> {
             fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
-                self.process_rtps_message(mail.message)
+                self.process_rtps_message(mail.message, mail.reception_timestamp)
             }
         }
 
-        self.send_blocking(ProcessRtpsMessage { message })
+        self.send_blocking(ProcessRtpsMessage {
+            message,
+            reception_timestamp,
+        })
     }
 
     pub fn matched_writer_add(&self, a_writer_proxy: RtpsWriterProxy) -> DdsResult<()> {
@@ -169,9 +177,14 @@ impl ActorAddress<DdsDataReader<RtpsStatelessReader>> {
         })?
     }
 
-    pub fn process_rtps_message(&self, message: RtpsMessageRead) -> DdsResult<()> {
+    pub fn process_rtps_message(
+        &self,
+        message: RtpsMessageRead,
+        reception_timestamp: Time,
+    ) -> DdsResult<()> {
         struct ProcessRtpsMessage {
             message: RtpsMessageRead,
+            reception_timestamp: Time,
         }
 
         impl Mail for ProcessRtpsMessage {
@@ -180,10 +193,13 @@ impl ActorAddress<DdsDataReader<RtpsStatelessReader>> {
 
         impl MailHandler<ProcessRtpsMessage> for DdsDataReader<RtpsStatelessReader> {
             fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
-                self.process_rtps_message(mail.message)
+                self.process_rtps_message(mail.message, mail.reception_timestamp)
             }
         }
 
-        self.send_blocking(ProcessRtpsMessage { message })
+        self.send_blocking(ProcessRtpsMessage {
+            message,
+            reception_timestamp,
+        })
     }
 }
