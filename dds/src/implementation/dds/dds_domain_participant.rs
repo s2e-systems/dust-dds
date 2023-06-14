@@ -50,7 +50,6 @@ use crate::{
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
-        status::NO_STATUS,
         time::{DurationKind, DURATION_ZERO},
     },
     topic_definition::type_support::DdsType,
@@ -70,9 +69,8 @@ use std::{
 };
 
 use super::{
-    dds_data_writer::DdsDataWriter,
-    dds_publisher::DdsPublisher,
-    status_listener::{ListenerTriggerKind, StatusListener},
+    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher,
+    status_listener::ListenerTriggerKind,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -185,7 +183,8 @@ impl DdsDomainParticipant {
             )),
             SpdpDiscoveredParticipantData::type_name(),
             String::from(DCPS_PARTICIPANT),
-            StatusListener::new(None, NO_STATUS),
+            None,
+            vec![],
         ));
 
         let sedp_builtin_topics_reader = spawn_actor(DdsDataReader::new(
@@ -195,7 +194,8 @@ impl DdsDomainParticipant {
             )),
             DiscoveredTopicData::type_name(),
             String::from(DCPS_TOPIC),
-            StatusListener::new(None, NO_STATUS),
+            None,
+            vec![],
         ));
 
         let sedp_builtin_publications_reader = spawn_actor(DdsDataReader::new(
@@ -205,7 +205,8 @@ impl DdsDomainParticipant {
             )),
             DiscoveredWriterData::type_name(),
             String::from(DCPS_PUBLICATION),
-            StatusListener::new(None, NO_STATUS),
+            None,
+            vec![],
         ));
 
         let sedp_builtin_subscriptions_reader = spawn_actor(DdsDataReader::new(
@@ -215,7 +216,8 @@ impl DdsDomainParticipant {
             )),
             DiscoveredReaderData::type_name(),
             String::from(DCPS_SUBSCRIPTION),
-            StatusListener::new(None, NO_STATUS),
+            None,
+            vec![],
         ));
 
         let builtin_subscriber = spawn_actor(DdsSubscriber::new(

@@ -64,19 +64,19 @@ impl SubscriberNode {
 #[derive(Clone)]
 pub struct DataReaderNode {
     this: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
-    parent_subcriber: ActorAddress<DdsSubscriber>,
+    parent_subscriber: ActorAddress<DdsSubscriber>,
     parent_participant: ActorAddress<DdsDomainParticipant>,
 }
 
 impl DataReaderNode {
     pub fn new(
         this: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
-        parent_subcriber: ActorAddress<DdsSubscriber>,
+        parent_subscriber: ActorAddress<DdsSubscriber>,
         parent_participant: ActorAddress<DdsDomainParticipant>,
     ) -> Self {
         Self {
             this,
-            parent_subcriber,
+            parent_subscriber,
             parent_participant,
         }
     }
@@ -86,7 +86,7 @@ impl DataReaderNode {
     }
 
     pub fn parent_subscriber(&self) -> &ActorAddress<DdsSubscriber> {
-        &self.parent_subcriber
+        &self.parent_subscriber
     }
 
     pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {

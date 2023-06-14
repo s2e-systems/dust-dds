@@ -3,6 +3,7 @@ use crate::{
     implementation::{
         dds::{
             dds_data_reader::DdsDataReader,
+            dds_data_reader_listener::DdsDataReaderListener,
             nodes::{DataReaderNode, DataReaderNodeKind, SubscriberNodeKind},
         },
         rtps::{
@@ -92,8 +93,8 @@ impl Subscriber {
         &self,
         a_topic: &Topic<Foo>,
         qos: QosKind<DataReaderQos>,
-        _a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
         Foo: DdsType + for<'de> serde::Deserialize<'de> + Send + 'static,
@@ -149,8 +150,16 @@ impl Subscriber {
                     qos,
                 ));
 
-                let data_reader =
-                    DdsDataReader::new(rtps_reader, Foo::type_name(), a_topic.get_name()?);
+                let listener =
+                    a_listener.map(|l| spawn_actor(DdsDataReaderListener::new(Box::new(l))));
+                let status_kind = mask.to_vec();
+                let data_reader = DdsDataReader::new(
+                    rtps_reader,
+                    Foo::type_name(),
+                    a_topic.get_name()?,
+                    listener,
+                    status_kind,
+                );
 
                 let reader_actor = spawn_actor(data_reader);
                 let reader_address = reader_actor.address();

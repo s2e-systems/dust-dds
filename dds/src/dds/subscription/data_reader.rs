@@ -90,7 +90,7 @@ impl<Foo> DataReader<Foo> {
 
 impl<Foo> DataReader<Foo>
 where
-    Foo: DdsType + for<'de> DdsDeserialize<'de>,
+    Foo: DdsType + Send + 'static + for<'de> DdsDeserialize<'de>,
 {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The size of the returned collection will
     /// be limited to the specified `max_samples`. The properties of the data values collection and the setting of the
@@ -134,52 +134,23 @@ where
     /// [`DdsError::NoData`](crate::infrastructure::error::DdsError).
     pub fn read(
         &self,
-        _max_samples: i32,
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::builtin_data_reader_stateless::read(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //                 max_samples,
-        //                 sample_states,
-        //                 view_states,
-        //                 instance_states,
-        //                 None,
-        //             )
-        //         }),
-        //     DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::builtin_data_reader_stateful::read(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //                 max_samples,
-        //                 sample_states,
-        //                 view_states,
-        //                 instance_states,
-        //                 None,
-        //             )
-        //         }),
-        //     DataReaderNodeKind::UserDefined(r) | DataReaderNodeKind::Listener(r) => {
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_reader::read(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //                 r.parent_subscriber(),
-        //                 max_samples,
-        //                 sample_states,
-        //                 view_states,
-        //                 instance_states,
-        //                 None,
-        //             )
-        //         })
-        //     }
-        // }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateful(dr)
+            | DataReaderNodeKind::BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                None,
+            ),
+        }
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. This operation uses the same

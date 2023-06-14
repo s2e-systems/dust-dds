@@ -19,7 +19,7 @@ impl<T: ?Sized> StatusListener<T> {
         Self {
             listener,
             status_kind: status_kind.to_vec(),
-            status_condition: DdsShared::_new(DdsRwLock::_new(StatusConditionImpl::default())),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         }
     }
 
@@ -34,7 +34,7 @@ impl<T: ?Sized> StatusListener<T> {
     pub fn _add_communication_state(&self, state: StatusKind) {
         self.status_condition
             .write_lock()
-            ._add_communication_state(state)
+            .add_communication_state(state)
     }
 
     pub fn _remove_communication_state(&self, state: StatusKind) {

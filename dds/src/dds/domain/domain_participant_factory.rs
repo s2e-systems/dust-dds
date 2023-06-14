@@ -864,7 +864,7 @@ fn discover_matched_writers(
                             .participant_proxy()
                             .default_multicast_locator_list()
                             .to_vec();
-                        for user_defined_subscriber in
+                        for user_defined_subscriber_address in
                             participant_address.get_user_defined_subscriber_list()?
                         {
                             let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) =
@@ -876,14 +876,17 @@ fn discover_matched_writers(
                                         .name
                                         .as_str(),
                                 ) {
-                                d.is_match(&user_defined_subscriber.get_qos()?.partition.name)
+                                d.is_match(
+                                    &user_defined_subscriber_address.get_qos()?.partition.name,
+                                )
                             } else {
                                 false
                             };
 
                             let is_subscriber_regex_matched_to_discovered_writer = if let Ok(d) =
-                                glob_to_regex(&user_defined_subscriber.get_qos()?.partition.name)
-                            {
+                                glob_to_regex(
+                                    &user_defined_subscriber_address.get_qos()?.partition.name,
+                                ) {
                                 d.is_match(
                                     &discovered_writer_data
                                         .clone()
@@ -900,22 +903,25 @@ fn discover_matched_writers(
                                 .dds_publication_data()
                                 .partition()
                                 .name
-                                == user_defined_subscriber.get_qos()?.partition.name;
+                                == user_defined_subscriber_address.get_qos()?.partition.name;
 
                             if is_discovered_writer_regex_matched_to_subscriber
                                 || is_subscriber_regex_matched_to_discovered_writer
                                 || is_partition_string_matched
                             {
                                 let user_defined_subscriber_qos =
-                                    user_defined_subscriber.get_qos()?;
-                                for data_reader in
-                                    user_defined_subscriber.stateful_data_reader_list()?
+                                    user_defined_subscriber_address.get_qos()?;
+                                for data_reader_address in
+                                    user_defined_subscriber_address.stateful_data_reader_list()?
                                 {
-                                    data_reader.add_matched_writer(
+                                    data_reader_address.add_matched_writer(
                                         discovered_writer_data.clone(),
                                         default_unicast_locator_list.clone(),
                                         default_multicast_locator_list.clone(),
                                         user_defined_subscriber_qos.clone(),
+                                        data_reader_address.clone(),
+                                        user_defined_subscriber_address.clone(),
+                                        participant_address.clone(),
                                     )?;
                                 }
                             }

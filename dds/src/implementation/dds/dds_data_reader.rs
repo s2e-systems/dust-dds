@@ -24,7 +24,10 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::{
+            actor::{Actor, ActorAddress},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -38,7 +41,7 @@ use crate::{
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-            SampleRejectedStatusKind, SubscriptionMatchedStatus,
+            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
         time::{DurationKind, Time},
     },
@@ -50,9 +53,9 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    message_receiver::MessageReceiver,
-    status_listener::{ListenerTriggerKind, StatusListener},
+    dds_data_reader_listener::DdsDataReaderListener, dds_domain_participant::DdsDomainParticipant,
+    dds_subscriber::DdsSubscriber, message_receiver::MessageReceiver,
+    status_condition_impl::StatusConditionImpl, status_listener::ListenerTriggerKind,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -185,7 +188,9 @@ pub struct DdsDataReader<T> {
     instance_reception_time: HashMap<InstanceHandle, Time>,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
-    listener: Actor<StatusListener<dyn AnyDataReaderListener + Send + 'static>>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    listener: Option<Actor<DdsDataReaderListener>>,
+    status_kind: Vec<StatusKind>,
 }
 
 impl<T> DdsDataReader<T> {
@@ -193,7 +198,8 @@ impl<T> DdsDataReader<T> {
         rtps_reader: T,
         type_name: &'static str,
         topic_name: String,
-        listener: StatusListener<dyn AnyDataReaderListener + Send + 'static>,
+        listener: Option<Actor<DdsDataReaderListener>>,
+        status_kind: Vec<StatusKind>,
     ) -> Self {
         DdsDataReader {
             rtps_reader,
@@ -210,7 +216,9 @@ impl<T> DdsDataReader<T> {
             instance_reception_time: HashMap::new(),
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
-            listener: spawn_actor(listener),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            status_kind,
+            listener,
         }
     }
 
@@ -444,6 +452,9 @@ impl DdsDataReader<RtpsStatefulReader> {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         subscriber_qos: SubscriberQos,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
@@ -499,10 +510,19 @@ impl DdsDataReader<RtpsStatefulReader> {
                     .matched_publication_list
                     .insert(instance_handle, publication_builtin_topic_data.clone());
                 match insert_matched_publication_result {
-                    Some(value) if &value != publication_builtin_topic_data => {
-                        self.on_subscription_matched(instance_handle)
-                    }
-                    None => self.on_subscription_matched(instance_handle),
+                    Some(value) if &value != publication_builtin_topic_data => self
+                        .on_subscription_matched(
+                            instance_handle,
+                            data_reader_address,
+                            subscriber_address,
+                            participant_address,
+                        ),
+                    None => self.on_subscription_matched(
+                        instance_handle,
+                        data_reader_address,
+                        subscriber_address,
+                        participant_address,
+                    ),
                     _ => (),
                 }
             } else if self.incompatible_writer_list.insert(instance_handle) {
@@ -554,8 +574,9 @@ impl DdsDataReader<RtpsStatefulReader> {
     pub fn remove_matched_writer(
         &mut self,
         discovered_writer_handle: InstanceHandle,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         let matched_publication = self
             .matched_publication_list
@@ -563,7 +584,12 @@ impl DdsDataReader<RtpsStatefulReader> {
         if let Some(w) = matched_publication {
             self.rtps_reader.matched_writer_remove(w.key().value.into());
 
-            self.on_subscription_matched(discovered_writer_handle)
+            self.on_subscription_matched(
+                discovered_writer_handle,
+                data_reader_address,
+                subscriber_address,
+                participant_address,
+            )
         }
     }
 
@@ -860,20 +886,27 @@ impl DdsDataReader<RtpsStatefulReader> {
         //     .ok();
     }
 
-    fn on_subscription_matched(&mut self, instance_handle: InstanceHandle) {
+    fn on_subscription_matched(
+        &mut self,
+        instance_handle: InstanceHandle,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
         self.subscription_matched_status.increment(instance_handle);
-        // if let Some(l) = self.listener.listener_mut() {
-        //     let reader = todo!(); //DataReaderNode::new(this, parent_subcriber, parent_participant);
-        //     let status = self.get_subscription_matched_status();
-        //     l.trigger_on_subscription_matched(reader, status)
-        // }
+        if self.listener.is_some() && self.status_kind.contains(&StatusKind::SubscriptionMatched) {
+            let listener_address = self.listener.as_ref().unwrap().address();
+            let reader =
+                DataReaderNode::new(data_reader_address, subscriber_address, participant_address);
+            let status = self.get_subscription_matched_status();
+            listener_address
+                .trigger_on_subscription_matched(reader, status)
+                .expect("Should not fail to send message");
+        }
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SubscriptionMatched);
         println!("Subscription matched");
-        // todo!()
-        // listener_sender
-        //     .try_send(ListenerTriggerKind::SubscriptionMatched(
-        //         DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
-        //     ))
-        //     .ok();
     }
 
     fn on_sample_rejected(

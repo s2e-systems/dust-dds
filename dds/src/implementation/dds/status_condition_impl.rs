@@ -51,7 +51,7 @@ impl StatusConditionImpl {
         false
     }
 
-    pub fn _add_communication_state(&mut self, state: StatusKind) {
+    pub fn add_communication_state(&mut self, state: StatusKind) {
         self.status_changes.push(state);
 
         if self.get_trigger_value() {

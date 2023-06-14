@@ -3,11 +3,15 @@ use dust_dds::{
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind, UserDataQosPolicy},
-        status::{StatusKind, NO_STATUS},
+        status::{StatusKind, SubscriptionMatchedStatus, NO_STATUS},
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    subscription::{
+        data_reader::DataReader,
+        data_reader_listener::DataReaderListener,
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    },
     topic_definition::type_support::DdsType,
 };
 
@@ -19,6 +23,24 @@ struct KeyedData {
     #[key]
     id: u8,
     value: u8,
+}
+
+struct MyListener;
+
+impl DataReaderListener for MyListener {
+    type Foo = KeyedData;
+
+    fn on_subscription_matched(
+        &mut self,
+        the_reader: &DataReader<Self::Foo>,
+        _status: SubscriptionMatchedStatus,
+    ) {
+        println!(
+            "Read {:?}",
+            the_reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        );
+        println!("Listened to subscription matched")
+    }
 }
 
 #[test]
@@ -43,7 +65,12 @@ fn create_participant() {
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _data_reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Default,
+            Some(Box::new(MyListener)),
+            &[StatusKind::SubscriptionMatched],
+        )
         .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(11));

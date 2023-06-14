@@ -6,7 +6,10 @@ use crate::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
         },
-        dds::dds_data_reader::DdsDataReader,
+        dds::{
+            dds_data_reader::DdsDataReader, dds_domain_participant::DdsDomainParticipant,
+            dds_subscriber::DdsSubscriber,
+        },
         rtps::{
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
             stateful_reader::RtpsStatefulReader,
@@ -101,12 +104,18 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         subscriber_qos: SubscriberQos,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> DdsResult<()> {
         struct AddMatchedWriter {
             discovered_writer_data: DiscoveredWriterData,
             default_unicast_locator_list: Vec<Locator>,
             default_multicast_locator_list: Vec<Locator>,
             subscriber_qos: SubscriberQos,
+            data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+            subscriber_address: ActorAddress<DdsSubscriber>,
+            participant_address: ActorAddress<DdsDomainParticipant>,
         }
 
         impl Mail for AddMatchedWriter {
@@ -120,6 +129,9 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
                     mail.default_unicast_locator_list,
                     mail.default_multicast_locator_list,
                     mail.subscriber_qos,
+                    mail.data_reader_address,
+                    mail.subscriber_address,
+                    mail.participant_address,
                 )
             }
         }
@@ -129,6 +141,9 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             default_unicast_locator_list,
             default_multicast_locator_list,
             subscriber_qos,
+            data_reader_address,
+            subscriber_address,
+            participant_address,
         })
     }
 

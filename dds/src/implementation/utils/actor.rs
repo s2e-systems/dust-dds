@@ -27,6 +27,10 @@ where
     fn handle(&mut self, mail: M) -> M::Result;
 }
 
+pub trait CommandHandler<M> {
+    fn handle(&mut self, mail: M);
+}
+
 #[derive(Debug)]
 pub struct ActorAddress<A> {
     sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
@@ -54,6 +58,16 @@ impl<A> ActorAddress<A> {
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
             .blocking_recv()
+            .map_err(|_| DdsError::AlreadyDeleted)
+    }
+
+    pub fn send_command<M>(&self, command: M) -> DdsResult<()>
+    where
+        A: CommandHandler<M>,
+        M: Send + 'static,
+    {
+        self.sender
+            .blocking_send(Box::new(CommandMail::new(command)))
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 }
@@ -90,6 +104,32 @@ where
             .expect("Mail should be processed only once")
             .send(result)
             .map_err(|_| ())
+    }
+}
+
+struct CommandMail<M> {
+    mail: Option<M>,
+}
+
+impl<M> CommandMail<M> {
+    fn new(mail: M) -> Self {
+        Self { mail: Some(mail) }
+    }
+}
+
+impl<A, M> GenericHandler<A> for CommandMail<M>
+where
+    A: CommandHandler<M>,
+{
+    fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
+        <A as CommandHandler<M>>::handle(
+            actor,
+            self.mail
+                .take()
+                .expect("Mail should be processed only once"),
+        );
+
+        Ok(())
     }
 }
 
