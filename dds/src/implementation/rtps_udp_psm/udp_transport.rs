@@ -1,8 +1,11 @@
-use crate::implementation::{rtps::{
-    messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
-    transport::TransportWrite,
-    types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
-}, utils::actor::actor_interface};
+use crate::implementation::{
+    rtps::{
+        messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
+        transport::TransportWrite,
+        types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
+    },
+    utils::actor::actor_interface,
+};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 pub struct UdpTransportRead {
@@ -15,9 +18,11 @@ impl UdpTransportRead {
     }
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        let mut message = RtpsMessageRead::new();
-        match self.socket.recv_from(&mut message.data).await {
+        let mut buf = [0u8; 65000];
+        match self.socket.recv_from(&mut buf).await {
             Ok((bytes, source_address)) => {
+                let message = RtpsMessageRead::new(&buf[0..bytes]);
+
                 if bytes > 0 {
                     let udp_locator: UdpLocator = source_address.into();
                     Some((udp_locator.0, message))
@@ -40,7 +45,7 @@ impl UdpTransportWrite {
     }
 }
 
-actor_interface!{
+actor_interface! {
 impl UdpTransportWrite {
     pub fn write(&self, message: RtpsMessageWrite, destination_locator_list: Vec<Locator>) {
         let buf = message.buffer();

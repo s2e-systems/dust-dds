@@ -1,3 +1,5 @@
+use std::sync::{Arc, Barrier};
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
@@ -43,15 +45,17 @@ pub fn best_effort_write_only(c: &mut Criterion) {
         .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
+    // let cond = writer.get_statuscondition().unwrap();
+    // cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    //     .unwrap();
 
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    // let mut wait_set = WaitSet::new();
+    // wait_set
+    //     .attach_condition(Condition::StatusCondition(cond))
+    //     .unwrap();
+    // wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(2));
 
     c.bench_function("best_effort_write_only", |b| {
         b.iter(|| {
@@ -81,15 +85,16 @@ pub fn best_effort_read_only(c: &mut Criterion) {
         .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
+    // let cond = writer.get_statuscondition().unwrap();
+    // cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    //     .unwrap();
 
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    // let mut wait_set = WaitSet::new();
+    // wait_set
+    //     .attach_condition(Condition::StatusCondition(cond))
+    //     .unwrap();
+    // wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(2));
 
     writer.write(&KeyedData { id: 1, value: 1 }, None).unwrap();
 
@@ -104,7 +109,7 @@ pub fn best_effort_read_only(c: &mut Criterion) {
 
 fn best_effort_write_and_receive(c: &mut Criterion) {
     struct Listener {
-        sender: std::sync::mpsc::SyncSender<()>,
+        barrier: Arc<Barrier>,
     }
     impl DataReaderListener for Listener {
         type Foo = KeyedData;
@@ -113,7 +118,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
             the_reader
                 .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
                 .ok();
-            self.sender.send(()).unwrap();
+            self.barrier.wait();
         }
     }
 
@@ -129,9 +134,10 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let barrier = Arc::new(Barrier::new(2));
+    let barrier_clone = barrier.clone();
 
-    let listener = Box::new(Listener { sender });
+    let listener = Box::new(Listener { barrier });
     let _reader = subscriber
         .create_datareader(
             &topic,
@@ -146,22 +152,22 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     let writer = publisher
         .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
-    let writer_cond = writer.get_statuscondition().unwrap();
-    writer_cond
-        .set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(writer_cond))
-        .unwrap();
-    wait_set.wait(Duration::new(60, 0)).unwrap();
+    // let writer_cond = writer.get_statuscondition().unwrap();
+    // writer_cond
+    //     .set_enabled_statuses(&[StatusKind::PublicationMatched])
+    //     .unwrap();
+    // let mut wait_set = WaitSet::new();
+    // wait_set
+    //     .attach_condition(Condition::StatusCondition(writer_cond))
+    //     .unwrap();
+    // wait_set.wait(Duration::new(60, 0)).unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(2));
 
     c.bench_function("best_effort_write_and_receive", |b| {
         b.iter(|| {
             writer.write(&KeyedData { id: 1, value: 7 }, None).unwrap();
-            receiver
-                .recv_timeout(std::time::Duration::from_secs(10))
-                .unwrap();
+            barrier_clone.wait();
         })
     });
 }

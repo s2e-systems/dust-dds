@@ -1,4 +1,4 @@
-use std::io::BufRead;
+use std::{io::BufRead, sync::Arc};
 
 use crate::implementation::rtps::{
     messages::{
@@ -89,18 +89,20 @@ pub trait EndiannessFlag {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsMessageRead {
-    pub data: [u8; BUFFER_SIZE],
+    pub data: Arc<[u8; BUFFER_SIZE]>,
 }
 
 impl RtpsMessageRead {
-    pub fn new() -> Self {
+    pub fn new(data: &[u8]) -> Self {
+        let mut buf = [0u8; BUFFER_SIZE];
+        buf[0..data.len()].copy_from_slice(data);
         Self {
-            data: [0; BUFFER_SIZE],
+            data: Arc::new(buf),
         }
     }
 
     pub fn header(&self) -> RtpsMessageHeader {
-        let v = self.data;
+        let v = &self.data;
         let protocol = ProtocolId::PROTOCOL_RTPS; //([v[0], v[1], v[2], v[3]]);
         let major = v[4];
         let minor = v[5];
@@ -177,16 +179,6 @@ impl RtpsMessageRead {
             submessages.push(submessage);
         }
         submessages
-    }
-
-    pub fn data_mut(&mut self) -> &mut [u8; BUFFER_SIZE] {
-        &mut self.data
-    }
-}
-
-impl Default for RtpsMessageRead {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -496,7 +488,6 @@ mod tests {
         };
 
         #[rustfmt::skip]
-        let mut rtps_message = RtpsMessageRead::new();
         let data = &[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
@@ -504,7 +495,7 @@ mod tests {
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
         ];
-        rtps_message.data[..data.len()].copy_from_slice(data);
+        let rtps_message = RtpsMessageRead::new(data);
         assert_eq!(header, rtps_message.header());
     }
 
@@ -545,7 +536,6 @@ mod tests {
 
         let expected_submessages = vec![data_submessage, heartbeat_submessage];
 
-        let mut rtps_message = RtpsMessageRead::new();
         #[rustfmt::skip]
         let data = &[
             b'R', b'T', b'P', b'S', // Protocol
@@ -573,7 +563,8 @@ mod tests {
             7, 0, 0, 0, // lastSN: SequenceNumberSet: low
             2, 0, 0, 0, // count: Count: value (long)
         ];
-        rtps_message.data[..data.len()].copy_from_slice(data);
+
+        let rtps_message = RtpsMessageRead::new(data);
         assert_eq!(expected_header, rtps_message.header());
         assert_eq!(expected_submessages, rtps_message.submessages());
     }
@@ -596,7 +587,6 @@ mod tests {
         ]));
         let expected_submessages = vec![submessage];
 
-        let mut rtps_message = RtpsMessageRead::new();
         #[rustfmt::skip]
         let data = &[
             b'R', b'T', b'P', b'S', // Protocol
@@ -618,7 +608,8 @@ mod tests {
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 0, 0, // inlineQos: Sentinel
         ];
-        rtps_message.data[..data.len()].copy_from_slice(data);
+
+        let rtps_message = RtpsMessageRead::new(data);
         assert_eq!(expected_submessages, rtps_message.submessages());
     }
 }

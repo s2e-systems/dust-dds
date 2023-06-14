@@ -15,7 +15,7 @@ use crate::{
             types::{Guid, Locator},
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{ActorAddress, Mail, MailHandler},
+        utils::actor::{ActorAddress, CommandHandler, Mail, MailHandler},
     },
     infrastructure::{
         error::DdsResult,
@@ -275,17 +275,13 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
             udp_transport_write: ActorAddress<UdpTransportWrite>,
         }
 
-        impl Mail for SendMessage {
-            type Result = ();
-        }
-
-        impl MailHandler<SendMessage> for DdsDataWriter<RtpsStatefulWriter> {
-            fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+        impl CommandHandler<SendMessage> for DdsDataWriter<RtpsStatefulWriter> {
+            fn handle(&mut self, mail: SendMessage) {
                 self.send_message(mail.header, mail.udp_transport_write)
             }
         }
 
-        self.send_blocking(SendMessage {
+        self.send_command(SendMessage {
             header,
             udp_transport_write,
         })

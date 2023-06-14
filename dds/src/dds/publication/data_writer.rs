@@ -8,7 +8,10 @@ use crate::{
             dds_domain_participant::DdsDomainParticipant,
             nodes::{DataWriterNodeKind, PublisherNode},
         },
-        rtps::messages::overall_structure::RtpsMessageHeader,
+        rtps::{
+            messages::overall_structure::RtpsMessageHeader,
+            types::{PROTOCOLVERSION, PROTOCOLVERSION_2_4, VENDOR_ID_S2E},
+        },
         utils::actor::ActorAddress,
     },
     infrastructure::{
