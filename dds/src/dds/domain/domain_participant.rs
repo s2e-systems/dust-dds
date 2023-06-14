@@ -4,7 +4,6 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
@@ -24,7 +23,6 @@ use crate::{
             group::RtpsGroup,
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
             stateful_writer::RtpsStatefulWriter,
-            transport::TransportWrite,
             types::{
                 EntityId, EntityKey, Guid, Locator, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
                 USER_DEFINED_WRITER_GROUP,
@@ -723,6 +721,41 @@ impl DomainParticipant {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         if !self.0.is_enabled()? {
+            self.0.get_builtin_publisher()?.enable()?;
+            self.0.get_builtin_subscriber()?.enable()?;
+
+            for stateless_builtin_reader in self
+                .0
+                .get_builtin_subscriber()?
+                .stateless_data_reader_list()?
+            {
+                stateless_builtin_reader.enable()?;
+            }
+
+            for stateful_builtin_reader in self
+                .0
+                .get_builtin_subscriber()?
+                .stateful_data_reader_list()?
+            {
+                stateful_builtin_reader.enable()?;
+            }
+
+            for stateless_builtin_writer in self
+                .0
+                .get_builtin_publisher()?
+                .stateless_datawriter_list()?
+            {
+                stateless_builtin_writer.enable()?;
+            }
+
+            for stateful_builtin_writer in self
+                .0
+                .get_builtin_publisher()?
+                .stateful_data_writer_list()?
+            {
+                stateful_builtin_writer.enable()?;
+            }
+
             self.0.enable()?;
 
             let domain_participant_address = self.0.clone();
@@ -1488,71 +1521,6 @@ fn _announce_deleted_writer(
     //     .unwrap()
     //     .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
     //     .expect("Should not fail to write built-in message");
-}
-
-fn _send_builtin_message(
-    _domain_participant: &mut DdsDomainParticipant,
-    _metatraffic_unicast_transport_send: &mut impl TransportWrite,
-) {
-    // let header = RtpsMessageHeader::new(
-    //     domain_participant.protocol_version(),
-    //     domain_participant.vendor_id(),
-    //     domain_participant.guid().prefix(),
-    // );
-
-    // let _now = domain_participant.get_current_time();
-    // stateless_writer_send_message(
-    //     domain_participant
-    //         .get_builtin_publisher_mut()
-    //         .stateless_data_writer_list_mut()
-    //         .iter_mut()
-    //         .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
-    //         .unwrap(),
-    //     header,
-    //     metatraffic_unicast_transport_send,
-    // );
-
-    todo!();
-
-    // stateful_writer_send_message(
-    //     domain_participant
-    //         .get_builtin_publisher_mut()
-    //         .stateful_data_writer_list_mut()
-    //         .iter_mut()
-    //         .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-    //         .unwrap(),
-    //     header,
-    //     metatraffic_unicast_transport_send,
-    // );
-
-    // stateful_writer_send_message(
-    //     domain_participant
-    //         .get_builtin_publisher_mut()
-    //         .stateful_data_writer_list_mut()
-    //         .iter_mut()
-    //         .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-    //         .unwrap(),
-    //     header,
-    //     metatraffic_unicast_transport_send,
-    // );
-
-    // stateful_writer_send_message(
-    //     domain_participant
-    //         .get_builtin_publisher_mut()
-    //         .stateful_data_writer_list_mut()
-    //         .iter_mut()
-    //         .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
-    //         .unwrap(),
-    //     header,
-    //     metatraffic_unicast_transport_send,
-    // );
-
-    // for stateful_readers in domain_participant
-    //     .get_builtin_subscriber_mut()
-    //     .stateful_data_reader_list_mut()
-    // {
-    //     stateful_readers.send_message(header, metatraffic_unicast_transport_send)
-    // }
 }
 
 fn _remove_stale_writer_changes(writer: &mut DdsDataWriter<RtpsStatefulWriter>, now: Time) {

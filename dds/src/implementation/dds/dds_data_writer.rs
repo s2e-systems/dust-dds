@@ -9,7 +9,10 @@ use crate::{
         rtps::{
             history_cache::RtpsWriterCacheChange,
             messages::{
-                overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind},
+                overall_structure::{
+                    RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
+                    RtpsSubmessageWriteKind,
+                },
                 submessage_elements::{ParameterList, SequenceNumberSet},
                 submessages::{
                     ack_nack::AckNackSubmessageRead, gap::GapSubmessageWrite,
@@ -355,29 +358,44 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         self.rtps_writer.set_qos(qos);
     }
 
-    pub fn on_acknack_submessage_received(
-        &mut self,
-        acknack_submessage: &AckNackSubmessageRead,
-        message_receiver: &MessageReceiver,
-    ) {
-        if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            self.rtps_writer.on_acknack_submessage_received(
-                acknack_submessage,
-                message_receiver.source_guid_prefix(),
-            );
+    pub fn process_rtps_message(&mut self, message: RtpsMessageRead) {
+        let mut message_receiver = MessageReceiver::new(&message);
+        while let Some(submessage) = message_receiver.next() {
+            match &submessage {
+                RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
+                    .on_acknack_submessage_received(
+                        &acknack_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
+                    .on_nack_frag_submessage_received(
+                        &nackfrag_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                _ => (),
+            }
         }
     }
 
-    pub fn on_nack_frag_submessage_received(
+    fn on_acknack_submessage_received(
         &mut self,
-        nackfrag_submessage: &NackFragSubmessageRead,
-        message_receiver: &MessageReceiver,
+        acknack_submessage: &AckNackSubmessageRead,
+        source_guid_prefix: GuidPrefix,
     ) {
         if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            self.rtps_writer.on_nack_frag_submessage_received(
-                nackfrag_submessage,
-                message_receiver.source_guid_prefix(),
-            );
+            self.rtps_writer
+                .on_acknack_submessage_received(acknack_submessage, source_guid_prefix);
+        }
+    }
+
+    fn on_nack_frag_submessage_received(
+        &mut self,
+        nackfrag_submessage: &NackFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            self.rtps_writer
+                .on_nack_frag_submessage_received(nackfrag_submessage, source_guid_prefix);
         }
     }
 

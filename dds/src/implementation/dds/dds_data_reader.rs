@@ -19,10 +19,11 @@ use crate::{
             reader::{RtpsReaderCacheChange, RtpsReaderResult},
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             stateless_reader::{RtpsStatelessReader, StatelessReaderDataReceivedResult},
-            transport::TransportWrite,
             types::{Guid, GuidPrefix, Locator, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
+        utils::actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -282,7 +283,6 @@ impl DdsDataReader<RtpsStatefulReader> {
                     ),
                 _ => (),
             }
-            message_receiver.source_version();
         }
     }
 
@@ -799,8 +799,12 @@ impl DdsDataReader<RtpsStatefulReader> {
         )
     }
 
-    pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
-        self.rtps_reader.send_message(header, transport);
+    pub fn send_message(
+        &mut self,
+        header: RtpsMessageHeader,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
+    ) {
+        self.rtps_reader.send_message(header, &udp_transport_write);
     }
 
     pub fn update_communication_status(
@@ -950,7 +954,6 @@ impl DdsDataReader<RtpsStatelessReader> {
                 RtpsSubmessageReadKind::HeartbeatFrag(_) => todo!(),
                 _ => (),
             }
-            message_receiver.source_version();
         }
     }
 

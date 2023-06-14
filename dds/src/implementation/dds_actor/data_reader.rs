@@ -5,9 +5,13 @@ use crate::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         dds::dds_data_reader::DdsDataReader,
         rtps::{
-            messages::overall_structure::RtpsMessageRead, stateful_reader::RtpsStatefulReader,
-            stateless_reader::RtpsStatelessReader, types::Locator, writer_proxy::RtpsWriterProxy,
+            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+            stateful_reader::RtpsStatefulReader,
+            stateless_reader::RtpsStatelessReader,
+            types::Locator,
+            writer_proxy::RtpsWriterProxy,
         },
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{ActorAddress, Mail, MailHandler},
     },
     infrastructure::{
@@ -88,6 +92,31 @@ impl<T> ActorAddress<DdsDataReader<T>> {
 }
 
 impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
+    pub fn send_message(
+        &self,
+        header: RtpsMessageHeader,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
+    ) -> DdsResult<()> {
+        struct SendMessage {
+            header: RtpsMessageHeader,
+            udp_transport_write: ActorAddress<UdpTransportWrite>,
+        }
+
+        impl Mail for SendMessage {
+            type Result = ();
+        }
+
+        impl MailHandler<SendMessage> for DdsDataReader<RtpsStatefulReader> {
+            fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+                self.send_message(mail.header, mail.udp_transport_write)
+            }
+        }
+
+        self.send_blocking(SendMessage {
+            header,
+            udp_transport_write,
+        })
+    }
     pub fn process_rtps_message(
         &self,
         message: RtpsMessageRead,

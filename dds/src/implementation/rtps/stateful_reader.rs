@@ -1,4 +1,5 @@
 use crate::{
+    implementation::{rtps_udp_psm::udp_transport::UdpTransportWrite, utils::actor::ActorAddress},
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -483,9 +484,13 @@ impl RtpsStatefulReader {
         }
     }
 
-    pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+    pub fn send_message(
+        &mut self,
+        header: RtpsMessageHeader,
+        udp_transport_write: &ActorAddress<UdpTransportWrite>,
+    ) {
         for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(&self.reader.guid(), header, transport)
+            writer_proxy.send_message(&self.reader.guid(), header, udp_transport_write)
         }
     }
 

@@ -4,7 +4,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::dds_data_writer::DdsDataWriter,
         rtps::{
-            messages::overall_structure::RtpsMessageHeader,
+            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
             reader_locator::RtpsReaderLocator,
             reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter,
@@ -208,6 +208,23 @@ impl<T> ActorAddress<DdsDataWriter<T>> {
 }
 
 impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
+    pub fn process_rtps_message(&self, message: RtpsMessageRead) -> DdsResult<()> {
+        struct ProcessRtpsMessage {
+            message: RtpsMessageRead,
+        }
+
+        impl Mail for ProcessRtpsMessage {
+            type Result = ();
+        }
+
+        impl MailHandler<ProcessRtpsMessage> for DdsDataWriter<RtpsStatefulWriter> {
+            fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
+                self.process_rtps_message(mail.message)
+            }
+        }
+
+        self.send_blocking(ProcessRtpsMessage { message })
+    }
     pub fn send_message(
         &self,
         header: RtpsMessageHeader,

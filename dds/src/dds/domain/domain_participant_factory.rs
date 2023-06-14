@@ -726,10 +726,9 @@ fn process_spdp_metatraffic(
                         )?;
                     }
 
-                    if let Some(sedp_topics_detector) = lookup_data_reader_by_topic_name(
-                        &builtin_data_reader_list,
-                        DCPS_SUBSCRIPTION,
-                    ) {
+                    if let Some(sedp_topics_detector) =
+                        lookup_data_reader_by_topic_name(&builtin_data_reader_list, DCPS_TOPIC)
+                    {
                         add_matched_topics_announcer(
                             &sedp_topics_detector,
                             &discovered_participant_data,
@@ -753,10 +752,34 @@ fn process_sedp_metatraffic(
     message: RtpsMessageRead,
 ) -> DdsResult<()> {
     let builtin_subscriber = participant_address.get_builtin_subscriber()?;
+    let builtin_publisher = participant_address.get_builtin_publisher()?;
+
+    for stateful_builtin_writer in builtin_publisher.stateful_data_writer_list()? {
+        stateful_builtin_writer.process_rtps_message(message.clone())?;
+        stateful_builtin_writer.send_message(
+            RtpsMessageHeader::new(
+                participant_address.get_protocol_version()?,
+                participant_address.get_vendor_id()?,
+                participant_address.get_guid()?.prefix(),
+            ),
+            participant_address.get_udp_transport_write()?,
+        )?;
+    }
+
     for stateful_builtin_reader in builtin_subscriber.stateful_data_reader_list()? {
         stateful_builtin_reader
             .process_rtps_message(message.clone(), participant_address.get_current_time()?)?;
-        println!("Processing sedp metatraffic");
+        stateful_builtin_reader.send_message(
+            RtpsMessageHeader::new(
+                participant_address.get_protocol_version()?,
+                participant_address.get_vendor_id()?,
+                participant_address.get_guid()?.prefix(),
+            ),
+            participant_address.get_udp_transport_write()?,
+        )?;
+    }
+
+    for stateful_builtin_reader in builtin_subscriber.stateful_data_reader_list()? {
         match stateful_builtin_reader.get_topic_name()?.as_str() {
             DCPS_PUBLICATION => {
                 while let Ok(discovered_writer_sample_list) = stateful_builtin_reader
