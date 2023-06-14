@@ -55,7 +55,7 @@ use crate::{
 use super::{
     dds_data_reader_listener::DdsDataReaderListener, dds_domain_participant::DdsDomainParticipant,
     dds_subscriber::DdsSubscriber, message_receiver::MessageReceiver,
-    status_condition_impl::StatusConditionImpl, status_listener::ListenerTriggerKind,
+    status_condition_impl::StatusConditionImpl,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -265,7 +265,14 @@ impl<T> DdsDataReader<T> {
 }
 
 impl DdsDataReader<RtpsStatefulReader> {
-    pub fn process_rtps_message(&mut self, message: RtpsMessageRead, reception_timestamp: Time) {
+    pub fn process_rtps_message(
+        &mut self,
+        message: RtpsMessageRead,
+        reception_timestamp: Time,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
         let mut message_receiver = MessageReceiver::new(&message);
         while let Some(submessage) = message_receiver.next() {
             match submessage {
@@ -275,6 +282,9 @@ impl DdsDataReader<RtpsStatefulReader> {
                         message_receiver.source_guid_prefix(),
                         message_receiver.source_timestamp(),
                         reception_timestamp,
+                        &data_reader_address,
+                        &subscriber_address,
+                        &participant_address,
                     );
                 }
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
@@ -283,6 +293,9 @@ impl DdsDataReader<RtpsStatefulReader> {
                         message_receiver.source_guid_prefix(),
                         message_receiver.source_timestamp(),
                         reception_timestamp,
+                        &data_reader_address,
+                        &subscriber_address,
+                        &participant_address,
                     );
                 }
                 RtpsSubmessageReadKind::Gap(gap_submessage) => {
@@ -306,12 +319,37 @@ impl DdsDataReader<RtpsStatefulReader> {
         }
     }
 
+    pub fn on_data_available(
+        &self,
+        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
+    ) {
+        if self.listener.is_some() && self.status_kind.contains(&StatusKind::DataAvailable) {
+            let listener_address = self.listener.as_ref().unwrap().address();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_data_available(reader)
+                .expect("Should not fail to send message");
+        }
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::DataAvailable);
+    }
+
     pub fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead<'_>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
+        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
         let data_submessage_received_result = self.rtps_reader.on_data_submessage_received(
             data_submessage,
@@ -330,11 +368,11 @@ impl DdsDataReader<RtpsStatefulReader> {
                 self.data_available_status_changed_flag = true;
                 self.instance_reception_time
                     .insert(instance_handle, reception_timestamp);
-                // self.on_data_available(
-                //     parent_subscriber_guid,
-                //     parent_participant_guid,
-                //     listener_sender,
-                // );
+                self.on_data_available(
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
@@ -346,11 +384,11 @@ impl DdsDataReader<RtpsStatefulReader> {
                 //     parent_participant_guid,
                 //     listener_sender,
                 // );
-                // self.on_data_available(
-                //     parent_subscriber_guid,
-                //     parent_participant_guid,
-                //     listener_sender,
-                // );
+                self.on_data_available(
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::SampleRejected(
@@ -375,6 +413,9 @@ impl DdsDataReader<RtpsStatefulReader> {
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
+        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
         let data_submessage_received_result = self.rtps_reader.on_data_frag_submessage_received(
             data_frag_submessage,
@@ -410,11 +451,11 @@ impl DdsDataReader<RtpsStatefulReader> {
                 //     parent_participant_guid,
                 //     listener_sender,
                 // );
-                // self.on_data_available(
-                //     parent_subscriber_guid,
-                //     parent_participant_guid,
-                //     listener_sender,
-                // );
+                self.on_data_available(
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
@@ -831,7 +872,6 @@ impl DdsDataReader<RtpsStatefulReader> {
         now: Time,
         _parent_participant_guid: Guid,
         _parent_subcriber_guid: Guid,
-        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let (missed_deadline_instances, instance_reception_time) = self
             .instance_reception_time
@@ -869,12 +909,7 @@ impl DdsDataReader<RtpsStatefulReader> {
             .on_gap_submessage_received(gap_submessage, source_guid_prefix);
     }
 
-    fn _on_sample_lost(
-        &mut self,
-        _parent_subscriber_guid: Guid,
-        _parent_participant_guid: Guid,
-        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) {
+    fn _on_sample_lost(&mut self, _parent_subscriber_guid: Guid, _parent_participant_guid: Guid) {
         todo!()
         // self.sample_lost_status.increment();
         // listener_sender

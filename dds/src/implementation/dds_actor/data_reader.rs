@@ -176,10 +176,16 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
         &self,
         message: RtpsMessageRead,
         reception_timestamp: Time,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> DdsResult<()> {
         struct ProcessRtpsMessage {
             message: RtpsMessageRead,
             reception_timestamp: Time,
+            data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+            subscriber_address: ActorAddress<DdsSubscriber>,
+            participant_address: ActorAddress<DdsDomainParticipant>,
         }
 
         impl Mail for ProcessRtpsMessage {
@@ -188,13 +194,22 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
 
         impl MailHandler<ProcessRtpsMessage> for DdsDataReader<RtpsStatefulReader> {
             fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
-                self.process_rtps_message(mail.message, mail.reception_timestamp)
+                self.process_rtps_message(
+                    mail.message,
+                    mail.reception_timestamp,
+                    mail.data_reader_address,
+                    mail.subscriber_address,
+                    mail.participant_address,
+                )
             }
         }
 
         self.send_blocking(ProcessRtpsMessage {
             message,
             reception_timestamp,
+            data_reader_address,
+            subscriber_address,
+            participant_address,
         })
     }
 

@@ -72,7 +72,7 @@ fn create_participant() {
             &topic,
             QosKind::Default,
             Some(Box::new(MyListener)),
-            &[StatusKind::SubscriptionMatched],
+            &[StatusKind::SubscriptionMatched, StatusKind::DataAvailable],
         )
         .unwrap();
 
