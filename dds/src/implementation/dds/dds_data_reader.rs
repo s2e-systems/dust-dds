@@ -906,7 +906,6 @@ impl DdsDataReader<RtpsStatefulReader> {
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::SubscriptionMatched);
-        println!("Subscription matched");
     }
 
     fn on_sample_rejected(

@@ -30,15 +30,18 @@ struct MyListener;
 impl DataReaderListener for MyListener {
     type Foo = KeyedData;
 
-    fn on_subscription_matched(
-        &mut self,
-        the_reader: &DataReader<Self::Foo>,
-        _status: SubscriptionMatchedStatus,
-    ) {
+    fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
         println!(
             "Read {:?}",
             the_reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         );
+    }
+
+    fn on_subscription_matched(
+        &mut self,
+        _the_reader: &DataReader<Self::Foo>,
+        _status: SubscriptionMatchedStatus,
+    ) {
         println!("Listened to subscription matched")
     }
 }
@@ -58,7 +61,7 @@ fn create_participant() {
     let publisher = dp
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
-    let _data_writer: dust_dds::publication::data_writer::DataWriter<_> = publisher
+    let data_writer: dust_dds::publication::data_writer::DataWriter<_> = publisher
         .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let subscriber = dp
@@ -73,7 +76,13 @@ fn create_participant() {
         )
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(11));
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
+    data_writer
+        .write(&KeyedData { id: 1, value: 1 }, None)
+        .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(10));
 }
 
 #[test]

@@ -240,13 +240,20 @@ impl DomainParticipantFactory {
             }
         });
 
+        let participant_address_clone = participant_address.clone();
         THE_RUNTIME.spawn(async move {
             let mut default_unicast_transport = UdpTransportRead::new(
                 tokio::net::UdpSocket::from_std(default_unicast_socket).unwrap(),
             );
 
             while let Some((_locator, message)) = default_unicast_transport.read().await {
-                println!("Received header: {:?}", message.header())
+                let r = tokio::task::block_in_place(|| {
+                    process_user_defined_data(&participant_address_clone, message)
+                });
+
+                if r.is_err() {
+                    break;
+                }
             }
         });
 
@@ -596,6 +603,41 @@ fn add_matched_topics_announcer(
     }
 }
 
+fn process_user_defined_data(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+    message: RtpsMessageRead,
+) -> DdsResult<()> {
+    for user_defined_subscriber in participant_address.get_user_defined_subscriber_list()? {
+        for user_defined_data_reader in user_defined_subscriber.stateful_data_reader_list()? {
+            user_defined_data_reader
+                .process_rtps_message(message.clone(), participant_address.get_current_time()?)?;
+            user_defined_data_reader.send_message(
+                RtpsMessageHeader::new(
+                    participant_address.get_protocol_version()?,
+                    participant_address.get_vendor_id()?,
+                    participant_address.get_guid()?.prefix(),
+                ),
+                participant_address.get_udp_transport_write()?,
+            )?;
+        }
+    }
+
+    for user_defined_publisher in participant_address.get_user_defined_publisher_list()? {
+        for user_defined_data_writer in user_defined_publisher.stateful_data_writer_list()? {
+            user_defined_data_writer.process_rtps_message(message.clone())?;
+            user_defined_data_writer.send_message(
+                RtpsMessageHeader::new(
+                    participant_address.get_protocol_version()?,
+                    participant_address.get_vendor_id()?,
+                    participant_address.get_guid()?.prefix(),
+                ),
+                participant_address.get_udp_transport_write()?,
+            )?;
+        }
+    }
+    Ok(())
+}
+
 fn process_spdp_metatraffic(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     message: RtpsMessageRead,
@@ -801,7 +843,7 @@ fn process_sedp_metatraffic(
                 }
             }
             DCPS_SUBSCRIPTION => {
-                while let Ok(_discovered_reader_sample_list) = stateful_builtin_reader
+                while let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader
                     .read::<DiscoveredReaderData>(
                     1,
                     &[SampleStateKind::NotRead],
@@ -809,7 +851,9 @@ fn process_sedp_metatraffic(
                     ANY_INSTANCE_STATE,
                     None,
                 ) {
-                    println!("Discovered reader")
+                    for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
+                        discover_matched_readers(participant_address, &discovered_reader_sample)?;
+                    }
                 }
             }
             DCPS_TOPIC => {
@@ -944,6 +988,116 @@ fn discover_matched_writers(
             // }
             // }
         }
+        InstanceStateKind::NotAliveNoWriters => todo!(),
+    }
+
+    Ok(())
+}
+
+pub fn discover_matched_readers(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+    discovered_reader_sample: &Sample<DiscoveredReaderData>,
+) -> DdsResult<()> {
+    match discovered_reader_sample.sample_info.instance_state {
+        InstanceStateKind::Alive => {
+            if let Some(discovered_reader_data) = &discovered_reader_sample.data {
+                if !participant_address.is_subscription_ignored(
+                    discovered_reader_data
+                        .reader_proxy()
+                        .remote_reader_guid()
+                        .into(),
+                )? {
+                    let remote_reader_guid_prefix = discovered_reader_data
+                        .reader_proxy()
+                        .remote_reader_guid()
+                        .prefix();
+                    let reader_parent_participant_guid =
+                        Guid::new(remote_reader_guid_prefix, ENTITYID_PARTICIPANT);
+
+                    if let Some(spdp_discovered_participant_data) = participant_address
+                        .discovered_participant_get(InstanceHandle::from(
+                            reader_parent_participant_guid,
+                        ))?
+                    {
+                        let default_unicast_locator_list = spdp_discovered_participant_data
+                            .participant_proxy()
+                            .default_unicast_locator_list()
+                            .to_vec();
+                        let default_multicast_locator_list = spdp_discovered_participant_data
+                            .participant_proxy()
+                            .default_multicast_locator_list()
+                            .to_vec();
+                        for user_defined_publisher_address in
+                            participant_address.get_user_defined_publisher_list()?
+                        {
+                            let publisher_qos = user_defined_publisher_address.get_qos()?;
+                            let is_discovered_reader_regex_matched_to_publisher = if let Ok(d) =
+                                glob_to_regex(
+                                    &discovered_reader_data
+                                        .subscription_builtin_topic_data()
+                                        .partition()
+                                        .name,
+                                ) {
+                                d.is_match(&publisher_qos.partition.name)
+                            } else {
+                                false
+                            };
+
+                            let is_publisher_regex_matched_to_discovered_reader =
+                                if let Ok(d) = glob_to_regex(&publisher_qos.partition.name) {
+                                    d.is_match(
+                                        &discovered_reader_data
+                                            .subscription_builtin_topic_data()
+                                            .partition()
+                                            .name,
+                                    )
+                                } else {
+                                    false
+                                };
+
+                            let is_partition_string_matched = discovered_reader_data
+                                .subscription_builtin_topic_data()
+                                .partition()
+                                .name
+                                == publisher_qos.partition.name;
+
+                            if is_discovered_reader_regex_matched_to_publisher
+                                || is_publisher_regex_matched_to_discovered_reader
+                                || is_partition_string_matched
+                            {
+                                for data_writer in
+                                    user_defined_publisher_address.stateful_data_writer_list()?
+                                {
+                                    data_writer.add_matched_reader(
+                                        discovered_reader_data.clone(),
+                                        default_unicast_locator_list.clone(),
+                                        default_multicast_locator_list.clone(),
+                                        publisher_qos.clone(),
+                                    )?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        InstanceStateKind::NotAliveDisposed => {
+            // let participant_guid = self.guid();
+            // for publisher in self.user_defined_publisher_list_mut() {
+            //     let publisher_guid = publisher.guid();
+            todo!()
+            // for data_writer in publisher.stateful_data_writer_list_mut() {
+            //     remove_writer_matched_reader(
+            //         data_writer,
+            //         discovered_reader_data_sample.sample_info.instance_handle,
+            //         publisher_guid,
+            //         participant_guid,
+            //         listener_sender,
+            //     )
+            // }
+            // }
+        }
+
         InstanceStateKind::NotAliveNoWriters => todo!(),
     }
 

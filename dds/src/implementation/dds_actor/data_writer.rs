@@ -1,7 +1,10 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_writer_data::DiscoveredWriterData,
+        },
         dds::dds_data_writer::DdsDataWriter,
         rtps::{
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
@@ -208,6 +211,43 @@ impl<T> ActorAddress<DdsDataWriter<T>> {
 }
 
 impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
+    pub fn add_matched_reader(
+        &self,
+        discovered_reader_data: DiscoveredReaderData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        publisher_qos: PublisherQos,
+    ) -> DdsResult<()> {
+        struct AddMatchedReader {
+            discovered_reader_data: DiscoveredReaderData,
+            default_unicast_locator_list: Vec<Locator>,
+            default_multicast_locator_list: Vec<Locator>,
+            publisher_qos: PublisherQos,
+        }
+
+        impl Mail for AddMatchedReader {
+            type Result = ();
+        }
+
+        impl MailHandler<AddMatchedReader> for DdsDataWriter<RtpsStatefulWriter> {
+            fn handle(&mut self, mail: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
+                self.add_matched_reader(
+                    mail.discovered_reader_data,
+                    mail.default_unicast_locator_list,
+                    mail.default_multicast_locator_list,
+                    mail.publisher_qos,
+                )
+            }
+        }
+
+        self.send_blocking(AddMatchedReader {
+            discovered_reader_data,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            publisher_qos,
+        })
+    }
+
     pub fn process_rtps_message(&self, message: RtpsMessageRead) -> DdsResult<()> {
         struct ProcessRtpsMessage {
             message: RtpsMessageRead,

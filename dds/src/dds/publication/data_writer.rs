@@ -4,7 +4,10 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
-        dds::{dds_domain_participant::DdsDomainParticipant, nodes::DataWriterNodeKind},
+        dds::{
+            dds_domain_participant::DdsDomainParticipant,
+            nodes::{DataWriterNodeKind, PublisherNode},
+        },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::ActorAddress,
     },
@@ -282,26 +285,31 @@ where
     pub fn write_w_timestamp(
         &self,
         data: &Foo,
-        _handle: Option<InstanceHandle>,
-        _timestamp: Time,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
     ) -> DdsResult<()> {
-        let _serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
+        let serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(_w) => todo!(),
-            // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            //     .get_participant_mut(&w.guid().prefix(), |dp| {
-            //         crate::implementation::behavior::user_defined_data_writer::write_w_timestamp(
-            //             dp.ok_or(DdsError::AlreadyDeleted)?,
-            //             w.guid(),
-            //             w.parent_publisher(),
-            //             serialized_data,
-            //             data.get_serialized_key(),
-            //             handle,
-            //             timestamp,
-            //         )
-            //     }),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) | DataWriterNodeKind::Listener(w) => {
+                w.address().write_w_timestamp(
+                    serialized_data,
+                    data.get_serialized_key(),
+                    handle,
+                    timestamp,
+                )?;
+
+                w.address().send_message(
+                    RtpsMessageHeader::new(
+                        w.parent_participant().get_protocol_version()?,
+                        w.parent_participant().get_vendor_id()?,
+                        w.parent_participant().get_guid()?.prefix(),
+                    ),
+                    w.parent_participant().get_udp_transport_write()?,
+                )?;
+
+                Ok(())
+            }
         }
     }
 
@@ -521,14 +529,14 @@ impl<Foo> DataWriter<Foo> {
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
-        todo!()
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) => Ok(Publisher::new(PublisherNode::new(
-        //         w.parent_publisher(),
-        //         w.parent_participant(),
-        //     ))),
-        //     DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) | DataWriterNodeKind::Listener(w) => {
+                Ok(Publisher::new(PublisherNode::new(
+                    w.parent_publisher().clone(),
+                    w.parent_participant().clone(),
+                )))
+            }
+        }
     }
 
     /// This operation manually asserts the liveliness of the [`DataWriter`]. This is used in combination with the

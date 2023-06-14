@@ -274,10 +274,7 @@ impl Publisher {
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        todo!()
-        // Ok(DomainParticipant::new(DomainParticipantNode::new(
-        //     self.0.parent_participant(),
-        // )))
+        Ok(DomainParticipant::new(self.0.parent_participant().clone()))
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.

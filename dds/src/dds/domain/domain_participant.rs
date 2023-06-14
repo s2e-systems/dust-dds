@@ -12,14 +12,13 @@ use crate::{
                 DataReaderNode, DataWriterNode, PublisherNode, SubscriberNode, SubscriberNodeKind,
                 TopicNode, TopicNodeKind,
             },
-            status_listener::ListenerTriggerKind,
         },
         rtps::{
             group::RtpsGroup,
-            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+            messages::overall_structure::RtpsMessageHeader,
             stateful_writer::RtpsStatefulWriter,
             types::{
-                EntityId, EntityKey, Guid, Locator, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+                EntityId, EntityKey, Guid, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
                 USER_DEFINED_WRITER_GROUP,
             },
         },
@@ -1633,25 +1632,4 @@ fn _add_discovered_participant(
     //         discovered_participant_data,
     //     );
     // }
-}
-
-fn _receive_builtin_message(
-    domain_participant: &mut DdsDomainParticipant,
-    _message: RtpsMessageRead,
-    _locator: Locator,
-    sedp_condvar: &DdsCondvar,
-    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-) {
-    // domain_participant
-    //     .receive_builtin_data(locator, message, listener_sender)
-    //     .ok();
-
-    _discover_matched_participants(domain_participant, sedp_condvar).ok();
-    domain_participant
-        .discover_matched_readers(listener_sender.clone())
-        .ok();
-    // _discover_matched_writers(domain_participant, listener_sender).ok();
-    domain_participant
-        .discover_matched_topics(listener_sender.clone())
-        .ok();
 }

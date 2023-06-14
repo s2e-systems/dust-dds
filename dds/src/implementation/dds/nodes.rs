@@ -179,7 +179,7 @@ impl PublisherNode {
 pub struct DomainParticipantNode(Guid);
 
 impl DomainParticipantNode {
-    pub fn _new(node: Guid) -> Self {
+    pub fn new(node: Guid) -> Self {
         Self(node)
     }
 
