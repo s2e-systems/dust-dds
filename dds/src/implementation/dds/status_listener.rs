@@ -8,14 +8,14 @@ use super::{
     status_condition_impl::StatusConditionImpl,
 };
 
-pub struct _StatusListener<T: ?Sized> {
+pub struct StatusListener<T: ?Sized> {
     listener: Option<Box<T>>,
     status_kind: Vec<StatusKind>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
-impl<T: ?Sized> _StatusListener<T> {
-    pub fn _new(listener: Option<Box<T>>, status_kind: &[StatusKind]) -> Self {
+impl<T: ?Sized> StatusListener<T> {
+    pub fn new(listener: Option<Box<T>>, status_kind: &[StatusKind]) -> Self {
         Self {
             listener,
             status_kind: status_kind.to_vec(),
@@ -27,7 +27,7 @@ impl<T: ?Sized> _StatusListener<T> {
         self.listener.is_some() && self.status_kind.contains(status_kind)
     }
 
-    pub fn _listener_mut(&mut self) -> &mut Option<Box<T>> {
+    pub fn listener_mut(&mut self) -> &mut Option<Box<T>> {
         &mut self.listener
     }
 

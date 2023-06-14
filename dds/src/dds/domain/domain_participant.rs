@@ -1,12 +1,7 @@
-use fnmatch_regex::glob_to_regex;
-
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
-        data_representation_builtin_endpoints::{
-            discovered_writer_data::DiscoveredWriterData,
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        },
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         dds::{
             dds_data_writer::DdsDataWriter,
             dds_domain_participant::DdsDomainParticipant,
@@ -1528,161 +1523,6 @@ fn _remove_stale_writer_changes(writer: &mut DdsDataWriter<RtpsStatefulWriter>, 
     writer.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
 }
 
-fn _discover_matched_writers(
-    _domain_participant: &mut DdsDomainParticipant,
-    _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-) -> DdsResult<()> {
-    todo!()
-    // let samples = domain_participant
-    //     .get_builtin_subscriber_mut()
-    //     .stateful_data_reader_list_mut()
-    //     .iter_mut()
-    //     .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
-    //     .unwrap()
-    //     .read::<DiscoveredWriterData>(
-    //         i32::MAX,
-    //         ANY_SAMPLE_STATE,
-    //         ANY_VIEW_STATE,
-    //         ANY_INSTANCE_STATE,
-    //         None,
-    //     )?;
-
-    // for discovered_writer_data_sample in samples.into_iter() {
-    //     match discovered_writer_data_sample.sample_info.instance_state {
-    //         InstanceStateKind::Alive => {
-    //             if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-    //                 if !domain_participant.is_publication_ignored(
-    //                     discovered_writer_data
-    //                         .writer_proxy()
-    //                         .remote_writer_guid()
-    //                         .into(),
-    //                 ) {
-    //                     let remote_writer_guid_prefix = discovered_writer_data
-    //                         .writer_proxy()
-    //                         .remote_writer_guid()
-    //                         .prefix();
-    //                     let writer_parent_participant_guid =
-    //                         Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
-
-    //                     if let Some((
-    //                         default_unicast_locator_list,
-    //                         default_multicast_locator_list,
-    //                     )) = domain_participant
-    //                         .discovered_participant_list()
-    //                         .find(|&(h, _)| {
-    //                             h == &InstanceHandle::from(writer_parent_participant_guid)
-    //                         })
-    //                         .map(|(_, discovered_participant_data)| {
-    //                             (
-    //                                 discovered_participant_data
-    //                                     .participant_proxy()
-    //                                     .default_unicast_locator_list()
-    //                                     .to_vec(),
-    //                                 discovered_participant_data
-    //                                     .participant_proxy()
-    //                                     .default_multicast_locator_list()
-    //                                     .to_vec(),
-    //                             )
-    //                         })
-    //                     {
-    //                         let domain_participant_guid = domain_participant.guid();
-    //                         for subscriber in domain_participant.user_defined_subscriber_list_mut()
-    //                         {
-    //                             subscriber_add_matched_writer(
-    //                                 subscriber,
-    //                                 &discovered_writer_data,
-    //                                 &default_unicast_locator_list,
-    //                                 &default_multicast_locator_list,
-    //                                 domain_participant_guid,
-    //                                 listener_sender,
-    //                             );
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //         InstanceStateKind::NotAliveDisposed => {
-    //             let domain_participant_guid = domain_participant.guid();
-    //             for subscriber in domain_participant.user_defined_subscriber_list_mut() {
-    //                 let subscriber_guid = subscriber.guid();
-    //                 for data_reader in subscriber.stateful_data_reader_list_mut() {
-    //                     data_reader.remove_matched_writer(
-    //                         discovered_writer_data_sample.sample_info.instance_handle,
-    //                         domain_participant_guid,
-    //                         subscriber_guid,
-    //                         listener_sender,
-    //                     )
-    //                 }
-    //             }
-    //         }
-    //         InstanceStateKind::NotAliveNoWriters => todo!(),
-    //     }
-    // }
-
-    // Ok(())
-}
-
-pub fn subscriber_add_matched_writer(
-    user_defined_subscriber: &mut DdsSubscriber,
-    discovered_writer_data: &DiscoveredWriterData,
-    _default_unicast_locator_list: &[Locator],
-    _default_multicast_locator_list: &[Locator],
-    _parent_participant_guid: Guid,
-    _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-) {
-    let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
-        &discovered_writer_data
-            .clone()
-            .dds_publication_data()
-            .partition()
-            .name,
-    ) {
-        d.is_match(&user_defined_subscriber.get_qos().partition.name)
-    } else {
-        false
-    };
-
-    let is_subscriber_regex_matched_to_discovered_writer =
-        if let Ok(d) = glob_to_regex(&user_defined_subscriber.get_qos().partition.name) {
-            d.is_match(
-                &discovered_writer_data
-                    .clone()
-                    .dds_publication_data()
-                    .partition()
-                    .name,
-            )
-        } else {
-            false
-        };
-
-    let is_partition_string_matched = discovered_writer_data
-        .clone()
-        .dds_publication_data()
-        .partition()
-        .name
-        == user_defined_subscriber.get_qos().partition.name;
-
-    if is_discovered_writer_regex_matched_to_subscriber
-        || is_subscriber_regex_matched_to_discovered_writer
-        || is_partition_string_matched
-    {
-        let _user_defined_subscriber_qos = user_defined_subscriber.get_qos();
-        let _user_defined_subscriber_guid = user_defined_subscriber.guid();
-        todo!()
-        // for data_reader in user_defined_subscriber.stateful_data_reader_list_mut() {
-        //     data_reader.add_matched_writer(
-        //         discovered_writer_data,
-        //         default_unicast_locator_list,
-        //         default_multicast_locator_list,
-        //         &user_defined_subscriber_qos,
-        //         user_defined_subscriber_guid,
-        //         parent_participant_guid,
-        //         listener_sender,
-        //     )
-        // }
-    }
-}
-
 fn _discover_matched_participants(
     _domain_participant: &mut DdsDomainParticipant,
     _sedp_condvar: &DdsCondvar,
@@ -1810,7 +1650,7 @@ fn _receive_builtin_message(
     domain_participant
         .discover_matched_readers(listener_sender.clone())
         .ok();
-    _discover_matched_writers(domain_participant, listener_sender).ok();
+    // _discover_matched_writers(domain_participant, listener_sender).ok();
     domain_participant
         .discover_matched_topics(listener_sender.clone())
         .ok();

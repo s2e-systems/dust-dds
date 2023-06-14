@@ -7,6 +7,7 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::DiscoveredWriterData,
         },
+        dds::nodes::DataReaderNode,
         rtps::{
             messages::{
                 overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
@@ -23,7 +24,7 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::ActorAddress,
+        utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -48,7 +49,11 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
-use super::{message_receiver::MessageReceiver, status_listener::ListenerTriggerKind};
+use super::{
+    any_data_reader_listener::AnyDataReaderListener,
+    message_receiver::MessageReceiver,
+    status_listener::{ListenerTriggerKind, StatusListener},
+};
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
     NoChange,
@@ -180,10 +185,16 @@ pub struct DdsDataReader<T> {
     instance_reception_time: HashMap<InstanceHandle, Time>,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
+    listener: Actor<StatusListener<dyn AnyDataReaderListener + Send + 'static>>,
 }
 
 impl<T> DdsDataReader<T> {
-    pub fn new(rtps_reader: T, type_name: &'static str, topic_name: String) -> Self {
+    pub fn new(
+        rtps_reader: T,
+        type_name: &'static str,
+        topic_name: String,
+        listener: StatusListener<dyn AnyDataReaderListener + Send + 'static>,
+    ) -> Self {
         DdsDataReader {
             rtps_reader,
             type_name,
@@ -199,6 +210,7 @@ impl<T> DdsDataReader<T> {
             instance_reception_time: HashMap::new(),
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
+            listener: spawn_actor(listener),
         }
     }
 
@@ -428,13 +440,10 @@ impl DdsDataReader<RtpsStatefulReader> {
     #[allow(clippy::too_many_arguments)]
     pub fn add_matched_writer(
         &mut self,
-        discovered_writer_data: &DiscoveredWriterData,
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
-        subscriber_qos: &SubscriberQos,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        discovered_writer_data: DiscoveredWriterData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        subscriber_qos: SubscriberQos,
     ) {
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
@@ -443,8 +452,8 @@ impl DdsDataReader<RtpsStatefulReader> {
             let instance_handle = discovered_writer_data.get_serialized_key().into();
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
-                    discovered_writer_data,
-                    subscriber_qos,
+                    &discovered_writer_data,
+                    &subscriber_qos,
                 );
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_writer_data
@@ -454,7 +463,10 @@ impl DdsDataReader<RtpsStatefulReader> {
                 {
                     default_unicast_locator_list
                 } else {
-                    discovered_writer_data.writer_proxy().unicast_locator_list()
+                    discovered_writer_data
+                        .writer_proxy()
+                        .unicast_locator_list()
+                        .to_vec()
                 };
 
                 let multicast_locator_list = if discovered_writer_data
@@ -467,12 +479,13 @@ impl DdsDataReader<RtpsStatefulReader> {
                     discovered_writer_data
                         .writer_proxy()
                         .multicast_locator_list()
+                        .to_vec()
                 };
 
                 let writer_proxy = RtpsWriterProxy::new(
                     discovered_writer_data.writer_proxy().remote_writer_guid(),
-                    unicast_locator_list,
-                    multicast_locator_list,
+                    &unicast_locator_list,
+                    &multicast_locator_list,
                     discovered_writer_data
                         .writer_proxy()
                         .data_max_size_serialized(),
@@ -486,28 +499,14 @@ impl DdsDataReader<RtpsStatefulReader> {
                     .matched_publication_list
                     .insert(instance_handle, publication_builtin_topic_data.clone());
                 match insert_matched_publication_result {
-                    Some(value) if &value != publication_builtin_topic_data => self
-                        .on_subscription_matched(
-                            instance_handle,
-                            parent_subscriber_guid,
-                            parent_participant_guid,
-                            listener_sender,
-                        ),
-                    None => self.on_subscription_matched(
-                        instance_handle,
-                        parent_subscriber_guid,
-                        parent_participant_guid,
-                        listener_sender,
-                    ),
+                    Some(value) if &value != publication_builtin_topic_data => {
+                        self.on_subscription_matched(instance_handle)
+                    }
+                    None => self.on_subscription_matched(instance_handle),
                     _ => (),
                 }
             } else if self.incompatible_writer_list.insert(instance_handle) {
-                self.on_requested_incompatible_qos(
-                    incompatible_qos_policy_list,
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                    listener_sender,
-                );
+                self.on_requested_incompatible_qos(incompatible_qos_policy_list);
             }
         }
     }
@@ -557,7 +556,6 @@ impl DdsDataReader<RtpsStatefulReader> {
         discovered_writer_handle: InstanceHandle,
         parent_subscriber_guid: Guid,
         parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         let matched_publication = self
             .matched_publication_list
@@ -565,12 +563,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         if let Some(w) = matched_publication {
             self.rtps_reader.matched_writer_remove(w.key().value.into());
 
-            self.on_subscription_matched(
-                discovered_writer_handle,
-                parent_subscriber_guid,
-                parent_participant_guid,
-                listener_sender,
-            )
+            self.on_subscription_matched(discovered_writer_handle)
         }
     }
 
@@ -867,15 +860,15 @@ impl DdsDataReader<RtpsStatefulReader> {
         //     .ok();
     }
 
-    fn on_subscription_matched(
-        &mut self,
-        instance_handle: InstanceHandle,
-        _parent_subscriber_guid: Guid,
-        _parent_participant_guid: Guid,
-        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) {
+    fn on_subscription_matched(&mut self, instance_handle: InstanceHandle) {
         self.subscription_matched_status.increment(instance_handle);
-        todo!()
+        // if let Some(l) = self.listener.listener_mut() {
+        //     let reader = todo!(); //DataReaderNode::new(this, parent_subcriber, parent_participant);
+        //     let status = self.get_subscription_matched_status();
+        //     l.trigger_on_subscription_matched(reader, status)
+        // }
+        println!("Subscription matched");
+        // todo!()
         // listener_sender
         //     .try_send(ListenerTriggerKind::SubscriptionMatched(
         //         DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
@@ -889,7 +882,6 @@ impl DdsDataReader<RtpsStatefulReader> {
         rejected_reason: SampleRejectedStatusKind,
         _parent_subscriber_guid: Guid,
         _parent_participant_guid: Guid,
-        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
@@ -903,13 +895,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         //     .ok();
     }
 
-    fn on_requested_incompatible_qos(
-        &mut self,
-        incompatible_qos_policy_list: Vec<QosPolicyId>,
-        _parent_subscriber_guid: Guid,
-        _parent_participant_guid: Guid,
-        _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) {
+    fn on_requested_incompatible_qos(&mut self, incompatible_qos_policy_list: Vec<QosPolicyId>) {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
         todo!()

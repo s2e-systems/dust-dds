@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use crate::{
     implementation::{
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_writer_data::DiscoveredWriterData,
+        },
         dds::dds_data_reader::DdsDataReader,
         rtps::{
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
@@ -92,6 +95,43 @@ impl<T> ActorAddress<DdsDataReader<T>> {
 }
 
 impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
+    pub fn add_matched_writer(
+        &self,
+        discovered_writer_data: DiscoveredWriterData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        subscriber_qos: SubscriberQos,
+    ) -> DdsResult<()> {
+        struct AddMatchedWriter {
+            discovered_writer_data: DiscoveredWriterData,
+            default_unicast_locator_list: Vec<Locator>,
+            default_multicast_locator_list: Vec<Locator>,
+            subscriber_qos: SubscriberQos,
+        }
+
+        impl Mail for AddMatchedWriter {
+            type Result = ();
+        }
+
+        impl MailHandler<AddMatchedWriter> for DdsDataReader<RtpsStatefulReader> {
+            fn handle(&mut self, mail: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
+                self.add_matched_writer(
+                    mail.discovered_writer_data,
+                    mail.default_unicast_locator_list,
+                    mail.default_multicast_locator_list,
+                    mail.subscriber_qos,
+                )
+            }
+        }
+
+        self.send_blocking(AddMatchedWriter {
+            discovered_writer_data,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            subscriber_qos,
+        })
+    }
+
     pub fn send_message(
         &self,
         header: RtpsMessageHeader,

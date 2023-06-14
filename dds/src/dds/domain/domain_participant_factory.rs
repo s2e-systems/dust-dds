@@ -34,8 +34,8 @@ use crate::{
             stateful_writer::RtpsStatefulWriter,
             types::{
                 DurabilityKind, Guid, GuidPrefix, Locator, LocatorAddress, LocatorPort,
-                ReliabilityKind, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
-                VENDOR_ID_S2E,
+                ReliabilityKind, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4,
+                PROTOCOLVERSION, VENDOR_ID_S2E,
             },
             writer_proxy::RtpsWriterProxy,
         },
@@ -44,13 +44,18 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
+        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    subscription::sample_info::{SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
+    subscription::{
+        data_reader::Sample,
+        sample_info::{InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
+    },
     DdsType,
 };
 
+use fnmatch_regex::glob_to_regex;
 use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use mac_address::MacAddress;
@@ -782,7 +787,7 @@ fn process_sedp_metatraffic(
     for stateful_builtin_reader in builtin_subscriber.stateful_data_reader_list()? {
         match stateful_builtin_reader.get_topic_name()?.as_str() {
             DCPS_PUBLICATION => {
-                while let Ok(discovered_writer_sample_list) = stateful_builtin_reader
+                while let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader
                     .read::<DiscoveredWriterData>(
                     1,
                     &[SampleStateKind::NotRead],
@@ -790,11 +795,13 @@ fn process_sedp_metatraffic(
                     ANY_INSTANCE_STATE,
                     None,
                 ) {
-                    println!("Discovered writer")
+                    for discovered_writer_sample in discovered_writer_sample_list.drain(..) {
+                        discover_matched_writers(participant_address, &discovered_writer_sample)?;
+                    }
                 }
             }
             DCPS_SUBSCRIPTION => {
-                while let Ok(discovered_reader_sample_list) = stateful_builtin_reader
+                while let Ok(_discovered_reader_sample_list) = stateful_builtin_reader
                     .read::<DiscoveredReaderData>(
                     1,
                     &[SampleStateKind::NotRead],
@@ -806,7 +813,7 @@ fn process_sedp_metatraffic(
                 }
             }
             DCPS_TOPIC => {
-                while let Ok(discovered_topic_sample_list) = stateful_builtin_reader
+                while let Ok(_discovered_topic_sample_list) = stateful_builtin_reader
                     .read::<DiscoveredTopicData>(
                     1,
                     &[SampleStateKind::NotRead],
@@ -819,6 +826,119 @@ fn process_sedp_metatraffic(
             }
             _ => (),
         };
+    }
+
+    Ok(())
+}
+
+fn discover_matched_writers(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+    discovered_writer_sample: &Sample<DiscoveredWriterData>,
+) -> DdsResult<()> {
+    match discovered_writer_sample.sample_info.instance_state {
+        InstanceStateKind::Alive => {
+            if let Some(discovered_writer_data) = &discovered_writer_sample.data {
+                if !participant_address.is_publication_ignored(
+                    discovered_writer_data
+                        .writer_proxy()
+                        .remote_writer_guid()
+                        .into(),
+                )? {
+                    let remote_writer_guid_prefix = discovered_writer_data
+                        .writer_proxy()
+                        .remote_writer_guid()
+                        .prefix();
+                    let writer_parent_participant_guid =
+                        Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
+
+                    if let Some(spdp_discovered_participant_data) = participant_address
+                        .discovered_participant_get(InstanceHandle::from(
+                            writer_parent_participant_guid,
+                        ))?
+                    {
+                        let default_unicast_locator_list = spdp_discovered_participant_data
+                            .participant_proxy()
+                            .default_unicast_locator_list()
+                            .to_vec();
+                        let default_multicast_locator_list = spdp_discovered_participant_data
+                            .participant_proxy()
+                            .default_multicast_locator_list()
+                            .to_vec();
+                        for user_defined_subscriber in
+                            participant_address.get_user_defined_subscriber_list()?
+                        {
+                            let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) =
+                                glob_to_regex(
+                                    discovered_writer_data
+                                        .clone()
+                                        .dds_publication_data()
+                                        .partition()
+                                        .name
+                                        .as_str(),
+                                ) {
+                                d.is_match(&user_defined_subscriber.get_qos()?.partition.name)
+                            } else {
+                                false
+                            };
+
+                            let is_subscriber_regex_matched_to_discovered_writer = if let Ok(d) =
+                                glob_to_regex(&user_defined_subscriber.get_qos()?.partition.name)
+                            {
+                                d.is_match(
+                                    &discovered_writer_data
+                                        .clone()
+                                        .dds_publication_data()
+                                        .partition()
+                                        .name,
+                                )
+                            } else {
+                                false
+                            };
+
+                            let is_partition_string_matched = discovered_writer_data
+                                .clone()
+                                .dds_publication_data()
+                                .partition()
+                                .name
+                                == user_defined_subscriber.get_qos()?.partition.name;
+
+                            if is_discovered_writer_regex_matched_to_subscriber
+                                || is_subscriber_regex_matched_to_discovered_writer
+                                || is_partition_string_matched
+                            {
+                                let user_defined_subscriber_qos =
+                                    user_defined_subscriber.get_qos()?;
+                                for data_reader in
+                                    user_defined_subscriber.stateful_data_reader_list()?
+                                {
+                                    data_reader.add_matched_writer(
+                                        discovered_writer_data.clone(),
+                                        default_unicast_locator_list.clone(),
+                                        default_multicast_locator_list.clone(),
+                                        user_defined_subscriber_qos.clone(),
+                                    )?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        InstanceStateKind::NotAliveDisposed => {
+            todo!()
+            // for subscriber in participant_address.get_user_defined_subscriber_list()? {
+            // let subscriber_guid = subscriber.guid();
+            // for data_reader in subscriber.stateful_data_reader_list_mut() {
+            //     data_reader.remove_matched_writer(
+            //         discovered_writer_sample.sample_info.instance_handle,
+            //         domain_participant_guid,
+            //         subscriber_guid,
+            //         listener_sender,
+            //     )
+            // }
+            // }
+        }
+        InstanceStateKind::NotAliveNoWriters => todo!(),
     }
 
     Ok(())

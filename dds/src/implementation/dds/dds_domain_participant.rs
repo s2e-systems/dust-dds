@@ -50,9 +50,10 @@ use crate::{
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
+        status::NO_STATUS,
         time::{DurationKind, DURATION_ZERO},
     },
-    topic_definition::type_support::{dds_serialize, DdsType},
+    topic_definition::type_support::DdsType,
     {
         builtin_topics::TopicBuiltinTopicData,
         infrastructure::{
@@ -69,8 +70,9 @@ use std::{
 };
 
 use super::{
-    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher,
-    status_listener::ListenerTriggerKind,
+    dds_data_writer::DdsDataWriter,
+    dds_publisher::DdsPublisher,
+    status_listener::{ListenerTriggerKind, StatusListener},
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -183,6 +185,7 @@ impl DdsDomainParticipant {
             )),
             SpdpDiscoveredParticipantData::type_name(),
             String::from(DCPS_PARTICIPANT),
+            StatusListener::new(None, NO_STATUS),
         ));
 
         let sedp_builtin_topics_reader = spawn_actor(DdsDataReader::new(
@@ -192,6 +195,7 @@ impl DdsDomainParticipant {
             )),
             DiscoveredTopicData::type_name(),
             String::from(DCPS_TOPIC),
+            StatusListener::new(None, NO_STATUS),
         ));
 
         let sedp_builtin_publications_reader = spawn_actor(DdsDataReader::new(
@@ -201,6 +205,7 @@ impl DdsDomainParticipant {
             )),
             DiscoveredWriterData::type_name(),
             String::from(DCPS_PUBLICATION),
+            StatusListener::new(None, NO_STATUS),
         ));
 
         let sedp_builtin_subscriptions_reader = spawn_actor(DdsDataReader::new(
@@ -210,6 +215,7 @@ impl DdsDomainParticipant {
             )),
             DiscoveredReaderData::type_name(),
             String::from(DCPS_SUBSCRIPTION),
+            StatusListener::new(None, NO_STATUS),
         ));
 
         let builtin_subscriber = spawn_actor(DdsSubscriber::new(
@@ -536,6 +542,10 @@ impl DdsDomainParticipant {
             .insert(handle, discovered_participant_data);
     }
 
+    pub fn discovered_participant_get(&self, handle: InstanceHandle) -> Option<SpdpDiscoveredParticipantData> {
+        self.discovered_participant_list.get(&handle).cloned()
+    }
+
     pub fn _discovered_participant_remove(&mut self, handle: InstanceHandle) {
         self.discovered_participant_list.remove(&handle);
     }
@@ -784,58 +794,6 @@ impl DdsDomainParticipant {
 
     pub fn get_udp_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
         self.udp_transport_write.address()
-    }
-
-    pub fn announce_participant(&mut self) -> DdsResult<()> {
-        let spdp_discovered_participant_data = SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData::new(
-                BuiltInTopicKey {
-                    value: self.rtps_participant.guid().into(),
-                },
-                self.qos.user_data.clone(),
-            ),
-            ParticipantProxy::new(
-                self.domain_id,
-                self.domain_tag.clone(),
-                self.rtps_participant.protocol_version(),
-                self.rtps_participant.guid().prefix(),
-                self.rtps_participant.vendor_id(),
-                false,
-                self.rtps_participant
-                    .metatraffic_unicast_locator_list()
-                    .to_vec(),
-                self.rtps_participant
-                    .metatraffic_multicast_locator_list()
-                    .to_vec(),
-                self.rtps_participant
-                    .default_unicast_locator_list()
-                    .to_vec(),
-                self.rtps_participant
-                    .default_multicast_locator_list()
-                    .to_vec(),
-                BuiltinEndpointSet::default(),
-                self.manual_liveliness_count,
-                BuiltinEndpointQos::default(),
-            ),
-            self.lease_duration,
-        );
-        let _serialized_data =
-            dds_serialize(&spdp_discovered_participant_data).map_err(|_err| DdsError::Error)?;
-
-        let _current_time = self.get_current_time();
-        // todo!()
-        // self.builtin_publisher
-        //     .stateless_data_writer_list_mut()
-        //     .iter_mut()
-        //     .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
-        //     .unwrap()
-        //     .write_w_timestamp(
-        //         serialized_data,
-        //         spdp_discovered_participant_data.get_serialized_key(),
-        //         None,
-        //         current_time,
-        //     )
-        Ok(())
     }
 
     // pub fn remove_discovered_participant(&self, participant_handle: InstanceHandle) {
