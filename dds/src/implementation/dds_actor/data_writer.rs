@@ -265,6 +265,7 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
 
         self.send_blocking(ProcessRtpsMessage { message })
     }
+
     pub fn send_message(
         &self,
         header: RtpsMessageHeader,

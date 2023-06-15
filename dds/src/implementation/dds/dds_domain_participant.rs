@@ -321,74 +321,6 @@ impl DdsDomainParticipant {
             .stateful_datawriter_add(sedp_builtin_subscriptions_writer_actor)
             .unwrap();
 
-        // let domain_tag_clone = domain_tag.clone();
-        // THE_RUNTIME.spawn(async move {
-        //     loop {
-        //         if let Ok((_locator, message)) = builtin_message_broadcast_receiver.recv().await {
-        //             tokio::task::block_in_place(|| {
-        //                 if let Ok(_) =
-        //                     spdp_builtin_participant_reader_address.process_rtps_message(message)
-        //                 {
-        //                     while let Ok(samples) = spdp_builtin_participant_reader_address
-        //                         .read::<SpdpDiscoveredParticipantData>(
-        //                         1,
-        //                         &[SampleStateKind::NotRead],
-        //                         ANY_VIEW_STATE,
-        //                         ANY_INSTANCE_STATE,
-        //                         None,
-        //                     ) {
-        //                         for discovered_participant_data_sample in samples.into_iter() {
-        //                             if let Some(discovered_participant_data) =
-        //                                 discovered_participant_data_sample.data
-        //                             {
-        //                                 if discovered_participant_data
-        //                                     .participant_proxy()
-        //                                     .domain_id()
-        //                                     == domain_id
-        //                                     && discovered_participant_data
-        //                                         .participant_proxy()
-        //                                         .domain_tag()
-        //                                         == domain_tag_clone
-        //                                 {
-        //                                     add_matched_subscriptions_detector(
-        //                                         &sedp_builtin_subscriptions_writer_address,
-        //                                         &discovered_participant_data,
-        //                                     );
-
-        //                                     add_matched_publications_detector(
-        //                                         &sedp_builtin_publications_writer_address,
-        //                                         &discovered_participant_data,
-        //                                     );
-
-        //                                     add_matched_topics_detector(
-        //                                         &sedp_builtin_topics_writer_address,
-        //                                         &discovered_participant_data,
-        //                                     );
-
-        //                                     add_matched_subscriptions_announcer(
-        //                                         &sedp_builtin_subscriptions_reader_address,
-        //                                         &discovered_participant_data,
-        //                                     );
-
-        //                                     add_matched_publications_announcer(
-        //                                         &sedp_builtin_publications_reader_address,
-        //                                         &discovered_participant_data,
-        //                                     );
-
-        //                                     add_matched_topics_announcer(
-        //                                         &sedp_builtin_topics_reader_address,
-        //                                         &discovered_participant_data,
-        //                                     );
-        //                                 }
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //             });
-        //         }
-        //     }
-        // });
-
         Self {
             rtps_participant,
             domain_id,
@@ -882,8 +814,6 @@ impl DdsDomainParticipant {
     }
 }
 }
-
-
 
 fn _on_writer_publication_matched(
     _writer: &DdsDataWriter<RtpsStatefulWriter>,

@@ -1,7 +1,6 @@
 use crate::implementation::{
     rtps::{
         messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
-        transport::TransportWrite,
         types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
     },
     utils::actor::actor_interface,
@@ -78,39 +77,6 @@ impl UdpTransportWrite {
         }
     }
 }
-}
-
-impl TransportWrite for UdpTransportWrite {
-    fn write(&self, message: &RtpsMessageWrite, destination_locator_list: &[Locator]) {
-        let buf = message.buffer();
-
-        for &destination_locator in destination_locator_list {
-            if UdpLocator(destination_locator).is_multicast() {
-                let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
-                let interface_addresses: Vec<_> = ifcfg::IfCfg::get()
-                    .expect("Could not scan interfaces")
-                    .into_iter()
-                    .flat_map(|i| {
-                        i.addresses.into_iter().filter_map(|a| match a.address? {
-                            SocketAddr::V4(v4) => Some(*v4.ip()),
-                            _ => None,
-                        })
-                    })
-                    .collect();
-                for address in interface_addresses {
-                    if socket2.set_multicast_if_v4(&address).is_ok() {
-                        self.socket
-                            .send_to(buf, UdpLocator(destination_locator))
-                            .ok();
-                    }
-                }
-            } else {
-                self.socket
-                    .send_to(buf, UdpLocator(destination_locator))
-                    .ok();
-            }
-        }
-    }
 }
 
 struct UdpLocator(Locator);

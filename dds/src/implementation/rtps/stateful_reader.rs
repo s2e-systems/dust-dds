@@ -27,7 +27,6 @@ use super::{
         convert_data_frag_to_cache_change, RtpsReader, RtpsReaderCacheChange, RtpsReaderError,
         RtpsReaderResult,
     },
-    transport::TransportWrite,
     types::{Guid, GuidPrefix, Locator, SequenceNumber},
     writer_proxy::RtpsWriterProxy,
 };

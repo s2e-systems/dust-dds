@@ -158,30 +158,25 @@ where
     /// sampled returned by [`DataReader::take`] will no longer be accessible to successive calls to read or take.
     pub fn take(
         &self,
-        _max_samples: i32,
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-        //     DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-        //     DataReaderNodeKind::UserDefined(r) | DataReaderNodeKind::Listener(r) => {
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_reader::take(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //                 r.parent_subscriber(),
-        //                 max_samples,
-        //                 sample_states,
-        //                 view_states,
-        //                 instance_states,
-        //                 None,
-        //             )
-        //         })
-        //     }
-        // }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) | DataReaderNodeKind::BuiltinStateful(_) => {
+                Err(DdsError::IllegalOperation)
+            }
+            DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
+                dr.address().take(
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    None,
+                )
+            }
+        }
     }
 
     /// This operation reads the next, non-previously accessed [`Sample`] value from the [`DataReader`].

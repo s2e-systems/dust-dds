@@ -296,6 +296,55 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
         })?
     }
 
+    pub fn take<Foo>(
+        &self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de> + Send + 'static,
+    {
+        struct Take<Foo> {
+            phantom: PhantomData<Foo>,
+            max_samples: i32,
+            sample_states: Vec<SampleStateKind>,
+            view_states: Vec<ViewStateKind>,
+            instance_states: Vec<InstanceStateKind>,
+            specific_instance_handle: Option<InstanceHandle>,
+        }
+
+        impl<Foo> Mail for Take<Foo> {
+            type Result = DdsResult<Vec<Sample<Foo>>>;
+        }
+
+        impl<Foo> MailHandler<Take<Foo>> for DdsDataReader<RtpsStatefulReader>
+        where
+            Foo: for<'de> DdsDeserialize<'de>,
+        {
+            fn handle(&mut self, mail: Take<Foo>) -> <Take<Foo> as Mail>::Result {
+                self.take(
+                    mail.max_samples,
+                    &mail.sample_states,
+                    &mail.view_states,
+                    &mail.instance_states,
+                    mail.specific_instance_handle,
+                )
+            }
+        }
+
+        self.send_blocking(Take {
+            phantom: PhantomData,
+            max_samples,
+            sample_states: sample_states.to_vec(),
+            view_states: view_states.to_vec(),
+            instance_states: instance_states.to_vec(),
+            specific_instance_handle,
+        })?
+    }
+
     pub fn as_discovered_reader_data(
         &self,
         topic_qos: TopicQos,
