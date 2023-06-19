@@ -152,17 +152,15 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     let writer = publisher
         .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
-    // let writer_cond = writer.get_statuscondition().unwrap();
-    // writer_cond
-    //     .set_enabled_statuses(&[StatusKind::PublicationMatched])
-    //     .unwrap();
-    // let mut wait_set = WaitSet::new();
-    // wait_set
-    //     .attach_condition(Condition::StatusCondition(writer_cond))
-    //     .unwrap();
-    // wait_set.wait(Duration::new(60, 0)).unwrap();
-
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    let writer_cond = writer.get_statuscondition().unwrap();
+    writer_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(writer_cond))
+        .unwrap();
+    wait_set.wait(Duration::new(60, 0)).unwrap();
 
     c.bench_function("best_effort_write_and_receive", |b| {
         b.iter(|| {
