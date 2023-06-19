@@ -1,5 +1,5 @@
 use crate::{
-    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, SubscriptionBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -19,7 +19,6 @@ use crate::{
             participant::RtpsParticipant,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
-            reader_proxy::RtpsReaderProxy,
             stateful_reader::{
                 RtpsStatefulReader, DEFAULT_HEARTBEAT_RESPONSE_DELAY,
                 DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
@@ -31,10 +30,9 @@ use crate::{
             stateless_reader::RtpsStatelessReader,
             stateless_writer::RtpsStatelessWriter,
             types::{
-                DurabilityKind, EntityId, EntityKey, Guid, Locator, ProtocolVersion,
-                ReliabilityKind, TopicKind, VendorId, BUILT_IN_READER_GROUP,
-                BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
-                BUILT_IN_WRITER_WITH_KEY,
+                EntityId, EntityKey, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
+                BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
+                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
         },
@@ -46,9 +44,7 @@ use crate::{
         qos::{DataReaderQos, DataWriterQos},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            QosPolicyId, ReliabilityQosPolicy, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
-            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
-            LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+            QosPolicyId, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         time::{DurationKind, DURATION_ZERO},
     },

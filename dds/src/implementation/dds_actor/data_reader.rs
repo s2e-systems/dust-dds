@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{
+    builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -8,7 +9,7 @@ use crate::{
         },
         dds::{
             dds_data_reader::DdsDataReader, dds_domain_participant::DdsDomainParticipant,
-            dds_subscriber::DdsSubscriber,
+            dds_subscriber::DdsSubscriber, status_condition_impl::StatusConditionImpl,
         },
         rtps::{
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
@@ -18,12 +19,16 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{ActorAddress, Mail, MailHandler},
+        utils::{
+            actor::{ActorAddress, Mail, MailHandler},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{SubscriberQos, TopicQos},
+        status::SubscriptionMatchedStatus,
         time::Time,
     },
     subscription::{
@@ -94,6 +99,86 @@ impl<T> ActorAddress<DdsDataReader<T>> {
         }
 
         self.send_blocking(GetTopicName)
+    }
+
+    pub fn get_statuscondition(&self) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
+        struct GetStatusConditions;
+
+        impl Mail for GetStatusConditions {
+            type Result = DdsShared<DdsRwLock<StatusConditionImpl>>;
+        }
+
+        impl<T> MailHandler<GetStatusConditions> for DdsDataReader<T> {
+            fn handle(
+                &mut self,
+                _mail: GetStatusConditions,
+            ) -> <GetStatusConditions as Mail>::Result {
+                self.get_statuscondition()
+            }
+        }
+        self.send_blocking(GetStatusConditions)
+    }
+
+    pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
+        struct GetSubscriptionMatchedStatus;
+
+        impl Mail for GetSubscriptionMatchedStatus {
+            type Result = SubscriptionMatchedStatus;
+        }
+
+        impl<T> MailHandler<GetSubscriptionMatchedStatus> for DdsDataReader<T> {
+            fn handle(
+                &mut self,
+                _mail: GetSubscriptionMatchedStatus,
+            ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
+                self.get_subscription_matched_status()
+            }
+        }
+
+        self.send_blocking(GetSubscriptionMatchedStatus)
+    }
+
+    pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
+        struct GetMatchedPublications;
+
+        impl Mail for GetMatchedPublications {
+            type Result = Vec<InstanceHandle>;
+        }
+
+        impl<T> MailHandler<GetMatchedPublications> for DdsDataReader<T> {
+            fn handle(
+                &mut self,
+                _mail: GetMatchedPublications,
+            ) -> <GetMatchedPublications as Mail>::Result {
+                self.get_matched_publications()
+            }
+        }
+
+        self.send_blocking(GetMatchedPublications)
+    }
+
+    pub fn get_matched_publication_data(
+        &self,
+        publication_handle: InstanceHandle,
+    ) -> DdsResult<PublicationBuiltinTopicData> {
+        struct GetMatchedPublicationData {
+            publication_handle: InstanceHandle,
+        }
+
+        impl Mail for GetMatchedPublicationData {
+            type Result = DdsResult<PublicationBuiltinTopicData>;
+        }
+
+        impl<T> MailHandler<GetMatchedPublicationData> for DdsDataReader<T> {
+            fn handle(
+                &mut self,
+                mail: GetMatchedPublicationData,
+            ) -> <GetMatchedPublicationData as Mail>::Result {
+                self.get_matched_publication_data(mail.publication_handle)
+            }
+        }
+
+        self.send_blocking(GetMatchedPublicationData { publication_handle })?
     }
 }
 

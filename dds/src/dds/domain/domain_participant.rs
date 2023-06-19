@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
@@ -317,28 +319,27 @@ impl DomainParticipant {
     /// of times using [`DomainParticipant::delete_topic()`].
     /// Regardless of whether the middleware chooses to propagate topics, the [`DomainParticipant::delete_topic()`] operation deletes only the local proxy.
     /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
-    pub fn find_topic<Foo>(&self, _topic_name: &str, _timeout: Duration) -> DdsResult<Topic<Foo>>
+    pub fn find_topic<Foo>(&self, _topic_name: &str, timeout: Duration) -> DdsResult<Topic<Foo>>
     where
         Foo: DdsType,
     {
-        todo!()
-        // let start_time = Instant::now();
+        let start_time = Instant::now();
 
-        // while start_time.elapsed() < std::time::Duration::from(timeout) {
-        //     if let Some(topic) = self.call_participant_mut_method(|dp| {
-        //         Ok(
-        //             crate::implementation::behavior::domain_participant::find_topic(
-        //                 dp,
-        //                 topic_name,
-        //                 Foo::type_name(),
-        //             ),
-        //         )
-        //     })? {
-        //         return Ok(Topic::new(TopicNodeKind::UserDefined(topic)));
-        //     }
-        // }
+        while start_time.elapsed() < std::time::Duration::from(timeout) {
+            //     if let Some(topic) = self.call_participant_mut_method(|dp| {
+            //         Ok(
+            //             crate::implementation::behavior::domain_participant::find_topic(
+            //                 dp,
+            //                 topic_name,
+            //                 Foo::type_name(),
+            //             ),
+            //         )
+            //     })? {
+            //         return Ok(Topic::new(TopicNodeKind::UserDefined(topic)));
+            //     }
+        }
 
-        // Err(DdsError::Timeout)
+        Err(DdsError::Timeout)
     }
 
     /// This operation gives access to an existing locally-created [`Topic`], based on its name and type. The

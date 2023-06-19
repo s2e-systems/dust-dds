@@ -1,5 +1,5 @@
 use crate::{
-    implementation::utils::actor::{ActorAddress, CommandHandler, Mail, MailHandler},
+    implementation::utils::actor::{ActorAddress, CommandHandler},
     infrastructure::{
         error::DdsResult,
         status::{

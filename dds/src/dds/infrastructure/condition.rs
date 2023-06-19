@@ -49,7 +49,7 @@ impl StatusCondition {
 }
 
 impl StatusCondition {
-    pub(crate) fn _new(status_condition_impl: DdsShared<DdsRwLock<StatusConditionImpl>>) -> Self {
+    pub(crate) fn new(status_condition_impl: DdsShared<DdsRwLock<StatusConditionImpl>>) -> Self {
         Self(status_condition_impl)
     }
 

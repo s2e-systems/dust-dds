@@ -5,7 +5,7 @@ use crate::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
         },
-        dds::dds_data_writer::DdsDataWriter,
+        dds::{dds_data_writer::DdsDataWriter, status_condition_impl::StatusConditionImpl},
         rtps::{
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
             reader_locator::RtpsReaderLocator,
@@ -15,7 +15,10 @@ use crate::{
             types::{Guid, Locator},
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{ActorAddress, CommandHandler, Mail, MailHandler},
+        utils::{
+            actor::{ActorAddress, CommandHandler, Mail, MailHandler},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::DdsResult,
@@ -207,6 +210,24 @@ impl<T> ActorAddress<DdsDataWriter<T>> {
             }
         }
         self.send_blocking(GetMatchedSubscriptionData { handle })
+    }
+
+    pub fn get_statuscondition(&self) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
+        struct GetStatusConditions;
+
+        impl Mail for GetStatusConditions {
+            type Result = DdsShared<DdsRwLock<StatusConditionImpl>>;
+        }
+
+        impl<T> MailHandler<GetStatusConditions> for DdsDataWriter<T> {
+            fn handle(
+                &mut self,
+                _mail: GetStatusConditions,
+            ) -> <GetStatusConditions as Mail>::Result {
+                self.get_statuscondition()
+            }
+        }
+        self.send_blocking(GetStatusConditions)
     }
 }
 
@@ -429,7 +450,7 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
         self.send_blocking(GetQos)
     }
 
-    pub fn set_qos(self, qos: DataWriterQos) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: DataWriterQos) -> DdsResult<()> {
         struct SetQos {
             qos: DataWriterQos,
         }

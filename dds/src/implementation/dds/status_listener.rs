@@ -44,7 +44,7 @@ impl<T: ?Sized> StatusListener<T> {
     }
 
     pub fn _get_status_condition(&self) -> StatusCondition {
-        StatusCondition::_new(self.status_condition.clone())
+        StatusCondition::new(self.status_condition.clone())
     }
 
     pub fn _get_status_changes(&self) -> Vec<StatusKind> {

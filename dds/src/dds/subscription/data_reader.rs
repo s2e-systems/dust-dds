@@ -650,32 +650,12 @@ impl<Foo> DataReader<Foo> {
 
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => {
-        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-        //             &r.guid().prefix(),
-        //             |dp| {
-        //                 crate::implementation::behavior::user_defined_data_reader::get_subscription_matched_status(
-        //                     dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                     r.guid(),
-        //                     r.parent_subscriber(),
-        //                 )
-        //             },
-        //         )?;
-
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-        //             l.ok_or(DdsError::AlreadyDeleted)?
-        //                 .remove_communication_state(StatusKind::SubscriptionMatched);
-        //             Ok(())
-        //         })?;
-
-        //         Ok(status)
-        //     }
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateful(dr)
+            | DataReaderNodeKind::BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().get_subscription_matched_status(),
+        }
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
@@ -762,23 +742,16 @@ impl<Foo> DataReader<Foo> {
     /// currently matched with the [`DataReader`].
     pub fn get_matched_publication_data(
         &self,
-        _publication_handle: InstanceHandle,
+        publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_reader::get_matched_publication_data(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //                     r.parent_subscriber(),
-        //                 publication_handle,
-        //             )
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateful(dr)
+            | DataReaderNodeKind::BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr
+                .address()
+                .get_matched_publication_data(publication_handle),
+        }
     }
 
     /// This operation retrieves the list of publications currently “associated” with the [`DataReader`]; that is, publications that have a
@@ -788,17 +761,12 @@ impl<Foo> DataReader<Foo> {
     /// the corresponding matched [`DataWriter`](crate::publication::data_writer::DataWriter) entities. These handles match the ones that appear in the
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_reader::get_matched_publications(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-        //             r.parent_subscriber(),)
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateful(dr)
+            | DataReaderNodeKind::BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().get_matched_publications(),
+        }
     }
 }
 
@@ -870,28 +838,15 @@ impl<Foo> DataReader<Foo> {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_data_reader_listener(&r.guid(), |l| {
-        //             Ok(l.ok_or(DdsError::AlreadyDeleted)?.get_status_condition())
-        //         }),
-        //     DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_data_reader_listener(&r.guid(), |l| {
-        //             Ok(l.ok_or(DdsError::AlreadyDeleted)?.get_status_condition())
-        //         }),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_data_reader_listener(&r.guid(), |l| {
-        //             Ok(l.ok_or(DdsError::AlreadyDeleted)?.get_status_condition())
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        //     // DataReaderKind::BuiltinStateless(x) => {
-        //     //     StatusCondition::new(x.upgrade()?.get_statuscondition())
-        //     // }
-        //     // DataReaderKind::BuiltinStateful(x) => {
-        //     //     StatusCondition::new(x.upgrade()?.get_statuscondition())
-        //     // }
-        // }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateful(dr)
+            | DataReaderNodeKind::BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr) => dr
+                .address()
+                .get_statuscondition()
+                .map(|s| StatusCondition::new(s)),
+            DataReaderNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose

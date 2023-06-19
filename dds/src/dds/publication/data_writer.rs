@@ -8,10 +8,7 @@ use crate::{
             dds_domain_participant::DdsDomainParticipant,
             nodes::{DataWriterNodeKind, PublisherNode},
         },
-        rtps::{
-            messages::overall_structure::RtpsMessageHeader,
-            types::{PROTOCOLVERSION, PROTOCOLVERSION_2_4, VENDOR_ID_S2E},
-        },
+        rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -618,20 +615,19 @@ where
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, _qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        todo!()
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&w.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_writer::set_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 w.guid(),
-        //                 w.parent_publisher(),
-        //                 qos,
-        //             )
-        //         }),
-        //     DataWriterNodeKind::Listener(_) => todo!(),
-        // }
+    pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                let q = match qos {
+                    QosKind::Default => dw.parent_publisher().get_default_datawriter_qos()?,
+                    QosKind::Specific(q) => {
+                        q.is_consistent()?;
+                        q
+                    }
+                };
+                dw.address().set_qos(q)
+            }
+        }
     }
 
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
@@ -680,16 +676,13 @@ where
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        todo!()
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_data_writer_listener(&w.guid(), |data_writer_listener| {
-        //             Ok(data_writer_listener
-        //                 .ok_or(DdsError::AlreadyDeleted)?
-        //                 .get_status_condition())
-        //         }),
-        //     DataWriterNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) => dw
+                .address()
+                .get_statuscondition()
+                .map(|s| StatusCondition::new(s)),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose

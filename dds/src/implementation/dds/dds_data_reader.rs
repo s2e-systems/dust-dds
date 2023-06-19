@@ -262,6 +262,31 @@ impl<T> DdsDataReader<T> {
     pub fn enable(&mut self) {
         self.enabled = true;
     }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
+    }
+
+    pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
+        self.matched_publication_list
+            .iter()
+            .map(|(&key, _)| key)
+            .collect()
+    }
+
+    pub fn get_matched_publication_data(
+        &self,
+        publication_handle: InstanceHandle,
+    ) -> DdsResult<PublicationBuiltinTopicData> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.matched_publication_list
+            .get(&publication_handle)
+            .cloned()
+            .ok_or(DdsError::BadParameter)
+    }
 }
 
 impl DdsDataReader<RtpsStatefulReader> {
@@ -759,27 +784,6 @@ impl DdsDataReader<RtpsStatefulReader> {
         }?;
 
         Ok(self.rtps_reader.is_historical_data_received())
-    }
-
-    pub fn get_matched_publication_data(
-        &self,
-        publication_handle: InstanceHandle,
-    ) -> DdsResult<PublicationBuiltinTopicData> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.matched_publication_list
-            .get(&publication_handle)
-            .cloned()
-            .ok_or(DdsError::BadParameter)
-    }
-
-    pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
-        self.matched_publication_list
-            .iter()
-            .map(|(&key, _)| key)
-            .collect()
     }
 
     pub fn set_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {

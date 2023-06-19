@@ -34,7 +34,10 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::ActorAddress,
+        utils::{
+            actor::ActorAddress,
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -47,7 +50,7 @@ use crate::{
         },
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus, QosPolicyCount, StatusKind,
+            PublicationMatchedStatus, QosPolicyCount,
         },
     },
     topic_definition::type_support::{DdsSerializedKey, DdsType},
@@ -63,7 +66,7 @@ use crate::{
 
 use super::{
     dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher,
-    message_receiver::MessageReceiver,
+    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
 };
 
 struct MatchedSubscriptions {
@@ -203,6 +206,7 @@ pub struct DdsDataWriter<T> {
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl<T> DdsDataWriter<T> {
@@ -214,6 +218,7 @@ impl<T> DdsDataWriter<T> {
             matched_subscriptions: MatchedSubscriptions::new(),
             incompatible_subscriptions: IncompatibleSubscriptions::new(),
             enabled: false,
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         }
     }
 
@@ -289,6 +294,10 @@ impl<T> DdsDataWriter<T> {
 
     pub fn get_type_name(&self) -> &'static str {
         self.type_name
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 }
 
