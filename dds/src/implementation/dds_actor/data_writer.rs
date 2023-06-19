@@ -5,7 +5,10 @@ use crate::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
         },
-        dds::{dds_data_writer::DdsDataWriter, status_condition_impl::StatusConditionImpl},
+        dds::{
+            dds_data_writer::DdsDataWriter, dds_domain_participant::DdsDomainParticipant,
+            dds_publisher::DdsPublisher, status_condition_impl::StatusConditionImpl,
+        },
         rtps::{
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
             reader_locator::RtpsReaderLocator,
@@ -238,12 +241,18 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         publisher_qos: PublisherQos,
+        data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> DdsResult<()> {
         struct AddMatchedReader {
             discovered_reader_data: DiscoveredReaderData,
             default_unicast_locator_list: Vec<Locator>,
             default_multicast_locator_list: Vec<Locator>,
             publisher_qos: PublisherQos,
+            data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+            publisher_address: ActorAddress<DdsPublisher>,
+            participant_address: ActorAddress<DdsDomainParticipant>,
         }
 
         impl Mail for AddMatchedReader {
@@ -257,6 +266,9 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
                     mail.default_unicast_locator_list,
                     mail.default_multicast_locator_list,
                     mail.publisher_qos,
+                    mail.data_writer_address,
+                    mail.publisher_address,
+                    mail.participant_address,
                 )
             }
         }
@@ -266,6 +278,49 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
             default_unicast_locator_list,
             default_multicast_locator_list,
             publisher_qos,
+            data_writer_address,
+            publisher_address,
+            participant_address,
+        })
+    }
+
+    pub fn remove_matched_reader(
+        &self,
+        discovered_reader_handle: InstanceHandle,
+        data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) -> DdsResult<()> {
+        struct RemoveMatchedReader {
+            discovered_reader_handle: InstanceHandle,
+            data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+            publisher_address: ActorAddress<DdsPublisher>,
+            participant_address: ActorAddress<DdsDomainParticipant>,
+        }
+
+        impl Mail for RemoveMatchedReader {
+            type Result = ();
+        }
+
+        impl MailHandler<RemoveMatchedReader> for DdsDataWriter<RtpsStatefulWriter> {
+            fn handle(
+                &mut self,
+                mail: RemoveMatchedReader,
+            ) -> <RemoveMatchedReader as Mail>::Result {
+                self.remove_matched_reader(
+                    mail.discovered_reader_handle,
+                    mail.data_writer_address,
+                    mail.publisher_address,
+                    mail.participant_address,
+                )
+            }
+        }
+
+        self.send_blocking(RemoveMatchedReader {
+            discovered_reader_handle,
+            data_writer_address,
+            publisher_address,
+            participant_address,
         })
     }
 

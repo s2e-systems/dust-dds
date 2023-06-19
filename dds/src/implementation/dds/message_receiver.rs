@@ -11,8 +11,8 @@ pub struct MessageReceiver<'a> {
     source_vendor_id: VendorId,
     source_guid_prefix: GuidPrefix,
     dest_guid_prefix: GuidPrefix,
-    unicast_reply_locator_list: Vec<Locator>,
-    multicast_reply_locator_list: Vec<Locator>,
+    _unicast_reply_locator_list: Vec<Locator>,
+    _multicast_reply_locator_list: Vec<Locator>,
     have_timestamp: bool,
     timestamp: Time,
     submessages: std::vec::IntoIter<RtpsSubmessageReadKind<'a>>,
@@ -65,19 +65,19 @@ impl<'a> MessageReceiver<'a> {
             source_vendor_id: message.header().vendor_id(),
             source_guid_prefix: message.header().guid_prefix(),
             dest_guid_prefix: GUIDPREFIX_UNKNOWN,
-            unicast_reply_locator_list: Vec::new(),
-            multicast_reply_locator_list: Vec::new(),
+            _unicast_reply_locator_list: Vec::new(),
+            _multicast_reply_locator_list: Vec::new(),
             have_timestamp: false,
             timestamp: TIME_INVALID,
             submessages: message.submessages().into_iter(),
         }
     }
 
-    pub fn source_version(&self) -> ProtocolVersion {
+    pub fn _source_version(&self) -> ProtocolVersion {
         self.source_version
     }
 
-    pub fn source_vendor_id(&self) -> VendorId {
+    pub fn _source_vendor_id(&self) -> VendorId {
         self.source_vendor_id
     }
 
@@ -85,16 +85,16 @@ impl<'a> MessageReceiver<'a> {
         self.source_guid_prefix
     }
 
-    pub fn dest_guid_prefix(&self) -> GuidPrefix {
+    pub fn _dest_guid_prefix(&self) -> GuidPrefix {
         self.dest_guid_prefix
     }
 
-    pub fn unicast_reply_locator_list(&self) -> &[Locator] {
-        self.unicast_reply_locator_list.as_ref()
+    pub fn _unicast_reply_locator_list(&self) -> &[Locator] {
+        self._unicast_reply_locator_list.as_ref()
     }
 
-    pub fn multicast_reply_locator_list(&self) -> &[Locator] {
-        self.multicast_reply_locator_list.as_ref()
+    pub fn _multicast_reply_locator_list(&self) -> &[Locator] {
+        self._multicast_reply_locator_list.as_ref()
     }
 
     pub fn source_timestamp(&self) -> Option<Time> {

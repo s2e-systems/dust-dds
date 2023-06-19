@@ -580,53 +580,6 @@ impl DdsDomainParticipant {
         self.data_max_size_serialized
     }
 
-    pub fn find_topic(
-        &mut self,
-        _topic_name: String,
-        _type_name: &'static str,
-    ) -> Option<ActorAddress<DdsTopic>> {
-        todo!()
-        // // Check if a topic exists locally. If topic doesn't exist locally check if it has already been
-        // // discovered and, if so, create a new local topic representing the discovered topic
-        // if let Some(topic) = self
-        //     .topic_list
-        //     .iter()
-        //     .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
-        // {
-        //     Some(topic.guid())
-        // } else if let Some(discovered_topic_info) = self
-        //     .discovered_topic_list
-        //     .values()
-        //     .find(|t| t.name() == topic_name && t.get_type_name() == type_name)
-        //     .cloned()
-        // {
-        //     let qos = TopicQos {
-        //         topic_data: discovered_topic_info.topic_data().clone(),
-        //         durability: discovered_topic_info.durability().clone(),
-        //         deadline: discovered_topic_info.deadline().clone(),
-        //         latency_budget: discovered_topic_info.latency_budget().clone(),
-        //         liveliness: discovered_topic_info.liveliness().clone(),
-        //         reliability: discovered_topic_info.reliability().clone(),
-        //         destination_order: discovered_topic_info.destination_order().clone(),
-        //         history: discovered_topic_info.history().clone(),
-        //         resource_limits: discovered_topic_info.resource_limits().clone(),
-        //         transport_priority: discovered_topic_info.transport_priority().clone(),
-        //         lifespan: discovered_topic_info.lifespan().clone(),
-        //         ownership: discovered_topic_info.ownership().clone(),
-        //     };
-        //     Some(
-        //         self.create_topic(
-        //             discovered_topic_info.name(),
-        //             type_name,
-        //             QosKind::Specific(qos),
-        //         )
-        //         .unwrap(),
-        //     )
-        // } else {
-        //     None
-        // }
-    }
-
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
         for user_defined_publisher in self.user_defined_publisher_list.drain(..) {
             user_defined_publisher
@@ -756,45 +709,6 @@ impl DdsDomainParticipant {
     //     self.discovered_participant_remove(participant_handle);
     // }
 
-
-
-    pub fn discover_matched_topics(
-        &mut self,
-        _listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) -> DdsResult<()> {
-        todo!()
-        // while let Ok(samples) = self
-        //     .get_builtin_subscriber_mut()
-        //     .stateful_data_reader_list_mut()
-        //     .iter_mut()
-        //     .find(|x| x.get_topic_name() == DCPS_TOPIC)
-        //     .unwrap()
-        //     .read::<DiscoveredTopicData>(
-        //         1,
-        //         &[SampleStateKind::NotRead],
-        //         ANY_VIEW_STATE,
-        //         ANY_INSTANCE_STATE,
-        //         None,
-        //     )
-        // {
-        //     let guid = self.guid();
-        //     for sample in samples {
-        //         if let Some(topic_data) = sample.data.as_ref() {
-        //             for topic in self.topic_list_mut() {
-        //                 topic.process_discovered_topic(topic_data, guid, listener_sender);
-        //             }
-
-        //             self.discovered_topic_list.insert(
-        //                 topic_data.get_serialized_key().into(),
-        //                 topic_data.topic_builtin_topic_data().clone(),
-        //             );
-        //         }
-        //     }
-        // }
-
-        // Ok(())
-    }
-
     pub fn update_communication_status(
         &mut self,
         _listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
@@ -808,46 +722,13 @@ impl DdsDomainParticipant {
 
         Ok(())
     }
-}
-}
 
-fn _on_writer_publication_matched(
-    _writer: &DdsDataWriter<RtpsStatefulWriter>,
-    _parent_publisher_guid: Guid,
-    _parent_participant_guid: Guid,
-    _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-) {
-    todo!()
-    // listener_sender
-    //     .try_send(ListenerTriggerKind::PublicationMatched(
-    //         DataWriterNode::new(
-    //             writer.guid(),
-    //             parent_publisher_guid,
-    //             parent_participant_guid,
-    //         ),
-    //     ))
-    //     .ok();
-}
-
-pub fn _remove_writer_matched_reader(
-    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
-    discovered_reader_handle: InstanceHandle,
-    parent_publisher_guid: Guid,
-    parent_participant_guid: Guid,
-    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-) {
-    if let Some(r) = writer.get_matched_subscription_data(discovered_reader_handle) {
-        let handle = r.key().value.into();
-        writer.matched_reader_remove(handle);
-        writer.remove_matched_subscription(handle.into());
-
-        _on_writer_publication_matched(
-            writer,
-            parent_publisher_guid,
-            parent_participant_guid,
-            listener_sender,
-        )
+    pub fn discovered_topic_add(&mut self, handle: InstanceHandle, topic_data: TopicBuiltinTopicData) {
+        self.discovered_topic_list.insert(
+                handle, topic_data
+            );
     }
+}
 }
 
 fn _writer_on_offered_incompatible_qos(

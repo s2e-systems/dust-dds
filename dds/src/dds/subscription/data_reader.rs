@@ -783,22 +783,37 @@ impl<Foo> DataReader<Foo> {
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, _qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_reader::set_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //                 r.parent_subscriber(),
-        //                 qos,
-        //             )
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
+    pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateful(dr)
+            | DataReaderNodeKind::BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => {
+                let q = match qos {
+                    QosKind::Default => dr.parent_subscriber().get_default_datareader_qos()?,
+                    QosKind::Specific(q) => {
+                        q.is_consistent()?;
+                        q
+                    }
+                };
+                dr.address().set_qos(q)?;
+
+                if dr.address().is_enabled()? {
+                    announce_data_reader(
+                        dr.parent_participant(),
+                        dr.address().as_discovered_reader_data(
+                            TopicQos::default(),
+                            dr.parent_subscriber().get_qos()?,
+                            dr.parent_participant().get_default_unicast_locator_list()?,
+                            dr.parent_participant()
+                                .get_default_multicast_locator_list()?,
+                        )?,
+                    )?;
+                }
+
+                Ok(())
+            }
+        }
     }
 
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.

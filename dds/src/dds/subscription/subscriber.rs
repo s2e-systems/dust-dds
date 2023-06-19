@@ -1,6 +1,7 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
+        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         dds::{
             dds_data_reader::DdsDataReader,
             dds_data_reader_listener::DdsDataReaderListener,
@@ -8,6 +9,7 @@ use crate::{
         },
         rtps::{
             endpoint::RtpsEndpoint,
+            messages::overall_structure::RtpsMessageHeader,
             reader::RtpsReader,
             stateful_reader::RtpsStatefulReader,
             types::{
@@ -27,7 +29,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsDeserialize, DdsType},
+        type_support::{DdsDeserialize, DdsSerializedKey, DdsType},
     },
 };
 
@@ -199,6 +201,7 @@ impl Subscriber {
                 | DataReaderNodeKind::BuiltinStateless(_)
                 | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
                 DataReaderNodeKind::UserDefined(dr) => {
+                    let reader_handle = dr.address().get_instance_handle()?;
                     if s.address().guid()? != dr.parent_subscriber().guid()? {
                         return Err(DdsError::PreconditionNotMet(
                             "Data reader can only be deleted from its parent subscriber"
@@ -206,8 +209,43 @@ impl Subscriber {
                         ));
                     }
 
-                    s.address()
-                        .stateful_data_reader_delete(dr.address().get_instance_handle()?)?;
+                    let reader_is_enabled = dr.address().is_enabled()?;
+                    s.address().stateful_data_reader_delete(reader_handle)?;
+
+                    if reader_is_enabled {
+                        let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
+                        let instance_serialized_key =
+                            cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+                                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+                                .expect("Failed to serialize data");
+
+                        let timestamp = dr.parent_participant().get_current_time()?;
+
+                        if let Some(sedp_reader_announcer) = dr
+                            .parent_participant()
+                            .get_builtin_publisher()?
+                            .stateful_data_writer_list()?
+                            .iter()
+                            .find(|x| {
+                                x.get_type_name().unwrap() == DiscoveredReaderData::type_name()
+                            })
+                        {
+                            sedp_reader_announcer.dispose_w_timestamp(
+                                instance_serialized_key,
+                                reader_handle,
+                                timestamp,
+                            )?;
+
+                            sedp_reader_announcer.send_message(
+                                RtpsMessageHeader::new(
+                                    dr.parent_participant().get_protocol_version()?,
+                                    dr.parent_participant().get_vendor_id()?,
+                                    dr.parent_participant().get_guid()?.prefix(),
+                                ),
+                                dr.parent_participant().get_udp_transport_write()?,
+                            )?;
+                        }
+                    }
 
                     Ok(())
                 }

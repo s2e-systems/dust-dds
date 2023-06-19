@@ -34,7 +34,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
-        status::StatusKind,
+        status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
@@ -319,24 +319,53 @@ impl DomainParticipant {
     /// of times using [`DomainParticipant::delete_topic()`].
     /// Regardless of whether the middleware chooses to propagate topics, the [`DomainParticipant::delete_topic()`] operation deletes only the local proxy.
     /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
-    pub fn find_topic<Foo>(&self, _topic_name: &str, timeout: Duration) -> DdsResult<Topic<Foo>>
+    pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic<Foo>>
     where
-        Foo: DdsType,
+        Foo: DdsType + 'static,
     {
         let start_time = Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(timeout) {
-            //     if let Some(topic) = self.call_participant_mut_method(|dp| {
-            //         Ok(
-            //             crate::implementation::behavior::domain_participant::find_topic(
-            //                 dp,
-            //                 topic_name,
-            //                 Foo::type_name(),
-            //             ),
-            //         )
-            //     })? {
-            //         return Ok(Topic::new(TopicNodeKind::UserDefined(topic)));
-            //     }
+            for topic in self.0.get_user_defined_topic_list()? {
+                if topic.get_name()? == topic_name && topic.get_type_name()? == Foo::type_name() {
+                    return Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
+                        topic.clone(),
+                        self.0.clone(),
+                    ))));
+                }
+            }
+
+            for discovered_topic_handle in self.0.discovered_topic_list()? {
+                if let Ok(discovered_topic_data) =
+                    self.0.discovered_topic_data(discovered_topic_handle)?
+                {
+                    if discovered_topic_data.name() == topic_name
+                        && discovered_topic_data.get_type_name() == Foo::type_name()
+                    {
+                        let qos = TopicQos {
+                            topic_data: discovered_topic_data.topic_data().clone(),
+                            durability: discovered_topic_data.durability().clone(),
+                            deadline: discovered_topic_data.deadline().clone(),
+                            latency_budget: discovered_topic_data.latency_budget().clone(),
+                            liveliness: discovered_topic_data.liveliness().clone(),
+                            reliability: discovered_topic_data.reliability().clone(),
+                            destination_order: discovered_topic_data.destination_order().clone(),
+                            history: discovered_topic_data.history().clone(),
+                            resource_limits: discovered_topic_data.resource_limits().clone(),
+                            transport_priority: discovered_topic_data.transport_priority().clone(),
+                            lifespan: discovered_topic_data.lifespan().clone(),
+                            ownership: discovered_topic_data.ownership().clone(),
+                        };
+                        let topic = self.create_topic::<Foo>(
+                            topic_name,
+                            QosKind::Specific(qos),
+                            None,
+                            NO_STATUS,
+                        )?;
+                        return Ok(topic);
+                    }
+                }
+            }
         }
 
         Err(DdsError::Timeout)
@@ -572,10 +601,7 @@ impl DomainParticipant {
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
     /// should be “ignored” by means of the [`DomainParticipant::ignore_topic()`] operation.
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_discovered_topics(dp)
-        // })
+        self.0.discovered_topic_list()
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -586,15 +612,9 @@ impl DomainParticipant {
     /// Use the operation [`DomainParticipant::get_discovered_topics()`] to find the topics that are currently discovered.
     pub fn get_discovered_topic_data(
         &self,
-        _topic_handle: InstanceHandle,
+        topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_discovered_topic_data(
-        //         dp,
-        //         topic_handle,
-        //     )
-        // })
+        self.0.discovered_topic_data(topic_handle)?
     }
 
     /// This operation checks whether or not the given `a_handle` represents an Entity that was created from the [`DomainParticipant`].
@@ -638,8 +658,6 @@ impl DomainParticipant {
         };
 
         self.0.set_qos(qos)
-
-        // self.announce_participant().ok();
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
@@ -1472,50 +1490,6 @@ fn _on_inconsistent_topic_communication_change(_topic_node: TopicNode) {
     //         l.add_communication_state(status_kind);
     //     }
     // })
-}
-
-fn _announce_deleted_reader(
-    _domain_participant: &mut DdsDomainParticipant,
-    _reader_handle: InstanceHandle,
-) {
-    // let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
-    // let instance_serialized_key =
-    //     cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
-    //         .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-    //         .expect("Failed to serialize data");
-
-    // let timestamp = domain_participant.get_current_time();
-
-    // domain_participant
-    //     .get_builtin_publisher_mut()
-    //     .stateful_data_writer_list()
-    //     .iter()
-    //     .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
-    //     .unwrap()
-    //     .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
-    //     .expect("Should not fail to write built-in message");
-}
-
-fn _announce_deleted_writer(
-    _domain_participant: &mut DdsDomainParticipant,
-    _writer_handle: InstanceHandle,
-) {
-    // let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
-    // let instance_serialized_key =
-    //     cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
-    //         .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-    //         .expect("Failed to serialize data");
-
-    // let timestamp = domain_participant.get_current_time();
-
-    // domain_participant
-    //     .get_builtin_publisher_mut()
-    //     .stateful_data_writer_list()
-    //     .iter()
-    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
-    //     .unwrap()
-    //     .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
-    //     .expect("Should not fail to write built-in message");
 }
 
 fn _remove_stale_writer_changes(writer: &mut DdsDataWriter<RtpsStatefulWriter>, now: Time) {

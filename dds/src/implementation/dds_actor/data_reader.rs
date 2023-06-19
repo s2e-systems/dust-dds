@@ -27,7 +27,7 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{SubscriberQos, TopicQos},
+        qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::SubscriptionMatchedStatus,
         time::Time,
     },
@@ -230,6 +230,64 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             subscriber_address,
             participant_address,
         })
+    }
+
+    pub fn remove_matched_writer(
+        &self,
+        discovered_writer_handle: InstanceHandle,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) -> DdsResult<()> {
+        struct RemoveMatchedWriter {
+            discovered_writer_handle: InstanceHandle,
+            data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+            subscriber_address: ActorAddress<DdsSubscriber>,
+            participant_address: ActorAddress<DdsDomainParticipant>,
+        }
+
+        impl Mail for RemoveMatchedWriter {
+            type Result = ();
+        }
+
+        impl MailHandler<RemoveMatchedWriter> for DdsDataReader<RtpsStatefulReader> {
+            fn handle(
+                &mut self,
+                mail: RemoveMatchedWriter,
+            ) -> <RemoveMatchedWriter as Mail>::Result {
+                self.remove_matched_writer(
+                    mail.discovered_writer_handle,
+                    mail.data_reader_address,
+                    mail.subscriber_address,
+                    mail.participant_address,
+                )
+            }
+        }
+
+        self.send_blocking(RemoveMatchedWriter {
+            discovered_writer_handle,
+            data_reader_address,
+            subscriber_address,
+            participant_address,
+        })
+    }
+
+    pub fn set_qos(&self, qos: DataReaderQos) -> DdsResult<()> {
+        struct SetQos {
+            qos: DataReaderQos,
+        }
+
+        impl Mail for SetQos {
+            type Result = DdsResult<()>;
+        }
+
+        impl MailHandler<SetQos> for DdsDataReader<RtpsStatefulReader> {
+            fn handle(&mut self, mail: SetQos) -> <SetQos as Mail>::Result {
+                self.set_qos(mail.qos)
+            }
+        }
+
+        self.send_blocking(SetQos { qos })?
     }
 
     pub fn send_message(

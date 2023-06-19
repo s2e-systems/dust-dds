@@ -1,12 +1,14 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::{
             dds_data_writer::DdsDataWriter,
             nodes::{DataWriterNode, DataWriterNodeKind, PublisherNode},
         },
         rtps::{
             endpoint::RtpsEndpoint,
+            messages::overall_structure::RtpsMessageHeader,
             stateful_writer::RtpsStatefulWriter,
             types::{
                 EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY,
@@ -26,7 +28,7 @@ use crate::{
     },
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
-    topic_definition::type_support::{DdsSerialize, DdsType},
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
@@ -177,17 +179,59 @@ impl Publisher {
         match a_datawriter.node() {
             DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
             DataWriterNodeKind::UserDefined(dw) => {
+                let writer_handle = dw.address().get_instance_handle()?;
                 if self.0.address().guid()? != dw.parent_publisher().guid()? {
                     return Err(DdsError::PreconditionNotMet(
                         "Data writer can only be deleted from its parent publisher".to_string(),
                     ));
                 }
 
-                self.0
-                    .address()
-                    .stateful_datawriter_delete(dw.address().get_instance_handle()?)?;
+                let writer_is_enabled = dw.address().is_enabled()?;
+                self.0.address().stateful_datawriter_delete(writer_handle)?;
 
                 // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
+                if writer_is_enabled {
+                    let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
+                    let instance_serialized_key =
+                        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+                            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+                            .expect("Failed to serialize data");
+
+                    let timestamp = dw.parent_participant().get_current_time()?;
+
+                    if let Some(sedp_writer_announcer) = dw
+                        .parent_participant()
+                        .get_builtin_publisher()?
+                        .stateful_data_writer_list()?
+                        .iter()
+                        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+                    {
+                        sedp_writer_announcer.dispose_w_timestamp(
+                            instance_serialized_key,
+                            writer_handle,
+                            timestamp,
+                        )?;
+
+                        sedp_writer_announcer.send_message(
+                            RtpsMessageHeader::new(
+                                dw.parent_participant().get_protocol_version()?,
+                                dw.parent_participant().get_vendor_id()?,
+                                dw.parent_participant().get_guid()?.prefix(),
+                            ),
+                            dw.parent_participant().get_udp_transport_write()?,
+                        )?;
+                    }
+                    // let timestamp = domain_participant.get_current_time();
+
+                    // domain_participant
+                    //     .get_builtin_publisher_mut()
+                    //     .stateful_data_writer_list()
+                    //     .iter()
+                    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+                    //     .unwrap()
+                    //     .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
+                    //     .expect("Should not fail to write built-in message");
+                }
 
                 Ok(())
             }

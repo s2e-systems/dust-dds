@@ -7,10 +7,8 @@ use crate::{
     infrastructure::{instance::InstanceHandle, qos::TopicQos, status::InconsistentTopicStatus},
 };
 
-use super::status_listener::ListenerTriggerKind;
-
 impl InconsistentTopicStatus {
-    fn _increment(&mut self) {
+    fn increment(&mut self) {
         self.total_count += 1;
         self.total_count_change += 1;
     }
@@ -107,31 +105,29 @@ impl DdsTopic {
 
     pub fn process_discovered_topic(
         &mut self,
-        _discovered_topic_data: DiscoveredTopicData,
-        _parent_participant_guid: Guid,
-        _listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        discovered_topic_data: DiscoveredTopicData,
     ) {
-        todo!()
-        // if discovered_topic_data
-        //     .topic_builtin_topic_data()
-        //     .get_type_name()
-        //     == self.get_type_name()
-        //     && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
-        //     && !is_discovered_topic_consistent(&self.qos, discovered_topic_data)
-        // {
-        //     self.inconsistent_topic_status.increment();
+
+        if discovered_topic_data
+            .topic_builtin_topic_data()
+            .get_type_name()
+            == self.get_type_name()
+            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
+            && !is_discovered_topic_consistent(&self.qos, &discovered_topic_data)
+        {
+            self.inconsistent_topic_status.increment();
         //     listener_sender
         //         .try_send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
         //             self.guid(),
         //             parent_participant_guid,
         //         )))
         //         .ok();
-        // }
+        }
     }
 }
 }
 
-fn _is_discovered_topic_consistent(
+fn is_discovered_topic_consistent(
     topic_qos: &TopicQos,
     discovered_topic_data: &DiscoveredTopicData,
 ) -> bool {

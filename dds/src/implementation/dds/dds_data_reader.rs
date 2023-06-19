@@ -32,7 +32,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
+        qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
@@ -251,6 +251,9 @@ impl<T> DdsDataReader<T> {
     }
 
     pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::SubscriptionMatched);
         self.subscription_matched_status
             .read_and_reset(self.matched_publication_list.len() as i32)
     }
@@ -786,12 +789,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         Ok(self.rtps_reader.is_historical_data_received())
     }
 
-    pub fn set_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => Default::default(),
-            QosKind::Specific(q) => q,
-        };
-
+    pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
         if self.is_enabled() {
             self.rtps_reader.get_qos().check_immutability(&qos)?;
         }

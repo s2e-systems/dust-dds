@@ -867,7 +867,7 @@ fn process_sedp_metatraffic(
                 }
             }
             DCPS_TOPIC => {
-                while let Ok(_discovered_topic_sample_list) = stateful_builtin_reader
+                while let Ok(discovered_topic_sample_list) = stateful_builtin_reader
                     .read::<DiscoveredTopicData>(
                     1,
                     &[SampleStateKind::NotRead],
@@ -875,7 +875,9 @@ fn process_sedp_metatraffic(
                     ANY_INSTANCE_STATE,
                     None,
                 ) {
-                    println!("Discovered topic")
+                    for discovered_topic_sample in discovered_topic_sample_list {
+                        discover_matched_topics(participant_address, &discovered_topic_sample)?;
+                    }
                 }
             }
             _ => (),
@@ -985,18 +987,16 @@ fn discover_matched_writers(
             }
         }
         InstanceStateKind::NotAliveDisposed => {
-            todo!()
-            // for subscriber in participant_address.get_user_defined_subscriber_list()? {
-            // let subscriber_guid = subscriber.guid();
-            // for data_reader in subscriber.stateful_data_reader_list_mut() {
-            //     data_reader.remove_matched_writer(
-            //         discovered_writer_sample.sample_info.instance_handle,
-            //         domain_participant_guid,
-            //         subscriber_guid,
-            //         listener_sender,
-            //     )
-            // }
-            // }
+            for subscriber in participant_address.get_user_defined_subscriber_list()? {
+                for data_reader in subscriber.stateful_data_reader_list()? {
+                    data_reader.remove_matched_writer(
+                        discovered_writer_sample.sample_info.instance_handle,
+                        data_reader.clone(),
+                        subscriber.clone(),
+                        participant_address.clone(),
+                    )?;
+                }
+            }
         }
         InstanceStateKind::NotAliveNoWriters => todo!(),
     }
@@ -1083,6 +1083,9 @@ pub fn discover_matched_readers(
                                         default_unicast_locator_list.clone(),
                                         default_multicast_locator_list.clone(),
                                         publisher_qos.clone(),
+                                        data_writer.clone(),
+                                        user_defined_publisher_address.clone(),
+                                        participant_address.clone(),
                                     )?;
                                 }
                             }
@@ -1092,22 +1095,42 @@ pub fn discover_matched_readers(
             }
         }
         InstanceStateKind::NotAliveDisposed => {
-            // let participant_guid = self.guid();
-            // for publisher in self.user_defined_publisher_list_mut() {
-            //     let publisher_guid = publisher.guid();
-            todo!()
-            // for data_writer in publisher.stateful_data_writer_list_mut() {
-            //     remove_writer_matched_reader(
-            //         data_writer,
-            //         discovered_reader_data_sample.sample_info.instance_handle,
-            //         publisher_guid,
-            //         participant_guid,
-            //         listener_sender,
-            //     )
-            // }
-            // }
+            for publisher in participant_address.get_user_defined_publisher_list()? {
+                for data_writer in publisher.stateful_data_writer_list()? {
+                    data_writer.remove_matched_reader(
+                        discovered_reader_sample.sample_info.instance_handle,
+                        data_writer.clone(),
+                        publisher.clone(),
+                        participant_address.clone(),
+                    )?;
+                }
+            }
         }
 
+        InstanceStateKind::NotAliveNoWriters => todo!(),
+    }
+
+    Ok(())
+}
+
+fn discover_matched_topics(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+    discovered_topic_sample: &Sample<DiscoveredTopicData>,
+) -> DdsResult<()> {
+    match discovered_topic_sample.sample_info.instance_state {
+        InstanceStateKind::Alive => {
+            if let Some(topic_data) = discovered_topic_sample.data.as_ref() {
+                for topic in participant_address.get_user_defined_topic_list()? {
+                    topic.process_discovered_topic(topic_data.clone())?;
+                }
+
+                participant_address.discovered_topic_add(
+                    topic_data.get_serialized_key().into(),
+                    topic_data.topic_builtin_topic_data().clone(),
+                )?;
+            }
+        }
+        InstanceStateKind::NotAliveDisposed => todo!(),
         InstanceStateKind::NotAliveNoWriters => todo!(),
     }
 

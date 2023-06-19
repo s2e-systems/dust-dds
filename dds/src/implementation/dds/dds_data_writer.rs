@@ -50,7 +50,7 @@ use crate::{
         },
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus, QosPolicyCount,
+            PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
     topic_definition::type_support::{DdsSerializedKey, DdsType},
@@ -223,6 +223,9 @@ impl<T> DdsDataWriter<T> {
     }
 
     pub fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::PublicationMatched);
         self.matched_subscriptions.get_publication_matched_status()
     }
 
@@ -891,6 +894,9 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         publisher_qos: PublisherQos,
+        data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
@@ -979,6 +985,12 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                             .subscription_builtin_topic_data()
                             .clone(),
                     );
+                    self.on_publication_matched(
+                        instance_handle,
+                        data_writer_address,
+                        publisher_address,
+                        participant_address,
+                    )
                 }
             } else {
                 todo!()
@@ -991,6 +1003,27 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 //     listener_sender,
                 // );
             }
+        }
+    }
+
+    pub fn remove_matched_reader(
+        &mut self,
+        discovered_reader_handle: InstanceHandle,
+        data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        if let Some(r) = self.get_matched_subscription_data(discovered_reader_handle) {
+            let handle = r.key().value.into();
+            self.matched_reader_remove(handle);
+            self.remove_matched_subscription(handle.into());
+
+            self.on_publication_matched(
+                discovered_reader_handle,
+                data_writer_address,
+                publisher_address,
+                participant_address,
+            )
         }
     }
 
@@ -1011,9 +1044,9 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         //         .trigger_on_subscription_matched(reader, status)
         //         .expect("Should not fail to send message");
         // }
-        // self.status_condition
-        //     .write_lock()
-        //     .add_communication_state(StatusKind::PublicationMatched);
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::PublicationMatched);
     }
 }
 

@@ -496,27 +496,11 @@ impl<Foo> DataWriter<Foo> {
 
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        todo!()
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) => {
-        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //             .get_participant_mut(&w.guid().prefix(), |dp| {
-        //                 crate::implementation::behavior::user_defined_data_writer::get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
-        //                 w.parent_publisher(),)
-        //             })?;
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-        //             &w.guid(),
-        //             |data_writer_listener| {
-        //                 if let Some(l) = data_writer_listener {
-        //                     l.remove_communication_state(StatusKind::PublicationMatched);
-        //                 }
-        //             },
-        //         );
-
-        //         Ok(status)
-        //     }
-        //     DataWriterNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().get_publication_matched_status()
+            }
+        }
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
@@ -562,21 +546,14 @@ impl<Foo> DataWriter<Foo> {
     /// can be used to find the subscriptions that are currently matched with the [`DataWriter`].
     pub fn get_matched_subscription_data(
         &self,
-        _subscription_handle: InstanceHandle,
+        subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
-        todo!()
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&w.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_writer::get_matched_subscription_data(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 w.guid(),
-        //                     w.parent_publisher(),
-        //                 subscription_handle,
-        //             )
-        //         }),
-        //     DataWriterNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .address()
+                .get_matched_subscription_data(subscription_handle)?
+                .ok_or(DdsError::BadParameter),
+        }
     }
 
     /// This operation retrieves the list of subscriptions currently “associated” with the [`DataWriter`]]; that is, subscriptions that have a
@@ -586,15 +563,11 @@ impl<Foo> DataWriter<Foo> {
     /// [`DataReader`](crate::subscription::data_reader::DataReader) entities. These handles match the ones that appear in the
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the “DCPSSubscriptions” builtin topic.
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        todo!()
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&w.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_writer::get_matched_subscriptions(dp.ok_or(DdsError::AlreadyDeleted)?,w.guid(),
-        //             w.parent_publisher(),)
-        //         }),
-        //     DataWriterNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().get_matched_subscriptions()
+            }
+        }
     }
 }
 
@@ -625,7 +598,22 @@ where
                         q
                     }
                 };
-                dw.address().set_qos(q)
+                dw.address().set_qos(q)?;
+
+                if dw.address().is_enabled()? {
+                    announce_data_writer(
+                        dw.parent_participant(),
+                        &dw.address().as_discovered_writer_data(
+                            TopicQos::default(),
+                            dw.parent_publisher().get_qos()?,
+                            dw.parent_participant().get_default_unicast_locator_list()?,
+                            dw.parent_participant()
+                                .get_default_multicast_locator_list()?,
+                        )?,
+                    )?;
+                }
+
+                Ok(())
             }
         }
     }
