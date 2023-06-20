@@ -45,17 +45,15 @@ pub fn best_effort_write_only(c: &mut Criterion) {
         .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    // let cond = writer.get_statuscondition().unwrap();
-    // cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-    //     .unwrap();
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
 
-    // let mut wait_set = WaitSet::new();
-    // wait_set
-    //     .attach_condition(Condition::StatusCondition(cond))
-    //     .unwrap();
-    // wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     c.bench_function("best_effort_write_only", |b| {
         b.iter(|| {
@@ -85,16 +83,15 @@ pub fn best_effort_read_only(c: &mut Criterion) {
         .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    // let cond = writer.get_statuscondition().unwrap();
-    // cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-    //     .unwrap();
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
 
-    // let mut wait_set = WaitSet::new();
-    // wait_set
-    //     .attach_condition(Condition::StatusCondition(cond))
-    //     .unwrap();
-    // wait_set.wait(Duration::new(10, 0)).unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     writer.write(&KeyedData { id: 1, value: 1 }, None).unwrap();
 
