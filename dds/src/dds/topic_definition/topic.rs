@@ -5,7 +5,8 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         dds::{dds_domain_participant::DdsDomainParticipant, nodes::TopicNodeKind},
-        utils::actor::ActorAddress, rtps::messages::overall_structure::RtpsMessageHeader,
+        rtps::messages::overall_structure::RtpsMessageHeader,
+        utils::actor::ActorAddress,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -168,17 +169,12 @@ impl<Foo> Topic<Foo> {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        todo!()
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(t) => {
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&t.guid(), |topic_listener| {
-        //             Ok(topic_listener
-        //                 .ok_or(DdsError::AlreadyDeleted)?
-        //                 .get_status_condition())
-        //         })
-        //     }
-        //     TopicNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.node {
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => t
+                .address()
+                .get_statuscondition()
+                .map(|s| StatusCondition::new(s)),
+        }
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose

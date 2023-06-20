@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, time::Instant};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -154,10 +154,10 @@ where
         &self,
         instance: &Foo,
         handle: Option<InstanceHandle>,
-        _timestamp: Time,
+        timestamp: Time,
     ) -> DdsResult<()> {
         if Foo::has_key() {
-            let _instance_handle = match handle {
+            let instance_handle = match handle {
                 Some(h) => {
                     if let Some(stored_handle) = self.lookup_instance(instance)? {
                         if stored_handle == h {
@@ -182,23 +182,17 @@ where
                 }
             }?;
 
-            let _serialized_key =
+            let instance_serialized_key =
                 dds_serialize(&instance.get_serialized_key()).map_err(|_err| DdsError::Error)?;
 
             match &self.0 {
-                DataWriterNodeKind::UserDefined(_w) => todo!(),
-                // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                //     .get_participant_mut(&w.guid().prefix(), |dp| {
-                //         crate::implementation::behavior::user_defined_data_writer::unregister_instance_w_timestamp(
-                //             dp.ok_or(DdsError::AlreadyDeleted)?,
-                //             w.guid(),
-                //             w.parent_publisher(),
-                //             serialized_key,
-                //             instance_handle,
-                //             timestamp,
-                //         )
-                //     }),
-                DataWriterNodeKind::Listener(_) => todo!(),
+                DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                    dw.address().unregister_instance_w_timestamp(
+                        instance_serialized_key,
+                        instance_handle,
+                        timestamp,
+                    )
+                }
             }
         } else {
             Err(DdsError::IllegalOperation)
@@ -221,19 +215,11 @@ where
     /// fields that define the key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
-    pub fn lookup_instance(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(_w) => todo!(),
-            // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            //     .get_participant_mut(&w.guid().prefix(), |dp| {
-            //         crate::implementation::behavior::user_defined_data_writer::lookup_instance(
-            //             dp.ok_or(DdsError::AlreadyDeleted)?,
-            //             w.guid(),
-            //             w.parent_publisher(),
-            //             instance.get_serialized_key(),
-            //         )
-            //     }),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().lookup_instance(instance.get_serialized_key())
+            }
         }
     }
 
@@ -342,9 +328,9 @@ where
         &self,
         data: &Foo,
         handle: Option<InstanceHandle>,
-        _timestamp: Time,
+        timestamp: Time,
     ) -> DdsResult<()> {
-        let _instance_handle = match handle {
+        let instance_handle = match handle {
             Some(h) => {
                 if let Some(stored_handle) = self.lookup_instance(data)? {
                     if stored_handle == h {
@@ -369,23 +355,13 @@ where
             }
         }?;
 
-        let _serialized_key =
+        let instance_serialized_key =
             dds_serialize(&data.get_serialized_key()).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(_w) => todo!(),
-            // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            //     .get_participant_mut(&w.guid().prefix(), |dp| {
-            //         crate::implementation::behavior::user_defined_data_writer::dispose_w_timestamp(
-            //             dp.ok_or(DdsError::AlreadyDeleted)?,
-            //             w.guid(),
-            //             w.parent_publisher(),
-            //             serialized_key,
-            //             instance_handle,
-            //             timestamp,
-            //         )
-            //     }),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .address()
+                .dispose_w_timestamp(instance_serialized_key, instance_handle, timestamp),
         }
     }
 }
@@ -399,27 +375,20 @@ impl<Foo> DataWriter<Foo> {
     /// indicates that `max_wait` elapsed before all the data was acknowledged.
     /// This operation is intended to be used only if the DataWriter has [`ReliabilityQosPolicyKind::Reliable`](crate::infrastructure::qos_policy::ReliabilityQosPolicyKind).
     /// Otherwise the operation will return immediately with [`Ok`].
-    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
-        todo!()
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) => {
-        //         let start_time = Instant::now();
+    pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) => {
+                let start_time = Instant::now();
+                while start_time.elapsed() < std::time::Duration::from(max_wait) {
+                    if dw.address().are_all_changes_acknowledge()? {
+                        return Ok(());
+                    }
+                }
 
-        //         while start_time.elapsed() < std::time::Duration::from(max_wait) {
-        //             if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //                 .get_participant(&w.guid().prefix(), |dp| {
-        //                     crate::implementation::behavior::user_defined_data_writer::are_all_changes_acknowledge(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
-        //                     w.parent_publisher(),)
-        //                 })?
-        //             {
-        //                 return Ok(());
-        //             }
-        //         }
-
-        //         Err(DdsError::Timeout)
-        //     }
-        //     DataWriterNodeKind::Listener(_) => todo!(),
-        // }
+                Err(DdsError::Timeout)
+            }
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation allows access to the [`LivelinessLostStatus`].

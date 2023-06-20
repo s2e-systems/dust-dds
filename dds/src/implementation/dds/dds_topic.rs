@@ -2,10 +2,16 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        rtps::types::Guid, utils::actor::actor_interface,
+        rtps::types::Guid,
+        utils::{
+            actor::actor_interface,
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{instance::InstanceHandle, qos::TopicQos, status::InconsistentTopicStatus},
 };
+
+use super::status_condition_impl::StatusConditionImpl;
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -27,6 +33,7 @@ pub struct DdsTopic {
     topic_name: String,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl DdsTopic {
@@ -38,6 +45,7 @@ impl DdsTopic {
             topic_name: topic_name.to_string(),
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         }
     }
 }
@@ -78,6 +86,10 @@ impl DdsTopic {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.guid.into()
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 
     pub fn as_discovered_topic_data(&self) -> DiscoveredTopicData {

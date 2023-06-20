@@ -455,6 +455,58 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
         })?
     }
 
+    pub fn read_next_instance<Foo>(
+        &self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de> + Send + 'static,
+    {
+        struct ReadNextInstance<Foo> {
+            phantom: PhantomData<Foo>,
+            max_samples: i32,
+            previous_handle: Option<InstanceHandle>,
+            sample_states: Vec<SampleStateKind>,
+            view_states: Vec<ViewStateKind>,
+            instance_states: Vec<InstanceStateKind>,
+        }
+
+        impl<Foo> Mail for ReadNextInstance<Foo> {
+            type Result = DdsResult<Vec<Sample<Foo>>>;
+        }
+
+        impl<Foo> MailHandler<ReadNextInstance<Foo>> for DdsDataReader<RtpsStatefulReader>
+        where
+            Foo: for<'de> DdsDeserialize<'de>,
+        {
+            fn handle(
+                &mut self,
+                mail: ReadNextInstance<Foo>,
+            ) -> <ReadNextInstance<Foo> as Mail>::Result {
+                self.read_next_instance(
+                    mail.max_samples,
+                    mail.previous_handle,
+                    &mail.sample_states,
+                    &mail.view_states,
+                    &mail.instance_states,
+                )
+            }
+        }
+
+        self.send_blocking(ReadNextInstance {
+            phantom: PhantomData,
+            max_samples,
+            previous_handle,
+            sample_states: sample_states.to_vec(),
+            view_states: view_states.to_vec(),
+            instance_states: instance_states.to_vec(),
+        })?
+    }
+
     pub fn take<Foo>(
         &self,
         max_samples: i32,
@@ -502,6 +554,77 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             instance_states: instance_states.to_vec(),
             specific_instance_handle,
         })?
+    }
+
+    pub fn take_next_instance<Foo>(
+        &self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de> + Send + 'static,
+    {
+        struct TakeNextInstance<Foo> {
+            phantom_data: PhantomData<Foo>,
+            max_samples: i32,
+            previous_handle: Option<InstanceHandle>,
+            sample_states: Vec<SampleStateKind>,
+            view_states: Vec<ViewStateKind>,
+            instance_states: Vec<InstanceStateKind>,
+        }
+
+        impl<Foo> Mail for TakeNextInstance<Foo> {
+            type Result = DdsResult<Vec<Sample<Foo>>>;
+        }
+
+        impl<Foo> MailHandler<TakeNextInstance<Foo>> for DdsDataReader<RtpsStatefulReader>
+        where
+            Foo: for<'de> DdsDeserialize<'de>,
+        {
+            fn handle(
+                &mut self,
+                mail: TakeNextInstance<Foo>,
+            ) -> <TakeNextInstance<Foo> as Mail>::Result {
+                self.take_next_instance(
+                    mail.max_samples,
+                    mail.previous_handle,
+                    &mail.sample_states,
+                    &mail.view_states,
+                    &mail.instance_states,
+                )
+            }
+        }
+
+        self.send_blocking(TakeNextInstance {
+            phantom_data: PhantomData,
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        })?
+    }
+
+    pub fn is_historical_data_received(&self) -> DdsResult<bool> {
+        struct IsHistoricalDataReceived;
+
+        impl Mail for IsHistoricalDataReceived {
+            type Result = DdsResult<bool>;
+        }
+
+        impl MailHandler<IsHistoricalDataReceived> for DdsDataReader<RtpsStatefulReader> {
+            fn handle(
+                &mut self,
+                _mail: IsHistoricalDataReceived,
+            ) -> <IsHistoricalDataReceived as Mail>::Result {
+                self.is_historical_data_received()
+            }
+        }
+
+        self.send_blocking(IsHistoricalDataReceived)?
     }
 
     pub fn as_discovered_reader_data(
