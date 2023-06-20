@@ -102,7 +102,7 @@ impl Subscriber {
         Foo: DdsType + for<'de> serde::Deserialize<'de> + Send + 'static,
     {
         match &self.0 {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::_Listener(_) => {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
                 Err(DdsError::IllegalOperation)
             }
             SubscriberNodeKind::UserDefined(s) => {
@@ -193,12 +193,12 @@ impl Subscriber {
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::_Listener(_) => {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
                 Err(DdsError::IllegalOperation)
             }
             SubscriberNodeKind::UserDefined(s) => match a_datareader.node() {
-                DataReaderNodeKind::BuiltinStateful(_)
-                | DataReaderNodeKind::BuiltinStateless(_)
+                DataReaderNodeKind::_BuiltinStateful(_)
+                | DataReaderNodeKind::_BuiltinStateless(_)
                 | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
                 DataReaderNodeKind::UserDefined(dr) => {
                     let reader_handle = dr.address().get_instance_handle()?;
@@ -308,7 +308,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(_) => todo!(),
-            SubscriberNodeKind::_Listener(_) => todo!(),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -317,7 +317,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
             | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::_Listener(s) => {
+            | SubscriberNodeKind::Listener(s) => {
                 Ok(DomainParticipant::new(s.parent_participant().clone()))
             }
         }
@@ -328,7 +328,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(_) => todo!(),
-            SubscriberNodeKind::_Listener(_) => todo!(),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -360,7 +360,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
             | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::_Listener(s) => s.address().set_default_datareader_qos(qos)?,
+            | SubscriberNodeKind::Listener(s) => s.address().set_default_datareader_qos(qos)?,
         }
     }
 
@@ -372,7 +372,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
             | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::_Listener(s) => s.address().get_default_datareader_qos(),
+            | SubscriberNodeKind::Listener(s) => s.address().get_default_datareader_qos(),
         }
     }
 
@@ -422,7 +422,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
             | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::_Listener(s) => s.address().get_qos(),
+            | SubscriberNodeKind::Listener(s) => s.address().get_qos(),
         }
     }
 
@@ -440,7 +440,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(_) => todo!(),
-            SubscriberNodeKind::_Listener(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
@@ -448,15 +448,14 @@ impl Subscriber {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) => todo!(),
-        //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_subscriber_listener(&s.guid(), |s| {
-        //             Ok(s.ok_or(DdsError::AlreadyDeleted)?.get_status_condition())
-        //         }),
-        //     SubscriberNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            SubscriberNodeKind::Builtin(s)
+            | SubscriberNodeKind::UserDefined(s)
+            | SubscriberNodeKind::Listener(s) => s
+                .address()
+                .get_statuscondition()
+                .map(|s| StatusCondition::new(s)),
+        }
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -499,7 +498,7 @@ impl Subscriber {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::_Listener(_) => {
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
                 Err(DdsError::IllegalOperation)
             }
             SubscriberNodeKind::UserDefined(s) => {
@@ -524,11 +523,10 @@ impl Subscriber {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(s)
-        //     | SubscriberNodeKind::UserDefined(s)
-        //     | SubscriberNodeKind::Listener(s) => Ok(s.guid().into()),
-        // }
+        match &self.0 {
+            SubscriberNodeKind::Builtin(s)
+            | SubscriberNodeKind::UserDefined(s)
+            | SubscriberNodeKind::Listener(s) => s.address().get_instance_handle(),
+        }
     }
 }

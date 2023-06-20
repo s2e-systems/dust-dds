@@ -143,8 +143,8 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(dr)
-            | DataReaderNodeKind::BuiltinStateless(dr)
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => dr.address().read(
                 max_samples,
@@ -167,7 +167,7 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) | DataReaderNodeKind::BuiltinStateful(_) => {
+            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
@@ -191,8 +191,8 @@ where
     /// sequences and specify states.
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let mut samples = match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(dr)
-            | DataReaderNodeKind::BuiltinStateless(dr)
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => dr.address().read(
                 1,
@@ -214,7 +214,7 @@ where
     /// sequences and specify states.
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) | DataReaderNodeKind::BuiltinStateful(_) => {
+            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
@@ -247,8 +247,8 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(dr)
-            | DataReaderNodeKind::BuiltinStateless(dr)
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => dr.address().read(
                 max_samples,
@@ -277,7 +277,7 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) | DataReaderNodeKind::BuiltinStateful(_) => {
+            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
@@ -324,8 +324,8 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(dr)
-            | DataReaderNodeKind::BuiltinStateless(dr)
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => dr.address().read_next_instance(
                 max_samples,
@@ -349,7 +349,7 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) | DataReaderNodeKind::BuiltinStateful(_) => {
+            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
@@ -547,8 +547,8 @@ impl<Foo> DataReader<Foo> {
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(dr)
-            | DataReaderNodeKind::BuiltinStateless(dr)
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => dr.address().get_subscription_matched_status(),
         }
@@ -606,7 +606,7 @@ impl<Foo> DataReader<Foo> {
     /// data is received.
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) | DataReaderNodeKind::BuiltinStateful(_) => {
+            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
                 todo!()
             }
             DataReaderNodeKind::UserDefined(dr) => {
@@ -636,8 +636,8 @@ impl<Foo> DataReader<Foo> {
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(dr)
-            | DataReaderNodeKind::BuiltinStateless(dr)
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => dr
                 .address()
@@ -653,8 +653,8 @@ impl<Foo> DataReader<Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(dr)
-            | DataReaderNodeKind::BuiltinStateless(dr)
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => dr.address().get_matched_publications(),
         }
@@ -676,8 +676,8 @@ impl<Foo> DataReader<Foo> {
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(dr)
-            | DataReaderNodeKind::BuiltinStateless(dr)
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => {
                 let q = match qos {
@@ -710,8 +710,8 @@ impl<Foo> DataReader<Foo> {
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(dr)
-            | DataReaderNodeKind::BuiltinStateless(dr)
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => dr.address().get_qos(),
         }
@@ -722,8 +722,8 @@ impl<Foo> DataReader<Foo> {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(dr)
-            | DataReaderNodeKind::BuiltinStateless(dr)
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr) => dr
                 .address()
                 .get_statuscondition()
@@ -773,8 +773,8 @@ impl<Foo> DataReader<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_)
-            | DataReaderNodeKind::BuiltinStateful(_)
+            DataReaderNodeKind::_BuiltinStateless(_)
+            | DataReaderNodeKind::_BuiltinStateful(_)
             | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
 
             DataReaderNodeKind::UserDefined(r) => {
@@ -801,8 +801,8 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r)
-            | DataReaderNodeKind::BuiltinStateful(r)
+            DataReaderNodeKind::_BuiltinStateless(r)
+            | DataReaderNodeKind::_BuiltinStateful(r)
             | DataReaderNodeKind::UserDefined(r)
             | DataReaderNodeKind::Listener(r) => r.address().get_instance_handle(),
         }

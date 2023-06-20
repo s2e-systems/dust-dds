@@ -10,10 +10,11 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
+        status::StatusKind,
     },
 };
 
-use super::dds_data_writer::DdsDataWriter;
+use super::{dds_data_writer::DdsDataWriter, dds_publisher_listener::DdsPublisherListener};
 
 pub struct DdsPublisher {
     qos: PublisherQos,
@@ -23,10 +24,17 @@ pub struct DdsPublisher {
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
+    listener: Option<Actor<DdsPublisherListener>>,
+    status_kind: Vec<StatusKind>,
 }
 
 impl DdsPublisher {
-    pub fn new(qos: PublisherQos, rtps_group: RtpsGroup) -> Self {
+    pub fn new(
+        qos: PublisherQos,
+        rtps_group: RtpsGroup,
+        listener: Option<Actor<DdsPublisherListener>>,
+        status_kind: Vec<StatusKind>,
+    ) -> Self {
         Self {
             qos,
             rtps_group,
@@ -35,6 +43,8 @@ impl DdsPublisher {
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
+            listener,
+            status_kind,
         }
     }
 }
@@ -136,6 +146,14 @@ impl DdsPublisher {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
+    }
+
+    pub fn get_listener(&self) -> Option<ActorAddress<DdsPublisherListener>> {
+        self.listener.as_ref().map(|l| l.address())
+    }
+
+    pub fn status_kind(&self) -> Vec<StatusKind> {
+        self.status_kind.clone()
     }
 }
 }

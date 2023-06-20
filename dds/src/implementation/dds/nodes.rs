@@ -1,8 +1,6 @@
 use crate::{
     implementation::{
-        rtps::{
-            stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter, types::Guid,
-        },
+        rtps::{stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter},
         utils::actor::ActorAddress,
     },
     publication::data_writer::AnyDataWriter,
@@ -19,7 +17,7 @@ use super::{
 pub enum SubscriberNodeKind {
     Builtin(SubscriberNode),
     UserDefined(SubscriberNode),
-    _Listener(SubscriberNode),
+    Listener(SubscriberNode),
 }
 
 pub enum DataWriterNodeKind {
@@ -28,8 +26,8 @@ pub enum DataWriterNodeKind {
 }
 
 pub enum DataReaderNodeKind {
-    BuiltinStateful(DataReaderNode),
-    BuiltinStateless(DataReaderNode),
+    _BuiltinStateful(DataReaderNode),
+    _BuiltinStateless(DataReaderNode),
     UserDefined(DataReaderNode),
     Listener(DataReaderNode),
 }
@@ -172,18 +170,5 @@ impl PublisherNode {
 
     pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {
         &self.parent
-    }
-}
-
-#[derive(PartialEq, Eq, Debug)]
-pub struct DomainParticipantNode(Guid);
-
-impl DomainParticipantNode {
-    pub fn new(node: Guid) -> Self {
-        Self(node)
-    }
-
-    pub fn _guid(&self) -> Guid {
-        self.0
     }
 }

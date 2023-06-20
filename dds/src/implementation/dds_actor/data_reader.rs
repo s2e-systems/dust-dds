@@ -666,6 +666,46 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             default_multicast_locator_list,
         })
     }
+
+    pub fn update_communication_status(
+        &self,
+        now: Time,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) -> DdsResult<()> {
+        struct UpdateCommunicationStatus {
+            now: Time,
+            data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+            subscriber_address: ActorAddress<DdsSubscriber>,
+            participant_address: ActorAddress<DdsDomainParticipant>,
+        }
+
+        impl Mail for UpdateCommunicationStatus {
+            type Result = ();
+        }
+
+        impl MailHandler<UpdateCommunicationStatus> for DdsDataReader<RtpsStatefulReader> {
+            fn handle(
+                &mut self,
+                mail: UpdateCommunicationStatus,
+            ) -> <UpdateCommunicationStatus as Mail>::Result {
+                self.update_communication_status(
+                    mail.now,
+                    mail.data_reader_address,
+                    mail.subscriber_address,
+                    mail.participant_address,
+                )
+            }
+        }
+
+        self.send_blocking(UpdateCommunicationStatus {
+            now,
+            data_reader_address,
+            subscriber_address,
+            participant_address,
+        })
+    }
 }
 
 impl ActorAddress<DdsDataReader<RtpsStatelessReader>> {

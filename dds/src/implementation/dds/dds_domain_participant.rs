@@ -44,9 +44,9 @@ use crate::{
         qos::{DataReaderQos, DataWriterQos},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            QosPolicyId, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
-        status::{StatusKind, NO_STATUS},
+        status::StatusKind,
         time::{DurationKind, DURATION_ZERO},
     },
     topic_definition::type_support::DdsType,
@@ -67,7 +67,7 @@ use std::{
 
 use super::{
     dds_data_writer::DdsDataWriter, dds_domain_participant_listener::DdsDomainParticipantListener,
-    dds_publisher::DdsPublisher, dds_subscriber_listener::DdsSubscriberListener,
+    dds_publisher::DdsPublisher,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -256,6 +256,8 @@ impl DdsDomainParticipant {
             )),
             SpdpDiscoveredParticipantData::type_name(),
             String::from(DCPS_PARTICIPANT),
+            None,
+            vec![],
         ));
 
         for reader_locator in spdp_discovery_locator_list
@@ -275,6 +277,8 @@ impl DdsDomainParticipant {
             )),
             DiscoveredTopicData::type_name(),
             String::from(DCPS_TOPIC),
+            None,
+            vec![],
         );
         let sedp_builtin_topics_writer_actor = spawn_actor(sedp_builtin_topics_writer);
 
@@ -285,6 +289,8 @@ impl DdsDomainParticipant {
             )),
             DiscoveredWriterData::type_name(),
             String::from(DCPS_PUBLICATION),
+            None,
+            vec![],
         );
         let sedp_builtin_publications_writer_actor = spawn_actor(sedp_builtin_publications_writer);
 
@@ -295,6 +301,8 @@ impl DdsDomainParticipant {
             )),
             DiscoveredReaderData::type_name(),
             String::from(DCPS_SUBSCRIPTION),
+            None,
+            vec![],
         );
         let sedp_builtin_subscriptions_writer_actor =
             spawn_actor(sedp_builtin_subscriptions_writer);
@@ -305,6 +313,8 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_WRITER_GROUP),
             )),
+            None,
+            vec![],
         ));
 
         builtin_publisher
@@ -688,49 +698,6 @@ impl DdsDomainParticipant {
         self.udp_transport_write.address()
     }
 
-    // pub fn remove_discovered_participant(&self, participant_handle: InstanceHandle) {
-    //     if let Some((_, discovered_participant_data)) = self
-    //         .discovered_participant_list()
-    //         .into_iter()
-    //         .find(|&(h, _)| h == &participant_handle)
-    //     {
-    //         let participant_guid_prefix = discovered_participant_data.guid_prefix();
-    //         self.get_builtin_subscriber()
-    //             .sedp_builtin_publications_reader()
-    //             .remove_matched_participant(participant_guid_prefix);
-    //         self.get_builtin_subscriber()
-    //             .sedp_builtin_subscriptions_reader()
-    //             .remove_matched_participant(participant_guid_prefix);
-    //         self.get_builtin_subscriber()
-    //             .sedp_builtin_topics_reader()
-    //             .remove_matched_participant(participant_guid_prefix);
-    //         self.get_builtin_publisher()
-    //             .sedp_builtin_publications_writer()
-    //             .remove_matched_participant(participant_guid_prefix);
-    //         self.get_builtin_publisher()
-    //             .sedp_builtin_subscriptions_writer()
-    //             .remove_matched_participant(participant_guid_prefix);
-    //         self.get_builtin_publisher()
-    //             .sedp_builtin_topics_writer()
-    //             .remove_matched_participant(participant_guid_prefix);
-    //     }
-
-    //     self.discovered_participant_remove(participant_handle);
-    // }
-
-    pub fn update_communication_status(
-        &mut self,
-    ) -> DdsResult<()> {
-        let _now = self.get_current_time();
-        let _guid = self.get_guid();
-        for _subscriber in self.user_defined_subscriber_list.iter_mut() {
-            todo!()
-            // subscriber.update_communication_status(now, guid, listener_sender);
-        }
-
-        Ok(())
-    }
-
     pub fn discovered_topic_add(&mut self, handle: InstanceHandle, topic_data: TopicBuiltinTopicData) {
         self.discovered_topic_list.insert(
                 handle, topic_data
@@ -745,28 +712,6 @@ impl DdsDomainParticipant {
         self.status_kind.clone()
     }
 }
-}
-
-fn _writer_on_offered_incompatible_qos(
-    _writer: &mut DdsDataWriter<RtpsStatefulWriter>,
-    _handle: InstanceHandle,
-    _incompatible_qos_policy_list: Vec<QosPolicyId>,
-    _parent_publisher_guid: Guid,
-    _parent_participant_guid: Guid,
-) {
-    todo!()
-    // if !writer.get_incompatible_subscriptions().contains(&handle) {
-    //     writer.add_offered_incompatible_qos(handle, incompatible_qos_policy_list);
-    //     listener_sender
-    //         .try_send(ListenerTriggerKind::OfferedIncompatibleQos(
-    //             DataWriterNode::new(
-    //                 writer.guid(),
-    //                 parent_publisher_guid,
-    //                 parent_participant_guid,
-    //             ),
-    //         ))
-    //         .ok();
-    // }
 }
 
 fn create_builtin_stateful_writer(guid: Guid) -> RtpsStatefulWriter {

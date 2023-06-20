@@ -4,6 +4,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::{
             dds_data_writer::DdsDataWriter,
+            dds_data_writer_listener::DdsDataWriterListener,
             nodes::{DataWriterNode, DataWriterNodeKind, PublisherNode},
         },
         rtps::{
@@ -86,8 +87,8 @@ impl Publisher {
         &self,
         a_topic: &Topic<Foo>,
         qos: QosKind<DataWriterQos>,
-        _a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
         Foo: DdsType + DdsSerialize + Send + 'static,
@@ -143,7 +144,15 @@ impl Publisher {
             qos,
         ));
         let topic_name = a_topic.get_name()?;
-        let data_writer = DdsDataWriter::new(rtps_writer_impl, Foo::type_name(), topic_name);
+        let listener = a_listener.map(|l| spawn_actor(DdsDataWriterListener::new(Box::new(l))));
+        let status_kind = mask.to_vec();
+        let data_writer = DdsDataWriter::new(
+            rtps_writer_impl,
+            Foo::type_name(),
+            topic_name,
+            listener,
+            status_kind,
+        );
         let data_writer_actor = spawn_actor(data_writer);
         let data_writer_address = data_writer_actor.address();
         self.0

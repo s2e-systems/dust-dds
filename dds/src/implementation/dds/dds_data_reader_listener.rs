@@ -3,8 +3,8 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         status::{
-            LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-            SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
+            SubscriptionMatchedStatus,
         },
     },
 };
@@ -30,23 +30,6 @@ impl DdsDataReaderListener {
         self.listener.trigger_on_sample_rejected(reader, status)
     }
 
-    fn trigger_on_liveliness_changed(
-        &mut self,
-        reader: DataReaderNode,
-        status: LivelinessChangedStatus,
-    ) {
-        self.listener.trigger_on_liveliness_changed(reader, status)
-    }
-
-    fn trigger_on_requested_deadline_missed(
-        &mut self,
-        reader: DataReaderNode,
-        status: RequestedDeadlineMissedStatus,
-    ) {
-        self.listener
-            .trigger_on_requested_deadline_missed(reader, status)
-    }
-
     fn trigger_on_requested_incompatible_qos(
         &mut self,
         reader: DataReaderNode,
@@ -63,10 +46,6 @@ impl DdsDataReaderListener {
     ) {
         self.listener
             .trigger_on_subscription_matched(reader, status)
-    }
-
-    fn trigger_on_sample_lost(&mut self, reader: DataReaderNode, status: SampleLostStatus) {
-        self.listener.trigger_on_sample_lost(reader, status)
     }
 }
 
@@ -90,31 +69,37 @@ impl ActorAddress<DdsDataReaderListener> {
         reader: DataReaderNode,
         status: SampleRejectedStatus,
     ) -> DdsResult<()> {
-        todo!()
+        struct TriggerOnSampleRejected {
+            reader: DataReaderNode,
+            status: SampleRejectedStatus,
+        }
+
+        impl CommandHandler<TriggerOnSampleRejected> for DdsDataReaderListener {
+            fn handle(&mut self, mail: TriggerOnSampleRejected) {
+                self.trigger_on_sample_rejected(mail.reader, mail.status)
+            }
+        }
+
+        self.send_command(TriggerOnSampleRejected { reader, status })
     }
 
-    fn trigger_on_liveliness_changed(
-        &self,
-        reader: DataReaderNode,
-        status: LivelinessChangedStatus,
-    ) {
-        todo!()
-    }
-
-    fn trigger_on_requested_deadline_missed(
-        &self,
-        reader: DataReaderNode,
-        status: RequestedDeadlineMissedStatus,
-    ) {
-        todo!()
-    }
-
-    fn trigger_on_requested_incompatible_qos(
+    pub fn trigger_on_requested_incompatible_qos(
         &self,
         reader: DataReaderNode,
         status: RequestedIncompatibleQosStatus,
-    ) {
-        todo!()
+    ) -> DdsResult<()> {
+        struct TriggerOnRequestedIncompatibleQos {
+            reader: DataReaderNode,
+            status: RequestedIncompatibleQosStatus,
+        }
+
+        impl CommandHandler<TriggerOnRequestedIncompatibleQos> for DdsDataReaderListener {
+            fn handle(&mut self, mail: TriggerOnRequestedIncompatibleQos) {
+                self.trigger_on_requested_incompatible_qos(mail.reader, mail.status)
+            }
+        }
+
+        self.send_command(TriggerOnRequestedIncompatibleQos { reader, status })
     }
 
     pub fn trigger_on_subscription_matched(
@@ -136,7 +121,23 @@ impl ActorAddress<DdsDataReaderListener> {
         self.send_command(TriggerOnSubscriptionMatched { reader, status })
     }
 
-    fn trigger_on_sample_lost(&mut self, reader: DataReaderNode, status: SampleLostStatus) {
-        todo!()
+    pub fn trigger_on_requested_deadline_missed(
+        &self,
+        reader: DataReaderNode,
+        status: RequestedDeadlineMissedStatus,
+    ) -> DdsResult<()> {
+        struct TriggerOnRequestedDeadlineMissed {
+            reader: DataReaderNode,
+            status: RequestedDeadlineMissedStatus,
+        }
+
+        impl CommandHandler<TriggerOnRequestedDeadlineMissed> for DdsDataReaderListener {
+            fn handle(&mut self, mail: TriggerOnRequestedDeadlineMissed) {
+                self.listener
+                    .trigger_on_requested_deadline_missed(mail.reader, mail.status)
+            }
+        }
+
+        self.send_command(TriggerOnRequestedDeadlineMissed { reader, status })
     }
 }

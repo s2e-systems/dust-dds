@@ -7,6 +7,7 @@ use crate::{
         dds::{
             dds_domain_participant::DdsDomainParticipant,
             dds_publisher::DdsPublisher,
+            dds_publisher_listener::DdsPublisherListener,
             dds_subscriber::DdsSubscriber,
             dds_subscriber_listener::DdsSubscriberListener,
             dds_topic::DdsTopic,
@@ -94,8 +95,8 @@ impl DomainParticipant {
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        _a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
         let publisher_qos = match qos {
             QosKind::Default => self.0.default_publisher_qos()?,
@@ -108,7 +109,9 @@ impl DomainParticipant {
         );
         let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let publisher = DdsPublisher::new(publisher_qos, rtps_group);
+        let listener = a_listener.map(|l| spawn_actor(DdsPublisherListener::new(l)));
+        let status_kind = mask.to_vec();
+        let publisher = DdsPublisher::new(publisher_qos, rtps_group, listener, status_kind);
 
         let publisher_actor = spawn_actor(publisher);
         let publisher_address = publisher_actor.address();
@@ -203,7 +206,7 @@ impl DomainParticipant {
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
         match a_subscriber.node() {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::_Listener(_) => Ok(()),
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => Ok(()),
             SubscriberNodeKind::UserDefined(s) => {
                 if self.0.get_guid()?.prefix() != s.address().guid()?.prefix() {
                     return Err(DdsError::PreconditionNotMet(
@@ -822,6 +825,37 @@ impl DomainParticipant {
                         break;
                     }
 
+                    interval.tick().await;
+                }
+            });
+
+            // Spawn the task that regularly checks for deadline missed
+            let domain_participant_address = self.0.clone();
+            THE_RUNTIME.spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(50));
+                loop {
+                    let r: DdsResult<()> = tokio::task::block_in_place(|| {
+                        let now = domain_participant_address.get_current_time()?;
+
+                        for subscriber in
+                            domain_participant_address.get_user_defined_subscriber_list()?
+                        {
+                            for data_reader in subscriber.stateful_data_reader_list()? {
+                                data_reader.update_communication_status(
+                                    now,
+                                    data_reader.clone(),
+                                    subscriber.clone(),
+                                    domain_participant_address.clone(),
+                                )?;
+                            }
+                        }
+
+                        Ok(())
+                    });
+
+                    if r.is_err() {
+                        break;
+                    }
                     interval.tick().await;
                 }
             });

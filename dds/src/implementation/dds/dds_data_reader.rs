@@ -54,7 +54,7 @@ use crate::{
 
 use super::{
     dds_data_reader_listener::DdsDataReaderListener, dds_domain_participant::DdsDomainParticipant,
-    dds_subscriber::DdsSubscriber, message_receiver::MessageReceiver,
+    dds_subscriber::DdsSubscriber, message_receiver::MessageReceiver, nodes::SubscriberNode,
     status_condition_impl::StatusConditionImpl,
 };
 
@@ -353,7 +353,31 @@ impl DdsDataReader<RtpsStatefulReader> {
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
     ) {
-        if self.listener.is_some() && self.status_kind.contains(&StatusKind::DataAvailable) {
+        subscriber_address
+            .get_statuscondition()
+            .unwrap()
+            .write_lock()
+            .add_communication_state(StatusKind::DataOnReaders);
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::DataAvailable);
+        if subscriber_address.get_listener().unwrap().is_some()
+            && subscriber_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::DataOnReaders)
+        {
+            let listener = subscriber_address
+                .get_listener()
+                .unwrap()
+                .expect("Already checked for some");
+            listener
+                .trigger_on_data_on_readers(SubscriberNode::new(
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                ))
+                .expect("Should not fail to send message");
+        } else if self.listener.is_some() && self.status_kind.contains(&StatusKind::DataAvailable) {
             let listener_address = self.listener.as_ref().unwrap().address();
             let reader = DataReaderNode::new(
                 data_reader_address.clone(),
@@ -364,9 +388,6 @@ impl DdsDataReader<RtpsStatefulReader> {
                 .trigger_on_data_available(reader)
                 .expect("Should not fail to send message");
         }
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::DataAvailable);
     }
 
     pub fn on_data_submessage_received(
@@ -601,7 +622,12 @@ impl DdsDataReader<RtpsStatefulReader> {
                     _ => (),
                 }
             } else if self.incompatible_writer_list.insert(instance_handle) {
-                self.on_requested_incompatible_qos(incompatible_qos_policy_list);
+                self.on_requested_incompatible_qos(
+                    incompatible_qos_policy_list,
+                    &data_reader_address,
+                    &subscriber_address,
+                    &participant_address,
+                );
             }
         }
     }
@@ -878,8 +904,9 @@ impl DdsDataReader<RtpsStatefulReader> {
     pub fn update_communication_status(
         &mut self,
         now: Time,
-        _parent_participant_guid: Guid,
-        _parent_subcriber_guid: Guid,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         let (missed_deadline_instances, instance_reception_time) = self
             .instance_reception_time
@@ -895,16 +922,57 @@ impl DdsDataReader<RtpsStatefulReader> {
             self.requested_deadline_missed_status
                 .increment(missed_deadline_instance);
 
-            todo!()
-            // listener_sender
-            //     .try_send(ListenerTriggerKind::RequestedDeadlineMissed(
-            //         DataReaderNode::new(
-            //             self.guid(),
-            //             parent_subcriber_guid,
-            //             parent_participant_guid,
-            //         ),
-            //     ))
-            //     .ok();
+            self.status_condition
+                .write_lock()
+                .add_communication_state(StatusKind::RequestedDeadlineMissed);
+            if self.listener.is_some()
+                && self
+                    .status_kind
+                    .contains(&StatusKind::RequestedDeadlineMissed)
+            {
+                let status = self.get_requested_deadline_missed_status();
+                let listener_address = self.listener.as_ref().unwrap().address();
+                let reader = DataReaderNode::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                );
+                listener_address
+                    .trigger_on_requested_deadline_missed(reader, status)
+                    .expect("Should not fail to send message");
+            } else if subscriber_address.get_listener().unwrap().is_some()
+                && subscriber_address
+                    .status_kind()
+                    .unwrap()
+                    .contains(&StatusKind::RequestedDeadlineMissed)
+            {
+                let status = self.get_requested_deadline_missed_status();
+                let listener_address = subscriber_address.get_listener().unwrap().unwrap();
+                let reader = DataReaderNode::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                );
+                listener_address
+                    .trigger_on_requested_deadline_missed(reader, status)
+                    .expect("Should not fail to send message");
+            } else if participant_address.get_listener().unwrap().is_some()
+                && participant_address
+                    .status_kind()
+                    .unwrap()
+                    .contains(&StatusKind::RequestedDeadlineMissed)
+            {
+                let status = self.get_requested_deadline_missed_status();
+                let listener_address = participant_address.get_listener().unwrap().unwrap();
+                let reader = DataReaderNode::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                );
+                listener_address
+                    .trigger_on_requested_deadline_missed(reader, status)
+                    .expect("Should not fail to send message");
+            }
         }
     }
 
@@ -1010,15 +1078,67 @@ impl DdsDataReader<RtpsStatefulReader> {
         }
     }
 
-    fn on_requested_incompatible_qos(&mut self, incompatible_qos_policy_list: Vec<QosPolicyId>) {
+    fn on_requested_incompatible_qos(
+        &mut self,
+        incompatible_qos_policy_list: Vec<QosPolicyId>,
+        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
+    ) {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
-        todo!()
-        // listener_sender
-        //     .try_send(ListenerTriggerKind::RequestedIncompatibleQos(
-        //         DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
-        //     ))
-        //     .ok();
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::RequestedIncompatibleQos);
+
+        if self.listener.is_some()
+            && self
+                .status_kind
+                .contains(&StatusKind::RequestedIncompatibleQos)
+        {
+            let status = self.get_requested_incompatible_qos_status();
+            let listener_address = self.listener.as_ref().unwrap().address();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_requested_incompatible_qos(reader, status)
+                .expect("Should not fail to send message");
+        } else if subscriber_address.get_listener().unwrap().is_some()
+            && subscriber_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::RequestedIncompatibleQos)
+        {
+            let status = self.get_requested_incompatible_qos_status();
+            let listener_address = subscriber_address.get_listener().unwrap().unwrap();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_requested_incompatible_qos(reader, status)
+                .expect("Should not fail to send message");
+        } else if participant_address.get_listener().unwrap().is_some()
+            && participant_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::RequestedIncompatibleQos)
+        {
+            let status = self.get_requested_incompatible_qos_status();
+            let listener_address = participant_address.get_listener().unwrap().unwrap();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_requested_incompatible_qos(reader, status)
+                .expect("Should not fail to send message");
+        }
     }
 }
 

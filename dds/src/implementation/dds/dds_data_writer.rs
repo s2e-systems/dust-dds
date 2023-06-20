@@ -35,7 +35,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::ActorAddress,
+            actor::{Actor, ActorAddress},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -66,8 +66,9 @@ use crate::{
 };
 
 use super::{
-    dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher,
-    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
+    dds_data_writer_listener::DdsDataWriterListener, dds_domain_participant::DdsDomainParticipant,
+    dds_publisher::DdsPublisher, message_receiver::MessageReceiver, nodes::DataWriterNode,
+    status_condition_impl::StatusConditionImpl,
 };
 
 struct MatchedSubscriptions {
@@ -208,10 +209,18 @@ pub struct DdsDataWriter<T> {
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    listener: Option<Actor<DdsDataWriterListener>>,
+    status_kind: Vec<StatusKind>,
 }
 
 impl<T> DdsDataWriter<T> {
-    pub fn new(rtps_writer: T, type_name: &'static str, topic_name: String) -> Self {
+    pub fn new(
+        rtps_writer: T,
+        type_name: &'static str,
+        topic_name: String,
+        listener: Option<Actor<DdsDataWriterListener>>,
+        status_kind: Vec<StatusKind>,
+    ) -> Self {
         DdsDataWriter {
             rtps_writer,
             type_name,
@@ -220,6 +229,8 @@ impl<T> DdsDataWriter<T> {
             incompatible_subscriptions: IncompatibleSubscriptions::new(),
             enabled: false,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            listener,
+            status_kind,
         }
     }
 
@@ -991,23 +1002,26 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                             .subscription_builtin_topic_data()
                             .clone(),
                     );
-                    self.on_publication_matched(
+                    self.matched_subscriptions.add_matched_subscription(
                         instance_handle,
+                        discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .clone(),
+                    );
+                    self.on_publication_matched(
                         data_writer_address,
                         publisher_address,
                         participant_address,
                     )
                 }
             } else {
-                todo!()
-                // _writer_on_offered_incompatible_qos(
-                //     writer,
-                //     instance_handle,
-                //     incompatible_qos_policy_list,
-                //     parent_publisher_guid,
-                //     parent_participant_guid,
-                //     listener_sender,
-                // );
+                self.incompatible_subscriptions
+                    .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
+                self.on_offered_incompatible_qos(
+                    data_writer_address,
+                    publisher_address,
+                    participant_address,
+                );
             }
         }
     }
@@ -1024,35 +1038,78 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             self.matched_reader_remove(handle);
             self.remove_matched_subscription(handle.into());
 
-            self.on_publication_matched(
-                discovered_reader_handle,
-                data_writer_address,
-                publisher_address,
-                participant_address,
-            )
+            self.on_publication_matched(data_writer_address, publisher_address, participant_address)
         }
     }
 
     fn on_publication_matched(
         &mut self,
-        instance_handle: InstanceHandle,
+        _data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+        _publisher_address: ActorAddress<DdsPublisher>,
+        _participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::PublicationMatched);
+    }
+
+    fn on_offered_incompatible_qos(
+        &mut self,
         data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
         publisher_address: ActorAddress<DdsPublisher>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
-        // self.a.increment(instance_handle);
-        // if self.listener.is_some() && self.status_kind.contains(&StatusKind::SubscriptionMatched) {
-        //     let listener_address = self.listener.as_ref().unwrap().address();
-        //     let reader =
-        //         DataReaderNode::new(data_reader_address, subscriber_address, participant_address);
-        //     let status = self.get_subscription_matched_status();
-        //     listener_address
-        //         .trigger_on_subscription_matched(reader, status)
-        //         .expect("Should not fail to send message");
-        // }
         self.status_condition
             .write_lock()
-            .add_communication_state(StatusKind::PublicationMatched);
+            .add_communication_state(StatusKind::OfferedIncompatibleQos);
+        if self.listener.is_some()
+            && self
+                .status_kind
+                .contains(&StatusKind::OfferedIncompatibleQos)
+        {
+            let status = self.get_offered_incompatible_qos_status();
+            let listener_address = self.listener.as_ref().unwrap().address();
+            let writer = DataWriterNode::new(
+                data_writer_address.clone(),
+                publisher_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_offered_incompatible_qos(writer, status)
+                .expect("Should not fail to send message");
+        } else if publisher_address.get_listener().unwrap().is_some()
+            && publisher_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::OfferedIncompatibleQos)
+        {
+            let status = self.get_offered_incompatible_qos_status();
+            let listener_address = publisher_address.get_listener().unwrap().unwrap();
+            let writer = DataWriterNode::new(
+                data_writer_address.clone(),
+                publisher_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_offered_incompatible_qos(writer, status)
+                .expect("Should not fail to send message");
+        } else if participant_address.get_listener().unwrap().is_some()
+            && participant_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::OfferedIncompatibleQos)
+        {
+            let status = self.get_offered_incompatible_qos_status();
+            let listener_address = participant_address.get_listener().unwrap().unwrap();
+            let writer = DataWriterNode::new(
+                data_writer_address.clone(),
+                publisher_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_offered_incompatible_qos(writer, status)
+                .expect("Should not fail to send message");
+        }
     }
 }
 
