@@ -637,6 +637,7 @@ fn process_user_defined_data(
                     participant_address.get_guid()?.prefix(),
                 ),
                 participant_address.get_udp_transport_write()?,
+                participant_address.get_current_time()?,
             )?;
         }
     }
@@ -719,6 +720,7 @@ fn process_spdp_metatraffic(
                                 participant_address.get_guid()?.prefix(),
                             ),
                             participant_address.get_udp_transport_write()?,
+                            participant_address.get_current_time()?,
                         )?;
                     }
 
@@ -747,6 +749,7 @@ fn process_spdp_metatraffic(
                                 participant_address.get_guid()?.prefix(),
                             ),
                             participant_address.get_udp_transport_write()?,
+                            participant_address.get_current_time()?,
                         )?;
                     }
 
@@ -775,6 +778,7 @@ fn process_spdp_metatraffic(
                                 participant_address.get_guid()?.prefix(),
                             ),
                             participant_address.get_udp_transport_write()?,
+                            participant_address.get_current_time()?,
                         )?;
                     }
 
@@ -815,6 +819,7 @@ fn process_sedp_metatraffic(
                 participant_address.get_guid()?.prefix(),
             ),
             participant_address.get_udp_transport_write()?,
+            participant_address.get_current_time()?,
         )?;
     }
 

@@ -346,21 +346,24 @@ impl ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
         &self,
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
+        now: Time,
     ) -> DdsResult<()> {
         struct SendMessage {
             header: RtpsMessageHeader,
             udp_transport_write: ActorAddress<UdpTransportWrite>,
+            now: Time,
         }
 
         impl CommandHandler<SendMessage> for DdsDataWriter<RtpsStatefulWriter> {
             fn handle(&mut self, mail: SendMessage) {
-                self.send_message(mail.header, mail.udp_transport_write)
+                self.send_message(mail.header, mail.udp_transport_write, mail.now)
             }
         }
 
         self.send_command(SendMessage {
             header,
             udp_transport_write,
+            now,
         })
     }
 

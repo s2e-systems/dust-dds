@@ -243,6 +243,7 @@ impl Subscriber {
                                     dr.parent_participant().get_guid()?.prefix(),
                                 ),
                                 dr.parent_participant().get_udp_transport_write()?,
+                                dr.parent_participant().get_current_time()?,
                             )?;
                         }
                     }

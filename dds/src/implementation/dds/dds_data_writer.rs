@@ -52,6 +52,7 @@ use crate::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
+        time::DurationKind,
     },
     topic_definition::type_support::{DdsSerializedKey, DdsType},
     {
@@ -572,7 +573,12 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         &mut self,
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
+        now: Time,
     ) {
+        // Remove stale changes before sending
+        let timespan_duration = self.get_qos().lifespan.duration;
+        self.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
+
         let data_max_size_serialized = self.data_max_size_serialized();
         let writer_id = self.guid().entity_id();
         let first_sn = self

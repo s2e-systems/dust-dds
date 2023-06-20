@@ -1492,10 +1492,7 @@ fn _on_inconsistent_topic_communication_change(_topic_node: TopicNode) {
     // })
 }
 
-fn _remove_stale_writer_changes(writer: &mut DdsDataWriter<RtpsStatefulWriter>, now: Time) {
-    let timespan_duration = writer.get_qos().lifespan.duration;
-    writer.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
-}
+
 
 fn _discover_matched_participants(
     _domain_participant: &mut DdsDomainParticipant,

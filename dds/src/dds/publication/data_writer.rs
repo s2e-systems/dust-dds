@@ -277,21 +277,22 @@ where
         let serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) | DataWriterNodeKind::Listener(w) => {
-                w.address().write_w_timestamp(
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().write_w_timestamp(
                     serialized_data,
                     data.get_serialized_key(),
                     handle,
                     timestamp,
                 )?;
 
-                w.address().send_message(
+                dw.address().send_message(
                     RtpsMessageHeader::new(
-                        w.parent_participant().get_protocol_version()?,
-                        w.parent_participant().get_vendor_id()?,
-                        w.parent_participant().get_guid()?.prefix(),
+                        dw.parent_participant().get_protocol_version()?,
+                        dw.parent_participant().get_vendor_id()?,
+                        dw.parent_participant().get_guid()?.prefix(),
                     ),
-                    w.parent_participant().get_udp_transport_write()?,
+                    dw.parent_participant().get_udp_transport_write()?,
+                    dw.parent_participant().get_current_time()?,
                 )?;
 
                 Ok(())
@@ -737,6 +738,7 @@ fn announce_data_writer(
                 domain_participant.get_guid()?.prefix(),
             ),
             domain_participant.get_udp_transport_write()?,
+            domain_participant.get_current_time()?,
         )?;
     }
 

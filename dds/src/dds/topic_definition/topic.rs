@@ -307,6 +307,7 @@ fn announce_topic(
                 domain_participant.get_guid()?.prefix(),
             ),
             domain_participant.get_udp_transport_write()?,
+            domain_participant.get_current_time()?,
         )?;
     }
 

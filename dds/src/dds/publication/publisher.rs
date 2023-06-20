@@ -219,6 +219,7 @@ impl Publisher {
                                 dw.parent_participant().get_guid()?.prefix(),
                             ),
                             dw.parent_participant().get_udp_transport_write()?,
+                            dw.parent_participant().get_current_time()?,
                         )?;
                     }
                     // let timestamp = domain_participant.get_current_time();
