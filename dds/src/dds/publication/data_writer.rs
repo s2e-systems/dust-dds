@@ -631,7 +631,7 @@ where
             DataWriterNodeKind::UserDefined(dw) => dw
                 .address()
                 .get_statuscondition()
-                .map(|s| StatusCondition::new(s)),
+                .map(StatusCondition::new),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }

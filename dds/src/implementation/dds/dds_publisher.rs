@@ -95,7 +95,7 @@ impl DdsPublisher {
     ) -> Vec<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
         self.stateful_data_writer_list
             .iter()
-            .map(|x| x.address().clone())
+            .map(|x| x.address())
             .collect()
     }
 
@@ -109,7 +109,7 @@ impl DdsPublisher {
     pub fn stateless_datawriter_list(&self) -> Vec<ActorAddress<DdsDataWriter<RtpsStatelessWriter>>> {
         self.stateless_data_writer_list
             .iter()
-            .map(|x| x.address().clone())
+            .map(|x| x.address())
             .collect()
     }
 

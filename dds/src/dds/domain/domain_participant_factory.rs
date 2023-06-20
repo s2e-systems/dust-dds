@@ -251,7 +251,7 @@ impl DomainParticipantFactory {
             }
         });
 
-        let participant_address_clone = participant_address.clone();
+        let participant_address_clone = participant_address;
         THE_RUNTIME.spawn(async move {
             let mut default_unicast_transport = UdpTransportRead::new(
                 tokio::net::UdpSocket::from_std(default_unicast_socket).unwrap(),

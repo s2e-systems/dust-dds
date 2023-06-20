@@ -390,6 +390,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead<'_>,
@@ -456,6 +457,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessageRead<'_>,
@@ -887,8 +889,8 @@ impl DdsDataReader<RtpsStatefulReader> {
                 reader_qos.time_based_filter,
                 subscriber_qos.presentation.clone(),
                 subscriber_qos.partition.clone(),
-                topic_qos.topic_data.clone(),
-                subscriber_qos.group_data.clone(),
+                topic_qos.topic_data,
+                subscriber_qos.group_data,
             ),
         )
     }

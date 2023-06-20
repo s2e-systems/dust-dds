@@ -575,9 +575,9 @@ impl DdsDomainParticipant {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.user_defined_publisher_list.iter().count() == 0
-            && self.user_defined_subscriber_list.iter().count() == 0
-            && self.topic_list.iter().count() == 0
+        self.user_defined_publisher_list.len() == 0
+            && self.user_defined_subscriber_list.len() == 0
+            && self.topic_list.len() == 0
     }
 
     pub fn delete_topic(&mut self, handle: InstanceHandle) {

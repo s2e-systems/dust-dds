@@ -22,7 +22,7 @@ impl<'a> Iterator for MessageReceiver<'a> {
     type Item = RtpsSubmessageReadKind<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(submessage) = self.submessages.next() {
+        for submessage in self.submessages.by_ref() {
             match &submessage {
                 RtpsSubmessageReadKind::AckNack(_)
                 | RtpsSubmessageReadKind::Data(_)

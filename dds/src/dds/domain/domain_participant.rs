@@ -334,7 +334,7 @@ impl DomainParticipant {
             for topic in self.0.get_user_defined_topic_list()? {
                 if topic.get_name()? == topic_name && topic.get_type_name()? == Foo::type_name() {
                     return Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
-                        topic.clone(),
+                        topic,
                         self.0.clone(),
                     ))));
                 }

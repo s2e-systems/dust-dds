@@ -727,7 +727,7 @@ impl<Foo> DataReader<Foo> {
             | DataReaderNodeKind::UserDefined(dr) => dr
                 .address()
                 .get_statuscondition()
-                .map(|s| StatusCondition::new(s)),
+                .map(StatusCondition::new),
             DataReaderNodeKind::Listener(_) => todo!(),
         }
     }

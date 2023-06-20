@@ -454,7 +454,7 @@ impl Subscriber {
             | SubscriberNodeKind::Listener(s) => s
                 .address()
                 .get_statuscondition()
-                .map(|s| StatusCondition::new(s)),
+                .map(StatusCondition::new),
         }
     }
 

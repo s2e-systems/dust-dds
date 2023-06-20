@@ -398,12 +398,12 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             match &submessage {
                 RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
                     .on_acknack_submessage_received(
-                        &acknack_submessage,
+                        acknack_submessage,
                         message_receiver.source_guid_prefix(),
                     ),
                 RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
                     .on_nack_frag_submessage_received(
-                        &nackfrag_submessage,
+                        nackfrag_submessage,
                         message_receiver.source_guid_prefix(),
                     ),
                 _ => (),
@@ -567,8 +567,8 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 writer_qos.destination_order,
                 publisher_qos.presentation.clone(),
                 publisher_qos.partition.clone(),
-                topic_qos.topic_data.clone(),
-                publisher_qos.group_data.clone(),
+                topic_qos.topic_data,
+                publisher_qos.group_data,
             ),
             WriterProxy::new(
                 self.rtps_writer.guid(),
@@ -1070,9 +1070,9 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             let status = self.get_offered_incompatible_qos_status();
             let listener_address = self.listener.as_ref().unwrap().address();
             let writer = DataWriterNode::new(
-                data_writer_address.clone(),
-                publisher_address.clone(),
-                participant_address.clone(),
+                data_writer_address,
+                publisher_address,
+                participant_address,
             );
             listener_address
                 .trigger_on_offered_incompatible_qos(writer, status)
@@ -1086,9 +1086,9 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             let status = self.get_offered_incompatible_qos_status();
             let listener_address = publisher_address.get_listener().unwrap().unwrap();
             let writer = DataWriterNode::new(
-                data_writer_address.clone(),
-                publisher_address.clone(),
-                participant_address.clone(),
+                data_writer_address,
+                publisher_address,
+                participant_address,
             );
             listener_address
                 .trigger_on_offered_incompatible_qos(writer, status)
@@ -1102,9 +1102,9 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             let status = self.get_offered_incompatible_qos_status();
             let listener_address = participant_address.get_listener().unwrap().unwrap();
             let writer = DataWriterNode::new(
-                data_writer_address.clone(),
-                publisher_address.clone(),
-                participant_address.clone(),
+                data_writer_address,
+                publisher_address,
+                participant_address,
             );
             listener_address
                 .trigger_on_offered_incompatible_qos(writer, status)

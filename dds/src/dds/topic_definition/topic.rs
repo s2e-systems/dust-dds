@@ -148,7 +148,7 @@ impl<Foo> Topic<Foo> {
             TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => t
                 .address()
                 .get_statuscondition()
-                .map(|s| StatusCondition::new(s)),
+                .map(StatusCondition::new),
         }
     }
 

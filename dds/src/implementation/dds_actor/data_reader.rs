@@ -183,6 +183,7 @@ impl<T> ActorAddress<DdsDataReader<T>> {
 }
 
 impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
+    #[allow(clippy::too_many_arguments)]
     pub fn add_matched_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
