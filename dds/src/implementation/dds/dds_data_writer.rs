@@ -590,7 +590,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         let timespan_duration = self.get_qos().lifespan.duration;
         self.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
 
-        let data_max_size_serialized = self.data_max_size_serialized();
         let writer_id = self.guid().entity_id();
         let first_sn = self
             .change_list()
@@ -609,13 +608,11 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             match reader_proxy.reliability() {
                 ReliabilityKind::BestEffort => Self::send_message_best_effort_reader_proxy(
                     reader_proxy,
-                    data_max_size_serialized,
                     header,
                     &udp_transport_write,
                 ),
                 ReliabilityKind::Reliable => Self::send_message_reliable_reader_proxy(
                     reader_proxy,
-                    data_max_size_serialized,
                     header,
                     &udp_transport_write,
                     writer_id,
@@ -629,7 +626,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
 
     fn send_message_best_effort_reader_proxy(
         reader_proxy: &mut WriterAssociatedReaderProxy,
-        data_max_size_serialized: usize,
         header: RtpsMessageHeader,
         udp_transport_write: &ActorAddress<UdpTransportWrite>,
     ) {
@@ -712,7 +708,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
     #[allow(clippy::too_many_arguments)]
     fn send_message_reliable_reader_proxy(
         reader_proxy: &mut WriterAssociatedReaderProxy,
-        data_max_size_serialized: usize,
         header: RtpsMessageHeader,
         udp_transport_write: &ActorAddress<UdpTransportWrite>,
         writer_id: EntityId,
