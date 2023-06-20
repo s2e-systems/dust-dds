@@ -7,6 +7,7 @@ use crate::{
         error::DdsResult,
         status::{
             RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
+            SubscriptionMatchedStatus,
         },
     },
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
@@ -98,5 +99,25 @@ impl ActorAddress<DdsSubscriberListener> {
         }
 
         self.send_command(TriggerOnRequestedDeadlineMissed { reader, status })
+    }
+
+    pub fn trigger_on_subscription_matched(
+        &self,
+        reader: DataReaderNode,
+        status: SubscriptionMatchedStatus,
+    ) -> DdsResult<()> {
+        struct TriggerOnSubscriptionMatched {
+            reader: DataReaderNode,
+            status: SubscriptionMatchedStatus,
+        }
+
+        impl CommandHandler<TriggerOnSubscriptionMatched> for DdsSubscriberListener {
+            fn handle(&mut self, mail: TriggerOnSubscriptionMatched) {
+                self.listener
+                    .on_subscription_matched(&mail.reader, mail.status)
+            }
+        }
+
+        self.send_command(TriggerOnSubscriptionMatched { reader, status })
     }
 }

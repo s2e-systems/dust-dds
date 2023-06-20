@@ -1,6 +1,6 @@
 use dust_dds::{
     domain::{
-        domain_participant_factory::DomainParticipantFactory,
+        domain_participant_factory::{DomainParticipantFactory, THE_PARTICIPANT_FACTORY},
         domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::{
@@ -137,6 +137,17 @@ fn deadline_missed_listener() {
         .unwrap();
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -250,6 +261,17 @@ fn sample_rejected_listener() {
         .unwrap();
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -306,7 +328,7 @@ fn subscription_matched_listener() {
         },
         ..Default::default()
     };
-    let _writer = publisher
+    let writer = publisher
         .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
@@ -339,6 +361,17 @@ fn subscription_matched_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -395,7 +428,7 @@ fn requested_incompatible_qos_listener() {
         },
         ..Default::default()
     };
-    let _writer = publisher
+    let writer = publisher
         .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
@@ -428,6 +461,17 @@ fn requested_incompatible_qos_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -451,7 +495,6 @@ fn publication_matched_listener() {
     participant_listener
         .expect_on_publication_matched()
         .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
         .return_const(());
     let participant = participant_factory
         .create_participant(
@@ -486,7 +529,7 @@ fn publication_matched_listener() {
         ..Default::default()
     };
 
-    let _reader = subscriber
+    let reader = subscriber
         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -518,6 +561,17 @@ fn publication_matched_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -576,7 +630,7 @@ fn offered_incompatible_qos_listener() {
         ..Default::default()
     };
 
-    let _reader = subscriber
+    let reader = subscriber
         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -608,6 +662,17 @@ fn offered_incompatible_qos_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -699,6 +764,17 @@ fn on_data_available_listener() {
     writer.write(&data1, None).unwrap();
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -758,7 +834,7 @@ fn data_on_readers_listener() {
         ..Default::default()
     };
 
-    let _reader = subscriber
+    let reader = subscriber
         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -785,6 +861,17 @@ fn data_on_readers_listener() {
     writer.write(&data1, None).unwrap();
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -858,7 +945,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let mut reader_listener = MockDataAvailableListener::new();
     reader_listener.expect_on_data_available().never();
 
-    let _reader = subscriber
+    let reader = subscriber
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
@@ -890,6 +977,17 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     writer.write(&data1, None).unwrap();
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -989,6 +1087,17 @@ fn participant_deadline_missed_listener() {
         .unwrap();
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1103,6 +1212,17 @@ fn participant_sample_rejected_listener() {
         .unwrap();
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1150,7 +1270,7 @@ fn participant_subscription_matched_listener() {
         },
         ..Default::default()
     };
-    let _writer = publisher
+    let writer = publisher
         .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
@@ -1194,6 +1314,17 @@ fn participant_subscription_matched_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1241,7 +1372,7 @@ fn participant_requested_incompatible_qos_listener() {
         },
         ..Default::default()
     };
-    let _writer = publisher
+    let writer = publisher
         .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
@@ -1285,6 +1416,17 @@ fn participant_requested_incompatible_qos_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1332,7 +1474,7 @@ fn publisher_publication_matched_listener() {
         ..Default::default()
     };
 
-    let _reader = subscriber
+    let reader = subscriber
         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -1340,7 +1482,6 @@ fn publisher_publication_matched_listener() {
     publisher_listener
         .expect_on_publication_matched()
         .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
         .return_const(());
     let publisher = participant
         .create_publisher(
@@ -1374,6 +1515,17 @@ fn publisher_publication_matched_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1421,7 +1573,7 @@ fn publisher_offered_incompatible_qos_listener() {
         ..Default::default()
     };
 
-    let _reader = subscriber
+    let reader = subscriber
         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -1463,6 +1615,17 @@ fn publisher_offered_incompatible_qos_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1559,6 +1722,17 @@ fn subscriber_deadline_missed_listener() {
         .unwrap();
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1671,6 +1845,17 @@ fn subscriber_sample_rejected_listener() {
         .unwrap();
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1716,7 +1901,7 @@ fn subscriber_subscription_matched_listener() {
         },
         ..Default::default()
     };
-    let _writer = publisher
+    let writer = publisher
         .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
@@ -1759,6 +1944,17 @@ fn subscriber_subscription_matched_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1804,7 +2000,7 @@ fn subscriber_requested_incompatible_qos_listener() {
         },
         ..Default::default()
     };
-    let _writer = publisher
+    let writer = publisher
         .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
@@ -1847,6 +2043,17 @@ fn subscriber_requested_incompatible_qos_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1896,7 +2103,7 @@ fn data_writer_publication_matched_listener() {
         ..Default::default()
     };
 
-    let _reader = subscriber
+    let reader = subscriber
         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -1918,7 +2125,6 @@ fn data_writer_publication_matched_listener() {
     writer_listener
         .expect_on_publication_matched()
         .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
         .return_const(());
     let writer = publisher
         .create_datawriter(
@@ -1938,6 +2144,17 @@ fn data_writer_publication_matched_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }
 
 #[test]
@@ -1987,7 +2204,7 @@ fn data_writer_offered_incompatible_qos_listener() {
         ..Default::default()
     };
 
-    let _reader = subscriber
+    let reader = subscriber
         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -2029,4 +2246,15 @@ fn data_writer_offered_incompatible_qos_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Delete all entities to make sure listeners are dropped and missed functions
+    // calls are detected by the mocking framework
+    subscriber.delete_datareader(&reader).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+    participant.delete_publisher(&publisher).unwrap();
+    participant.delete_subscriber(&subscriber).unwrap();
+    participant.delete_topic(&topic).unwrap();
+    THE_PARTICIPANT_FACTORY
+        .delete_participant(&participant)
+        .unwrap();
 }

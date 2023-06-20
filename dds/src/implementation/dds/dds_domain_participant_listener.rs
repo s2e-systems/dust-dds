@@ -4,8 +4,8 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         status::{
-            OfferedIncompatibleQosStatus, RequestedDeadlineMissedStatus,
-            RequestedIncompatibleQosStatus, SampleRejectedStatus,
+            OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
+            RequestedIncompatibleQosStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
         },
     },
 };
@@ -101,5 +101,45 @@ impl ActorAddress<DdsDomainParticipantListener> {
         }
 
         self.send_command(TriggerOnRequestedDeadlineMissed { reader, status })
+    }
+
+    pub fn trigger_on_subscription_matched(
+        &self,
+        reader: DataReaderNode,
+        status: SubscriptionMatchedStatus,
+    ) -> DdsResult<()> {
+        struct TriggerOnSubscriptionMatched {
+            reader: DataReaderNode,
+            status: SubscriptionMatchedStatus,
+        }
+
+        impl CommandHandler<TriggerOnSubscriptionMatched> for DdsDomainParticipantListener {
+            fn handle(&mut self, mail: TriggerOnSubscriptionMatched) {
+                self.listener
+                    .on_subscription_matched(&mail.reader, mail.status)
+            }
+        }
+
+        self.send_command(TriggerOnSubscriptionMatched { reader, status })
+    }
+
+    pub fn trigger_on_publication_matched(
+        &self,
+        the_writer: DataWriterNode,
+        status: PublicationMatchedStatus,
+    ) -> DdsResult<()> {
+        struct OnPublicationMatched {
+            the_writer: DataWriterNode,
+            status: PublicationMatchedStatus,
+        }
+
+        impl CommandHandler<OnPublicationMatched> for DdsDomainParticipantListener {
+            fn handle(&mut self, mail: OnPublicationMatched) {
+                self.listener
+                    .on_publication_matched(&mail.the_writer, mail.status)
+            }
+        }
+
+        self.send_command(OnPublicationMatched { the_writer, status })
     }
 }

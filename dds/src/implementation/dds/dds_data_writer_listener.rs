@@ -3,7 +3,10 @@ use crate::{
         dds::nodes::DataWriterNode,
         utils::actor::{ActorAddress, CommandHandler},
     },
-    infrastructure::{error::DdsResult, status::OfferedIncompatibleQosStatus},
+    infrastructure::{
+        error::DdsResult,
+        status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
+    },
 };
 
 use super::any_data_writer_listener::AnyDataWriterListener;
@@ -37,5 +40,25 @@ impl ActorAddress<DdsDataWriterListener> {
         }
 
         self.send_command(OnOfferedIncompatibleQos { the_writer, status })
+    }
+
+    pub fn trigger_on_publication_matched(
+        &self,
+        the_writer: DataWriterNode,
+        status: PublicationMatchedStatus,
+    ) -> DdsResult<()> {
+        struct OnPublicationMatched {
+            the_writer: DataWriterNode,
+            status: PublicationMatchedStatus,
+        }
+
+        impl CommandHandler<OnPublicationMatched> for DdsDataWriterListener {
+            fn handle(&mut self, mail: OnPublicationMatched) {
+                self.listener
+                    .trigger_on_publication_matched(mail.the_writer, mail.status)
+            }
+        }
+
+        self.send_command(OnPublicationMatched { the_writer, status })
     }
 }

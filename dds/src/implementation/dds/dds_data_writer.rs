@@ -1050,13 +1050,48 @@ impl DdsDataWriter<RtpsStatefulWriter> {
 
     fn on_publication_matched(
         &mut self,
-        _data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
-        _publisher_address: ActorAddress<DdsPublisher>,
-        _participant_address: ActorAddress<DdsDomainParticipant>,
+        data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::PublicationMatched);
+        if self.listener.is_some() && self.status_kind.contains(&StatusKind::PublicationMatched) {
+            let listener_address = self.listener.as_ref().unwrap().address();
+            let writer =
+                DataWriterNode::new(data_writer_address, publisher_address, participant_address);
+            let status = self.get_publication_matched_status();
+            listener_address
+                .trigger_on_publication_matched(writer, status)
+                .expect("Should not fail to send message");
+        } else if publisher_address.get_listener().unwrap().is_some()
+            && publisher_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::PublicationMatched)
+        {
+            let status = self.get_publication_matched_status();
+            let listener_address = publisher_address.get_listener().unwrap().unwrap();
+            let writer =
+                DataWriterNode::new(data_writer_address, publisher_address, participant_address);
+            listener_address
+                .trigger_on_publication_matched(writer, status)
+                .expect("Should not fail to send message");
+        } else if participant_address.get_listener().unwrap().is_some()
+            && participant_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::PublicationMatched)
+        {
+            let status = self.get_publication_matched_status();
+            let listener_address = participant_address.get_listener().unwrap().unwrap();
+            let writer =
+                DataWriterNode::new(data_writer_address, publisher_address, participant_address);
+            listener_address
+                .trigger_on_publication_matched(writer, status)
+                .expect("Should not fail to send message");
+        }
     }
 
     fn on_offered_incompatible_qos(

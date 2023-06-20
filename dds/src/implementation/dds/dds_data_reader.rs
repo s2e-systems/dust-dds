@@ -1007,6 +1007,9 @@ impl DdsDataReader<RtpsStatefulReader> {
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         self.subscription_matched_status.increment(instance_handle);
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SubscriptionMatched);
         if self.listener.is_some() && self.status_kind.contains(&StatusKind::SubscriptionMatched) {
             let listener_address = self.listener.as_ref().unwrap().address();
             let reader =
@@ -1015,10 +1018,33 @@ impl DdsDataReader<RtpsStatefulReader> {
             listener_address
                 .trigger_on_subscription_matched(reader, status)
                 .expect("Should not fail to send message");
+        } else if subscriber_address.get_listener().unwrap().is_some()
+            && subscriber_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::SubscriptionMatched)
+        {
+            let listener_address = subscriber_address.get_listener().unwrap().unwrap();
+            let reader =
+                DataReaderNode::new(data_reader_address, subscriber_address, participant_address);
+            let status = self.get_subscription_matched_status();
+            listener_address
+                .trigger_on_subscription_matched(reader, status)
+                .expect("Should not fail to send message");
+        } else if participant_address.get_listener().unwrap().is_some()
+            && participant_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::SubscriptionMatched)
+        {
+            let listener_address = participant_address.get_listener().unwrap().unwrap();
+            let reader =
+                DataReaderNode::new(data_reader_address, subscriber_address, participant_address);
+            let status = self.get_subscription_matched_status();
+            listener_address
+                .trigger_on_subscription_matched(reader, status)
+                .expect("Should not fail to send message");
         }
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SubscriptionMatched);
     }
 
     fn on_sample_rejected(
