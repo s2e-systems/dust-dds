@@ -8,7 +8,7 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
         },
         rtps::{
-            history_cache::RtpsWriterCacheChange,
+            history_cache::{DataFragSubmessages, RtpsWriterCacheChange},
             messages::{
                 overall_structure::{
                     RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
@@ -647,28 +647,45 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 let cache_change = change.cache_change();
                 let timestamp = cache_change.timestamp();
 
-                if cache_change.data_value().len() > data_max_size_serialized {
-                    let data_frag_submessage_list =
-                        cache_change.as_data_frag_submessages(data_max_size_serialized, reader_id);
-                    for data_frag_submessage in data_frag_submessage_list {
-                        let info_dst = Self::info_destination_submessage(
-                            reader_proxy.remote_reader_guid().prefix(),
+                if cache_change.data_value().len() > 1 {
+                    let cache_change_frag = DataFragSubmessages::new(cache_change, reader_id);
+                    for data_frag_submessage in cache_change_frag.into_iter() {
+                        let info_dst = RtpsSubmessageWriteKind::InfoDestination(
+                            InfoDestinationSubmessageWrite::new(
+                                reader_proxy.remote_reader_guid().prefix(),
+                            ),
                         );
 
-                        let into_timestamp = Self::info_timestamp_submessage(timestamp);
+                        let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
+                            InfoTimestampSubmessageWrite::new(
+                                false,
+                                crate::implementation::rtps::messages::types::Time::new(
+                                    timestamp.sec(),
+                                    timestamp.nanosec(),
+                                ),
+                            ),
+                        );
                         let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
-                        let submessages = vec![info_dst, into_timestamp, data_frag];
+                        let submessages = vec![info_dst, info_timestamp, data_frag];
 
                         udp_transport_write
                             .write(
                                 RtpsMessageWrite::new(header, submessages),
                                 reader_proxy.unicast_locator_list().to_vec(),
                             )
-                            .ok();
+                            .unwrap();
                     }
                 } else {
-                    submessages.push(Self::info_timestamp_submessage(timestamp));
+                    submessages.push(RtpsSubmessageWriteKind::InfoTimestamp(
+                        InfoTimestampSubmessageWrite::new(
+                            false,
+                            crate::implementation::rtps::messages::types::Time::new(
+                                timestamp.sec(),
+                                timestamp.nanosec(),
+                            ),
+                        ),
+                    ));
                     submessages.push(RtpsSubmessageWriteKind::Data(
                         cache_change.as_data_submessage(reader_id),
                     ))
@@ -724,12 +741,11 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 // should be full-filled by next_unsent_change()
                 if change.is_relevant() {
                     let cache_change = change.cache_change();
-                    if cache_change.data_value().len() > data_max_size_serialized {
+                    if cache_change.data_value().len() > 1 {
                         Self::directly_send_data_frag(
                             reader_proxy,
                             cache_change,
                             writer_id,
-                            data_max_size_serialized,
                             header,
                             first_sn,
                             last_sn,
@@ -779,12 +795,11 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 // should be full-filled by next_requested_change()
                 if change_for_reader.is_relevant() {
                     let cache_change = change_for_reader.cache_change();
-                    if cache_change.data_value().len() > data_max_size_serialized {
+                    if cache_change.data_value().len() > 1 {
                         Self::directly_send_data_frag(
                             reader_proxy,
                             cache_change,
                             writer_id,
-                            data_max_size_serialized,
                             header,
                             first_sn,
                             last_sn,
@@ -854,7 +869,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         reader_proxy: &mut WriterAssociatedReaderProxy,
         cache_change: &RtpsWriterCacheChange,
         writer_id: EntityId,
-        data_max_size_serialized: usize,
         header: RtpsMessageHeader,
         first_sn: SequenceNumber,
         last_sn: SequenceNumber,
@@ -863,11 +877,8 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
         let timestamp = cache_change.timestamp();
 
-        let mut data_frag_submessage_list = cache_change
-            .as_data_frag_submessages(data_max_size_serialized, reader_id)
-            .into_iter()
-            .peekable();
-
+        let cache_change_frag = DataFragSubmessages::new(cache_change, reader_id);
+        let mut data_frag_submessage_list = cache_change_frag.into_iter().peekable();
         while let Some(data_frag_submessage) = data_frag_submessage_list.next() {
             let writer_sn = data_frag_submessage.writer_sn();
             let last_fragment_num = FragmentNumber::new(
@@ -1069,11 +1080,8 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         {
             let status = self.get_offered_incompatible_qos_status();
             let listener_address = self.listener.as_ref().unwrap().address();
-            let writer = DataWriterNode::new(
-                data_writer_address,
-                publisher_address,
-                participant_address,
-            );
+            let writer =
+                DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             listener_address
                 .trigger_on_offered_incompatible_qos(writer, status)
                 .expect("Should not fail to send message");
@@ -1085,11 +1093,8 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         {
             let status = self.get_offered_incompatible_qos_status();
             let listener_address = publisher_address.get_listener().unwrap().unwrap();
-            let writer = DataWriterNode::new(
-                data_writer_address,
-                publisher_address,
-                participant_address,
-            );
+            let writer =
+                DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             listener_address
                 .trigger_on_offered_incompatible_qos(writer, status)
                 .expect("Should not fail to send message");
@@ -1101,11 +1106,8 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         {
             let status = self.get_offered_incompatible_qos_status();
             let listener_address = participant_address.get_listener().unwrap().unwrap();
-            let writer = DataWriterNode::new(
-                data_writer_address,
-                publisher_address,
-                participant_address,
-            );
+            let writer =
+                DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             listener_address
                 .trigger_on_offered_incompatible_qos(writer, status)
                 .expect("Should not fail to send message");

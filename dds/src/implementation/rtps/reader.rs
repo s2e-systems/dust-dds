@@ -32,7 +32,7 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     messages::{
-        submessage_elements::{Parameter, ParameterList},
+        submessage_elements::{Data, Parameter, ParameterList},
         submessages::{data::DataSubmessageRead, data_frag::DataFragSubmessageRead},
         types::ParameterId,
     },
@@ -50,7 +50,7 @@ pub enum RtpsReaderError {
 pub struct RtpsReaderCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
-    data: Vec<u8>,
+    data: Data,
     inline_qos: ParameterList,
     source_timestamp: Option<Time>,
     sample_state: SampleStateKind,
@@ -98,7 +98,7 @@ pub fn convert_data_frag_to_cache_change(
     Ok(RtpsReaderCacheChange {
         kind: change_kind,
         writer_guid,
-        data,
+        data: Data::new(data),
         inline_qos,
         source_timestamp,
         sample_state: SampleStateKind::NotRead,
@@ -267,7 +267,7 @@ impl RtpsReader {
     ) -> RtpsReaderResult<RtpsReaderCacheChange> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
 
-        let data = <&[u8]>::from(data_submessage.serialized_payload()).to_vec();
+        let data = data_submessage.serialized_payload();
 
         let inline_qos = data_submessage.inline_qos();
 
@@ -322,7 +322,7 @@ impl RtpsReader {
             .filter(|cc| {
                 &self
                     .instance_handle_builder
-                    .build_instance_handle(cc.kind, &cc.data, cc.inline_qos.parameter())
+                    .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
                     .expect("Change in cache must have valid instance handle")
                     == change_instance_handle
             })
@@ -337,7 +337,7 @@ impl RtpsReader {
             .iter()
             .map(|cc| {
                 self.instance_handle_builder
-                    .build_instance_handle(cc.kind, &cc.data, cc.inline_qos.parameter())
+                    .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
                     .expect("Change in cache must have valid instance handle")
             })
             .collect();
@@ -359,7 +359,7 @@ impl RtpsReader {
             .filter(|cc| {
                 &self
                     .instance_handle_builder
-                    .build_instance_handle(cc.kind, &cc.data, cc.inline_qos.parameter())
+                    .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
                     .expect("Change in cache must have valid instance handle")
                     == change_instance_handle
             })
@@ -379,7 +379,7 @@ impl RtpsReader {
             .filter(|cc| {
                 &self
                     .instance_handle_builder
-                    .build_instance_handle(cc.kind, &cc.data, cc.inline_qos.parameter())
+                    .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
                     .expect("Change in cache must have valid instance handle")
                     == change_instance_handle
             })
@@ -406,7 +406,7 @@ impl RtpsReader {
     ) -> RtpsReaderResult<InstanceHandle> {
         let change_instance_handle = self.instance_handle_builder.build_instance_handle(
             change.kind,
-            &change.data,
+            change.data.as_ref(),
             change.inline_qos.parameter(),
         )?;
         if self.is_sample_of_interest_based_on_time(&change, &change_instance_handle) {
@@ -431,7 +431,11 @@ impl RtpsReader {
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder
-                            .build_instance_handle(cc.kind, &cc.data, cc.inline_qos.parameter())
+                            .build_instance_handle(
+                                cc.kind,
+                                cc.data.as_ref(),
+                                cc.inline_qos.parameter(),
+                            )
                             .unwrap()
                             == change_instance_handle
                             && cc.kind == ChangeKind::Alive
@@ -447,7 +451,7 @@ impl RtpsReader {
                                 self.instance_handle_builder
                                     .build_instance_handle(
                                         cc.kind,
-                                        &cc.data,
+                                        cc.data.as_ref(),
                                         cc.inline_qos.parameter(),
                                     )
                                     .unwrap()
@@ -535,7 +539,7 @@ impl RtpsReader {
             .enumerate()
             .filter(|(_, cc)| {
                 let sample_instance_handle = instance_handle_build
-                    .build_instance_handle(cc.kind, &cc.data, cc.inline_qos.parameter())
+                    .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
                     .unwrap();
 
                 sample_states.contains(&cc.sample_state)
@@ -553,7 +557,7 @@ impl RtpsReader {
                 .instance_handle_builder
                 .build_instance_handle(
                     cache_change.kind,
-                    &cache_change.data,
+                    cache_change.data.as_ref(),
                     cache_change.inline_qos.parameter(),
                 )
                 .unwrap();
@@ -580,7 +584,7 @@ impl RtpsReader {
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (
                     Some(
-                        dds_deserialize(cache_change.data.as_slice())
+                        dds_deserialize(cache_change.data.as_ref())
                             .map_err(|_err| DdsError::Error)?,
                     ),
                     true,

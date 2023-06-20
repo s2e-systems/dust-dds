@@ -10,7 +10,7 @@ use crate::implementation::{
 use super::{
     messages::{
         overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind},
-        submessage_elements::{FragmentNumberSet, SequenceNumberSet},
+        submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessageWrite, data_frag::DataFragSubmessageRead,
             info_destination::InfoDestinationSubmessageWrite, nack_frag::NackFragSubmessageWrite,
@@ -26,7 +26,7 @@ pub struct OwningDataFragSubmessage {
     data_size: u32,
     fragment_size: u16,
     fragments_in_submessage: u16,
-    serialized_payload: Vec<u8>,
+    serialized_payload: Data,
 }
 
 impl From<&DataFragSubmessageRead<'_>> for OwningDataFragSubmessage {
@@ -36,7 +36,7 @@ impl From<&DataFragSubmessageRead<'_>> for OwningDataFragSubmessage {
             data_size: x.data_size(),
             fragment_size: x.fragment_size(),
             fragments_in_submessage: x.fragments_in_submessage(),
-            serialized_payload: <&[u8]>::from(&x.serialized_payload()).to_vec(),
+            serialized_payload: x.serialized_payload(),
         }
     }
 }
@@ -116,8 +116,8 @@ impl RtpsWriterProxy {
                 frag_seq_num_list.sort_by_key(|k| k.fragment_starting_num);
 
                 let mut data = Vec::new();
-                for mut frag in frag_seq_num_list {
-                    data.append(&mut frag.serialized_payload);
+                for frag in frag_seq_num_list {
+                    data.append(&mut frag.serialized_payload.as_ref().to_vec());
                 }
                 return Some(data);
             }
