@@ -13,4 +13,3 @@ pub mod message_receiver;
 pub mod nodes;
 pub mod participant_discovery;
 pub mod status_condition_impl;
-pub mod status_listener;

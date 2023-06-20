@@ -64,10 +64,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use super::{
-    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher,
-    status_listener::ListenerTriggerKind,
-};
+use super::{dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher};
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new(EntityKey::new([0x00, 0x01, 0x00]), BUILT_IN_WRITER_WITH_KEY);
@@ -711,7 +708,6 @@ impl DdsDomainParticipant {
 
     pub fn update_communication_status(
         &mut self,
-        _listener_sender: tokio::sync::mpsc::Sender<ListenerTriggerKind>,
     ) -> DdsResult<()> {
         let _now = self.get_current_time();
         let _guid = self.get_guid();
@@ -737,7 +733,6 @@ fn _writer_on_offered_incompatible_qos(
     _incompatible_qos_policy_list: Vec<QosPolicyId>,
     _parent_publisher_guid: Guid,
     _parent_participant_guid: Guid,
-    _listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
 ) {
     todo!()
     // if !writer.get_incompatible_subscriptions().contains(&handle) {

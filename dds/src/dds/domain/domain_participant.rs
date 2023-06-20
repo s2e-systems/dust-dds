@@ -5,7 +5,6 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         dds::{
-            dds_data_writer::DdsDataWriter,
             dds_domain_participant::DdsDomainParticipant,
             dds_publisher::DdsPublisher,
             dds_subscriber::DdsSubscriber,
@@ -18,7 +17,6 @@ use crate::{
         rtps::{
             group::RtpsGroup,
             messages::overall_structure::RtpsMessageHeader,
-            stateful_writer::RtpsStatefulWriter,
             types::{
                 EntityId, EntityKey, Guid, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
                 USER_DEFINED_WRITER_GROUP,
@@ -35,7 +33,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::{StatusKind, NO_STATUS},
-        time::{Duration, DurationKind, Time},
+        time::{Duration, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
@@ -1491,8 +1489,6 @@ fn _on_inconsistent_topic_communication_change(_topic_node: TopicNode) {
     //     }
     // })
 }
-
-
 
 fn _discover_matched_participants(
     _domain_participant: &mut DdsDomainParticipant,
