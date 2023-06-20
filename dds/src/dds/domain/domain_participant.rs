@@ -8,6 +8,7 @@ use crate::{
             dds_domain_participant::DdsDomainParticipant,
             dds_publisher::DdsPublisher,
             dds_subscriber::DdsSubscriber,
+            dds_subscriber_listener::DdsSubscriberListener,
             dds_topic::DdsTopic,
             nodes::{
                 DataReaderNode, DataWriterNode, PublisherNode, SubscriberNode, SubscriberNodeKind,
@@ -161,8 +162,8 @@ impl DomainParticipant {
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        _a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
         let subscriber_qos = match qos {
             QosKind::Default => self.0.default_subscriber_qos()?,
@@ -175,7 +176,10 @@ impl DomainParticipant {
         );
         let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group);
+        let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
+        let status_kind = mask.to_vec();
+
+        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
 
         let subscriber_actor = spawn_actor(subscriber);
         let subscriber = Subscriber::new(SubscriberNodeKind::UserDefined(SubscriberNode::new(

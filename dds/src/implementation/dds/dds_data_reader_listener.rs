@@ -85,7 +85,11 @@ impl ActorAddress<DdsDataReaderListener> {
         self.send_command(TriggerOnDataAvailable { reader })
     }
 
-    fn trigger_on_sample_rejected(&self, reader: DataReaderNode, status: SampleRejectedStatus) {
+    pub fn trigger_on_sample_rejected(
+        &self,
+        reader: DataReaderNode,
+        status: SampleRejectedStatus,
+    ) -> DdsResult<()> {
         todo!()
     }
 

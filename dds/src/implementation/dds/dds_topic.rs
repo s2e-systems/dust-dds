@@ -8,7 +8,7 @@ use crate::{
             shared_object::{DdsRwLock, DdsShared},
         },
     },
-    infrastructure::{instance::InstanceHandle, qos::TopicQos, status::InconsistentTopicStatus},
+    infrastructure::{instance::InstanceHandle, qos::TopicQos, status::{InconsistentTopicStatus, StatusKind}},
 };
 
 use super::status_condition_impl::StatusConditionImpl;
@@ -53,7 +53,9 @@ impl DdsTopic {
 actor_interface! {
 impl DdsTopic {
     pub fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
-        self.inconsistent_topic_status.read_and_reset()
+        let status = self.inconsistent_topic_status.read_and_reset();
+        self.status_condition.write_lock().remove_communication_state(StatusKind::InconsistentTopic);
+        status
     }
 
     pub fn get_type_name(&self) -> &'static str {
@@ -128,6 +130,7 @@ impl DdsTopic {
             && !is_discovered_topic_consistent(&self.qos, &discovered_topic_data)
         {
             self.inconsistent_topic_status.increment();
+            self.status_condition.write_lock().add_communication_state(StatusKind::InconsistentTopic);
         //     listener_sender
         //         .try_send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
         //             self.guid(),

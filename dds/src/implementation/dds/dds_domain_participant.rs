@@ -46,6 +46,7 @@ use crate::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
             QosPolicyId, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
+        status::{StatusKind, NO_STATUS},
         time::{DurationKind, DURATION_ZERO},
     },
     topic_definition::type_support::DdsType,
@@ -64,7 +65,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use super::{dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher};
+use super::{
+    dds_data_writer::DdsDataWriter, dds_domain_participant_listener::DdsDomainParticipantListener,
+    dds_publisher::DdsPublisher, dds_subscriber_listener::DdsSubscriberListener,
+};
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new(EntityKey::new([0x00, 0x01, 0x00]), BUILT_IN_WRITER_WITH_KEY);
@@ -116,6 +120,8 @@ pub struct DdsDomainParticipant {
     ignored_subcriptions: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
     udp_transport_write: Actor<UdpTransportWrite>,
+    listener: Option<Actor<DdsDomainParticipantListener>>,
+    status_kind: Vec<StatusKind>,
 }
 
 impl DdsDomainParticipant {
@@ -128,6 +134,8 @@ impl DdsDomainParticipant {
         spdp_discovery_locator_list: &[Locator],
         data_max_size_serialized: usize,
         udp_transport_write: Actor<UdpTransportWrite>,
+        listener: Option<Actor<DdsDomainParticipantListener>>,
+        status_kind: Vec<StatusKind>,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -219,6 +227,8 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_READER_GROUP),
             )),
+            None,
+            vec![],
         ));
 
         builtin_subscriber
@@ -340,6 +350,8 @@ impl DdsDomainParticipant {
             ignored_subcriptions: HashSet::new(),
             data_max_size_serialized,
             udp_transport_write,
+            listener,
+            status_kind,
         }
     }
 }
@@ -723,6 +735,14 @@ impl DdsDomainParticipant {
         self.discovered_topic_list.insert(
                 handle, topic_data
             );
+    }
+
+    pub fn get_listener(&self) -> Option<ActorAddress<DdsDomainParticipantListener>> {
+        self.listener.as_ref().map(|l| l.address())
+    }
+
+    pub fn status_kind(&self) -> Vec<StatusKind> {
+        self.status_kind.clone()
     }
 }
 }

@@ -1,16 +1,23 @@
-use super::dds_data_reader::DdsDataReader;
+use super::{
+    dds_data_reader::DdsDataReader, dds_subscriber_listener::DdsSubscriberListener,
+    status_condition_impl::StatusConditionImpl,
+};
 use crate::{
     implementation::{
         rtps::{
             group::RtpsGroup, stateful_reader::RtpsStatefulReader,
             stateless_reader::RtpsStatelessReader, types::Guid,
         },
-        utils::actor::{actor_interface, Actor, ActorAddress},
+        utils::{
+            actor::{actor_interface, Actor, ActorAddress},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
+        status::StatusKind,
     },
 };
 
@@ -22,10 +29,18 @@ pub struct DdsSubscriber {
     enabled: bool,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    listener: Option<Actor<DdsSubscriberListener>>,
+    status_kind: Vec<StatusKind>,
 }
 
 impl DdsSubscriber {
-    pub fn new(qos: SubscriberQos, rtps_group: RtpsGroup) -> Self {
+    pub fn new(
+        qos: SubscriberQos,
+        rtps_group: RtpsGroup,
+        listener: Option<Actor<DdsSubscriberListener>>,
+        status_kind: Vec<StatusKind>,
+    ) -> Self {
         DdsSubscriber {
             qos,
             rtps_group,
@@ -34,6 +49,9 @@ impl DdsSubscriber {
             enabled: false,
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: Default::default(),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            listener,
+            status_kind,
         }
     }
 }
@@ -135,5 +153,17 @@ impl DdsSubscriber {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
+    }
+
+    pub fn get_listener(&self) -> Option<ActorAddress<DdsSubscriberListener>> {
+        self.listener.as_ref().map(|l| l.address())
+    }
+
+    pub fn status_kind(&self) -> Vec<StatusKind> {
+        self.status_kind.clone()
     }
 }}

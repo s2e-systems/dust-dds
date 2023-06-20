@@ -24,6 +24,7 @@ use crate::{
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
             dds_domain_participant_factory::DdsDomainParticipantFactory,
+            dds_domain_participant_listener::DdsDomainParticipantListener,
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
@@ -50,7 +51,10 @@ use crate::{
     },
     subscription::{
         data_reader::Sample,
-        sample_info::{InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
+        sample_info::{
+            InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+        },
     },
     DdsType,
 };
@@ -99,8 +103,8 @@ impl DomainParticipantFactory {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        _a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.0.address().get_default_participant_qos()?,
@@ -187,6 +191,9 @@ impl DomainParticipantFactory {
             VENDOR_ID_S2E,
         );
 
+        let listener = a_listener.map(|l| spawn_actor(DdsDomainParticipantListener::new(l)));
+        let status_kind = mask.to_vec();
+
         let domain_participant = DdsDomainParticipant::new(
             rtps_participant,
             domain_id,
@@ -195,6 +202,8 @@ impl DomainParticipantFactory {
             &spdp_discovery_locator_list,
             THE_DDS_CONFIGURATION.fragment_size,
             udp_transport_write,
+            listener,
+            status_kind,
         );
 
         let participant_actor = spawn_actor(domain_participant);
@@ -230,8 +239,10 @@ impl DomainParticipantFactory {
             );
 
             while let Some((_locator, message)) = metatraffic_unicast_transport.read().await {
-                let r = tokio::task::block_in_place(|| {
-                    process_sedp_metatraffic(&participant_address_clone, message)
+                let r: DdsResult<()> = tokio::task::block_in_place(|| {
+                    process_sedp_metatraffic(&participant_address_clone, message)?;
+                    process_sedp_discovery(&participant_address_clone)?;
+                    Ok(())
                 });
 
                 if r.is_err() {
@@ -841,13 +852,21 @@ fn process_sedp_metatraffic(
         )?;
     }
 
+    Ok(())
+}
+
+fn process_sedp_discovery(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+) -> DdsResult<()> {
+    let builtin_subscriber = participant_address.get_builtin_subscriber()?;
+
     for stateful_builtin_reader in builtin_subscriber.stateful_data_reader_list()? {
         match stateful_builtin_reader.get_topic_name()?.as_str() {
             DCPS_PUBLICATION => {
-                while let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader
+                if let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader
                     .read::<DiscoveredWriterData>(
-                    1,
-                    &[SampleStateKind::NotRead],
+                    i32::MAX,
+                    ANY_SAMPLE_STATE,
                     ANY_VIEW_STATE,
                     ANY_INSTANCE_STATE,
                     None,
@@ -858,10 +877,10 @@ fn process_sedp_metatraffic(
                 }
             }
             DCPS_SUBSCRIPTION => {
-                while let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader
+                if let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader
                     .read::<DiscoveredReaderData>(
-                    1,
-                    &[SampleStateKind::NotRead],
+                    i32::MAX,
+                    ANY_SAMPLE_STATE,
                     ANY_VIEW_STATE,
                     ANY_INSTANCE_STATE,
                     None,
@@ -872,14 +891,15 @@ fn process_sedp_metatraffic(
                 }
             }
             DCPS_TOPIC => {
-                while let Ok(discovered_topic_sample_list) = stateful_builtin_reader
+                if let Ok(discovered_topic_sample_list) = stateful_builtin_reader
                     .read::<DiscoveredTopicData>(
-                    1,
-                    &[SampleStateKind::NotRead],
-                    ANY_VIEW_STATE,
-                    ANY_INSTANCE_STATE,
-                    None,
-                ) {
+                        i32::MAX,
+                        ANY_SAMPLE_STATE,
+                        ANY_VIEW_STATE,
+                        ANY_INSTANCE_STATE,
+                        None,
+                    )
+                {
                     for discovered_topic_sample in discovered_topic_sample_list {
                         discover_matched_topics(participant_address, &discovered_topic_sample)?;
                     }
@@ -983,6 +1003,14 @@ fn discover_matched_writers(
                                         data_reader_address.clone(),
                                         user_defined_subscriber_address.clone(),
                                         participant_address.clone(),
+                                    )?;
+                                    data_reader_address.send_message(
+                                        RtpsMessageHeader::new(
+                                            participant_address.get_protocol_version()?,
+                                            participant_address.get_vendor_id()?,
+                                            participant_address.get_guid()?.prefix(),
+                                        ),
+                                        participant_address.get_udp_transport_write()?,
                                     )?;
                                 }
                             }
@@ -1091,6 +1119,15 @@ pub fn discover_matched_readers(
                                         data_writer.clone(),
                                         user_defined_publisher_address.clone(),
                                         participant_address.clone(),
+                                    )?;
+                                    data_writer.send_message(
+                                        RtpsMessageHeader::new(
+                                            participant_address.get_protocol_version()?,
+                                            participant_address.get_vendor_id()?,
+                                            participant_address.get_guid()?.prefix(),
+                                        ),
+                                        participant_address.get_udp_transport_write()?,
+                                        participant_address.get_current_time()?,
                                     )?;
                                 }
                             }

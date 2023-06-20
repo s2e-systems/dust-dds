@@ -419,14 +419,14 @@ impl DdsDataReader<RtpsStatefulReader> {
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
-            StatefulReaderDataReceivedResult::SampleRejected(
-                _instance_handle,
-                _rejected_reason,
-            ) => {
-                // self.on_sample_rejected(
-                //     instance_handle,
-                //     rejected_reason,
-                // );
+            StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
+                self.on_sample_rejected(
+                    instance_handle,
+                    rejected_reason,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
             StatefulReaderDataReceivedResult::InvalidData(_) => {
@@ -487,7 +487,13 @@ impl DdsDataReader<RtpsStatefulReader> {
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
-                // self.on_sample_rejected(instance_handle, rejected_reason);
+                self.on_sample_rejected(
+                    instance_handle,
+                    rejected_reason,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
             StatefulReaderDataReceivedResult::InvalidData(_) => {
@@ -949,19 +955,59 @@ impl DdsDataReader<RtpsStatefulReader> {
         &mut self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
-        _parent_subscriber_guid: Guid,
-        _parent_participant_guid: Guid,
+        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
     ) {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
-        todo!()
-        // listener_sender
-        //     .try_send(ListenerTriggerKind::OnSampleRejected(DataReaderNode::new(
-        //         self.guid(),
-        //         parent_subscriber_guid,
-        //         parent_participant_guid,
-        //     )))
-        //     .ok();
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SampleRejected);
+        if self.listener.is_some() && self.status_kind.contains(&StatusKind::SampleRejected) {
+            let status = self.get_sample_rejected_status();
+            let listener_address = self.listener.as_ref().unwrap().address();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_sample_rejected(reader, status)
+                .expect("Should not fail to send message");
+        } else if subscriber_address.get_listener().unwrap().is_some()
+            && subscriber_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::SampleRejected)
+        {
+            let status = self.get_sample_rejected_status();
+            let listener_address = subscriber_address.get_listener().unwrap().unwrap();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_sample_rejected(reader, status)
+                .expect("Should not fail to send message");
+        } else if participant_address.get_listener().unwrap().is_some()
+            && participant_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::SampleRejected)
+        {
+            let status = self.get_sample_rejected_status();
+            let listener_address = participant_address.get_listener().unwrap().unwrap();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_sample_rejected(reader, status)
+                .expect("Should not fail to send message");
+        }
     }
 
     fn on_requested_incompatible_qos(&mut self, incompatible_qos_policy_list: Vec<QosPolicyId>) {

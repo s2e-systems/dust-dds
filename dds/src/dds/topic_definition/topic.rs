@@ -63,27 +63,11 @@ impl<Foo> Topic<Foo> {
 impl<Foo> Topic<Foo> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        todo!()
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(t) => {
-        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //             .get_participant_mut(&t.guid().prefix(), |dp| {
-        //                 crate::implementation::behavior::user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, t.guid())
-        //             })?;
-
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(
-        //             &t.guid(),
-        //             |topic_listener| {
-        //                 if let Some(t) = topic_listener {
-        //                     t.remove_communication_state(StatusKind::InconsistentTopic);
-        //                 }
-        //             },
-        //         );
-
-        //         Ok(status)
-        //     }
-        //     TopicNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.node {
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                t.address().get_inconsistent_topic_status()
+            }
+        }
     }
 }
 
@@ -91,29 +75,20 @@ impl<Foo> Topic<Foo> {
 impl<Foo> Topic<Foo> {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        todo!()
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(t) => Ok(DomainParticipant::new(
-        //         DomainParticipantNode::new(t.parent_participant()),
-        //     )),
-        //     TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
+        match &self.node {
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                Ok(DomainParticipant::new(t.parent_participant().clone()))
+            }
+        }
     }
 
     /// The name of the type used to create the [`Topic`]
     pub fn get_type_name(&self) -> DdsResult<&'static str> {
-        todo!()
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(t) => {
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_topic::get_type_name(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 t.guid(),
-        //             )
-        //         })
-        //     }
-        //     TopicNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.node {
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                t.address().get_type_name()
+            }
+        }
     }
 
     /// The name used to create the [`Topic`]
@@ -233,25 +208,15 @@ impl<Foo> Topic<Foo> {
             }
             TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
-
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&t.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_topic::enable(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 t.guid(),
-        //             )
-        //         }),
-        //     TopicNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => Ok(t.guid().into()),
-        // }
+        match &self.node {
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                t.address().get_instance_handle()
+            }
+        }
     }
 }
 
