@@ -659,6 +659,10 @@ impl DdsDomainParticipant {
         self.qos = qos;
     }
 
+    pub fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
+        self.discovered_participant_list.keys().into_iter().cloned().collect()
+    }
+
     pub fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
         SpdpDiscoveredParticipantData::new(
             ParticipantBuiltinTopicData::new(

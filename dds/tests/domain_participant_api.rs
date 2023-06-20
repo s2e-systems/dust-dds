@@ -674,7 +674,6 @@ fn get_discovery_data_from_builtin_reader() {
 }
 
 #[test]
-#[ignore]
 fn ignore_publication() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
@@ -732,7 +731,6 @@ fn ignore_publication() {
 }
 
 #[test]
-#[ignore]
 fn ignore_subscription() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
@@ -790,7 +788,6 @@ fn ignore_subscription() {
 }
 
 #[test]
-#[ignore]
 fn ignore_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();

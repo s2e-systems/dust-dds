@@ -3,15 +3,11 @@ use dust_dds::{
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind, UserDataQosPolicy},
-        status::{StatusKind, SubscriptionMatchedStatus, NO_STATUS},
+        status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    subscription::{
-        data_reader::DataReader,
-        data_reader_listener::DataReaderListener,
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    },
+    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::DdsType,
 };
 
@@ -23,66 +19,6 @@ struct KeyedData {
     #[key]
     id: u8,
     value: u8,
-}
-
-struct MyListener;
-
-impl DataReaderListener for MyListener {
-    type Foo = KeyedData;
-
-    fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
-        println!(
-            "Read {:?}",
-            the_reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        );
-    }
-
-    fn on_subscription_matched(
-        &mut self,
-        _the_reader: &DataReader<Self::Foo>,
-        _status: SubscriptionMatchedStatus,
-    ) {
-        println!("Listened to subscription matched")
-    }
-}
-
-#[test]
-fn create_participant() {
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let domain_participant_factory = DomainParticipantFactory::get_instance();
-
-    let dp = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-        .unwrap();
-
-    let topic = dp
-        .create_topic::<KeyedData>("topic_name", QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let publisher = dp
-        .create_publisher(QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let data_writer: dust_dds::publication::data_writer::DataWriter<_> = publisher
-        .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let subscriber = dp
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let _data_reader = subscriber
-        .create_datareader::<KeyedData>(
-            &topic,
-            QosKind::Default,
-            Some(Box::new(MyListener)),
-            &[StatusKind::SubscriptionMatched, StatusKind::DataAvailable],
-        )
-        .unwrap();
-
-    std::thread::sleep(std::time::Duration::from_secs(2));
-
-    data_writer
-        .write(&KeyedData { id: 1, value: 1 }, None)
-        .unwrap();
-
-    std::thread::sleep(std::time::Duration::from_secs(10));
 }
 
 #[test]
