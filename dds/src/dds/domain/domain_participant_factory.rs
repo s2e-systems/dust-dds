@@ -218,7 +218,7 @@ impl DomainParticipantFactory {
                     DEFAULT_MULTICAST_LOCATOR_ADDRESS,
                     port_builtin_multicast(domain_id),
                 )
-                .unwrap(),
+                .expect("Should not fail to open socket"),
             );
 
             while let Some((_locator, message)) = metatraffic_multicast_transport.read().await {
@@ -235,7 +235,8 @@ impl DomainParticipantFactory {
         let participant_address_clone = participant_address.clone();
         THE_RUNTIME.spawn(async move {
             let mut metatraffic_unicast_transport = UdpTransportRead::new(
-                tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).unwrap(),
+                tokio::net::UdpSocket::from_std(metattrafic_unicast_socket)
+                    .expect("Should not fail to open metatraffic unicast transport socket"),
             );
 
             while let Some((_locator, message)) = metatraffic_unicast_transport.read().await {
@@ -254,7 +255,7 @@ impl DomainParticipantFactory {
         let participant_address_clone = participant_address;
         THE_RUNTIME.spawn(async move {
             let mut default_unicast_transport = UdpTransportRead::new(
-                tokio::net::UdpSocket::from_std(default_unicast_socket).unwrap(),
+                tokio::net::UdpSocket::from_std(default_unicast_socket).expect("Should not fail to open default unicast socket"),
             );
 
             while let Some((_locator, message)) = default_unicast_transport.read().await {

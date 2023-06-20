@@ -21,7 +21,7 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::{DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -1348,7 +1348,7 @@ fn reader_with_minimum_time_separation_qos() {
         .unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader

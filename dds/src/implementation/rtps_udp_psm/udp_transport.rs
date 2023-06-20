@@ -17,8 +17,8 @@ impl UdpTransportRead {
     }
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        let mut buf = [0u8; 65000];
-        match self.socket.recv_from(&mut buf).await {
+        let mut buf = Box::new([0u8; 65000]);
+        match self.socket.recv_from(buf.as_mut()).await {
             Ok((bytes, source_address)) => {
                 let message = RtpsMessageRead::new(&buf[0..bytes]);
 
