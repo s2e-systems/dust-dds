@@ -660,7 +660,7 @@ impl DdsDomainParticipant {
     }
 
     pub fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
-        self.discovered_participant_list.keys().into_iter().cloned().collect()
+        self.discovered_participant_list.keys().cloned().collect()
     }
 
     pub fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
