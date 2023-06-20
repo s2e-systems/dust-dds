@@ -313,16 +313,13 @@ impl Subscriber {
 
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-        //     SubscriberNodeKind::UserDefined(s) => Ok(DomainParticipant::new(
-        //         crate::implementation::behavior::user_defined_subscriber::get_participant(
-        //             s.parent_participant(),
-        //         )?,
-        //     )),
-        //     SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
+        match &self.0 {
+            SubscriberNodeKind::Builtin(s)
+            | SubscriberNodeKind::UserDefined(s)
+            | SubscriberNodeKind::_Listener(s) => {
+                Ok(DomainParticipant::new(s.parent_participant().clone()))
+            }
+        }
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
@@ -358,16 +355,12 @@ impl Subscriber {
     /// return [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataReaderQos`].
-    pub fn set_default_datareader_qos(&self, _qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-        //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&s.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_subscriber::set_default_datareader_qos(dp.ok_or(DdsError::AlreadyDeleted)?, s.guid(),qos)
-        //         }),
-        //     SubscriberNodeKind::Listener(_) => todo!(),
-        // }
+    pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+        match &self.0 {
+            SubscriberNodeKind::Builtin(s)
+            | SubscriberNodeKind::UserDefined(s)
+            | SubscriberNodeKind::_Listener(s) => s.address().set_default_datareader_qos(qos)?,
+        }
     }
 
     /// This operation retrieves the default value of the [`DataReaderQos`], that is, the qos policies which will be used for newly
@@ -375,15 +368,11 @@ impl Subscriber {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Subscriber::get_default_datareader_qos`], or else, if the call was never made, the default values of [`DataReaderQos`].
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-        //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&s.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_subscriber::get_default_datareader_qos(dp.ok_or(DdsError::AlreadyDeleted)?, s.guid())
-        //         }),
-        //     SubscriberNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            SubscriberNodeKind::Builtin(s)
+            | SubscriberNodeKind::UserDefined(s)
+            | SubscriberNodeKind::_Listener(s) => s.address().get_default_datareader_qos(),
+        }
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datareader_qos`.

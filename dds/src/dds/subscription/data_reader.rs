@@ -818,35 +818,12 @@ impl<Foo> DataReader<Foo> {
 
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::builtin_data_reader_stateless::get_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //             )
-        //         }),
-        //     DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::builtin_data_reader_stateful::get_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //             )
-        //         }),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_reader::get_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //                 r.parent_subscriber(),
-        //             )
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        //     // DataReaderKind::BuiltinStateless(x) => x.upgrade()?.get_qos(),
-        //     // DataReaderKind::BuiltinStateful(x) => x.upgrade()?.get_qos(),
-        //     // DataReaderKind::UserDefined(x) => x.upgrade()?.get_qos(),
-        // }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateful(dr)
+            | DataReaderNodeKind::BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().get_qos(),
+        }
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

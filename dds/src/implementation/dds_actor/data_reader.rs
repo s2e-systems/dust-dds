@@ -290,6 +290,22 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
         self.send_blocking(SetQos { qos })?
     }
 
+    pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
+        struct GetQos;
+
+        impl Mail for GetQos {
+            type Result = DataReaderQos;
+        }
+
+        impl MailHandler<GetQos> for DdsDataReader<RtpsStatefulReader> {
+            fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
+                self.get_qos()
+            }
+        }
+
+        self.send_blocking(GetQos)
+    }
+
     pub fn send_message(
         &self,
         header: RtpsMessageHeader,

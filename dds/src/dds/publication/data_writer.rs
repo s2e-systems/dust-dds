@@ -620,18 +620,11 @@ where
 
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        todo!()
-        // match &self.0 {
-        //     DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&w.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_writer::get_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 w.guid(),
-        //                 w.parent_publisher(),
-        //             )
-        //         }),
-        //     DataWriterNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().get_qos()
+            }
+        }
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
