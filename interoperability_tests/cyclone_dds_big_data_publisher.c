@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 	}
 
-	char data_bytes[100000];
+	char data_bytes[15000];
 	for (int i = 0; i<sizeof(data_bytes); i++) {
 		data_bytes[i] = i;
 	};

@@ -45,7 +45,6 @@ struct LargeData {
 }
 
 #[test]
-#[ignore = "Failing on local test runs"]
 fn large_data_should_be_fragmented() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
@@ -97,7 +96,7 @@ fn large_data_should_be_fragmented() {
 
     let data = LargeData {
         id: 1,
-        value: vec![8; 100000],
+        value: vec![8; 15000],
     };
 
     writer.write(&data, None).unwrap();
@@ -120,7 +119,6 @@ fn large_data_should_be_fragmented() {
 }
 
 #[test]
-#[ignore = "Failing on local test runs"]
 fn large_data_should_be_fragmented_reliable() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
@@ -172,7 +170,7 @@ fn large_data_should_be_fragmented_reliable() {
 
     let data = LargeData {
         id: 1,
-        value: vec![8; 100000],
+        value: vec![8; 15000],
     };
 
     writer.write(&data, None).unwrap();

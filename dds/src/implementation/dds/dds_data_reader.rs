@@ -486,11 +486,11 @@ impl DdsDataReader<RtpsStatefulReader> {
                 self.instance_reception_time
                     .insert(instance_handle, reception_timestamp);
                 self.data_available_status_changed_flag = true;
-                // self.on_data_available(
-                //     parent_subscriber_guid,
-                //     parent_participant_guid,
-                //     listener_sender,
-                // );
+                self.on_data_available(
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
