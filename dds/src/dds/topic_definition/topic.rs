@@ -1,11 +1,13 @@
 use std::marker::PhantomData;
 
 use crate::{
-    domain::{
-        domain_participant::DomainParticipant,
-        domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    domain::domain_participant::DomainParticipant,
+    implementation::{
+        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
+        dds::{dds_domain_participant::DdsDomainParticipant, nodes::TopicNodeKind},
+        rtps::messages::overall_structure::RtpsMessageHeader,
+        utils::actor::ActorAddress,
     },
-    implementation::dds::nodes::{DomainParticipantNode, TopicNodeKind},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -13,9 +15,10 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
+    DdsType,
 };
 
-use super::topic_listener::TopicListener;
+use super::{topic_listener::TopicListener, type_support::dds_serialize};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
@@ -38,46 +41,32 @@ impl<Foo> Topic<Foo> {
     }
 }
 
-impl<Foo> Drop for Topic<Foo> {
-    fn drop(&mut self) {
-        match &self.node {
-            TopicNodeKind::Listener(_) => (),
-            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&t.guid().prefix(), |dp| {
-                    if let Some(dp) = dp {
-                        crate::implementation::behavior::domain_participant::delete_topic(
-                            dp,
-                            t.guid(),
-                        )
-                        .ok();
-                    }
-                }),
-        }
-    }
-}
+// impl<Foo> Drop for Topic<Foo> {
+//     fn drop(&mut self) {
+//         todo!()
+//         // match &self.node {
+//         //     TopicNodeKind::Listener(_) => (),
+//         //     TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+//         //         .get_participant_mut(&t.guid().prefix(), |dp| {
+//         //             if let Some(dp) = dp {
+//         //                 crate::implementation::behavior::domain_participant::delete_topic(
+//         //                     dp,
+//         //                     t.guid(),
+//         //                 )
+//         //                 .ok();
+//         //             }
+//         //         }),
+//         // }
+//     }
+// }
 
 impl<Foo> Topic<Foo> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant_mut(&t.guid().prefix(), |dp| {
-                        crate::implementation::behavior::user_defined_topic::get_inconsistent_topic_status(dp.ok_or(DdsError::AlreadyDeleted)?, t.guid())
-                    })?;
-
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(
-                    &t.guid(),
-                    |topic_listener| {
-                        if let Some(t) = topic_listener {
-                            t.remove_communication_state(StatusKind::InconsistentTopic);
-                        }
-                    },
-                );
-
-                Ok(status)
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                t.address().get_inconsistent_topic_status()
             }
-            TopicNodeKind::Listener(_) => todo!(),
         }
     }
 }
@@ -87,40 +76,25 @@ impl<Foo> Topic<Foo> {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => Ok(DomainParticipant::new(
-                DomainParticipantNode::new(t.parent_participant()),
-            )),
-            TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                Ok(DomainParticipant::new(t.parent_participant().clone()))
+            }
         }
     }
 
     /// The name of the type used to create the [`Topic`]
     pub fn get_type_name(&self) -> DdsResult<&'static str> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_topic::get_type_name(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        t.guid(),
-                    )
-                })
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                t.address().get_type_name()
             }
-            TopicNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// The name used to create the [`Topic`]
     pub fn get_name(&self) -> DdsResult<String> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_topic::get_name(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        t.guid(),
-                    )
-                })
-            }
-            TopicNodeKind::Listener(_) => todo!(),
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => t.address().get_name(),
         }
     }
 }
@@ -141,33 +115,29 @@ impl<Foo> Topic<Foo> {
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&t.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_topic::set_qos(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        t.guid(),
-                        qos,
-                    )
-                }),
-            TopicNodeKind::Listener(_) => todo!(),
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                let qos = match qos {
+                    QosKind::Default => t.parent_participant().default_topic_qos()?,
+                    QosKind::Specific(q) => {
+                        q.is_consistent()?;
+                        q
+                    }
+                };
+
+                if t.address().is_enabled()? {
+                    t.address().get_qos()?.check_immutability(&qos)?
+                }
+
+                t.address().set_qos(qos)
+            }
         }
-        // self.node.upgrade()?.set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&t.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_topic::get_qos(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        t.guid(),
-                    )
-                })
-            }
-            TopicNodeKind::Listener(_) => todo!(),
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => t.address().get_qos(),
         }
-        // Ok(self.node.upgrade()?.get_qos())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -175,14 +145,10 @@ impl<Foo> Topic<Foo> {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&t.guid(), |topic_listener| {
-                    Ok(topic_listener
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .get_status_condition())
-                })
-            }
-            TopicNodeKind::Listener(_) => todo!(),
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => t
+                .address()
+                .get_statuscondition()
+                .map(StatusCondition::new),
         }
     }
 
@@ -193,16 +159,17 @@ impl<Foo> Topic<Foo> {
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&t.guid(), |topic_listener| {
-                    Ok(topic_listener
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .get_status_changes())
-                })
-            }
-            TopicNodeKind::Listener(_) => todo!(),
-        }
+        todo!()
+        // match &self.node {
+        //     TopicNodeKind::UserDefined(t) => {
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&t.guid(), |topic_listener| {
+        //             Ok(topic_listener
+        //                 .ok_or(DdsError::AlreadyDeleted)?
+        //                 .get_status_changes())
+        //         })
+        //     }
+        //     TopicNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -227,21 +194,28 @@ impl<Foo> Topic<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&t.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_topic::enable(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        t.guid(),
-                    )
-                }),
-            TopicNodeKind::Listener(_) => todo!(),
+            TopicNodeKind::UserDefined(t) => {
+                if !t.address().is_enabled()? {
+                    t.address().enable()?;
+
+                    announce_topic(
+                        t.parent_participant(),
+                        t.address().as_discovered_topic_data()?,
+                    )?;
+                }
+
+                Ok(())
+            }
+            TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => Ok(t.guid().into()),
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                t.address().get_instance_handle()
+            }
         }
     }
 }
@@ -261,11 +235,46 @@ where
         _a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
-        match &self.node {
-            TopicNodeKind::UserDefined(_) => todo!(),
-            TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        }
+        todo!()
+        // match &self.node {
+        //     TopicNodeKind::UserDefined(_) => todo!(),
+        //     TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+        // }
     }
 }
 
 pub trait AnyTopic {}
+
+fn announce_topic(
+    domain_participant: &ActorAddress<DdsDomainParticipant>,
+    discovered_topic_data: DiscoveredTopicData,
+) -> DdsResult<()> {
+    let serialized_data = dds_serialize(&discovered_topic_data)?;
+    let timestamp = domain_participant.get_current_time()?;
+
+    if let Some(sedp_topic_announcer) = domain_participant
+        .get_builtin_publisher()?
+        .stateful_data_writer_list()?
+        .iter()
+        .find(|x| x.get_type_name().unwrap() == DiscoveredTopicData::type_name())
+    {
+        sedp_topic_announcer.write_w_timestamp(
+            serialized_data,
+            discovered_topic_data.get_serialized_key(),
+            None,
+            timestamp,
+        )?;
+
+        sedp_topic_announcer.send_message(
+            RtpsMessageHeader::new(
+                domain_participant.get_protocol_version()?,
+                domain_participant.get_vendor_id()?,
+                domain_participant.get_guid()?.prefix(),
+            ),
+            domain_participant.get_udp_transport_write()?,
+            domain_participant.get_current_time()?,
+        )?;
+    }
+
+    Ok(())
+}

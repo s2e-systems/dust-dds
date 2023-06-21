@@ -2,13 +2,20 @@ use std::{marker::PhantomData, time::Instant};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    implementation::dds::nodes::{DataWriterNodeKind, PublisherNode},
+    implementation::{
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
+        dds::{
+            dds_domain_participant::DdsDomainParticipant,
+            nodes::{DataWriterNodeKind, PublisherNode},
+        },
+        rtps::messages::overall_structure::RtpsMessageHeader,
+        utils::actor::ActorAddress,
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, QosKind},
+        qos::{DataWriterQos, QosKind, TopicQos},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, StatusKind,
@@ -36,22 +43,26 @@ impl<Foo> DataWriter<Foo> {
     }
 }
 
-impl<Foo> Drop for DataWriter<Foo> {
-    fn drop(&mut self) {
-        match self.0 {
-            DataWriterNodeKind::Listener(_) => (),
-            DataWriterNodeKind::UserDefined(dw) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&dw.guid().prefix(), |dp| if let Some(dp) = dp {
-                    crate::implementation::behavior::user_defined_publisher::delete_datawriter(
-                        dp,
-                        dw.parent_publisher(),
-                        dw.guid(),
-                        dw.parent_publisher(),
-                    ).ok();
-                }),
-        }
-    }
-}
+// impl<Foo> Drop for DataWriter<Foo> {
+//     fn drop(&mut self) {
+//         match &self.0 {
+//             DataWriterNodeKind::Listener(_) => (),
+//             DataWriterNodeKind::UserDefined(dw) => todo!()
+//             // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+//             //     .get_participant_mut(&dw.guid().prefix(), |dp| {
+//             //         if let Some(dp) = dp {
+//             //             crate::implementation::behavior::user_defined_publisher::delete_datawriter(
+//             //                 dp,
+//             //                 dw.parent_publisher(),
+//             //                 dw.guid(),
+//             //                 dw.parent_publisher(),
+//             //             )
+//             //             .ok();
+//             //         }
+//             //     }),
+//         }
+//     }
+// }
 
 impl<Foo> DataWriter<Foo>
 where
@@ -171,22 +182,17 @@ where
                 }
             }?;
 
-            let serialized_key =
+            let instance_serialized_key =
                 dds_serialize(&instance.get_serialized_key()).map_err(|_err| DdsError::Error)?;
 
             match &self.0 {
-                DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant_mut(&w.guid().prefix(), |dp| {
-                        crate::implementation::behavior::user_defined_data_writer::unregister_instance_w_timestamp(
-                            dp.ok_or(DdsError::AlreadyDeleted)?,
-                            w.guid(),
-                            w.parent_publisher(),
-                            serialized_key,
-                            instance_handle,
-                            timestamp,
-                        )
-                    }),
-                DataWriterNodeKind::Listener(_) => todo!(),
+                DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                    dw.address().unregister_instance_w_timestamp(
+                        instance_serialized_key,
+                        instance_handle,
+                        timestamp,
+                    )
+                }
             }
         } else {
             Err(DdsError::IllegalOperation)
@@ -211,16 +217,9 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_writer::lookup_instance(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        w.guid(),
-                        w.parent_publisher(),
-                        instance.get_serialized_key(),
-                    )
-                }),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().lookup_instance(instance.get_serialized_key())
+            }
         }
     }
 
@@ -278,19 +277,26 @@ where
         let serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_writer::write_w_timestamp(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        w.guid(),
-                            w.parent_publisher(),
-                        serialized_data,
-                        data.get_serialized_key(),
-                        handle,
-                        timestamp,
-                    )
-                }),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().write_w_timestamp(
+                    serialized_data,
+                    data.get_serialized_key(),
+                    handle,
+                    timestamp,
+                )?;
+
+                dw.address().send_message(
+                    RtpsMessageHeader::new(
+                        dw.parent_participant().get_protocol_version()?,
+                        dw.parent_participant().get_vendor_id()?,
+                        dw.parent_participant().get_guid()?.prefix(),
+                    ),
+                    dw.parent_participant().get_udp_transport_write()?,
+                    dw.parent_participant().get_current_time()?,
+                )?;
+
+                Ok(())
+            }
         }
     }
 
@@ -350,22 +356,13 @@ where
             }
         }?;
 
-        let serialized_key =
+        let instance_serialized_key =
             dds_serialize(&data.get_serialized_key()).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_writer::dispose_w_timestamp(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        w.guid(),
-                        w.parent_publisher(),
-                        serialized_key,
-                        instance_handle,
-                        timestamp,
-                    )
-                }),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .address()
+                .dispose_w_timestamp(instance_serialized_key, instance_handle, timestamp),
         }
     }
 }
@@ -381,16 +378,10 @@ impl<Foo> DataWriter<Foo> {
     /// Otherwise the operation will return immediately with [`Ok`].
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
+            DataWriterNodeKind::UserDefined(dw) => {
                 let start_time = Instant::now();
-
                 while start_time.elapsed() < std::time::Duration::from(max_wait) {
-                    if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .get_participant(&w.guid().prefix(), |dp| {
-                            crate::implementation::behavior::user_defined_data_writer::are_all_changes_acknowledge(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
-                            w.parent_publisher(),)
-                        })?
-                    {
+                    if dw.address().are_all_changes_acknowledge()? {
                         return Ok(());
                     }
                 }
@@ -403,94 +394,82 @@ impl<Foo> DataWriter<Foo> {
 
     /// This operation allows access to the [`LivelinessLostStatus`].
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant_mut(&w.guid().prefix(), |dp| {
-                        crate::implementation::behavior::user_defined_data_writer::get_liveliness_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?,w.guid(),
-                        w.parent_publisher(),)
-                    })?;
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-                    &w.guid(),
-                    |data_writer_listener| {
-                        if let Some(l) = data_writer_listener {
-                            l.remove_communication_state(StatusKind::LivelinessLost);
-                        }
-                    },
-                );
-                Ok(status)
-            }
-            DataWriterNodeKind::Listener(_) => todo!(),
-        }
+        todo!()
+        // match &self.0 {
+        //     DataWriterNodeKind::UserDefined(w) => {
+        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //             .get_participant_mut(&w.guid().prefix(), |dp| {
+        //                 crate::implementation::behavior::user_defined_data_writer::get_liveliness_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?,w.guid(),
+        //                 w.parent_publisher(),)
+        //             })?;
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+        //             &w.guid(),
+        //             |data_writer_listener| {
+        //                 if let Some(l) = data_writer_listener {
+        //                     l.remove_communication_state(StatusKind::LivelinessLost);
+        //                 }
+        //             },
+        //         );
+        //         Ok(status)
+        //     }
+        //     DataWriterNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation allows access to the [`OfferedDeadlineMissedStatus`].
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant_mut(&w.guid().prefix(), |dp| {
-                        crate::implementation::behavior::user_defined_data_writer::get_offered_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
-                        w.parent_publisher(),)
-                    })?;
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-                    &w.guid(),
-                    |data_writer_listener| {
-                        if let Some(l) = data_writer_listener {
-                            l.remove_communication_state(StatusKind::OfferedDeadlineMissed);
-                        }
-                    },
-                );
-                Ok(status)
-            }
-            DataWriterNodeKind::Listener(_) => todo!(),
-        }
+        todo!()
+        // match &self.0 {
+        //     DataWriterNodeKind::UserDefined(w) => {
+        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //             .get_participant_mut(&w.guid().prefix(), |dp| {
+        //                 crate::implementation::behavior::user_defined_data_writer::get_offered_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
+        //                 w.parent_publisher(),)
+        //             })?;
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+        //             &w.guid(),
+        //             |data_writer_listener| {
+        //                 if let Some(l) = data_writer_listener {
+        //                     l.remove_communication_state(StatusKind::OfferedDeadlineMissed);
+        //                 }
+        //             },
+        //         );
+        //         Ok(status)
+        //     }
+        //     DataWriterNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation allows access to the [`OfferedIncompatibleQosStatus`].
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant_mut(&w.guid().prefix(), |dp| {
-                        crate::implementation::behavior::user_defined_data_writer::get_offered_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
-                        w.parent_publisher(),)
-                    })?;
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-                    &w.guid(),
-                    |data_writer_listener| {
-                        if let Some(l) = data_writer_listener {
-                            l.remove_communication_state(StatusKind::OfferedIncompatibleQos);
-                        }
-                    },
-                );
-                Ok(status)
-            }
-            DataWriterNodeKind::Listener(_) => todo!(),
-        }
+        todo!()
+        // match &self.0 {
+        //     DataWriterNodeKind::UserDefined(w) => {
+        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //             .get_participant_mut(&w.guid().prefix(), |dp| {
+        //                 crate::implementation::behavior::user_defined_data_writer::get_offered_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
+        //                 w.parent_publisher(),)
+        //             })?;
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+        //             &w.guid(),
+        //             |data_writer_listener| {
+        //                 if let Some(l) = data_writer_listener {
+        //                     l.remove_communication_state(StatusKind::OfferedIncompatibleQos);
+        //                 }
+        //             },
+        //         );
+        //         Ok(status)
+        //     }
+        //     DataWriterNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant_mut(&w.guid().prefix(), |dp| {
-                        crate::implementation::behavior::user_defined_data_writer::get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?, w.guid(),
-                        w.parent_publisher(),)
-                    })?;
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-                    &w.guid(),
-                    |data_writer_listener| {
-                        if let Some(l) = data_writer_listener {
-                            l.remove_communication_state(StatusKind::PublicationMatched);
-                        }
-                    },
-                );
-
-                Ok(status)
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().get_publication_matched_status()
             }
-            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -505,11 +484,12 @@ impl<Foo> DataWriter<Foo> {
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => Ok(Publisher::new(PublisherNode::new(
-                w.parent_publisher(),
-                w.parent_participant(),
-            ))),
-            DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+            DataWriterNodeKind::UserDefined(w) | DataWriterNodeKind::Listener(w) => {
+                Ok(Publisher::new(PublisherNode::new(
+                    w.parent_publisher().clone(),
+                    w.parent_participant().clone(),
+                )))
+            }
         }
     }
 
@@ -539,16 +519,10 @@ impl<Foo> DataWriter<Foo> {
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_writer::get_matched_subscription_data(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        w.guid(),
-                            w.parent_publisher(),
-                        subscription_handle,
-                    )
-                }),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .address()
+                .get_matched_subscription_data(subscription_handle)?
+                .ok_or(DdsError::BadParameter),
         }
     }
 
@@ -560,12 +534,9 @@ impl<Foo> DataWriter<Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the “DCPSSubscriptions” builtin topic.
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_writer::get_matched_subscriptions(dp.ok_or(DdsError::AlreadyDeleted)?,w.guid(),
-                    w.parent_publisher(),)
-                }),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().get_matched_subscriptions()
+            }
         }
     }
 }
@@ -589,31 +560,40 @@ where
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_writer::set_qos(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        w.guid(),
-                        w.parent_publisher(),
-                        qos,
-                    )
-                }),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                let q = match qos {
+                    QosKind::Default => dw.parent_publisher().get_default_datawriter_qos()?,
+                    QosKind::Specific(q) => {
+                        q.is_consistent()?;
+                        q
+                    }
+                };
+                dw.address().set_qos(q)?;
+
+                if dw.address().is_enabled()? {
+                    announce_data_writer(
+                        dw.parent_participant(),
+                        &dw.address().as_discovered_writer_data(
+                            TopicQos::default(),
+                            dw.parent_publisher().get_qos()?,
+                            dw.parent_participant().get_default_unicast_locator_list()?,
+                            dw.parent_participant()
+                                .get_default_multicast_locator_list()?,
+                        )?,
+                    )?;
+                }
+
+                Ok(())
+            }
         }
     }
 
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_writer::get_qos(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        w.guid(),
-                        w.parent_publisher(),
-                    )
-                }),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().get_qos()
+            }
         }
     }
 
@@ -648,12 +628,10 @@ where
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_data_writer_listener(&w.guid(), |data_writer_listener| {
-                    Ok(data_writer_listener
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .get_status_condition())
-                }),
+            DataWriterNodeKind::UserDefined(dw) => dw
+                .address()
+                .get_statuscondition()
+                .map(StatusCondition::new),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -665,15 +643,16 @@ where
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_data_writer_listener(&w.guid(), |data_writer_listener| {
-                    Ok(data_writer_listener
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .get_status_changes())
-                }),
-            DataWriterNodeKind::Listener(_) => todo!(),
-        }
+        todo!()
+        // match &self.0 {
+        //     DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //         .get_data_writer_listener(&w.guid(), |data_writer_listener| {
+        //             Ok(data_writer_listener
+        //                 .ok_or(DdsError::AlreadyDeleted)?
+        //                 .get_status_changes())
+        //         }),
+        //     DataWriterNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -698,14 +677,24 @@ where
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_writer::enable(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        w.guid(),
-                        w.parent_publisher(),
-                    )
-                }),
+            DataWriterNodeKind::UserDefined(w) => {
+                if !w.address().is_enabled()? {
+                    w.address().enable()?;
+
+                    announce_data_writer(
+                        w.parent_participant(),
+                        &w.address().as_discovered_writer_data(
+                            TopicQos::default(),
+                            w.parent_publisher().get_qos()?,
+                            w.parent_participant().get_default_unicast_locator_list()?,
+                            w.parent_participant()
+                                .get_default_multicast_locator_list()?,
+                        )?,
+                    )?;
+                }
+                Ok(())
+            }
+
             DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
@@ -714,10 +703,44 @@ where
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) | DataWriterNodeKind::Listener(w) => {
-                Ok(w.guid().into())
+                w.address().get_instance_handle()
             }
         }
     }
 }
 
 pub trait AnyDataWriter {}
+
+fn announce_data_writer(
+    domain_participant: &ActorAddress<DdsDomainParticipant>,
+    discovered_writer_data: &DiscoveredWriterData,
+) -> DdsResult<()> {
+    let serialized_data = dds_serialize(discovered_writer_data)?;
+    let timestamp = domain_participant.get_current_time()?;
+
+    if let Some(sedp_writer_announcer) = domain_participant
+        .get_builtin_publisher()?
+        .stateful_data_writer_list()?
+        .iter()
+        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+    {
+        sedp_writer_announcer.write_w_timestamp(
+            serialized_data,
+            discovered_writer_data.get_serialized_key(),
+            None,
+            timestamp,
+        )?;
+
+        sedp_writer_announcer.send_message(
+            RtpsMessageHeader::new(
+                domain_participant.get_protocol_version()?,
+                domain_participant.get_vendor_id()?,
+                domain_participant.get_guid()?.prefix(),
+            ),
+            domain_participant.get_udp_transport_write()?,
+            domain_participant.get_current_time()?,
+        )?;
+    }
+
+    Ok(())
+}

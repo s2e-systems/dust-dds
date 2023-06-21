@@ -1,99 +1,47 @@
 use std::time::Instant;
 
-use fnmatch_regex::glob_to_regex;
-use tokio::sync::mpsc::{Receiver, Sender};
-
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
-        data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
-            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
-            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
-        },
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         dds::{
-            any_topic_listener::AnyTopicListener,
-            dds_data_reader::DdsDataReader,
-            dds_data_writer::DdsDataWriter,
-            dds_domain_participant::{
-                AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            },
+            dds_domain_participant::DdsDomainParticipant,
+            dds_publisher::DdsPublisher,
+            dds_publisher_listener::DdsPublisherListener,
             dds_subscriber::DdsSubscriber,
-            nodes::{
-                DataReaderNode, DataWriterNode, DomainParticipantNode, SubscriberNode,
-                SubscriberNodeKind, TopicNode, TopicNodeKind,
-            },
-            participant_discovery::ParticipantDiscovery,
-            status_listener::ListenerTriggerKind,
+            dds_subscriber_listener::DdsSubscriberListener,
+            dds_topic::DdsTopic,
+            nodes::{PublisherNode, SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind},
         },
         rtps::{
-            discovery_types::BuiltinEndpointSet,
-            history_cache::{
-               RtpsWriterCacheChange, DataFragSubmessages,
-            },
-            messages::{
-                overall_structure::{
-                    RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageWriteKind,
-                },
-                submessage_elements::SequenceNumberSet,
-                submessages::{
-                    gap::GapSubmessageWrite, info_destination::InfoDestinationSubmessageWrite,
-                    info_timestamp::InfoTimestampSubmessageWrite,
-                },
-                types::FragmentNumber,
-            },
-            reader_locator::WriterAssociatedReaderLocator,
-            reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
-            stateful_reader::RtpsStatefulReader,
-            stateful_writer::RtpsStatefulWriter,
-            stateless_writer::RtpsStatelessWriter,
-            transport::TransportWrite,
+            group::RtpsGroup,
+            messages::overall_structure::RtpsMessageHeader,
             types::{
-                DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
-                SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
+                EntityId, EntityKey, Guid, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+                USER_DEFINED_WRITER_GROUP,
             },
-            writer_proxy::RtpsWriterProxy,
         },
-        rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
-        utils::condvar::DdsCondvar,
+        utils::actor::{spawn_actor, ActorAddress, THE_RUNTIME},
     },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
-        status::{
-            InconsistentTopicStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-            SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
-        },
-        time::{Duration, DurationKind, Time},
+        status::{StatusKind, NO_STATUS},
+        time::{Duration, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    subscription::{
-        sample_info::{
-            InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-        },
-        subscriber::Subscriber,
-        subscriber_listener::SubscriberListener,
-    },
+    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{dds_serialize, DdsSerializedKey, DdsType},
+        type_support::{dds_serialize, DdsType},
     },
 };
 
 use super::{
-    domain_participant_factory::{
-        DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY, THE_PARTICIPANT_FACTORY, THE_TASK_RUNTIME,
-    },
+    domain_participant_factory::{DomainId, THE_PARTICIPANT_FACTORY},
     domain_participant_listener::DomainParticipantListener,
 };
 
@@ -115,16 +63,12 @@ use super::{
 /// - Factory methods: [`DomainParticipant::create_topic()`], [`DomainParticipant::create_publisher()`], [`DomainParticipant::create_subscriber()`], [`DomainParticipant::delete_topic()`], [`DomainParticipant::delete_publisher()`],
 /// [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
-#[derive(PartialEq, Eq, Debug)]
-pub struct DomainParticipant(DomainParticipantNode);
+
+pub struct DomainParticipant(ActorAddress<DdsDomainParticipant>);
 
 impl DomainParticipant {
-    pub(crate) fn new(node: DomainParticipantNode) -> Self {
-        Self(node)
-    }
-
-    pub(crate) fn node(&self) -> &DomainParticipantNode {
-        &self.0
+    pub(crate) fn new(address: ActorAddress<DdsDomainParticipant>) -> Self {
+        Self(address)
     }
 }
 
@@ -148,17 +92,31 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher = self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::create_publisher(dp, qos)
-        })?;
-
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_publisher_listener(
-            publisher.guid(),
-            a_listener,
-            mask,
+        let publisher_qos = match qos {
+            QosKind::Default => self.0.default_publisher_qos()?,
+            QosKind::Specific(q) => q,
+        };
+        let publisher_counter = self.0.create_unique_publisher_id()?;
+        let entity_id = EntityId::new(
+            EntityKey::new([publisher_counter, 0, 0]),
+            USER_DEFINED_WRITER_GROUP,
         );
+        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
+        let rtps_group = RtpsGroup::new(guid);
+        let listener = a_listener.map(|l| spawn_actor(DdsPublisherListener::new(l)));
+        let status_kind = mask.to_vec();
+        let publisher = DdsPublisher::new(publisher_qos, rtps_group, listener, status_kind);
 
-        Ok(Publisher::new(publisher))
+        let publisher_actor = spawn_actor(publisher);
+        let publisher_address = publisher_actor.address();
+        self.0.add_user_defined_publisher(publisher_actor)?;
+
+        let publisher = Publisher::new(PublisherNode::new(publisher_address, self.0.clone()));
+        if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
+            publisher.enable()?;
+        }
+
+        Ok(publisher)
     }
 
     /// This operation deletes an existing [`Publisher`].
@@ -169,16 +127,25 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::delete_publisher(
-                dp,
-                a_publisher.node().guid(),
-            )
-        })?;
+        if self.0.get_guid()?.prefix() != a_publisher.node().address().guid()?.prefix() {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ));
+        }
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_publisher_listener(&a_publisher.node().guid());
+        if !a_publisher
+            .node()
+            .address()
+            .stateful_data_writer_list()?
+            .is_empty()
+        {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher still contains data writers".to_string(),
+            ));
+        }
 
-        Ok(())
+        self.0
+            .delete_user_defined_publisher(a_publisher.get_instance_handle()?)
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
@@ -195,17 +162,34 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber = self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::create_subscriber(dp, qos)
-        })?;
-
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_subscriber_listener(
-            subscriber.guid(),
-            a_listener,
-            mask,
+        let subscriber_qos = match qos {
+            QosKind::Default => self.0.default_subscriber_qos()?,
+            QosKind::Specific(q) => q,
+        };
+        let subcriber_counter = self.0.create_unique_subscriber_id()?;
+        let entity_id = EntityId::new(
+            EntityKey::new([subcriber_counter, 0, 0]),
+            USER_DEFINED_READER_GROUP,
         );
+        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
+        let rtps_group = RtpsGroup::new(guid);
+        let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
+        let status_kind = mask.to_vec();
 
-        Ok(Subscriber::new(SubscriberNodeKind::UserDefined(subscriber)))
+        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
+
+        let subscriber_actor = spawn_actor(subscriber);
+        let subscriber = Subscriber::new(SubscriberNodeKind::UserDefined(SubscriberNode::new(
+            subscriber_actor.address(),
+            self.0.clone(),
+        )));
+        self.0.add_user_defined_subscriber(subscriber_actor)?;
+
+        if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
+            subscriber.enable()?;
+        }
+
+        Ok(subscriber)
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -216,21 +200,24 @@ impl DomainParticipant {
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
         match a_subscriber.node() {
-            SubscriberNodeKind::Builtin(_) => (),
+            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => Ok(()),
             SubscriberNodeKind::UserDefined(s) => {
-                self.call_participant_mut_method(|dp| {
-                    crate::implementation::behavior::domain_participant::delete_subscriber(
-                        dp,
-                        s.guid(),
-                    )
-                })?;
+                if self.0.get_guid()?.prefix() != s.address().guid()?.prefix() {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Subscriber can only be deleted from its parent participant".to_string(),
+                    ));
+                }
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_subscriber_listener(&s.guid());
+                if !s.address().stateful_data_reader_list()?.is_empty() {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Subscriber still contains data readers".to_string(),
+                    ));
+                }
+
+                self.0
+                    .delete_user_defined_subscriber(s.address().get_instance_handle()?)
             }
-            SubscriberNodeKind::Listener(_) => (),
         }
-
-        Ok(())
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
@@ -246,28 +233,35 @@ impl DomainParticipant {
         &self,
         topic_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<Topic<Foo>>
     where
         Foo: DdsType + 'static,
     {
-        let topic = self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::create_topic(
-                dp,
-                topic_name,
-                Foo::type_name(),
-                qos,
-            )
-        })?;
+        let qos = match qos {
+            QosKind::Default => self.0.default_topic_qos()?,
+            QosKind::Specific(q) => q,
+        };
+        let topic_counter = self.0.create_unique_topic_id()?;
+        let entity_id = EntityId::new(EntityKey::new([topic_counter, 0, 0]), USER_DEFINED_TOPIC);
+        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_topic_listener(
-            topic.guid(),
-            a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
-            mask,
-        );
+        let topic = DdsTopic::new(guid, qos, Foo::type_name(), topic_name);
 
-        Ok(Topic::new(TopicNodeKind::UserDefined(topic)))
+        let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
+        let topic_address = topic_actor.address();
+        self.0.add_user_defined_topic(topic_actor)?;
+
+        let topic = Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
+            topic_address,
+            self.0.clone(),
+        )));
+        if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
+            topic.enable()?;
+        }
+
+        Ok(topic)
     }
 
     /// This operation deletes a [`Topic`].
@@ -279,15 +273,38 @@ impl DomainParticipant {
     pub fn delete_topic<Foo>(&self, a_topic: &Topic<Foo>) -> DdsResult<()> {
         match &a_topic.node() {
             TopicNodeKind::UserDefined(t) => {
-                self.call_participant_mut_method(|dp| {
-                    crate::implementation::behavior::domain_participant::delete_topic(dp, t.guid())
-                })?;
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_topic_listener(&t.guid());
-            }
-            TopicNodeKind::Listener(_) => todo!(),
-        }
+                if self.0.get_guid()?.prefix() != t.address().guid()?.prefix() {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic can only be deleted from its parent participant".to_string(),
+                    ));
+                }
 
-        Ok(())
+                for publisher in self.0.get_user_defined_publisher_list()? {
+                    if publisher.stateful_data_writer_list()?.iter().any(|w| {
+                        w.get_type_name() == t.address().get_type_name()
+                            && w.get_topic_name() == t.address().get_name()
+                    }) {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Topic still attached to some data writer".to_string(),
+                        ));
+                    }
+                }
+
+                for subscriber in self.0.get_user_defined_subscriber_list()? {
+                    if subscriber.stateful_data_reader_list()?.iter().any(|r| {
+                        r.get_type_name() == t.address().get_type_name()
+                            && r.get_topic_name() == t.address().get_name()
+                    }) {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Topic still attached to some data reader".to_string(),
+                        ));
+                    }
+                }
+
+                self.0.delete_topic(t.address().get_instance_handle()?)
+            }
+            TopicNodeKind::Listener(_) => Ok(()),
+        }
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
@@ -303,21 +320,50 @@ impl DomainParticipant {
     /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
     pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic<Foo>>
     where
-        Foo: DdsType,
+        Foo: DdsType + 'static,
     {
         let start_time = Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(timeout) {
-            if let Some(topic) = self.call_participant_mut_method(|dp| {
-                Ok(
-                    crate::implementation::behavior::domain_participant::find_topic(
-                        dp,
-                        topic_name,
-                        Foo::type_name(),
-                    ),
-                )
-            })? {
-                return Ok(Topic::new(TopicNodeKind::UserDefined(topic)));
+            for topic in self.0.get_user_defined_topic_list()? {
+                if topic.get_name()? == topic_name && topic.get_type_name()? == Foo::type_name() {
+                    return Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
+                        topic,
+                        self.0.clone(),
+                    ))));
+                }
+            }
+
+            for discovered_topic_handle in self.0.discovered_topic_list()? {
+                if let Ok(discovered_topic_data) =
+                    self.0.discovered_topic_data(discovered_topic_handle)?
+                {
+                    if discovered_topic_data.name() == topic_name
+                        && discovered_topic_data.get_type_name() == Foo::type_name()
+                    {
+                        let qos = TopicQos {
+                            topic_data: discovered_topic_data.topic_data().clone(),
+                            durability: discovered_topic_data.durability().clone(),
+                            deadline: discovered_topic_data.deadline().clone(),
+                            latency_budget: discovered_topic_data.latency_budget().clone(),
+                            liveliness: discovered_topic_data.liveliness().clone(),
+                            reliability: discovered_topic_data.reliability().clone(),
+                            destination_order: discovered_topic_data.destination_order().clone(),
+                            history: discovered_topic_data.history().clone(),
+                            resource_limits: discovered_topic_data.resource_limits().clone(),
+                            transport_priority: discovered_topic_data.transport_priority().clone(),
+                            lifespan: discovered_topic_data.lifespan().clone(),
+                            ownership: discovered_topic_data.ownership().clone(),
+                        };
+                        let topic = self.create_topic::<Foo>(
+                            topic_name,
+                            QosKind::Specific(qos),
+                            None,
+                            NO_STATUS,
+                        )?;
+                        return Ok(topic);
+                    }
+                }
             }
         }
 
@@ -334,20 +380,21 @@ impl DomainParticipant {
     /// deletion. It is still possible to delete the [`Topic`] returned by [`DomainParticipant::lookup_topicdescription()`], provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a [`Topic`], the operation succeeds and a [`None`] value is returned.
-    pub fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> DdsResult<Option<Topic<Foo>>>
+    pub fn lookup_topicdescription<Foo>(&self, _topic_name: &str) -> DdsResult<Option<Topic<Foo>>>
     where
         Foo: DdsType,
     {
-        self.call_participant_method(|dp| {
-            Ok(
-                crate::implementation::behavior::domain_participant::lookup_topicdescription(
-                    dp,
-                    topic_name,
-                    Foo::type_name(),
-                )?
-                .map(|x| Topic::new(TopicNodeKind::UserDefined(x))),
-            )
-        })
+        todo!()
+        // self.call_participant_method(|dp| {
+        //     Ok(
+        //         crate::implementation::behavior::domain_participant::lookup_topicdescription(
+        //             dp,
+        //             topic_name,
+        //             Foo::type_name(),
+        //         )?
+        //         .map(|x| Topic::new(TopicNodeKind::UserDefined(x))),
+        //     )
+        // })
     }
 
     /// This operation allows access to the built-in [`Subscriber`]. Each [`DomainParticipant`] contains several built-in [`Topic`] objects as
@@ -355,10 +402,9 @@ impl DomainParticipant {
     /// The built-in topics are used to communicate information about other [`DomainParticipant`], [`Topic`], [`DataReader`](crate::subscription::data_reader::DataReader), and [`DataWriter`](crate::publication::data_writer::DataWriter)
     /// objects.
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_builtin_subscriber(dp)
-                .map(|x| Subscriber::new(SubscriberNodeKind::Builtin(x)))
-        })
+        Ok(Subscriber::new(SubscriberNodeKind::Builtin(
+            SubscriberNode::new(self.0.get_builtin_subscriber()?, self.0.clone()),
+        )))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
@@ -373,9 +419,11 @@ impl DomainParticipant {
     /// [`DataReader`](crate::subscription::data_reader::DataReader) is read with the same read/take operations used for any DataReader.
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::ignore_participant(dp, handle)
-        })
+        if self.0.is_enabled()? {
+            self.0.ignore_participant(handle)
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote topic. This means it will locally ignore any
@@ -386,9 +434,11 @@ impl DomainParticipant {
     /// reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSTopic” topic.
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::ignore_topic(dp, handle)
-        })
+        if self.0.is_enabled()? {
+            self.0.ignore_topic(handle)
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote publication; a publication is defined by
@@ -397,9 +447,11 @@ impl DomainParticipant {
     /// when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSPublication” topic.
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::ignore_publication(dp, handle)
-        })
+        if self.0.is_enabled()? {
+            self.0.ignore_publication(handle)
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote subscription; a subscription is defined by
@@ -409,17 +461,17 @@ impl DomainParticipant {
     /// retrieved when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSSubscription” topic.
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::ignore_subscription(dp, handle)
-        })
+        if self.0.is_enabled()? {
+            self.0.ignore_subscription(handle)
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_domain_id(dp)
-        })
+        self.0.get_domain_id()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -433,9 +485,7 @@ impl DomainParticipant {
     /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::delete_contained_entities(dp)
-        })
+        self.0.delete_contained_entities()?
     }
 
     /// This operation manually asserts the liveliness of the [`DomainParticipant`]. This is used in combination
@@ -446,9 +496,10 @@ impl DomainParticipant {
     /// NOTE: Writing data via the write operation on a  [`DataWriter`](crate::publication::data_writer::DataWriter) asserts liveliness on the DataWriter itself and its
     /// [`DomainParticipant`]. Consequently the use of this operation is only needed if the application is not writing data regularly.
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::assert_liveliness(dp)
-        })
+        todo!()
+        // self.call_participant_method(|dp| {
+        //     crate::implementation::behavior::domain_participant::assert_liveliness(dp)
+        // })
     }
 
     /// This operation sets a default value of the Publisher QoS policies which will be used for newly created [`Publisher`] entities in the
@@ -458,9 +509,11 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values the default values of [`PublisherQos`].
     pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::set_default_publisher_qos(dp, qos)
-        })
+        let qos = match qos {
+            QosKind::Default => PublisherQos::default(),
+            QosKind::Specific(q) => q,
+        };
+        self.0.set_default_publisher_qos(qos)
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -468,9 +521,7 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_default_publisher_qos(dp)
-        })
+        self.0.default_publisher_qos()
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created [`Subscriber`] entities in the
@@ -480,9 +531,12 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the default values of [`SubscriberQos`].
     pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::set_default_subscriber_qos(dp, qos)
-        })
+        let qos = match qos {
+            QosKind::Default => SubscriberQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.0.set_default_subscriber_qos(qos)
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -490,9 +544,7 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_subscriber_qos()`], or else, if the call was never made, the default values of [`SubscriberQos`].
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_default_subscriber_qos(dp)
-        })
+        self.0.default_subscriber_qos()
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created [`Topic`] entities in the case
@@ -502,9 +554,14 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
     pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::set_default_topic_qos(dp, qos)
-        })
+        let qos = match qos {
+            QosKind::Default => TopicQos::default(),
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
+        self.0.set_default_topic_qos(qos)
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created [`Topic`]
@@ -512,17 +569,13 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_default_topic_qos(dp)
-        })
+        self.0.default_topic_qos()
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the [`DomainParticipant::ignore_participant()`] operation.
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_discovered_participants(dp)
-        })
+        self.0.get_discovered_participants()
     }
 
     /// This operation retrieves information on a [`DomainParticipant`] that has been discovered on the network. The participant must
@@ -533,22 +586,21 @@ impl DomainParticipant {
     /// Use the operation [`DomainParticipant::get_discovered_participants()`] to find the DomainParticipants that are currently discovered.
     pub fn get_discovered_participant_data(
         &self,
-        participant_handle: InstanceHandle,
+        _participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_discovered_participant_data(
-                dp,
-                participant_handle,
-            )
-        })
+        todo!()
+        // self.call_participant_method(|dp| {
+        //     crate::implementation::behavior::domain_participant::get_discovered_participant_data(
+        //         dp,
+        //         participant_handle,
+        //     )
+        // })
     }
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
     /// should be “ignored” by means of the [`DomainParticipant::ignore_topic()`] operation.
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_discovered_topics(dp)
-        })
+        self.0.discovered_topic_list()
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -561,12 +613,7 @@ impl DomainParticipant {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_discovered_topic_data(
-                dp,
-                topic_handle,
-            )
-        })
+        self.0.discovered_topic_data(topic_handle)?
     }
 
     /// This operation checks whether or not the given `a_handle` represents an Entity that was created from the [`DomainParticipant`].
@@ -575,18 +622,17 @@ impl DomainParticipant {
     /// so forth.
     /// The instance handle for an Entity may be obtained from built-in topic data, from various statuses, or from the Entity operation
     /// `get_instance_handle`.
-    pub fn contains_entity(&self, a_handle: InstanceHandle) -> DdsResult<bool> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::contains_entity(dp, a_handle)
-        })
+    pub fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
+        todo!()
+        // self.call_participant_method(|dp| {
+        //     crate::implementation::behavior::domain_participant::contains_entity(dp, a_handle)
+        // })
     }
 
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_current_time(dp)
-        })
+        self.0.get_current_time()
     }
 }
 
@@ -605,16 +651,17 @@ impl DomainParticipant {
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            crate::implementation::behavior::domain_participant::set_qos(dp, qos)
-        })
+        let qos = match qos {
+            QosKind::Default => THE_PARTICIPANT_FACTORY.get_default_participant_qos()?,
+            QosKind::Specific(q) => q,
+        };
+
+        self.0.set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.call_participant_method(|dp| {
-            crate::implementation::behavior::domain_participant::get_qos(dp)
-        })
+        self.0.get_qos()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -635,14 +682,15 @@ impl DomainParticipant {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-            &self.0.guid(),
-            |domain_participant_listener| {
-                Ok(domain_participant_listener
-                    .ok_or(DdsError::AlreadyDeleted)?
-                    .get_status_condition())
-            },
-        )
+        todo!()
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+        //     &self.0.guid(),
+        //     |domain_participant_listener| {
+        //         Ok(domain_participant_listener
+        //             .ok_or(DdsError::AlreadyDeleted)?
+        //             .get_status_condition())
+        //     },
+        // )
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -652,14 +700,15 @@ impl DomainParticipant {
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-            &self.0.guid(),
-            |domain_participant_listener| {
-                Ok(domain_participant_listener
-                    .ok_or(DdsError::AlreadyDeleted)?
-                    .get_status_changes())
-            },
-        )
+        todo!()
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+        //     &self.0.guid(),
+        //     |domain_participant_listener| {
+        //         Ok(domain_participant_listener
+        //             .ok_or(DdsError::AlreadyDeleted)?
+        //             .get_status_changes())
+        //     },
+        // )
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -683,1999 +732,134 @@ impl DomainParticipant {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| {
-            THE_TASK_RUNTIME.block_on(async {
-                crate::implementation::behavior::domain_participant::enable(dp).await
-            })
-        })
+        if !self.0.is_enabled()? {
+            self.0.get_builtin_publisher()?.enable()?;
+            self.0.get_builtin_subscriber()?.enable()?;
+
+            for stateless_builtin_reader in self
+                .0
+                .get_builtin_subscriber()?
+                .stateless_data_reader_list()?
+            {
+                stateless_builtin_reader.enable()?;
+            }
+
+            for stateful_builtin_reader in self
+                .0
+                .get_builtin_subscriber()?
+                .stateful_data_reader_list()?
+            {
+                stateful_builtin_reader.enable()?;
+            }
+
+            for stateless_builtin_writer in self
+                .0
+                .get_builtin_publisher()?
+                .stateless_datawriter_list()?
+            {
+                stateless_builtin_writer.enable()?;
+            }
+
+            for stateful_builtin_writer in self
+                .0
+                .get_builtin_publisher()?
+                .stateful_data_writer_list()?
+            {
+                stateful_builtin_writer.enable()?;
+            }
+
+            self.0.enable()?;
+
+            let domain_participant_address = self.0.clone();
+
+            // Spawn the task that regularly announces the domain participant
+            THE_RUNTIME.spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+                loop {
+                    let r: DdsResult<()> = tokio::task::block_in_place(|| {
+                        let builtin_publisher =
+                            domain_participant_address.get_builtin_publisher()?;
+                        if let Some(participant_announcer) = builtin_publisher
+                            .stateless_datawriter_list()?
+                            .iter()
+                            .find(|dw| {
+                                if let Ok(name) = dw.get_type_name() {
+                                    name == SpdpDiscoveredParticipantData::type_name()
+                                } else {
+                                    false
+                                }
+                            })
+                        {
+                            let spdp_discovered_participant_data =
+                                domain_participant_address.as_spdp_discovered_participant_data()?;
+                            let serialized_data = dds_serialize(&spdp_discovered_participant_data)
+                                .map_err(|_err| DdsError::Error)?;
+                            let timestamp = domain_participant_address.get_current_time()?;
+                            participant_announcer.write_w_timestamp(
+                                serialized_data,
+                                spdp_discovered_participant_data.get_serialized_key(),
+                                None,
+                                timestamp,
+                            )?;
+
+                            participant_announcer.send_message(
+                                RtpsMessageHeader::new(
+                                    domain_participant_address.get_protocol_version()?,
+                                    domain_participant_address.get_vendor_id()?,
+                                    domain_participant_address.get_guid()?.prefix(),
+                                ),
+                                domain_participant_address.get_udp_transport_write()?,
+                            )?;
+                        }
+
+                        Ok(())
+                    });
+
+                    if r.is_err() {
+                        break;
+                    }
+
+                    interval.tick().await;
+                }
+            });
+
+            // Spawn the task that regularly checks for deadline missed
+            let domain_participant_address = self.0.clone();
+            THE_RUNTIME.spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(50));
+                loop {
+                    let r: DdsResult<()> = tokio::task::block_in_place(|| {
+                        let now = domain_participant_address.get_current_time()?;
+
+                        for subscriber in
+                            domain_participant_address.get_user_defined_subscriber_list()?
+                        {
+                            for data_reader in subscriber.stateful_data_reader_list()? {
+                                data_reader.update_communication_status(
+                                    now,
+                                    data_reader.clone(),
+                                    subscriber.clone(),
+                                    domain_participant_address.clone(),
+                                )?;
+                            }
+                        }
+
+                        Ok(())
+                    });
+
+                    if r.is_err() {
+                        break;
+                    }
+                    interval.tick().await;
+                }
+            });
+        }
+
+        Ok(())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.0.guid().into())
+        self.0.get_instance_handle()
     }
-
-    fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
-    where
-        F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
-    {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.guid().prefix(), |dp| {
-            f(dp.ok_or(DdsError::AlreadyDeleted)?)
-        })
-    }
-
-    fn call_participant_mut_method<F, O>(&self, f: F) -> DdsResult<O>
-    where
-        F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
-    {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
-            f(dp.ok_or(DdsError::AlreadyDeleted)?)
-        })
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////
-
-pub async fn task_announce_participant(participant_guid_prefix: GuidPrefix) {
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
-    loop {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    dp.announce_participant().ok();
-                }
-            })
-            .await;
-        interval.tick().await;
-    }
-}
-
-pub async fn task_unicast_user_defined_communication_send(
-    participant_guid_prefix: GuidPrefix,
-    _user_defined_data_send_condvar: DdsCondvar,
-) {
-    let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
-    let mut default_unicast_transport_send = UdpTransportWrite::new(socket);
-
-    loop {
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-
-        // let _r = user_defined_data_send_condvar.wait_timeout(Duration::new(0, 100_000_000));
-
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    user_defined_communication_send(dp, &mut default_unicast_transport_send);
-                }
-            })
-            .await
-    }
-}
-
-pub async fn task_unicast_metatraffic_communication_send(
-    participant_guid_prefix: GuidPrefix,
-    _sedp_condvar: DdsCondvar,
-) {
-    let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
-
-    let mut metatraffic_unicast_transport_send = UdpTransportWrite::new(socket);
-
-    loop {
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-
-        // let _r = sedp_condvar.wait_timeout(Duration::new(0, 500000000));
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    send_builtin_message(dp, &mut metatraffic_unicast_transport_send);
-                }
-            })
-            .await;
-    }
-}
-
-pub async fn task_send_entity_announce(
-    participant_guid_prefix: GuidPrefix,
-    mut announce_receiver: Receiver<AnnounceKind>,
-) {
-    loop {
-        if let Some(announce_kind) = announce_receiver.recv().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                    if let Some(dp) = dp {
-                        announce_entity(dp, announce_kind);
-                    }
-                })
-                .await
-        }
-    }
-}
-
-fn announce_entity(domain_participant: &mut DdsDomainParticipant, announce_kind: AnnounceKind) {
-    match announce_kind {
-        AnnounceKind::CreatedDataReader(discovered_reader_data) => {
-            announce_created_data_reader(domain_participant, discovered_reader_data)
-        }
-        AnnounceKind::CreatedDataWriter(discovered_writer_data) => {
-            announce_created_data_writer(domain_participant, discovered_writer_data)
-        }
-        AnnounceKind::CratedTopic(discovered_topic_data) => {
-            announce_created_topic(domain_participant, discovered_topic_data)
-        }
-        AnnounceKind::DeletedDataReader(deleted_reader_handle) => {
-            announce_deleted_reader(domain_participant, deleted_reader_handle)
-        }
-        AnnounceKind::DeletedDataWriter(deleted_writer_handle) => {
-            announce_deleted_writer(domain_participant, deleted_writer_handle)
-        }
-        AnnounceKind::DeletedParticipant => (),
-    }
-}
-
-pub async fn task_user_defined_receive(
-    participant_guid_prefix: GuidPrefix,
-    mut default_unicast_transport: UdpTransportRead,
-    listener_sender: Sender<ListenerTriggerKind>,
-) {
-    loop {
-        if let Some((locator, message)) = default_unicast_transport.read().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                    if let Some(dp) = dp {
-                        dp.receive_user_defined_data(locator, message, &listener_sender)
-                            .ok();
-                    }
-                })
-                .await;
-        }
-    }
-}
-
-pub async fn task_metatraffic_unicast_receive(
-    participant_guid_prefix: GuidPrefix,
-    mut metatraffic_unicast_transport: UdpTransportRead,
-    sedp_condvar: DdsCondvar,
-    listener_sender: Sender<ListenerTriggerKind>,
-) {
-    loop {
-        if let Some((locator, message)) = metatraffic_unicast_transport.read().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                    if let Some(dp) = dp {
-                        receive_builtin_message(
-                            dp,
-                            message,
-                            locator,
-                            &sedp_condvar,
-                            &listener_sender,
-                        )
-                    }
-                })
-                .await
-        }
-    }
-}
-
-pub async fn task_metatraffic_multicast_receive(
-    participant_guid_prefix: GuidPrefix,
-    mut metatraffic_multicast_transport: UdpTransportRead,
-    sedp_condvar: DdsCondvar,
-    listener_sender: Sender<ListenerTriggerKind>,
-) {
-    loop {
-        if let Some((locator, message)) = metatraffic_multicast_transport.read().await {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                    if let Some(dp) = dp {
-                        receive_builtin_message(
-                            dp,
-                            message,
-                            locator,
-                            &sedp_condvar,
-                            &listener_sender,
-                        )
-                    }
-                })
-                .await
-        }
-    }
-}
-
-pub async fn task_update_communication_status(
-    participant_guid_prefix: GuidPrefix,
-    listener_sender: Sender<ListenerTriggerKind>,
-) {
-    loop {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut_async(&participant_guid_prefix, |dp| {
-                if let Some(dp) = dp {
-                    dp.update_communication_status(&listener_sender).ok();
-                }
-            })
-            .await;
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-    }
-}
-
-pub async fn task_listener_receiver(mut listener_receiver: Receiver<ListenerTriggerKind>) {
-    loop {
-        if let Some(l) = listener_receiver.recv().await {
-            match l {
-                ListenerTriggerKind::RequestedDeadlineMissed(dr) => {
-                    THE_TASK_RUNTIME.spawn_blocking(move || {
-                        on_requested_deadline_missed_communication_change(dr)
-                    });
-                }
-                ListenerTriggerKind::OnDataAvailable(dr) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_data_available_communication_change(dr));
-                }
-                ListenerTriggerKind::SubscriptionMatched(dr) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_subscription_matched_communication_change(dr));
-                }
-                ListenerTriggerKind::RequestedIncompatibleQos(dr) => {
-                    THE_TASK_RUNTIME.spawn_blocking(move || {
-                        on_requested_incompatible_qos_communication_change(dr)
-                    });
-                }
-                ListenerTriggerKind::OnSampleRejected(dr) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_sample_rejected_communication_change(dr));
-                }
-                ListenerTriggerKind::OnSampleLost(dr) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_sample_lost_communication_change(dr));
-                }
-                ListenerTriggerKind::OfferedIncompatibleQos(dw) => {
-                    THE_TASK_RUNTIME.spawn_blocking(move || {
-                        on_offered_incompatible_qos_communication_change(dw)
-                    });
-                }
-                ListenerTriggerKind::PublicationMatched(dw) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_publication_matched_communication_change(dw));
-                }
-                ListenerTriggerKind::InconsistentTopic(t) => {
-                    THE_TASK_RUNTIME
-                        .spawn_blocking(move || on_inconsistent_topic_communication_change(t));
-                }
-            }
-        }
-    }
-}
-
-fn on_requested_deadline_missed_communication_change(data_reader_node: DataReaderNode) {
-    fn get_requested_deadline_missed_status(
-        data_reader_node: &DataReaderNode,
-    ) -> DdsResult<RequestedDeadlineMissedStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
-            })
-    }
-
-    let status_kind = StatusKind::RequestedDeadlineMissed;
-    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| match data_reader_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_requested_deadline_missed(data_reader_node, status);
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-
-    if !reader_listener {
-        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-            &data_reader_node.parent_subscriber(),
-            |subscriber_listener| match subscriber_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_requested_deadline_missed(&data_reader_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-
-        if !subscriber_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_reader_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node)
-                        {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_requested_deadline_missed(&data_reader_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
-
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
-}
-
-fn on_data_available_communication_change(data_reader_node: DataReaderNode) {
-    let data_on_reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-        &data_reader_node.parent_subscriber(),
-        |subscriber_listener| match subscriber_listener {
-            Some(l) if l.is_enabled(&StatusKind::DataOnReaders) => {
-                l.listener_mut()
-                    .as_mut()
-                    .expect("Listener should be some")
-                    .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
-                        SubscriberNode::new(
-                            data_reader_node.parent_subscriber(),
-                            data_reader_node.parent_participant(),
-                        ),
-                    )));
-                true
-            }
-            _ => false,
-        },
-    );
-    if !data_on_reader_listener {
-        let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-            &data_reader_node.guid(),
-            |data_reader_listener| match data_reader_listener {
-                Some(l) if l.is_enabled(&StatusKind::DataAvailable) => {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_data_available(data_reader_node);
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !reader_listener {
-            let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-                &data_reader_node.parent_subscriber(),
-                |subscriber_listener| match subscriber_listener {
-                    Some(l) if l.is_enabled(&StatusKind::DataAvailable) => {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_data_available(&data_reader_node);
-
-                        true
-                    }
-                    _ => false,
-                },
-            );
-            if !subscriber_listener {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                    &data_reader_node.parent_participant(),
-                    |participant_listener| match participant_listener {
-                        Some(l) if l.is_enabled(&StatusKind::DataAvailable) => l
-                            .listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_data_available(&data_reader_node),
-                        _ => (),
-                    },
-                );
-            }
-        }
-    }
-
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-        &data_reader_node.parent_subscriber(),
-        |subscriber_listener| {
-            if let Some(l) = subscriber_listener {
-                l.add_communication_state(StatusKind::DataOnReaders);
-            }
-        },
-    );
-
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(StatusKind::DataAvailable);
-            }
-        },
-    )
-}
-
-fn on_subscription_matched_communication_change(data_reader_node: DataReaderNode) {
-    fn get_subscription_matched_status(
-        data_reader_node: &DataReaderNode,
-    ) -> DdsResult<SubscriptionMatchedStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_reader_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_subscription_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
-            },
-        )
-    }
-
-    let status_kind = StatusKind::SubscriptionMatched;
-    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| match data_reader_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_subscription_matched(data_reader_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !reader_listener {
-        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-            &data_reader_node.parent_subscriber(),
-            |subscriber_listener| match subscriber_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_subscription_matched(&data_reader_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !subscriber_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_reader_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_subscription_matched(&data_reader_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
-
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
-}
-
-fn on_requested_incompatible_qos_communication_change(data_reader_node: DataReaderNode) {
-    fn get_requested_incompatible_qos_status(
-        data_reader_node: &DataReaderNode,
-    ) -> DdsResult<RequestedIncompatibleQosStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_reader_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_requested_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
-            },
-        )
-    }
-
-    let status_kind = StatusKind::RequestedIncompatibleQos;
-    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| match data_reader_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_requested_incompatible_qos(data_reader_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !reader_listener {
-        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-            &data_reader_node.parent_subscriber(),
-            |subscriber_listener| match subscriber_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_requested_incompatible_qos(&data_reader_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !subscriber_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_reader_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node)
-                        {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_requested_incompatible_qos(&data_reader_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
-
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
-}
-
-fn on_sample_rejected_communication_change(data_reader_node: DataReaderNode) {
-    fn get_sample_rejected_status(
-        data_reader_node: &DataReaderNode,
-    ) -> DdsResult<SampleRejectedStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut(&data_reader_node.parent_participant().prefix(), |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_sample_rejected_status(dp.ok_or(DdsError::AlreadyDeleted)?, data_reader_node.guid(), data_reader_node.parent_subscriber())
-            })
-    }
-
-    let status_kind = StatusKind::SampleRejected;
-    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| match data_reader_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_sample_rejected(data_reader_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !reader_listener {
-        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-            &data_reader_node.parent_subscriber(),
-            |subscriber_listener| match subscriber_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_sample_rejected(&data_reader_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !subscriber_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_reader_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_sample_rejected(&data_reader_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
-
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
-}
-
-fn on_sample_lost_communication_change(data_reader_node: DataReaderNode) {
-    fn get_sample_lost_status(data_reader_node: &DataReaderNode) -> DdsResult<SampleLostStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_reader_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_data_reader::get_sample_lost_status(
-                    dp.ok_or(DdsError::AlreadyDeleted)?,
-                    data_reader_node.guid(),
-                    data_reader_node.parent_subscriber(),
-                )
-            },
-        )
-    }
-
-    let status_kind = StatusKind::SampleLost;
-    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| match data_reader_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_sample_lost_status(&data_reader_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_sample_lost(data_reader_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !reader_listener {
-        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-            &data_reader_node.parent_subscriber(),
-            |subscriber_listener| match subscriber_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_sample_lost_status(&data_reader_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_sample_lost(&data_reader_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !subscriber_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_reader_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_sample_lost_status(&data_reader_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_sample_lost(&data_reader_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
-
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-        &data_reader_node.guid(),
-        |data_reader_listener| {
-            if let Some(l) = data_reader_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
-}
-
-fn on_offered_incompatible_qos_communication_change(data_writer_node: DataWriterNode) {
-    fn get_offered_incompatible_qos_status(
-        data_writer_node: &DataWriterNode,
-    ) -> DdsResult<OfferedIncompatibleQosStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_writer_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_data_writer::get_offered_incompatible_qos_status(
-                    dp.ok_or(DdsError::AlreadyDeleted)?,
-                    data_writer_node.guid(),
-                    data_writer_node.parent_publisher(),
-                )
-            },
-        )
-    }
-
-    let status_kind = StatusKind::OfferedIncompatibleQos;
-    let writer_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-        &data_writer_node.guid(),
-        |data_writer_listener| match data_writer_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_offered_incompatible_qos(data_writer_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !writer_listener {
-        let publisher_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
-            &data_writer_node.parent_publisher(),
-            |publisher_listener| match publisher_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_offered_incompatible_qos(&data_writer_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !publisher_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_writer_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_offered_incompatible_qos(&data_writer_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
-
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-        &data_writer_node.guid(),
-        |data_writer_listener| {
-            if let Some(l) = data_writer_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
-}
-
-fn on_publication_matched_communication_change(data_writer_node: DataWriterNode) {
-    fn get_publication_matched_status(
-        data_writer_node: &DataWriterNode,
-    ) -> DdsResult<PublicationMatchedStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &data_writer_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_data_writer::get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?,data_writer_node.guid(),
-                data_writer_node.parent_publisher(),)
-            },
-        )
-    }
-
-    let status_kind = StatusKind::PublicationMatched;
-    let writer_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-        &data_writer_node.guid(),
-        |data_writer_listener| match data_writer_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_publication_matched_status(&data_writer_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_publication_matched(data_writer_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !writer_listener {
-        let publisher_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
-            &data_writer_node.parent_publisher(),
-            |publisher_listener| match publisher_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_publication_matched_status(&data_writer_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_publication_matched(&data_writer_node, status)
-                    }
-                    true
-                }
-                _ => false,
-            },
-        );
-        if !publisher_listener {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &data_writer_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_publication_matched_status(&data_writer_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_publication_matched(&data_writer_node, status)
-                        }
-                    }
-                    _ => (),
-                },
-            );
-        }
-    }
-
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
-        &data_writer_node.guid(),
-        |data_writer_listener| {
-            if let Some(l) = data_writer_listener {
-                l.add_communication_state(status_kind);
-            }
-        },
-    )
-}
-
-fn on_inconsistent_topic_communication_change(topic_node: TopicNode) {
-    fn get_inconsistent_topic_status(topic_node: &TopicNode) -> DdsResult<InconsistentTopicStatus> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &topic_node.parent_participant().prefix(),
-            |dp| {
-                crate::implementation::behavior::user_defined_topic::get_inconsistent_topic_status(
-                    dp.ok_or(DdsError::AlreadyDeleted)?,
-                    topic_node.guid(),
-                )
-            },
-        )
-    }
-
-    let status_kind = StatusKind::InconsistentTopic;
-    let topic_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(
-        &topic_node.guid(),
-        |topic_listener| match topic_listener {
-            Some(l) if l.is_enabled(&status_kind) => {
-                if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
-                    l.listener_mut()
-                        .as_mut()
-                        .expect("Listener should be some")
-                        .trigger_on_inconsistent_topic(topic_node, status)
-                }
-                true
-            }
-            _ => false,
-        },
-    );
-    if !topic_listener {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-            &topic_node.parent_participant(),
-            |participant_listener| match participant_listener {
-                Some(l) if l.is_enabled(&status_kind) => {
-                    if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
-                        l.listener_mut()
-                            .as_mut()
-                            .expect("Listener should be some")
-                            .on_inconsistent_topic(&topic_node, status)
-                    }
-                }
-                _ => (),
-            },
-        );
-    }
-
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&topic_node.guid(), |topic_listener| {
-        if let Some(l) = topic_listener {
-            l.add_communication_state(status_kind);
-        }
-    })
-}
-
-fn announce_created_data_reader(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_reader_data: DiscoveredReaderData,
-) {
-    let reader_proxy = ReaderProxy::new(
-        discovered_reader_data.reader_proxy().remote_reader_guid(),
-        discovered_reader_data
-            .reader_proxy()
-            .remote_group_entity_id(),
-        domain_participant.default_unicast_locator_list().to_vec(),
-        domain_participant.default_multicast_locator_list().to_vec(),
-        discovered_reader_data.reader_proxy().expects_inline_qos(),
-    );
-    let reader_data = &DiscoveredReaderData::new(
-        reader_proxy,
-        discovered_reader_data
-            .subscription_builtin_topic_data()
-            .clone(),
-    );
-
-    let serialized_data = dds_serialize(reader_data).expect("Failed to serialize data");
-
-    let timestamp = domain_participant.get_current_time();
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            reader_data.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
-}
-
-fn announce_created_data_writer(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_writer_data: DiscoveredWriterData,
-) {
-    let writer_data = &DiscoveredWriterData::new(
-        discovered_writer_data.dds_publication_data().clone(),
-        WriterProxy::new(
-            discovered_writer_data.writer_proxy().remote_writer_guid(),
-            discovered_writer_data
-                .writer_proxy()
-                .remote_group_entity_id(),
-            domain_participant.default_unicast_locator_list().to_vec(),
-            domain_participant.default_multicast_locator_list().to_vec(),
-            discovered_writer_data
-                .writer_proxy()
-                .data_max_size_serialized(),
-        ),
-    );
-
-    let serialized_data = dds_serialize(writer_data).expect("Failed to serialize data");
-
-    let timestamp = domain_participant.get_current_time();
-
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            writer_data.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
-}
-
-fn announce_created_topic(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_topic: DiscoveredTopicData,
-) {
-    let serialized_data = dds_serialize(&discovered_topic).expect("Failed to serialize data");
-
-    let timestamp = domain_participant.get_current_time();
-
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
-        .unwrap()
-        .write_w_timestamp(
-            serialized_data,
-            discovered_topic.get_serialized_key(),
-            None,
-            timestamp,
-        )
-        .expect("Should not fail to write built-in message");
-}
-
-fn announce_deleted_reader(
-    domain_participant: &mut DdsDomainParticipant,
-    reader_handle: InstanceHandle,
-) {
-    let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
-    let instance_serialized_key =
-        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
-            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-            .expect("Failed to serialize data");
-
-    let timestamp = domain_participant.get_current_time();
-
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-        .unwrap()
-        .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
-        .expect("Should not fail to write built-in message");
-}
-
-fn announce_deleted_writer(
-    domain_participant: &mut DdsDomainParticipant,
-    writer_handle: InstanceHandle,
-) {
-    let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
-    let instance_serialized_key =
-        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
-            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-            .expect("Failed to serialize data");
-
-    let timestamp = domain_participant.get_current_time();
-
-    domain_participant
-        .get_builtin_publisher_mut()
-        .stateful_data_writer_list_mut()
-        .iter_mut()
-        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-        .unwrap()
-        .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
-        .expect("Should not fail to write built-in message");
-}
-
-fn send_builtin_message(
-    domain_participant: &mut DdsDomainParticipant,
-    metatraffic_unicast_transport_send: &mut impl TransportWrite,
-) {
-    let header = RtpsMessageHeader::new(
-        domain_participant.protocol_version(),
-        domain_participant.vendor_id(),
-        domain_participant.guid().prefix(),
-    );
-
-    let _now = domain_participant.get_current_time();
-    stateless_writer_send_message(
-        domain_participant
-            .get_builtin_publisher_mut()
-            .stateless_data_writer_list_mut()
-            .iter_mut()
-            .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
-            .unwrap(),
-        header,
-        metatraffic_unicast_transport_send,
-    );
-
-    stateful_writer_send_message(
-        domain_participant
-            .get_builtin_publisher_mut()
-            .stateful_data_writer_list_mut()
-            .iter_mut()
-            .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-            .unwrap(),
-        header,
-        metatraffic_unicast_transport_send,
-    );
-
-    stateful_writer_send_message(
-        domain_participant
-            .get_builtin_publisher_mut()
-            .stateful_data_writer_list_mut()
-            .iter_mut()
-            .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-            .unwrap(),
-        header,
-        metatraffic_unicast_transport_send,
-    );
-
-    stateful_writer_send_message(
-        domain_participant
-            .get_builtin_publisher_mut()
-            .stateful_data_writer_list_mut()
-            .iter_mut()
-            .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
-            .unwrap(),
-        header,
-        metatraffic_unicast_transport_send,
-    );
-
-    for stateful_readers in domain_participant
-        .get_builtin_subscriber_mut()
-        .stateful_data_reader_list_mut()
-    {
-        stateful_readers.send_message(header, metatraffic_unicast_transport_send)
-    }
-}
-
-fn user_defined_communication_send(
-    domain_participant: &mut DdsDomainParticipant,
-    default_unicast_transport_send: &mut impl TransportWrite,
-) {
-    let header = RtpsMessageHeader::new(
-        domain_participant.protocol_version(),
-        domain_participant.vendor_id(),
-        domain_participant.guid().prefix(),
-    );
-    let now = domain_participant.get_current_time();
-
-    for publisher in domain_participant.user_defined_publisher_list_mut() {
-        for data_writer in publisher.stateful_data_writer_list_mut() {
-            let writer_id = data_writer.guid().entity_id();
-            let heartbeat_period = data_writer.heartbeat_period();
-            let first_sn = data_writer
-                .change_list()
-                .iter()
-                .map(|x| x.sequence_number())
-                .min()
-                .unwrap_or(SequenceNumber::new(1));
-            let last_sn = data_writer
-                .change_list()
-                .iter()
-                .map(|x| x.sequence_number())
-                .max()
-                .unwrap_or_else(|| SequenceNumber::new(0));
-            remove_stale_writer_changes(data_writer, now);
-            for reader_proxy in &mut data_writer.matched_reader_list() {
-                match reader_proxy.reliability() {
-                    ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
-                        reader_proxy,
-                        header,
-                        default_unicast_transport_send,
-                    ),
-                    ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
-                        reader_proxy,
-                        header,
-                        default_unicast_transport_send,
-                        writer_id,
-                        first_sn,
-                        last_sn,
-                        heartbeat_period,
-                    ),
-                }
-            }
-        }
-    }
-
-    for subscriber in domain_participant.user_defined_subscriber_list_mut() {
-        for data_reader in subscriber.stateful_data_reader_list_mut() {
-            data_reader.send_message(header, default_unicast_transport_send)
-        }
-    }
-}
-
-fn remove_stale_writer_changes(writer: &mut DdsDataWriter<RtpsStatefulWriter>, now: Time) {
-    let timespan_duration = writer.get_qos().lifespan.duration;
-    writer.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
-}
-
-fn send_message_best_effort_reader_locator(
-    reader_locator: &mut WriterAssociatedReaderLocator,
-    header: RtpsMessageHeader,
-    transport: &mut impl TransportWrite,
-    writer_id: EntityId,
-) {
-    let mut submessages = Vec::new();
-    while let Some(change) = reader_locator.next_unsent_change() {
-        // The post-condition:
-        // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
-        // should be full-filled by next_unsent_change()
-        if let Some(cache_change) = change.cache_change() {
-            let info_ts_submessage = info_timestamp_submessage(cache_change.timestamp());
-            let data_submessage = cache_change.as_data_submessage(ENTITYID_UNKNOWN);
-            submessages.push(info_ts_submessage);
-            submessages.push(RtpsSubmessageWriteKind::Data(data_submessage));
-        } else {
-            let gap_submessage = gap_submessage(writer_id, change.sequence_number());
-            submessages.push(gap_submessage);
-        }
-    }
-    if !submessages.is_empty() {
-        transport.write(
-            &RtpsMessageWrite::new(header, submessages),
-            &[reader_locator.locator()],
-        )
-    }
-}
-
-fn send_message_best_effort_reader_proxy(
-    reader_proxy: &mut WriterAssociatedReaderProxy,
-    header: RtpsMessageHeader,
-    transport: &mut impl TransportWrite,
-) {
-    let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
-    let mut submessages = vec![info_dst];
-
-    while !reader_proxy.unsent_changes().is_empty() {
-        // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
-        // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
-        let reader_id = reader_proxy.remote_reader_guid().entity_id();
-        let change = reader_proxy.next_unsent_change();
-
-        if change.is_relevant() {
-            let cache_change = change.cache_change();
-            let timestamp = cache_change.timestamp();
-
-            if cache_change.data_value().len() > 1 {
-                let cache_change_frag = DataFragSubmessages::new(cache_change, reader_id);
-                for data_frag_submessage in cache_change_frag.into_iter() {
-                    let info_dst =
-                        info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
-
-                    let into_timestamp = info_timestamp_submessage(timestamp);
-                    let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
-
-                    let submessages = vec![info_dst, into_timestamp, data_frag];
-
-                    transport.write(
-                        &RtpsMessageWrite::new(header, submessages),
-                        reader_proxy.unicast_locator_list(),
-                    )
-                }
-            } else {
-                submessages.push(info_timestamp_submessage(timestamp));
-                submessages.push(RtpsSubmessageWriteKind::Data(
-                    cache_change.as_data_submessage(reader_id),
-                ))
-            }
-        } else {
-            let gap_submessage: GapSubmessageWrite = change
-                .cache_change()
-                .as_gap_message(reader_proxy.remote_reader_guid().entity_id());
-            submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
-        }
-    }
-
-    // Send messages only if more than INFO_DST is added
-    if submessages.len() > 1 {
-        transport.write(
-            &RtpsMessageWrite::new(header, submessages),
-            reader_proxy.unicast_locator_list(),
-        )
-    }
-}
-
-fn send_message_reliable_reader_proxy(
-    reader_proxy: &mut WriterAssociatedReaderProxy,
-    header: RtpsMessageHeader,
-    transport: &mut impl TransportWrite,
-    writer_id: EntityId,
-    first_sn: SequenceNumber,
-    last_sn: SequenceNumber,
-    heartbeat_period: Duration,
-) {
-    let reader_id = reader_proxy.remote_reader_guid().entity_id();
-
-    let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
-
-    let mut submessages = vec![info_dst];
-
-    // Top part of the state machine - Figure 8.19 RTPS standard
-    if !reader_proxy.unsent_changes().is_empty() {
-        // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
-        // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
-
-        while !reader_proxy.unsent_changes().is_empty() {
-            let change = reader_proxy.next_unsent_change();
-            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
-            // it's not done here to avoid the change being a mutable reference
-            // Also the post-condition:
-            // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
-            // should be full-filled by next_unsent_change()
-            if change.is_relevant() {
-                let cache_change = change.cache_change();
-                if cache_change.data_value().len() > 1 {
-                    directly_send_data_frag(
-                        reader_proxy,
-                        cache_change,
-                        writer_id,
-                        header,
-                        first_sn,
-                        last_sn,
-                        transport,
-                    );
-                    return;
-                } else {
-                    submessages.push(info_timestamp_submessage(cache_change.timestamp()));
-                    submessages.push(RtpsSubmessageWriteKind::Data(
-                        cache_change.as_data_submessage(reader_id),
-                    ))
-                }
-            } else {
-                let gap_submessage: GapSubmessageWrite =
-                    change.cache_change().as_gap_message(reader_id);
-
-                submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
-            }
-        }
-
-        let heartbeat = reader_proxy
-            .heartbeat_machine()
-            .submessage(writer_id, first_sn, last_sn);
-        submessages.push(heartbeat);
-    } else if reader_proxy.unacked_changes().is_empty() {
-        // Idle
-    } else if reader_proxy
-        .heartbeat_machine()
-        .is_time_for_heartbeat(heartbeat_period)
-    {
-        let heartbeat = reader_proxy
-            .heartbeat_machine()
-            .submessage(writer_id, first_sn, last_sn);
-        submessages.push(heartbeat);
-    }
-
-    // Middle-part of the state-machine - Figure 8.19 RTPS standard
-    if !reader_proxy.requested_changes().is_empty() {
-        let reader_id = reader_proxy.remote_reader_guid().entity_id();
-
-        while !reader_proxy.requested_changes().is_empty() {
-            let change_for_reader = reader_proxy.next_requested_change();
-            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
-            // it's not done here to avoid the change being a mutable reference
-            // Also the post-condition:
-            // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
-            // should be full-filled by next_requested_change()
-            if change_for_reader.is_relevant() {
-                let cache_change = change_for_reader.cache_change();
-                if cache_change.data_value().len() > 1 {
-                    directly_send_data_frag(
-                        reader_proxy,
-                        cache_change,
-                        writer_id,
-                        header,
-                        first_sn,
-                        last_sn,
-                        transport,
-                    );
-                    return;
-                } else {
-                    submessages.push(info_timestamp_submessage(cache_change.timestamp()));
-                    submessages.push(RtpsSubmessageWriteKind::Data(
-                        cache_change.as_data_submessage(reader_id),
-                    ))
-                }
-            } else {
-                let gap_submessage: GapSubmessageWrite =
-                    change_for_reader.cache_change().as_gap_message(reader_id);
-
-                submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
-            }
-        }
-        let heartbeat = reader_proxy
-            .heartbeat_machine()
-            .submessage(writer_id, first_sn, last_sn);
-        submessages.push(heartbeat);
-    }
-    // Send messages only if more or equal than INFO_DST and HEARTBEAT is added
-    if submessages.len() >= 2 {
-        transport.write(
-            &RtpsMessageWrite::new(header, submessages),
-            reader_proxy.unicast_locator_list(),
-        )
-    }
-}
-
-fn gap_submessage<'a>(
-    writer_id: EntityId,
-    gap_sequence_number: SequenceNumber,
-) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
-        ENTITYID_UNKNOWN,
-        writer_id,
-        gap_sequence_number,
-        SequenceNumberSet {
-            base: gap_sequence_number,
-            set: vec![],
-        },
-    ))
-}
-
-fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
-        false,
-        crate::implementation::rtps::messages::types::Time::new(
-            timestamp.sec(),
-            timestamp.nanosec(),
-        ),
-    ))
-}
-
-fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWriteKind<'a> {
-    RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite::new(guid_prefix))
-}
-
-fn directly_send_data_frag(
-    reader_proxy: &mut WriterAssociatedReaderProxy,
-    cache_change: &RtpsWriterCacheChange,
-    writer_id: EntityId,
-    header: RtpsMessageHeader,
-    first_sn: SequenceNumber,
-    last_sn: SequenceNumber,
-    transport: &mut impl TransportWrite,
-) {
-    let reader_id = reader_proxy.remote_reader_guid().entity_id();
-    let timestamp = cache_change.timestamp();
-
-    let cache_change_frag = DataFragSubmessages::new(cache_change, reader_id);
-    let mut data_frag_submessage_list = cache_change_frag.into_iter().peekable();
-    while let Some(data_frag_submessage) = data_frag_submessage_list.next() {
-        let writer_sn = data_frag_submessage.writer_sn();
-        let last_fragment_num = FragmentNumber::new(
-            u32::from(data_frag_submessage.fragment_starting_num())
-                + data_frag_submessage.fragments_in_submessage() as u32
-                - 1,
-        );
-
-        let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
-        let into_timestamp = info_timestamp_submessage(timestamp);
-        let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
-
-        let is_last_fragment = data_frag_submessage_list.peek().is_none();
-        let submessages = if is_last_fragment {
-            let heartbeat_frag = reader_proxy.heartbeat_frag_machine().submessage(
-                writer_id,
-                writer_sn,
-                last_fragment_num,
-            );
-            vec![info_dst, into_timestamp, data_frag, heartbeat_frag]
-        } else {
-            let heartbeat = reader_proxy
-                .heartbeat_machine()
-                .submessage(writer_id, first_sn, last_sn);
-            vec![info_dst, into_timestamp, data_frag, heartbeat]
-        };
-        transport.write(
-            &RtpsMessageWrite::new(header, submessages),
-            reader_proxy.unicast_locator_list(),
-        )
-    }
-}
-
-fn stateless_writer_send_message(
-    writer: &mut DdsDataWriter<RtpsStatelessWriter>,
-    header: RtpsMessageHeader,
-    transport: &mut impl TransportWrite,
-) {
-    let writer_id = writer.guid().entity_id();
-    for mut rl in &mut writer.reader_locator_list().into_iter() {
-        send_message_best_effort_reader_locator(&mut rl, header, transport, writer_id);
-    }
-}
-
-fn stateful_writer_send_message(
-    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
-    header: RtpsMessageHeader,
-    transport: &mut impl TransportWrite,
-) {
-    let writer_id = writer.guid().entity_id();
-    let first_sn = writer
-        .change_list()
-        .iter()
-        .map(|x| x.sequence_number())
-        .min()
-        .unwrap_or_else(|| SequenceNumber::new(1));
-    let last_sn = writer
-        .change_list()
-        .iter()
-        .map(|x| x.sequence_number())
-        .max()
-        .unwrap_or_else(|| SequenceNumber::new(0));
-    let heartbeat_period = writer.heartbeat_period();
-    for reader_proxy in &mut writer.matched_reader_list() {
-        match reader_proxy.reliability() {
-            ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
-                reader_proxy,
-                header,
-                transport,
-            ),
-            ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
-                reader_proxy,
-                header,
-                transport,
-                writer_id,
-                first_sn,
-                last_sn,
-                heartbeat_period,
-            ),
-        }
-    }
-}
-
-fn discover_matched_writers(
-    domain_participant: &mut DdsDomainParticipant,
-    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-) -> DdsResult<()> {
-    let samples = domain_participant
-        .get_builtin_subscriber_mut()
-        .stateful_data_reader_list_mut()
-        .iter_mut()
-        .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
-        .unwrap()
-        .read::<DiscoveredWriterData>(
-            i32::MAX,
-            ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
-            None,
-        )?;
-
-    for discovered_writer_data_sample in samples.into_iter() {
-        match discovered_writer_data_sample.sample_info.instance_state {
-            InstanceStateKind::Alive => {
-                if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                    if !domain_participant.is_publication_ignored(
-                        discovered_writer_data
-                            .writer_proxy()
-                            .remote_writer_guid()
-                            .into(),
-                    ) {
-                        let remote_writer_guid_prefix = discovered_writer_data
-                            .writer_proxy()
-                            .remote_writer_guid()
-                            .prefix();
-                        let writer_parent_participant_guid =
-                            Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
-
-                        if let Some((
-                            default_unicast_locator_list,
-                            default_multicast_locator_list,
-                        )) = domain_participant
-                            .discovered_participant_list()
-                            .find(|&(h, _)| {
-                                h == &InstanceHandle::from(writer_parent_participant_guid)
-                            })
-                            .map(|(_, discovered_participant_data)| {
-                                (
-                                    discovered_participant_data
-                                        .participant_proxy()
-                                        .default_unicast_locator_list()
-                                        .to_vec(),
-                                    discovered_participant_data
-                                        .participant_proxy()
-                                        .default_multicast_locator_list()
-                                        .to_vec(),
-                                )
-                            })
-                        {
-                            let domain_participant_guid = domain_participant.guid();
-                            for subscriber in domain_participant.user_defined_subscriber_list_mut()
-                            {
-                                subscriber_add_matched_writer(
-                                    subscriber,
-                                    &discovered_writer_data,
-                                    &default_unicast_locator_list,
-                                    &default_multicast_locator_list,
-                                    domain_participant_guid,
-                                    listener_sender,
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            InstanceStateKind::NotAliveDisposed => {
-                let domain_participant_guid = domain_participant.guid();
-                for subscriber in domain_participant.user_defined_subscriber_list_mut() {
-                    let subscriber_guid = subscriber.guid();
-                    for data_reader in subscriber.stateful_data_reader_list_mut() {
-                        data_reader.remove_matched_writer(
-                            discovered_writer_data_sample.sample_info.instance_handle,
-                            domain_participant_guid,
-                            subscriber_guid,
-                            listener_sender,
-                        )
-                    }
-                }
-            }
-            InstanceStateKind::NotAliveNoWriters => todo!(),
-        }
-    }
-
-    Ok(())
-}
-
-pub fn subscriber_add_matched_writer(
-    user_defined_subscriber: &mut DdsSubscriber,
-    discovered_writer_data: &DiscoveredWriterData,
-    default_unicast_locator_list: &[Locator],
-    default_multicast_locator_list: &[Locator],
-    parent_participant_guid: Guid,
-    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-) {
-    let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
-        &discovered_writer_data
-            .clone()
-            .dds_publication_data()
-            .partition()
-            .name,
-    ) {
-        d.is_match(&user_defined_subscriber.get_qos().partition.name)
-    } else {
-        false
-    };
-
-    let is_subscriber_regex_matched_to_discovered_writer =
-        if let Ok(d) = glob_to_regex(&user_defined_subscriber.get_qos().partition.name) {
-            d.is_match(
-                &discovered_writer_data
-                    .clone()
-                    .dds_publication_data()
-                    .partition()
-                    .name,
-            )
-        } else {
-            false
-        };
-
-    let is_partition_string_matched = discovered_writer_data
-        .clone()
-        .dds_publication_data()
-        .partition()
-        .name
-        == user_defined_subscriber.get_qos().partition.name;
-
-    if is_discovered_writer_regex_matched_to_subscriber
-        || is_subscriber_regex_matched_to_discovered_writer
-        || is_partition_string_matched
-    {
-        let user_defined_subscriber_qos = user_defined_subscriber.get_qos();
-        let user_defined_subscriber_guid = user_defined_subscriber.guid();
-        for data_reader in user_defined_subscriber.stateful_data_reader_list_mut() {
-            data_reader.add_matched_writer(
-                discovered_writer_data,
-                default_unicast_locator_list,
-                default_multicast_locator_list,
-                &user_defined_subscriber_qos,
-                user_defined_subscriber_guid,
-                parent_participant_guid,
-                listener_sender,
-            )
-        }
-    }
-}
-
-fn discover_matched_participants(
-    domain_participant: &mut DdsDomainParticipant,
-    sedp_condvar: &DdsCondvar,
-) -> DdsResult<()> {
-    while let Ok(samples) = domain_participant
-        .get_builtin_subscriber_mut()
-        .stateless_data_reader_list_mut()
-        .iter_mut()
-        .find(|x| x.get_topic_name() == DCPS_PARTICIPANT)
-        .unwrap()
-        .read(
-            1,
-            &[SampleStateKind::NotRead],
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
-            None,
-        )
-    {
-        for discovered_participant_data_sample in samples.into_iter() {
-            if let Some(discovered_participant_data) = discovered_participant_data_sample.data {
-                add_discovered_participant(domain_participant, discovered_participant_data);
-                sedp_condvar.notify_all();
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn add_discovered_participant(
-    domain_participant: &mut DdsDomainParticipant,
-    discovered_participant_data: SpdpDiscoveredParticipantData,
-) {
-    if ParticipantDiscovery::new(
-        &discovered_participant_data,
-        domain_participant.get_domain_id(),
-        domain_participant.get_domain_tag(),
-    )
-    .is_ok()
-        && !domain_participant
-            .is_participant_ignored(discovered_participant_data.get_serialized_key().into())
-    {
-        add_matched_publications_detector(
-            domain_participant
-                .get_builtin_publisher_mut()
-                .stateful_data_writer_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
-                .unwrap(),
-            &discovered_participant_data,
-        );
-
-        add_matched_publications_announcer(
-            domain_participant
-                .get_builtin_subscriber_mut()
-                .stateful_data_reader_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
-                .unwrap(),
-            &discovered_participant_data,
-        );
-
-        add_matched_subscriptions_detector(
-            domain_participant
-                .get_builtin_publisher_mut()
-                .stateful_data_writer_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
-                .unwrap(),
-            &discovered_participant_data,
-        );
-
-        add_matched_subscriptions_announcer(
-            domain_participant
-                .get_builtin_subscriber_mut()
-                .stateful_data_reader_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
-                .unwrap(),
-            &discovered_participant_data,
-        );
-
-        add_matched_topics_detector(
-            domain_participant
-                .get_builtin_publisher_mut()
-                .stateful_data_writer_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_TOPIC)
-                .unwrap(),
-            &discovered_participant_data,
-        );
-
-        add_matched_topics_announcer(
-            domain_participant
-                .get_builtin_subscriber_mut()
-                .stateful_data_reader_list_mut()
-                .iter_mut()
-                .find(|x| x.get_topic_name() == DCPS_TOPIC)
-                .unwrap(),
-            &discovered_participant_data,
-        );
-
-        domain_participant.discovered_participant_add(
-            discovered_participant_data.get_serialized_key().into(),
-            discovered_participant_data,
-        );
-    }
-}
-
-fn add_matched_subscriptions_announcer(
-    reader: &mut DdsDataReader<RtpsStatefulReader>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
-    {
-        let remote_writer_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let data_max_size_serialized = None;
-
-        let proxy = RtpsWriterProxy::new(
-            remote_writer_guid,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            data_max_size_serialized,
-            remote_group_entity_id,
-        );
-        reader.matched_writer_add(proxy);
-    }
-}
-
-fn add_matched_subscriptions_detector(
-    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
-    {
-        let remote_reader_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let expects_inline_qos = false;
-        let proxy = RtpsReaderProxy::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            expects_inline_qos,
-            true,
-            ReliabilityKind::Reliable,
-            DurabilityKind::TransientLocal,
-        );
-        writer.matched_reader_add(proxy);
-    }
-}
-
-fn add_matched_publications_announcer(
-    reader: &mut DdsDataReader<RtpsStatefulReader>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
-    {
-        let remote_writer_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let data_max_size_serialized = None;
-
-        let proxy = RtpsWriterProxy::new(
-            remote_writer_guid,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            data_max_size_serialized,
-            remote_group_entity_id,
-        );
-
-        reader.matched_writer_add(proxy);
-    }
-}
-
-fn add_matched_publications_detector(
-    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
-    {
-        let remote_reader_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let expects_inline_qos = false;
-        let proxy = RtpsReaderProxy::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            expects_inline_qos,
-            true,
-            ReliabilityKind::Reliable,
-            DurabilityKind::TransientLocal,
-        );
-        writer.matched_reader_add(proxy);
-    }
-}
-
-fn add_matched_topics_announcer(
-    reader: &mut DdsDataReader<RtpsStatefulReader>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
-    {
-        let remote_writer_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let data_max_size_serialized = None;
-
-        let proxy = RtpsWriterProxy::new(
-            remote_writer_guid,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            data_max_size_serialized,
-            remote_group_entity_id,
-        );
-        reader.matched_writer_add(proxy);
-    }
-}
-
-fn add_matched_topics_detector(
-    writer: &mut DdsDataWriter<RtpsStatefulWriter>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
-    {
-        let remote_reader_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let expects_inline_qos = false;
-        let proxy = RtpsReaderProxy::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            expects_inline_qos,
-            true,
-            ReliabilityKind::Reliable,
-            DurabilityKind::TransientLocal,
-        );
-        writer.matched_reader_add(proxy);
-    }
-}
-
-fn receive_builtin_message(
-    domain_participant: &mut DdsDomainParticipant,
-    message: RtpsMessageRead,
-    locator: Locator,
-    sedp_condvar: &DdsCondvar,
-    listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-) {
-    domain_participant
-        .receive_builtin_data(locator, message, listener_sender)
-        .ok();
-
-    discover_matched_participants(domain_participant, sedp_condvar).ok();
-    domain_participant
-        .discover_matched_readers(listener_sender)
-        .ok();
-    discover_matched_writers(domain_participant, listener_sender).ok();
-    domain_participant
-        .discover_matched_topics(listener_sender)
-        .ok();
 }

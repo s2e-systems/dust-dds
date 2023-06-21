@@ -7,9 +7,10 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::DiscoveredWriterData,
         },
+        dds::nodes::DataReaderNode,
         rtps::{
             messages::{
-                overall_structure::RtpsMessageHeader,
+                overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
                 submessages::{
                     data::DataSubmessageRead, data_frag::DataFragSubmessageRead,
                     gap::GapSubmessageRead, heartbeat::HeartbeatSubmessageRead,
@@ -19,15 +20,19 @@ use crate::{
             reader::{RtpsReaderCacheChange, RtpsReaderResult},
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             stateless_reader::{RtpsStatelessReader, StatelessReaderDataReceivedResult},
-            transport::TransportWrite,
             types::{Guid, GuidPrefix, Locator, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
+        },
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
+        utils::{
+            actor::{Actor, ActorAddress},
+            shared_object::{DdsRwLock, DdsShared},
         },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
+        qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
@@ -36,7 +41,7 @@ use crate::{
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-            SampleRejectedStatusKind, SubscriptionMatchedStatus,
+            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
         time::{DurationKind, Time},
     },
@@ -48,7 +53,9 @@ use crate::{
 };
 
 use super::{
-    message_receiver::MessageReceiver, nodes::DataReaderNode, status_listener::ListenerTriggerKind,
+    dds_data_reader_listener::DdsDataReaderListener, dds_domain_participant::DdsDomainParticipant,
+    dds_subscriber::DdsSubscriber, message_receiver::MessageReceiver, nodes::SubscriberNode,
+    status_condition_impl::StatusConditionImpl,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -57,7 +64,7 @@ pub enum UserDefinedReaderDataSubmessageReceivedResult {
 }
 
 impl SampleLostStatus {
-    fn increment(&mut self) {
+    fn _increment(&mut self) {
         self.total_count += 1;
         self.total_count_change += 1;
     }
@@ -181,10 +188,19 @@ pub struct DdsDataReader<T> {
     instance_reception_time: HashMap<InstanceHandle, Time>,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    listener: Option<Actor<DdsDataReaderListener>>,
+    status_kind: Vec<StatusKind>,
 }
 
 impl<T> DdsDataReader<T> {
-    pub fn new(rtps_reader: T, type_name: &'static str, topic_name: String) -> Self {
+    pub fn new(
+        rtps_reader: T,
+        type_name: &'static str,
+        topic_name: String,
+        listener: Option<Actor<DdsDataReaderListener>>,
+        status_kind: Vec<StatusKind>,
+    ) -> Self {
         DdsDataReader {
             rtps_reader,
             type_name,
@@ -200,6 +216,9 @@ impl<T> DdsDataReader<T> {
             instance_reception_time: HashMap::new(),
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            status_kind,
+            listener,
         }
     }
 
@@ -207,8 +226,8 @@ impl<T> DdsDataReader<T> {
         self.type_name
     }
 
-    pub fn get_topic_name(&self) -> &str {
-        &self.topic_name
+    pub fn get_topic_name(&self) -> String {
+        self.topic_name.clone()
     }
 
     pub fn get_liveliness_changed_status(&mut self) -> LivelinessChangedStatus {
@@ -232,6 +251,9 @@ impl<T> DdsDataReader<T> {
     }
 
     pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::SubscriptionMatched);
         self.subscription_matched_status
             .read_and_reset(self.matched_publication_list.len() as i32)
     }
@@ -240,24 +262,151 @@ impl<T> DdsDataReader<T> {
         self.enabled
     }
 
-    pub fn enable(&mut self) -> DdsResult<()> {
+    pub fn enable(&mut self) {
         self.enabled = true;
-        Ok(())
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
+    }
+
+    pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
+        self.matched_publication_list
+            .iter()
+            .map(|(&key, _)| key)
+            .collect()
+    }
+
+    pub fn get_matched_publication_data(
+        &self,
+        publication_handle: InstanceHandle,
+    ) -> DdsResult<PublicationBuiltinTopicData> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.matched_publication_list
+            .get(&publication_handle)
+            .cloned()
+            .ok_or(DdsError::BadParameter)
     }
 }
 
 impl DdsDataReader<RtpsStatefulReader> {
+    pub fn process_rtps_message(
+        &mut self,
+        message: RtpsMessageRead,
+        reception_timestamp: Time,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        let mut message_receiver = MessageReceiver::new(&message);
+        while let Some(submessage) = message_receiver.next() {
+            match submessage {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    self.on_data_submessage_received(
+                        &data_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                        reception_timestamp,
+                        &data_reader_address,
+                        &subscriber_address,
+                        &participant_address,
+                    );
+                }
+                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                    self.on_data_frag_submessage_received(
+                        &data_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                        reception_timestamp,
+                        &data_reader_address,
+                        &subscriber_address,
+                        &participant_address,
+                    );
+                }
+                RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                    self.on_gap_submessage_received(
+                        &gap_submessage,
+                        message_receiver.source_guid_prefix(),
+                    );
+                }
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
+                    .on_heartbeat_submessage_received(
+                        &heartbeat_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
+                    .on_heartbeat_frag_submessage_received(
+                        &heartbeat_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                _ => (),
+            }
+        }
+    }
+
+    pub fn on_data_available(
+        &self,
+        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
+    ) {
+        subscriber_address
+            .get_statuscondition()
+            .unwrap()
+            .write_lock()
+            .add_communication_state(StatusKind::DataOnReaders);
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::DataAvailable);
+        if subscriber_address.get_listener().unwrap().is_some()
+            && subscriber_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::DataOnReaders)
+        {
+            let listener = subscriber_address
+                .get_listener()
+                .unwrap()
+                .expect("Already checked for some");
+            listener
+                .trigger_on_data_on_readers(SubscriberNode::new(
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                ))
+                .expect("Should not fail to send message");
+        } else if self.listener.is_some() && self.status_kind.contains(&StatusKind::DataAvailable) {
+            let listener_address = self.listener.as_ref().unwrap().address();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_data_available(reader)
+                .expect("Should not fail to send message");
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead<'_>,
-        message_receiver: &MessageReceiver,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
+        reception_timestamp: Time,
+        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
-        let data_submessage_received_result = self
-            .rtps_reader
-            .on_data_submessage_received(data_submessage, message_receiver);
+        let data_submessage_received_result = self.rtps_reader.on_data_submessage_received(
+            data_submessage,
+            source_guid_prefix,
+            source_timestamp,
+            reception_timestamp,
+        );
         match data_submessage_received_result {
             StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
@@ -268,27 +417,27 @@ impl DdsDataReader<RtpsStatefulReader> {
             StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
                 self.data_available_status_changed_flag = true;
                 self.instance_reception_time
-                    .insert(instance_handle, message_receiver.reception_timestamp());
+                    .insert(instance_handle, reception_timestamp);
                 self.on_data_available(
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                    listener_sender,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
                 self.instance_reception_time
-                    .insert(instance_handle, message_receiver.reception_timestamp());
+                    .insert(instance_handle, reception_timestamp);
                 self.data_available_status_changed_flag = true;
-                self.on_sample_lost(
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                    listener_sender,
-                );
+                // self.on_sample_lost(
+                //     parent_subscriber_guid,
+                //     parent_participant_guid,
+                //     listener_sender,
+                // );
                 self.on_data_available(
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                    listener_sender,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
@@ -296,9 +445,9 @@ impl DdsDataReader<RtpsStatefulReader> {
                 self.on_sample_rejected(
                     instance_handle,
                     rejected_reason,
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                    listener_sender,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
@@ -308,17 +457,23 @@ impl DdsDataReader<RtpsStatefulReader> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessageRead<'_>,
-        message_receiver: &MessageReceiver,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
+        reception_timestamp: Time,
+        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
-        let data_submessage_received_result = self
-            .rtps_reader
-            .on_data_frag_submessage_received(data_frag_submessage, message_receiver);
+        let data_submessage_received_result = self.rtps_reader.on_data_frag_submessage_received(
+            data_frag_submessage,
+            source_guid_prefix,
+            source_timestamp,
+            reception_timestamp,
+        );
 
         match data_submessage_received_result {
             StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
@@ -329,28 +484,28 @@ impl DdsDataReader<RtpsStatefulReader> {
             }
             StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
                 self.instance_reception_time
-                    .insert(instance_handle, message_receiver.reception_timestamp());
+                    .insert(instance_handle, reception_timestamp);
                 self.data_available_status_changed_flag = true;
                 self.on_data_available(
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                    listener_sender,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
                 self.instance_reception_time
-                    .insert(instance_handle, message_receiver.reception_timestamp());
+                    .insert(instance_handle, reception_timestamp);
                 self.data_available_status_changed_flag = true;
-                self.on_sample_lost(
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                    listener_sender,
-                );
+                // self.on_sample_lost(
+                //     parent_subscriber_guid,
+                //     parent_participant_guid,
+                //     listener_sender,
+                // );
                 self.on_data_available(
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                    listener_sender,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
@@ -358,9 +513,9 @@ impl DdsDataReader<RtpsStatefulReader> {
                 self.on_sample_rejected(
                     instance_handle,
                     rejected_reason,
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                    listener_sender,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
@@ -391,13 +546,13 @@ impl DdsDataReader<RtpsStatefulReader> {
     #[allow(clippy::too_many_arguments)]
     pub fn add_matched_writer(
         &mut self,
-        discovered_writer_data: &DiscoveredWriterData,
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
-        subscriber_qos: &SubscriberQos,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        discovered_writer_data: DiscoveredWriterData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        subscriber_qos: SubscriberQos,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
@@ -406,8 +561,8 @@ impl DdsDataReader<RtpsStatefulReader> {
             let instance_handle = discovered_writer_data.get_serialized_key().into();
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
-                    discovered_writer_data,
-                    subscriber_qos,
+                    &discovered_writer_data,
+                    &subscriber_qos,
                 );
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_writer_data
@@ -417,7 +572,10 @@ impl DdsDataReader<RtpsStatefulReader> {
                 {
                     default_unicast_locator_list
                 } else {
-                    discovered_writer_data.writer_proxy().unicast_locator_list()
+                    discovered_writer_data
+                        .writer_proxy()
+                        .unicast_locator_list()
+                        .to_vec()
                 };
 
                 let multicast_locator_list = if discovered_writer_data
@@ -430,12 +588,13 @@ impl DdsDataReader<RtpsStatefulReader> {
                     discovered_writer_data
                         .writer_proxy()
                         .multicast_locator_list()
+                        .to_vec()
                 };
 
                 let writer_proxy = RtpsWriterProxy::new(
                     discovered_writer_data.writer_proxy().remote_writer_guid(),
-                    unicast_locator_list,
-                    multicast_locator_list,
+                    &unicast_locator_list,
+                    &multicast_locator_list,
                     discovered_writer_data
                         .writer_proxy()
                         .data_max_size_serialized(),
@@ -452,24 +611,24 @@ impl DdsDataReader<RtpsStatefulReader> {
                     Some(value) if &value != publication_builtin_topic_data => self
                         .on_subscription_matched(
                             instance_handle,
-                            parent_subscriber_guid,
-                            parent_participant_guid,
-                            listener_sender,
+                            data_reader_address,
+                            subscriber_address,
+                            participant_address,
                         ),
                     None => self.on_subscription_matched(
                         instance_handle,
-                        parent_subscriber_guid,
-                        parent_participant_guid,
-                        listener_sender,
+                        data_reader_address,
+                        subscriber_address,
+                        participant_address,
                     ),
                     _ => (),
                 }
             } else if self.incompatible_writer_list.insert(instance_handle) {
                 self.on_requested_incompatible_qos(
                     incompatible_qos_policy_list,
-                    parent_subscriber_guid,
-                    parent_participant_guid,
-                    listener_sender,
+                    &data_reader_address,
+                    &subscriber_address,
+                    &participant_address,
                 );
             }
         }
@@ -518,9 +677,9 @@ impl DdsDataReader<RtpsStatefulReader> {
     pub fn remove_matched_writer(
         &mut self,
         discovered_writer_handle: InstanceHandle,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         let matched_publication = self
             .matched_publication_list
@@ -530,9 +689,9 @@ impl DdsDataReader<RtpsStatefulReader> {
 
             self.on_subscription_matched(
                 discovered_writer_handle,
-                parent_subscriber_guid,
-                parent_participant_guid,
-                listener_sender,
+                data_reader_address,
+                subscriber_address,
+                participant_address,
             )
         }
     }
@@ -664,33 +823,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         Ok(self.rtps_reader.is_historical_data_received())
     }
 
-    pub fn get_matched_publication_data(
-        &self,
-        publication_handle: InstanceHandle,
-    ) -> DdsResult<PublicationBuiltinTopicData> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.matched_publication_list
-            .get(&publication_handle)
-            .cloned()
-            .ok_or(DdsError::BadParameter)
-    }
-
-    pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
-        self.matched_publication_list
-            .iter()
-            .map(|(&key, _)| key)
-            .collect()
-    }
-
-    pub fn set_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => Default::default(),
-            QosKind::Specific(q) => q,
-        };
-
+    pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
         if self.is_enabled() {
             self.rtps_reader.get_qos().check_immutability(&qos)?;
         }
@@ -710,14 +843,34 @@ impl DdsDataReader<RtpsStatefulReader> {
 
     pub fn as_discovered_reader_data(
         &self,
-        topic_qos: &TopicQos,
-        subscriber_qos: &SubscriberQos,
+        topic_qos: TopicQos,
+        subscriber_qos: SubscriberQos,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
     ) -> DiscoveredReaderData {
         let guid = self.rtps_reader.guid();
         let reader_qos = self.rtps_reader.get_qos().clone();
 
+        let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
+            default_unicast_locator_list
+        } else {
+            self.rtps_reader.unicast_locator_list().to_vec()
+        };
+
+        let multicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
+            default_multicast_locator_list
+        } else {
+            self.rtps_reader.multicast_locator_list().to_vec()
+        };
+
         DiscoveredReaderData::new(
-            ReaderProxy::new(guid, guid.entity_id(), vec![], vec![], false),
+            ReaderProxy::new(
+                guid,
+                guid.entity_id(),
+                unicast_locator_list,
+                multicast_locator_list,
+                false,
+            ),
             SubscriptionBuiltinTopicData::new(
                 BuiltInTopicKey { value: guid.into() },
                 BuiltInTopicKey {
@@ -736,22 +889,26 @@ impl DdsDataReader<RtpsStatefulReader> {
                 reader_qos.time_based_filter,
                 subscriber_qos.presentation.clone(),
                 subscriber_qos.partition.clone(),
-                topic_qos.topic_data.clone(),
-                subscriber_qos.group_data.clone(),
+                topic_qos.topic_data,
+                subscriber_qos.group_data,
             ),
         )
     }
 
-    pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
-        self.rtps_reader.send_message(header, transport);
+    pub fn send_message(
+        &mut self,
+        header: RtpsMessageHeader,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
+    ) {
+        self.rtps_reader.send_message(header, &udp_transport_write);
     }
 
     pub fn update_communication_status(
         &mut self,
         now: Time,
-        parent_participant_guid: Guid,
-        parent_subcriber_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         let (missed_deadline_instances, instance_reception_time) = self
             .instance_reception_time
@@ -767,15 +924,57 @@ impl DdsDataReader<RtpsStatefulReader> {
             self.requested_deadline_missed_status
                 .increment(missed_deadline_instance);
 
-            listener_sender
-                .try_send(ListenerTriggerKind::RequestedDeadlineMissed(
-                    DataReaderNode::new(
-                        self.guid(),
-                        parent_subcriber_guid,
-                        parent_participant_guid,
-                    ),
-                ))
-                .ok();
+            self.status_condition
+                .write_lock()
+                .add_communication_state(StatusKind::RequestedDeadlineMissed);
+            if self.listener.is_some()
+                && self
+                    .status_kind
+                    .contains(&StatusKind::RequestedDeadlineMissed)
+            {
+                let status = self.get_requested_deadline_missed_status();
+                let listener_address = self.listener.as_ref().unwrap().address();
+                let reader = DataReaderNode::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                );
+                listener_address
+                    .trigger_on_requested_deadline_missed(reader, status)
+                    .expect("Should not fail to send message");
+            } else if subscriber_address.get_listener().unwrap().is_some()
+                && subscriber_address
+                    .status_kind()
+                    .unwrap()
+                    .contains(&StatusKind::RequestedDeadlineMissed)
+            {
+                let status = self.get_requested_deadline_missed_status();
+                let listener_address = subscriber_address.get_listener().unwrap().unwrap();
+                let reader = DataReaderNode::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                );
+                listener_address
+                    .trigger_on_requested_deadline_missed(reader, status)
+                    .expect("Should not fail to send message");
+            } else if participant_address.get_listener().unwrap().is_some()
+                && participant_address
+                    .status_kind()
+                    .unwrap()
+                    .contains(&StatusKind::RequestedDeadlineMissed)
+            {
+                let status = self.get_requested_deadline_missed_status();
+                let listener_address = participant_address.get_listener().unwrap().unwrap();
+                let reader = DataReaderNode::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                );
+                listener_address
+                    .trigger_on_requested_deadline_missed(reader, status)
+                    .expect("Should not fail to send message");
+            }
         }
     }
 
@@ -788,89 +987,186 @@ impl DdsDataReader<RtpsStatefulReader> {
             .on_gap_submessage_received(gap_submessage, source_guid_prefix);
     }
 
-    pub fn on_data_available(
-        &self,
-        parent_subcriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) {
-        listener_sender
-            .try_send(ListenerTriggerKind::OnDataAvailable(DataReaderNode::new(
-                self.guid(),
-                parent_subcriber_guid,
-                parent_participant_guid,
-            )))
-            .ok();
-    }
-
-    fn on_sample_lost(
-        &mut self,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) {
-        self.sample_lost_status.increment();
-
-        listener_sender
-            .try_send(ListenerTriggerKind::OnSampleLost(DataReaderNode::new(
-                self.guid(),
-                parent_subscriber_guid,
-                parent_participant_guid,
-            )))
-            .ok();
+    fn _on_sample_lost(&mut self, _parent_subscriber_guid: Guid, _parent_participant_guid: Guid) {
+        todo!()
+        // self.sample_lost_status.increment();
+        // listener_sender
+        //     .try_send(ListenerTriggerKind::OnSampleLost(DataReaderNode::new(
+        //         self.guid(),
+        //         parent_subscriber_guid,
+        //         parent_participant_guid,
+        //     )))
+        //     .ok();
     }
 
     fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         self.subscription_matched_status.increment(instance_handle);
-
-        listener_sender
-            .try_send(ListenerTriggerKind::SubscriptionMatched(
-                DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
-            ))
-            .ok();
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SubscriptionMatched);
+        if self.listener.is_some() && self.status_kind.contains(&StatusKind::SubscriptionMatched) {
+            let listener_address = self.listener.as_ref().unwrap().address();
+            let reader =
+                DataReaderNode::new(data_reader_address, subscriber_address, participant_address);
+            let status = self.get_subscription_matched_status();
+            listener_address
+                .trigger_on_subscription_matched(reader, status)
+                .expect("Should not fail to send message");
+        } else if subscriber_address.get_listener().unwrap().is_some()
+            && subscriber_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::SubscriptionMatched)
+        {
+            let listener_address = subscriber_address.get_listener().unwrap().unwrap();
+            let reader =
+                DataReaderNode::new(data_reader_address, subscriber_address, participant_address);
+            let status = self.get_subscription_matched_status();
+            listener_address
+                .trigger_on_subscription_matched(reader, status)
+                .expect("Should not fail to send message");
+        } else if participant_address.get_listener().unwrap().is_some()
+            && participant_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::SubscriptionMatched)
+        {
+            let listener_address = participant_address.get_listener().unwrap().unwrap();
+            let reader =
+                DataReaderNode::new(data_reader_address, subscriber_address, participant_address);
+            let status = self.get_subscription_matched_status();
+            listener_address
+                .trigger_on_subscription_matched(reader, status)
+                .expect("Should not fail to send message");
+        }
     }
 
     fn on_sample_rejected(
         &mut self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
     ) {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
-
-        listener_sender
-            .try_send(ListenerTriggerKind::OnSampleRejected(DataReaderNode::new(
-                self.guid(),
-                parent_subscriber_guid,
-                parent_participant_guid,
-            )))
-            .ok();
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SampleRejected);
+        if self.listener.is_some() && self.status_kind.contains(&StatusKind::SampleRejected) {
+            let status = self.get_sample_rejected_status();
+            let listener_address = self.listener.as_ref().unwrap().address();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_sample_rejected(reader, status)
+                .expect("Should not fail to send message");
+        } else if subscriber_address.get_listener().unwrap().is_some()
+            && subscriber_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::SampleRejected)
+        {
+            let status = self.get_sample_rejected_status();
+            let listener_address = subscriber_address.get_listener().unwrap().unwrap();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_sample_rejected(reader, status)
+                .expect("Should not fail to send message");
+        } else if participant_address.get_listener().unwrap().is_some()
+            && participant_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::SampleRejected)
+        {
+            let status = self.get_sample_rejected_status();
+            let listener_address = participant_address.get_listener().unwrap().unwrap();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_sample_rejected(reader, status)
+                .expect("Should not fail to send message");
+        }
     }
 
     fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-        parent_subscriber_guid: Guid,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
     ) {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::RequestedIncompatibleQos);
 
-        listener_sender
-            .try_send(ListenerTriggerKind::RequestedIncompatibleQos(
-                DataReaderNode::new(self.guid(), parent_subscriber_guid, parent_participant_guid),
-            ))
-            .ok();
+        if self.listener.is_some()
+            && self
+                .status_kind
+                .contains(&StatusKind::RequestedIncompatibleQos)
+        {
+            let status = self.get_requested_incompatible_qos_status();
+            let listener_address = self.listener.as_ref().unwrap().address();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_requested_incompatible_qos(reader, status)
+                .expect("Should not fail to send message");
+        } else if subscriber_address.get_listener().unwrap().is_some()
+            && subscriber_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::RequestedIncompatibleQos)
+        {
+            let status = self.get_requested_incompatible_qos_status();
+            let listener_address = subscriber_address.get_listener().unwrap().unwrap();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_requested_incompatible_qos(reader, status)
+                .expect("Should not fail to send message");
+        } else if participant_address.get_listener().unwrap().is_some()
+            && participant_address
+                .status_kind()
+                .unwrap()
+                .contains(&StatusKind::RequestedIncompatibleQos)
+        {
+            let status = self.get_requested_incompatible_qos_status();
+            let listener_address = participant_address.get_listener().unwrap().unwrap();
+            let reader = DataReaderNode::new(
+                data_reader_address.clone(),
+                subscriber_address.clone(),
+                participant_address.clone(),
+            );
+            listener_address
+                .trigger_on_requested_incompatible_qos(reader, status)
+                .expect("Should not fail to send message");
+        }
     }
 }
 
@@ -889,6 +1185,27 @@ impl DdsDataReader<RtpsStatefulReader> {
 }
 
 impl DdsDataReader<RtpsStatelessReader> {
+    pub fn process_rtps_message(&mut self, message: RtpsMessageRead, reception_timestamp: Time) {
+        let mut message_receiver = MessageReceiver::new(&message);
+        while let Some(submessage) = message_receiver.next() {
+            match &submessage {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    self.on_data_submessage_received(
+                        data_submessage,
+                        message_receiver.source_timestamp(),
+                        message_receiver.source_guid_prefix(),
+                        reception_timestamp,
+                    );
+                }
+                RtpsSubmessageReadKind::DataFrag(_) => todo!(),
+                RtpsSubmessageReadKind::Gap(_) => todo!(),
+                RtpsSubmessageReadKind::Heartbeat(_) => todo!(),
+                RtpsSubmessageReadKind::HeartbeatFrag(_) => todo!(),
+                _ => (),
+            }
+        }
+    }
+
     pub fn guid(&self) -> Guid {
         self.rtps_reader.guid()
     }
@@ -1006,10 +1323,16 @@ impl DdsDataReader<RtpsStatelessReader> {
     pub fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead<'_>,
-        message_receiver: &MessageReceiver,
+        source_timestamp: Option<Time>,
+        source_guid_prefix: GuidPrefix,
+        reception_timestamp: Time,
     ) -> StatelessReaderDataReceivedResult {
-        self.rtps_reader
-            .on_data_submessage_received(data_submessage, message_receiver)
+        self.rtps_reader.on_data_submessage_received(
+            data_submessage,
+            source_timestamp,
+            source_guid_prefix,
+            reception_timestamp,
+        )
     }
 
     pub fn _get_instance_handle(&self) -> InstanceHandle {

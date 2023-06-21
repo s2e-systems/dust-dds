@@ -503,7 +503,7 @@ impl EndianWriteBytes for VendorId {
     }
 }
 
-pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
+pub const _VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
 pub const VENDOR_ID_S2E: VendorId = VendorId([0x01, 0x14]);
 
 

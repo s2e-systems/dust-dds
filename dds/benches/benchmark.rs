@@ -1,3 +1,5 @@
+use std::sync::{Arc, Barrier};
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
@@ -104,7 +106,7 @@ pub fn best_effort_read_only(c: &mut Criterion) {
 
 fn best_effort_write_and_receive(c: &mut Criterion) {
     struct Listener {
-        sender: std::sync::mpsc::SyncSender<()>,
+        barrier: Arc<Barrier>,
     }
     impl DataReaderListener for Listener {
         type Foo = KeyedData;
@@ -113,7 +115,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
             the_reader
                 .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
                 .ok();
-            self.sender.send(()).unwrap();
+            self.barrier.wait();
         }
     }
 
@@ -129,9 +131,10 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let barrier = Arc::new(Barrier::new(2));
+    let barrier_clone = barrier.clone();
 
-    let listener = Box::new(Listener { sender });
+    let listener = Box::new(Listener { barrier });
     let _reader = subscriber
         .create_datareader(
             &topic,
@@ -159,9 +162,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     c.bench_function("best_effort_write_and_receive", |b| {
         b.iter(|| {
             writer.write(&KeyedData { id: 1, value: 7 }, None).unwrap();
-            receiver
-                .recv_timeout(std::time::Duration::from_secs(10))
-                .unwrap();
+            barrier_clone.wait();
         })
     });
 }

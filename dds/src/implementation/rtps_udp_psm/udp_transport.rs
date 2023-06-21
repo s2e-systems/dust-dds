@@ -1,7 +1,9 @@
-use crate::implementation::rtps::{
-    messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
-    transport::TransportWrite,
-    types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
+use crate::implementation::{
+    rtps::{
+        messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
+        types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
+    },
+    utils::actor::actor_interface,
 };
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
@@ -15,9 +17,11 @@ impl UdpTransportRead {
     }
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        let mut message = RtpsMessageRead::new();
-        match self.socket.recv_from(&mut message.data).await {
+        let mut buf = Box::new([0u8; 65000]);
+        match self.socket.recv_from(buf.as_mut()).await {
             Ok((bytes, source_address)) => {
+                let message = RtpsMessageRead::new(&buf[0..bytes]);
+
                 if bytes > 0 {
                     let udp_locator: UdpLocator = source_address.into();
                     Some((udp_locator.0, message))
@@ -40,11 +44,12 @@ impl UdpTransportWrite {
     }
 }
 
-impl TransportWrite for UdpTransportWrite {
-    fn write(&self, message: &RtpsMessageWrite, destination_locator_list: &[Locator]) {
+actor_interface! {
+impl UdpTransportWrite {
+    pub fn write(&self, message: RtpsMessageWrite, destination_locator_list: Vec<Locator>) {
         let buf = message.buffer();
 
-        for &destination_locator in destination_locator_list {
+        for destination_locator in destination_locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
                 let interface_addresses: Vec<_> = ifcfg::IfCfg::get()
@@ -71,6 +76,7 @@ impl TransportWrite for UdpTransportWrite {
             }
         }
     }
+}
 }
 
 struct UdpLocator(Locator);

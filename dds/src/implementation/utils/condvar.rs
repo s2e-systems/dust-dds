@@ -19,13 +19,13 @@ impl DdsCondvar {
         Self(Arc::new((Condvar::new(), Mutex::new(false))))
     }
 
-    pub fn notify_all(&self) {
+    pub fn _notify_all(&self) {
         let mut started = self.0 .1.lock().unwrap();
         *started = true;
         self.0 .0.notify_all()
     }
 
-    pub fn wait_timeout(&self, timeout: Duration) -> DdsResult<()> {
+    pub fn _wait_timeout(&self, timeout: Duration) -> DdsResult<()> {
         let cvar = &self.0 .0;
         loop {
             let started = self.0 .1.lock().unwrap();
@@ -41,7 +41,7 @@ impl DdsCondvar {
         }
     }
 
-    pub fn wait(&self) -> DdsResult<()> {
+    pub fn _wait(&self) -> DdsResult<()> {
         let cvar = &self.0 .0;
         loop {
             let started = self.0 .1.lock().unwrap();

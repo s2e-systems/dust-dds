@@ -69,7 +69,7 @@ impl StatusConditionImpl {
         self.cvar_list.push(cvar)
     }
 
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+    pub fn _get_status_changes(&self) -> Vec<StatusKind> {
         self.status_changes.clone()
     }
 }

@@ -1,4 +1,5 @@
 use crate::{
+    implementation::{rtps_udp_psm::udp_transport::UdpTransportWrite, utils::actor::ActorAddress},
     infrastructure::{
         error::DdsResult,
         instance::{InstanceHandle, HANDLE_NIL},
@@ -12,7 +13,6 @@ use super::{
     history_cache::RtpsWriterCacheChange,
     messages::{overall_structure::RtpsMessageHeader, submessage_elements::ParameterList},
     reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
-    transport::TransportWrite,
     types::{ChangeKind, Guid, Locator},
     writer::RtpsWriter,
 };
@@ -132,7 +132,11 @@ impl RtpsStatelessWriter {
         Ok(())
     }
 
-    pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+    pub fn send_message(
+        &mut self,
+        header: RtpsMessageHeader,
+        udp_transport_write: &ActorAddress<UdpTransportWrite>,
+    ) {
         match self.writer.get_qos().reliability.kind {
             ReliabilityQosPolicyKind::BestEffort => {
                 for rl in self.reader_locators.iter_mut() {
@@ -140,7 +144,7 @@ impl RtpsStatelessWriter {
                         self.writer.writer_cache(),
                         self.writer.guid().entity_id(),
                         header,
-                        transport,
+                        udp_transport_write,
                     );
                 }
             }

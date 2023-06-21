@@ -1,4 +1,7 @@
-use crate::infrastructure::time::Time;
+use crate::{
+    implementation::{rtps_udp_psm::udp_transport::UdpTransportWrite, utils::actor::ActorAddress},
+    infrastructure::time::Time,
+};
 
 use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
@@ -7,7 +10,6 @@ use super::{
         submessage_elements::SequenceNumberSet,
         submessages::{gap::GapSubmessageWrite, info_timestamp::InfoTimestampSubmessageWrite},
     },
-    transport::TransportWrite,
     types::{EntityId, Locator, SequenceNumber, ENTITYID_UNKNOWN},
     writer::RtpsWriter,
 };
@@ -89,7 +91,7 @@ impl RtpsReaderLocator {
         writer_cache: &WriterHistoryCache,
         writer_id: EntityId,
         header: RtpsMessageHeader,
-        transport: &mut impl TransportWrite,
+        udp_transport_write: &ActorAddress<UdpTransportWrite>,
     ) {
         let mut submessages = Vec::new();
         while !self.unsent_changes.is_empty() {
@@ -108,7 +110,11 @@ impl RtpsReaderLocator {
             }
         }
         if !submessages.is_empty() {
-            transport.write(&RtpsMessageWrite::new(header, submessages), &[self.locator])
+            udp_transport_write.write(
+                RtpsMessageWrite::new(header, submessages),
+                vec![self.locator],
+            )
+            .unwrap();
         }
     }
 }

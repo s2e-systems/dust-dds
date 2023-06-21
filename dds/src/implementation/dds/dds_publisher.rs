@@ -1,29 +1,40 @@
 use crate::{
-    implementation::rtps::{
-        group::RtpsGroup, stateful_writer::RtpsStatefulWriter,
-        stateless_writer::RtpsStatelessWriter, types::Guid,
+    implementation::{
+        rtps::{
+            group::RtpsGroup, stateful_writer::RtpsStatefulWriter,
+            stateless_writer::RtpsStatelessWriter, types::Guid,
+        },
+        utils::actor::{actor_interface, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
+        status::StatusKind,
     },
 };
 
-use super::dds_data_writer::DdsDataWriter;
+use super::{dds_data_writer::DdsDataWriter, dds_publisher_listener::DdsPublisherListener};
 
 pub struct DdsPublisher {
     qos: PublisherQos,
     rtps_group: RtpsGroup,
-    stateless_data_writer_list: Vec<DdsDataWriter<RtpsStatelessWriter>>,
-    stateful_data_writer_list: Vec<DdsDataWriter<RtpsStatefulWriter>>,
+    stateless_data_writer_list: Vec<Actor<DdsDataWriter<RtpsStatelessWriter>>>,
+    stateful_data_writer_list: Vec<Actor<DdsDataWriter<RtpsStatefulWriter>>>,
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
+    listener: Option<Actor<DdsPublisherListener>>,
+    status_kind: Vec<StatusKind>,
 }
 
 impl DdsPublisher {
-    pub fn new(qos: PublisherQos, rtps_group: RtpsGroup) -> Self {
+    pub fn new(
+        qos: PublisherQos,
+        rtps_group: RtpsGroup,
+        listener: Option<Actor<DdsPublisherListener>>,
+        status_kind: Vec<StatusKind>,
+    ) -> Self {
         Self {
             qos,
             rtps_group,
@@ -32,9 +43,14 @@ impl DdsPublisher {
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
+            listener,
+            status_kind,
         }
     }
+}
 
+actor_interface! {
+impl DdsPublisher {
     pub fn enable(&mut self) {
         self.enabled = true;
     }
@@ -43,85 +59,62 @@ impl DdsPublisher {
         self.enabled
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.stateful_data_writer_list.is_empty() && self.stateless_data_writer_list.is_empty()
+    }
+
     pub fn get_unique_writer_id(&mut self) -> u8 {
         let counter = self.user_defined_data_writer_counter;
         self.user_defined_data_writer_counter += 1;
         counter
     }
 
-    pub fn stateful_datawriter_add(&mut self, data_writer: DdsDataWriter<RtpsStatefulWriter>) {
+    pub fn delete_contained_entities(&mut self) {
+        self.stateful_data_writer_list.clear()
+    }
+
+    pub fn stateful_datawriter_add(
+        &mut self,
+        data_writer: Actor<DdsDataWriter<RtpsStatefulWriter>>,
+    ) {
         self.stateful_data_writer_list.push(data_writer)
     }
 
-    pub fn stateful_datawriter_drain(
-        &mut self,
-    ) -> std::vec::Drain<DdsDataWriter<RtpsStatefulWriter>> {
-        self.stateful_data_writer_list.drain(..)
+    pub fn stateful_datawriter_delete(&mut self, handle: InstanceHandle) {
+        self.stateful_data_writer_list.retain(|dw| {
+            if let Ok(h) = dw.address().get_instance_handle() {
+                h != handle
+            } else {
+                false
+            }
+        });
     }
 
-    pub fn stateful_datawriter_delete(&mut self, data_writer_handle: InstanceHandle) {
+    pub fn stateful_data_writer_list(
+        &self,
+    ) -> Vec<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
         self.stateful_data_writer_list
-            .retain(|x| InstanceHandle::from(x.guid()) != data_writer_handle);
+            .iter()
+            .map(|x| x.address())
+            .collect()
     }
 
-    pub fn stateful_data_writer_list(&self) -> &[DdsDataWriter<RtpsStatefulWriter>] {
-        &self.stateful_data_writer_list
-    }
-
-    pub fn stateful_data_writer_list_mut(&mut self) -> &mut [DdsDataWriter<RtpsStatefulWriter>] {
-        &mut self.stateful_data_writer_list
-    }
-
-    pub fn stateless_datawriter_add(&mut self, data_writer: DdsDataWriter<RtpsStatelessWriter>) {
+    pub fn stateless_datawriter_add(
+        &mut self,
+        data_writer: Actor<DdsDataWriter<RtpsStatelessWriter>>,
+    ) {
         self.stateless_data_writer_list.push(data_writer)
     }
 
-    pub fn _stateless_datawriter_drain(
-        &mut self,
-    ) -> std::vec::Drain<DdsDataWriter<RtpsStatelessWriter>> {
-        self.stateless_data_writer_list.drain(..)
-    }
-
-    pub fn _stateless_datawriter_delete(&mut self, data_writer_handle: InstanceHandle) {
+    pub fn stateless_datawriter_list(&self) -> Vec<ActorAddress<DdsDataWriter<RtpsStatelessWriter>>> {
         self.stateless_data_writer_list
-            .retain(|x| InstanceHandle::from(x.guid()) != data_writer_handle);
-    }
-
-    pub fn stateless_data_writer_list(&self) -> &[DdsDataWriter<RtpsStatelessWriter>] {
-        &self.stateless_data_writer_list
-    }
-
-    pub fn stateless_data_writer_list_mut(&mut self) -> &mut [DdsDataWriter<RtpsStatelessWriter>] {
-        &mut self.stateless_data_writer_list
-    }
-
-    pub fn get_data_writer(
-        &self,
-        data_writer_guid: Guid,
-    ) -> Option<&DdsDataWriter<RtpsStatefulWriter>> {
-        self.stateful_data_writer_list()
             .iter()
-            .find(|dw| dw.guid() == data_writer_guid)
+            .map(|x| x.address())
+            .collect()
     }
 
-    pub fn get_data_writer_mut(
-        &mut self,
-        data_writer_guid: Guid,
-    ) -> Option<&mut DdsDataWriter<RtpsStatefulWriter>> {
-        self.stateful_data_writer_list_mut()
-            .iter_mut()
-            .find(|dw| dw.guid() == data_writer_guid)
-    }
-
-    pub fn set_default_datawriter_qos(&mut self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        match qos {
-            QosKind::Default => self.default_datawriter_qos = DataWriterQos::default(),
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                self.default_datawriter_qos = q;
-            }
-        }
-        Ok(())
+    pub fn set_default_datawriter_qos(&mut self, qos: DataWriterQos) {
+        self.default_datawriter_qos = qos;
     }
 
     pub fn get_default_datawriter_qos(&self) -> DataWriterQos {
@@ -150,4 +143,17 @@ impl DdsPublisher {
     pub fn guid(&self) -> Guid {
         self.rtps_group.guid()
     }
+
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_group.guid().into()
+    }
+
+    pub fn get_listener(&self) -> Option<ActorAddress<DdsPublisherListener>> {
+        self.listener.as_ref().map(|l| l.address())
+    }
+
+    pub fn status_kind(&self) -> Vec<StatusKind> {
+        self.status_kind.clone()
+    }
+}
 }

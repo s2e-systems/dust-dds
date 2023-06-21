@@ -1,13 +1,21 @@
 use crate::{
-    domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    implementation::dds::nodes::{DataReaderNodeKind, SubscriberNodeKind, TopicNodeKind},
+    implementation::{
+        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
+        dds::{dds_domain_participant::DdsDomainParticipant, nodes::DataReaderNodeKind},
+        rtps::messages::overall_structure::RtpsMessageHeader,
+        utils::actor::ActorAddress,
+    },
     infrastructure::{
-        error::DdsError, instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration,
+        error::DdsError,
+        instance::InstanceHandle,
+        qos::{QosKind, TopicQos},
+        status::StatusKind,
+        time::Duration,
     },
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{DdsDeserialize, DdsType},
+        type_support::{dds_serialize, DdsDeserialize, DdsType},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -60,32 +68,32 @@ impl<Foo> DataReader<Foo> {
     }
 }
 
-impl<Foo> Drop for DataReader<Foo> {
-    fn drop(&mut self) {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(_)
-            | DataReaderNodeKind::BuiltinStateless(_)
-            | DataReaderNodeKind::Listener(_) => (),
+// impl<Foo> Drop for DataReader<Foo> {
+//     fn drop(&mut self) {
+//         todo!()
+//         // match &self.0 {
+//         //     DataReaderNodeKind::BuiltinStateful(_)
+//         //     | DataReaderNodeKind::BuiltinStateless(_)
+//         //     | DataReaderNodeKind::Listener(_) => (),
 
-            DataReaderNodeKind::UserDefined(dr) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&dr.guid().prefix(), |dp| {
-                    if let Some(dp) = dp {
-                        crate::implementation::behavior::user_defined_subscriber::delete_datareader(
-                            dp,
-                            dr.parent_subscriber(),
-                            dr.guid(),
-                        )
-                        .ok();
-                    }
-                })
-            }
-        }
-    }
-}
+//         //     DataReaderNodeKind::UserDefined(dr) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+//         //         .get_participant_mut(&dr.guid().prefix(), |dp| {
+//         //             if let Some(dp) = dp {
+//         //                 crate::implementation::behavior::user_defined_subscriber::delete_datareader(
+//         //                     dp,
+//         //                     dr.parent_subscriber(),
+//         //                     dr.guid(),
+//         //                 )
+//         //                 .ok();
+//         //             }
+//         //         }),
+//         // }
+//     }
+// }
 
 impl<Foo> DataReader<Foo>
 where
-    Foo: DdsType + for<'de> DdsDeserialize<'de>,
+    Foo: DdsType + Send + 'static + for<'de> DdsDeserialize<'de>,
 {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The size of the returned collection will
     /// be limited to the specified `max_samples`. The properties of the data values collection and the setting of the
@@ -135,44 +143,16 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::builtin_data_reader_stateless::read(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        None,
-                    )
-                }),
-            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::builtin_data_reader_stateful::read(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        None,
-                    )
-                }),
-            DataReaderNodeKind::UserDefined(r) | DataReaderNodeKind::Listener(r) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::read(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        r.parent_subscriber(),
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        None,
-                    )
-                })
-            }
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                None,
+            ),
         }
     }
 
@@ -187,21 +167,17 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::UserDefined(r) | DataReaderNodeKind::Listener(r) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::take(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        r.parent_subscriber(),
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        None,
-                    )
-                })
+            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
+                Err(DdsError::IllegalOperation)
+            }
+            DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
+                dr.address().take(
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    None,
+                )
             }
         }
     }
@@ -215,47 +191,16 @@ where
     /// sequences and specify states.
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let mut samples = match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::builtin_data_reader_stateless::read(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        1,
-                        &[SampleStateKind::NotRead],
-                        ANY_VIEW_STATE,
-                        ANY_INSTANCE_STATE,
-                        None,
-                    )
-                })?,
-            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::builtin_data_reader_stateful::read(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        1,
-                        &[SampleStateKind::NotRead],
-                        ANY_VIEW_STATE,
-                        ANY_INSTANCE_STATE,
-                        None,
-                    )
-                })?,
-            DataReaderNodeKind::UserDefined(r) | DataReaderNodeKind::Listener(r) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                    &r.guid().prefix(),
-                    |dp| {
-                        crate::implementation::behavior::user_defined_data_reader::read(
-                            dp.ok_or(DdsError::AlreadyDeleted)?,
-                            r.guid(),
-                            r.parent_subscriber(),
-                            1,
-                            &[SampleStateKind::NotRead],
-                            ANY_VIEW_STATE,
-                            ANY_INSTANCE_STATE,
-                            None,
-                        )
-                    },
-                )?
-            }
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().read(
+                1,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )?,
         };
         Ok(samples.pop().unwrap())
     }
@@ -269,23 +214,16 @@ where
     /// sequences and specify states.
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::UserDefined(r) | DataReaderNodeKind::Listener(r) => {
-                let mut samples = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                    &r.guid().prefix(),
-                    |dp| {
-                        crate::implementation::behavior::user_defined_data_reader::take(
-                            dp.ok_or(DdsError::AlreadyDeleted)?,
-                            r.guid(),
-                            r.parent_subscriber(),
-                            1,
-                            &[SampleStateKind::NotRead],
-                            ANY_VIEW_STATE,
-                            ANY_INSTANCE_STATE,
-                            None,
-                        )
-                    },
+            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
+                Err(DdsError::IllegalOperation)
+            }
+            DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
+                let mut samples = dr.address().take(
+                    1,
+                    &[SampleStateKind::NotRead],
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                    None,
                 )?;
                 Ok(samples.pop().unwrap())
             }
@@ -309,44 +247,16 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::builtin_data_reader_stateless::read(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        Some(a_handle),
-                    )
-                }),
-            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::builtin_data_reader_stateful::read(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        Some(a_handle),
-                    )
-                }),
-            DataReaderNodeKind::UserDefined(r) | DataReaderNodeKind::Listener(r) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::read(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        r.parent_subscriber(),
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        Some(a_handle),
-                    )
-                })
-            }
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(a_handle),
+            ),
         }
     }
 
@@ -367,22 +277,18 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::take(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        r.parent_subscriber(),
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        Some(a_handle),
-                    )
-                }),
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
+                Err(DdsError::IllegalOperation)
+            }
+            DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
+                dr.address().take(
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    Some(a_handle),
+                )
+            }
         }
     }
 
@@ -418,43 +324,16 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::builtin_data_reader_stateless::read_next_instance(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        max_samples,
-                        previous_handle,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                    )
-                }),
-            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::builtin_data_reader_stateful::read_next_instance(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        max_samples,
-                        previous_handle,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                    )
-                }),
-            DataReaderNodeKind::UserDefined(r) | DataReaderNodeKind::Listener(r) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::read_next_instance(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-                        r.parent_subscriber(),
-                        max_samples,
-                        previous_handle,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                    )
-                })
-            }
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().read_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            ),
         }
     }
 
@@ -470,20 +349,17 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::UserDefined(r) | DataReaderNodeKind::Listener(r) => {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::take_next_instance(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-                        r.parent_subscriber(),
-                        max_samples,
-                        previous_handle,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                    )
-                })
+            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
+                Err(DdsError::IllegalOperation)
+            }
+            DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
+                dr.address().take_next_instance(
+                    max_samples,
+                    previous_handle,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
+                )
             }
         }
     }
@@ -492,22 +368,23 @@ where
     /// The operation will only fill the fields that form the key inside the `key_holder` instance.
     /// This operation may return [`DdsError::BadParameter`](crate::infrastructure::error::DdsError)
     /// if the [`InstanceHandle`] `handle` does not correspond to an existing data object known to the [`DataReader`].
-    pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::get_key_value(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        r.parent_subscriber(),
-                        key_holder,
-                        handle,
-                    )
-                }),
-            DataReaderNodeKind::Listener(_) => todo!(),
-        }
+    pub fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //         .get_participant(&r.guid().prefix(), |dp| {
+        //             crate::implementation::behavior::user_defined_data_reader::get_key_value(
+        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
+        //                 r.guid(),
+        //                 r.parent_subscriber(),
+        //                 key_holder,
+        //                 handle,
+        //             )
+        //         }),
+        //     DataReaderNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation takes as a parameter an instance and returns an [`InstanceHandle`] handle
@@ -516,213 +393,203 @@ where
     /// key. This operation does not register the instance in question. If the instance has not
     /// been previously registered, or if for any other reason the Service is unable to provide
     /// an instance handle, the operation will succeed and return [`None`].
-    pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::lookup_instance(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        r.parent_subscriber(),
-                        instance,
-                    )
-                }),
-            DataReaderNodeKind::Listener(_) => todo!(),
-        }
+    pub fn lookup_instance(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //         .get_participant(&r.guid().prefix(), |dp| {
+        //             crate::implementation::behavior::user_defined_data_reader::lookup_instance(
+        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
+        //                 r.guid(),
+        //                 r.parent_subscriber(),
+        //                 instance,
+        //             )
+        //         }),
+        //     DataReaderNodeKind::Listener(_) => todo!(),
+        // }
     }
 }
 
 impl<Foo> DataReader<Foo> {
     /// This operation allows access to the [`LivelinessChangedStatus`].
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant_mut(&r.guid().prefix(), |dp| {
-                        crate::implementation::behavior::user_defined_data_reader::get_liveliness_changed_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-                        r.parent_subscriber(),)
-                    })?;
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+        //     DataReaderNodeKind::UserDefined(r) => {
+        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //             .get_participant_mut(&r.guid().prefix(), |dp| {
+        //                 crate::implementation::behavior::user_defined_data_reader::get_liveliness_changed_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
+        //                 r.parent_subscriber(),)
+        //             })?;
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-                    l.ok_or(DdsError::AlreadyDeleted)?
-                        .remove_communication_state(StatusKind::LivelinessChanged);
-                    Ok(())
-                })?;
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
+        //             l.ok_or(DdsError::AlreadyDeleted)?
+        //                 .remove_communication_state(StatusKind::LivelinessChanged);
+        //             Ok(())
+        //         })?;
 
-                Ok(status)
-            }
-            DataReaderNodeKind::Listener(_) => todo!(),
-        }
+        //         Ok(status)
+        //     }
+        //     DataReaderNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation allows access to the [`RequestedDeadlineMissedStatus`].
     pub fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                    &r.guid().prefix(),
-                    |dp| {
-                        crate::implementation::behavior::user_defined_data_reader::get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-                        r.parent_subscriber(),)
-                    },
-                )?;
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+        //     DataReaderNodeKind::UserDefined(r) => {
+        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+        //             &r.guid().prefix(),
+        //             |dp| {
+        //                 crate::implementation::behavior::user_defined_data_reader::get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
+        //                 r.parent_subscriber(),)
+        //             },
+        //         )?;
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-                    l.ok_or(DdsError::AlreadyDeleted)?
-                        .remove_communication_state(StatusKind::RequestedDeadlineMissed);
-                    Ok(())
-                })?;
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
+        //             l.ok_or(DdsError::AlreadyDeleted)?
+        //                 .remove_communication_state(StatusKind::RequestedDeadlineMissed);
+        //             Ok(())
+        //         })?;
 
-                Ok(status)
-            }
-            DataReaderNodeKind::Listener(_) => todo!(),
-        }
+        //         Ok(status)
+        //     }
+        //     DataReaderNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation allows access to the [`RequestedIncompatibleQosStatus`].
     pub fn get_requested_incompatible_qos_status(
         &self,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                    &r.guid().prefix(),
-                    |dp| {
-                        crate::implementation::behavior::user_defined_data_reader::get_requested_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-                        r.parent_subscriber(),)
-                    },
-                )?;
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+        //     DataReaderNodeKind::UserDefined(r) => {
+        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+        //             &r.guid().prefix(),
+        //             |dp| {
+        //                 crate::implementation::behavior::user_defined_data_reader::get_requested_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
+        //                 r.parent_subscriber(),)
+        //             },
+        //         )?;
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-                    l.ok_or(DdsError::AlreadyDeleted)?
-                        .remove_communication_state(StatusKind::RequestedIncompatibleQos);
-                    Ok(())
-                })?;
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
+        //             l.ok_or(DdsError::AlreadyDeleted)?
+        //                 .remove_communication_state(StatusKind::RequestedIncompatibleQos);
+        //             Ok(())
+        //         })?;
 
-                Ok(status)
-            }
-            DataReaderNodeKind::Listener(_) => todo!(),
-        }
+        //         Ok(status)
+        //     }
+        //     DataReaderNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant_mut(&r.guid().prefix(), |dp| {
-                        crate::implementation::behavior::user_defined_data_reader::get_sample_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-                        r.parent_subscriber(),)
-                    })?;
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+        //     DataReaderNodeKind::UserDefined(r) => {
+        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //             .get_participant_mut(&r.guid().prefix(), |dp| {
+        //                 crate::implementation::behavior::user_defined_data_reader::get_sample_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
+        //                 r.parent_subscriber(),)
+        //             })?;
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-                    l.ok_or(DdsError::AlreadyDeleted)?
-                        .remove_communication_state(StatusKind::SampleLost);
-                    Ok(())
-                })?;
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
+        //             l.ok_or(DdsError::AlreadyDeleted)?
+        //                 .remove_communication_state(StatusKind::SampleLost);
+        //             Ok(())
+        //         })?;
 
-                Ok(status)
-            }
-            DataReaderNodeKind::Listener(_) => todo!(),
-        }
+        //         Ok(status)
+        //     }
+        //     DataReaderNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation allows access to the [`SampleRejectedStatus`].
     pub fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant_mut(&r.guid().prefix(), |dp| {
-                        crate::implementation::behavior::user_defined_data_reader::get_sample_rejected_status(dp.ok_or(DdsError::AlreadyDeleted)?, r.guid(),
-                        r.parent_subscriber(),)
-                    })?;
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+        //     DataReaderNodeKind::UserDefined(r) => {
+        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //             .get_participant_mut(&r.guid().prefix(), |dp| {
+        //                 crate::implementation::behavior::user_defined_data_reader::get_sample_rejected_status(dp.ok_or(DdsError::AlreadyDeleted)?, r.guid(),
+        //                 r.parent_subscriber(),)
+        //             })?;
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-                    l.ok_or(DdsError::AlreadyDeleted)?
-                        .remove_communication_state(StatusKind::SampleRejected);
-                    Ok(())
-                })?;
+        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
+        //             l.ok_or(DdsError::AlreadyDeleted)?
+        //                 .remove_communication_state(StatusKind::SampleRejected);
+        //             Ok(())
+        //         })?;
 
-                Ok(status)
-            }
-            DataReaderNodeKind::Listener(_) => todo!(),
-        }
+        //         Ok(status)
+        //     }
+        //     DataReaderNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => {
-                let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-                    &r.guid().prefix(),
-                    |dp| {
-                        crate::implementation::behavior::user_defined_data_reader::get_subscription_matched_status(
-                            dp.ok_or(DdsError::AlreadyDeleted)?,
-                            r.guid(),
-                            r.parent_subscriber(),
-                        )
-                    },
-                )?;
-
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-                    l.ok_or(DdsError::AlreadyDeleted)?
-                        .remove_communication_state(StatusKind::SubscriptionMatched);
-                    Ok(())
-                })?;
-
-                Ok(status)
-            }
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().get_subscription_matched_status(),
         }
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     pub fn get_topicdescription(&self) -> DdsResult<Topic<Foo>> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&r.guid().prefix(), |dp| {
-                    let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-                    Ok(Topic::new(TopicNodeKind::UserDefined(
-                        crate::implementation::behavior::user_defined_data_reader::get_topicdescription(dp, r.guid(),
-                        r.parent_subscriber(),)?,
-                    )))
-                }),
-            DataReaderNodeKind::Listener(_) => todo!(),
-        }
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //         .get_participant(&r.guid().prefix(), |dp| {
+        //             let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+        //             Ok(Topic::new(TopicNodeKind::UserDefined(
+        //                 crate::implementation::behavior::user_defined_data_reader::get_topicdescription(dp, r.guid(),
+        //                 r.parent_subscriber(),)?,
+        //             )))
+        //         }),
+        //     DataReaderNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&r.guid().prefix(), |dp| {
-                    Ok(Subscriber::new(SubscriberNodeKind::UserDefined(
-                    crate::implementation::behavior::user_defined_data_reader::get_subscriber(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.parent_subscriber(),
-                    ))))
-                }),
-            DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        }
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+        //     DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
+        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //         .get_participant(&r.guid().prefix(), |dp| {
+        //             Ok(Subscriber::new(SubscriberNodeKind::UserDefined(
+        //                 crate::implementation::behavior::user_defined_data_reader::get_subscriber(
+        //                     dp.ok_or(DdsError::AlreadyDeleted)?,
+        //                     r.parent_subscriber(),
+        //                 ),
+        //             )))
+        //         }),
+        //     DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+        // }
     }
 
     /// This operation blocks the calling thread until either all “historical” data is received, or else the
@@ -739,18 +606,14 @@ impl<Foo> DataReader<Foo> {
     /// data is received.
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => {
+            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
+                todo!()
+            }
+            DataReaderNodeKind::UserDefined(dr) => {
                 let start_time = std::time::Instant::now();
 
                 while start_time.elapsed() < std::time::Duration::from(max_wait) {
-                    if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .get_participant(&r.guid().prefix(), |dp| {
-                            crate::implementation::behavior::user_defined_data_reader::is_historical_data_received(dp.ok_or(DdsError::AlreadyDeleted)?, r.guid(),
-                            r.parent_subscriber(),)
-                        })?
-                    {
+                    if dr.address().is_historical_data_received()? {
                         return Ok(());
                     }
                 }
@@ -773,18 +636,12 @@ impl<Foo> DataReader<Foo> {
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::get_matched_publication_data(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                            r.parent_subscriber(),
-                        publication_handle,
-                    )
-                }),
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr
+                .address()
+                .get_matched_publication_data(publication_handle),
         }
     }
 
@@ -796,14 +653,10 @@ impl<Foo> DataReader<Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::get_matched_publications(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-                    r.parent_subscriber(),)
-                }),
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().get_matched_publications(),
         }
     }
 }
@@ -823,50 +676,44 @@ impl<Foo> DataReader<Foo> {
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::set_qos(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        r.parent_subscriber(),
-                        qos,
-                    )
-                }),
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => {
+                let q = match qos {
+                    QosKind::Default => dr.parent_subscriber().get_default_datareader_qos()?,
+                    QosKind::Specific(q) => {
+                        q.is_consistent()?;
+                        q
+                    }
+                };
+                dr.address().set_qos(q)?;
+
+                if dr.address().is_enabled()? {
+                    announce_data_reader(
+                        dr.parent_participant(),
+                        dr.address().as_discovered_reader_data(
+                            TopicQos::default(),
+                            dr.parent_subscriber().get_qos()?,
+                            dr.parent_participant().get_default_unicast_locator_list()?,
+                            dr.parent_participant()
+                                .get_default_multicast_locator_list()?,
+                        )?,
+                    )?;
+                }
+
+                Ok(())
+            }
         }
     }
 
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::builtin_data_reader_stateless::get_qos(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                    )
-                }),
-            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::builtin_data_reader_stateful::get_qos(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                    )
-                }),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::get_qos(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        r.parent_subscriber(),
-                    )
-                }),
-            DataReaderNodeKind::Listener(_) => todo!(),
-            // DataReaderKind::BuiltinStateless(x) => x.upgrade()?.get_qos(),
-            // DataReaderKind::BuiltinStateful(x) => x.upgrade()?.get_qos(),
-            // DataReaderKind::UserDefined(x) => x.upgrade()?.get_qos(),
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => dr.address().get_qos(),
         }
     }
 
@@ -875,25 +722,13 @@ impl<Foo> DataReader<Foo> {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_data_reader_listener(&r.guid(), |l| {
-                    Ok(l.ok_or(DdsError::AlreadyDeleted)?.get_status_condition())
-                }),
-            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_data_reader_listener(&r.guid(), |l| {
-                    Ok(l.ok_or(DdsError::AlreadyDeleted)?.get_status_condition())
-                }),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_data_reader_listener(&r.guid(), |l| {
-                    Ok(l.ok_or(DdsError::AlreadyDeleted)?.get_status_condition())
-                }),
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr) => dr
+                .address()
+                .get_statuscondition()
+                .map(StatusCondition::new),
             DataReaderNodeKind::Listener(_) => todo!(),
-            // DataReaderKind::BuiltinStateless(x) => {
-            //     StatusCondition::new(x.upgrade()?.get_statuscondition())
-            // }
-            // DataReaderKind::BuiltinStateful(x) => {
-            //     StatusCondition::new(x.upgrade()?.get_statuscondition())
-            // }
         }
     }
 
@@ -904,15 +739,16 @@ impl<Foo> DataReader<Foo> {
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_data_reader_listener(&r.guid(), |l| {
-                    Ok(l.ok_or(DdsError::AlreadyDeleted)?.get_status_changes())
-                }),
-            DataReaderNodeKind::Listener(_) => todo!(),
-        }
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //         .get_data_reader_listener(&r.guid(), |l| {
+        //             Ok(l.ok_or(DdsError::AlreadyDeleted)?.get_status_changes())
+        //         }),
+        //     DataReaderNodeKind::Listener(_) => todo!(),
+        // }
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -937,27 +773,38 @@ impl<Foo> DataReader<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&r.guid().prefix(), |dp| {
-                    crate::implementation::behavior::user_defined_data_reader::enable(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        r.guid(),
-                        r.parent_subscriber(),
-                    )
-                }),
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::_BuiltinStateless(_)
+            | DataReaderNodeKind::_BuiltinStateful(_)
+            | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+
+            DataReaderNodeKind::UserDefined(r) => {
+                if !r.address().is_enabled()? {
+                    r.address().enable()?;
+                }
+
+                announce_data_reader(
+                    r.parent_participant(),
+                    r.address().as_discovered_reader_data(
+                        TopicQos::default(),
+                        r.parent_subscriber().get_qos()?,
+                        r.parent_participant().get_default_unicast_locator_list()?,
+                        r.parent_participant()
+                            .get_default_multicast_locator_list()?,
+                    )?,
+                )?;
+
+                Ok(())
+            }
         }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r)
-            | DataReaderNodeKind::BuiltinStateful(r)
+            DataReaderNodeKind::_BuiltinStateless(r)
+            | DataReaderNodeKind::_BuiltinStateful(r)
             | DataReaderNodeKind::UserDefined(r)
-            | DataReaderNodeKind::Listener(r) => Ok(r.guid().into()),
+            | DataReaderNodeKind::Listener(r) => r.address().get_instance_handle(),
         }
     }
 }
@@ -977,20 +824,55 @@ where
         _a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(_r) => {
-                todo!()
-                // #[allow(clippy::redundant_closure)]
-                // r.set_listener(
-                //     a_listener
-                //         .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|l| Box::new(l)),
-                //     mask,
-                // )
-            }
-            DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        }
+        todo!()
+        // match &self.0 {
+        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+        //     DataReaderNodeKind::UserDefined(_r) => {
+        //         todo!()
+        //         // #[allow(clippy::redundant_closure)]
+        //         // r.set_listener(
+        //         //     a_listener
+        //         //         .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|l| Box::new(l)),
+        //         //     mask,
+        //         // )
+        //     }
+        //     DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+        // }
     }
 }
 pub trait AnyDataReader {}
+
+fn announce_data_reader(
+    domain_participant: &ActorAddress<DdsDomainParticipant>,
+    discovered_reader_data: DiscoveredReaderData,
+) -> DdsResult<()> {
+    let serialized_data = dds_serialize(&discovered_reader_data)?;
+    let timestamp = domain_participant.get_current_time()?;
+
+    if let Some(sedp_reader_announcer) = domain_participant
+        .get_builtin_publisher()?
+        .stateful_data_writer_list()?
+        .iter()
+        .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
+    {
+        sedp_reader_announcer.write_w_timestamp(
+            serialized_data,
+            discovered_reader_data.get_serialized_key(),
+            None,
+            timestamp,
+        )?;
+
+        sedp_reader_announcer.send_message(
+            RtpsMessageHeader::new(
+                domain_participant.get_protocol_version()?,
+                domain_participant.get_vendor_id()?,
+                domain_participant.get_guid()?.prefix(),
+            ),
+            domain_participant.get_udp_transport_write()?,
+            domain_participant.get_current_time()?,
+        )?;
+    }
+
+    Ok(())
+}

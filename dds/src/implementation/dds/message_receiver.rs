@@ -1,193 +1,107 @@
-use super::{
-    dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
-    status_listener::ListenerTriggerKind,
-};
 use crate::{
     implementation::rtps::{
-        messages::{
-            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-            submessages::{
-                info_destination::InfoDestinationSubmessageRead,
-                info_source::InfoSourceSubmessageRead, info_timestamp::InfoTimestampSubmessageRead,
-            },
-        },
-        types::{
-            Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
-            LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
-        },
+        messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+        types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
     },
-    infrastructure::{
-        error::DdsResult,
-        time::{Time, TIME_INVALID},
-    },
+    infrastructure::time::{Time, TIME_INVALID},
 };
 
-pub struct MessageReceiver {
+pub struct MessageReceiver<'a> {
     source_version: ProtocolVersion,
     source_vendor_id: VendorId,
     source_guid_prefix: GuidPrefix,
     dest_guid_prefix: GuidPrefix,
-    unicast_reply_locator_list: Vec<Locator>,
-    multicast_reply_locator_list: Vec<Locator>,
+    _unicast_reply_locator_list: Vec<Locator>,
+    _multicast_reply_locator_list: Vec<Locator>,
     have_timestamp: bool,
     timestamp: Time,
-    reception_timestamp: Time,
+    submessages: std::vec::IntoIter<RtpsSubmessageReadKind<'a>>,
 }
 
-impl MessageReceiver {
-    pub fn new(reception_timestamp: Time) -> Self {
-        Self {
-            source_version: PROTOCOLVERSION,
-            source_vendor_id: VENDOR_ID_UNKNOWN,
-            source_guid_prefix: GUIDPREFIX_UNKNOWN,
-            dest_guid_prefix: GUIDPREFIX_UNKNOWN,
-            unicast_reply_locator_list: Vec::new(),
-            multicast_reply_locator_list: Vec::new(),
-            have_timestamp: false,
-            timestamp: TIME_INVALID,
-            reception_timestamp,
-        }
-    }
+impl<'a> Iterator for MessageReceiver<'a> {
+    type Item = RtpsSubmessageReadKind<'a>;
 
-    pub fn process_message(
-        &mut self,
-        participant_guid: Guid,
-        publisher_list: &mut [DdsPublisher],
-        subscriber_list: &mut [DdsSubscriber],
-        source_locator: Locator,
-        message: &RtpsMessageRead,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
-    ) -> DdsResult<()> {
-        self.dest_guid_prefix = participant_guid.prefix();
-        self.source_version = message.header().version();
-        self.source_vendor_id = message.header().vendor_id();
-        self.source_guid_prefix = message.header().guid_prefix();
-        self.unicast_reply_locator_list.push(Locator::new(
-            source_locator.kind(),
-            LOCATOR_PORT_INVALID,
-            source_locator.address(),
-        ));
-        self.multicast_reply_locator_list.push(Locator::new(
-            source_locator.kind(),
-            LOCATOR_PORT_INVALID,
-            LOCATOR_ADDRESS_INVALID,
-        ));
+    fn next(&mut self) -> Option<Self::Item> {
+        for submessage in self.submessages.by_ref() {
+            match &submessage {
+                RtpsSubmessageReadKind::AckNack(_)
+                | RtpsSubmessageReadKind::Data(_)
+                | RtpsSubmessageReadKind::DataFrag(_)
+                | RtpsSubmessageReadKind::Gap(_)
+                | RtpsSubmessageReadKind::Heartbeat(_)
+                | RtpsSubmessageReadKind::HeartbeatFrag(_)
+                | RtpsSubmessageReadKind::NackFrag(_) => return Some(submessage),
 
-        for submessage in &message.submessages() {
-            match submessage {
-                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
-                    for publisher in publisher_list.iter_mut() {
-                        for stateful_data_writer in
-                            publisher.stateful_data_writer_list_mut().iter_mut()
-                        {
-                            stateful_data_writer
-                                .on_acknack_submessage_received(acknack_submessage, self);
-                        }
-                    }
+                RtpsSubmessageReadKind::InfoDestination(m) => {
+                    self.dest_guid_prefix = m.guid_prefix();
                 }
-                RtpsSubmessageReadKind::Data(data_submessage) => {
-                    for subscriber in subscriber_list.iter_mut() {
-                        subscriber.on_data_submessage_received(
-                            data_submessage,
-                            self,
-                            participant_guid,
-                            listener_sender,
-                        )
-                    }
+                RtpsSubmessageReadKind::InfoReply(_) => todo!(),
+                RtpsSubmessageReadKind::InfoSource(m) => {
+                    self.source_vendor_id = m.vendor_id();
+                    self.source_version = m.protocol_version();
+                    self.source_guid_prefix = m.guid_prefix();
                 }
-                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                    for subscriber in subscriber_list.iter_mut() {
-                        subscriber.on_data_frag_submessage_received(
-                            data_frag_submessage,
-                            self,
-                            participant_guid,
-                            listener_sender,
-                        )
-                    }
-                }
-                RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    for subscriber in subscriber_list.iter_mut() {
-                        subscriber.on_gap_submessage_received(gap_submessage, self)
-                    }
-                }
-                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                    for subscriber in subscriber_list.iter_mut() {
-                        subscriber.on_heartbeat_submessage_received(
-                            heartbeat_submessage,
-                            self.source_guid_prefix,
-                        )
-                    }
-                }
-                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag) => {
-                    for subscriber in subscriber_list.iter_mut() {
-                        subscriber.on_heartbeat_frag_submessage_received(
-                            heartbeat_frag,
-                            self.source_guid_prefix,
-                        );
-                    }
-                }
-                RtpsSubmessageReadKind::InfoDestination(info_dst) => {
-                    self.process_info_destination_submessage(info_dst)
-                }
-                RtpsSubmessageReadKind::InfoReply(_) => (),
-                RtpsSubmessageReadKind::InfoSource(info_source) => {
-                    self.process_info_source_submessage(info_source)
-                }
-                RtpsSubmessageReadKind::InfoTimestamp(info_timestamp) => {
-                    self.process_info_timestamp_submessage(info_timestamp)
-                }
-                RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
-                    for publisher in publisher_list.iter_mut() {
-                        for stateful_data_writer in
-                            publisher.stateful_data_writer_list_mut().iter_mut()
-                        {
-                            stateful_data_writer
-                                .on_nack_frag_submessage_received(nack_frag_submessage, self);
-                        }
+                RtpsSubmessageReadKind::InfoTimestamp(m) => {
+                    if !m.invalidate_flag() {
+                        self.have_timestamp = true;
+                        self.timestamp =
+                            Time::new(m.timestamp().seconds(), m.timestamp().fraction());
+                    } else {
+                        self.have_timestamp = false;
+                        self.timestamp = TIME_INVALID;
                     }
                 }
                 RtpsSubmessageReadKind::Pad(_) => (),
             }
         }
-
-        Ok(())
+        None
     }
+}
 
-    fn process_info_source_submessage(&mut self, info_source: &InfoSourceSubmessageRead) {
-        self.source_vendor_id = info_source.vendor_id();
-        self.source_version = info_source.protocol_version();
-        self.source_vendor_id = info_source.vendor_id();
-    }
-
-    fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessageRead) {
-        if !info_timestamp.invalidate_flag() {
-            self.have_timestamp = true;
-            self.timestamp = Time::new(
-                info_timestamp.timestamp().seconds(),
-                info_timestamp.timestamp().fraction(),
-            );
-        } else {
-            self.have_timestamp = false;
-            self.timestamp = TIME_INVALID;
+impl<'a> MessageReceiver<'a> {
+    pub fn new(message: &'a RtpsMessageRead) -> Self {
+        Self {
+            source_version: message.header().version(),
+            source_vendor_id: message.header().vendor_id(),
+            source_guid_prefix: message.header().guid_prefix(),
+            dest_guid_prefix: GUIDPREFIX_UNKNOWN,
+            _unicast_reply_locator_list: Vec::new(),
+            _multicast_reply_locator_list: Vec::new(),
+            have_timestamp: false,
+            timestamp: TIME_INVALID,
+            submessages: message.submessages().into_iter(),
         }
     }
 
-    fn process_info_destination_submessage(
-        &mut self,
-        info_destination: &InfoDestinationSubmessageRead,
-    ) {
-        self.dest_guid_prefix = info_destination.guid_prefix();
+    pub fn _source_version(&self) -> ProtocolVersion {
+        self.source_version
+    }
+
+    pub fn _source_vendor_id(&self) -> VendorId {
+        self.source_vendor_id
     }
 
     pub fn source_guid_prefix(&self) -> GuidPrefix {
         self.source_guid_prefix
     }
 
-    pub fn timestamp(&self) -> Time {
-        self.timestamp
+    pub fn _dest_guid_prefix(&self) -> GuidPrefix {
+        self.dest_guid_prefix
     }
 
-    pub fn reception_timestamp(&self) -> Time {
-        self.reception_timestamp
+    pub fn _unicast_reply_locator_list(&self) -> &[Locator] {
+        self._unicast_reply_locator_list.as_ref()
+    }
+
+    pub fn _multicast_reply_locator_list(&self) -> &[Locator] {
+        self._multicast_reply_locator_list.as_ref()
+    }
+
+    pub fn source_timestamp(&self) -> Option<Time> {
+        if self.have_timestamp {
+            Some(self.timestamp)
+        } else {
+            None
+        }
     }
 }

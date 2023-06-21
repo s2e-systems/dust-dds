@@ -25,6 +25,7 @@ use super::parameter_id_values::{
     Debug,
     PartialEq,
     Eq,
+    Clone,
     derive_more::From,
     derive_more::AsRef,
     serde::Serialize,
@@ -41,6 +42,7 @@ impl Default for DomainTag {
     Debug,
     PartialEq,
     Eq,
+    Clone,
     derive_more::From,
     derive_more::AsRef,
     serde::Serialize,
@@ -55,7 +57,7 @@ impl Default for LeaseDuration {
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantProxy {
     domain_id: Parameter<PID_DOMAIN_ID, DomainId>,
     domain_tag: ParameterWithDefault<PID_DOMAIN_TAG, DomainTag>,
@@ -163,7 +165,7 @@ impl ParticipantProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,

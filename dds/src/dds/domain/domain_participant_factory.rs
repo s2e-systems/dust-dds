@@ -1,56 +1,1201 @@
 use std::{
-    collections::HashMap,
-    net::{Ipv4Addr, SocketAddr, UdpSocket},
+    net::{Ipv4Addr, SocketAddr},
     str::FromStr,
-    sync::atomic::{self, AtomicU32},
 };
 
-use super::domain_participant::{
-    task_metatraffic_multicast_receive, task_metatraffic_unicast_receive,
-    task_send_entity_announce, task_unicast_metatraffic_communication_send,
-    task_unicast_user_defined_communication_send, task_user_defined_receive, DomainParticipant,
-};
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         configuration::DustDdsConfiguration,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        },
         dds::{
-            any_data_reader_listener::AnyDataReaderListener,
-            any_data_writer_listener::AnyDataWriterListener, any_topic_listener::AnyTopicListener,
-            dds_domain_participant::DdsDomainParticipant, nodes::DomainParticipantNode,
-            status_listener::StatusListener,
+            dds_data_reader::DdsDataReader,
+            dds_data_writer::DdsDataWriter,
+            dds_domain_participant::{
+                DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+            },
+            dds_domain_participant_factory::DdsDomainParticipantFactory,
+            dds_domain_participant_listener::DdsDomainParticipantListener,
         },
         rtps::{
+            discovery_types::BuiltinEndpointSet,
+            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
             participant::RtpsParticipant,
+            reader_proxy::RtpsReaderProxy,
+            stateful_reader::RtpsStatefulReader,
+            stateful_writer::RtpsStatefulWriter,
             types::{
-                Guid, GuidPrefix, Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4,
+                DurabilityKind, Guid, GuidPrefix, Locator, LocatorAddress, LocatorPort,
+                ReliabilityKind, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4,
                 PROTOCOLVERSION, VENDOR_ID_S2E,
             },
+            writer_proxy::RtpsWriterProxy,
         },
-        rtps_udp_psm::udp_transport::UdpTransportRead,
-        utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
+        rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
+        utils::actor::{spawn_actor, Actor, ActorAddress, THE_RUNTIME},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
+        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    publication::publisher_listener::PublisherListener,
-    subscription::subscriber_listener::SubscriberListener,
+    subscription::{
+        data_reader::Sample,
+        sample_info::{
+            InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+        },
+    },
+    DdsType,
 };
 
+use fnmatch_regex::glob_to_regex;
 use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use mac_address::MacAddress;
 use schemars::schema_for;
 use socket2::Socket;
-use tokio::runtime::Runtime;
+
+use super::domain_participant::DomainParticipant;
 
 pub type DomainId = i32;
 
-/// This value can be used as an alias for the singleton factory returned by the operation
-/// [`DomainParticipantFactory::get_instance()`].
-pub static THE_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory;
+lazy_static! {
+    /// This value can be used as an alias for the singleton factory returned by the operation
+    /// [`DomainParticipantFactory::get_instance()`].
+    pub static ref THE_PARTICIPANT_FACTORY: DomainParticipantFactory = {
+        let participant_factory_actor = spawn_actor(DdsDomainParticipantFactory::new());
+        DomainParticipantFactory(participant_factory_actor)
+    };
+
+    static ref THE_DDS_CONFIGURATION: DustDdsConfiguration =
+        if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION") {
+            configuration_try_from_str(configuration_json.as_str()).unwrap()
+        } else {
+            DustDdsConfiguration::default()
+        };
+}
+
+/// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
+/// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
+/// [`DomainParticipantFactory::get_instance`] operation.
+pub struct DomainParticipantFactory(Actor<DdsDomainParticipantFactory>);
+
+impl DomainParticipantFactory {
+    /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
+    /// to join the Domain identified by the `domain_id` argument.
+    /// If the specified QoS policies are not consistent, the operation will fail and no [`DomainParticipant`] will be created.
+    /// The value [`QosKind::Default`] can be used to indicate that the [`DomainParticipant`] should be created
+    /// with the default DomainParticipant QoS set in the factory. The use of this value is equivalent to the application obtaining the
+    /// default DomainParticipant QoS by means of the operation [`DomainParticipantFactory::get_default_participant_qos`] and using the resulting
+    /// QoS to create the [`DomainParticipant`].
+    pub fn create_participant(
+        &self,
+        domain_id: DomainId,
+        qos: QosKind<DomainParticipantQos>,
+        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) -> DdsResult<DomainParticipant> {
+        let domain_participant_qos = match qos {
+            QosKind::Default => self.0.address().get_default_participant_qos()?,
+            QosKind::Specific(q) => q,
+        };
+
+        let mac_address = ifcfg::IfCfg::get()
+            .expect("Could not scan interfaces")
+            .into_iter()
+            .filter_map(|i| MacAddress::from_str(&i.mac).ok())
+            .find(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
+            .expect("Could not find any mac address")
+            .bytes();
+
+        let app_id = std::process::id().to_ne_bytes();
+        let instance_id = self.0.address().get_unique_participant_id()?.to_ne_bytes();
+
+        #[rustfmt::skip]
+        let guid_prefix = GuidPrefix::new([
+            mac_address[2],  mac_address[3], mac_address[4], mac_address[5], // Host ID
+            app_id[0], app_id[1], app_id[2], app_id[3], // App ID
+            instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
+        ]);
+
+        let interface_address_list =
+            get_interface_address_list(THE_DDS_CONFIGURATION.interface_name.as_ref());
+
+        let default_unicast_socket =
+            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
+                .map_err(|_| DdsError::Error)?;
+        default_unicast_socket
+            .set_nonblocking(true)
+            .map_err(|_| DdsError::Error)?;
+        let user_defined_unicast_port = default_unicast_socket
+            .local_addr()
+            .map_err(|_| DdsError::Error)?
+            .port();
+        let user_defined_unicast_locator_port = LocatorPort::new(user_defined_unicast_port.into());
+
+        let default_unicast_locator_list: Vec<Locator> = interface_address_list
+            .iter()
+            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, user_defined_unicast_locator_port, *a))
+            .collect();
+
+        let default_multicast_locator_list = vec![];
+
+        let metattrafic_unicast_socket =
+            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
+                .map_err(|_| DdsError::Error)?;
+        metattrafic_unicast_socket
+            .set_nonblocking(true)
+            .map_err(|_| DdsError::Error)?;
+
+        let metattrafic_unicast_locator_port = LocatorPort::new(
+            metattrafic_unicast_socket
+                .local_addr()
+                .map_err(|_| DdsError::Error)?
+                .port()
+                .into(),
+        );
+        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
+            .iter()
+            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
+            .collect();
+
+        let metatraffic_multicast_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDP_V4,
+            port_builtin_multicast(domain_id),
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        )];
+
+        let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
+
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
+        let udp_transport_write = spawn_actor(UdpTransportWrite::new(socket));
+
+        let rtps_participant = RtpsParticipant::new(
+            guid_prefix,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            PROTOCOLVERSION,
+            VENDOR_ID_S2E,
+        );
+
+        let listener = a_listener.map(|l| spawn_actor(DdsDomainParticipantListener::new(l)));
+        let status_kind = mask.to_vec();
+
+        let domain_participant = DdsDomainParticipant::new(
+            rtps_participant,
+            domain_id,
+            THE_DDS_CONFIGURATION.domain_tag.clone(),
+            domain_participant_qos,
+            &spdp_discovery_locator_list,
+            THE_DDS_CONFIGURATION.fragment_size,
+            udp_transport_write,
+            listener,
+            status_kind,
+        );
+
+        let participant_actor = spawn_actor(domain_participant);
+        let participant_address = participant_actor.address();
+        self.0.address().add_participant(participant_actor)?;
+        let domain_participant = DomainParticipant::new(participant_address.clone());
+
+        let participant_address_clone = participant_address.clone();
+        THE_RUNTIME.spawn(async move {
+            let mut metatraffic_multicast_transport = UdpTransportRead::new(
+                get_multicast_socket(
+                    DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+                    port_builtin_multicast(domain_id),
+                )
+                .expect("Should not fail to open socket"),
+            );
+
+            while let Some((_locator, message)) = metatraffic_multicast_transport.read().await {
+                let r = tokio::task::block_in_place(|| {
+                    process_spdp_metatraffic(&participant_address_clone, message)
+                });
+
+                if r.is_err() {
+                    break;
+                }
+            }
+        });
+
+        let participant_address_clone = participant_address.clone();
+        THE_RUNTIME.spawn(async move {
+            let mut metatraffic_unicast_transport = UdpTransportRead::new(
+                tokio::net::UdpSocket::from_std(metattrafic_unicast_socket)
+                    .expect("Should not fail to open metatraffic unicast transport socket"),
+            );
+
+            while let Some((_locator, message)) = metatraffic_unicast_transport.read().await {
+                let r: DdsResult<()> = tokio::task::block_in_place(|| {
+                    process_sedp_metatraffic(&participant_address_clone, message)?;
+                    process_sedp_discovery(&participant_address_clone)?;
+                    Ok(())
+                });
+
+                if r.is_err() {
+                    break;
+                }
+            }
+        });
+
+        let participant_address_clone = participant_address;
+        THE_RUNTIME.spawn(async move {
+            let mut default_unicast_transport = UdpTransportRead::new(
+                tokio::net::UdpSocket::from_std(default_unicast_socket).expect("Should not fail to open default unicast socket"),
+            );
+
+            while let Some((_locator, message)) = default_unicast_transport.read().await {
+                let r = tokio::task::block_in_place(|| {
+                    process_user_defined_data(&participant_address_clone, message)
+                });
+
+                if r.is_err() {
+                    break;
+                }
+            }
+        });
+
+        if self
+            .0
+            .address()
+            .get_qos()?
+            .entity_factory
+            .autoenable_created_entities
+        {
+            domain_participant.enable()?;
+        }
+
+        Ok(domain_participant)
+    }
+
+    /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
+    /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
+    /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
+    pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
+        let handle = participant.get_instance_handle()?;
+        let participant_list = self.0.address().get_participant_list()?;
+        let participant = participant_list
+            .iter()
+            .find(|x| {
+                if let Ok(h) = x.get_instance_handle() {
+                    h == handle
+                } else {
+                    false
+                }
+            })
+            .ok_or(DdsError::BadParameter)?;
+
+        if participant.is_empty()? {
+            self.0.address().delete_participant(handle)?;
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Domain participant still contains other entities".to_string(),
+            ))
+        }
+    }
+
+    /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
+    /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
+    /// The pre-defined value [`struct@THE_PARTICIPANT_FACTORY`] can also be used as an alias for the singleton factory returned by this operation.
+    pub fn get_instance() -> &'static Self {
+        &THE_PARTICIPANT_FACTORY
+    }
+
+    /// This operation retrieves a previously created [`DomainParticipant`] belonging to the specified domain_id. If no such
+    /// [`DomainParticipant`] exists, the operation will return a [`None`] value.
+    /// If multiple [`DomainParticipant`] entities belonging to that domain_id exist, then the operation will return one of them. It is not
+    /// specified which one.
+    pub fn lookup_participant(&self, domain_id: DomainId) -> DdsResult<Option<DomainParticipant>> {
+        Ok(self
+            .0
+            .address()
+            .get_participant_list()?
+            .iter()
+            .find(|&a| {
+                if let Ok(id) = a.get_domain_id() {
+                    id == domain_id
+                } else {
+                    false
+                }
+            })
+            .map(|dp| DomainParticipant::new(dp.clone())))
+    }
+
+    /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created
+    /// [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`DomainParticipantFactory::create_participant`] operation.
+    /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
+    /// return a [`DdsError::InconsistentPolicy`].
+    pub fn set_default_participant_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => DomainParticipantQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.0.address().set_default_participant_qos(qos)
+    }
+
+    /// This operation retrieves the default value of the [`DomainParticipantQos`], that is, the QoS policies which will be used for
+    /// newly created [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`DomainParticipantFactory::create_participant`]
+    /// operation.
+    /// The values retrieved by [`DomainParticipantFactory::get_default_participant_qos`] will match the set of values specified on the last successful call to
+    /// [`DomainParticipantFactory::set_default_participant_qos`], or else, if the call was never made, the default value of [`DomainParticipantQos`].
+    pub fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
+        self.0.address().get_default_participant_qos()
+    }
+
+    /// This operation sets the value of the [`DomainParticipantFactoryQos`] policies. These policies control the behavior of the object
+    /// a factory for entities.
+    /// Note that despite having QoS, the [`DomainParticipantFactory`] is not an Entity.
+    /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
+    /// return a [`DdsError::InconsistentPolicy`].
+    pub fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => DomainParticipantFactoryQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.0.address().set_qos(qos)
+    }
+
+    /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
+    pub fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
+        self.0.address().get_qos()
+    }
+}
+
+fn lookup_data_writer_by_topic_name(
+    stateful_writer_list: &[ActorAddress<DdsDataWriter<RtpsStatefulWriter>>],
+    topic_name: &str,
+) -> Option<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
+    stateful_writer_list
+        .iter()
+        .find(|dw| {
+            if let Ok(t) = dw.get_topic_name() {
+                t == topic_name
+            } else {
+                false
+            }
+        })
+        .cloned()
+}
+
+fn lookup_data_reader_by_topic_name(
+    stateful_reader_list: &[ActorAddress<DdsDataReader<RtpsStatefulReader>>],
+    topic_name: &str,
+) -> Option<ActorAddress<DdsDataReader<RtpsStatefulReader>>> {
+    stateful_reader_list
+        .iter()
+        .find(|dw| {
+            if let Ok(t) = dw.get_topic_name() {
+                t == topic_name
+            } else {
+                false
+            }
+        })
+        .cloned()
+}
+
+fn add_matched_publications_detector(
+    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
+    {
+        let remote_reader_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let expects_inline_qos = false;
+        let proxy = RtpsReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            expects_inline_qos,
+            true,
+            ReliabilityKind::Reliable,
+            DurabilityKind::TransientLocal,
+        );
+        writer.matched_reader_add(proxy).unwrap();
+    }
+}
+
+fn add_matched_publications_announcer(
+    reader: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = None;
+
+        let proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            data_max_size_serialized,
+            remote_group_entity_id,
+        );
+
+        reader.matched_writer_add(proxy).unwrap();
+    }
+}
+
+fn add_matched_subscriptions_detector(
+    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
+    {
+        let remote_reader_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let expects_inline_qos = false;
+        let proxy = RtpsReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            expects_inline_qos,
+            true,
+            ReliabilityKind::Reliable,
+            DurabilityKind::TransientLocal,
+        );
+        writer.matched_reader_add(proxy).unwrap();
+    }
+}
+
+fn add_matched_subscriptions_announcer(
+    reader: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = None;
+
+        let proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            data_max_size_serialized,
+            remote_group_entity_id,
+        );
+        reader.matched_writer_add(proxy).unwrap();
+    }
+}
+
+fn add_matched_topics_detector(
+    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
+    {
+        let remote_reader_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let expects_inline_qos = false;
+        let proxy = RtpsReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            expects_inline_qos,
+            true,
+            ReliabilityKind::Reliable,
+            DurabilityKind::TransientLocal,
+        );
+        writer.matched_reader_add(proxy).unwrap();
+    }
+}
+
+fn add_matched_topics_announcer(
+    reader: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy()
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = None;
+
+        let proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
+            data_max_size_serialized,
+            remote_group_entity_id,
+        );
+        reader.matched_writer_add(proxy).unwrap();
+    }
+}
+
+fn process_user_defined_data(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+    message: RtpsMessageRead,
+) -> DdsResult<()> {
+    for user_defined_subscriber in participant_address.get_user_defined_subscriber_list()? {
+        for user_defined_data_reader in user_defined_subscriber.stateful_data_reader_list()? {
+            user_defined_data_reader.process_rtps_message(
+                message.clone(),
+                participant_address.get_current_time()?,
+                user_defined_data_reader.clone(),
+                user_defined_subscriber.clone(),
+                participant_address.clone(),
+            )?;
+            user_defined_data_reader.send_message(
+                RtpsMessageHeader::new(
+                    participant_address.get_protocol_version()?,
+                    participant_address.get_vendor_id()?,
+                    participant_address.get_guid()?.prefix(),
+                ),
+                participant_address.get_udp_transport_write()?,
+            )?;
+        }
+    }
+
+    for user_defined_publisher in participant_address.get_user_defined_publisher_list()? {
+        for user_defined_data_writer in user_defined_publisher.stateful_data_writer_list()? {
+            user_defined_data_writer.process_rtps_message(message.clone())?;
+            user_defined_data_writer.send_message(
+                RtpsMessageHeader::new(
+                    participant_address.get_protocol_version()?,
+                    participant_address.get_vendor_id()?,
+                    participant_address.get_guid()?.prefix(),
+                ),
+                participant_address.get_udp_transport_write()?,
+                participant_address.get_current_time()?,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn process_spdp_metatraffic(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+    message: RtpsMessageRead,
+) -> DdsResult<()> {
+    let builtin_subscriber = participant_address.get_builtin_subscriber()?;
+
+    if let Some(spdp_data_reader) = builtin_subscriber
+        .stateless_data_reader_list()?
+        .iter()
+        .find(|dr| {
+            if let Ok(type_name) = dr.get_type_name() {
+                type_name == SpdpDiscoveredParticipantData::type_name()
+            } else {
+                false
+            }
+        })
+    {
+        // Receive the data on the builtin spdp reader
+        spdp_data_reader.process_rtps_message(message, participant_address.get_current_time()?)?;
+
+        // Read data from each of the readers
+        while let Ok(spdp_data_sample_list) = spdp_data_reader
+            .read::<SpdpDiscoveredParticipantData>(
+                1,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
+        {
+            for spdp_data_sample in spdp_data_sample_list {
+                let discovered_participant_data =
+                    spdp_data_sample.data.expect("Should contain data");
+
+                // Check that the domainId of the discovered participant equals the local one.
+                // If it is not equal then there the local endpoints are not configured to
+                // communicate with the discovered participant.
+                // AND
+                // Check that the domainTag of the discovered participant equals the local one.
+                // If it is not equal then there the local endpoints are not configured to
+                // communicate with the discovered participant.
+                let is_domain_id_matching =
+                    discovered_participant_data.participant_proxy().domain_id()
+                        == participant_address.get_domain_id()?;
+                let is_domain_tag_matching =
+                    discovered_participant_data.participant_proxy().domain_tag()
+                        == participant_address.get_domain_tag()?;
+                let is_participant_ignored = participant_address.is_participant_ignored(
+                    discovered_participant_data.get_serialized_key().into(),
+                )?;
+
+                if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
+                    // Process any new participant discovery (add/remove matched proxies)
+                    let builtin_data_writer_list = participant_address
+                        .get_builtin_publisher()?
+                        .stateful_data_writer_list()?;
+                    let builtin_data_reader_list = participant_address
+                        .get_builtin_subscriber()?
+                        .stateful_data_reader_list()?;
+
+                    if let Some(sedp_publications_announcer) = lookup_data_writer_by_topic_name(
+                        &builtin_data_writer_list,
+                        DCPS_PUBLICATION,
+                    ) {
+                        add_matched_publications_detector(
+                            &sedp_publications_announcer,
+                            &discovered_participant_data,
+                        );
+
+                        sedp_publications_announcer.send_message(
+                            RtpsMessageHeader::new(
+                                participant_address.get_protocol_version()?,
+                                participant_address.get_vendor_id()?,
+                                participant_address.get_guid()?.prefix(),
+                            ),
+                            participant_address.get_udp_transport_write()?,
+                            participant_address.get_current_time()?,
+                        )?;
+                    }
+
+                    if let Some(sedp_publications_detector) = lookup_data_reader_by_topic_name(
+                        &builtin_data_reader_list,
+                        DCPS_PUBLICATION,
+                    ) {
+                        add_matched_publications_announcer(
+                            &sedp_publications_detector,
+                            &discovered_participant_data,
+                        );
+                    }
+
+                    if let Some(sedp_subscriptions_announcer) = lookup_data_writer_by_topic_name(
+                        &builtin_data_writer_list,
+                        DCPS_SUBSCRIPTION,
+                    ) {
+                        add_matched_subscriptions_detector(
+                            &sedp_subscriptions_announcer,
+                            &discovered_participant_data,
+                        );
+                        sedp_subscriptions_announcer.send_message(
+                            RtpsMessageHeader::new(
+                                participant_address.get_protocol_version()?,
+                                participant_address.get_vendor_id()?,
+                                participant_address.get_guid()?.prefix(),
+                            ),
+                            participant_address.get_udp_transport_write()?,
+                            participant_address.get_current_time()?,
+                        )?;
+                    }
+
+                    if let Some(sedp_subscriptions_detector) = lookup_data_reader_by_topic_name(
+                        &builtin_data_reader_list,
+                        DCPS_SUBSCRIPTION,
+                    ) {
+                        add_matched_subscriptions_announcer(
+                            &sedp_subscriptions_detector,
+                            &discovered_participant_data,
+                        );
+                    }
+
+                    if let Some(sedp_topics_announcer) =
+                        lookup_data_writer_by_topic_name(&builtin_data_writer_list, DCPS_TOPIC)
+                    {
+                        add_matched_topics_detector(
+                            &sedp_topics_announcer,
+                            &discovered_participant_data,
+                        );
+
+                        sedp_topics_announcer.send_message(
+                            RtpsMessageHeader::new(
+                                participant_address.get_protocol_version()?,
+                                participant_address.get_vendor_id()?,
+                                participant_address.get_guid()?.prefix(),
+                            ),
+                            participant_address.get_udp_transport_write()?,
+                            participant_address.get_current_time()?,
+                        )?;
+                    }
+
+                    if let Some(sedp_topics_detector) =
+                        lookup_data_reader_by_topic_name(&builtin_data_reader_list, DCPS_TOPIC)
+                    {
+                        add_matched_topics_announcer(
+                            &sedp_topics_detector,
+                            &discovered_participant_data,
+                        );
+                    }
+
+                    participant_address.discovered_participant_add(
+                        discovered_participant_data.get_serialized_key().into(),
+                        discovered_participant_data,
+                    )?;
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn process_sedp_metatraffic(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+    message: RtpsMessageRead,
+) -> DdsResult<()> {
+    let builtin_subscriber = participant_address.get_builtin_subscriber()?;
+    let builtin_publisher = participant_address.get_builtin_publisher()?;
+
+    for stateful_builtin_writer in builtin_publisher.stateful_data_writer_list()? {
+        stateful_builtin_writer.process_rtps_message(message.clone())?;
+        stateful_builtin_writer.send_message(
+            RtpsMessageHeader::new(
+                participant_address.get_protocol_version()?,
+                participant_address.get_vendor_id()?,
+                participant_address.get_guid()?.prefix(),
+            ),
+            participant_address.get_udp_transport_write()?,
+            participant_address.get_current_time()?,
+        )?;
+    }
+
+    for stateful_builtin_reader in builtin_subscriber.stateful_data_reader_list()? {
+        stateful_builtin_reader.process_rtps_message(
+            message.clone(),
+            participant_address.get_current_time()?,
+            stateful_builtin_reader.clone(),
+            builtin_subscriber.clone(),
+            participant_address.clone(),
+        )?;
+        stateful_builtin_reader.send_message(
+            RtpsMessageHeader::new(
+                participant_address.get_protocol_version()?,
+                participant_address.get_vendor_id()?,
+                participant_address.get_guid()?.prefix(),
+            ),
+            participant_address.get_udp_transport_write()?,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn process_sedp_discovery(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+) -> DdsResult<()> {
+    let builtin_subscriber = participant_address.get_builtin_subscriber()?;
+
+    for stateful_builtin_reader in builtin_subscriber.stateful_data_reader_list()? {
+        match stateful_builtin_reader.get_topic_name()?.as_str() {
+            DCPS_PUBLICATION => {
+                if let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader
+                    .read::<DiscoveredWriterData>(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE,
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                    None,
+                ) {
+                    for discovered_writer_sample in discovered_writer_sample_list.drain(..) {
+                        discover_matched_writers(participant_address, &discovered_writer_sample)?;
+                    }
+                }
+            }
+            DCPS_SUBSCRIPTION => {
+                if let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader
+                    .read::<DiscoveredReaderData>(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE,
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                    None,
+                ) {
+                    for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
+                        discover_matched_readers(participant_address, &discovered_reader_sample)?;
+                    }
+                }
+            }
+            DCPS_TOPIC => {
+                if let Ok(discovered_topic_sample_list) = stateful_builtin_reader
+                    .read::<DiscoveredTopicData>(
+                        i32::MAX,
+                        ANY_SAMPLE_STATE,
+                        ANY_VIEW_STATE,
+                        ANY_INSTANCE_STATE,
+                        None,
+                    )
+                {
+                    for discovered_topic_sample in discovered_topic_sample_list {
+                        discover_matched_topics(participant_address, &discovered_topic_sample)?;
+                    }
+                }
+            }
+            _ => (),
+        };
+    }
+
+    Ok(())
+}
+
+fn discover_matched_writers(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+    discovered_writer_sample: &Sample<DiscoveredWriterData>,
+) -> DdsResult<()> {
+    match discovered_writer_sample.sample_info.instance_state {
+        InstanceStateKind::Alive => {
+            if let Some(discovered_writer_data) = &discovered_writer_sample.data {
+                if !participant_address.is_publication_ignored(
+                    discovered_writer_data
+                        .writer_proxy()
+                        .remote_writer_guid()
+                        .into(),
+                )? {
+                    let remote_writer_guid_prefix = discovered_writer_data
+                        .writer_proxy()
+                        .remote_writer_guid()
+                        .prefix();
+                    let writer_parent_participant_guid =
+                        Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
+
+                    if let Some(spdp_discovered_participant_data) = participant_address
+                        .discovered_participant_get(InstanceHandle::from(
+                            writer_parent_participant_guid,
+                        ))?
+                    {
+                        let default_unicast_locator_list = spdp_discovered_participant_data
+                            .participant_proxy()
+                            .default_unicast_locator_list()
+                            .to_vec();
+                        let default_multicast_locator_list = spdp_discovered_participant_data
+                            .participant_proxy()
+                            .default_multicast_locator_list()
+                            .to_vec();
+                        for user_defined_subscriber_address in
+                            participant_address.get_user_defined_subscriber_list()?
+                        {
+                            let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) =
+                                glob_to_regex(
+                                    discovered_writer_data
+                                        .clone()
+                                        .dds_publication_data()
+                                        .partition()
+                                        .name
+                                        .as_str(),
+                                ) {
+                                d.is_match(
+                                    &user_defined_subscriber_address.get_qos()?.partition.name,
+                                )
+                            } else {
+                                false
+                            };
+
+                            let is_subscriber_regex_matched_to_discovered_writer = if let Ok(d) =
+                                glob_to_regex(
+                                    &user_defined_subscriber_address.get_qos()?.partition.name,
+                                ) {
+                                d.is_match(
+                                    &discovered_writer_data
+                                        .clone()
+                                        .dds_publication_data()
+                                        .partition()
+                                        .name,
+                                )
+                            } else {
+                                false
+                            };
+
+                            let is_partition_string_matched = discovered_writer_data
+                                .clone()
+                                .dds_publication_data()
+                                .partition()
+                                .name
+                                == user_defined_subscriber_address.get_qos()?.partition.name;
+
+                            if is_discovered_writer_regex_matched_to_subscriber
+                                || is_subscriber_regex_matched_to_discovered_writer
+                                || is_partition_string_matched
+                            {
+                                let user_defined_subscriber_qos =
+                                    user_defined_subscriber_address.get_qos()?;
+                                for data_reader_address in
+                                    user_defined_subscriber_address.stateful_data_reader_list()?
+                                {
+                                    data_reader_address.add_matched_writer(
+                                        discovered_writer_data.clone(),
+                                        default_unicast_locator_list.clone(),
+                                        default_multicast_locator_list.clone(),
+                                        user_defined_subscriber_qos.clone(),
+                                        data_reader_address.clone(),
+                                        user_defined_subscriber_address.clone(),
+                                        participant_address.clone(),
+                                    )?;
+                                    data_reader_address.send_message(
+                                        RtpsMessageHeader::new(
+                                            participant_address.get_protocol_version()?,
+                                            participant_address.get_vendor_id()?,
+                                            participant_address.get_guid()?.prefix(),
+                                        ),
+                                        participant_address.get_udp_transport_write()?,
+                                    )?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        InstanceStateKind::NotAliveDisposed => {
+            for subscriber in participant_address.get_user_defined_subscriber_list()? {
+                for data_reader in subscriber.stateful_data_reader_list()? {
+                    data_reader.remove_matched_writer(
+                        discovered_writer_sample.sample_info.instance_handle,
+                        data_reader.clone(),
+                        subscriber.clone(),
+                        participant_address.clone(),
+                    )?;
+                }
+            }
+        }
+        InstanceStateKind::NotAliveNoWriters => todo!(),
+    }
+
+    Ok(())
+}
+
+pub fn discover_matched_readers(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+    discovered_reader_sample: &Sample<DiscoveredReaderData>,
+) -> DdsResult<()> {
+    match discovered_reader_sample.sample_info.instance_state {
+        InstanceStateKind::Alive => {
+            if let Some(discovered_reader_data) = &discovered_reader_sample.data {
+                if !participant_address.is_subscription_ignored(
+                    discovered_reader_data
+                        .reader_proxy()
+                        .remote_reader_guid()
+                        .into(),
+                )? {
+                    let remote_reader_guid_prefix = discovered_reader_data
+                        .reader_proxy()
+                        .remote_reader_guid()
+                        .prefix();
+                    let reader_parent_participant_guid =
+                        Guid::new(remote_reader_guid_prefix, ENTITYID_PARTICIPANT);
+
+                    if let Some(spdp_discovered_participant_data) = participant_address
+                        .discovered_participant_get(InstanceHandle::from(
+                            reader_parent_participant_guid,
+                        ))?
+                    {
+                        let default_unicast_locator_list = spdp_discovered_participant_data
+                            .participant_proxy()
+                            .default_unicast_locator_list()
+                            .to_vec();
+                        let default_multicast_locator_list = spdp_discovered_participant_data
+                            .participant_proxy()
+                            .default_multicast_locator_list()
+                            .to_vec();
+                        for user_defined_publisher_address in
+                            participant_address.get_user_defined_publisher_list()?
+                        {
+                            let publisher_qos = user_defined_publisher_address.get_qos()?;
+                            let is_discovered_reader_regex_matched_to_publisher = if let Ok(d) =
+                                glob_to_regex(
+                                    &discovered_reader_data
+                                        .subscription_builtin_topic_data()
+                                        .partition()
+                                        .name,
+                                ) {
+                                d.is_match(&publisher_qos.partition.name)
+                            } else {
+                                false
+                            };
+
+                            let is_publisher_regex_matched_to_discovered_reader =
+                                if let Ok(d) = glob_to_regex(&publisher_qos.partition.name) {
+                                    d.is_match(
+                                        &discovered_reader_data
+                                            .subscription_builtin_topic_data()
+                                            .partition()
+                                            .name,
+                                    )
+                                } else {
+                                    false
+                                };
+
+                            let is_partition_string_matched = discovered_reader_data
+                                .subscription_builtin_topic_data()
+                                .partition()
+                                .name
+                                == publisher_qos.partition.name;
+
+                            if is_discovered_reader_regex_matched_to_publisher
+                                || is_publisher_regex_matched_to_discovered_reader
+                                || is_partition_string_matched
+                            {
+                                for data_writer in
+                                    user_defined_publisher_address.stateful_data_writer_list()?
+                                {
+                                    data_writer.add_matched_reader(
+                                        discovered_reader_data.clone(),
+                                        default_unicast_locator_list.clone(),
+                                        default_multicast_locator_list.clone(),
+                                        publisher_qos.clone(),
+                                        data_writer.clone(),
+                                        user_defined_publisher_address.clone(),
+                                        participant_address.clone(),
+                                    )?;
+                                    data_writer.send_message(
+                                        RtpsMessageHeader::new(
+                                            participant_address.get_protocol_version()?,
+                                            participant_address.get_vendor_id()?,
+                                            participant_address.get_guid()?.prefix(),
+                                        ),
+                                        participant_address.get_udp_transport_write()?,
+                                        participant_address.get_current_time()?,
+                                    )?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        InstanceStateKind::NotAliveDisposed => {
+            for publisher in participant_address.get_user_defined_publisher_list()? {
+                for data_writer in publisher.stateful_data_writer_list()? {
+                    data_writer.remove_matched_reader(
+                        discovered_reader_sample.sample_info.instance_handle,
+                        data_writer.clone(),
+                        publisher.clone(),
+                        participant_address.clone(),
+                    )?;
+                }
+            }
+        }
+
+        InstanceStateKind::NotAliveNoWriters => todo!(),
+    }
+
+    Ok(())
+}
+
+fn discover_matched_topics(
+    participant_address: &ActorAddress<DdsDomainParticipant>,
+    discovered_topic_sample: &Sample<DiscoveredTopicData>,
+) -> DdsResult<()> {
+    match discovered_topic_sample.sample_info.instance_state {
+        InstanceStateKind::Alive => {
+            if let Some(topic_data) = discovered_topic_sample.data.as_ref() {
+                for topic in participant_address.get_user_defined_topic_list()? {
+                    topic.process_discovered_topic(topic_data.clone())?;
+                }
+
+                participant_address.discovered_topic_add(
+                    topic_data.get_serialized_key().into(),
+                    topic_data.topic_builtin_topic_data().clone(),
+                )?;
+            }
+        }
+        InstanceStateKind::NotAliveDisposed => todo!(),
+        InstanceStateKind::NotAliveNoWriters => todo!(),
+    }
+
+    Ok(())
+}
+
+fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfiguration, String> {
+    let root_schema = schema_for!(DustDdsConfiguration);
+    let json_schema_str =
+        serde_json::to_string(&root_schema).expect("Json schema could not be created");
+
+    let schema = serde_json::value::Value::from_str(json_schema_str.as_str())
+        .expect("Json schema not valid");
+    let compiled_schema = JSONSchema::compile(&schema).expect("Json schema could not be compiled");
+
+    let instance =
+        serde_json::value::Value::from_str(configuration_json).map_err(|e| e.to_string())?;
+    compiled_schema
+        .validate(&instance)
+        .map_err(|errors| errors.map(|e| e.to_string()).collect::<String>())?;
+    serde_json::from_value(instance).map_err(|e| e.to_string())
+}
 
 // As of 9.6.1.4.1  Default multicast address
 const DEFAULT_MULTICAST_LOCATOR_ADDRESS: LocatorAddress =
@@ -91,23 +1236,6 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
         .collect()
 }
 
-fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfiguration, String> {
-    let root_schema = schema_for!(DustDdsConfiguration);
-    let json_schema_str =
-        serde_json::to_string(&root_schema).expect("Json schema could not be created");
-
-    let schema = serde_json::value::Value::from_str(json_schema_str.as_str())
-        .expect("Json schema not valid");
-    let compiled_schema = JSONSchema::compile(&schema).expect("Json schema could not be compiled");
-
-    let instance =
-        serde_json::value::Value::from_str(configuration_json).map_err(|e| e.to_string())?;
-    compiled_schema
-        .validate(&instance)
-        .map_err(|errors| errors.map(|e| e.to_string()).collect::<String>())?;
-    serde_json::from_value(instance).map_err(|e| e.to_string())
-}
-
 fn get_multicast_socket(
     multicast_address: LocatorAddress,
     port: LocatorPort,
@@ -136,585 +1264,6 @@ fn get_multicast_socket(
     socket.set_multicast_loop_v4(true)?;
 
     tokio::net::UdpSocket::from_std(socket.into())
-}
-
-/// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
-/// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
-/// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory;
-
-impl DomainParticipantFactory {
-    /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
-    /// to join the Domain identified by the `domain_id` argument.
-    /// If the specified QoS policies are not consistent, the operation will fail and no [`DomainParticipant`] will be created.
-    /// The value [`QosKind::Default`] can be used to indicate that the [`DomainParticipant`] should be created
-    /// with the default DomainParticipant QoS set in the factory. The use of this value is equivalent to the application obtaining the
-    /// default DomainParticipant QoS by means of the operation [`DomainParticipantFactory::get_default_participant_qos`] and using the resulting
-    /// QoS to create the [`DomainParticipant`].
-    pub fn create_participant(
-        &self,
-        domain_id: DomainId,
-        qos: QosKind<DomainParticipantQos>,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) -> DdsResult<DomainParticipant> {
-        let participant = THE_TASK_RUNTIME.block_on(
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.create_participant(domain_id, qos, a_listener, mask),
-        )?;
-
-        if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .qos()
-            .entity_factory
-            .autoenable_created_entities
-        {
-            participant.enable()?;
-        }
-
-        Ok(participant)
-    }
-
-    /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
-    /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
-    /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
-    pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
-        let is_participant_empty = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-            &participant.node().guid().prefix(),
-            |dp| {
-                let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-                Ok(dp.user_defined_publisher_list().iter().count() == 0
-                    && dp.user_defined_subscriber_list().iter().count() == 0
-                    && dp.topic_list().iter().count() == 0)
-            },
-        )?;
-
-        if is_participant_empty {
-            // Explicit external drop to avoid deadlock. Otherwise objects contained in the factory can't access it due to it being blocked
-            // while locking
-            let object = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .domain_participant_list
-                .blocking_write()
-                .remove(&participant.node().guid().prefix());
-            std::mem::drop(object);
-
-            Ok(())
-        } else {
-            Err(DdsError::PreconditionNotMet(
-                "Domain participant still contains other entities".to_string(),
-            ))
-        }
-    }
-
-    /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
-    /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
-    /// The pre-defined value [`struct@THE_PARTICIPANT_FACTORY`] can also be used as an alias for the singleton factory returned by this operation.
-    pub fn get_instance() -> &'static Self {
-        &THE_PARTICIPANT_FACTORY
-    }
-
-    /// This operation retrieves a previously created [`DomainParticipant`] belonging to the specified domain_id. If no such
-    /// [`DomainParticipant`] exists, the operation will return a [`None`] value.
-    /// If multiple [`DomainParticipant`] entities belonging to that domain_id exist, then the operation will return one of them. It is not
-    /// specified which one.
-    pub fn lookup_participant(&self, domain_id: DomainId) -> Option<DomainParticipant> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list
-            .blocking_read()
-            .iter()
-            .find_map(|(_, dp)| {
-                if dp.get_domain_id() == domain_id {
-                    Some(dp.guid())
-                } else {
-                    None
-                }
-            })
-            .map(|guid| DomainParticipant::new(DomainParticipantNode::new(guid)))
-    }
-
-    /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created
-    /// [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`DomainParticipantFactory::create_participant`] operation.
-    /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return a [`DdsError::InconsistentPolicy`].
-    pub fn set_default_participant_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        let q = match qos {
-            QosKind::Default => DomainParticipantQos::default(),
-            QosKind::Specific(q) => q,
-        };
-
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.set_default_participant_qos(q);
-
-        Ok(())
-    }
-
-    /// This operation retrieves the default value of the [`DomainParticipantQos`], that is, the QoS policies which will be used for
-    /// newly created [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`DomainParticipantFactory::create_participant`]
-    /// operation.
-    /// The values retrieved by [`DomainParticipantFactory::get_default_participant_qos`] will match the set of values specified on the last successful call to
-    /// [`DomainParticipantFactory::set_default_participant_qos`], or else, if the call was never made, the default value of [`DomainParticipantQos`].
-    pub fn get_default_participant_qos(&self) -> DomainParticipantQos {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.default_participant_qos()
-    }
-
-    /// This operation sets the value of the [`DomainParticipantFactoryQos`] policies. These policies control the behavior of the object
-    /// a factory for entities.
-    /// Note that despite having QoS, the [`DomainParticipantFactory`] is not an Entity.
-    /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return a [`DdsError::InconsistentPolicy`].
-    pub fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        let q = match qos {
-            QosKind::Default => DomainParticipantFactoryQos::default(),
-            QosKind::Specific(q) => q,
-        };
-
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.set_qos(q);
-
-        Ok(())
-    }
-
-    /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
-    pub fn get_qos(&self) -> DomainParticipantFactoryQos {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.qos()
-    }
-}
-
-pub struct DdsDomainParticipantFactory {
-    domain_participant_list: tokio::sync::RwLock<HashMap<GuidPrefix, DdsDomainParticipant>>,
-    domain_participant_counter: AtomicU32,
-    domain_participant_listener_list:
-        DdsRwLock<HashMap<Guid, StatusListener<dyn DomainParticipantListener + Send + Sync>>>,
-    publisher_listener_list:
-        DdsRwLock<HashMap<Guid, StatusListener<dyn PublisherListener + Send + Sync>>>,
-    subscriber_listener_list:
-        DdsRwLock<HashMap<Guid, StatusListener<dyn SubscriberListener + Send + Sync>>>,
-    topic_listener_list:
-        DdsRwLock<HashMap<Guid, StatusListener<dyn AnyTopicListener + Send + Sync>>>,
-    data_reader_listener_list:
-        DdsRwLock<HashMap<Guid, StatusListener<dyn AnyDataReaderListener + Send + Sync>>>,
-    data_writer_listener_list:
-        DdsRwLock<HashMap<Guid, StatusListener<dyn AnyDataWriterListener + Send + Sync>>>,
-    qos: DdsRwLock<DomainParticipantFactoryQos>,
-    default_participant_qos: DdsRwLock<DomainParticipantQos>,
-}
-
-impl Default for DdsDomainParticipantFactory {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl DdsDomainParticipantFactory {
-    pub fn new() -> Self {
-        Self {
-            domain_participant_list: tokio::sync::RwLock::new(HashMap::new()),
-            domain_participant_counter: AtomicU32::new(0),
-            domain_participant_listener_list: DdsRwLock::new(HashMap::new()),
-            publisher_listener_list: DdsRwLock::new(HashMap::new()),
-            subscriber_listener_list: DdsRwLock::new(HashMap::new()),
-            topic_listener_list: DdsRwLock::new(HashMap::new()),
-            data_reader_listener_list: DdsRwLock::new(HashMap::new()),
-            data_writer_listener_list: DdsRwLock::new(HashMap::new()),
-            qos: DdsRwLock::new(DomainParticipantFactoryQos::default()),
-            default_participant_qos: DdsRwLock::new(DomainParticipantQos::default()),
-        }
-    }
-
-    pub fn qos(&self) -> DomainParticipantFactoryQos {
-        self.qos.read_lock().clone()
-    }
-
-    pub fn set_qos(&self, qos: DomainParticipantFactoryQos) {
-        *self.qos.write_lock() = qos;
-    }
-
-    pub fn default_participant_qos(&self) -> DomainParticipantQos {
-        self.default_participant_qos.read_lock().clone()
-    }
-
-    pub fn set_default_participant_qos(&self, default_participant_qos: DomainParticipantQos) {
-        *self.default_participant_qos.write_lock() = default_participant_qos;
-    }
-
-    pub async fn create_participant(
-        &self,
-        domain_id: DomainId,
-        qos: QosKind<DomainParticipantQos>,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) -> DdsResult<DomainParticipant> {
-        let configuration = if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION")
-        {
-            configuration_try_from_str(configuration_json.as_str())
-                .map_err(DdsError::PreconditionNotMet)?
-        } else {
-            DustDdsConfiguration::default()
-        };
-
-        let domain_participant_qos = match qos {
-            QosKind::Default => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.default_participant_qos(),
-            QosKind::Specific(q) => q,
-        };
-
-        let interface_address_list =
-            get_interface_address_list(configuration.interface_name.as_ref());
-
-        let default_unicast_socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
-            .map_err(|_| DdsError::Error)?;
-        default_unicast_socket.set_nonblocking(true).unwrap();
-        let user_defined_unicast_port = default_unicast_socket
-            .local_addr()
-            .map_err(|_| DdsError::Error)?
-            .port();
-        let user_defined_unicast_locator_port = LocatorPort::new(user_defined_unicast_port.into());
-
-        let default_unicast_locator_list: Vec<Locator> = interface_address_list
-            .iter()
-            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, user_defined_unicast_locator_port, *a))
-            .collect();
-
-        let default_multicast_locator_list = vec![];
-
-        let metattrafic_unicast_socket =
-            UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
-                .map_err(|_| DdsError::Error)?;
-        metattrafic_unicast_socket.set_nonblocking(true).unwrap();
-
-        let metattrafic_unicast_locator_port = LocatorPort::new(
-            metattrafic_unicast_socket
-                .local_addr()
-                .map_err(|_| DdsError::Error)?
-                .port()
-                .into(),
-        );
-        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
-            .iter()
-            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
-            .collect();
-
-        let metatraffic_multicast_locator_list = vec![Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id),
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
-
-        let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
-
-        let mac_address = ifcfg::IfCfg::get()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .filter_map(|i| MacAddress::from_str(&i.mac).ok())
-            .find(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
-            .expect("Could not find any mac address")
-            .bytes();
-
-        let app_id = std::process::id().to_ne_bytes();
-        let instance_id = self
-            .domain_participant_counter
-            .fetch_add(1, atomic::Ordering::SeqCst)
-            .to_ne_bytes();
-
-        #[rustfmt::skip]
-        let guid_prefix = GuidPrefix::new([
-            mac_address[2],  mac_address[3], mac_address[4], mac_address[5], // Host ID
-            app_id[0], app_id[1], app_id[2], app_id[3], // App ID
-            instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
-        ]);
-
-        let rtps_participant = RtpsParticipant::new(
-            guid_prefix,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            PROTOCOLVERSION,
-            VENDOR_ID_S2E,
-        );
-        let guid = rtps_participant.guid();
-        let sedp_condvar = DdsCondvar::new();
-        let user_defined_data_send_condvar = DdsCondvar::new();
-        let (announce_sender, announce_receiver) = tokio::sync::mpsc::channel(500);
-
-        let mut dds_participant = DdsDomainParticipant::new(
-            rtps_participant,
-            domain_id,
-            configuration.domain_tag,
-            domain_participant_qos,
-            &spdp_discovery_locator_list,
-            user_defined_data_send_condvar.clone(),
-            configuration.fragment_size,
-            announce_sender,
-            sedp_condvar.clone(),
-        );
-        let _guard = THE_TASK_RUNTIME.enter();
-        dds_participant.spawn(task_send_entity_announce(guid_prefix, announce_receiver));
-
-        self.add_domain_participant_listener(guid, a_listener, mask);
-
-        let (listener_sender, listener_receiver) = tokio::sync::mpsc::channel(500);
-
-        dds_participant.spawn(
-            crate::domain::domain_participant::task_update_communication_status(
-                guid_prefix,
-                listener_sender.clone(),
-            ),
-        );
-
-        dds_participant.spawn(crate::domain::domain_participant::task_listener_receiver(
-            listener_receiver,
-        ));
-
-        let metatraffic_multicast_transport = UdpTransportRead::new(
-            get_multicast_socket(
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-                port_builtin_multicast(domain_id),
-            )
-            .unwrap(),
-        );
-        dds_participant.spawn(task_metatraffic_multicast_receive(
-            guid_prefix,
-            metatraffic_multicast_transport,
-            dds_participant.sedp_condvar().clone(),
-            listener_sender.clone(),
-        ));
-
-        let metatraffic_unicast_transport = UdpTransportRead::new(
-            tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).unwrap(),
-        );
-
-        dds_participant.spawn(task_metatraffic_unicast_receive(
-            guid_prefix,
-            metatraffic_unicast_transport,
-            dds_participant.sedp_condvar().clone(),
-            listener_sender.clone(),
-        ));
-
-        let default_unicast_transport =
-            UdpTransportRead::new(tokio::net::UdpSocket::from_std(default_unicast_socket).unwrap());
-
-        dds_participant.spawn(task_user_defined_receive(
-            guid_prefix,
-            default_unicast_transport,
-            listener_sender,
-        ));
-
-        dds_participant.spawn(task_unicast_metatraffic_communication_send(
-            guid_prefix,
-            sedp_condvar,
-        ));
-
-        dds_participant.spawn(task_unicast_user_defined_communication_send(
-            guid_prefix,
-            user_defined_data_send_condvar,
-        ));
-
-        self.domain_participant_list
-            .write()
-            .await
-            .insert(guid_prefix, dds_participant);
-
-        Ok(DomainParticipant::new(DomainParticipantNode::new(guid)))
-    }
-
-    pub fn remove_participant(&self, guid_prefix: &GuidPrefix) {
-        self.domain_participant_list
-            .blocking_write()
-            .remove(guid_prefix);
-    }
-
-    pub fn get_participant<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
-    where
-        F: FnOnce(Option<&DdsDomainParticipant>) -> O,
-    {
-        f(self
-            .domain_participant_list
-            .blocking_read()
-            .get(guid_prefix))
-    }
-
-    pub fn get_participant_mut<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
-    where
-        F: FnOnce(Option<&mut DdsDomainParticipant>) -> O,
-    {
-        f(self
-            .domain_participant_list
-            .blocking_write()
-            .get_mut(guid_prefix))
-    }
-
-    pub async fn get_participant_mut_async<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
-    where
-        F: FnOnce(Option<&mut DdsDomainParticipant>) -> O,
-    {
-        f(self
-            .domain_participant_list
-            .write()
-            .await
-            .get_mut(guid_prefix))
-    }
-
-    pub fn add_domain_participant_listener(
-        &self,
-        domain_participant_guid: Guid,
-        listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        self.domain_participant_listener_list
-            .write_lock()
-            .insert(domain_participant_guid, StatusListener::new(listener, mask));
-    }
-
-    pub fn delete_domain_participant_listener(&self, domain_participant_guid: &Guid) {
-        self.domain_participant_listener_list
-            .write_lock()
-            .remove(domain_participant_guid);
-    }
-
-    pub fn get_domain_participant_listener<F, O>(&self, domain_participant_guid: &Guid, f: F) -> O
-    where
-        F: FnOnce(Option<&mut StatusListener<dyn DomainParticipantListener + Send + Sync>>) -> O,
-    {
-        f(self
-            .domain_participant_listener_list
-            .write_lock()
-            .get_mut(domain_participant_guid))
-    }
-
-    pub fn add_subscriber_listener(
-        &self,
-        subscriber_guid: Guid,
-        listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        self.subscriber_listener_list
-            .write_lock()
-            .insert(subscriber_guid, StatusListener::new(listener, mask));
-    }
-
-    pub fn delete_subscriber_listener(&self, subscriber_guid: &Guid) {
-        self.subscriber_listener_list
-            .write_lock()
-            .remove(subscriber_guid);
-    }
-
-    pub fn get_subscriber_listener<F, O>(&self, subscriber_guid: &Guid, f: F) -> O
-    where
-        F: FnOnce(Option<&mut StatusListener<dyn SubscriberListener + Send + Sync>>) -> O,
-    {
-        f(self
-            .subscriber_listener_list
-            .write_lock()
-            .get_mut(subscriber_guid))
-    }
-
-    pub fn add_publisher_listener(
-        &self,
-        publisher_guid: Guid,
-        listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        self.publisher_listener_list
-            .write_lock()
-            .insert(publisher_guid, StatusListener::new(listener, mask));
-    }
-
-    pub fn delete_publisher_listener(&self, publisher_guid: &Guid) {
-        self.publisher_listener_list
-            .write_lock()
-            .remove(publisher_guid);
-    }
-
-    pub fn get_publisher_listener<F, O>(&self, publisher_guid: &Guid, f: F) -> O
-    where
-        F: FnOnce(Option<&mut StatusListener<dyn PublisherListener + Send + Sync>>) -> O,
-    {
-        f(self
-            .publisher_listener_list
-            .write_lock()
-            .get_mut(publisher_guid))
-    }
-
-    pub fn add_topic_listener(
-        &self,
-        topic_guid: Guid,
-        listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        self.topic_listener_list
-            .write_lock()
-            .insert(topic_guid, StatusListener::new(listener, mask));
-    }
-
-    pub fn delete_topic_listener(&self, topic_guid: &Guid) {
-        self.topic_listener_list.write_lock().remove(topic_guid);
-    }
-
-    pub fn get_topic_listener<F, O>(&self, topic_guid: &Guid, f: F) -> O
-    where
-        F: FnOnce(Option<&mut StatusListener<dyn AnyTopicListener + Send + Sync>>) -> O,
-    {
-        f(self.topic_listener_list.write_lock().get_mut(topic_guid))
-    }
-
-    pub fn add_data_reader_listener(
-        &self,
-        data_reader_guid: Guid,
-        listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        self.data_reader_listener_list
-            .write_lock()
-            .insert(data_reader_guid, StatusListener::new(listener, mask));
-    }
-
-    pub fn delete_data_reader_listener(&self, data_reader_guid: &Guid) {
-        self.data_reader_listener_list
-            .write_lock()
-            .remove(data_reader_guid);
-    }
-
-    pub fn get_data_reader_listener<F, O>(&self, data_reader_guid: &Guid, f: F) -> O
-    where
-        F: FnOnce(Option<&mut StatusListener<dyn AnyDataReaderListener + Send + Sync>>) -> O,
-    {
-        f(self
-            .data_reader_listener_list
-            .write_lock()
-            .get_mut(data_reader_guid))
-    }
-
-    pub fn add_data_writer_listener(
-        &self,
-        data_writer_guid: Guid,
-        listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        self.data_writer_listener_list
-            .write_lock()
-            .insert(data_writer_guid, StatusListener::new(listener, mask));
-    }
-
-    pub fn delete_data_writer_listener(&self, data_writer_guid: &Guid) {
-        self.data_writer_listener_list
-            .write_lock()
-            .remove(data_writer_guid);
-    }
-
-    pub fn get_data_writer_listener<F, O>(&self, data_writer_guid: &Guid, f: F) -> O
-    where
-        F: FnOnce(Option<&mut StatusListener<dyn AnyDataWriterListener + Send + Sync>>) -> O,
-    {
-        f(self
-            .data_writer_listener_list
-            .write_lock()
-            .get_mut(data_writer_guid))
-    }
-}
-
-lazy_static! {
-    pub static ref THE_TASK_RUNTIME: Runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Failed to create Tokio runtime");
-    pub(in crate::dds) static ref THE_DDS_DOMAIN_PARTICIPANT_FACTORY: DdsDomainParticipantFactory =
-        DdsDomainParticipantFactory::new();
 }
 
 #[cfg(test)]

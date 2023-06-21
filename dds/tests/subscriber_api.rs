@@ -5,7 +5,7 @@ use dust_dds::{
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
     },
-    topic_definition::type_support::{DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -28,7 +28,10 @@ fn get_subscriber_parent_participant() {
 
     let subscriber_parent_participant = subscriber.get_participant().unwrap();
 
-    assert_eq!(participant, subscriber_parent_participant);
+    assert_eq!(
+        participant.get_instance_handle(),
+        subscriber_parent_participant.get_instance_handle()
+    );
 }
 
 #[test]

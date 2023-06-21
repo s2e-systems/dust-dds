@@ -1,22 +1,17 @@
-use tokio::sync::mpsc::Sender;
-
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
+        utils::{
+            actor::actor_interface,
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
-    infrastructure::{
-        error::DdsResult,
-        instance::InstanceHandle,
-        qos::{QosKind, TopicQos},
-        status::InconsistentTopicStatus,
-    },
+    infrastructure::{instance::InstanceHandle, qos::TopicQos, status::{InconsistentTopicStatus, StatusKind}},
 };
 
-use super::{
-    dds_domain_participant::AnnounceKind, nodes::TopicNode, status_listener::ListenerTriggerKind,
-};
+use super::status_condition_impl::StatusConditionImpl;
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -38,17 +33,11 @@ pub struct DdsTopic {
     topic_name: String,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    announce_sender: Sender<AnnounceKind>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl DdsTopic {
-    pub fn new(
-        guid: Guid,
-        qos: TopicQos,
-        type_name: &'static str,
-        topic_name: &str,
-        announce_sender: Sender<AnnounceKind>,
-    ) -> Self {
+    pub fn new(guid: Guid, qos: TopicQos, type_name: &'static str, topic_name: &str) -> Self {
         Self {
             guid,
             qos,
@@ -56,14 +45,17 @@ impl DdsTopic {
             topic_name: topic_name.to_string(),
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
-            announce_sender,
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         }
     }
 }
 
+actor_interface! {
 impl DdsTopic {
     pub fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
-        self.inconsistent_topic_status.read_and_reset()
+        let status = self.inconsistent_topic_status.read_and_reset();
+        self.status_condition.write_lock().remove_communication_state(StatusKind::InconsistentTopic);
+        status
     }
 
     pub fn get_type_name(&self) -> &'static str {
@@ -78,37 +70,28 @@ impl DdsTopic {
         self.guid
     }
 
-    pub fn set_qos(&mut self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => Default::default(),
-            QosKind::Specific(q) => q,
-        };
-
-        qos.is_consistent()?;
-        if self.enabled {
-            self.qos.check_immutability(&qos)?;
-        }
-
+    pub fn set_qos(&mut self, qos: TopicQos) {
         self.qos = qos;
-
-        Ok(())
     }
 
     pub fn get_qos(&self) -> TopicQos {
         self.qos.clone()
     }
 
-    pub fn enable(&mut self) -> DdsResult<()> {
-        self.announce_sender
-            .try_send(AnnounceKind::CratedTopic(self.as_discovered_topic_data()))
-            .ok();
-
+    pub fn enable(&mut self) {
         self.enabled = true;
-        Ok(())
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.guid.into()
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 
     pub fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
@@ -136,26 +119,27 @@ impl DdsTopic {
 
     pub fn process_discovered_topic(
         &mut self,
-        discovered_topic_data: &DiscoveredTopicData,
-        parent_participant_guid: Guid,
-        listener_sender: &tokio::sync::mpsc::Sender<ListenerTriggerKind>,
+        discovered_topic_data: DiscoveredTopicData,
     ) {
+
         if discovered_topic_data
             .topic_builtin_topic_data()
             .get_type_name()
             == self.get_type_name()
             && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
-            && !is_discovered_topic_consistent(&self.qos, discovered_topic_data)
+            && !is_discovered_topic_consistent(&self.qos, &discovered_topic_data)
         {
             self.inconsistent_topic_status.increment();
-            listener_sender
-                .try_send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
-                    self.guid(),
-                    parent_participant_guid,
-                )))
-                .ok();
+            self.status_condition.write_lock().add_communication_state(StatusKind::InconsistentTopic);
+        //     listener_sender
+        //         .try_send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
+        //             self.guid(),
+        //             parent_participant_guid,
+        //         )))
+        //         .ok();
         }
     }
+}
 }
 
 fn is_discovered_topic_consistent(
@@ -215,8 +199,7 @@ mod tests {
             GuidPrefix::new([2; 12]),
             EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
-        let (announce_sender, _) = tokio::sync::mpsc::channel(1);
-        let mut topic = DdsTopic::new(guid, TopicQos::default(), "", "", announce_sender);
+        let mut topic = DdsTopic::new(guid, TopicQos::default(), "", "");
         topic.enabled = true;
 
         let expected_instance_handle: InstanceHandle = guid.into();
