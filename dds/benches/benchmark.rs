@@ -133,7 +133,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
 
     let listener = Box::new(Listener { sender });
-    let _reader = subscriber
+    let reader = subscriber
         .create_datareader(
             &topic,
             QosKind::Default,
@@ -141,6 +141,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
             &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
         )
         .unwrap();
+    let reader_cond = reader.get_statuscondition().unwrap();
     let publisher = participant
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -156,6 +157,15 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .attach_condition(Condition::StatusCondition(writer_cond))
         .unwrap();
     wait_set.wait(Duration::new(60, 0)).unwrap();
+
+    let mut wait_set2 = WaitSet::new();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    wait_set2
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    wait_set2.wait(Duration::new(60, 0)).unwrap();
 
     c.bench_function("best_effort_write_and_receive", |b| {
         b.iter(|| {
