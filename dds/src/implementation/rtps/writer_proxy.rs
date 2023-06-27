@@ -190,11 +190,7 @@ impl RtpsWriterProxy {
         // In between those two numbers, every change that is not RECEIVED or IRRELEVANT is MISSING
         let mut seq_num = self.first_available_seq_num;
         while seq_num <= highest_number {
-            let received = if seq_num <= self.highest_received_change_sn {
-                true
-            } else {
-                false
-            };
+            let received = seq_num <= self.highest_received_change_sn;
 
             let irrelevant = self.irrelevant_changes.contains(&seq_num);
             if !(irrelevant || received) {
