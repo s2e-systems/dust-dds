@@ -113,7 +113,6 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
             the_reader
                 .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
                 .ok();
-            println!("Received data");
             self.sender.send(()).unwrap();
         }
     }
