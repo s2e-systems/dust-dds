@@ -1,9 +1,7 @@
 use super::{
     messages::{
-        submessage_elements::{Data, ParameterList, SequenceNumberSet},
-        submessages::{
-            data::DataSubmessageWrite, data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
-        },
+        submessage_elements::{Data, ParameterList},
+        submessages::{data::DataSubmessageWrite, data_frag::DataFragSubmessageWrite},
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
@@ -103,18 +101,6 @@ impl<'a> Iterator for DataFragSubmessagesIter<'a> {
 }
 
 impl RtpsWriterCacheChange {
-    pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessageWrite {
-        GapSubmessageWrite::new(
-            reader_id,
-            self.writer_guid.entity_id(),
-            self.sequence_number,
-            SequenceNumberSet {
-                base: self.sequence_number + 1,
-                set: vec![],
-            },
-        )
-    }
-
     pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessageWrite {
         let (data_flag, key_flag) = match self.kind() {
             ChangeKind::Alive => (true, false),
