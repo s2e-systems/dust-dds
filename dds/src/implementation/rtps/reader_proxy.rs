@@ -150,10 +150,6 @@ impl RtpsReaderProxy {
         self.remote_reader_guid
     }
 
-    pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.unicast_locator_list.as_slice()
-    }
-
     pub fn changes_for_reader(&self) -> &[RtpsChangeForReader] {
         self.changes_for_reader.as_slice()
     }
@@ -164,34 +160,6 @@ impl RtpsReaderProxy {
 
     pub fn durability(&self) -> DurabilityKind {
         self.durability
-    }
-
-    pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
-        // "FOR_EACH change in this.changes_for_reader
-        // SUCH-THAT (change.sequenceNumber <= committed_seq_num) DO
-        // change.status := ACKNOWLEDGED;"
-        for change in &mut self.changes_for_reader {
-            if change.sequence_number <= committed_seq_num {
-                change.status = ChangeForReaderStatusKind::Acknowledged;
-            }
-        }
-    }
-
-    pub fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
-        // "FOR_EACH seq_num IN req_seq_num_set DO
-        //     FIND change_for_reader IN this.changes_for_reader
-        //          SUCH-THAT (change_for_reader.sequenceNumber==seq_num)
-        //     change_for_reader.status := REQUESTED;
-        // END"
-        for &seq_num in req_seq_num_set {
-            for change_for_reader in &mut self
-                .changes_for_reader
-                .iter_mut()
-                .filter(|change_for_reader| change_for_reader.sequence_number == seq_num)
-            {
-                change_for_reader.status = ChangeForReaderStatusKind::Requested;
-            }
-        }
     }
 }
 
@@ -209,11 +177,11 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
     }
 
     pub fn remote_reader_guid(&self) -> Guid {
-        self.reader_proxy.remote_reader_guid()
+        self.reader_proxy.remote_reader_guid
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.reader_proxy.unicast_locator_list()
+        self.reader_proxy.unicast_locator_list.as_slice()
     }
 
     pub fn reliability(&self) -> ReliabilityKind {
