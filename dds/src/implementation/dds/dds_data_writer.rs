@@ -909,8 +909,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         if !reader_proxy.requested_changes().is_empty() {
             let reader_id = reader_proxy.remote_reader_guid().entity_id();
 
-            while !reader_proxy.requested_changes().is_empty() {
-                let next_requested_change_seq_num = reader_proxy.next_requested_change();
+            while let Some(next_requested_change_seq_num) = reader_proxy.next_requested_change() {
                 // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
                 // it's not done here to avoid the change being a mutable reference
                 // Also the post-condition:
