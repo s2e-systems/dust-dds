@@ -176,6 +176,10 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         }
     }
 
+    pub fn writer(&self) -> &'a RtpsWriter {
+        self.writer
+    }
+
     pub fn remote_reader_guid(&self) -> Guid {
         self.reader_proxy.remote_reader_guid
     }
@@ -209,7 +213,7 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         }
     }
 
-    pub fn next_requested_change(&mut self) -> RtpsChangeForReaderCacheChange<'a> {
+    pub fn next_requested_change(&mut self) -> SequenceNumber {
         // "next_seq_num := MIN {change.sequenceNumber
         //     SUCH-THAT change IN this.requested_changes()}
         //  return change IN this.requested_changes()
@@ -233,7 +237,7 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         // After ackNackSuppressionDuration = 0
         change.status = ChangeForReaderStatusKind::Unacknowledged;
 
-        RtpsChangeForReaderCacheChange::new(change.clone(), self.writer.writer_cache())
+        next_seq_num
     }
 
     pub fn next_unsent_change(&mut self) -> RtpsChangeForReaderCacheChange<'a> {
