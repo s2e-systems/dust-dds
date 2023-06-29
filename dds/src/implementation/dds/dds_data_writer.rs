@@ -785,7 +785,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 .heartbeat_machine()
                 .submessage(writer_id, first_sn, last_sn);
             submessages.push(heartbeat);
-        } else if reader_proxy.unacked_changes().is_empty() {
+        } else if !reader_proxy.unacked_changes() {
             // Idle
         } else if reader_proxy
             .heartbeat_machine()

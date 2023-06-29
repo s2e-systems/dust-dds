@@ -319,20 +319,13 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         }
     }
 
-    pub fn unacked_changes(&self) -> Vec<SequenceNumber> {
+    pub fn unacked_changes(&self) -> bool {
         //"return change IN this.changes_for_reader
         //    SUCH-THAT (change.status == UNACKNOWLEDGED);"
         self.reader_proxy
             .changes_for_reader()
             .iter()
-            .filter_map(|cc| {
-                if cc.status == ChangeForReaderStatusKind::Unacknowledged {
-                    Some(cc.sequence_number)
-                } else {
-                    None
-                }
-            })
-            .collect()
+            .any(|cc| cc.status == ChangeForReaderStatusKind::Unacknowledged)
     }
 
     pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessageRead) {
