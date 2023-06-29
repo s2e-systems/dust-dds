@@ -103,6 +103,7 @@ pub struct RtpsReaderProxy {
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
     changes_for_reader: Vec<RtpsChangeForReader>,
+    highest_sent_seq_num: SequenceNumber,
     expects_inline_qos: ExpectsInlineQos,
     is_active: bool,
     last_received_acknack_count: Count,
@@ -133,6 +134,7 @@ impl RtpsReaderProxy {
             unicast_locator_list: unicast_locator_list.to_vec(),
             multicast_locator_list: multicast_locator_list.to_vec(),
             changes_for_reader: vec![],
+            highest_sent_seq_num: SequenceNumber::new(0),
             expects_inline_qos: expects_inline_qos.into(),
             is_active,
             last_received_acknack_count: Count::new(0),
@@ -238,52 +240,23 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         next_seq_num
     }
 
-    pub fn next_unsent_change(&mut self) -> SequenceNumber {
-        // "next_seq_num := MIN { change.sequenceNumber
-        //     SUCH-THAT change IN this.unsent_changes() };
-        // return change IN this.unsent_changes()
-        //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
-
-        let next_seq_num = self
-            .reader_proxy
-            .changes_for_reader()
+    pub fn next_unsent_change(&self) -> Option<SequenceNumber> {
+        //         unsent_changes :=
+        // { changes SUCH_THAT change.sequenceNumber > this.highestSentChangeSN }
+        //
+        // IF unsent_changes == <empty> return SEQUENCE_NUMBER_INVALID
+        // ELSE return MIN { unsent_changes.sequenceNumber }
+        self.writer
+            .change_list()
             .iter()
-            .filter_map(|cc| {
-                if cc.status() == ChangeForReaderStatusKind::Unsent {
-                    Some(cc.sequence_number())
-                } else {
-                    None
-                }
-            })
+            .map(|cc| cc.sequence_number())
+            .filter(|cc_sn| cc_sn > &self.reader_proxy.highest_sent_seq_num)
             .min()
-            .unwrap();
-
-        let change = self
-            .reader_proxy
-            .changes_for_reader_mut()
-            .iter_mut()
-            .find(|c| c.sequence_number() == next_seq_num)
-            .unwrap();
-
-        // Following 8.4.9.1.4 Transition T14 of BestEffort Stateful Writer Behavior:
-        // a_change := the_reader_proxy.next_unsent_change();
-        // a_change.status := UNDERWAY;
-        // Note this is the only usage in the standard of next_unsent_change() as such
-        // the modification of the status is done always.
-        change.set_status(ChangeForReaderStatusKind::Underway);
-
-        // After ackNackSuppressionDuration = 0
-        change.set_status(ChangeForReaderStatusKind::Unacknowledged);
-
-        next_seq_num
     }
 
     pub fn unsent_changes(&self) -> bool {
-        // "return change IN this.changes_for_reader SUCH-THAT (change.status == UNSENT);"
-        self.reader_proxy
-            .changes_for_reader()
-            .iter()
-            .any(|cc| cc.status() == ChangeForReaderStatusKind::Unsent)
+        // return this.next_unsent_change() != SEQUENCE_NUMBER_INVALID;
+        self.next_unsent_change().is_some()
     }
 
     pub fn requested_changes(&self) -> Vec<SequenceNumber> {
@@ -328,6 +301,16 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
             .changes_for_reader()
             .iter()
             .any(|cc| cc.status == ChangeForReaderStatusKind::Unacknowledged)
+    }
+
+    pub fn highest_sent_seq_num(&self) -> SequenceNumber {
+        self.reader_proxy.highest_sent_seq_num
+    }
+
+    pub fn set_highest_sent_seq_num(&mut self, seq_num: SequenceNumber) {
+        if seq_num > self.reader_proxy.highest_sent_seq_num {
+            self.reader_proxy.highest_sent_seq_num = seq_num;
+        }
     }
 
     pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessageRead) {
