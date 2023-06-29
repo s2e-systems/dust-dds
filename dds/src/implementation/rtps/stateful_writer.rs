@@ -11,7 +11,7 @@ use crate::{
         error::DdsResult,
         instance::{InstanceHandle, HANDLE_NIL},
         qos::DataWriterQos,
-        qos_policy::{DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
+        qos_policy::DurabilityQosPolicyKind,
         time::{Duration, Time, DURATION_ZERO},
     },
     topic_definition::type_support::DdsSerializedKey,
@@ -21,14 +21,13 @@ use super::{
     history_cache::RtpsWriterCacheChange,
     messages::{
         submessage_elements::{Parameter, ParameterList},
-        submessages::nack_frag::NackFragSubmessageRead,
         types::ParameterId,
     },
     reader_proxy::{
         ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy,
         WriterAssociatedReaderProxy,
     },
-    types::{ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator},
+    types::{ChangeKind, DurabilityKind, Guid, Locator},
     writer::RtpsWriter,
 };
 
@@ -298,23 +297,5 @@ impl RtpsStatefulWriter {
 
     pub fn get_qos(&self) -> &DataWriterQos {
         self.writer.get_qos()
-    }
-
-    pub fn on_nack_frag_submessage_received(
-        &mut self,
-        nackfrag_submessage: &NackFragSubmessageRead,
-        src_guid_prefix: GuidPrefix,
-    ) {
-        if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(src_guid_prefix, nackfrag_submessage.reader_id());
-
-            if let Some(reader_proxy) = self
-                .matched_readers
-                .iter_mut()
-                .find(|x| x.remote_reader_guid() == reader_guid)
-            {
-                reader_proxy.receive_nack_frag(nackfrag_submessage);
-            }
-        }
     }
 }

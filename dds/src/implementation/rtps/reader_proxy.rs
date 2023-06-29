@@ -166,18 +166,6 @@ impl RtpsReaderProxy {
         self.durability
     }
 
-    pub fn receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessageRead) {
-        match self.reliability {
-            ReliabilityKind::BestEffort => (),
-            ReliabilityKind::Reliable => {
-                if nack_frag_submessage.count() > self.last_received_nack_frag_count {
-                    self.requested_changes_set(&[nack_frag_submessage.writer_sn()]);
-                    self.last_received_nack_frag_count = nack_frag_submessage.count();
-                }
-            }
-        }
-    }
-
     pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
         // "FOR_EACH change in this.changes_for_reader
         // SUCH-THAT (change.sequenceNumber <= committed_seq_num) DO
@@ -382,6 +370,18 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
                     self.requested_changes_set(acknack_submessage.reader_sn_state().set.as_ref());
 
                     self.reader_proxy.last_received_acknack_count = acknack_submessage.count();
+                }
+            }
+        }
+    }
+
+    pub fn receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessageRead) {
+        match self.reader_proxy.reliability {
+            ReliabilityKind::BestEffort => (),
+            ReliabilityKind::Reliable => {
+                if nack_frag_submessage.count() > self.reader_proxy.last_received_nack_frag_count {
+                    self.requested_changes_set(&[nack_frag_submessage.writer_sn()]);
+                    self.reader_proxy.last_received_nack_frag_count = nack_frag_submessage.count();
                 }
             }
         }
