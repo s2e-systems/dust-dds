@@ -241,7 +241,20 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         //     SUCH-THAT change IN this.unsent_changes() };
         // return change IN this.unsent_changes()
         //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
-        let next_seq_num = self.unsent_changes().iter().min().cloned().unwrap();
+
+        let next_seq_num = self
+            .reader_proxy
+            .changes_for_reader()
+            .iter()
+            .filter_map(|cc| {
+                if cc.status() == ChangeForReaderStatusKind::Unsent {
+                    Some(cc.sequence_number())
+                } else {
+                    None
+                }
+            })
+            .min()
+            .unwrap();
 
         let change = self
             .reader_proxy
@@ -263,19 +276,12 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         RtpsChangeForReaderCacheChange::new(change.clone(), self.writer.writer_cache())
     }
 
-    pub fn unsent_changes(&self) -> Vec<SequenceNumber> {
+    pub fn unsent_changes(&self) -> bool {
         // "return change IN this.changes_for_reader SUCH-THAT (change.status == UNSENT);"
         self.reader_proxy
             .changes_for_reader()
             .iter()
-            .filter_map(|cc| {
-                if cc.status() == ChangeForReaderStatusKind::Unsent {
-                    Some(cc.sequence_number())
-                } else {
-                    None
-                }
-            })
-            .collect()
+            .any(|cc| cc.status() == ChangeForReaderStatusKind::Unsent)
     }
 
     pub fn requested_changes(&self) -> Vec<SequenceNumber> {

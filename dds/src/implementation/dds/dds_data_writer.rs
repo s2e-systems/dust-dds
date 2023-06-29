@@ -653,7 +653,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             Self::info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
         let mut submessages = vec![info_dst];
 
-        while !reader_proxy.unsent_changes().is_empty() {
+        while reader_proxy.unsent_changes() {
             // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
             // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
             let reader_id = reader_proxy.remote_reader_guid().entity_id();
@@ -743,11 +743,11 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         let mut submessages = vec![info_dst];
 
         // Top part of the state machine - Figure 8.19 RTPS standard
-        if !reader_proxy.unsent_changes().is_empty() {
+        if reader_proxy.unsent_changes() {
             // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
             // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
 
-            while !reader_proxy.unsent_changes().is_empty() {
+            while reader_proxy.unsent_changes() {
                 let change = reader_proxy.next_unsent_change();
                 // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
                 // it's not done here to avoid the change being a mutable reference
