@@ -6,6 +6,8 @@ DDS is a middleware protocol and API standard for data-centric connectivity. The
 
 This crate provide a high-quality Rust implementation of the minimum DDS profile. For high-quality it is meant that the implementation is done using stable Rust and without unsafe code and with large unit test code coverage.
 
+The DDS type can be generated from an OMG IDL file using the [dust_dds_gen crate](https://crates.io/crates/dust_dds_gen).
+
 ## Example
 
 A basic example on how to use Dust DDS. The publisher side can be implemented as:
@@ -104,7 +106,7 @@ The subscriber side can be implemented as:
 
 ## Release schedule
 
-Dust DDS doesn't follow a fixed release schedule but we will make releases as new features are implemented. Until we are out of the experimental phase we will not provide separate bugfix versions.
+Dust DDS doesn't follow a fixed release schedule but we will make releases as new features are implemented.
 
 ## License
 
