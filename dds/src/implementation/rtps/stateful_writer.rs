@@ -23,11 +23,8 @@ use super::{
         submessage_elements::{Parameter, ParameterList},
         types::ParameterId,
     },
-    reader_proxy::{
-        ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy,
-        WriterAssociatedReaderProxy,
-    },
-    types::{ChangeKind, DurabilityKind, Guid, Locator},
+    reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
+    types::{ChangeKind, Guid, Locator},
     writer::RtpsWriter,
 };
 
@@ -89,7 +86,6 @@ impl RtpsStatefulWriter {
     }
 
     pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
-        let sequence_number = change.sequence_number();
         match self.writer.get_qos().durability.kind {
             DurabilityQosPolicyKind::Volatile => {
                 if !self.matched_readers.is_empty() {
@@ -97,17 +93,6 @@ impl RtpsStatefulWriter {
                 }
             }
             DurabilityQosPolicyKind::TransientLocal => self.writer.add_change(change),
-        }
-
-        for reader_proxy in &mut self.matched_readers {
-            let status = if self.writer.push_mode() {
-                ChangeForReaderStatusKind::Unsent
-            } else {
-                ChangeForReaderStatusKind::Unacknowledged
-            };
-            reader_proxy
-                .changes_for_reader_mut()
-                .push(RtpsChangeForReader::new(status, true, sequence_number))
         }
     }
 
@@ -118,33 +103,12 @@ impl RtpsStatefulWriter {
         self.writer.remove_change(f)
     }
 
-    pub fn matched_reader_add(&mut self, mut a_reader_proxy: RtpsReaderProxy) {
+    pub fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
         if !self
             .matched_readers
             .iter()
             .any(|x| x.remote_reader_guid() == a_reader_proxy.remote_reader_guid())
         {
-            let status = if self.writer.push_mode() {
-                ChangeForReaderStatusKind::Unsent
-            } else {
-                ChangeForReaderStatusKind::Unacknowledged
-            };
-
-            let is_relevant = match a_reader_proxy.durability() {
-                DurabilityKind::Volatile => false,
-                DurabilityKind::TransientLocal => true,
-            };
-
-            for change in self.writer.change_list() {
-                a_reader_proxy
-                    .changes_for_reader_mut()
-                    .push(RtpsChangeForReader::new(
-                        status,
-                        is_relevant,
-                        change.sequence_number(),
-                    ));
-            }
-
             self.matched_readers.push(a_reader_proxy)
         }
     }
@@ -160,24 +124,6 @@ impl RtpsStatefulWriter {
             .iter_mut()
             .map(|x| WriterAssociatedReaderProxy::new(writer, x))
             .collect()
-    }
-
-    pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
-        for matched_reader in self.matched_readers.iter() {
-            if let Some(cc) = matched_reader
-                .changes_for_reader()
-                .iter()
-                .find(|x| x.sequence_number() == a_change.sequence_number())
-            {
-                if cc.is_relevant() && cc.status() != ChangeForReaderStatusKind::Acknowledged {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-
-        true
     }
 
     pub fn register_instance_w_timestamp(

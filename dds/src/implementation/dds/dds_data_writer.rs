@@ -380,10 +380,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         self.rtps_writer.matched_reader_list()
     }
 
-    pub fn _is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
-        self.rtps_writer.is_acked_by_all(a_change)
-    }
-
     pub fn get_qos(&self) -> DataWriterQos {
         self.rtps_writer.get_qos().clone()
     }
@@ -537,13 +533,12 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             .dispose_w_timestamp(instance_serialized_key, handle, timestamp)
     }
 
-    pub fn are_all_changes_acknowledge(&self) -> bool {
-        let changes = self.rtps_writer.change_list();
-
-        changes
+    pub fn are_all_changes_acknowledge(&mut self) -> bool {
+        !self
+            .rtps_writer
+            .matched_reader_list()
             .iter()
-            .map(|c| self.rtps_writer.is_acked_by_all(c))
-            .all(|r| r)
+            .any(|rp| rp.unacked_changes())
     }
 
     pub fn as_discovered_writer_data(

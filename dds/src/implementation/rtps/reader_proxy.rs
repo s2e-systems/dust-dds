@@ -84,25 +84,12 @@ impl HeartbeatFragMachine {
     }
 }
 
-/// ChangeForReaderStatusKind
-/// Enumeration used to indicate the status of a ChangeForReader. It can take the values:
-/// UNSENT, UNACKNOWLEDGED, REQUESTED, ACKNOWLEDGED, UNDERWAY
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ChangeForReaderStatusKind {
-    Unsent,
-    Unacknowledged,
-    Requested,
-    Acknowledged,
-    Underway,
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsReaderProxy {
     remote_reader_guid: Guid,
     remote_group_entity_id: EntityId,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
-    changes_for_reader: Vec<RtpsChangeForReader>,
     highest_sent_seq_num: SequenceNumber,
     highest_acked_seq_num: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
@@ -135,7 +122,6 @@ impl RtpsReaderProxy {
             remote_group_entity_id,
             unicast_locator_list: unicast_locator_list.to_vec(),
             multicast_locator_list: multicast_locator_list.to_vec(),
-            changes_for_reader: vec![],
             highest_sent_seq_num: SequenceNumber::new(0),
             highest_acked_seq_num: SequenceNumber::new(0),
             requested_changes: Vec::new(),
@@ -152,14 +138,6 @@ impl RtpsReaderProxy {
 
     pub fn remote_reader_guid(&self) -> Guid {
         self.remote_reader_guid
-    }
-
-    pub fn changes_for_reader(&self) -> &[RtpsChangeForReader] {
-        self.changes_for_reader.as_slice()
-    }
-
-    pub fn changes_for_reader_mut(&mut self) -> &mut Vec<RtpsChangeForReader> {
-        &mut self.changes_for_reader
     }
 
     pub fn durability(&self) -> DurabilityKind {
@@ -314,42 +292,5 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
                 }
             }
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct RtpsChangeForReader {
-    status: ChangeForReaderStatusKind,
-    is_relevant: bool,
-    sequence_number: SequenceNumber,
-}
-
-impl RtpsChangeForReader {
-    pub fn new(
-        status: ChangeForReaderStatusKind,
-        is_relevant: bool,
-        sequence_number: SequenceNumber,
-    ) -> Self {
-        Self {
-            status,
-            is_relevant,
-            sequence_number,
-        }
-    }
-
-    pub fn status(&self) -> ChangeForReaderStatusKind {
-        self.status
-    }
-
-    pub fn set_status(&mut self, status: ChangeForReaderStatusKind) {
-        self.status = status;
-    }
-
-    pub fn is_relevant(&self) -> bool {
-        self.is_relevant
-    }
-
-    pub fn sequence_number(&self) -> SequenceNumber {
-        self.sequence_number
     }
 }
