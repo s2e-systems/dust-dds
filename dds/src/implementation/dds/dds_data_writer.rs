@@ -417,8 +417,18 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            self.rtps_writer
-                .on_acknack_submessage_received(acknack_submessage, source_guid_prefix);
+            if self.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+                let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id());
+
+                if let Some(reader_proxy) = self
+                    .rtps_writer
+                    .matched_reader_list()
+                    .iter_mut()
+                    .find(|x| x.remote_reader_guid() == reader_guid)
+                {
+                    reader_proxy.receive_acknack(acknack_submessage);
+                }
+            }
         }
     }
 

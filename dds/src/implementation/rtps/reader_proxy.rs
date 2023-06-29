@@ -166,20 +166,6 @@ impl RtpsReaderProxy {
         self.durability
     }
 
-    pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessageRead) {
-        match self.reliability {
-            ReliabilityKind::BestEffort => (),
-            ReliabilityKind::Reliable => {
-                if acknack_submessage.count() > self.last_received_acknack_count {
-                    self.acked_changes_set(acknack_submessage.reader_sn_state().base - 1);
-                    self.requested_changes_set(acknack_submessage.reader_sn_state().set.as_ref());
-
-                    self.last_received_acknack_count = acknack_submessage.count();
-                }
-            }
-        }
-    }
-
     pub fn receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessageRead) {
         match self.reliability {
             ReliabilityKind::BestEffort => (),
@@ -385,6 +371,20 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
                 }
             })
             .collect()
+    }
+
+    pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessageRead) {
+        match self.reader_proxy.reliability {
+            ReliabilityKind::BestEffort => (),
+            ReliabilityKind::Reliable => {
+                if acknack_submessage.count() > self.reader_proxy.last_received_acknack_count {
+                    self.acked_changes_set(acknack_submessage.reader_sn_state().base - 1);
+                    self.requested_changes_set(acknack_submessage.reader_sn_state().set.as_ref());
+
+                    self.reader_proxy.last_received_acknack_count = acknack_submessage.count();
+                }
+            }
+        }
     }
 }
 
