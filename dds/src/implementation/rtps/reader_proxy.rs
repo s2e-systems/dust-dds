@@ -1,7 +1,4 @@
-use crate::infrastructure::time::Duration;
-
 use super::{
-    history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         overall_structure::RtpsSubmessageWriteKind,
         submessages::{
@@ -16,6 +13,7 @@ use super::{
     utils::clock::{StdTimer, Timer, TimerConstructor},
     writer::RtpsWriter,
 };
+use crate::infrastructure::time::Duration;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct HeartbeatMachine {
@@ -240,7 +238,7 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         next_seq_num
     }
 
-    pub fn next_unsent_change(&mut self) -> RtpsChangeForReaderCacheChange<'a> {
+    pub fn next_unsent_change(&mut self) -> SequenceNumber {
         // "next_seq_num := MIN { change.sequenceNumber
         //     SUCH-THAT change IN this.unsent_changes() };
         // return change IN this.unsent_changes()
@@ -277,7 +275,7 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         // After ackNackSuppressionDuration = 0
         change.set_status(ChangeForReaderStatusKind::Unacknowledged);
 
-        RtpsChangeForReaderCacheChange::new(change.clone(), self.writer.writer_cache())
+        next_seq_num
     }
 
     pub fn unsent_changes(&self) -> bool {
@@ -393,35 +391,5 @@ impl RtpsChangeForReader {
 
     pub fn sequence_number(&self) -> SequenceNumber {
         self.sequence_number
-    }
-}
-
-pub struct RtpsChangeForReaderCacheChange<'a> {
-    change_for_reader: RtpsChangeForReader,
-    cache_change: &'a RtpsWriterCacheChange,
-}
-
-impl<'a> RtpsChangeForReaderCacheChange<'a> {
-    pub fn new(
-        change_for_reader: RtpsChangeForReader,
-        writer_cache: &'a WriterHistoryCache,
-    ) -> Self {
-        let cache_change = writer_cache
-            .change_list()
-            .iter()
-            .find(|cc| cc.sequence_number() == change_for_reader.sequence_number)
-            .unwrap();
-        RtpsChangeForReaderCacheChange {
-            change_for_reader,
-            cache_change,
-        }
-    }
-
-    pub fn cache_change(self) -> &'a RtpsWriterCacheChange {
-        self.cache_change
-    }
-
-    pub fn is_relevant(&self) -> bool {
-        self.change_for_reader.is_relevant
     }
 }

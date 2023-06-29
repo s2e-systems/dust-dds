@@ -657,10 +657,14 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
             // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
             let reader_id = reader_proxy.remote_reader_guid().entity_id();
-            let change = reader_proxy.next_unsent_change();
+            let next_unsent_change_seq_num = reader_proxy.next_unsent_change();
 
-            if change.is_relevant() {
-                let cache_change = change.cache_change();
+            if let Some(cache_change) = reader_proxy
+                .writer()
+                .change_list()
+                .iter()
+                .find(|cc| cc.sequence_number() == next_unsent_change_seq_num)
+            {
                 let timestamp = cache_change.timestamp();
 
                 if cache_change.data_value().len() > 1 {
@@ -707,9 +711,15 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                     ))
                 }
             } else {
-                let gap_submessage: GapSubmessageWrite = change
-                    .cache_change()
-                    .as_gap_message(reader_proxy.remote_reader_guid().entity_id());
+                let gap_submessage = GapSubmessageWrite::new(
+                    reader_id,
+                    reader_proxy.writer().guid().entity_id(),
+                    next_unsent_change_seq_num,
+                    SequenceNumberSet {
+                        base: next_unsent_change_seq_num + 1,
+                        set: vec![],
+                    },
+                );
                 submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
             }
         }
@@ -748,14 +758,18 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
 
             while reader_proxy.unsent_changes() {
-                let change = reader_proxy.next_unsent_change();
+                let next_unsent_change_seq_num = reader_proxy.next_unsent_change();
                 // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
                 // it's not done here to avoid the change being a mutable reference
                 // Also the post-condition:
                 // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
                 // should be full-filled by next_unsent_change()
-                if change.is_relevant() {
-                    let cache_change = change.cache_change();
+                if let Some(cache_change) = reader_proxy
+                    .writer()
+                    .change_list()
+                    .iter()
+                    .find(|cc| cc.sequence_number() == next_unsent_change_seq_num)
+                {
                     if cache_change.data_value().len() > 1 {
                         Self::directly_send_data_frag(
                             reader_proxy,
@@ -774,8 +788,15 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                         ))
                     }
                 } else {
-                    let gap_submessage: GapSubmessageWrite =
-                        change.cache_change().as_gap_message(reader_id);
+                    let gap_submessage = GapSubmessageWrite::new(
+                        reader_id,
+                        reader_proxy.writer().guid().entity_id(),
+                        next_unsent_change_seq_num,
+                        SequenceNumberSet {
+                            base: next_unsent_change_seq_num + 1,
+                            set: vec![],
+                        },
+                    );
 
                     submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
                 }
@@ -832,7 +853,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                         ))
                     }
                 } else {
-                    let gap_submessage: GapSubmessageWrite = GapSubmessageWrite::new(
+                    let gap_submessage = GapSubmessageWrite::new(
                         reader_id,
                         reader_proxy.writer().guid().entity_id(),
                         next_requested_change_seq_num,
