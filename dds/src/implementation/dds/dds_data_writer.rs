@@ -413,17 +413,15 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            if self.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-                let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id());
+            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id());
 
-                if let Some(reader_proxy) = self
-                    .rtps_writer
-                    .matched_reader_list()
-                    .iter_mut()
-                    .find(|x| x.remote_reader_guid() == reader_guid)
-                {
-                    reader_proxy.receive_acknack(acknack_submessage);
-                }
+            if let Some(reader_proxy) = self
+                .rtps_writer
+                .matched_reader_list()
+                .iter_mut()
+                .find(|x| x.remote_reader_guid() == reader_guid)
+            {
+                reader_proxy.receive_acknack(acknack_submessage);
             }
         }
     }
@@ -434,17 +432,15 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            if self.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-                let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
+            let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
 
-                if let Some(reader_proxy) = self
-                    .rtps_writer
-                    .matched_reader_list()
-                    .iter_mut()
-                    .find(|x| x.remote_reader_guid() == reader_guid)
-                {
-                    reader_proxy.receive_nack_frag(nackfrag_submessage);
-                }
+            if let Some(reader_proxy) = self
+                .rtps_writer
+                .matched_reader_list()
+                .iter_mut()
+                .find(|x| x.remote_reader_guid() == reader_guid)
+            {
+                reader_proxy.receive_nack_frag(nackfrag_submessage);
             }
         }
     }
@@ -683,7 +679,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             if a_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
                 let gap_set = (i64::from(reader_proxy.highest_sent_seq_num()) + 2
                     ..i64::from(a_change_seq_num) - 1)
-                    .map(|x| SequenceNumber::new(x))
+                    .map(SequenceNumber::new)
                     .collect();
                 let gap_submessage = GapSubmessageWrite::new(
                     reader_id,
@@ -803,7 +799,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 if a_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
                     let gap_set = (i64::from(reader_proxy.highest_sent_seq_num()) + 2
                         ..i64::from(a_change_seq_num) - 1)
-                        .map(|x| SequenceNumber::new(x))
+                        .map(SequenceNumber::new)
                         .collect();
                     let gap_submessage = GapSubmessageWrite::new(
                         reader_id,
