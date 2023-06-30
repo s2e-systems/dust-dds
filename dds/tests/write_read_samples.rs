@@ -1892,13 +1892,14 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    let writer_cond = writer.get_statuscondition().unwrap();
+    writer_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
     wait_set
-        .attach_condition(Condition::StatusCondition(cond))
+        .attach_condition(Condition::StatusCondition(writer_cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
     writer.get_publication_matched_status().unwrap(); // To reset wait_set for subsequent calls
@@ -1913,7 +1914,19 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     let reader_new = subscriber
         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
+
+    // Wait for writer to match reader
     wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let reader_new_statuscond = reader_new.get_statuscondition().unwrap();
+    reader_new_statuscond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set_reader = WaitSet::new();
+    wait_set_reader
+        .attach_condition(Condition::StatusCondition(reader_new_statuscond))
+        .unwrap();
+    wait_set_reader.wait(Duration::new(5, 0)).unwrap();
 
     let data2 = KeyedData { id: 2, value: 10 };
     writer.write(&data2, None).unwrap();

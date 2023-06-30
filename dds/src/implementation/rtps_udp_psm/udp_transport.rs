@@ -54,7 +54,6 @@ impl UdpTransportWrite {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
                 let interface_addresses = NetworkInterface::show();
-                println!("multicast {:?}", interface_addresses);
                 let interface_addresses: Vec<_> = interface_addresses
                     .expect("Could not scan interfaces")
                     .into_iter()
