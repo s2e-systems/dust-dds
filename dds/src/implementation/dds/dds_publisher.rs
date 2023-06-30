@@ -95,7 +95,7 @@ impl DdsPublisher {
     ) -> Vec<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
         self.stateful_data_writer_list
             .iter()
-            .map(|x| x.address())
+            .map(|x| x.address().clone())
             .collect()
     }
 
@@ -109,7 +109,7 @@ impl DdsPublisher {
     pub fn stateless_datawriter_list(&self) -> Vec<ActorAddress<DdsDataWriter<RtpsStatelessWriter>>> {
         self.stateless_data_writer_list
             .iter()
-            .map(|x| x.address())
+            .map(|x| x.address().clone())
             .collect()
     }
 
@@ -149,7 +149,7 @@ impl DdsPublisher {
     }
 
     pub fn get_listener(&self) -> Option<ActorAddress<DdsPublisherListener>> {
-        self.listener.as_ref().map(|l| l.address())
+        self.listener.as_ref().map(|l| l.address().clone())
     }
 
     pub fn status_kind(&self) -> Vec<StatusKind> {

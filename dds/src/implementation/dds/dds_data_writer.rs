@@ -1187,7 +1187,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             .write_lock()
             .add_communication_state(StatusKind::PublicationMatched);
         if self.listener.is_some() && self.status_kind.contains(&StatusKind::PublicationMatched) {
-            let listener_address = self.listener.as_ref().unwrap().address();
+            let listener_address = self.listener.as_ref().unwrap().address().clone();
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             let status = self.get_publication_matched_status();

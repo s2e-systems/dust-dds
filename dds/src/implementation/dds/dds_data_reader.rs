@@ -1011,7 +1011,7 @@ impl DdsDataReader<RtpsStatefulReader> {
             .write_lock()
             .add_communication_state(StatusKind::SubscriptionMatched);
         if self.listener.is_some() && self.status_kind.contains(&StatusKind::SubscriptionMatched) {
-            let listener_address = self.listener.as_ref().unwrap().address();
+            let listener_address = self.listener.as_ref().unwrap().address().clone();
             let reader =
                 DataReaderNode::new(data_reader_address, subscriber_address, participant_address);
             let status = self.get_subscription_matched_status();
@@ -1062,7 +1062,7 @@ impl DdsDataReader<RtpsStatefulReader> {
             .add_communication_state(StatusKind::SampleRejected);
         if self.listener.is_some() && self.status_kind.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
-            let listener_address = self.listener.as_ref().unwrap().address();
+            let listener_address = self.listener.as_ref().unwrap().address().clone();
             let reader = DataReaderNode::new(
                 data_reader_address.clone(),
                 subscriber_address.clone(),
