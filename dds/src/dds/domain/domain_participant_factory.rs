@@ -114,12 +114,18 @@ impl DomainParticipantFactory {
             .filter_map(|i| i.mac_addr)
             .find(|m| m != "00:00:00:00:00:00")
             .expect("Could not find any mac address");
+        let mut mac_address_octets = [0u8; 6];
+        for (index, octet_str) in mac_address.split(|c| c == ':' || c == '-').enumerate() {
+            mac_address_octets[index] =
+                u8::from_str_radix(octet_str, 16).expect("All octet strings should be valid");
+        }
+
         let app_id = std::process::id().to_ne_bytes();
         let instance_id = self.0.address().get_unique_participant_id()?.to_ne_bytes();
 
         #[rustfmt::skip]
         let guid_prefix = GuidPrefix::new([
-            mac_address.as_bytes()[2],  mac_address.as_bytes()[3], mac_address.as_bytes()[4], mac_address.as_bytes()[5], // Host ID
+            mac_address_octets[2],  mac_address_octets[3], mac_address_octets[4], mac_address_octets[5], // Host ID
             app_id[0], app_id[1], app_id[2], app_id[3], // App ID
             instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
         ]);
