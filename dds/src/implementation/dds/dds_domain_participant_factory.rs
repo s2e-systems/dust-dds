@@ -38,7 +38,7 @@ impl DdsDomainParticipantFactory {
     }
 
     pub fn get_participant_list(&self) -> Vec<ActorAddress<DdsDomainParticipant>> {
-        self.domain_participant_list.iter().map(|dp| dp.address()).collect()
+        self.domain_participant_list.iter().map(|dp| dp.address().clone()).collect()
     }
 
     pub fn get_unique_participant_id(&mut self) -> u32 {

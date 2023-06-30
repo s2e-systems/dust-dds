@@ -164,7 +164,7 @@ impl Subscriber {
                 );
 
                 let reader_actor = spawn_actor(data_reader);
-                let reader_address = reader_actor.address();
+                let reader_address = reader_actor.address().clone();
                 s.address().stateful_data_reader_add(reader_actor)?;
 
                 let data_reader =
@@ -451,10 +451,9 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
             | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::Listener(s) => s
-                .address()
-                .get_statuscondition()
-                .map(StatusCondition::new),
+            | SubscriberNodeKind::Listener(s) => {
+                s.address().get_statuscondition().map(StatusCondition::new)
+            }
         }
     }
 
