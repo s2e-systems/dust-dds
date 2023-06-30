@@ -112,8 +112,7 @@ impl DomainParticipantFactory {
             .expect("Could not scan interfaces")
             .into_iter()
             .filter_map(|i| i.mac_addr)
-            .filter(|m| m != "00:00:00:00:00:00")
-            .next()
+            .find(|m| m != "00:00:00:00:00:00")
             .expect("Could not find any mac address");
         let app_id = std::process::id().to_ne_bytes();
         let instance_id = self.0.address().get_unique_participant_id()?.to_ne_bytes();
