@@ -207,7 +207,7 @@ impl DomainParticipantFactory {
         );
 
         let participant_actor = spawn_actor(domain_participant);
-        let participant_address = participant_actor.address();
+        let participant_address = participant_actor.address().clone();
         self.0.address().add_participant(participant_actor)?;
         let domain_participant = DomainParticipant::new(participant_address.clone());
 
@@ -255,7 +255,8 @@ impl DomainParticipantFactory {
         let participant_address_clone = participant_address;
         THE_RUNTIME.spawn(async move {
             let mut default_unicast_transport = UdpTransportRead::new(
-                tokio::net::UdpSocket::from_std(default_unicast_socket).expect("Should not fail to open default unicast socket"),
+                tokio::net::UdpSocket::from_std(default_unicast_socket)
+                    .expect("Should not fail to open default unicast socket"),
             );
 
             while let Some((_locator, message)) = default_unicast_transport.read().await {

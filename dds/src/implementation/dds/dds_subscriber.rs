@@ -92,7 +92,7 @@ impl DdsSubscriber {
     }
 
     pub fn stateless_data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader<RtpsStatelessReader>>> {
-        self.stateless_data_reader_list.iter().map(|dr| dr.address()).collect()
+        self.stateless_data_reader_list.iter().map(|dr| dr.address().clone()).collect()
     }
 
     pub fn stateful_data_reader_add(
@@ -114,7 +114,7 @@ impl DdsSubscriber {
     }
 
     pub fn stateful_data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader<RtpsStatefulReader>>> {
-        self.stateful_data_reader_list.iter().map(|dr| dr.address()).collect()
+        self.stateful_data_reader_list.iter().map(|dr| dr.address().clone()).collect()
     }
 
     pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
@@ -160,7 +160,7 @@ impl DdsSubscriber {
     }
 
     pub fn get_listener(&self) -> Option<ActorAddress<DdsSubscriberListener>> {
-        self.listener.as_ref().map(|l| l.address())
+        self.listener.as_ref().map(|l| l.address().clone())
     }
 
     pub fn status_kind(&self) -> Vec<StatusKind> {

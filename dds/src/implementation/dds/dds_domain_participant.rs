@@ -415,11 +415,11 @@ impl DdsDomainParticipant {
     }
 
     pub fn get_builtin_subscriber(&self) -> ActorAddress<DdsSubscriber> {
-        self.builtin_subscriber.address()
+        self.builtin_subscriber.address().clone()
     }
 
     pub fn get_builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
-        self.builtin_publisher.address()
+        self.builtin_publisher.address().clone()
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
@@ -510,7 +510,7 @@ impl DdsDomainParticipant {
     }
 
     pub fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
-        self.user_defined_publisher_list.iter().map(|a| a.address()).collect()
+        self.user_defined_publisher_list.iter().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
@@ -535,7 +535,7 @@ impl DdsDomainParticipant {
     }
 
     pub fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
-        self.user_defined_subscriber_list.iter().map(|a| a.address()).collect()
+        self.user_defined_subscriber_list.iter().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
@@ -560,7 +560,7 @@ impl DdsDomainParticipant {
     }
 
     pub fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
-        self.topic_list.iter().map(|a| a.address()).collect()
+        self.topic_list.iter().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_topic(&mut self, handle: InstanceHandle) {
@@ -699,7 +699,7 @@ impl DdsDomainParticipant {
     }
 
     pub fn get_udp_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
-        self.udp_transport_write.address()
+        self.udp_transport_write.address().clone()
     }
 
     pub fn discovered_topic_add(&mut self, handle: InstanceHandle, topic_data: TopicBuiltinTopicData) {
@@ -709,7 +709,7 @@ impl DdsDomainParticipant {
     }
 
     pub fn get_listener(&self) -> Option<ActorAddress<DdsDomainParticipantListener>> {
-        self.listener.as_ref().map(|l| l.address())
+        self.listener.as_ref().map(|l| l.address().clone())
     }
 
     pub fn status_kind(&self) -> Vec<StatusKind> {

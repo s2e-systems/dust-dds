@@ -154,7 +154,7 @@ impl Publisher {
             status_kind,
         );
         let data_writer_actor = spawn_actor(data_writer);
-        let data_writer_address = data_writer_actor.address();
+        let data_writer_address = data_writer_actor.address().clone();
         self.0
             .address()
             .stateful_datawriter_add(data_writer_actor)?;

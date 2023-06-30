@@ -140,8 +140,8 @@ pub struct Actor<A> {
 }
 
 impl<A> Actor<A> {
-    pub fn address(&self) -> ActorAddress<A> {
-        self.address.clone()
+    pub fn address(&self) -> &ActorAddress<A> {
+        &self.address
     }
 }
 
@@ -329,7 +329,7 @@ mod tests {
     fn actor_increment() {
         let my_data = MyData { data: 0 };
         let actor = spawn_actor(my_data);
-        let data_interface = DataInterface(actor.address());
+        let data_interface = DataInterface(actor.address().clone());
         assert_eq!(data_interface.increment(10).unwrap(), 10)
     }
 
@@ -337,7 +337,7 @@ mod tests {
     fn actor_already_deleted() {
         let my_data = MyData { data: 0 };
         let actor = spawn_actor(my_data);
-        let data_interface = DataInterface(actor.address());
+        let data_interface = DataInterface(actor.address().clone());
         std::mem::drop(actor);
         std::thread::sleep(std::time::Duration::from_millis(100));
         assert_eq!(data_interface.increment(10), Err(DdsError::AlreadyDeleted));
