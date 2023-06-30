@@ -1918,6 +1918,8 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     // Wait for writer to match reader
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
     let data2 = KeyedData { id: 2, value: 10 };
     writer.write(&data2, None).unwrap();
 
