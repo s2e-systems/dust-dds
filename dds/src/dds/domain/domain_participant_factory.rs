@@ -1,8 +1,4 @@
-use std::{
-    net::{Ipv4Addr, SocketAddr},
-    str::FromStr,
-};
-
+use super::domain_participant::DomainParticipant;
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
@@ -58,15 +54,16 @@ use crate::{
     },
     DdsType,
 };
-
 use fnmatch_regex::glob_to_regex;
 use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
-use mac_address::MacAddress;
+use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use schemars::schema_for;
 use socket2::Socket;
-
-use super::domain_participant::DomainParticipant;
+use std::{
+    net::{Ipv4Addr, SocketAddr},
+    str::FromStr,
+};
 
 pub type DomainId = i32;
 
@@ -111,20 +108,24 @@ impl DomainParticipantFactory {
             QosKind::Specific(q) => q,
         };
 
-        let mac_address = ifcfg::IfCfg::get()
+        let mac_address = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
-            .filter_map(|i| MacAddress::from_str(&i.mac).ok())
-            .find(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
-            .expect("Could not find any mac address")
-            .bytes();
+            .filter_map(|i| i.mac_addr)
+            .find(|m| m != "00:00:00:00:00:00")
+            .expect("Could not find any mac address");
+        let mut mac_address_octets = [0u8; 6];
+        for (index, octet_str) in mac_address.split(|c| c == ':' || c == '-').enumerate() {
+            mac_address_octets[index] =
+                u8::from_str_radix(octet_str, 16).expect("All octet strings should be valid");
+        }
 
         let app_id = std::process::id().to_ne_bytes();
         let instance_id = self.0.address().get_unique_participant_id()?.to_ne_bytes();
 
         #[rustfmt::skip]
         let guid_prefix = GuidPrefix::new([
-            mac_address[2],  mac_address[3], mac_address[4], mac_address[5], // Host ID
+            mac_address_octets[2],  mac_address_octets[3], mac_address_octets[4], mac_address_octets[5], // Host ID
             app_id[0], app_id[1], app_id[2], app_id[3], // App ID
             instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
         ]);
@@ -1212,7 +1213,7 @@ fn port_builtin_multicast(domain_id: DomainId) -> LocatorPort {
 }
 
 fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAddress> {
-    ifcfg::IfCfg::get()
+    NetworkInterface::show()
         .expect("Could not scan interfaces")
         .into_iter()
         .filter(|x| {
@@ -1223,13 +1224,13 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
             }
         })
         .flat_map(|i| {
-            i.addresses.into_iter().filter_map(|a| match a.address? {
+            i.addr.into_iter().filter_map(|a| match a {
                 #[rustfmt::skip]
-                SocketAddr::V4(v4) if !v4.ip().is_loopback() => Some(
+                Addr::V4(v4) if !v4.ip.is_loopback() => Some(
                     LocatorAddress::new([0, 0, 0, 0,
                         0, 0, 0, 0,
                         0, 0, 0, 0,
-                        v4.ip().octets()[0], v4.ip().octets()[1], v4.ip().octets()[2], v4.ip().octets()[3]])
+                        v4.ip.octets()[0], v4.ip.octets()[1], v4.ip.octets()[2], v4.ip.octets()[3]])
                     ),
                 _ => None,
             })

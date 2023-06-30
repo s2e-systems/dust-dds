@@ -27,7 +27,7 @@ byteorder = "=1.4.3"
 lazy_static = "=1.4"
 
 socket2 = "=0.4"
-ifcfg = "=0.1"
+network-interface = "1.0.1"
 mac_address = "=1.1"
 
 jsonschema = {version = "=0.12.0", default-features = false}
