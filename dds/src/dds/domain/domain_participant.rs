@@ -108,7 +108,7 @@ impl DomainParticipant {
         let publisher = DdsPublisher::new(publisher_qos, rtps_group, listener, status_kind);
 
         let publisher_actor = spawn_actor(publisher);
-        let publisher_address = publisher_actor.address();
+        let publisher_address = publisher_actor.address().clone();
         self.0.add_user_defined_publisher(publisher_actor)?;
 
         let publisher = Publisher::new(PublisherNode::new(publisher_address, self.0.clone()));
@@ -180,7 +180,7 @@ impl DomainParticipant {
 
         let subscriber_actor = spawn_actor(subscriber);
         let subscriber = Subscriber::new(SubscriberNodeKind::UserDefined(SubscriberNode::new(
-            subscriber_actor.address(),
+            subscriber_actor.address().clone(),
             self.0.clone(),
         )));
         self.0.add_user_defined_subscriber(subscriber_actor)?;
@@ -250,7 +250,7 @@ impl DomainParticipant {
         let topic = DdsTopic::new(guid, qos, Foo::type_name(), topic_name);
 
         let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
-        let topic_address = topic_actor.address();
+        let topic_address = topic_actor.address().clone();
         self.0.add_user_defined_topic(topic_actor)?;
 
         let topic = Topic::new(TopicNodeKind::UserDefined(TopicNode::new(

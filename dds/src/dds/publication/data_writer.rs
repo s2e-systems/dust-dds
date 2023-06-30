@@ -83,10 +83,11 @@ where
     /// The explicit use of this operation is optional as the application may call directly [`DataWriter::write`]
     /// and specify no [`InstanceHandle`] to indicate that the *key* should be examined to identify the instance.
     pub fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let timestamp = self
-            .get_publisher()?
-            .get_participant()?
-            .get_current_time()?;
+        let timestamp = match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.parent_participant().get_current_time()?
+            }
+        };
         self.register_instance_w_timestamp(instance, timestamp)
     }
 
@@ -138,10 +139,11 @@ where
         instance: &Foo,
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
-        let timestamp = self
-            .get_publisher()?
-            .get_participant()?
-            .get_current_time()?;
+        let timestamp = match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.parent_participant().get_current_time()?
+            }
+        };
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
@@ -256,10 +258,11 @@ where
     /// is exceeded and the service determines that even waiting the [`ReliabilityQosPolicy::max_waiting_time`](crate::infrastructure::qos_policy::ReliabilityQosPolicy) has no
     /// chance of freeing the necessary resources. For example, if the only way to gain the necessary resources would be for the user to unregister an instance.
     pub fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = self
-            .get_publisher()?
-            .get_participant()?
-            .get_current_time()?;
+        let timestamp = match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.parent_participant().get_current_time()?
+            }
+        };
         self.write_w_timestamp(data, handle, timestamp)
     }
 
@@ -313,10 +316,11 @@ where
     /// This operation may block and return [`DdsError::Timeout`](crate::infrastructure::error::DdsError) or
     /// [`DdsError::OutOfResources`](crate::infrastructure::error::DdsError) under the same circumstances described for [`DataWriter::write`].
     pub fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = self
-            .get_publisher()?
-            .get_participant()?
-            .get_current_time()?;
+        let timestamp = match &self.0 {
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.parent_participant().get_current_time()?
+            }
+        };
         self.dispose_w_timestamp(data, handle, timestamp)
     }
 
