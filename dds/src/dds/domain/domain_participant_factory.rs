@@ -114,7 +114,7 @@ impl DomainParticipantFactory {
             .filter_map(|i| i.mac_addr)
             .next()
             .expect("Could not find any mac address");
-
+        println!("Mac address: {:?}", mac_address);
         let app_id = std::process::id().to_ne_bytes();
         let instance_id = self.0.address().get_unique_participant_id()?.to_ne_bytes();
 
@@ -124,6 +124,7 @@ impl DomainParticipantFactory {
             app_id[0], app_id[1], app_id[2], app_id[3], // App ID
             instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
         ]);
+        println!("guid_prefix: {:?}", guid_prefix);
 
         let interface_address_list =
             get_interface_address_list(THE_DDS_CONFIGURATION.interface_name.as_ref());
