@@ -1893,8 +1893,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond
-        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
