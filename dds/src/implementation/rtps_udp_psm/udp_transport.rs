@@ -5,6 +5,7 @@ use crate::implementation::{
     },
     utils::actor::actor_interface,
 };
+use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 pub struct UdpTransportRead {
@@ -52,12 +53,13 @@ impl UdpTransportWrite {
         for destination_locator in destination_locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
-                let interface_addresses: Vec<_> = ifcfg::IfCfg::get()
+                let interface_addresses = NetworkInterface::show();
+                let interface_addresses: Vec<_> = interface_addresses
                     .expect("Could not scan interfaces")
                     .into_iter()
                     .flat_map(|i| {
-                        i.addresses.into_iter().filter_map(|a| match a.address? {
-                            SocketAddr::V4(v4) => Some(*v4.ip()),
+                        i.addr.into_iter().filter_map(|a| match a {
+                            Addr::V4(v4) => Some(v4.ip),
                             _ => None,
                         })
                     })

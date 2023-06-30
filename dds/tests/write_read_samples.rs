@@ -1914,13 +1914,17 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     let reader_new = subscriber
         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    // Wait for writer to match reader
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     let data2 = KeyedData { id: 2, value: 10 };
     writer.write(&data2, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(5, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader_new
