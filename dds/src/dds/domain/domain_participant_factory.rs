@@ -31,8 +31,8 @@ use crate::{
             stateful_writer::RtpsStatefulWriter,
             types::{
                 DurabilityKind, Guid, GuidPrefix, Locator, LocatorAddress, LocatorPort,
-                ReliabilityKind, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4,
-                PROTOCOLVERSION, VENDOR_ID_S2E,
+                ReliabilityKind, SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
+                LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E,
             },
             writer_proxy::RtpsWriterProxy,
         },
@@ -442,6 +442,7 @@ fn add_matched_publications_detector(
             true,
             ReliabilityKind::Reliable,
             DurabilityKind::TransientLocal,
+            SequenceNumber::new(0),
         );
         writer.matched_reader_add(proxy).unwrap();
     }
@@ -511,6 +512,7 @@ fn add_matched_subscriptions_detector(
             true,
             ReliabilityKind::Reliable,
             DurabilityKind::TransientLocal,
+            SequenceNumber::new(0),
         );
         writer.matched_reader_add(proxy).unwrap();
     }
@@ -579,6 +581,7 @@ fn add_matched_topics_detector(
             true,
             ReliabilityKind::Reliable,
             DurabilityKind::TransientLocal,
+            SequenceNumber::new(0),
         );
         writer.matched_reader_add(proxy).unwrap();
     }

@@ -101,6 +101,7 @@ pub struct RtpsReaderProxy {
     heartbeat_frag_machine: HeartbeatFragMachine,
     reliability: ReliabilityKind,
     durability: DurabilityKind,
+    first_relevant_sample_seq_num: SequenceNumber,
 }
 
 impl RtpsReaderProxy {
@@ -114,6 +115,7 @@ impl RtpsReaderProxy {
         is_active: bool,
         reliability: ReliabilityKind,
         durability: DurabilityKind,
+        first_relevant_sample_seq_num: SequenceNumber,
     ) -> Self {
         let heartbeat_machine = HeartbeatMachine::new(remote_reader_guid.entity_id());
         let heartbeat_frag_machine = HeartbeatFragMachine::new(remote_reader_guid.entity_id());
@@ -133,6 +135,7 @@ impl RtpsReaderProxy {
             heartbeat_frag_machine,
             reliability,
             durability,
+            first_relevant_sample_seq_num,
         }
     }
 
@@ -266,6 +269,14 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         if seq_num > self.reader_proxy.highest_sent_seq_num {
             self.reader_proxy.highest_sent_seq_num = seq_num;
         }
+    }
+
+    pub fn first_relevant_sample_seq_num(&self) -> SequenceNumber {
+        self.reader_proxy.first_relevant_sample_seq_num
+    }
+
+    pub fn set_first_relevant_sample_seq_num(&mut self, seq_num: SequenceNumber) {
+        self.reader_proxy.first_relevant_sample_seq_num = seq_num;
     }
 
     pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessageRead) {
