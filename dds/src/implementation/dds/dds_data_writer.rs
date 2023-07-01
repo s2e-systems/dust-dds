@@ -380,10 +380,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         self.rtps_writer.matched_reader_list()
     }
 
-    pub fn _is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
-        self.rtps_writer.is_acked_by_all(a_change)
-    }
-
     pub fn get_qos(&self) -> DataWriterQos {
         self.rtps_writer.get_qos().clone()
     }
@@ -417,8 +413,30 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            self.rtps_writer
-                .on_acknack_submessage_received(acknack_submessage, source_guid_prefix);
+            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id());
+
+            if let Some(reader_proxy) = self
+                .rtps_writer
+                .matched_reader_list()
+                .iter_mut()
+                .find(|x| x.remote_reader_guid() == reader_guid)
+            {
+                match reader_proxy.reliability() {
+                    ReliabilityKind::BestEffort => (),
+                    ReliabilityKind::Reliable => {
+                        if acknack_submessage.count() > reader_proxy.last_received_acknack_count() {
+                            reader_proxy
+                                .acked_changes_set(acknack_submessage.reader_sn_state().base - 1);
+                            reader_proxy.requested_changes_set(
+                                acknack_submessage.reader_sn_state().set.as_ref(),
+                            );
+
+                            reader_proxy
+                                .set_last_received_acknack_count(acknack_submessage.count());
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -428,8 +446,27 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            self.rtps_writer
-                .on_nack_frag_submessage_received(nackfrag_submessage, source_guid_prefix);
+            let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
+
+            if let Some(reader_proxy) = self
+                .rtps_writer
+                .matched_reader_list()
+                .iter_mut()
+                .find(|x| x.remote_reader_guid() == reader_guid)
+            {
+                match reader_proxy.reliability() {
+                    ReliabilityKind::BestEffort => (),
+                    ReliabilityKind::Reliable => {
+                        if nackfrag_submessage.count()
+                            > reader_proxy.last_received_nack_frag_count()
+                        {
+                            reader_proxy.requested_changes_set(&[nackfrag_submessage.writer_sn()]);
+                            reader_proxy
+                                .set_last_received_nack_frag_count(nackfrag_submessage.count());
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -517,13 +554,12 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             .dispose_w_timestamp(instance_serialized_key, handle, timestamp)
     }
 
-    pub fn are_all_changes_acknowledge(&self) -> bool {
-        let changes = self.rtps_writer.change_list();
-
-        changes
+    pub fn are_all_changes_acknowledge(&mut self) -> bool {
+        !self
+            .rtps_writer
+            .matched_reader_list()
             .iter()
-            .map(|c| self.rtps_writer.is_acked_by_all(c))
-            .all(|r| r)
+            .any(|rp| rp.unacked_changes())
     }
 
     pub fn as_discovered_writer_data(
@@ -633,26 +669,98 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             Self::info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
         let mut submessages = vec![info_dst];
 
-        while !reader_proxy.unsent_changes().is_empty() {
+        // a_change_seq_num := the_reader_proxy.next_unsent_change();
+        // if ( a_change_seq_num > the_reader_proxy.higuest_sent_seq_num +1 ) {
+        // GAP = new GAP(the_reader_locator.higuest_sent_seq_num + 1,
+        // a_change_seq_num -1);
+        // GAP.readerId := ENTITYID_UNKNOWN;
+        // GAP.filteredCount := 0;
+        // send GAP;
+        // }
+        // a_change := the_writer.writer_cache.get_change(a_change_seq_num );
+        // if ( DDS_FILTER(the_reader_proxy, a_change) ) {
+        // DATA = new DATA(a_change);
+        // IF (the_reader_proxy.expectsInlineQos) {
+        // DATA.inlineQos := the_rtps_writer.related_dds_writer.qos;
+        // DATA.inlineQos += a_change.inlineQos;
+        // }
+        // DATA.readerId := ENTITYID_UNKNOWN;
+        // send DATA;
+        // }
+        // else {
+        // GAP = new GAP(a_change.sequenceNumber);
+        // GAP.readerId := ENTITYID_UNKNOWN;
+        // GAP.filteredCount := 1;
+        // send GAP;
+        // }
+        // the_reader_proxy.higuest_sent_seq_num := a_change_seq_num;
+
+        while reader_proxy.unsent_changes() {
             // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
             // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
             let reader_id = reader_proxy.remote_reader_guid().entity_id();
-            let change = reader_proxy.next_unsent_change();
+            let a_change_seq_num = reader_proxy.next_unsent_change().expect("Should be Some");
 
-            if change.is_relevant() {
-                let cache_change = change.cache_change();
-                let timestamp = cache_change.timestamp();
+            if a_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
+                let gap_set = (i64::from(reader_proxy.highest_sent_seq_num()) + 2
+                    ..i64::from(a_change_seq_num) - 1)
+                    .map(SequenceNumber::new)
+                    .collect();
+                let gap_submessage = GapSubmessageWrite::new(
+                    reader_id,
+                    reader_proxy.writer().guid().entity_id(),
+                    reader_proxy.highest_sent_seq_num() + 1,
+                    SequenceNumberSet {
+                        base: reader_proxy.highest_sent_seq_num() + 1,
+                        set: gap_set,
+                    },
+                );
+                submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+            }
+            let cache_change = reader_proxy
+                .writer()
+                .change_list()
+                .iter()
+                .find(|cc| cc.sequence_number() == a_change_seq_num);
 
-                if cache_change.data_value().len() > 1 {
-                    let cache_change_frag = DataFragSubmessages::new(cache_change, reader_id);
-                    for data_frag_submessage in cache_change_frag.into_iter() {
-                        let info_dst = RtpsSubmessageWriteKind::InfoDestination(
-                            InfoDestinationSubmessageWrite::new(
-                                reader_proxy.remote_reader_guid().prefix(),
-                            ),
-                        );
+            match cache_change {
+                Some(cache_change)
+                    if cache_change.sequence_number()
+                        > reader_proxy.first_relevant_sample_seq_num() =>
+                {
+                    let timestamp = cache_change.timestamp();
 
-                        let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
+                    if cache_change.data_value().len() > 1 {
+                        let cache_change_frag = DataFragSubmessages::new(cache_change, reader_id);
+                        for data_frag_submessage in cache_change_frag.into_iter() {
+                            let info_dst = RtpsSubmessageWriteKind::InfoDestination(
+                                InfoDestinationSubmessageWrite::new(
+                                    reader_proxy.remote_reader_guid().prefix(),
+                                ),
+                            );
+
+                            let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
+                                InfoTimestampSubmessageWrite::new(
+                                    false,
+                                    crate::implementation::rtps::messages::types::Time::new(
+                                        timestamp.sec(),
+                                        timestamp.nanosec(),
+                                    ),
+                                ),
+                            );
+                            let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
+
+                            let submessages = vec![info_dst, info_timestamp, data_frag];
+
+                            udp_transport_write
+                                .write(
+                                    RtpsMessageWrite::new(header, submessages),
+                                    reader_proxy.unicast_locator_list().to_vec(),
+                                )
+                                .unwrap();
+                        }
+                    } else {
+                        submessages.push(RtpsSubmessageWriteKind::InfoTimestamp(
                             InfoTimestampSubmessageWrite::new(
                                 false,
                                 crate::implementation::rtps::messages::types::Time::new(
@@ -660,38 +768,27 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                                     timestamp.nanosec(),
                                 ),
                             ),
-                        );
-                        let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
-
-                        let submessages = vec![info_dst, info_timestamp, data_frag];
-
-                        udp_transport_write
-                            .write(
-                                RtpsMessageWrite::new(header, submessages),
-                                reader_proxy.unicast_locator_list().to_vec(),
-                            )
-                            .unwrap();
+                        ));
+                        submessages.push(RtpsSubmessageWriteKind::Data(
+                            cache_change.as_data_submessage(reader_id),
+                        ))
                     }
-                } else {
-                    submessages.push(RtpsSubmessageWriteKind::InfoTimestamp(
-                        InfoTimestampSubmessageWrite::new(
-                            false,
-                            crate::implementation::rtps::messages::types::Time::new(
-                                timestamp.sec(),
-                                timestamp.nanosec(),
-                            ),
-                        ),
-                    ));
-                    submessages.push(RtpsSubmessageWriteKind::Data(
-                        cache_change.as_data_submessage(reader_id),
-                    ))
                 }
-            } else {
-                let gap_submessage: GapSubmessageWrite = change
-                    .cache_change()
-                    .as_gap_message(reader_proxy.remote_reader_guid().entity_id());
-                submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+                _ => {
+                    let gap_submessage = GapSubmessageWrite::new(
+                        reader_id,
+                        reader_proxy.writer().guid().entity_id(),
+                        a_change_seq_num,
+                        SequenceNumberSet {
+                            base: a_change_seq_num,
+                            set: vec![],
+                        },
+                    );
+                    submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+                }
             }
+
+            reader_proxy.set_highest_sent_seq_num(a_change_seq_num);
         }
 
         // Send messages only if more than INFO_DST is added
@@ -723,49 +820,111 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         let mut submessages = vec![info_dst];
 
         // Top part of the state machine - Figure 8.19 RTPS standard
-        if !reader_proxy.unsent_changes().is_empty() {
+        if reader_proxy.unsent_changes() {
             // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
             // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
 
-            while !reader_proxy.unsent_changes().is_empty() {
-                let change = reader_proxy.next_unsent_change();
-                // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
-                // it's not done here to avoid the change being a mutable reference
-                // Also the post-condition:
-                // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
-                // should be full-filled by next_unsent_change()
-                if change.is_relevant() {
-                    let cache_change = change.cache_change();
-                    if cache_change.data_value().len() > 1 {
-                        Self::directly_send_data_frag(
-                            reader_proxy,
-                            cache_change,
-                            writer_id,
-                            header,
-                            first_sn,
-                            last_sn,
-                            udp_transport_write,
-                        );
-                        return;
-                    } else {
-                        submessages.push(Self::info_timestamp_submessage(cache_change.timestamp()));
-                        submessages.push(RtpsSubmessageWriteKind::Data(
-                            cache_change.as_data_submessage(reader_id),
-                        ))
-                    }
-                } else {
-                    let gap_submessage: GapSubmessageWrite =
-                        change.cache_change().as_gap_message(reader_id);
+            while reader_proxy.unsent_changes() {
+                let a_change_seq_num = reader_proxy.next_unsent_change().expect("Should be Some");
 
+                if a_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
+                    let gap_set = (i64::from(reader_proxy.highest_sent_seq_num()) + 2
+                        ..i64::from(a_change_seq_num) - 1)
+                        .map(SequenceNumber::new)
+                        .collect();
+                    let gap_submessage = GapSubmessageWrite::new(
+                        reader_id,
+                        reader_proxy.writer().guid().entity_id(),
+                        reader_proxy.highest_sent_seq_num() + 1,
+                        SequenceNumberSet {
+                            base: reader_proxy.highest_sent_seq_num() + 1,
+                            set: gap_set,
+                        },
+                    );
                     submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
                 }
+
+                let cache_change = reader_proxy
+                    .writer()
+                    .change_list()
+                    .iter()
+                    .find(|cc| cc.sequence_number() == a_change_seq_num);
+
+                match cache_change {
+                    Some(cache_change)
+                        if cache_change.sequence_number()
+                            > reader_proxy.first_relevant_sample_seq_num() =>
+                    {
+                        let timestamp = cache_change.timestamp();
+
+                        if cache_change.data_value().len() > 1 {
+                            let cache_change_frag =
+                                DataFragSubmessages::new(cache_change, reader_id);
+                            for data_frag_submessage in cache_change_frag.into_iter() {
+                                let info_dst = RtpsSubmessageWriteKind::InfoDestination(
+                                    InfoDestinationSubmessageWrite::new(
+                                        reader_proxy.remote_reader_guid().prefix(),
+                                    ),
+                                );
+
+                                let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
+                                    InfoTimestampSubmessageWrite::new(
+                                        false,
+                                        crate::implementation::rtps::messages::types::Time::new(
+                                            timestamp.sec(),
+                                            timestamp.nanosec(),
+                                        ),
+                                    ),
+                                );
+                                let data_frag =
+                                    RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
+
+                                let submessages = vec![info_dst, info_timestamp, data_frag];
+
+                                udp_transport_write
+                                    .write(
+                                        RtpsMessageWrite::new(header, submessages),
+                                        reader_proxy.unicast_locator_list().to_vec(),
+                                    )
+                                    .unwrap();
+                            }
+                        } else {
+                            submessages.push(RtpsSubmessageWriteKind::InfoTimestamp(
+                                InfoTimestampSubmessageWrite::new(
+                                    false,
+                                    crate::implementation::rtps::messages::types::Time::new(
+                                        timestamp.sec(),
+                                        timestamp.nanosec(),
+                                    ),
+                                ),
+                            ));
+                            submessages.push(RtpsSubmessageWriteKind::Data(
+                                cache_change.as_data_submessage(reader_id),
+                            ))
+                        }
+                    }
+                    _ => {
+                        let gap_submessage = GapSubmessageWrite::new(
+                            reader_id,
+                            reader_proxy.writer().guid().entity_id(),
+                            a_change_seq_num,
+                            SequenceNumberSet {
+                                base: a_change_seq_num,
+                                set: vec![],
+                            },
+                        );
+                        submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+                    }
+                }
+
+                reader_proxy.set_highest_sent_seq_num(a_change_seq_num);
             }
 
             let heartbeat = reader_proxy
                 .heartbeat_machine()
                 .submessage(writer_id, first_sn, last_sn);
             submessages.push(heartbeat);
-        } else if reader_proxy.unacked_changes().is_empty() {
+        } else if !reader_proxy.unacked_changes() {
             // Idle
         } else if reader_proxy
             .heartbeat_machine()
@@ -781,37 +940,54 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         if !reader_proxy.requested_changes().is_empty() {
             let reader_id = reader_proxy.remote_reader_guid().entity_id();
 
-            while !reader_proxy.requested_changes().is_empty() {
-                let change_for_reader = reader_proxy.next_requested_change();
+            while let Some(next_requested_change_seq_num) = reader_proxy.next_requested_change() {
                 // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
                 // it's not done here to avoid the change being a mutable reference
                 // Also the post-condition:
                 // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
                 // should be full-filled by next_requested_change()
-                if change_for_reader.is_relevant() {
-                    let cache_change = change_for_reader.cache_change();
-                    if cache_change.data_value().len() > 1 {
-                        Self::directly_send_data_frag(
-                            reader_proxy,
-                            cache_change,
-                            writer_id,
-                            header,
-                            first_sn,
-                            last_sn,
-                            udp_transport_write,
-                        );
-                        return;
-                    } else {
-                        submessages.push(Self::info_timestamp_submessage(cache_change.timestamp()));
-                        submessages.push(RtpsSubmessageWriteKind::Data(
-                            cache_change.as_data_submessage(reader_id),
-                        ))
+                let cache_change = reader_proxy
+                    .writer()
+                    .change_list()
+                    .iter()
+                    .find(|cc| cc.sequence_number() == next_requested_change_seq_num);
+                match cache_change {
+                    Some(cache_change)
+                        if cache_change.sequence_number()
+                            > reader_proxy.first_relevant_sample_seq_num() =>
+                    {
+                        if cache_change.data_value().len() > 1 {
+                            Self::directly_send_data_frag(
+                                reader_proxy,
+                                cache_change,
+                                writer_id,
+                                header,
+                                first_sn,
+                                last_sn,
+                                udp_transport_write,
+                            );
+                            return;
+                        } else {
+                            submessages
+                                .push(Self::info_timestamp_submessage(cache_change.timestamp()));
+                            submessages.push(RtpsSubmessageWriteKind::Data(
+                                cache_change.as_data_submessage(reader_id),
+                            ))
+                        }
                     }
-                } else {
-                    let gap_submessage: GapSubmessageWrite =
-                        change_for_reader.cache_change().as_gap_message(reader_id);
+                    _ => {
+                        let gap_submessage = GapSubmessageWrite::new(
+                            reader_id,
+                            reader_proxy.writer().guid().entity_id(),
+                            next_requested_change_seq_num,
+                            SequenceNumberSet {
+                                base: next_requested_change_seq_num + 1,
+                                set: vec![],
+                            },
+                        );
 
-                    submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+                        submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+                    }
                 }
             }
             let heartbeat = reader_proxy
@@ -983,6 +1159,18 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                     DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
                 };
 
+                let first_relevant_sample_seq_num = if proxy_durability == DurabilityKind::Volatile
+                {
+                    self.rtps_writer
+                        .change_list()
+                        .iter()
+                        .map(|cc| cc.sequence_number())
+                        .max()
+                        .unwrap_or(SequenceNumber::new(0))
+                } else {
+                    SequenceNumber::new(0)
+                };
+
                 let reader_proxy = RtpsReaderProxy::new(
                     discovered_reader_data.reader_proxy().remote_reader_guid(),
                     discovered_reader_data
@@ -994,6 +1182,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                     true,
                     proxy_reliability,
                     proxy_durability,
+                    first_relevant_sample_seq_num,
                 );
 
                 self.matched_reader_add(reader_proxy);
@@ -1329,117 +1518,3 @@ impl DdsDataWriter<RtpsStatelessWriter> {
         ))
     }
 }
-
-// #[cfg(test)]
-// mod test {
-//     use crate::{
-//         implementation::{rtps::{
-//             endpoint::RtpsEndpoint,
-//             messages::overall_structure::RtpsMessageWrite,
-//             transport::TransportWrite,
-//             types::{TopicKind, GUID_UNKNOWN},
-//             writer::RtpsWriter,
-//         }, utils::actor::spawn_actor},
-//         infrastructure::time::DURATION_ZERO,
-//         topic_definition::type_support::DdsSerializedKey,
-//     };
-
-//     use mockall::mock;
-
-//     use super::*;
-
-//     mock! {
-//         Transport{}
-
-//         impl TransportWrite for Transport {
-//             fn write<'a>(&'a self, message: &RtpsMessageWrite, destination_locator_list: &[Locator]);
-//         }
-//     }
-
-//     #[derive(serde::Serialize)]
-//     struct MockFoo {}
-
-//     impl DdsType for MockFoo {
-//         fn type_name() -> &'static str {
-//             todo!()
-//         }
-//     }
-
-//     #[derive(serde::Serialize)]
-//     struct MockKeyedFoo {
-//         key: Vec<u8>,
-//     }
-
-//     impl DdsType for MockKeyedFoo {
-//         fn type_name() -> &'static str {
-//             todo!()
-//         }
-
-//         fn has_key() -> bool {
-//             true
-//         }
-
-//         fn get_serialized_key(&self) -> DdsSerializedKey {
-//             self.key.as_slice().into()
-//         }
-
-//         fn set_key_fields_from_serialized_key(&mut self, key: &DdsSerializedKey) -> DdsResult<()> {
-//             self.key = key.as_ref().to_vec();
-//             Ok(())
-//         }
-//     }
-
-//     fn create_data_writer_test_fixture() -> DdsDataWriter<RtpsStatefulWriter> {
-//         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-//             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
-//             true,
-//             DURATION_ZERO,
-//             DURATION_ZERO,
-//             DURATION_ZERO,
-//             usize::MAX,
-//             DataWriterQos::default(),
-//         ));
-
-//         let mut data_writer = DdsDataWriter::new(rtps_writer, "", String::from(""));
-//         data_writer.enabled = true;
-//         data_writer
-//     }
-
-//     #[test]
-//     fn get_key_value_known_instance() {
-//         let mut data_writer = create_data_writer_test_fixture();
-
-//         let instance_handle = data_writer
-//             .register_instance_w_timestamp(
-//                 MockKeyedFoo { key: vec![1, 2] }.get_serialized_key(),
-//                 Time::new(0, 0),
-//             )
-//             .unwrap()
-//             .unwrap();
-
-//         let mut keyed_foo = MockKeyedFoo { key: vec![] };
-//         data_writer
-//             .get_key_value(&mut keyed_foo, instance_handle)
-//             .unwrap();
-//         assert_eq!(keyed_foo.key, vec![1, 2]);
-//     }
-
-//     #[test]
-//     fn get_key_value_unknown_instance() {
-//         let mut data_writer = create_data_writer_test_fixture();
-//         let not_registered_foo = MockKeyedFoo { key: vec![1, 16] };
-//         let registered_foo = MockKeyedFoo { key: vec![1, 2] };
-//         data_writer
-//             .register_instance_w_timestamp(registered_foo.get_serialized_key(), Time::new(0, 0))
-//             .unwrap();
-
-//         let mut keyed_foo = MockKeyedFoo { key: vec![] };
-//         assert_eq!(
-//             data_writer.get_key_value(
-//                 &mut keyed_foo,
-//                 not_registered_foo.get_serialized_key().into()
-//             ),
-//             Err(DdsError::BadParameter)
-//         );
-//     }
-// }

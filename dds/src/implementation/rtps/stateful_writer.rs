@@ -11,7 +11,7 @@ use crate::{
         error::DdsResult,
         instance::{InstanceHandle, HANDLE_NIL},
         qos::DataWriterQos,
-        qos_policy::{DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
+        qos_policy::DurabilityQosPolicyKind,
         time::{Duration, Time, DURATION_ZERO},
     },
     topic_definition::type_support::DdsSerializedKey,
@@ -21,14 +21,10 @@ use super::{
     history_cache::RtpsWriterCacheChange,
     messages::{
         submessage_elements::{Parameter, ParameterList},
-        submessages::{ack_nack::AckNackSubmessageRead, nack_frag::NackFragSubmessageRead},
         types::ParameterId,
     },
-    reader_proxy::{
-        ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy,
-        WriterAssociatedReaderProxy,
-    },
-    types::{ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator},
+    reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
+    types::{ChangeKind, Guid, Locator},
     writer::RtpsWriter,
 };
 
@@ -90,7 +86,6 @@ impl RtpsStatefulWriter {
     }
 
     pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
-        let sequence_number = change.sequence_number();
         match self.writer.get_qos().durability.kind {
             DurabilityQosPolicyKind::Volatile => {
                 if !self.matched_readers.is_empty() {
@@ -98,17 +93,6 @@ impl RtpsStatefulWriter {
                 }
             }
             DurabilityQosPolicyKind::TransientLocal => self.writer.add_change(change),
-        }
-
-        for reader_proxy in &mut self.matched_readers {
-            let status = if self.writer.push_mode() {
-                ChangeForReaderStatusKind::Unsent
-            } else {
-                ChangeForReaderStatusKind::Unacknowledged
-            };
-            reader_proxy
-                .changes_for_reader_mut()
-                .push(RtpsChangeForReader::new(status, true, sequence_number))
         }
     }
 
@@ -119,33 +103,12 @@ impl RtpsStatefulWriter {
         self.writer.remove_change(f)
     }
 
-    pub fn matched_reader_add(&mut self, mut a_reader_proxy: RtpsReaderProxy) {
+    pub fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
         if !self
             .matched_readers
             .iter()
             .any(|x| x.remote_reader_guid() == a_reader_proxy.remote_reader_guid())
         {
-            let status = if self.writer.push_mode() {
-                ChangeForReaderStatusKind::Unsent
-            } else {
-                ChangeForReaderStatusKind::Unacknowledged
-            };
-
-            let is_relevant = match a_reader_proxy.durability() {
-                DurabilityKind::Volatile => false,
-                DurabilityKind::TransientLocal => true,
-            };
-
-            for change in self.writer.change_list() {
-                a_reader_proxy
-                    .changes_for_reader_mut()
-                    .push(RtpsChangeForReader::new(
-                        status,
-                        is_relevant,
-                        change.sequence_number(),
-                    ));
-            }
-
             self.matched_readers.push(a_reader_proxy)
         }
     }
@@ -161,24 +124,6 @@ impl RtpsStatefulWriter {
             .iter_mut()
             .map(|x| WriterAssociatedReaderProxy::new(writer, x))
             .collect()
-    }
-
-    pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
-        for matched_reader in self.matched_readers.iter() {
-            if let Some(cc) = matched_reader
-                .changes_for_reader()
-                .iter()
-                .find(|x| x.sequence_number() == a_change.sequence_number())
-            {
-                if cc.is_relevant() && cc.status() != ChangeForReaderStatusKind::Acknowledged {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-
-        true
     }
 
     pub fn register_instance_w_timestamp(
@@ -298,41 +243,5 @@ impl RtpsStatefulWriter {
 
     pub fn get_qos(&self) -> &DataWriterQos {
         self.writer.get_qos()
-    }
-
-    pub fn on_acknack_submessage_received(
-        &mut self,
-        acknack_submessage: &AckNackSubmessageRead,
-        src_guid_prefix: GuidPrefix,
-    ) {
-        if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(src_guid_prefix, acknack_submessage.reader_id());
-
-            if let Some(reader_proxy) = self
-                .matched_readers
-                .iter_mut()
-                .find(|x| x.remote_reader_guid() == reader_guid)
-            {
-                reader_proxy.receive_acknack(acknack_submessage);
-            }
-        }
-    }
-
-    pub fn on_nack_frag_submessage_received(
-        &mut self,
-        nackfrag_submessage: &NackFragSubmessageRead,
-        src_guid_prefix: GuidPrefix,
-    ) {
-        if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(src_guid_prefix, nackfrag_submessage.reader_id());
-
-            if let Some(reader_proxy) = self
-                .matched_readers
-                .iter_mut()
-                .find(|x| x.remote_reader_guid() == reader_guid)
-            {
-                reader_proxy.receive_nack_frag(nackfrag_submessage);
-            }
-        }
     }
 }

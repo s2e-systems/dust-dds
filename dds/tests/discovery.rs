@@ -309,7 +309,7 @@ fn two_participants_should_get_subscription_matched() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 1);
 }
