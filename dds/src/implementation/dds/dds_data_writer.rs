@@ -421,7 +421,21 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 .iter_mut()
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
-                reader_proxy.receive_acknack(acknack_submessage);
+                match reader_proxy.reliability() {
+                    ReliabilityKind::BestEffort => (),
+                    ReliabilityKind::Reliable => {
+                        if acknack_submessage.count() > reader_proxy.last_received_acknack_count() {
+                            reader_proxy
+                                .acked_changes_set(acknack_submessage.reader_sn_state().base - 1);
+                            reader_proxy.requested_changes_set(
+                                acknack_submessage.reader_sn_state().set.as_ref(),
+                            );
+
+                            reader_proxy
+                                .set_last_received_acknack_count(acknack_submessage.count());
+                        }
+                    }
+                }
             }
         }
     }
@@ -440,7 +454,18 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 .iter_mut()
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
-                reader_proxy.receive_nack_frag(nackfrag_submessage);
+                match reader_proxy.reliability() {
+                    ReliabilityKind::BestEffort => (),
+                    ReliabilityKind::Reliable => {
+                        if nackfrag_submessage.count()
+                            > reader_proxy.last_received_nack_frag_count()
+                        {
+                            reader_proxy.requested_changes_set(&[nackfrag_submessage.writer_sn()]);
+                            reader_proxy
+                                .set_last_received_nack_frag_count(nackfrag_submessage.count());
+                        }
+                    }
+                }
             }
         }
     }

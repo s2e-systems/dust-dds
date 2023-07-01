@@ -2,8 +2,7 @@ use super::{
     messages::{
         overall_structure::RtpsSubmessageWriteKind,
         submessages::{
-            ack_nack::AckNackSubmessageRead, heartbeat::HeartbeatSubmessageWrite,
-            heartbeat_frag::HeartbeatFragSubmessageWrite, nack_frag::NackFragSubmessageRead,
+            heartbeat::HeartbeatSubmessageWrite, heartbeat_frag::HeartbeatFragSubmessageWrite,
         },
         types::{Count, FragmentNumber},
     },
@@ -279,29 +278,19 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         self.reader_proxy.first_relevant_sample_seq_num = seq_num;
     }
 
-    pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessageRead) {
-        match self.reader_proxy.reliability {
-            ReliabilityKind::BestEffort => (),
-            ReliabilityKind::Reliable => {
-                if acknack_submessage.count() > self.reader_proxy.last_received_acknack_count {
-                    self.acked_changes_set(acknack_submessage.reader_sn_state().base - 1);
-                    self.requested_changes_set(acknack_submessage.reader_sn_state().set.as_ref());
-
-                    self.reader_proxy.last_received_acknack_count = acknack_submessage.count();
-                }
-            }
-        }
+    pub fn last_received_acknack_count(&self) -> Count {
+        self.reader_proxy.last_received_acknack_count
     }
 
-    pub fn receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessageRead) {
-        match self.reader_proxy.reliability {
-            ReliabilityKind::BestEffort => (),
-            ReliabilityKind::Reliable => {
-                if nack_frag_submessage.count() > self.reader_proxy.last_received_nack_frag_count {
-                    self.requested_changes_set(&[nack_frag_submessage.writer_sn()]);
-                    self.reader_proxy.last_received_nack_frag_count = nack_frag_submessage.count();
-                }
-            }
-        }
+    pub fn set_last_received_acknack_count(&mut self, count: Count) {
+        self.reader_proxy.last_received_acknack_count = count;
+    }
+
+    pub fn last_received_nack_frag_count(&self) -> Count {
+        self.reader_proxy.last_received_nack_frag_count
+    }
+
+    pub fn set_last_received_nack_frag_count(&mut self, count: Count) {
+        self.reader_proxy.last_received_nack_frag_count = count;
     }
 }
