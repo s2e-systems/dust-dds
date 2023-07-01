@@ -182,7 +182,7 @@ pub struct WriterHistoryCache {
 impl WriterHistoryCache {
     pub fn new() -> Self {
         Self {
-            changes: Vec::new(),
+            changes: Vec::with_capacity(65536),
         }
     }
 
