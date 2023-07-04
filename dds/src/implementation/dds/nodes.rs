@@ -90,6 +90,19 @@ impl DataReaderNode {
     pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {
         &self.parent_participant
     }
+
+    pub fn topic_address(&self) -> ActorAddress<DdsTopic> {
+        self.parent_participant
+            .get_user_defined_topic_list()
+            .expect("should never fail")
+            .iter()
+            .find(|t| {
+                t.get_type_name() == self.this.get_type_name()
+                    && t.get_name() == self.this.get_topic_name()
+            })
+            .expect("should always exist")
+            .clone()
+    }
 }
 
 impl AnyDataReader for DataReaderNode {}
