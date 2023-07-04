@@ -829,20 +829,21 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 let a_change_seq_num = reader_proxy.next_unsent_change().expect("Should be Some");
 
                 if a_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
-                    let gap_set = (i64::from(reader_proxy.highest_sent_seq_num()) + 2
-                        ..i64::from(a_change_seq_num) - 1)
-                        .map(SequenceNumber::new)
-                        .collect();
-                    let gap_submessage = GapSubmessageWrite::new(
-                        reader_id,
-                        reader_proxy.writer().guid().entity_id(),
-                        reader_proxy.highest_sent_seq_num() + 1,
-                        SequenceNumberSet::new(
+                    let highest_sent_seq_num = i64::from(reader_proxy.highest_sent_seq_num());
+                    let change_seq_num = i64::from(a_change_seq_num);
+                    let gap_set: Vec<_> = (highest_sent_seq_num + 2 .. change_seq_num - 1).collect();
+                    for gap_set_chunk in gap_set.chunks(256) {
+                        let gap_submessage = GapSubmessageWrite::new(
+                            reader_id,
+                            reader_proxy.writer().guid().entity_id(),
                             reader_proxy.highest_sent_seq_num() + 1,
-                            gap_set,
-                        ),
-                    );
-                    submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+                            SequenceNumberSet::new(
+                                SequenceNumber::new(gap_set_chunk[0]),
+                                gap_set_chunk.iter().cloned().map(SequenceNumber::new).collect(),
+                            ),
+                        );
+                        submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+                    }
                 }
 
                 let cache_change = reader_proxy
