@@ -1,3 +1,5 @@
+use std::io::BufRead;
+
 use super::{
     overall_structure::{EndianWriteBytes, FromBytes, WriteBytes},
     types::{ParameterId, Time},
@@ -7,18 +9,16 @@ use crate::implementation::{
     rtps::{
         messages::types::{Count, FragmentNumber},
         types::{
-            EntityId, EntityKey, EntityKind, GuidPrefix, Locator, LocatorAddress,
-            LocatorKind, LocatorPort, ProtocolVersion, SequenceNumber, VendorId,
+            EntityId, EntityKey, EntityKind, GuidPrefix, Locator, LocatorAddress, LocatorKind,
+            LocatorPort, ProtocolVersion, SequenceNumber, VendorId,
         },
     },
 };
-use std::io::BufRead;
 
 ///
 /// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SubmessageElement<'a> {
@@ -63,7 +63,6 @@ impl EndianWriteBytes for SubmessageElement<'_> {
     }
 }
 
-
 impl EndianWriteBytes for i32 {
     fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
         E::write_i32(buf, *self);
@@ -94,13 +93,27 @@ impl EndianWriteBytes for i16 {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SequenceNumberSet {
-    pub base: SequenceNumber,
-    pub set: Vec<SequenceNumber>,
+    base: SequenceNumber,
+    set: Vec<SequenceNumber>,
 }
 
 impl SequenceNumberSet {
     pub fn new(base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
+        if let Some(&min) = set.iter().min() {
+            let max = *set.iter().max().unwrap();
+            if !(max - min < SequenceNumber::new(256) && min >= SequenceNumber::new(1)) {
+                panic!("SequenceNumber set max - min < 256 && min >= 1 must hold")
+            }
+        }
         Self { base, set }
+    }
+
+    pub fn base(&self) -> SequenceNumber {
+        self.base
+    }
+
+    pub fn set(&self) -> &[SequenceNumber] {
+        self.set.as_ref()
     }
 }
 
@@ -116,7 +129,7 @@ impl EndianWriteBytes for SequenceNumberSet {
                 num_bits = delta_n + 1;
             }
         }
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
 
         self.base.endian_write_bytes::<E>(&mut buf[0..]);
         E::write_u32(&mut buf[8..], num_bits);
@@ -153,7 +166,7 @@ impl EndianWriteBytes for FragmentNumberSet {
                 num_bits = delta_n + 1;
             }
         }
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
 
         let mut len = 0;
         len += self.base.endian_write_bytes::<E>(&mut buf[len..]);
@@ -301,7 +314,6 @@ impl EndianWriteBytes for &ParameterList {
     }
 }
 
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Data(Vec<u8>);
 
@@ -334,7 +346,6 @@ impl FromBytes for Data {
         Self::new(v.to_vec())
     }
 }
-
 
 impl FromBytes for EntityId {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
@@ -372,7 +383,7 @@ impl FromBytes for SequenceNumberSet {
         let base = ((high as i64) << 32) + low as i64;
 
         let num_bits = E::read_u32(&v[8..]);
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
         let mut bitmap = [0; 8];
         let mut buf = &v[12..];
         for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
@@ -463,7 +474,7 @@ impl FromBytes for FragmentNumberSet {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let base = E::read_u32(&v[0..]);
         let num_bits = E::read_u32(&v[4..]);
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
         let mut bitmap = [0; 8];
         let mut buf = &v[8..];
         for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {

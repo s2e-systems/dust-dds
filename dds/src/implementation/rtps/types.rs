@@ -1,7 +1,5 @@
 use super::messages::overall_structure::EndianWriteBytes;
-use crate::implementation::{
-    data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS,
-};
+use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS;
 use std::{
     io::Read,
     ops::{Add, AddAssign, Sub, SubAssign},
@@ -436,7 +434,6 @@ pub enum ReliabilityKind {
 /// Type used to represent the identity of a data-object whose changes in value are communicated by the RTPS protocol.
 // Defined elsewhere in DDS
 
-
 /// ProtocolVersion_t
 /// Type used to represent the version of the RTPS protocol. The version is composed of a major and a minor version number. See also 8.6.
 /// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
@@ -505,7 +502,6 @@ impl EndianWriteBytes for VendorId {
 
 pub const _VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
 pub const VENDOR_ID_S2E: VendorId = VendorId([0x01, 0x14]);
-
 
 /// Additionally defined here (should move to DDS)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
