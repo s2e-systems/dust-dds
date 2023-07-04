@@ -472,12 +472,12 @@ impl RtpsStatefulReader {
             .find(|x| x.remote_writer_guid() == writer_guid)
         {
             for seq_num in
-                i64::from(gap_submessage.gap_start())..i64::from(gap_submessage.gap_list().base)
+                i64::from(gap_submessage.gap_start())..i64::from(gap_submessage.gap_list().base())
             {
                 writer_proxy.irrelevant_change_set(SequenceNumber::new(seq_num))
             }
 
-            for seq_num in &gap_submessage.gap_list().set {
+            for seq_num in gap_submessage.gap_list().set() {
                 writer_proxy.irrelevant_change_set(*seq_num)
             }
         }

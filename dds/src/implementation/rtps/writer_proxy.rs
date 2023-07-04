@@ -271,10 +271,10 @@ impl RtpsWriterProxy {
                 true,
                 reader_guid.entity_id(),
                 self.remote_writer_guid().entity_id(),
-                SequenceNumberSet {
-                    base: self.available_changes_max() + 1,
-                    set: self.missing_changes(),
-                },
+                SequenceNumberSet::new(
+                    self.available_changes_max() + 1,
+                    self.missing_changes(),
+                ),
                 self.acknack_count(),
             );
 

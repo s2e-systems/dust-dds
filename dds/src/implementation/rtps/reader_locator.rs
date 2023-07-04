@@ -35,10 +35,10 @@ fn gap_submessage<'a>(
         ENTITYID_UNKNOWN,
         writer_id,
         gap_sequence_number,
-        SequenceNumberSet {
-            base: gap_sequence_number,
-            set: vec![],
-        },
+        SequenceNumberSet::new(
+            gap_sequence_number,
+            vec![],
+        ),
     ))
 }
 
