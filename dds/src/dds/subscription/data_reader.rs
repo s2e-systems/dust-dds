@@ -565,7 +565,7 @@ impl<Foo> DataReader<Foo> {
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => Ok(Topic::new(TopicNodeKind::UserDefined(
-                TopicNode::new(dr.topic_address().clone(), dr.parent_participant().clone()),
+                TopicNode::new(dr.topic_address(), dr.parent_participant().clone()),
             ))),
         }
     }
