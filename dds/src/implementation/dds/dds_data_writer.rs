@@ -671,52 +671,66 @@ impl DdsDataWriter<RtpsStatefulWriter> {
 
         // a_change_seq_num := the_reader_proxy.next_unsent_change();
         // if ( a_change_seq_num > the_reader_proxy.higuest_sent_seq_num +1 ) {
-        // GAP = new GAP(the_reader_locator.higuest_sent_seq_num + 1,
-        // a_change_seq_num -1);
-        // GAP.readerId := ENTITYID_UNKNOWN;
-        // GAP.filteredCount := 0;
-        // send GAP;
+        //      GAP = new GAP(the_reader_locator.higuest_sent_seq_num + 1, a_change_seq_num -1);
+        //      GAP.readerId := ENTITYID_UNKNOWN;
+        //      GAP.filteredCount := 0;
+        //      send GAP;
         // }
         // a_change := the_writer.writer_cache.get_change(a_change_seq_num );
         // if ( DDS_FILTER(the_reader_proxy, a_change) ) {
-        // DATA = new DATA(a_change);
-        // IF (the_reader_proxy.expectsInlineQos) {
-        // DATA.inlineQos := the_rtps_writer.related_dds_writer.qos;
-        // DATA.inlineQos += a_change.inlineQos;
-        // }
-        // DATA.readerId := ENTITYID_UNKNOWN;
-        // send DATA;
+        //      DATA = new DATA(a_change);
+        //      IF (the_reader_proxy.expectsInlineQos) {
+        //          DATA.inlineQos := the_rtps_writer.related_dds_writer.qos;
+        //          DATA.inlineQos += a_change.inlineQos;
+        //      }
+        //      DATA.readerId := ENTITYID_UNKNOWN;
+        //      send DATA;
         // }
         // else {
-        // GAP = new GAP(a_change.sequenceNumber);
-        // GAP.readerId := ENTITYID_UNKNOWN;
-        // GAP.filteredCount := 1;
-        // send GAP;
+        //      GAP = new GAP(a_change.sequenceNumber);
+        //      GAP.readerId := ENTITYID_UNKNOWN;
+        //      GAP.filteredCount := 1;
+        //      send GAP;
         // }
         // the_reader_proxy.higuest_sent_seq_num := a_change_seq_num;
 
         while reader_proxy.unsent_changes() {
             // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
             // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
+            // a_change_seq_num := the_reader_proxy.next_unsent_change();
+            // if ( a_change_seq_num > the_reader_proxy.higuest_sent_seq_num +1 ) {
+            //      GAP = new GAP(the_reader_locator.higuest_sent_seq_num + 1,
+            //      a_change_seq_num -1);
+            //      GAP.readerId := ENTITYID_UNKNOWN;
+            //      GAP.filteredCount := 0;
+            //      send GAP;
+            // }
+            // a_change := the_writer.writer_cache.get_change(a_change_seq_num );
+            // if ( DDS_FILTER(the_reader_proxy, a_change) ) {
+            //      DATA = new DATA(a_change);
+            //      IF (the_reader_proxy.expectsInlineQos) {
+            //          DATA.inlineQos := the_rtps_writer.related_dds_writer.qos;
+            //          DATA.inlineQos += a_change.inlineQos;
+            //      }
+            //      DATA.readerId := ENTITYID_UNKNOWN;
+            //      send DATA;
+            // }
+            // else {
+            //      GAP = new GAP(a_change.sequenceNumber);
+            //      GAP.readerId := ENTITYID_UNKNOWN;
+            //      GAP.filteredCount := 1;
+            //      send GAP;
+            // }
+            // the_reader_proxy.higuest_sent_seq_num := a_change_seq_num;
             let reader_id = reader_proxy.remote_reader_guid().entity_id();
             let a_change_seq_num = reader_proxy.next_unsent_change().expect("Should be Some");
 
             if a_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
-                let highest_sent_seq_num = i64::from(reader_proxy.highest_sent_seq_num());
-                let change_seq_num = i64::from(a_change_seq_num);
-                let gap_set: Vec<_> = (highest_sent_seq_num + 2 .. change_seq_num - 1).collect();
-                for gap_set_chunk in gap_set.chunks(256) {
-                    let gap_submessage = GapSubmessageWrite::new(
-                        reader_id,
-                        reader_proxy.writer().guid().entity_id(),
-                        reader_proxy.highest_sent_seq_num() + 1,
-                        SequenceNumberSet::new(
-                            SequenceNumber::new(gap_set_chunk[0]),
-                            gap_set_chunk.iter().cloned().map(SequenceNumber::new).collect(),
-                        ),
-                    );
-                    submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
-                }
+                submessages.push(gap_submessage_from_sequence_number_range(
+                    reader_proxy.writer().guid().entity_id(),
+                    reader_proxy.highest_sent_seq_num() + 1,
+                    a_change_seq_num - 1,
+                ));
             }
             let cache_change = reader_proxy
                 .writer()
@@ -776,16 +790,10 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                     }
                 }
                 _ => {
-                    let gap_submessage = GapSubmessageWrite::new(
-                        reader_id,
+                    submessages.push(gap_submessage_from_sequence_number(
                         reader_proxy.writer().guid().entity_id(),
                         a_change_seq_num,
-                        SequenceNumberSet::new(
-                            a_change_seq_num,
-                            vec![],
-                        ),
-                    );
-                    submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+                    ));
                 }
             }
 
@@ -829,21 +837,11 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 let a_change_seq_num = reader_proxy.next_unsent_change().expect("Should be Some");
 
                 if a_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
-                    let highest_sent_seq_num = i64::from(reader_proxy.highest_sent_seq_num());
-                    let change_seq_num = i64::from(a_change_seq_num);
-                    let gap_set: Vec<_> = (highest_sent_seq_num + 2 .. change_seq_num - 1).collect();
-                    for gap_set_chunk in gap_set.chunks(256) {
-                        let gap_submessage = GapSubmessageWrite::new(
-                            reader_id,
-                            reader_proxy.writer().guid().entity_id(),
-                            reader_proxy.highest_sent_seq_num() + 1,
-                            SequenceNumberSet::new(
-                                SequenceNumber::new(gap_set_chunk[0]),
-                                gap_set_chunk.iter().cloned().map(SequenceNumber::new).collect(),
-                            ),
-                        );
-                        submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
-                    }
+                    submessages.push(gap_submessage_from_sequence_number_range(
+                        writer_id,
+                        reader_proxy.highest_sent_seq_num() + 1,
+                        a_change_seq_num - 1,
+                    ));
                 }
 
                 let cache_change = reader_proxy
@@ -906,16 +904,10 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                         }
                     }
                     _ => {
-                        let gap_submessage = GapSubmessageWrite::new(
-                            reader_id,
+                        submessages.push(gap_submessage_from_sequence_number(
                             reader_proxy.writer().guid().entity_id(),
                             a_change_seq_num,
-                            SequenceNumberSet::new(
-                                a_change_seq_num,
-                                vec![],
-                            ),
-                        );
-                        submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+                        ));
                     }
                 }
 
@@ -978,17 +970,10 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                         }
                     }
                     _ => {
-                        let gap_submessage = GapSubmessageWrite::new(
-                            reader_id,
+                        submessages.push(gap_submessage_from_sequence_number(
                             reader_proxy.writer().guid().entity_id(),
                             next_requested_change_seq_num,
-                            SequenceNumberSet::new(
-                                next_requested_change_seq_num + 1,
-                                vec![],
-                            ),
-                        );
-
-                        submessages.push(RtpsSubmessageWriteKind::Gap(gap_submessage));
+                        ));
                     }
                 }
             }
@@ -1466,8 +1451,10 @@ impl DdsDataWriter<RtpsStatelessWriter> {
                 submessages.push(info_ts_submessage);
                 submessages.push(RtpsSubmessageWriteKind::Data(data_submessage));
             } else {
-                let gap_submessage = Self::gap_submessage(writer_id, change.sequence_number());
-                submessages.push(gap_submessage);
+                submessages.push(gap_submessage_from_sequence_number(
+                    writer_id,
+                    change.sequence_number(),
+                ));
             }
         }
         if !submessages.is_empty() {
@@ -1480,21 +1467,6 @@ impl DdsDataWriter<RtpsStatelessWriter> {
         }
     }
 
-    fn gap_submessage<'a>(
-        writer_id: EntityId,
-        gap_sequence_number: SequenceNumber,
-    ) -> RtpsSubmessageWriteKind<'a> {
-        RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
-            ENTITYID_UNKNOWN,
-            writer_id,
-            gap_sequence_number,
-            SequenceNumberSet::new(
-                gap_sequence_number,
-                vec![],
-            ),
-        ))
-    }
-
     fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
         RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
             false,
@@ -1504,4 +1476,29 @@ impl DdsDataWriter<RtpsStatelessWriter> {
             ),
         ))
     }
+}
+
+fn gap_submessage_from_sequence_number<'a>(
+    writer_id: EntityId,
+    gap_sequence_number: SequenceNumber,
+) -> RtpsSubmessageWriteKind<'a> {
+    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
+        ENTITYID_UNKNOWN,
+        writer_id,
+        gap_sequence_number,
+        SequenceNumberSet::new(gap_sequence_number + 1, vec![]),
+    ))
+}
+
+fn gap_submessage_from_sequence_number_range<'a>(
+    writer_id: EntityId,
+    gap_start_sequence_number: SequenceNumber,
+    gap_end_sequence_number: SequenceNumber,
+) -> RtpsSubmessageWriteKind<'a> {
+    RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
+        ENTITYID_UNKNOWN,
+        writer_id,
+        gap_start_sequence_number,
+        SequenceNumberSet::new(gap_end_sequence_number + 1, vec![]),
+    ))
 }
