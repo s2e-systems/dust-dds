@@ -1,7 +1,10 @@
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-        dds::{dds_domain_participant::DdsDomainParticipant, nodes::DataReaderNodeKind},
+        dds::{
+            dds_domain_participant::DdsDomainParticipant,
+            nodes::{DataReaderNodeKind, TopicNode, TopicNodeKind},
+        },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::ActorAddress,
     },
@@ -557,20 +560,14 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     pub fn get_topicdescription(&self) -> DdsResult<Topic<Foo>> {
-        todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&r.guid().prefix(), |dp| {
-        //             let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-        //             Ok(Topic::new(TopicNodeKind::UserDefined(
-        //                 crate::implementation::behavior::user_defined_data_reader::get_topicdescription(dp, r.guid(),
-        //                 r.parent_subscriber(),)?,
-        //             )))
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
+        match &self.0 {
+            DataReaderNodeKind::_BuiltinStateful(dr)
+            | DataReaderNodeKind::_BuiltinStateless(dr)
+            | DataReaderNodeKind::UserDefined(dr)
+            | DataReaderNodeKind::Listener(dr) => Ok(Topic::new(TopicNodeKind::UserDefined(
+                TopicNode::new(dr.topic_address(), dr.parent_participant().clone()),
+            ))),
+        }
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
@@ -724,10 +721,9 @@ impl<Foo> DataReader<Foo> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateful(dr)
             | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr) => dr
-                .address()
-                .get_statuscondition()
-                .map(StatusCondition::new),
+            | DataReaderNodeKind::UserDefined(dr) => {
+                dr.address().get_statuscondition().map(StatusCondition::new)
+            }
             DataReaderNodeKind::Listener(_) => todo!(),
         }
     }

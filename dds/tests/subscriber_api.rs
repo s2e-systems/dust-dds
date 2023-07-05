@@ -123,3 +123,26 @@ fn different_readers_have_different_instance_handles() {
         reader2_2.get_instance_handle()
     );
 }
+
+#[test]
+fn data_reader_get_topicdescription() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<UserType>("default_data_writer_qos", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Default, None, &[])
+        .unwrap();
+
+    assert!(reader.get_topicdescription().unwrap() == topic);
+}

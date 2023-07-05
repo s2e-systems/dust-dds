@@ -14,17 +14,20 @@ use super::{
     dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
 };
 
+#[derive(Clone, PartialEq, Eq)]
 pub enum SubscriberNodeKind {
     Builtin(SubscriberNode),
     UserDefined(SubscriberNode),
     Listener(SubscriberNode),
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub enum DataWriterNodeKind {
     UserDefined(DataWriterNode),
     Listener(DataWriterNode),
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub enum DataReaderNodeKind {
     _BuiltinStateful(DataReaderNode),
     _BuiltinStateless(DataReaderNode),
@@ -32,11 +35,13 @@ pub enum DataReaderNodeKind {
     Listener(DataReaderNode),
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub enum TopicNodeKind {
     UserDefined(TopicNode),
     Listener(TopicNode),
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct SubscriberNode {
     this: ActorAddress<DdsSubscriber>,
     parent: ActorAddress<DdsDomainParticipant>,
@@ -59,7 +64,7 @@ impl SubscriberNode {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DataReaderNode {
     this: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
     parent_subscriber: ActorAddress<DdsSubscriber>,
@@ -90,11 +95,24 @@ impl DataReaderNode {
     pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {
         &self.parent_participant
     }
+
+    pub fn topic_address(&self) -> ActorAddress<DdsTopic> {
+        self.parent_participant
+            .get_user_defined_topic_list()
+            .expect("should never fail")
+            .iter()
+            .find(|t| {
+                t.get_type_name() == self.this.get_type_name()
+                    && t.get_name() == self.this.get_topic_name()
+            })
+            .expect("should always exist")
+            .clone()
+    }
 }
 
 impl AnyDataReader for DataReaderNode {}
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct TopicNode {
     this: ActorAddress<DdsTopic>,
     parent: ActorAddress<DdsDomainParticipant>,
@@ -116,7 +134,7 @@ impl TopicNode {
 
 impl AnyTopic for TopicNode {}
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DataWriterNode {
     this: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
     parent_publisher: ActorAddress<DdsPublisher>,
@@ -151,6 +169,7 @@ impl DataWriterNode {
 
 impl AnyDataWriter for DataWriterNode {}
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct PublisherNode {
     this: ActorAddress<DdsPublisher>,
     parent: ActorAddress<DdsDomainParticipant>,
