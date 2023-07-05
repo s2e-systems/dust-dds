@@ -44,6 +44,14 @@ impl<A> Clone for ActorAddress<A> {
     }
 }
 
+impl<A> PartialEq for ActorAddress<A> {
+    fn eq(&self, other: &Self) -> bool {
+        self.sender.same_channel(&other.sender)
+    }
+}
+
+impl<A> Eq for ActorAddress<A> {}
+
 impl<A> ActorAddress<A> {
     pub fn send_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
     where

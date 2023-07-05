@@ -28,6 +28,14 @@ pub struct Topic<Foo> {
     phantom: PhantomData<Foo>,
 }
 
+impl<Foo> PartialEq for Topic<Foo> {
+    fn eq(&self, other: &Self) -> bool {
+        self.node == other.node
+    }
+}
+
+impl<Foo> Eq for Topic<Foo> {}
+
 impl<Foo> Topic<Foo> {
     pub(crate) fn new(node: TopicNodeKind) -> Self {
         Self {
@@ -145,10 +153,9 @@ impl<Foo> Topic<Foo> {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => t
-                .address()
-                .get_statuscondition()
-                .map(StatusCondition::new),
+            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+                t.address().get_statuscondition().map(StatusCondition::new)
+            }
         }
     }
 
