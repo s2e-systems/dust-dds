@@ -33,7 +33,7 @@ pub trait CommandHandler<M> {
 
 #[derive(Debug)]
 pub struct ActorAddress<A> {
-    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
+    sender: tokio::sync::mpsc::UnboundedSender<Box<dyn GenericHandler<A> + Send>>,
 }
 
 impl<A> Clone for ActorAddress<A> {
@@ -59,13 +59,13 @@ impl<A> ActorAddress<A> {
         M: Mail + Send + 'static,
         M::Result: Send,
     {
-        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
+        let (response_sender, response_receiver) = std::sync::mpsc::channel();
 
         self.sender
-            .blocking_send(Box::new(SyncMail::new(mail, response_sender)))
+            .send(Box::new(SyncMail::new(mail, response_sender)))
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
-            .blocking_recv()
+            .recv()
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
@@ -75,7 +75,7 @@ impl<A> ActorAddress<A> {
         M: Send + 'static,
     {
         self.sender
-            .blocking_send(Box::new(CommandMail::new(command)))
+            .send(Box::new(CommandMail::new(command)))
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 }
@@ -92,7 +92,7 @@ where
     // have to be moved out and the struct. Because the struct is passed as a Boxed
     // trait object this is only feasible by using the Option fields.
     mail: Option<M>,
-    sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
+    sender: Option<std::sync::mpsc::Sender<M::Result>>,
 }
 
 impl<A, M> GenericHandler<A> for SyncMail<M>
@@ -163,14 +163,14 @@ impl<A> Drop for Actor<A> {
 
 struct SpawnedActor<A> {
     value: A,
-    mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<A> + Send>>,
+    mailbox: tokio::sync::mpsc::UnboundedReceiver<Box<dyn GenericHandler<A> + Send>>,
 }
 
 pub fn spawn_actor<A>(actor: A) -> Actor<A>
 where
     A: Send + 'static,
 {
-    let (sender, mailbox) = tokio::sync::mpsc::channel(10);
+    let (sender, mailbox) = tokio::sync::mpsc::unbounded_channel();
 
     let address = ActorAddress { sender };
 
@@ -205,7 +205,7 @@ impl<M> SyncMail<M>
 where
     M: Mail,
 {
-    fn new(message: M, sender: tokio::sync::oneshot::Sender<M::Result>) -> Self {
+    fn new(message: M, sender: std::sync::mpsc::Sender<M::Result>) -> Self {
         Self {
             mail: Some(message),
             sender: Some(sender),
