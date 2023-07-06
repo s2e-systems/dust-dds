@@ -307,10 +307,10 @@ impl RtpsWriterProxy {
                             reader_guid.entity_id(),
                             self.remote_writer_guid().entity_id(),
                             *seq_num,
-                            FragmentNumberSet {
-                                base: missing_fragment_number[0],
-                                set: missing_fragment_number,
-                            },
+                            FragmentNumberSet::new(
+                                 missing_fragment_number[0],
+                                missing_fragment_number,
+                            ),
                             self.nack_frag_count,
                         ));
 

@@ -144,12 +144,18 @@ impl EndianWriteBytes for SequenceNumberSet {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FragmentNumberSet {
-    pub base: FragmentNumber,
-    pub set: Vec<FragmentNumber>,
+    base: FragmentNumber,
+    set: Vec<FragmentNumber>,
 }
 
 impl FragmentNumberSet {
     pub fn new(base: FragmentNumber, set: Vec<FragmentNumber>) -> Self {
+        if let Some(&min) = set.iter().min() {
+            let max = *set.iter().max().unwrap();
+            if !(max - min < FragmentNumber::new(256) && min >= FragmentNumber::new(1)) {
+                panic!("FragmentNumberSet set max - min < 256 && min >= 1 must hold")
+            }
+        }
         Self { base, set }
     }
 }
