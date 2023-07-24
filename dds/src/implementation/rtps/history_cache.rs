@@ -7,7 +7,11 @@ use super::{
 };
 use crate::{
     implementation::rtps::messages::types::FragmentNumber,
-    infrastructure::{instance::InstanceHandle, time::Time},
+    infrastructure::{
+        instance::InstanceHandle,
+        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
+        time::Time,
+    },
 };
 
 pub struct RtpsWriterCacheChange {
@@ -177,12 +181,14 @@ impl RtpsWriterCacheChange {
 #[derive(Default)]
 pub struct WriterHistoryCache {
     changes: Vec<RtpsWriterCacheChange>,
+    history: HistoryQosPolicy,
 }
 
 impl WriterHistoryCache {
-    pub fn new() -> Self {
+    pub fn new(history: HistoryQosPolicy) -> Self {
         Self {
             changes: Vec::new(),
+            history,
         }
     }
 
@@ -191,6 +197,12 @@ impl WriterHistoryCache {
     }
 
     pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
+        match self.history.kind {
+            HistoryQosPolicyKind::KeepLast(depth) => {
+                self.changes.truncate(depth as usize);
+            }
+            HistoryQosPolicyKind::KeepAll => (),
+        }
         self.changes.push(change);
     }
 
@@ -221,7 +233,7 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let mut hc = WriterHistoryCache::new();
+        let mut hc = WriterHistoryCache::new(HistoryQosPolicy::default());
         let change = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -238,7 +250,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc = WriterHistoryCache::new();
+        let mut hc = WriterHistoryCache::new(HistoryQosPolicy::default());
         let change1 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -264,7 +276,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc = WriterHistoryCache::new();
+        let mut hc = WriterHistoryCache::new(HistoryQosPolicy::default());
         let change1 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,

@@ -48,7 +48,7 @@ impl RtpsWriter {
             _nack_suppression_duration: nack_suppression_duration,
             last_change_sequence_number: SequenceNumber::new(0),
             data_max_size_serialized,
-            writer_cache: WriterHistoryCache::new(),
+            writer_cache: WriterHistoryCache::new(qos.history.clone()),
             qos,
             registered_instance_list: HashMap::new(),
         }

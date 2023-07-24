@@ -187,14 +187,14 @@ mod tests {
             messages::submessage_elements::{Data, ParameterList},
             types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
         },
-        infrastructure::{instance::HANDLE_NIL, time::TIME_INVALID},
+        infrastructure::{instance::HANDLE_NIL, time::TIME_INVALID, qos_policy::HistoryQosPolicy},
     };
 
     use super::*;
 
     #[test]
     fn reader_locator_next_unsent_change() {
-        let mut hc = WriterHistoryCache::new();
+        let mut hc = WriterHistoryCache::new(HistoryQosPolicy::default());
         hc.add_change(RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
