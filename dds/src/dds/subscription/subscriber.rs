@@ -224,7 +224,7 @@ impl Subscriber {
                         if let Some(sedp_reader_announcer) = dr
                             .parent_participant()
                             .get_builtin_publisher()?
-                            .stateful_data_writer_list()?
+                            .data_writer_list()?
                             .iter()
                             .find(|x| {
                                 x.get_type_name().unwrap() == DiscoveredReaderData::type_name()
@@ -234,7 +234,7 @@ impl Subscriber {
                                 instance_serialized_key,
                                 reader_handle,
                                 timestamp,
-                            )?;
+                            )??;
 
                             sedp_reader_announcer.send_message(
                                 RtpsMessageHeader::new(

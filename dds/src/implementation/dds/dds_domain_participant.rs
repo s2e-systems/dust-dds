@@ -23,12 +23,7 @@ use crate::{
                 RtpsStatefulReader, DEFAULT_HEARTBEAT_RESPONSE_DELAY,
                 DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
             },
-            stateful_writer::{
-                RtpsStatefulWriter, DEFAULT_HEARTBEAT_PERIOD, DEFAULT_NACK_RESPONSE_DELAY,
-                DEFAULT_NACK_SUPPRESSION_DURATION,
-            },
             stateless_reader::RtpsStatelessReader,
-            stateless_writer::RtpsStatelessWriter,
             types::{
                 EntityId, EntityKey, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
                 BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
@@ -93,6 +88,10 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new(EntityKey::new([0, 0, 0x04]), BUILT_IN_READER_WITH_KEY);
+
+pub const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
+pub const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
+pub const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
 pub struct DdsDomainParticipant {
     rtps_participant: RtpsParticipant,
@@ -319,19 +318,19 @@ impl DdsDomainParticipant {
 
         builtin_publisher
             .address()
-            .stateless_datawriter_add(spdp_builtin_participant_writer)
+            .datawriter_add(spdp_builtin_participant_writer)
             .unwrap();
         builtin_publisher
             .address()
-            .stateful_datawriter_add(sedp_builtin_topics_writer_actor)
+            .datawriter_add(sedp_builtin_topics_writer_actor)
             .unwrap();
         builtin_publisher
             .address()
-            .stateful_datawriter_add(sedp_builtin_publications_writer_actor)
+            .datawriter_add(sedp_builtin_publications_writer_actor)
             .unwrap();
         builtin_publisher
             .address()
-            .stateful_datawriter_add(sedp_builtin_subscriptions_writer_actor)
+            .datawriter_add(sedp_builtin_subscriptions_writer_actor)
             .unwrap();
 
         Self {
@@ -718,7 +717,7 @@ impl DdsDomainParticipant {
 }
 }
 
-fn create_builtin_stateful_writer(guid: Guid) -> RtpsStatefulWriter {
+fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
     let topic_kind = TopicKind::WithKey;
@@ -740,7 +739,7 @@ fn create_builtin_stateful_writer(guid: Guid) -> RtpsStatefulWriter {
         },
         ..Default::default()
     };
-    RtpsStatefulWriter::new(RtpsWriter::new(
+    RtpsWriter::new(
         RtpsEndpoint::new(
             guid,
             topic_kind,
@@ -753,10 +752,10 @@ fn create_builtin_stateful_writer(guid: Guid) -> RtpsStatefulWriter {
         nack_suppression_duration,
         data_max_size_serialized,
         qos,
-    ))
+    )
 }
 
-fn create_builtin_stateless_writer(guid: Guid) -> RtpsStatelessWriter {
+fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
     let qos = DataWriterQos {
@@ -772,7 +771,7 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsStatelessWriter {
         },
         ..Default::default()
     };
-    RtpsStatelessWriter::new(RtpsWriter::new(
+    RtpsWriter::new(
         RtpsEndpoint::new(
             guid,
             TopicKind::WithKey,
@@ -785,7 +784,7 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsStatelessWriter {
         DURATION_ZERO,
         usize::MAX,
         qos,
-    ))
+    )
 }
 
 fn create_builtin_stateless_reader<Foo>(guid: Guid) -> RtpsStatelessReader

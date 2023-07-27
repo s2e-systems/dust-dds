@@ -133,12 +133,7 @@ impl DomainParticipant {
             ));
         }
 
-        if !a_publisher
-            .node()
-            .address()
-            .stateful_data_writer_list()?
-            .is_empty()
-        {
+        if !a_publisher.node().address().data_writer_list()?.is_empty() {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher still contains data writers".to_string(),
             ));
@@ -280,7 +275,7 @@ impl DomainParticipant {
                 }
 
                 for publisher in self.0.get_user_defined_publisher_list()? {
-                    if publisher.stateful_data_writer_list()?.iter().any(|w| {
+                    if publisher.data_writer_list()?.iter().any(|w| {
                         w.get_type_name() == t.address().get_type_name()
                             && w.get_topic_name() == t.address().get_name()
                     }) {
@@ -752,20 +747,8 @@ impl DomainParticipant {
                 stateful_builtin_reader.enable()?;
             }
 
-            for stateless_builtin_writer in self
-                .0
-                .get_builtin_publisher()?
-                .stateless_datawriter_list()?
-            {
-                stateless_builtin_writer.enable()?;
-            }
-
-            for stateful_builtin_writer in self
-                .0
-                .get_builtin_publisher()?
-                .stateful_data_writer_list()?
-            {
-                stateful_builtin_writer.enable()?;
+            for builtin_writer in self.0.get_builtin_publisher()?.data_writer_list()? {
+                builtin_writer.enable()?;
             }
 
             self.0.enable()?;
@@ -779,10 +762,8 @@ impl DomainParticipant {
                     let r: DdsResult<()> = tokio::task::block_in_place(|| {
                         let builtin_publisher =
                             domain_participant_address.get_builtin_publisher()?;
-                        if let Some(participant_announcer) = builtin_publisher
-                            .stateless_datawriter_list()?
-                            .iter()
-                            .find(|dw| {
+                        if let Some(participant_announcer) =
+                            builtin_publisher.data_writer_list()?.iter().find(|dw| {
                                 if let Ok(name) = dw.get_type_name() {
                                     name == SpdpDiscoveredParticipantData::type_name()
                                 } else {
@@ -800,7 +781,7 @@ impl DomainParticipant {
                                 spdp_discovered_participant_data.get_serialized_key(),
                                 None,
                                 timestamp,
-                            )?;
+                            )??;
 
                             participant_announcer.send_message(
                                 RtpsMessageHeader::new(
@@ -809,6 +790,7 @@ impl DomainParticipant {
                                     domain_participant_address.get_guid()?.prefix(),
                                 ),
                                 domain_participant_address.get_udp_transport_write()?,
+                                timestamp,
                             )?;
                         }
 

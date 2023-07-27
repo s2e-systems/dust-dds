@@ -28,7 +28,6 @@ use crate::{
             participant::RtpsParticipant,
             reader_proxy::RtpsReaderProxy,
             stateful_reader::RtpsStatefulReader,
-            stateful_writer::RtpsStatefulWriter,
             types::{
                 DurabilityKind, Guid, GuidPrefix, Locator, LocatorAddress, LocatorPort,
                 ReliabilityKind, SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
@@ -381,10 +380,10 @@ impl DomainParticipantFactory {
 }
 
 fn lookup_data_writer_by_topic_name(
-    stateful_writer_list: &[ActorAddress<DdsDataWriter<RtpsStatefulWriter>>],
+    writer_list: &[ActorAddress<DdsDataWriter>],
     topic_name: &str,
-) -> Option<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
-    stateful_writer_list
+) -> Option<ActorAddress<DdsDataWriter>> {
+    writer_list
         .iter()
         .find(|dw| {
             if let Ok(t) = dw.get_topic_name() {
@@ -413,7 +412,7 @@ fn lookup_data_reader_by_topic_name(
 }
 
 fn add_matched_publications_detector(
-    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    writer: &ActorAddress<DdsDataWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -483,7 +482,7 @@ fn add_matched_publications_announcer(
 }
 
 fn add_matched_subscriptions_detector(
-    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    writer: &ActorAddress<DdsDataWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -552,7 +551,7 @@ fn add_matched_subscriptions_announcer(
 }
 
 fn add_matched_topics_detector(
-    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    writer: &ActorAddress<DdsDataWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -645,7 +644,7 @@ fn process_user_defined_data(
     }
 
     for user_defined_publisher in participant_address.get_user_defined_publisher_list()? {
-        for user_defined_data_writer in user_defined_publisher.stateful_data_writer_list()? {
+        for user_defined_data_writer in user_defined_publisher.data_writer_list()? {
             user_defined_data_writer.process_rtps_message(message.clone())?;
             user_defined_data_writer.send_message(
                 RtpsMessageHeader::new(
@@ -716,7 +715,7 @@ fn process_spdp_metatraffic(
                     // Process any new participant discovery (add/remove matched proxies)
                     let builtin_data_writer_list = participant_address
                         .get_builtin_publisher()?
-                        .stateful_data_writer_list()?;
+                        .data_writer_list()?;
                     let builtin_data_reader_list = participant_address
                         .get_builtin_subscriber()?
                         .stateful_data_reader_list()?;
@@ -827,7 +826,7 @@ fn process_sedp_metatraffic(
     let builtin_subscriber = participant_address.get_builtin_subscriber()?;
     let builtin_publisher = participant_address.get_builtin_publisher()?;
 
-    for stateful_builtin_writer in builtin_publisher.stateful_data_writer_list()? {
+    for stateful_builtin_writer in builtin_publisher.data_writer_list()? {
         stateful_builtin_writer.process_rtps_message(message.clone())?;
         stateful_builtin_writer.send_message(
             RtpsMessageHeader::new(
@@ -1115,7 +1114,7 @@ pub fn discover_matched_readers(
                                 || is_partition_string_matched
                             {
                                 for data_writer in
-                                    user_defined_publisher_address.stateful_data_writer_list()?
+                                    user_defined_publisher_address.data_writer_list()?
                                 {
                                     data_writer.add_matched_reader(
                                         discovered_reader_data.clone(),
@@ -1144,7 +1143,7 @@ pub fn discover_matched_readers(
         }
         InstanceStateKind::NotAliveDisposed => {
             for publisher in participant_address.get_user_defined_publisher_list()? {
-                for data_writer in publisher.stateful_data_writer_list()? {
+                for data_writer in publisher.data_writer_list()? {
                     data_writer.remove_matched_reader(
                         discovered_reader_sample.sample_info.instance_handle,
                         data_writer.clone(),

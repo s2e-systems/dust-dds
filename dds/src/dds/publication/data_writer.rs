@@ -193,7 +193,7 @@ where
                         instance_serialized_key,
                         instance_handle,
                         timestamp,
-                    )
+                    )?
                 }
             }
         } else {
@@ -219,9 +219,9 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.address().lookup_instance(instance.get_serialized_key())
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .address()
+                .lookup_instance(instance.get_serialized_key())?,
         }
     }
 
@@ -286,7 +286,7 @@ where
                     data.get_serialized_key(),
                     handle,
                     timestamp,
-                )?;
+                )??;
 
                 dw.address().send_message(
                     RtpsMessageHeader::new(
@@ -366,7 +366,7 @@ where
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
                 .address()
-                .dispose_w_timestamp(instance_serialized_key, instance_handle, timestamp),
+                .dispose_w_timestamp(instance_serialized_key, instance_handle, timestamp)?,
         }
     }
 }
@@ -632,10 +632,9 @@ where
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) => dw
-                .address()
-                .get_statuscondition()
-                .map(StatusCondition::new),
+            DataWriterNodeKind::UserDefined(dw) => {
+                dw.address().get_statuscondition().map(StatusCondition::new)
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -724,7 +723,7 @@ fn announce_data_writer(
 
     if let Some(sedp_writer_announcer) = domain_participant
         .get_builtin_publisher()?
-        .stateful_data_writer_list()?
+        .data_writer_list()?
         .iter()
         .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
     {
@@ -733,7 +732,7 @@ fn announce_data_writer(
             discovered_writer_data.get_serialized_key(),
             None,
             timestamp,
-        )?;
+        )??;
 
         sedp_writer_announcer.send_message(
             RtpsMessageHeader::new(

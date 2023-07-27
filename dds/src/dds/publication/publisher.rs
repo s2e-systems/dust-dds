@@ -10,7 +10,6 @@ use crate::{
         rtps::{
             endpoint::RtpsEndpoint,
             messages::overall_structure::RtpsMessageHeader,
-            stateful_writer::RtpsStatefulWriter,
             types::{
                 EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY,
                 USER_DEFINED_WRITER_WITH_KEY,
@@ -129,7 +128,7 @@ impl Publisher {
             false => TopicKind::NoKey,
         };
 
-        let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
+        let rtps_writer_impl = RtpsWriter::new(
             RtpsEndpoint::new(
                 guid,
                 topic_kind,
@@ -142,7 +141,7 @@ impl Publisher {
             DURATION_ZERO,
             data_max_size_serialized,
             qos,
-        ));
+        );
         let topic_name = a_topic.get_name()?;
         let listener = a_listener.map(|l| spawn_actor(DdsDataWriterListener::new(Box::new(l))));
         let status_kind = mask.to_vec();
@@ -155,9 +154,7 @@ impl Publisher {
         );
         let data_writer_actor = spawn_actor(data_writer);
         let data_writer_address = data_writer_actor.address().clone();
-        self.0
-            .address()
-            .stateful_datawriter_add(data_writer_actor)?;
+        self.0.address().datawriter_add(data_writer_actor)?;
         let data_writer = DataWriter::new(DataWriterNodeKind::UserDefined(DataWriterNode::new(
             data_writer_address,
             self.0.address().clone(),
@@ -196,7 +193,7 @@ impl Publisher {
                 }
 
                 let writer_is_enabled = dw.address().is_enabled()?;
-                self.0.address().stateful_datawriter_delete(writer_handle)?;
+                self.0.address().datawriter_delete(writer_handle)?;
 
                 // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
                 if writer_is_enabled {
@@ -211,7 +208,7 @@ impl Publisher {
                     if let Some(sedp_writer_announcer) = dw
                         .parent_participant()
                         .get_builtin_publisher()?
-                        .stateful_data_writer_list()?
+                        .data_writer_list()?
                         .iter()
                         .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
                     {
@@ -219,7 +216,7 @@ impl Publisher {
                             instance_serialized_key,
                             writer_handle,
                             timestamp,
-                        )?;
+                        )??;
 
                         sedp_writer_announcer.send_message(
                             RtpsMessageHeader::new(

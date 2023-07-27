@@ -1,8 +1,5 @@
 use crate::{
-    implementation::{
-        rtps::{stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter},
-        utils::actor::ActorAddress,
-    },
+    implementation::{rtps::stateful_reader::RtpsStatefulReader, utils::actor::ActorAddress},
     publication::data_writer::AnyDataWriter,
     subscription::data_reader::AnyDataReader,
     topic_definition::topic::AnyTopic,
@@ -136,14 +133,14 @@ impl AnyTopic for TopicNode {}
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DataWriterNode {
-    this: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    this: ActorAddress<DdsDataWriter>,
     parent_publisher: ActorAddress<DdsPublisher>,
     parent_participant: ActorAddress<DdsDomainParticipant>,
 }
 
 impl DataWriterNode {
     pub fn new(
-        this: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+        this: ActorAddress<DdsDataWriter>,
         parent_publisher: ActorAddress<DdsPublisher>,
         parent_participant: ActorAddress<DdsDomainParticipant>,
     ) -> Self {
@@ -154,7 +151,7 @@ impl DataWriterNode {
         }
     }
 
-    pub fn address(&self) -> &ActorAddress<DdsDataWriter<RtpsStatefulWriter>> {
+    pub fn address(&self) -> &ActorAddress<DdsDataWriter> {
         &self.this
     }
 

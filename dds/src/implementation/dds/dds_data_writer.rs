@@ -1,11 +1,19 @@
 use std::collections::{HashMap, HashSet};
 
+use serde::Serialize;
+
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+        },
+        data_representation_inline_qos::{
+            parameter_id_values::PID_STATUS_INFO,
+            types::{
+                STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
+            },
         },
         rtps::{
             history_cache::{DataFragSubmessages, RtpsWriterCacheChange},
@@ -14,28 +22,27 @@ use crate::{
                     RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
                     RtpsSubmessageWriteKind,
                 },
-                submessage_elements::{ParameterList, SequenceNumberSet},
+                submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
                 submessages::{
                     ack_nack::AckNackSubmessageRead, gap::GapSubmessageWrite,
                     info_destination::InfoDestinationSubmessageWrite,
                     info_timestamp::InfoTimestampSubmessageWrite,
                     nack_frag::NackFragSubmessageRead,
                 },
-                types::FragmentNumber,
+                types::{FragmentNumber, ParameterId},
             },
             reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
-            stateful_writer::RtpsStatefulWriter,
-            stateless_writer::RtpsStatelessWriter,
             types::{
                 ChangeKind, DurabilityKind, EntityId, EntityKey, Guid, GuidPrefix, Locator,
                 ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN, GUID_UNKNOWN,
                 USER_DEFINED_UNKNOWN,
             },
+            writer::RtpsWriter,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{Actor, ActorAddress},
+            actor::{actor_interface, Actor, ActorAddress, Mail, MailHandler},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -201,8 +208,10 @@ impl IncompatibleSubscriptions {
     }
 }
 
-pub struct DdsDataWriter<T> {
-    rtps_writer: T,
+pub struct DdsDataWriter {
+    rtps_writer: RtpsWriter,
+    reader_locators: Vec<RtpsReaderLocator>,
+    matched_readers: Vec<RtpsReaderProxy>,
     type_name: &'static str,
     topic_name: String,
     matched_subscriptions: MatchedSubscriptions,
@@ -213,9 +222,9 @@ pub struct DdsDataWriter<T> {
     status_kind: Vec<StatusKind>,
 }
 
-impl<T> DdsDataWriter<T> {
+impl DdsDataWriter {
     pub fn new(
-        rtps_writer: T,
+        rtps_writer: RtpsWriter,
         type_name: &'static str,
         topic_name: String,
         listener: Option<Actor<DdsDataWriterListener>>,
@@ -223,6 +232,8 @@ impl<T> DdsDataWriter<T> {
     ) -> Self {
         DdsDataWriter {
             rtps_writer,
+            reader_locators: Vec::new(),
+            matched_readers: Vec::new(),
             type_name,
             topic_name,
             matched_subscriptions: MatchedSubscriptions::new(),
@@ -232,6 +243,65 @@ impl<T> DdsDataWriter<T> {
             listener,
             status_kind,
         }
+    }
+
+    pub fn remove_change<F>(&mut self, f: F)
+    where
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
+    {
+        self.rtps_writer.remove_change(f)
+    }
+
+    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
+    where
+        Foo: DdsType,
+    {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        key_holder.set_key_fields_from_serialized_key(
+            self.rtps_writer
+                .get_key_value(handle)
+                .ok_or(DdsError::BadParameter)?,
+        )
+    }
+
+    pub fn reader_locator_list(&mut self) -> Vec<WriterAssociatedReaderLocator> {
+        let writer = &self.rtps_writer;
+        self.reader_locators
+            .iter_mut()
+            .map(|l| WriterAssociatedReaderLocator::new(writer, l))
+            .collect()
+    }
+
+    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+        self.rtps_writer.change_list()
+    }
+
+    pub fn matched_reader_list(&mut self) -> Vec<WriterAssociatedReaderProxy> {
+        let writer = &self.rtps_writer;
+        self.matched_readers
+            .iter_mut()
+            .map(|x| WriterAssociatedReaderProxy::new(writer, x))
+            .collect()
+    }
+
+    pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocator) {
+        *a_locator.unsent_changes_mut() = self
+            .rtps_writer
+            .change_list()
+            .iter()
+            .map(|c| c.sequence_number())
+            .collect();
+        self.reader_locators.push(a_locator);
+    }
+}
+
+actor_interface! {
+impl DdsDataWriter {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_writer.guid().into()
     }
 
     pub fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
@@ -303,8 +373,8 @@ impl<T> DdsDataWriter<T> {
         self.enabled
     }
 
-    pub fn get_topic_name(&self) -> &str {
-        &self.topic_name
+    pub fn get_topic_name(&self) -> String {
+        self.topic_name.clone()
     }
 
     pub fn get_type_name(&self) -> &'static str {
@@ -314,9 +384,7 @@ impl<T> DdsDataWriter<T> {
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }
-}
 
-impl DdsDataWriter<RtpsStatefulWriter> {
     pub fn guid(&self) -> Guid {
         self.rtps_writer.guid()
     }
@@ -353,31 +421,23 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
-        self.rtps_writer.change_list()
-    }
-
     pub fn _add_change(&mut self, change: RtpsWriterCacheChange) {
         self.rtps_writer.add_change(change)
     }
 
-    pub fn remove_change<F>(&mut self, f: F)
-    where
-        F: FnMut(&RtpsWriterCacheChange) -> bool,
-    {
-        self.rtps_writer.remove_change(f)
-    }
-
     pub fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
-        self.rtps_writer.matched_reader_add(a_reader_proxy)
+        if !self
+            .matched_readers
+            .iter()
+            .any(|x| x.remote_reader_guid() == a_reader_proxy.remote_reader_guid())
+        {
+            self.matched_readers.push(a_reader_proxy)
+        }
     }
 
     pub fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
-        self.rtps_writer.matched_reader_remove(a_reader_guid)
-    }
-
-    pub fn matched_reader_list(&mut self) -> Vec<WriterAssociatedReaderProxy> {
-        self.rtps_writer.matched_reader_list()
+        self.matched_readers
+            .retain(|x| x.remote_reader_guid() != a_reader_guid)
     }
 
     pub fn get_qos(&self) -> DataWriterQos {
@@ -407,69 +467,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         }
     }
 
-    fn on_acknack_submessage_received(
-        &mut self,
-        acknack_submessage: &AckNackSubmessageRead,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id());
-
-            if let Some(reader_proxy) = self
-                .rtps_writer
-                .matched_reader_list()
-                .iter_mut()
-                .find(|x| x.remote_reader_guid() == reader_guid)
-            {
-                match reader_proxy.reliability() {
-                    ReliabilityKind::BestEffort => (),
-                    ReliabilityKind::Reliable => {
-                        if acknack_submessage.count() > reader_proxy.last_received_acknack_count() {
-                            reader_proxy
-                                .acked_changes_set(acknack_submessage.reader_sn_state().base() - 1);
-                            reader_proxy.requested_changes_set(
-                                acknack_submessage.reader_sn_state().set().as_ref(),
-                            );
-
-                            reader_proxy
-                                .set_last_received_acknack_count(acknack_submessage.count());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn on_nack_frag_submessage_received(
-        &mut self,
-        nackfrag_submessage: &NackFragSubmessageRead,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
-
-            if let Some(reader_proxy) = self
-                .rtps_writer
-                .matched_reader_list()
-                .iter_mut()
-                .find(|x| x.remote_reader_guid() == reader_guid)
-            {
-                match reader_proxy.reliability() {
-                    ReliabilityKind::BestEffort => (),
-                    ReliabilityKind::Reliable => {
-                        if nackfrag_submessage.count()
-                            > reader_proxy.last_received_nack_frag_count()
-                        {
-                            reader_proxy.requested_changes_set(&[nackfrag_submessage.writer_sn()]);
-                            reader_proxy
-                                .set_last_received_nack_frag_count(nackfrag_submessage.count());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     pub fn register_instance_w_timestamp(
         &mut self,
         instance_serialized_key: DdsSerializedKey,
@@ -493,23 +490,37 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer
-            .unregister_instance_w_timestamp(instance_serialized_key, handle, timestamp)
-    }
-
-    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
-    where
-        Foo: DdsType,
-    {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
+        let mut serialized_status_info = Vec::new();
+        let mut serializer =
+            cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+        if self
+            .rtps_writer
+            .get_qos()
+            .writer_data_lifecycle
+            .autodispose_unregistered_instances
+        {
+            STATUS_INFO_DISPOSED_UNREGISTERED
+                .serialize(&mut serializer)
+                .unwrap();
+        } else {
+            STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
         }
 
-        key_holder.set_key_fields_from_serialized_key(
-            self.rtps_writer
-                .get_key_value(handle)
-                .ok_or(DdsError::BadParameter)?,
-        )
+        let inline_qos = ParameterList::new(vec![Parameter::new(
+            ParameterId(PID_STATUS_INFO),
+            serialized_status_info,
+        )]);
+
+        let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
+            ChangeKind::NotAliveUnregistered,
+            instance_serialized_key,
+            inline_qos,
+            handle,
+            timestamp,
+        );
+
+        self.rtps_writer.add_change(change);
+        Ok(())
     }
 
     pub fn lookup_instance(
@@ -527,15 +538,22 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         &mut self,
         serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
-        handle: Option<InstanceHandle>,
+        _handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.rtps_writer.write_w_timestamp(
+        let handle = self
+            .rtps_writer
+            .register_instance_w_timestamp(instance_serialized_key, timestamp)?
+            .unwrap_or(HANDLE_NIL);
+        let change = self.rtps_writer.new_change(
+            ChangeKind::Alive,
             serialized_data,
-            instance_serialized_key,
+            ParameterList::empty(),
             handle,
             timestamp,
-        )?;
+        );
+
+        self.rtps_writer.add_change(change);
 
         Ok(())
     }
@@ -550,13 +568,31 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer
-            .dispose_w_timestamp(instance_serialized_key, handle, timestamp)
+        let mut serialized_status_info = Vec::new();
+        let mut serializer =
+            cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+        STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
+
+        let inline_qos = ParameterList::new(vec![Parameter::new(
+            ParameterId(PID_STATUS_INFO),
+            serialized_status_info,
+        )]);
+
+        let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
+            ChangeKind::NotAliveDisposed,
+            instance_serialized_key,
+            inline_qos,
+            handle,
+            timestamp,
+        );
+
+        self.rtps_writer.add_change(change);
+
+        Ok(())
     }
 
     pub fn are_all_changes_acknowledge(&mut self) -> bool {
         !self
-            .rtps_writer
             .matched_reader_list()
             .iter()
             .any(|rp| rp.unacked_changes())
@@ -622,11 +658,21 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         udp_transport_write: ActorAddress<UdpTransportWrite>,
         now: Time,
     ) {
+        let writer_id = self.guid().entity_id();
+        for mut rl in &mut self.reader_locator_list().into_iter() {
+            Self::send_message_best_effort_reader_locator(
+                &mut rl,
+                header,
+                &udp_transport_write,
+                writer_id,
+            );
+        }
+
         // Remove stale changes before sending
         let timespan_duration = self.get_qos().lifespan.duration;
         self.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
 
-        let writer_id = self.guid().entity_id();
+
         let first_sn = self
             .change_list()
             .iter()
@@ -656,6 +702,246 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                     last_sn,
                     heartbeat_period,
                 ),
+            }
+        }
+
+
+    }
+
+    pub fn add_matched_reader(
+        &mut self,
+        discovered_reader_data: DiscoveredReaderData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        publisher_qos: PublisherQos,
+        data_writer_address: ActorAddress<DdsDataWriter>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        let is_matched_topic_name = discovered_reader_data
+            .subscription_builtin_topic_data()
+            .topic_name()
+            == self.get_topic_name();
+        let is_matched_type_name = discovered_reader_data
+            .subscription_builtin_topic_data()
+            .get_type_name()
+            == self.get_type_name();
+
+        if is_matched_topic_name && is_matched_type_name {
+            let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
+                &self.get_qos(),
+                discovered_reader_data.subscription_builtin_topic_data(),
+                &publisher_qos,
+            );
+            let instance_handle = discovered_reader_data.get_serialized_key().into();
+
+            if incompatible_qos_policy_list.is_empty() {
+                let unicast_locator_list = if discovered_reader_data
+                    .reader_proxy()
+                    .unicast_locator_list()
+                    .is_empty()
+                {
+                    default_unicast_locator_list
+                } else {
+                    discovered_reader_data
+                        .reader_proxy()
+                        .unicast_locator_list()
+                        .to_vec()
+                };
+
+                let multicast_locator_list = if discovered_reader_data
+                    .reader_proxy()
+                    .multicast_locator_list()
+                    .is_empty()
+                {
+                    default_multicast_locator_list
+                } else {
+                    discovered_reader_data
+                        .reader_proxy()
+                        .multicast_locator_list()
+                        .to_vec()
+                };
+
+                let proxy_reliability = match discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .reliability()
+                    .kind
+                {
+                    ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+                    ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                };
+
+                let proxy_durability = match discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .durability()
+                    .kind
+                {
+                    DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+                    DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
+                };
+
+                let first_relevant_sample_seq_num = if proxy_durability == DurabilityKind::Volatile
+                {
+                    self.rtps_writer
+                        .change_list()
+                        .iter()
+                        .map(|cc| cc.sequence_number())
+                        .max()
+                        .unwrap_or(SequenceNumber::new(0))
+                } else {
+                    SequenceNumber::new(0)
+                };
+
+                let reader_proxy = RtpsReaderProxy::new(
+                    discovered_reader_data.reader_proxy().remote_reader_guid(),
+                    discovered_reader_data
+                        .reader_proxy()
+                        .remote_group_entity_id(),
+                    &unicast_locator_list,
+                    &multicast_locator_list,
+                    discovered_reader_data.reader_proxy().expects_inline_qos(),
+                    true,
+                    proxy_reliability,
+                    proxy_durability,
+                    first_relevant_sample_seq_num,
+                );
+
+                self.matched_reader_add(reader_proxy);
+
+                if !self.get_matched_subscriptions().contains(&instance_handle)
+                    || self.get_matched_subscription_data(instance_handle).as_ref()
+                        != Some(discovered_reader_data.subscription_builtin_topic_data())
+                {
+                    self.add_matched_publication(
+                        instance_handle,
+                        discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .clone(),
+                    );
+                    self.matched_subscriptions.add_matched_subscription(
+                        instance_handle,
+                        discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .clone(),
+                    );
+                    self.on_publication_matched(
+                        data_writer_address,
+                        publisher_address,
+                        participant_address,
+                    )
+                }
+            } else {
+                self.incompatible_subscriptions
+                    .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
+                self.on_offered_incompatible_qos(
+                    data_writer_address,
+                    publisher_address,
+                    participant_address,
+                );
+            }
+        }
+    }
+
+    pub fn remove_matched_reader(
+        &mut self,
+        discovered_reader_handle: InstanceHandle,
+        data_writer_address: ActorAddress<DdsDataWriter>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        if let Some(r) = self.get_matched_subscription_data(discovered_reader_handle) {
+            let handle = r.key().value.into();
+            self.matched_reader_remove(handle);
+            self.remove_matched_subscription(handle.into());
+
+            self.on_publication_matched(data_writer_address, publisher_address, participant_address)
+        }
+    }
+
+    pub fn _reader_locator_remove(&mut self, a_locator: Locator) {
+        self.reader_locators.retain(|l| !(l.locator() == a_locator))
+    }
+}
+}
+
+impl ActorAddress<DdsDataWriter> {
+    pub fn reader_locator_add(&self, a_locator: RtpsReaderLocator) -> DdsResult<()> {
+        struct ReaderLocatorAdd {
+            a_locator: RtpsReaderLocator,
+        }
+
+        impl Mail for ReaderLocatorAdd {
+            type Result = ();
+        }
+
+        impl MailHandler<ReaderLocatorAdd> for DdsDataWriter {
+            fn handle(&mut self, mail: ReaderLocatorAdd) -> <ReaderLocatorAdd as Mail>::Result {
+                self.reader_locator_add(mail.a_locator)
+            }
+        }
+
+        self.send_blocking(ReaderLocatorAdd { a_locator })
+    }
+}
+
+impl DdsDataWriter {
+    fn on_acknack_submessage_received(
+        &mut self,
+        acknack_submessage: &AckNackSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id());
+
+            if let Some(reader_proxy) = self
+                .matched_reader_list()
+                .iter_mut()
+                .find(|x| x.remote_reader_guid() == reader_guid)
+            {
+                match reader_proxy.reliability() {
+                    ReliabilityKind::BestEffort => (),
+                    ReliabilityKind::Reliable => {
+                        if acknack_submessage.count() > reader_proxy.last_received_acknack_count() {
+                            reader_proxy
+                                .acked_changes_set(acknack_submessage.reader_sn_state().base() - 1);
+                            reader_proxy.requested_changes_set(
+                                acknack_submessage.reader_sn_state().set().as_ref(),
+                            );
+
+                            reader_proxy
+                                .set_last_received_acknack_count(acknack_submessage.count());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn on_nack_frag_submessage_received(
+        &mut self,
+        nackfrag_submessage: &NackFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if self.rtps_writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
+
+            if let Some(reader_proxy) = self
+                .matched_reader_list()
+                .iter_mut()
+                .find(|x| x.remote_reader_guid() == reader_guid)
+            {
+                match reader_proxy.reliability() {
+                    ReliabilityKind::BestEffort => (),
+                    ReliabilityKind::Reliable => {
+                        if nackfrag_submessage.count()
+                            > reader_proxy.last_received_nack_frag_count()
+                        {
+                            reader_proxy.requested_changes_set(&[nackfrag_submessage.writer_sn()]);
+                            reader_proxy
+                                .set_last_received_nack_frag_count(nackfrag_submessage.count());
+                        }
+                    }
+                }
             }
         }
     }
@@ -993,16 +1279,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         }
     }
 
-    fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageWriteKind<'a> {
-        RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
-            false,
-            crate::implementation::rtps::messages::types::Time::new(
-                timestamp.sec(),
-                timestamp.nanosec(),
-            ),
-        ))
-    }
-
     fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageWriteKind<'a> {
         RtpsSubmessageWriteKind::InfoDestination(InfoDestinationSubmessageWrite::new(guid_prefix))
     }
@@ -1058,160 +1334,9 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn add_matched_reader(
-        &mut self,
-        discovered_reader_data: DiscoveredReaderData,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        publisher_qos: PublisherQos,
-        data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-    ) {
-        let is_matched_topic_name = discovered_reader_data
-            .subscription_builtin_topic_data()
-            .topic_name()
-            == self.get_topic_name();
-        let is_matched_type_name = discovered_reader_data
-            .subscription_builtin_topic_data()
-            .get_type_name()
-            == self.get_type_name();
-
-        if is_matched_topic_name && is_matched_type_name {
-            let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
-                &self.get_qos(),
-                discovered_reader_data.subscription_builtin_topic_data(),
-                &publisher_qos,
-            );
-            let instance_handle = discovered_reader_data.get_serialized_key().into();
-
-            if incompatible_qos_policy_list.is_empty() {
-                let unicast_locator_list = if discovered_reader_data
-                    .reader_proxy()
-                    .unicast_locator_list()
-                    .is_empty()
-                {
-                    default_unicast_locator_list
-                } else {
-                    discovered_reader_data
-                        .reader_proxy()
-                        .unicast_locator_list()
-                        .to_vec()
-                };
-
-                let multicast_locator_list = if discovered_reader_data
-                    .reader_proxy()
-                    .multicast_locator_list()
-                    .is_empty()
-                {
-                    default_multicast_locator_list
-                } else {
-                    discovered_reader_data
-                        .reader_proxy()
-                        .multicast_locator_list()
-                        .to_vec()
-                };
-
-                let proxy_reliability = match discovered_reader_data
-                    .subscription_builtin_topic_data()
-                    .reliability()
-                    .kind
-                {
-                    ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
-                    ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-                };
-
-                let proxy_durability = match discovered_reader_data
-                    .subscription_builtin_topic_data()
-                    .durability()
-                    .kind
-                {
-                    DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
-                    DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
-                };
-
-                let first_relevant_sample_seq_num = if proxy_durability == DurabilityKind::Volatile
-                {
-                    self.rtps_writer
-                        .change_list()
-                        .iter()
-                        .map(|cc| cc.sequence_number())
-                        .max()
-                        .unwrap_or(SequenceNumber::new(0))
-                } else {
-                    SequenceNumber::new(0)
-                };
-
-                let reader_proxy = RtpsReaderProxy::new(
-                    discovered_reader_data.reader_proxy().remote_reader_guid(),
-                    discovered_reader_data
-                        .reader_proxy()
-                        .remote_group_entity_id(),
-                    &unicast_locator_list,
-                    &multicast_locator_list,
-                    discovered_reader_data.reader_proxy().expects_inline_qos(),
-                    true,
-                    proxy_reliability,
-                    proxy_durability,
-                    first_relevant_sample_seq_num,
-                );
-
-                self.matched_reader_add(reader_proxy);
-
-                if !self.get_matched_subscriptions().contains(&instance_handle)
-                    || self.get_matched_subscription_data(instance_handle).as_ref()
-                        != Some(discovered_reader_data.subscription_builtin_topic_data())
-                {
-                    self.add_matched_publication(
-                        instance_handle,
-                        discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .clone(),
-                    );
-                    self.matched_subscriptions.add_matched_subscription(
-                        instance_handle,
-                        discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .clone(),
-                    );
-                    self.on_publication_matched(
-                        data_writer_address,
-                        publisher_address,
-                        participant_address,
-                    )
-                }
-            } else {
-                self.incompatible_subscriptions
-                    .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
-                self.on_offered_incompatible_qos(
-                    data_writer_address,
-                    publisher_address,
-                    participant_address,
-                );
-            }
-        }
-    }
-
-    pub fn remove_matched_reader(
-        &mut self,
-        discovered_reader_handle: InstanceHandle,
-        data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-    ) {
-        if let Some(r) = self.get_matched_subscription_data(discovered_reader_handle) {
-            let handle = r.key().value.into();
-            self.matched_reader_remove(handle);
-            self.remove_matched_subscription(handle.into());
-
-            self.on_publication_matched(data_writer_address, publisher_address, participant_address)
-        }
-    }
-
     fn on_publication_matched(
         &mut self,
-        data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+        data_writer_address: ActorAddress<DdsDataWriter>,
         publisher_address: ActorAddress<DdsPublisher>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
@@ -1257,7 +1382,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
 
     fn on_offered_incompatible_qos(
         &mut self,
-        data_writer_address: ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+        data_writer_address: ActorAddress<DdsDataWriter>,
         publisher_address: ActorAddress<DdsPublisher>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
@@ -1304,135 +1429,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 .expect("Should not fail to send message");
         }
     }
-}
-
-fn get_discovered_reader_incompatible_qos_policy_list(
-    writer_qos: &DataWriterQos,
-    discovered_reader_data: &SubscriptionBuiltinTopicData,
-    publisher_qos: &PublisherQos,
-) -> Vec<QosPolicyId> {
-    let mut incompatible_qos_policy_list = Vec::new();
-    if &writer_qos.durability < discovered_reader_data.durability() {
-        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
-    }
-    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation().access_scope
-        || publisher_qos.presentation.coherent_access
-            != discovered_reader_data.presentation().coherent_access
-        || publisher_qos.presentation.ordered_access
-            != discovered_reader_data.presentation().ordered_access
-    {
-        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
-    }
-    if &writer_qos.deadline < discovered_reader_data.deadline() {
-        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
-    }
-    if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
-        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
-    }
-    if &writer_qos.liveliness < discovered_reader_data.liveliness() {
-        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
-    }
-    if writer_qos.reliability.kind < discovered_reader_data.reliability().kind {
-        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
-    }
-    if &writer_qos.destination_order < discovered_reader_data.destination_order() {
-        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
-    }
-    incompatible_qos_policy_list
-}
-
-impl DdsDataWriter<RtpsStatelessWriter> {
-    pub fn guid(&self) -> Guid {
-        self.rtps_writer.guid()
-    }
-
-    pub fn _unicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_writer.unicast_locator_list().to_vec()
-    }
-
-    pub fn _multicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_writer.multicast_locator_list().to_vec()
-    }
-
-    pub fn _push_mode(&self) -> bool {
-        self.rtps_writer.push_mode()
-    }
-
-    pub fn _heartbeat_period(&self) -> Duration {
-        self.rtps_writer.heartbeat_period()
-    }
-
-    pub fn _data_max_size_serialized(&self) -> usize {
-        self.rtps_writer.data_max_size_serialized()
-    }
-
-    pub fn _new_change(
-        &mut self,
-        kind: ChangeKind,
-        data: Vec<u8>,
-        inline_qos: ParameterList,
-        handle: InstanceHandle,
-        timestamp: Time,
-    ) -> RtpsWriterCacheChange {
-        self.rtps_writer
-            .new_change(kind, data, inline_qos, handle, timestamp)
-    }
-
-    pub fn _add_change(&mut self, change: RtpsWriterCacheChange) {
-        self.rtps_writer.add_change(change);
-    }
-
-    pub fn _remove_change<F>(&mut self, f: F)
-    where
-        F: FnMut(&RtpsWriterCacheChange) -> bool,
-    {
-        self.rtps_writer.remove_change(f)
-    }
-
-    pub fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
-        self.rtps_writer.reader_locator_add(a_locator)
-    }
-
-    pub fn _reader_locator_remove(&mut self, a_locator: Locator) {
-        self.rtps_writer.reader_locator_remove(a_locator)
-    }
-
-    pub fn reader_locator_list(&mut self) -> Vec<WriterAssociatedReaderLocator> {
-        self.rtps_writer.reader_locator_list()
-    }
-
-    pub fn write_w_timestamp(
-        &mut self,
-        serialized_data: Vec<u8>,
-        instance_serialized_key: DdsSerializedKey,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
-    ) -> DdsResult<()> {
-        self.rtps_writer.write_w_timestamp(
-            serialized_data,
-            instance_serialized_key,
-            handle,
-            timestamp,
-        )?;
-
-        Ok(())
-    }
-
-    pub fn send_message(
-        &mut self,
-        header: RtpsMessageHeader,
-        udp_transport_write: ActorAddress<UdpTransportWrite>,
-    ) {
-        let writer_id = self.guid().entity_id();
-        for mut rl in &mut self.reader_locator_list().into_iter() {
-            Self::send_message_best_effort_reader_locator(
-                &mut rl,
-                header,
-                &udp_transport_write,
-                writer_id,
-            );
-        }
-    }
 
     fn send_message_best_effort_reader_locator(
         reader_locator: &mut WriterAssociatedReaderLocator,
@@ -1476,6 +1472,41 @@ impl DdsDataWriter<RtpsStatelessWriter> {
             ),
         ))
     }
+}
+
+fn get_discovered_reader_incompatible_qos_policy_list(
+    writer_qos: &DataWriterQos,
+    discovered_reader_data: &SubscriptionBuiltinTopicData,
+    publisher_qos: &PublisherQos,
+) -> Vec<QosPolicyId> {
+    let mut incompatible_qos_policy_list = Vec::new();
+    if &writer_qos.durability < discovered_reader_data.durability() {
+        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+    }
+    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation().access_scope
+        || publisher_qos.presentation.coherent_access
+            != discovered_reader_data.presentation().coherent_access
+        || publisher_qos.presentation.ordered_access
+            != discovered_reader_data.presentation().ordered_access
+    {
+        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+    }
+    if &writer_qos.deadline < discovered_reader_data.deadline() {
+        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+    }
+    if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
+        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+    }
+    if &writer_qos.liveliness < discovered_reader_data.liveliness() {
+        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+    }
+    if writer_qos.reliability.kind < discovered_reader_data.reliability().kind {
+        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+    }
+    if &writer_qos.destination_order < discovered_reader_data.destination_order() {
+        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+    }
+    incompatible_qos_policy_list
 }
 
 fn gap_submessage_from_sequence_number<'a>(
