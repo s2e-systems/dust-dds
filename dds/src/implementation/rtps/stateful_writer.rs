@@ -81,7 +81,7 @@ impl RtpsStatefulWriter {
             .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+    pub fn change_list(&self) -> impl Iterator<Item=&RtpsWriterCacheChange>  {
         self.writer.change_list()
     }
 

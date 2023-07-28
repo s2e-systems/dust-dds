@@ -212,7 +212,6 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         // ELSE return MIN { unsent_changes.sequenceNumber }
         self.writer
             .change_list()
-            .iter()
             .map(|cc| cc.sequence_number())
             .filter(|cc_sn| cc_sn > &self.reader_proxy.highest_sent_seq_num)
             .min()
@@ -248,7 +247,6 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         let highest_available_seq_num = self
             .writer
             .change_list()
-            .iter()
             .map(|cc| cc.sequence_number())
             .max();
 

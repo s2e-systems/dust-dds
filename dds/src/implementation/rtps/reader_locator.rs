@@ -77,7 +77,6 @@ impl RtpsReaderLocator {
 
         let cache_change = writer_cache
             .change_list()
-            .iter()
             .find(|c| c.sequence_number() == next_seq_num);
 
         RtpsReaderLocatorCacheChange {
@@ -154,7 +153,6 @@ impl<'a> WriterAssociatedReaderLocator<'a> {
         let cache_change = self
             .writer
             .change_list()
-            .iter()
             .find(|c| c.sequence_number() == next_seq_num);
 
         Some(RtpsReaderLocatorCacheChange {

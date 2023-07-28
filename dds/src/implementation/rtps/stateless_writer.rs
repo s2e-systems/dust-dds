@@ -66,7 +66,7 @@ impl RtpsStatelessWriter {
             .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+    pub fn change_list(&self) -> impl Iterator<Item=&RtpsWriterCacheChange>  {
         self.writer.change_list()
     }
 
@@ -90,7 +90,6 @@ impl RtpsStatelessWriter {
         *a_locator.unsent_changes_mut() = self
             .writer
             .change_list()
-            .iter()
             .map(|c| c.sequence_number())
             .collect();
         self.reader_locators.push(a_locator);

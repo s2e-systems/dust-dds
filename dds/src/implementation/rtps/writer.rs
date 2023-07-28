@@ -104,7 +104,7 @@ impl RtpsWriter {
         )
     }
 
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+    pub fn change_list(&self) -> impl Iterator<Item=&RtpsWriterCacheChange> {
         self.writer_cache.change_list()
     }
 

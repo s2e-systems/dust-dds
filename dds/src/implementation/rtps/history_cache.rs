@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::{
     messages::{
         submessage_elements::{Data, ParameterList},
@@ -180,45 +182,50 @@ impl RtpsWriterCacheChange {
 
 #[derive(Default)]
 pub struct WriterHistoryCache {
-    changes: Vec<RtpsWriterCacheChange>,
+    changes: HashMap<InstanceHandle, Vec<RtpsWriterCacheChange>>,
     history: HistoryQosPolicy,
 }
 
 impl WriterHistoryCache {
     pub fn new(history: HistoryQosPolicy) -> Self {
         Self {
-            changes: Vec::new(),
+            changes: HashMap::new(),
             history,
         }
     }
 
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
-        &self.changes
+    pub fn change_list(&self) -> impl Iterator<Item=&RtpsWriterCacheChange> {
+        self.changes.values().flatten()
     }
 
     pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
         match self.history.kind {
             HistoryQosPolicyKind::KeepLast(depth) => {
-                self.changes.truncate(depth as usize);
+                for changes_of_instance in self.changes.values_mut() {
+                    changes_of_instance.truncate(depth as usize);
+                }
             }
             HistoryQosPolicyKind::KeepAll => (),
         }
-        self.changes.push(change);
+        let values = self.changes.entry(change._instance_handle()).or_default();
+        values.push(change);
     }
 
     pub fn remove_change<F>(&mut self, mut f: F)
     where
         F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
-        self.changes.retain(|cc| !f(cc));
+        for changes_of_instance in self.changes.values_mut() {
+            changes_of_instance.retain(|cc| !f(cc));
+        }
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.changes.iter().map(|cc| cc.sequence_number).min()
+        self.changes.values().flatten().map(|cc| cc.sequence_number).min()
     }
 
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.changes.iter().map(|cc| cc.sequence_number).max()
+        self.changes.values().flatten().map(|cc| cc.sequence_number).max()
     }
 }
 
@@ -245,7 +252,7 @@ mod tests {
         );
         hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::new(1));
-        assert!(hc.change_list().is_empty());
+        assert!(hc.change_list().next().is_none());
     }
 
     #[test]

@@ -353,7 +353,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+    pub fn change_list(&self) -> impl Iterator<Item=&RtpsWriterCacheChange> {
         self.rtps_writer.change_list()
     }
 
@@ -629,13 +629,11 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         let writer_id = self.guid().entity_id();
         let first_sn = self
             .change_list()
-            .iter()
             .map(|x| x.sequence_number())
             .min()
             .unwrap_or_else(|| SequenceNumber::new(1));
         let last_sn = self
             .change_list()
-            .iter()
             .map(|x| x.sequence_number())
             .max()
             .unwrap_or_else(|| SequenceNumber::new(0));
@@ -735,7 +733,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             let cache_change = reader_proxy
                 .writer()
                 .change_list()
-                .iter()
                 .find(|cc| cc.sequence_number() == a_change_seq_num);
 
             match cache_change {
@@ -847,7 +844,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 let cache_change = reader_proxy
                     .writer()
                     .change_list()
-                    .iter()
                     .find(|cc| cc.sequence_number() == a_change_seq_num);
 
                 match cache_change {
@@ -943,7 +939,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 let cache_change = reader_proxy
                     .writer()
                     .change_list()
-                    .iter()
                     .find(|cc| cc.sequence_number() == next_requested_change_seq_num);
                 match cache_change {
                     Some(cache_change)
@@ -1135,7 +1130,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 {
                     self.rtps_writer
                         .change_list()
-                        .iter()
                         .map(|cc| cc.sequence_number())
                         .max()
                         .unwrap_or(SequenceNumber::new(0))
