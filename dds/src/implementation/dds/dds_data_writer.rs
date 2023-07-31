@@ -296,6 +296,16 @@ impl DdsDataWriter {
             .collect();
         self.reader_locators.push(a_locator);
     }
+
+    fn add_change(&mut self, change: RtpsWriterCacheChange) {
+        for reader_locator in &mut self.reader_locators {
+            reader_locator
+                .unsent_changes_mut()
+                .push(change.sequence_number());
+        }
+
+        self.rtps_writer.add_change(change)
+    }
 }
 
 actor_interface! {
@@ -421,10 +431,6 @@ impl DdsDataWriter {
             .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
-    pub fn _add_change(&mut self, change: RtpsWriterCacheChange) {
-        self.rtps_writer.add_change(change)
-    }
-
     pub fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
         if !self
             .matched_readers
@@ -519,7 +525,7 @@ impl DdsDataWriter {
             timestamp,
         );
 
-        self.rtps_writer.add_change(change);
+        self.add_change(change);
         Ok(())
     }
 
@@ -553,7 +559,7 @@ impl DdsDataWriter {
             timestamp,
         );
 
-        self.rtps_writer.add_change(change);
+        self.add_change(change);
 
         Ok(())
     }
@@ -586,7 +592,7 @@ impl DdsDataWriter {
             timestamp,
         );
 
-        self.rtps_writer.add_change(change);
+        self.add_change(change);
 
         Ok(())
     }
