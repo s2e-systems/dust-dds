@@ -38,34 +38,8 @@ impl RtpsStatelessReader {
         self.0.guid()
     }
 
-    pub fn _convert_data_to_cache_change(
-        &self,
-        data_submessage: &DataSubmessageRead,
-        source_timestamp: Option<Time>,
-        source_guid_prefix: GuidPrefix,
-        reception_timestamp: Time,
-    ) -> RtpsReaderResult<RtpsReaderCacheChange> {
-        self.0.convert_data_to_cache_change(
-            data_submessage,
-            source_timestamp,
-            source_guid_prefix,
-            reception_timestamp,
-        )
-    }
-
-    pub fn _add_change(
-        &mut self,
-        change: RtpsReaderCacheChange,
-    ) -> RtpsReaderResult<InstanceHandle> {
-        self.0.add_change(change)
-    }
-
     pub fn get_qos(&self) -> &DataReaderQos {
         self.0.get_qos()
-    }
-
-    pub fn _set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
-        self.0.set_qos(qos)
     }
 
     pub fn read<Foo>(
@@ -88,26 +62,6 @@ impl RtpsStatelessReader {
         )
     }
 
-    pub fn _take<Foo>(
-        &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: for<'de> DdsDeserialize<'de>,
-    {
-        self.0.take(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )
-    }
-
     pub fn read_next_instance<Foo>(
         &mut self,
         max_samples: i32,
@@ -120,26 +74,6 @@ impl RtpsStatelessReader {
         Foo: for<'de> DdsDeserialize<'de>,
     {
         self.0.read_next_instance(
-            max_samples,
-            previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
-    }
-
-    pub fn _take_next_instance<Foo>(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: for<'de> DdsDeserialize<'de>,
-    {
-        self.0.take_next_instance(
             max_samples,
             previous_handle,
             sample_states,

@@ -153,10 +153,6 @@ impl RtpsWriterCacheChange {
         self.writer_guid
     }
 
-    pub fn _instance_handle(&self) -> InstanceHandle {
-        self._instance_handle
-    }
-
     pub fn sequence_number(&self) -> SequenceNumber {
         self.sequence_number
     }

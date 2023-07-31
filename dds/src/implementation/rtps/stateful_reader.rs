@@ -23,10 +23,7 @@ use super::{
             heartbeat::HeartbeatSubmessageRead, heartbeat_frag::HeartbeatFragSubmessageRead,
         },
     },
-    reader::{
-        convert_data_frag_to_cache_change, RtpsReader, RtpsReaderCacheChange, RtpsReaderError,
-        RtpsReaderResult,
-    },
+    reader::{convert_data_frag_to_cache_change, RtpsReader, RtpsReaderError},
     types::{Guid, GuidPrefix, Locator, SequenceNumber},
     writer_proxy::RtpsWriterProxy,
 };
@@ -89,28 +86,6 @@ impl RtpsStatefulReader {
 
     pub fn multicast_locator_list(&self) -> &[Locator] {
         self.reader.multicast_locator_list()
-    }
-
-    pub fn _convert_data_to_cache_change(
-        &self,
-        data_submessage: &DataSubmessageRead,
-        source_timestamp: Option<Time>,
-        source_guid_prefix: GuidPrefix,
-        reception_timestamp: Time,
-    ) -> RtpsReaderResult<RtpsReaderCacheChange> {
-        self.reader.convert_data_to_cache_change(
-            data_submessage,
-            source_timestamp,
-            source_guid_prefix,
-            reception_timestamp,
-        )
-    }
-
-    pub fn _add_change(
-        &mut self,
-        change: RtpsReaderCacheChange,
-    ) -> RtpsReaderResult<InstanceHandle> {
-        self.reader.add_change(change)
     }
 
     pub fn get_qos(&self) -> &DataReaderQos {

@@ -399,36 +399,12 @@ impl DdsDataWriter {
         self.rtps_writer.guid()
     }
 
-    pub fn _unicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_writer.unicast_locator_list().to_vec()
-    }
-
-    pub fn _multicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_writer.multicast_locator_list().to_vec()
-    }
-
-    pub fn _push_mode(&self) -> bool {
-        self.rtps_writer.push_mode()
-    }
-
     pub fn heartbeat_period(&self) -> Duration {
         self.rtps_writer.heartbeat_period()
     }
 
     pub fn data_max_size_serialized(&self) -> usize {
         self.rtps_writer.data_max_size_serialized()
-    }
-
-    pub fn _new_change(
-        &mut self,
-        kind: ChangeKind,
-        data: Vec<u8>,
-        inline_qos: ParameterList,
-        handle: InstanceHandle,
-        timestamp: Time,
-    ) -> RtpsWriterCacheChange {
-        self.rtps_writer
-            .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
     pub fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
@@ -862,10 +838,6 @@ impl DdsDataWriter {
 
             self.on_publication_matched(data_writer_address, publisher_address, participant_address)
         }
-    }
-
-    pub fn _reader_locator_remove(&mut self, a_locator: Locator) {
-        self.reader_locators.retain(|l| !(l.locator() == a_locator))
     }
 }
 }
