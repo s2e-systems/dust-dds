@@ -17,7 +17,6 @@ use crate::{
                     heartbeat_frag::HeartbeatFragSubmessageRead,
                 },
             },
-            reader::{RtpsReaderCacheChange, RtpsReaderResult},
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             stateless_reader::{RtpsStatelessReader, StatelessReaderDataReceivedResult},
             types::{Guid, GuidPrefix, Locator, GUID_UNKNOWN},

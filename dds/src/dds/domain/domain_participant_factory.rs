@@ -1120,7 +1120,6 @@ pub fn discover_matched_readers(
                                         discovered_reader_data.clone(),
                                         default_unicast_locator_list.clone(),
                                         default_multicast_locator_list.clone(),
-                                        publisher_qos.clone(),
                                         data_writer.clone(),
                                         user_defined_publisher_address.clone(),
                                         participant_address.clone(),

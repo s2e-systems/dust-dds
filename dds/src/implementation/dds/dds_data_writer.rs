@@ -695,7 +695,6 @@ impl DdsDataWriter {
         discovered_reader_data: DiscoveredReaderData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        publisher_qos: PublisherQos,
         data_writer_address: ActorAddress<DdsDataWriter>,
         publisher_address: ActorAddress<DdsPublisher>,
         participant_address: ActorAddress<DdsDomainParticipant>,
@@ -713,7 +712,7 @@ impl DdsDataWriter {
             let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
                 &self.get_qos(),
                 discovered_reader_data.subscription_builtin_topic_data(),
-                &publisher_qos,
+                &publisher_address.get_qos().unwrap(),
             );
             let instance_handle = discovered_reader_data.get_serialized_key().into();
 
