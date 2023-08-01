@@ -674,10 +674,10 @@ fn process_spdp_metatraffic(
     }) {
         // Receive the data on the builtin spdp reader
         spdp_data_reader.process_rtps_message(
-            message.clone(),
+            message,
             participant_address.get_current_time()?,
             spdp_data_reader.clone(),
-            builtin_subscriber.clone(),
+            builtin_subscriber,
             participant_address.clone(),
         )?;
 
