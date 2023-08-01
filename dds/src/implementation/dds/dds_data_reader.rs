@@ -174,6 +174,7 @@ impl SubscriptionMatchedStatus {
 
 pub struct DdsDataReader<T> {
     rtps_reader: T,
+    matched_writers: Vec<RtpsWriterProxy>,
     type_name: &'static str,
     topic_name: String,
     liveliness_changed_status: LivelinessChangedStatus,
@@ -202,6 +203,7 @@ impl<T> DdsDataReader<T> {
     ) -> Self {
         DdsDataReader {
             rtps_reader,
+            matched_writers: Vec::new(),
             type_name,
             topic_name,
             liveliness_changed_status: LivelinessChangedStatus::default(),
@@ -542,13 +544,11 @@ impl DdsDataReader<RtpsStatefulReader> {
             .on_heartbeat_frag_submessage_received(heartbeat_frag_submessage, source_guid_prefix);
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn add_matched_writer(
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        subscriber_qos: SubscriberQos,
         data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
@@ -561,7 +561,7 @@ impl DdsDataReader<RtpsStatefulReader> {
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &discovered_writer_data,
-                    &subscriber_qos,
+                    &subscriber_address.get_qos().unwrap(),
                 );
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_writer_data
