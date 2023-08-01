@@ -15,5 +15,4 @@ pub mod dds_subscriber_listener;
 pub mod dds_topic;
 pub mod message_receiver;
 pub mod nodes;
-pub mod participant_discovery;
 pub mod status_condition_impl;

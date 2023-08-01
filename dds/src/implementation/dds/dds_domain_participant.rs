@@ -19,11 +19,6 @@ use crate::{
             participant::RtpsParticipant,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
-            stateful_reader::{
-                RtpsStatefulReader, DEFAULT_HEARTBEAT_RESPONSE_DELAY,
-                DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
-            },
-            stateless_reader::RtpsStatelessReader,
             types::{
                 EntityId, EntityKey, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
                 BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
@@ -92,6 +87,8 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
 pub const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
 pub const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
 pub const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
+pub const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration::new(0, 500);
+pub const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
 pub struct DdsDomainParticipant {
     rtps_participant: RtpsParticipant,
@@ -232,19 +229,19 @@ impl DdsDomainParticipant {
 
         builtin_subscriber
             .address()
-            .stateless_data_reader_add(spdp_builtin_participant_reader)
+            .data_reader_add(spdp_builtin_participant_reader)
             .unwrap();
         builtin_subscriber
             .address()
-            .stateful_data_reader_add(sedp_builtin_topics_reader)
+            .data_reader_add(sedp_builtin_topics_reader)
             .unwrap();
         builtin_subscriber
             .address()
-            .stateful_data_reader_add(sedp_builtin_publications_reader)
+            .data_reader_add(sedp_builtin_publications_reader)
             .unwrap();
         builtin_subscriber
             .address()
-            .stateful_data_reader_add(sedp_builtin_subscriptions_reader)
+            .data_reader_add(sedp_builtin_subscriptions_reader)
             .unwrap();
 
         // Built-in publisher creation
@@ -787,7 +784,7 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
     )
 }
 
-fn create_builtin_stateless_reader<Foo>(guid: Guid) -> RtpsStatelessReader
+fn create_builtin_stateless_reader<Foo>(guid: Guid) -> RtpsReader
 where
     Foo: DdsType + for<'de> serde::Deserialize<'de>,
 {
@@ -806,7 +803,7 @@ where
         },
         ..Default::default()
     };
-    let reader = RtpsReader::new::<Foo>(
+    RtpsReader::new::<Foo>(
         RtpsEndpoint::new(
             guid,
             TopicKind::WithKey,
@@ -817,11 +814,10 @@ where
         DURATION_ZERO,
         false,
         qos,
-    );
-    RtpsStatelessReader::new(reader)
+    )
 }
 
-fn create_builtin_stateful_reader<Foo>(guid: Guid) -> RtpsStatefulReader
+fn create_builtin_stateful_reader<Foo>(guid: Guid) -> RtpsReader
 where
     Foo: DdsType + for<'de> serde::Deserialize<'de>,
 {
@@ -845,7 +841,7 @@ where
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
 
-    RtpsStatefulReader::new(RtpsReader::new::<Foo>(
+    RtpsReader::new::<Foo>(
         RtpsEndpoint::new(
             guid,
             topic_kind,
@@ -856,5 +852,5 @@ where
         heartbeat_suppression_duration,
         expects_inline_qos,
         qos,
-    ))
+    )
 }

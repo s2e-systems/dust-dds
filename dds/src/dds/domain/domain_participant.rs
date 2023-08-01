@@ -203,7 +203,7 @@ impl DomainParticipant {
                     ));
                 }
 
-                if !s.address().stateful_data_reader_list()?.is_empty() {
+                if !s.address().data_reader_list()?.is_empty() {
                     return Err(DdsError::PreconditionNotMet(
                         "Subscriber still contains data readers".to_string(),
                     ));
@@ -286,7 +286,7 @@ impl DomainParticipant {
                 }
 
                 for subscriber in self.0.get_user_defined_subscriber_list()? {
-                    if subscriber.stateful_data_reader_list()?.iter().any(|r| {
+                    if subscriber.data_reader_list()?.iter().any(|r| {
                         r.get_type_name() == t.address().get_type_name()
                             && r.get_topic_name() == t.address().get_name()
                     }) {
@@ -731,20 +731,8 @@ impl DomainParticipant {
             self.0.get_builtin_publisher()?.enable()?;
             self.0.get_builtin_subscriber()?.enable()?;
 
-            for stateless_builtin_reader in self
-                .0
-                .get_builtin_subscriber()?
-                .stateless_data_reader_list()?
-            {
-                stateless_builtin_reader.enable()?;
-            }
-
-            for stateful_builtin_reader in self
-                .0
-                .get_builtin_subscriber()?
-                .stateful_data_reader_list()?
-            {
-                stateful_builtin_reader.enable()?;
+            for builtin_reader in self.0.get_builtin_subscriber()?.data_reader_list()? {
+                builtin_reader.enable()?;
             }
 
             for builtin_writer in self.0.get_builtin_publisher()?.data_writer_list()? {
@@ -816,7 +804,7 @@ impl DomainParticipant {
                         for subscriber in
                             domain_participant_address.get_user_defined_subscriber_list()?
                         {
-                            for data_reader in subscriber.stateful_data_reader_list()? {
+                            for data_reader in subscriber.data_reader_list()? {
                                 data_reader.update_communication_status(
                                     now,
                                     data_reader.clone(),

@@ -13,8 +13,6 @@ use crate::{
         },
         rtps::{
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
-            stateful_reader::RtpsStatefulReader,
-            stateless_reader::RtpsStatelessReader,
             types::Locator,
             writer_proxy::RtpsWriterProxy,
         },
@@ -38,7 +36,7 @@ use crate::{
     topic_definition::type_support::DdsDeserialize,
 };
 
-impl<T> ActorAddress<DdsDataReader<T>> {
+impl ActorAddress<DdsDataReader> {
     pub fn enable(&self) -> DdsResult<()> {
         struct Enable;
 
@@ -46,7 +44,7 @@ impl<T> ActorAddress<DdsDataReader<T>> {
             type Result = ();
         }
 
-        impl<T> MailHandler<Enable> for DdsDataReader<T> {
+        impl MailHandler<Enable> for DdsDataReader {
             fn handle(&mut self, _mail: Enable) -> <Enable as Mail>::Result {
                 self.enable()
             }
@@ -61,7 +59,7 @@ impl<T> ActorAddress<DdsDataReader<T>> {
             type Result = bool;
         }
 
-        impl<T> MailHandler<IsEnabled> for DdsDataReader<T> {
+        impl MailHandler<IsEnabled> for DdsDataReader {
             fn handle(&mut self, _mail: IsEnabled) -> <IsEnabled as Mail>::Result {
                 self.is_enabled()
             }
@@ -77,7 +75,7 @@ impl<T> ActorAddress<DdsDataReader<T>> {
             type Result = &'static str;
         }
 
-        impl<T> MailHandler<GetTypeName> for DdsDataReader<T> {
+        impl MailHandler<GetTypeName> for DdsDataReader {
             fn handle(&mut self, _mail: GetTypeName) -> <GetTypeName as Mail>::Result {
                 self.get_type_name()
             }
@@ -92,7 +90,7 @@ impl<T> ActorAddress<DdsDataReader<T>> {
             type Result = String;
         }
 
-        impl<T> MailHandler<GetTopicName> for DdsDataReader<T> {
+        impl MailHandler<GetTopicName> for DdsDataReader {
             fn handle(&mut self, _mail: GetTopicName) -> <GetTopicName as Mail>::Result {
                 self.get_topic_name()
             }
@@ -108,7 +106,7 @@ impl<T> ActorAddress<DdsDataReader<T>> {
             type Result = DdsShared<DdsRwLock<StatusConditionImpl>>;
         }
 
-        impl<T> MailHandler<GetStatusConditions> for DdsDataReader<T> {
+        impl MailHandler<GetStatusConditions> for DdsDataReader {
             fn handle(
                 &mut self,
                 _mail: GetStatusConditions,
@@ -126,7 +124,7 @@ impl<T> ActorAddress<DdsDataReader<T>> {
             type Result = SubscriptionMatchedStatus;
         }
 
-        impl<T> MailHandler<GetSubscriptionMatchedStatus> for DdsDataReader<T> {
+        impl MailHandler<GetSubscriptionMatchedStatus> for DdsDataReader {
             fn handle(
                 &mut self,
                 _mail: GetSubscriptionMatchedStatus,
@@ -145,7 +143,7 @@ impl<T> ActorAddress<DdsDataReader<T>> {
             type Result = Vec<InstanceHandle>;
         }
 
-        impl<T> MailHandler<GetMatchedPublications> for DdsDataReader<T> {
+        impl MailHandler<GetMatchedPublications> for DdsDataReader {
             fn handle(
                 &mut self,
                 _mail: GetMatchedPublications,
@@ -169,7 +167,7 @@ impl<T> ActorAddress<DdsDataReader<T>> {
             type Result = DdsResult<PublicationBuiltinTopicData>;
         }
 
-        impl<T> MailHandler<GetMatchedPublicationData> for DdsDataReader<T> {
+        impl MailHandler<GetMatchedPublicationData> for DdsDataReader {
             fn handle(
                 &mut self,
                 mail: GetMatchedPublicationData,
@@ -182,15 +180,13 @@ impl<T> ActorAddress<DdsDataReader<T>> {
     }
 }
 
-impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
-    #[allow(clippy::too_many_arguments)]
+impl ActorAddress<DdsDataReader> {
     pub fn add_matched_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        subscriber_qos: SubscriberQos,
-        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> DdsResult<()> {
@@ -198,8 +194,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             discovered_writer_data: DiscoveredWriterData,
             default_unicast_locator_list: Vec<Locator>,
             default_multicast_locator_list: Vec<Locator>,
-            subscriber_qos: SubscriberQos,
-            data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+            data_reader_address: ActorAddress<DdsDataReader>,
             subscriber_address: ActorAddress<DdsSubscriber>,
             participant_address: ActorAddress<DdsDomainParticipant>,
         }
@@ -208,13 +203,12 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = ();
         }
 
-        impl MailHandler<AddMatchedWriter> for DdsDataReader<RtpsStatefulReader> {
+        impl MailHandler<AddMatchedWriter> for DdsDataReader {
             fn handle(&mut self, mail: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
                 self.add_matched_writer(
                     mail.discovered_writer_data,
                     mail.default_unicast_locator_list,
                     mail.default_multicast_locator_list,
-                    mail.subscriber_qos,
                     mail.data_reader_address,
                     mail.subscriber_address,
                     mail.participant_address,
@@ -226,7 +220,6 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             discovered_writer_data,
             default_unicast_locator_list,
             default_multicast_locator_list,
-            subscriber_qos,
             data_reader_address,
             subscriber_address,
             participant_address,
@@ -236,13 +229,13 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
     pub fn remove_matched_writer(
         &self,
         discovered_writer_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> DdsResult<()> {
         struct RemoveMatchedWriter {
             discovered_writer_handle: InstanceHandle,
-            data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+            data_reader_address: ActorAddress<DdsDataReader>,
             subscriber_address: ActorAddress<DdsSubscriber>,
             participant_address: ActorAddress<DdsDomainParticipant>,
         }
@@ -251,7 +244,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = ();
         }
 
-        impl MailHandler<RemoveMatchedWriter> for DdsDataReader<RtpsStatefulReader> {
+        impl MailHandler<RemoveMatchedWriter> for DdsDataReader {
             fn handle(
                 &mut self,
                 mail: RemoveMatchedWriter,
@@ -282,7 +275,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = DdsResult<()>;
         }
 
-        impl MailHandler<SetQos> for DdsDataReader<RtpsStatefulReader> {
+        impl MailHandler<SetQos> for DdsDataReader {
             fn handle(&mut self, mail: SetQos) -> <SetQos as Mail>::Result {
                 self.set_qos(mail.qos)
             }
@@ -298,7 +291,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = DataReaderQos;
         }
 
-        impl MailHandler<GetQos> for DdsDataReader<RtpsStatefulReader> {
+        impl MailHandler<GetQos> for DdsDataReader {
             fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
                 self.get_qos()
             }
@@ -321,7 +314,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = ();
         }
 
-        impl MailHandler<SendMessage> for DdsDataReader<RtpsStatefulReader> {
+        impl MailHandler<SendMessage> for DdsDataReader {
             fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
                 self.send_message(mail.header, mail.udp_transport_write)
             }
@@ -330,46 +323,6 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
         self.send_blocking(SendMessage {
             header,
             udp_transport_write,
-        })
-    }
-    pub fn process_rtps_message(
-        &self,
-        message: RtpsMessageRead,
-        reception_timestamp: Time,
-        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-    ) -> DdsResult<()> {
-        struct ProcessRtpsMessage {
-            message: RtpsMessageRead,
-            reception_timestamp: Time,
-            data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
-            subscriber_address: ActorAddress<DdsSubscriber>,
-            participant_address: ActorAddress<DdsDomainParticipant>,
-        }
-
-        impl Mail for ProcessRtpsMessage {
-            type Result = ();
-        }
-
-        impl MailHandler<ProcessRtpsMessage> for DdsDataReader<RtpsStatefulReader> {
-            fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
-                self.process_rtps_message(
-                    mail.message,
-                    mail.reception_timestamp,
-                    mail.data_reader_address,
-                    mail.subscriber_address,
-                    mail.participant_address,
-                )
-            }
-        }
-
-        self.send_blocking(ProcessRtpsMessage {
-            message,
-            reception_timestamp,
-            data_reader_address,
-            subscriber_address,
-            participant_address,
         })
     }
 
@@ -382,7 +335,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = ();
         }
 
-        impl MailHandler<MatchedWriterAdd> for DdsDataReader<RtpsStatefulReader> {
+        impl MailHandler<MatchedWriterAdd> for DdsDataReader {
             fn handle(&mut self, mail: MatchedWriterAdd) -> <MatchedWriterAdd as Mail>::Result {
                 self.matched_writer_add(mail.a_writer_proxy)
             }
@@ -398,62 +351,13 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = InstanceHandle;
         }
 
-        impl MailHandler<GetInstanceHandle> for DdsDataReader<RtpsStatefulReader> {
+        impl MailHandler<GetInstanceHandle> for DdsDataReader {
             fn handle(&mut self, _mail: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
                 self.guid().into()
             }
         }
 
         self.send_blocking(GetInstanceHandle)
-    }
-
-    pub fn read<Foo>(
-        &self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: for<'de> DdsDeserialize<'de> + Send + 'static,
-    {
-        struct Read<Foo> {
-            phantom: PhantomData<Foo>,
-            max_samples: i32,
-            sample_states: Vec<SampleStateKind>,
-            view_states: Vec<ViewStateKind>,
-            instance_states: Vec<InstanceStateKind>,
-            specific_instance_handle: Option<InstanceHandle>,
-        }
-
-        impl<Foo> Mail for Read<Foo> {
-            type Result = DdsResult<Vec<Sample<Foo>>>;
-        }
-
-        impl<Foo> MailHandler<Read<Foo>> for DdsDataReader<RtpsStatefulReader>
-        where
-            Foo: for<'de> DdsDeserialize<'de>,
-        {
-            fn handle(&mut self, mail: Read<Foo>) -> <Read<Foo> as Mail>::Result {
-                self.read(
-                    mail.max_samples,
-                    &mail.sample_states,
-                    &mail.view_states,
-                    &mail.instance_states,
-                    mail.specific_instance_handle,
-                )
-            }
-        }
-
-        self.send_blocking(Read {
-            phantom: PhantomData,
-            max_samples,
-            sample_states: sample_states.to_vec(),
-            view_states: view_states.to_vec(),
-            instance_states: instance_states.to_vec(),
-            specific_instance_handle,
-        })?
     }
 
     pub fn read_next_instance<Foo>(
@@ -480,7 +384,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = DdsResult<Vec<Sample<Foo>>>;
         }
 
-        impl<Foo> MailHandler<ReadNextInstance<Foo>> for DdsDataReader<RtpsStatefulReader>
+        impl<Foo> MailHandler<ReadNextInstance<Foo>> for DdsDataReader
         where
             Foo: for<'de> DdsDeserialize<'de>,
         {
@@ -532,7 +436,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = DdsResult<Vec<Sample<Foo>>>;
         }
 
-        impl<Foo> MailHandler<Take<Foo>> for DdsDataReader<RtpsStatefulReader>
+        impl<Foo> MailHandler<Take<Foo>> for DdsDataReader
         where
             Foo: for<'de> DdsDeserialize<'de>,
         {
@@ -581,7 +485,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = DdsResult<Vec<Sample<Foo>>>;
         }
 
-        impl<Foo> MailHandler<TakeNextInstance<Foo>> for DdsDataReader<RtpsStatefulReader>
+        impl<Foo> MailHandler<TakeNextInstance<Foo>> for DdsDataReader
         where
             Foo: for<'de> DdsDeserialize<'de>,
         {
@@ -616,7 +520,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = DdsResult<bool>;
         }
 
-        impl MailHandler<IsHistoricalDataReceived> for DdsDataReader<RtpsStatefulReader> {
+        impl MailHandler<IsHistoricalDataReceived> for DdsDataReader {
             fn handle(
                 &mut self,
                 _mail: IsHistoricalDataReceived,
@@ -646,7 +550,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = DiscoveredReaderData;
         }
 
-        impl MailHandler<AsDiscoveredReaderData> for DdsDataReader<RtpsStatefulReader> {
+        impl MailHandler<AsDiscoveredReaderData> for DdsDataReader {
             fn handle(
                 &mut self,
                 mail: AsDiscoveredReaderData,
@@ -671,13 +575,13 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
     pub fn update_communication_status(
         &self,
         now: Time,
-        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> DdsResult<()> {
         struct UpdateCommunicationStatus {
             now: Time,
-            data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+            data_reader_address: ActorAddress<DdsDataReader>,
             subscriber_address: ActorAddress<DdsSubscriber>,
             participant_address: ActorAddress<DdsDomainParticipant>,
         }
@@ -686,7 +590,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
             type Result = ();
         }
 
-        impl MailHandler<UpdateCommunicationStatus> for DdsDataReader<RtpsStatefulReader> {
+        impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
             fn handle(
                 &mut self,
                 mail: UpdateCommunicationStatus,
@@ -709,7 +613,7 @@ impl ActorAddress<DdsDataReader<RtpsStatefulReader>> {
     }
 }
 
-impl ActorAddress<DdsDataReader<RtpsStatelessReader>> {
+impl ActorAddress<DdsDataReader> {
     pub fn read<Foo>(
         &self,
         max_samples: i32,
@@ -734,7 +638,7 @@ impl ActorAddress<DdsDataReader<RtpsStatelessReader>> {
             type Result = DdsResult<Vec<Sample<Foo>>>;
         }
 
-        impl<Foo> MailHandler<Read<Foo>> for DdsDataReader<RtpsStatelessReader>
+        impl<Foo> MailHandler<Read<Foo>> for DdsDataReader
         where
             Foo: for<'de> DdsDeserialize<'de>,
         {
@@ -763,25 +667,40 @@ impl ActorAddress<DdsDataReader<RtpsStatelessReader>> {
         &self,
         message: RtpsMessageRead,
         reception_timestamp: Time,
+        data_reader_address: ActorAddress<DdsDataReader>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> DdsResult<()> {
         struct ProcessRtpsMessage {
             message: RtpsMessageRead,
             reception_timestamp: Time,
+            data_reader_address: ActorAddress<DdsDataReader>,
+            subscriber_address: ActorAddress<DdsSubscriber>,
+            participant_address: ActorAddress<DdsDomainParticipant>,
         }
 
         impl Mail for ProcessRtpsMessage {
             type Result = ();
         }
 
-        impl MailHandler<ProcessRtpsMessage> for DdsDataReader<RtpsStatelessReader> {
+        impl MailHandler<ProcessRtpsMessage> for DdsDataReader {
             fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
-                self.process_rtps_message(mail.message, mail.reception_timestamp)
+                self.process_rtps_message(
+                    mail.message,
+                    mail.reception_timestamp,
+                    mail.data_reader_address,
+                    mail.subscriber_address,
+                    mail.participant_address,
+                )
             }
         }
 
         self.send_blocking(ProcessRtpsMessage {
             message,
             reception_timestamp,
+            data_reader_address,
+            subscriber_address,
+            participant_address,
         })
     }
 }

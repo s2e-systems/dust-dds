@@ -1,8 +1,6 @@
 use crate::{
-    implementation::{rtps::stateful_reader::RtpsStatefulReader, utils::actor::ActorAddress},
-    publication::data_writer::AnyDataWriter,
-    subscription::data_reader::AnyDataReader,
-    topic_definition::topic::AnyTopic,
+    implementation::utils::actor::ActorAddress, publication::data_writer::AnyDataWriter,
+    subscription::data_reader::AnyDataReader, topic_definition::topic::AnyTopic,
 };
 
 use super::{
@@ -63,14 +61,14 @@ impl SubscriberNode {
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DataReaderNode {
-    this: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+    this: ActorAddress<DdsDataReader>,
     parent_subscriber: ActorAddress<DdsSubscriber>,
     parent_participant: ActorAddress<DdsDomainParticipant>,
 }
 
 impl DataReaderNode {
     pub fn new(
-        this: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        this: ActorAddress<DdsDataReader>,
         parent_subscriber: ActorAddress<DdsSubscriber>,
         parent_participant: ActorAddress<DdsDomainParticipant>,
     ) -> Self {
@@ -81,7 +79,7 @@ impl DataReaderNode {
         }
     }
 
-    pub fn address(&self) -> &ActorAddress<DdsDataReader<RtpsStatefulReader>> {
+    pub fn address(&self) -> &ActorAddress<DdsDataReader> {
         &self.this
     }
 
