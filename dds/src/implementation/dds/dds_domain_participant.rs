@@ -328,7 +328,7 @@ impl DdsDomainParticipant {
             String::from(DCPS_SUBSCRIPTION),
             None,
             vec![],
-            sedp_writer_qos.clone(),
+            sedp_writer_qos,
         );
         let sedp_builtin_subscriptions_writer_actor =
             spawn_actor(sedp_builtin_subscriptions_writer);
