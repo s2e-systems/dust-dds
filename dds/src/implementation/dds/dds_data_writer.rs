@@ -1492,15 +1492,34 @@ fn send_change_message_reader_proxy_reliable(
             }
         }
         _ => {
+            let info_dst = RtpsSubmessageWriteKind::InfoDestination(
+                InfoDestinationSubmessageWrite::new(reader_proxy.remote_reader_guid().prefix()),
+            );
+
             let gap_submessage = RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
                 ENTITYID_UNKNOWN,
                 writer_id,
                 change_seq_num,
                 SequenceNumberSet::new(change_seq_num + 1, vec![]),
             ));
+            let first_sn = writer_cache
+                .change_list()
+                .iter()
+                .map(|x| x.sequence_number())
+                .min()
+                .unwrap_or_else(|| SequenceNumber::new(1));
+            let last_sn = writer_cache
+                .change_list()
+                .iter()
+                .map(|x| x.sequence_number())
+                .max()
+                .unwrap_or_else(|| SequenceNumber::new(0));
+            let heartbeat = reader_proxy
+                .heartbeat_machine()
+                .submessage(writer_id, first_sn, last_sn);
             udp_transport_write
                 .write(
-                    RtpsMessageWrite::new(header, vec![gap_submessage]),
+                    RtpsMessageWrite::new(header, vec![info_dst, gap_submessage, heartbeat]),
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
                 .expect("Should not fail cause actor always exists");
