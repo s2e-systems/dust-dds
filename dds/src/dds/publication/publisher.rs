@@ -140,7 +140,6 @@ impl Publisher {
             DURATION_ZERO,
             DURATION_ZERO,
             data_max_size_serialized,
-            qos,
         );
         let topic_name = a_topic.get_name()?;
         let listener = a_listener.map(|l| spawn_actor(DdsDataWriterListener::new(Box::new(l))));
@@ -151,6 +150,7 @@ impl Publisher {
             topic_name,
             listener,
             status_kind,
+            qos,
         );
         let data_writer_actor = spawn_actor(data_writer);
         let data_writer_address = data_writer_actor.address().clone();

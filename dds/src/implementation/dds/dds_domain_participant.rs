@@ -245,6 +245,19 @@ impl DdsDomainParticipant {
             .unwrap();
 
         // Built-in publisher creation
+        let spdp_writer_qos = DataWriterQos {
+            durability: DurabilityQosPolicy {
+                kind: DurabilityQosPolicyKind::TransientLocal,
+            },
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast(1),
+            },
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::BestEffort,
+                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+            },
+            ..Default::default()
+        };
         let spdp_builtin_participant_writer = spawn_actor(DdsDataWriter::new(
             create_builtin_stateless_writer(Guid::new(
                 guid_prefix,
@@ -254,6 +267,7 @@ impl DdsDomainParticipant {
             String::from(DCPS_PARTICIPANT),
             None,
             vec![],
+            spdp_writer_qos,
         ));
 
         for reader_locator in spdp_discovery_locator_list
@@ -266,6 +280,19 @@ impl DdsDomainParticipant {
                 .unwrap();
         }
 
+        let sedp_writer_qos = DataWriterQos {
+            durability: DurabilityQosPolicy {
+                kind: DurabilityQosPolicyKind::TransientLocal,
+            },
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast(1),
+            },
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::Reliable,
+                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+            },
+            ..Default::default()
+        };
         let sedp_builtin_topics_writer = DdsDataWriter::new(
             create_builtin_stateful_writer(Guid::new(
                 guid_prefix,
@@ -275,6 +302,7 @@ impl DdsDomainParticipant {
             String::from(DCPS_TOPIC),
             None,
             vec![],
+            sedp_writer_qos.clone(),
         );
         let sedp_builtin_topics_writer_actor = spawn_actor(sedp_builtin_topics_writer);
 
@@ -287,6 +315,7 @@ impl DdsDomainParticipant {
             String::from(DCPS_PUBLICATION),
             None,
             vec![],
+            sedp_writer_qos.clone(),
         );
         let sedp_builtin_publications_writer_actor = spawn_actor(sedp_builtin_publications_writer);
 
@@ -299,6 +328,7 @@ impl DdsDomainParticipant {
             String::from(DCPS_SUBSCRIPTION),
             None,
             vec![],
+            sedp_writer_qos.clone(),
         );
         let sedp_builtin_subscriptions_writer_actor =
             spawn_actor(sedp_builtin_subscriptions_writer);
@@ -723,19 +753,7 @@ fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
     let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
     let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION;
     let data_max_size_serialized = usize::MAX;
-    let qos = DataWriterQos {
-        durability: DurabilityQosPolicy {
-            kind: DurabilityQosPolicyKind::TransientLocal,
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepLast(1),
-        },
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(DURATION_ZERO),
-        },
-        ..Default::default()
-    };
+
     RtpsWriter::new(
         RtpsEndpoint::new(
             guid,
@@ -748,26 +766,13 @@ fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
         nack_response_delay,
         nack_suppression_duration,
         data_max_size_serialized,
-        qos,
     )
 }
 
 fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
-    let qos = DataWriterQos {
-        durability: DurabilityQosPolicy {
-            kind: DurabilityQosPolicyKind::TransientLocal,
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepLast(1),
-        },
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: DurationKind::Finite(DURATION_ZERO),
-        },
-        ..Default::default()
-    };
+
     RtpsWriter::new(
         RtpsEndpoint::new(
             guid,
@@ -780,7 +785,6 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
         DURATION_ZERO,
         DURATION_ZERO,
         usize::MAX,
-        qos,
     )
 }
 
