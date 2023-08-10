@@ -27,8 +27,6 @@ use crate::{
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
             participant::RtpsParticipant,
             reader_proxy::RtpsReaderProxy,
-            stateful_reader::RtpsStatefulReader,
-            stateful_writer::RtpsStatefulWriter,
             types::{
                 DurabilityKind, Guid, GuidPrefix, Locator, LocatorAddress, LocatorPort,
                 ReliabilityKind, SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
@@ -381,10 +379,10 @@ impl DomainParticipantFactory {
 }
 
 fn lookup_data_writer_by_topic_name(
-    stateful_writer_list: &[ActorAddress<DdsDataWriter<RtpsStatefulWriter>>],
+    writer_list: &[ActorAddress<DdsDataWriter>],
     topic_name: &str,
-) -> Option<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
-    stateful_writer_list
+) -> Option<ActorAddress<DdsDataWriter>> {
+    writer_list
         .iter()
         .find(|dw| {
             if let Ok(t) = dw.get_topic_name() {
@@ -397,9 +395,9 @@ fn lookup_data_writer_by_topic_name(
 }
 
 fn lookup_data_reader_by_topic_name(
-    stateful_reader_list: &[ActorAddress<DdsDataReader<RtpsStatefulReader>>],
+    stateful_reader_list: &[ActorAddress<DdsDataReader>],
     topic_name: &str,
-) -> Option<ActorAddress<DdsDataReader<RtpsStatefulReader>>> {
+) -> Option<ActorAddress<DdsDataReader>> {
     stateful_reader_list
         .iter()
         .find(|dw| {
@@ -413,7 +411,7 @@ fn lookup_data_reader_by_topic_name(
 }
 
 fn add_matched_publications_detector(
-    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    writer: &ActorAddress<DdsDataWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -449,7 +447,7 @@ fn add_matched_publications_detector(
 }
 
 fn add_matched_publications_announcer(
-    reader: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+    reader: &ActorAddress<DdsDataReader>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -483,7 +481,7 @@ fn add_matched_publications_announcer(
 }
 
 fn add_matched_subscriptions_detector(
-    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    writer: &ActorAddress<DdsDataWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -519,7 +517,7 @@ fn add_matched_subscriptions_detector(
 }
 
 fn add_matched_subscriptions_announcer(
-    reader: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+    reader: &ActorAddress<DdsDataReader>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -552,7 +550,7 @@ fn add_matched_subscriptions_announcer(
 }
 
 fn add_matched_topics_detector(
-    writer: &ActorAddress<DdsDataWriter<RtpsStatefulWriter>>,
+    writer: &ActorAddress<DdsDataWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -588,7 +586,7 @@ fn add_matched_topics_detector(
 }
 
 fn add_matched_topics_announcer(
-    reader: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+    reader: &ActorAddress<DdsDataReader>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -625,7 +623,7 @@ fn process_user_defined_data(
     message: RtpsMessageRead,
 ) -> DdsResult<()> {
     for user_defined_subscriber in participant_address.get_user_defined_subscriber_list()? {
-        for user_defined_data_reader in user_defined_subscriber.stateful_data_reader_list()? {
+        for user_defined_data_reader in user_defined_subscriber.data_reader_list()? {
             user_defined_data_reader.process_rtps_message(
                 message.clone(),
                 participant_address.get_current_time()?,
@@ -645,7 +643,7 @@ fn process_user_defined_data(
     }
 
     for user_defined_publisher in participant_address.get_user_defined_publisher_list()? {
-        for user_defined_data_writer in user_defined_publisher.stateful_data_writer_list()? {
+        for user_defined_data_writer in user_defined_publisher.data_writer_list()? {
             user_defined_data_writer.process_rtps_message(message.clone())?;
             user_defined_data_writer.send_message(
                 RtpsMessageHeader::new(
@@ -667,19 +665,21 @@ fn process_spdp_metatraffic(
 ) -> DdsResult<()> {
     let builtin_subscriber = participant_address.get_builtin_subscriber()?;
 
-    if let Some(spdp_data_reader) = builtin_subscriber
-        .stateless_data_reader_list()?
-        .iter()
-        .find(|dr| {
-            if let Ok(type_name) = dr.get_type_name() {
-                type_name == SpdpDiscoveredParticipantData::type_name()
-            } else {
-                false
-            }
-        })
-    {
+    if let Some(spdp_data_reader) = builtin_subscriber.data_reader_list()?.iter().find(|dr| {
+        if let Ok(type_name) = dr.get_type_name() {
+            type_name == SpdpDiscoveredParticipantData::type_name()
+        } else {
+            false
+        }
+    }) {
         // Receive the data on the builtin spdp reader
-        spdp_data_reader.process_rtps_message(message, participant_address.get_current_time()?)?;
+        spdp_data_reader.process_rtps_message(
+            message,
+            participant_address.get_current_time()?,
+            spdp_data_reader.clone(),
+            builtin_subscriber,
+            participant_address.clone(),
+        )?;
 
         // Read data from each of the readers
         while let Ok(spdp_data_sample_list) = spdp_data_reader
@@ -716,10 +716,10 @@ fn process_spdp_metatraffic(
                     // Process any new participant discovery (add/remove matched proxies)
                     let builtin_data_writer_list = participant_address
                         .get_builtin_publisher()?
-                        .stateful_data_writer_list()?;
+                        .data_writer_list()?;
                     let builtin_data_reader_list = participant_address
                         .get_builtin_subscriber()?
-                        .stateful_data_reader_list()?;
+                        .data_reader_list()?;
 
                     if let Some(sedp_publications_announcer) = lookup_data_writer_by_topic_name(
                         &builtin_data_writer_list,
@@ -827,7 +827,7 @@ fn process_sedp_metatraffic(
     let builtin_subscriber = participant_address.get_builtin_subscriber()?;
     let builtin_publisher = participant_address.get_builtin_publisher()?;
 
-    for stateful_builtin_writer in builtin_publisher.stateful_data_writer_list()? {
+    for stateful_builtin_writer in builtin_publisher.data_writer_list()? {
         stateful_builtin_writer.process_rtps_message(message.clone())?;
         stateful_builtin_writer.send_message(
             RtpsMessageHeader::new(
@@ -840,7 +840,7 @@ fn process_sedp_metatraffic(
         )?;
     }
 
-    for stateful_builtin_reader in builtin_subscriber.stateful_data_reader_list()? {
+    for stateful_builtin_reader in builtin_subscriber.data_reader_list()? {
         stateful_builtin_reader.process_rtps_message(
             message.clone(),
             participant_address.get_current_time()?,
@@ -866,7 +866,7 @@ fn process_sedp_discovery(
 ) -> DdsResult<()> {
     let builtin_subscriber = participant_address.get_builtin_subscriber()?;
 
-    for stateful_builtin_reader in builtin_subscriber.stateful_data_reader_list()? {
+    for stateful_builtin_reader in builtin_subscriber.data_reader_list()? {
         match stateful_builtin_reader.get_topic_name()?.as_str() {
             DCPS_PUBLICATION => {
                 if let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader
@@ -996,16 +996,13 @@ fn discover_matched_writers(
                                 || is_subscriber_regex_matched_to_discovered_writer
                                 || is_partition_string_matched
                             {
-                                let user_defined_subscriber_qos =
-                                    user_defined_subscriber_address.get_qos()?;
                                 for data_reader_address in
-                                    user_defined_subscriber_address.stateful_data_reader_list()?
+                                    user_defined_subscriber_address.data_reader_list()?
                                 {
                                     data_reader_address.add_matched_writer(
                                         discovered_writer_data.clone(),
                                         default_unicast_locator_list.clone(),
                                         default_multicast_locator_list.clone(),
-                                        user_defined_subscriber_qos.clone(),
                                         data_reader_address.clone(),
                                         user_defined_subscriber_address.clone(),
                                         participant_address.clone(),
@@ -1027,7 +1024,7 @@ fn discover_matched_writers(
         }
         InstanceStateKind::NotAliveDisposed => {
             for subscriber in participant_address.get_user_defined_subscriber_list()? {
-                for data_reader in subscriber.stateful_data_reader_list()? {
+                for data_reader in subscriber.data_reader_list()? {
                     data_reader.remove_matched_writer(
                         discovered_writer_sample.sample_info.instance_handle,
                         data_reader.clone(),
@@ -1115,13 +1112,12 @@ pub fn discover_matched_readers(
                                 || is_partition_string_matched
                             {
                                 for data_writer in
-                                    user_defined_publisher_address.stateful_data_writer_list()?
+                                    user_defined_publisher_address.data_writer_list()?
                                 {
                                     data_writer.add_matched_reader(
                                         discovered_reader_data.clone(),
                                         default_unicast_locator_list.clone(),
                                         default_multicast_locator_list.clone(),
-                                        publisher_qos.clone(),
                                         data_writer.clone(),
                                         user_defined_publisher_address.clone(),
                                         participant_address.clone(),
@@ -1144,7 +1140,7 @@ pub fn discover_matched_readers(
         }
         InstanceStateKind::NotAliveDisposed => {
             for publisher in participant_address.get_user_defined_publisher_list()? {
-                for data_writer in publisher.stateful_data_writer_list()? {
+                for data_writer in publisher.data_writer_list()? {
                     data_writer.remove_matched_reader(
                         discovered_reader_sample.sample_info.instance_handle,
                         data_writer.clone(),

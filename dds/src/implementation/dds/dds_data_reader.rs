@@ -17,10 +17,8 @@ use crate::{
                     heartbeat_frag::HeartbeatFragSubmessageRead,
                 },
             },
-            reader::{RtpsReaderCacheChange, RtpsReaderResult},
-            stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
-            stateless_reader::{RtpsStatelessReader, StatelessReaderDataReceivedResult},
-            types::{Guid, GuidPrefix, Locator, GUID_UNKNOWN},
+            reader::{convert_data_frag_to_cache_change, RtpsReader, RtpsReaderError},
+            types::{Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
@@ -34,7 +32,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
-            DurabilityQosPolicyKind, QosPolicyId, DEADLINE_QOS_POLICY_ID,
+            DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
@@ -61,6 +59,27 @@ use super::{
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
     NoChange,
     NewDataAvailable,
+}
+
+pub enum DataReceivedResult {
+    NoMatchedWriterProxy,
+    UnexpectedDataSequenceNumber,
+    NewSampleAdded(InstanceHandle),
+    NewSampleAddedAndSamplesLost(InstanceHandle),
+    SampleRejected(InstanceHandle, SampleRejectedStatusKind),
+    InvalidData(&'static str),
+    NotForThisReader,
+}
+
+impl From<RtpsReaderError> for DataReceivedResult {
+    fn from(e: RtpsReaderError) -> Self {
+        match e {
+            RtpsReaderError::InvalidData(s) => DataReceivedResult::InvalidData(s),
+            RtpsReaderError::Rejected(instance_handle, reason) => {
+                DataReceivedResult::SampleRejected(instance_handle, reason)
+            }
+        }
+    }
 }
 
 impl SampleLostStatus {
@@ -173,8 +192,9 @@ impl SubscriptionMatchedStatus {
     }
 }
 
-pub struct DdsDataReader<T> {
-    rtps_reader: T,
+pub struct DdsDataReader {
+    rtps_reader: RtpsReader,
+    matched_writers: Vec<RtpsWriterProxy>,
     type_name: &'static str,
     topic_name: String,
     liveliness_changed_status: LivelinessChangedStatus,
@@ -193,9 +213,9 @@ pub struct DdsDataReader<T> {
     status_kind: Vec<StatusKind>,
 }
 
-impl<T> DdsDataReader<T> {
+impl DdsDataReader {
     pub fn new(
-        rtps_reader: T,
+        rtps_reader: RtpsReader,
         type_name: &'static str,
         topic_name: String,
         listener: Option<Actor<DdsDataReaderListener>>,
@@ -203,6 +223,7 @@ impl<T> DdsDataReader<T> {
     ) -> Self {
         DdsDataReader {
             rtps_reader,
+            matched_writers: Vec::new(),
             type_name,
             topic_name,
             liveliness_changed_status: LivelinessChangedStatus::default(),
@@ -290,14 +311,12 @@ impl<T> DdsDataReader<T> {
             .cloned()
             .ok_or(DdsError::BadParameter)
     }
-}
 
-impl DdsDataReader<RtpsStatefulReader> {
     pub fn process_rtps_message(
         &mut self,
         message: RtpsMessageRead,
         reception_timestamp: Time,
-        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
@@ -349,7 +368,7 @@ impl DdsDataReader<RtpsStatefulReader> {
 
     pub fn on_data_available(
         &self,
-        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
     ) {
@@ -397,24 +416,116 @@ impl DdsDataReader<RtpsStatefulReader> {
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
-        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
-        let data_submessage_received_result = self.rtps_reader.on_data_submessage_received(
-            data_submessage,
-            source_guid_prefix,
-            source_timestamp,
-            reception_timestamp,
-        );
+        let sequence_number = data_submessage.writer_sn();
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
+
+        let data_submessage_received_result = if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|wp| wp.remote_writer_guid() == writer_guid)
+        {
+            let expected_seq_num = writer_proxy.available_changes_max() + 1;
+            match self.rtps_reader.get_qos().reliability.kind {
+                ReliabilityQosPolicyKind::BestEffort => {
+                    if sequence_number >= expected_seq_num {
+                        let change_result = self.rtps_reader.convert_data_to_cache_change(
+                            data_submessage,
+                            source_timestamp,
+                            source_guid_prefix,
+                            reception_timestamp,
+                        );
+                        match change_result {
+                            Ok(change) => {
+                                let add_change_result = self.rtps_reader.add_change(change);
+
+                                match add_change_result {
+                                    Ok(instance_handle) => {
+                                        writer_proxy.received_change_set(sequence_number);
+                                        if sequence_number > expected_seq_num {
+                                            writer_proxy.lost_changes_update(sequence_number);
+                                            DataReceivedResult::NewSampleAddedAndSamplesLost(
+                                                instance_handle,
+                                            )
+                                        } else {
+                                            DataReceivedResult::NewSampleAdded(instance_handle)
+                                        }
+                                    }
+                                    Err(err) => err.into(),
+                                }
+                            }
+                            Err(_) => DataReceivedResult::InvalidData("Invalid data submessage"),
+                        }
+                    } else {
+                        DataReceivedResult::UnexpectedDataSequenceNumber
+                    }
+                }
+                ReliabilityQosPolicyKind::Reliable => {
+                    if sequence_number == expected_seq_num {
+                        let change_result = self.rtps_reader.convert_data_to_cache_change(
+                            data_submessage,
+                            source_timestamp,
+                            source_guid_prefix,
+                            reception_timestamp,
+                        );
+                        match change_result {
+                            Ok(change) => {
+                                let add_change_result = self.rtps_reader.add_change(change);
+
+                                match add_change_result {
+                                    Ok(instance_handle) => {
+                                        writer_proxy
+                                            .received_change_set(data_submessage.writer_sn());
+                                        DataReceivedResult::NewSampleAdded(instance_handle)
+                                    }
+                                    Err(err) => err.into(),
+                                }
+                            }
+                            Err(_) => DataReceivedResult::InvalidData("Invalid data submessage"),
+                        }
+                    } else {
+                        DataReceivedResult::UnexpectedDataSequenceNumber
+                    }
+                }
+            }
+        } else if data_submessage.reader_id() == ENTITYID_UNKNOWN {
+            let change_result = self.rtps_reader.convert_data_to_cache_change(
+                data_submessage,
+                source_timestamp,
+                source_guid_prefix,
+                reception_timestamp,
+            );
+            match change_result {
+                Ok(change) => {
+                    let add_change_result = self.rtps_reader.add_change(change);
+
+                    match add_change_result {
+                        Ok(h) => DataReceivedResult::NewSampleAdded(h),
+                        Err(e) => match e {
+                            RtpsReaderError::InvalidData(s) => DataReceivedResult::InvalidData(s),
+                            RtpsReaderError::Rejected(h, k) => {
+                                DataReceivedResult::SampleRejected(h, k)
+                            }
+                        },
+                    }
+                }
+                Err(_) => DataReceivedResult::InvalidData("Invalid data submessage"), // Change is ignored,
+            }
+        } else {
+            DataReceivedResult::NotForThisReader
+        };
+
         match data_submessage_received_result {
-            StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
+            DataReceivedResult::NoMatchedWriterProxy => {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
-            StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber => {
+            DataReceivedResult::UnexpectedDataSequenceNumber => {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
-            StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
+            DataReceivedResult::NewSampleAdded(instance_handle) => {
                 self.data_available_status_changed_flag = true;
                 self.instance_reception_time
                     .insert(instance_handle, reception_timestamp);
@@ -425,7 +536,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
-            StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
+            DataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
                 self.instance_reception_time
                     .insert(instance_handle, reception_timestamp);
                 self.data_available_status_changed_flag = true;
@@ -441,7 +552,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
-            StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
+            DataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
                 self.on_sample_rejected(
                     instance_handle,
                     rejected_reason,
@@ -451,7 +562,10 @@ impl DdsDataReader<RtpsStatefulReader> {
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
-            StatefulReaderDataReceivedResult::InvalidData(_) => {
+            DataReceivedResult::InvalidData(_) => {
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange
+            }
+            DataReceivedResult::NotForThisReader => {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
         }
@@ -464,25 +578,107 @@ impl DdsDataReader<RtpsStatefulReader> {
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
-        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
-        let data_submessage_received_result = self.rtps_reader.on_data_frag_submessage_received(
-            data_frag_submessage,
-            source_guid_prefix,
-            source_timestamp,
-            reception_timestamp,
-        );
+        let sequence_number = data_frag_submessage.writer_sn();
+        let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
+
+        let data_submessage_received_result = if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|wp| wp.remote_writer_guid() == writer_guid)
+        {
+            let expected_seq_num = writer_proxy.available_changes_max() + 1;
+            match self.rtps_reader.get_qos().reliability.kind {
+                ReliabilityQosPolicyKind::BestEffort => {
+                    if sequence_number >= expected_seq_num {
+                        writer_proxy.push_data_frag(data_frag_submessage);
+                        if let Some(data) = writer_proxy.extract_frag(sequence_number) {
+                            let change_results = convert_data_frag_to_cache_change(
+                                data_frag_submessage,
+                                data,
+                                source_timestamp,
+                                source_guid_prefix,
+                                reception_timestamp,
+                            );
+                            match change_results {
+                                Ok(change) => {
+                                    let add_change_result = self.rtps_reader.add_change(change);
+                                    match add_change_result {
+                                        Ok(instance_handle) => {
+                                            writer_proxy.received_change_set(sequence_number);
+                                            if sequence_number > expected_seq_num {
+                                                writer_proxy.lost_changes_update(sequence_number);
+                                                DataReceivedResult::NewSampleAddedAndSamplesLost(
+                                                    instance_handle,
+                                                )
+                                            } else {
+                                                DataReceivedResult::NewSampleAdded(instance_handle)
+                                            }
+                                        }
+                                        Err(err) => err.into(),
+                                    }
+                                }
+                                Err(_) => {
+                                    DataReceivedResult::InvalidData("Invalid data submessage")
+                                }
+                            }
+                        } else {
+                            DataReceivedResult::NoMatchedWriterProxy
+                        }
+                    } else {
+                        DataReceivedResult::UnexpectedDataSequenceNumber
+                    }
+                }
+                ReliabilityQosPolicyKind::Reliable => {
+                    if sequence_number == expected_seq_num {
+                        writer_proxy.push_data_frag(data_frag_submessage);
+                        if let Some(data) = writer_proxy.extract_frag(sequence_number) {
+                            let change_result = convert_data_frag_to_cache_change(
+                                data_frag_submessage,
+                                data,
+                                source_timestamp,
+                                source_guid_prefix,
+                                reception_timestamp,
+                            );
+
+                            match change_result {
+                                Ok(change) => {
+                                    let add_change_result = self.rtps_reader.add_change(change);
+                                    match add_change_result {
+                                        Ok(instance_handle) => {
+                                            writer_proxy.received_change_set(sequence_number);
+                                            DataReceivedResult::NewSampleAdded(instance_handle)
+                                        }
+                                        Err(err) => err.into(),
+                                    }
+                                }
+                                Err(_) => {
+                                    DataReceivedResult::InvalidData("Invalid data submessage")
+                                }
+                            }
+                        } else {
+                            DataReceivedResult::NoMatchedWriterProxy
+                        }
+                    } else {
+                        DataReceivedResult::UnexpectedDataSequenceNumber
+                    }
+                }
+            }
+        } else {
+            DataReceivedResult::NoMatchedWriterProxy
+        };
 
         match data_submessage_received_result {
-            StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
+            DataReceivedResult::NoMatchedWriterProxy => {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
-            StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber => {
+            DataReceivedResult::UnexpectedDataSequenceNumber => {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
-            StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
+            DataReceivedResult::NewSampleAdded(instance_handle) => {
                 self.instance_reception_time
                     .insert(instance_handle, reception_timestamp);
                 self.data_available_status_changed_flag = true;
@@ -493,7 +689,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
-            StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
+            DataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
                 self.instance_reception_time
                     .insert(instance_handle, reception_timestamp);
                 self.data_available_status_changed_flag = true;
@@ -509,7 +705,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
-            StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
+            DataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
                 self.on_sample_rejected(
                     instance_handle,
                     rejected_reason,
@@ -519,7 +715,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                 );
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
-            StatefulReaderDataReceivedResult::InvalidData(_) => {
+            DataReceivedResult::InvalidData(_) | DataReceivedResult::NotForThisReader => {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
         }
@@ -530,8 +726,31 @@ impl DdsDataReader<RtpsStatefulReader> {
         heartbeat_submessage: &HeartbeatSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
-        self.rtps_reader
-            .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+        if self.rtps_reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
+
+            if let Some(writer_proxy) = self
+                .matched_writers
+                .iter_mut()
+                .find(|x| x.remote_writer_guid() == writer_guid)
+            {
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
+                    writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
+
+                    writer_proxy.set_must_send_acknacks(
+                        !heartbeat_submessage.final_flag()
+                            || (!heartbeat_submessage.liveliness_flag()
+                                && !writer_proxy.missing_changes().is_empty()),
+                    );
+
+                    if !heartbeat_submessage.final_flag() {
+                        writer_proxy.set_must_send_acknacks(true);
+                    }
+                    writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
+                    writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+                }
+            }
+        }
     }
 
     pub fn on_heartbeat_frag_submessage_received(
@@ -539,18 +758,31 @@ impl DdsDataReader<RtpsStatefulReader> {
         heartbeat_frag_submessage: &HeartbeatFragSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
-        self.rtps_reader
-            .on_heartbeat_frag_submessage_received(heartbeat_frag_submessage, source_guid_prefix);
+        if self.rtps_reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_frag_submessage.writer_id());
+
+            if let Some(writer_proxy) = self
+                .matched_writers
+                .iter_mut()
+                .find(|x| x.remote_writer_guid() == writer_guid)
+            {
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count()
+                {
+                    writer_proxy
+                        .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count());
+                }
+
+                // todo!()
+            }
+        }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn add_matched_writer(
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        subscriber_qos: SubscriberQos,
-        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
@@ -562,7 +794,7 @@ impl DdsDataReader<RtpsStatefulReader> {
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &discovered_writer_data,
-                    &subscriber_qos,
+                    &subscriber_address.get_qos().unwrap(),
                 );
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_writer_data
@@ -603,7 +835,7 @@ impl DdsDataReader<RtpsStatefulReader> {
                         .remote_group_entity_id(),
                 );
 
-                self.rtps_reader.matched_writer_add(writer_proxy);
+                self.matched_writer_add(writer_proxy);
                 let insert_matched_publication_result = self
                     .matched_publication_list
                     .insert(instance_handle, publication_builtin_topic_data.clone());
@@ -677,7 +909,7 @@ impl DdsDataReader<RtpsStatefulReader> {
     pub fn remove_matched_writer(
         &mut self,
         discovered_writer_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
@@ -685,7 +917,7 @@ impl DdsDataReader<RtpsStatefulReader> {
             .matched_publication_list
             .remove(&discovered_writer_handle);
         if let Some(w) = matched_publication {
-            self.rtps_reader.matched_writer_remove(w.key().value.into());
+            self.matched_writer_remove(w.key().value.into());
 
             self.on_subscription_matched(
                 discovered_writer_handle,
@@ -820,7 +1052,10 @@ impl DdsDataReader<RtpsStatefulReader> {
             DurabilityQosPolicyKind::TransientLocal => Ok(()),
         }?;
 
-        Ok(self.rtps_reader.is_historical_data_received())
+        Ok(!self
+            .matched_writers
+            .iter()
+            .any(|p| !p.is_historical_data_received()))
     }
 
     pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
@@ -900,13 +1135,15 @@ impl DdsDataReader<RtpsStatefulReader> {
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
     ) {
-        self.rtps_reader.send_message(header, &udp_transport_write);
+        for writer_proxy in self.matched_writers.iter_mut() {
+            writer_proxy.send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
+        }
     }
 
     pub fn update_communication_status(
         &mut self,
         now: Time,
-        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
@@ -983,8 +1220,22 @@ impl DdsDataReader<RtpsStatefulReader> {
         gap_submessage: &GapSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
-        self.rtps_reader
-            .on_gap_submessage_received(gap_submessage, source_guid_prefix);
+        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id());
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|x| x.remote_writer_guid() == writer_guid)
+        {
+            for seq_num in
+                i64::from(gap_submessage.gap_start())..i64::from(gap_submessage.gap_list().base())
+            {
+                writer_proxy.irrelevant_change_set(SequenceNumber::new(seq_num))
+            }
+
+            for seq_num in gap_submessage.gap_list().set() {
+                writer_proxy.irrelevant_change_set(*seq_num)
+            }
+        }
     }
 
     fn _on_sample_lost(&mut self, _parent_subscriber_guid: Guid, _parent_participant_guid: Guid) {
@@ -1002,7 +1253,7 @@ impl DdsDataReader<RtpsStatefulReader> {
     fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
@@ -1051,7 +1302,7 @@ impl DdsDataReader<RtpsStatefulReader> {
         &mut self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
-        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
     ) {
@@ -1109,7 +1360,7 @@ impl DdsDataReader<RtpsStatefulReader> {
     fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-        data_reader_address: &ActorAddress<DdsDataReader<RtpsStatefulReader>>,
+        data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
     ) {
@@ -1168,174 +1419,23 @@ impl DdsDataReader<RtpsStatefulReader> {
                 .expect("Should not fail to send message");
         }
     }
-}
 
-impl DdsDataReader<RtpsStatefulReader> {
     pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
-        self.rtps_reader.matched_writer_add(a_writer_proxy)
-    }
-
-    pub fn _matched_writer_remove(&mut self, a_writer_guid: Guid) {
-        self.rtps_reader.matched_writer_remove(a_writer_guid)
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.rtps_reader.guid()
-    }
-}
-
-impl DdsDataReader<RtpsStatelessReader> {
-    pub fn process_rtps_message(&mut self, message: RtpsMessageRead, reception_timestamp: Time) {
-        let mut message_receiver = MessageReceiver::new(&message);
-        while let Some(submessage) = message_receiver.next() {
-            match &submessage {
-                RtpsSubmessageReadKind::Data(data_submessage) => {
-                    self.on_data_submessage_received(
-                        data_submessage,
-                        message_receiver.source_timestamp(),
-                        message_receiver.source_guid_prefix(),
-                        reception_timestamp,
-                    );
-                }
-                RtpsSubmessageReadKind::DataFrag(_) => todo!(),
-                RtpsSubmessageReadKind::Gap(_) => todo!(),
-                RtpsSubmessageReadKind::Heartbeat(_) => todo!(),
-                RtpsSubmessageReadKind::HeartbeatFrag(_) => todo!(),
-                _ => (),
-            }
+        if !self
+            .matched_writers
+            .iter()
+            .any(|x| x.remote_writer_guid() == a_writer_proxy.remote_writer_guid())
+        {
+            self.matched_writers.push(a_writer_proxy);
         }
     }
 
+    pub fn matched_writer_remove(&mut self, a_writer_guid: Guid) {
+        self.matched_writers
+            .retain(|x| x.remote_writer_guid() != a_writer_guid)
+    }
+
     pub fn guid(&self) -> Guid {
         self.rtps_reader.guid()
-    }
-
-    pub fn _convert_data_to_cache_change(
-        &self,
-        data_submessage: &DataSubmessageRead,
-        source_timestamp: Option<Time>,
-        source_guid_prefix: GuidPrefix,
-        reception_timestamp: Time,
-    ) -> RtpsReaderResult<RtpsReaderCacheChange> {
-        self.rtps_reader._convert_data_to_cache_change(
-            data_submessage,
-            source_timestamp,
-            source_guid_prefix,
-            reception_timestamp,
-        )
-    }
-
-    pub fn _add_change(
-        &mut self,
-        change: RtpsReaderCacheChange,
-    ) -> RtpsReaderResult<InstanceHandle> {
-        self.rtps_reader._add_change(change)
-    }
-
-    pub fn get_qos(&self) -> DataReaderQos {
-        self.rtps_reader.get_qos().clone()
-    }
-
-    pub fn _set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
-        self.rtps_reader._set_qos(qos)
-    }
-
-    pub fn read<Foo>(
-        &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: for<'de> DdsDeserialize<'de>,
-    {
-        self.rtps_reader.read(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )
-    }
-
-    pub fn _take<Foo>(
-        &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: for<'de> DdsDeserialize<'de>,
-    {
-        self.rtps_reader._take(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )
-    }
-
-    pub fn read_next_instance<Foo>(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: for<'de> DdsDeserialize<'de>,
-    {
-        self.rtps_reader.read_next_instance(
-            max_samples,
-            previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
-    }
-
-    pub fn _take_next_instance<Foo>(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: for<'de> DdsDeserialize<'de>,
-    {
-        self.rtps_reader._take_next_instance(
-            max_samples,
-            previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
-    }
-
-    pub fn on_data_submessage_received(
-        &mut self,
-        data_submessage: &DataSubmessageRead<'_>,
-        source_timestamp: Option<Time>,
-        source_guid_prefix: GuidPrefix,
-        reception_timestamp: Time,
-    ) -> StatelessReaderDataReceivedResult {
-        self.rtps_reader.on_data_submessage_received(
-            data_submessage,
-            source_timestamp,
-            source_guid_prefix,
-            reception_timestamp,
-        )
-    }
-
-    pub fn _get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_reader.guid().into()
     }
 }

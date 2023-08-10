@@ -261,7 +261,7 @@ fn announce_topic(
 
     if let Some(sedp_topic_announcer) = domain_participant
         .get_builtin_publisher()?
-        .stateful_data_writer_list()?
+        .data_writer_list()?
         .iter()
         .find(|x| x.get_type_name().unwrap() == DiscoveredTopicData::type_name())
     {
@@ -270,7 +270,7 @@ fn announce_topic(
             discovered_topic_data.get_serialized_key(),
             None,
             timestamp,
-        )?;
+        )??;
 
         sedp_topic_announcer.send_message(
             RtpsMessageHeader::new(

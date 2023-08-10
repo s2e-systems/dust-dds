@@ -1,4 +1,5 @@
 use super::{
+    history_cache::WriterHistoryCache,
     messages::{
         overall_structure::RtpsSubmessageWriteKind,
         submessages::{
@@ -10,7 +11,6 @@ use super::{
         DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind, SequenceNumber,
     },
     utils::clock::{StdTimer, Timer, TimerConstructor},
-    writer::RtpsWriter,
 };
 use crate::infrastructure::time::Duration;
 
@@ -145,86 +145,64 @@ impl RtpsReaderProxy {
     pub fn durability(&self) -> DurabilityKind {
         self.durability
     }
-}
-
-pub struct WriterAssociatedReaderProxy<'a> {
-    writer: &'a RtpsWriter,
-    reader_proxy: &'a mut RtpsReaderProxy,
-}
-
-impl<'a> WriterAssociatedReaderProxy<'a> {
-    pub fn new(writer: &'a RtpsWriter, reader_proxy: &'a mut RtpsReaderProxy) -> Self {
-        Self {
-            writer,
-            reader_proxy,
-        }
-    }
-
-    pub fn writer(&self) -> &'a RtpsWriter {
-        self.writer
-    }
-
-    pub fn remote_reader_guid(&self) -> Guid {
-        self.reader_proxy.remote_reader_guid
-    }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.reader_proxy.unicast_locator_list.as_slice()
+        self.unicast_locator_list.as_slice()
     }
 
     pub fn reliability(&self) -> ReliabilityKind {
-        self.reader_proxy.reliability
+        self.reliability
     }
 
     pub fn heartbeat_machine(&mut self) -> &mut HeartbeatMachine {
-        &mut self.reader_proxy.heartbeat_machine
+        &mut self.heartbeat_machine
     }
 
     pub fn heartbeat_frag_machine(&mut self) -> &mut HeartbeatFragMachine {
-        &mut self.reader_proxy.heartbeat_frag_machine
+        &mut self.heartbeat_frag_machine
     }
 
     // //////////////   ReaderProxy operations defined in the Rtps Standard
 
     pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
-        if committed_seq_num > self.reader_proxy.highest_acked_seq_num {
-            self.reader_proxy.highest_acked_seq_num = committed_seq_num
+        if committed_seq_num > self.highest_acked_seq_num {
+            self.highest_acked_seq_num = committed_seq_num
         }
     }
 
     pub fn next_requested_change(&mut self) -> Option<SequenceNumber> {
-        let next_requested_change = self.reader_proxy.requested_changes.iter().min().cloned();
+        let next_requested_change = self.requested_changes.iter().min().cloned();
 
         if let Some(next_sn) = &next_requested_change {
-            self.reader_proxy
-                .requested_changes
-                .retain(|sn| sn != next_sn);
+            self.requested_changes.retain(|sn| sn != next_sn);
         }
 
         next_requested_change
     }
 
-    pub fn next_unsent_change(&self) -> Option<SequenceNumber> {
+    pub fn next_unsent_change(
+        &self,
+        writer_history_cache: &WriterHistoryCache,
+    ) -> Option<SequenceNumber> {
         //         unsent_changes :=
         // { changes SUCH_THAT change.sequenceNumber > this.highestSentChangeSN }
         //
         // IF unsent_changes == <empty> return SEQUENCE_NUMBER_INVALID
         // ELSE return MIN { unsent_changes.sequenceNumber }
-        self.writer
+        writer_history_cache
             .change_list()
-            .iter()
             .map(|cc| cc.sequence_number())
-            .filter(|cc_sn| cc_sn > &self.reader_proxy.highest_sent_seq_num)
+            .filter(|cc_sn| cc_sn > &self.highest_sent_seq_num)
             .min()
     }
 
-    pub fn unsent_changes(&self) -> bool {
+    pub fn unsent_changes(&self, writer_history_cache: &WriterHistoryCache) -> bool {
         // return this.next_unsent_change() != SEQUENCE_NUMBER_INVALID;
-        self.next_unsent_change().is_some()
+        self.next_unsent_change(writer_history_cache).is_some()
     }
 
     pub fn requested_changes(&self) -> Vec<SequenceNumber> {
-        self.reader_proxy.requested_changes.clone()
+        self.requested_changes.clone()
     }
 
     pub fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
@@ -234,63 +212,61 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         //     change_for_reader.status := REQUESTED;
         // END"
         for seq_num in req_seq_num_set {
-            if !self.reader_proxy.requested_changes.contains(seq_num) {
-                self.reader_proxy.requested_changes.push(*seq_num);
+            if !self.requested_changes.contains(seq_num) {
+                self.requested_changes.push(*seq_num);
             }
         }
     }
 
-    pub fn unacked_changes(&self) -> bool {
+    pub fn unacked_changes(&self, writer_history_cache: &WriterHistoryCache) -> bool {
         // highest_available_seq_num := MAX { change.sequenceNumber }
         // highest_acked_seq_num := MAX { this.acknowledged_changes }
         // return ( highest_available_seq_num > highest_acked_seq_num )
 
-        let highest_available_seq_num = self
-            .writer
+        let highest_available_seq_num = writer_history_cache
             .change_list()
-            .iter()
             .map(|cc| cc.sequence_number())
             .max();
 
         match highest_available_seq_num {
             Some(highest_available_seq_num) => {
-                highest_available_seq_num > self.reader_proxy.highest_acked_seq_num
+                highest_available_seq_num > self.highest_acked_seq_num
             }
             None => false,
         }
     }
 
     pub fn highest_sent_seq_num(&self) -> SequenceNumber {
-        self.reader_proxy.highest_sent_seq_num
+        self.highest_sent_seq_num
     }
 
     pub fn set_highest_sent_seq_num(&mut self, seq_num: SequenceNumber) {
-        if seq_num > self.reader_proxy.highest_sent_seq_num {
-            self.reader_proxy.highest_sent_seq_num = seq_num;
+        if seq_num > self.highest_sent_seq_num {
+            self.highest_sent_seq_num = seq_num;
         }
     }
 
     pub fn first_relevant_sample_seq_num(&self) -> SequenceNumber {
-        self.reader_proxy.first_relevant_sample_seq_num
+        self.first_relevant_sample_seq_num
     }
 
     pub fn set_first_relevant_sample_seq_num(&mut self, seq_num: SequenceNumber) {
-        self.reader_proxy.first_relevant_sample_seq_num = seq_num;
+        self.first_relevant_sample_seq_num = seq_num;
     }
 
     pub fn last_received_acknack_count(&self) -> Count {
-        self.reader_proxy.last_received_acknack_count
+        self.last_received_acknack_count
     }
 
     pub fn set_last_received_acknack_count(&mut self, count: Count) {
-        self.reader_proxy.last_received_acknack_count = count;
+        self.last_received_acknack_count = count;
     }
 
     pub fn last_received_nack_frag_count(&self) -> Count {
-        self.reader_proxy.last_received_nack_frag_count
+        self.last_received_nack_frag_count
     }
 
     pub fn set_last_received_nack_frag_count(&mut self, count: Count) {
-        self.reader_proxy.last_received_nack_frag_count = count;
+        self.last_received_nack_frag_count = count;
     }
 }

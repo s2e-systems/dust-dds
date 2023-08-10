@@ -848,7 +848,7 @@ fn announce_data_reader(
 
     if let Some(sedp_reader_announcer) = domain_participant
         .get_builtin_publisher()?
-        .stateful_data_writer_list()?
+        .data_writer_list()?
         .iter()
         .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
     {
@@ -857,7 +857,7 @@ fn announce_data_reader(
             discovered_reader_data.get_serialized_key(),
             None,
             timestamp,
-        )?;
+        )??;
 
         sedp_reader_announcer.send_message(
             RtpsMessageHeader::new(

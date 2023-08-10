@@ -11,7 +11,6 @@ use crate::{
             endpoint::RtpsEndpoint,
             messages::overall_structure::RtpsMessageHeader,
             reader::RtpsReader,
-            stateful_reader::RtpsStatefulReader,
             types::{
                 EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_READER_NO_KEY,
                 USER_DEFINED_READER_WITH_KEY,
@@ -139,7 +138,7 @@ impl Subscriber {
                     false => TopicKind::NoKey,
                 };
 
-                let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<Foo>(
+                let rtps_reader = RtpsReader::new::<Foo>(
                     RtpsEndpoint::new(
                         guid,
                         topic_kind,
@@ -150,7 +149,7 @@ impl Subscriber {
                     DURATION_ZERO,
                     false,
                     qos,
-                ));
+                );
 
                 let listener =
                     a_listener.map(|l| spawn_actor(DdsDataReaderListener::new(Box::new(l))));
@@ -165,7 +164,7 @@ impl Subscriber {
 
                 let reader_actor = spawn_actor(data_reader);
                 let reader_address = reader_actor.address().clone();
-                s.address().stateful_data_reader_add(reader_actor)?;
+                s.address().data_reader_add(reader_actor)?;
 
                 let data_reader =
                     DataReader::new(DataReaderNodeKind::UserDefined(DataReaderNode::new(
@@ -210,7 +209,7 @@ impl Subscriber {
                     }
 
                     let reader_is_enabled = dr.address().is_enabled()?;
-                    s.address().stateful_data_reader_delete(reader_handle)?;
+                    s.address().data_reader_delete(reader_handle)?;
 
                     if reader_is_enabled {
                         let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
@@ -224,7 +223,7 @@ impl Subscriber {
                         if let Some(sedp_reader_announcer) = dr
                             .parent_participant()
                             .get_builtin_publisher()?
-                            .stateful_data_writer_list()?
+                            .data_writer_list()?
                             .iter()
                             .find(|x| {
                                 x.get_type_name().unwrap() == DiscoveredReaderData::type_name()
@@ -234,7 +233,7 @@ impl Subscriber {
                                 instance_serialized_key,
                                 reader_handle,
                                 timestamp,
-                            )?;
+                            )??;
 
                             sedp_reader_announcer.send_message(
                                 RtpsMessageHeader::new(
@@ -509,7 +508,7 @@ impl Subscriber {
                         .entity_factory
                         .autoenable_created_entities
                     {
-                        for data_reader in s.address().stateful_data_reader_list()? {
+                        for data_reader in s.address().data_reader_list()? {
                             data_reader.enable()?;
                         }
                     }

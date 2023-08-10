@@ -4,10 +4,7 @@ use super::{
 };
 use crate::{
     implementation::{
-        rtps::{
-            group::RtpsGroup, stateful_reader::RtpsStatefulReader,
-            stateless_reader::RtpsStatelessReader, types::Guid,
-        },
+        rtps::{group::RtpsGroup, types::Guid},
         utils::{
             actor::{actor_interface, Actor, ActorAddress},
             shared_object::{DdsRwLock, DdsShared},
@@ -24,8 +21,7 @@ use crate::{
 pub struct DdsSubscriber {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
-    stateless_data_reader_list: Vec<Actor<DdsDataReader<RtpsStatelessReader>>>,
-    stateful_data_reader_list: Vec<Actor<DdsDataReader<RtpsStatefulReader>>>,
+    data_reader_list: Vec<Actor<DdsDataReader>>,
     enabled: bool,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
@@ -44,8 +40,7 @@ impl DdsSubscriber {
         DdsSubscriber {
             qos,
             rtps_group,
-            stateless_data_reader_list: Vec::new(),
-            stateful_data_reader_list: Vec::new(),
+            data_reader_list: Vec::new(),
             enabled: false,
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: Default::default(),
@@ -67,7 +62,7 @@ impl DdsSubscriber {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.stateless_data_reader_list.is_empty() && self.stateful_data_reader_list.is_empty()
+        self.data_reader_list.is_empty()
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -84,26 +79,19 @@ impl DdsSubscriber {
         counter
     }
 
-    pub fn stateless_data_reader_add(
+    pub fn data_reader_add(
         &mut self,
-        data_reader: Actor<DdsDataReader<RtpsStatelessReader>>,
+        data_reader: Actor<DdsDataReader>,
     ) {
-        self.stateless_data_reader_list.push(data_reader)
+        self.data_reader_list.push(data_reader)
     }
 
-    pub fn stateless_data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader<RtpsStatelessReader>>> {
-        self.stateless_data_reader_list.iter().map(|dr| dr.address().clone()).collect()
+    pub fn data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader>> {
+        self.data_reader_list.iter().map(|dr| dr.address().clone()).collect()
     }
 
-    pub fn stateful_data_reader_add(
-        &mut self,
-        data_reader: Actor<DdsDataReader<RtpsStatefulReader>>,
-    ) {
-        self.stateful_data_reader_list.push(data_reader)
-    }
-
-    pub fn stateful_data_reader_delete(&mut self, handle: InstanceHandle) {
-        self.stateful_data_reader_list
+    pub fn data_reader_delete(&mut self, handle: InstanceHandle) {
+        self.data_reader_list
             .retain(|dr|
                 if let Ok(h) = dr.address()
                     .get_instance_handle() {
@@ -111,10 +99,6 @@ impl DdsSubscriber {
                     } else {
                         false
                     });
-    }
-
-    pub fn stateful_data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader<RtpsStatefulReader>>> {
-        self.stateful_data_reader_list.iter().map(|dr| dr.address().clone()).collect()
     }
 
     pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {

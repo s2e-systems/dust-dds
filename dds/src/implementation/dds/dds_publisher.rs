@@ -1,9 +1,6 @@
 use crate::{
     implementation::{
-        rtps::{
-            group::RtpsGroup, stateful_writer::RtpsStatefulWriter,
-            stateless_writer::RtpsStatelessWriter, types::Guid,
-        },
+        rtps::{group::RtpsGroup, types::Guid},
         utils::actor::{actor_interface, Actor, ActorAddress},
     },
     infrastructure::{
@@ -19,8 +16,7 @@ use super::{dds_data_writer::DdsDataWriter, dds_publisher_listener::DdsPublisher
 pub struct DdsPublisher {
     qos: PublisherQos,
     rtps_group: RtpsGroup,
-    stateless_data_writer_list: Vec<Actor<DdsDataWriter<RtpsStatelessWriter>>>,
-    stateful_data_writer_list: Vec<Actor<DdsDataWriter<RtpsStatefulWriter>>>,
+    data_writer_list: Vec<Actor<DdsDataWriter>>,
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
@@ -38,8 +34,7 @@ impl DdsPublisher {
         Self {
             qos,
             rtps_group,
-            stateless_data_writer_list: Vec::new(),
-            stateful_data_writer_list: Vec::new(),
+            data_writer_list: Vec::new(),
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
@@ -60,7 +55,7 @@ impl DdsPublisher {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.stateful_data_writer_list.is_empty() && self.stateless_data_writer_list.is_empty()
+        self.data_writer_list.is_empty()
     }
 
     pub fn get_unique_writer_id(&mut self) -> u8 {
@@ -70,18 +65,18 @@ impl DdsPublisher {
     }
 
     pub fn delete_contained_entities(&mut self) {
-        self.stateful_data_writer_list.clear()
+        self.data_writer_list.clear()
     }
 
-    pub fn stateful_datawriter_add(
+    pub fn datawriter_add(
         &mut self,
-        data_writer: Actor<DdsDataWriter<RtpsStatefulWriter>>,
+        data_writer: Actor<DdsDataWriter>,
     ) {
-        self.stateful_data_writer_list.push(data_writer)
+        self.data_writer_list.push(data_writer)
     }
 
-    pub fn stateful_datawriter_delete(&mut self, handle: InstanceHandle) {
-        self.stateful_data_writer_list.retain(|dw| {
+    pub fn datawriter_delete(&mut self, handle: InstanceHandle) {
+        self.data_writer_list.retain(|dw| {
             if let Ok(h) = dw.address().get_instance_handle() {
                 h != handle
             } else {
@@ -90,24 +85,10 @@ impl DdsPublisher {
         });
     }
 
-    pub fn stateful_data_writer_list(
+    pub fn data_writer_list(
         &self,
-    ) -> Vec<ActorAddress<DdsDataWriter<RtpsStatefulWriter>>> {
-        self.stateful_data_writer_list
-            .iter()
-            .map(|x| x.address().clone())
-            .collect()
-    }
-
-    pub fn stateless_datawriter_add(
-        &mut self,
-        data_writer: Actor<DdsDataWriter<RtpsStatelessWriter>>,
-    ) {
-        self.stateless_data_writer_list.push(data_writer)
-    }
-
-    pub fn stateless_datawriter_list(&self) -> Vec<ActorAddress<DdsDataWriter<RtpsStatelessWriter>>> {
-        self.stateless_data_writer_list
+    ) -> Vec<ActorAddress<DdsDataWriter>> {
+        self.data_writer_list
             .iter()
             .map(|x| x.address().clone())
             .collect()

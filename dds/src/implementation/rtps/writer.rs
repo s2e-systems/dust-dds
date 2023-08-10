@@ -1,18 +1,11 @@
-use std::collections::HashMap;
-
-use crate::{
-    infrastructure::{
-        error::{DdsError, DdsResult},
-        instance::InstanceHandle,
-        qos::DataWriterQos,
-        time::{Duration, Time},
-    },
-    topic_definition::type_support::DdsSerializedKey,
+use crate::infrastructure::{
+    instance::InstanceHandle,
+    time::{Duration, Time},
 };
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
+    history_cache::RtpsWriterCacheChange,
     messages::submessage_elements::{Data, ParameterList},
     types::{ChangeKind, Guid, Locator, SequenceNumber},
 };
@@ -25,9 +18,6 @@ pub struct RtpsWriter {
     _nack_suppression_duration: Duration,
     last_change_sequence_number: SequenceNumber,
     data_max_size_serialized: usize,
-    writer_cache: WriterHistoryCache,
-    qos: DataWriterQos,
-    registered_instance_list: HashMap<InstanceHandle, DdsSerializedKey>,
 }
 
 impl RtpsWriter {
@@ -38,7 +28,6 @@ impl RtpsWriter {
         nack_response_delay: Duration,
         nack_suppression_duration: Duration,
         data_max_size_serialized: usize,
-        qos: DataWriterQos,
     ) -> Self {
         Self {
             endpoint,
@@ -48,9 +37,6 @@ impl RtpsWriter {
             _nack_suppression_duration: nack_suppression_duration,
             last_change_sequence_number: SequenceNumber::new(0),
             data_max_size_serialized,
-            writer_cache: WriterHistoryCache::new(),
-            qos,
-            registered_instance_list: HashMap::new(),
         }
     }
 
@@ -78,10 +64,6 @@ impl RtpsWriter {
         self.data_max_size_serialized
     }
 
-    pub fn writer_cache(&self) -> &WriterHistoryCache {
-        &self.writer_cache
-    }
-
     pub fn new_change(
         &mut self,
         kind: ChangeKind,
@@ -102,62 +84,5 @@ impl RtpsWriter {
                 .collect(),
             inline_qos,
         )
-    }
-
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
-        self.writer_cache.change_list()
-    }
-
-    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
-        self.writer_cache.add_change(change)
-    }
-
-    pub fn remove_change<F>(&mut self, f: F)
-    where
-        F: FnMut(&RtpsWriterCacheChange) -> bool,
-    {
-        self.writer_cache.remove_change(f)
-    }
-
-    pub fn get_qos(&self) -> &DataWriterQos {
-        &self.qos
-    }
-
-    pub fn set_qos(&mut self, qos: DataWriterQos) {
-        self.qos = qos;
-    }
-
-    pub fn register_instance_w_timestamp(
-        &mut self,
-        instance_serialized_key: DdsSerializedKey,
-        _timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>> {
-        let instance_handle = instance_serialized_key.clone().into();
-
-        if !self.registered_instance_list.contains_key(&instance_handle) {
-            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
-                self.registered_instance_list
-                    .insert(instance_handle, instance_serialized_key);
-            } else {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-        Ok(Some(instance_handle))
-    }
-
-    pub fn get_key_value(&self, handle: InstanceHandle) -> Option<&DdsSerializedKey> {
-        self.registered_instance_list.get(&handle)
-    }
-
-    pub fn lookup_instance(
-        &self,
-        instance_serialized_key: DdsSerializedKey,
-    ) -> Option<InstanceHandle> {
-        let instance_handle = instance_serialized_key.into();
-        if self.registered_instance_list.contains_key(&instance_handle) {
-            Some(instance_handle)
-        } else {
-            None
-        }
     }
 }

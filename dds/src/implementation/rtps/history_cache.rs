@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::{
     messages::{
         submessage_elements::{Data, ParameterList},
@@ -7,14 +9,18 @@ use super::{
 };
 use crate::{
     implementation::rtps::messages::types::FragmentNumber,
-    infrastructure::{instance::InstanceHandle, time::Time},
+    infrastructure::{
+        instance::InstanceHandle,
+        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
+        time::Time,
+    },
 };
 
 pub struct RtpsWriterCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
-    _instance_handle: InstanceHandle,
+    instance_handle: InstanceHandle,
     timestamp: Time,
     data_value: Vec<Data>,
     inline_qos: ParameterList,
@@ -120,6 +126,10 @@ impl RtpsWriterCacheChange {
             &self.data_value[0],
         )
     }
+
+    pub fn instance_handle(&self) -> InstanceHandle {
+        self.instance_handle
+    }
 }
 
 impl RtpsWriterCacheChange {
@@ -136,7 +146,7 @@ impl RtpsWriterCacheChange {
             kind,
             writer_guid,
             sequence_number,
-            _instance_handle: instance_handle,
+            instance_handle,
             timestamp,
             data_value,
             inline_qos,
@@ -151,10 +161,6 @@ impl RtpsWriterCacheChange {
 
     pub fn writer_guid(&self) -> Guid {
         self.writer_guid
-    }
-
-    pub fn _instance_handle(&self) -> InstanceHandle {
-        self._instance_handle
     }
 
     pub fn sequence_number(&self) -> SequenceNumber {
@@ -176,37 +182,60 @@ impl RtpsWriterCacheChange {
 
 #[derive(Default)]
 pub struct WriterHistoryCache {
-    changes: Vec<RtpsWriterCacheChange>,
+    changes: HashMap<InstanceHandle, Vec<RtpsWriterCacheChange>>,
 }
 
 impl WriterHistoryCache {
     pub fn new() -> Self {
         Self {
-            changes: Vec::new(),
+            changes: HashMap::new(),
         }
     }
 
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
-        &self.changes
+    pub fn change_list(&self) -> impl Iterator<Item = &RtpsWriterCacheChange> {
+        self.changes.values().flatten()
     }
 
-    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
-        self.changes.push(change);
+    pub fn add_change(
+        &mut self,
+        change: RtpsWriterCacheChange,
+        history_qos_policy: &HistoryQosPolicy,
+    ) {
+        match history_qos_policy.kind {
+            HistoryQosPolicyKind::KeepLast(depth) => {
+                for changes_of_instance in self.changes.values_mut() {
+                    changes_of_instance.truncate(depth as usize);
+                }
+            }
+            HistoryQosPolicyKind::KeepAll => (),
+        }
+        let values = self.changes.entry(change.instance_handle()).or_default();
+        values.push(change);
     }
 
     pub fn remove_change<F>(&mut self, mut f: F)
     where
         F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
-        self.changes.retain(|cc| !f(cc));
+        for changes_of_instance in self.changes.values_mut() {
+            changes_of_instance.retain(|cc| !f(cc));
+        }
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.changes.iter().map(|cc| cc.sequence_number).min()
+        self.changes
+            .values()
+            .flatten()
+            .map(|cc| cc.sequence_number)
+            .min()
     }
 
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.changes.iter().map(|cc| cc.sequence_number).max()
+        self.changes
+            .values()
+            .flatten()
+            .map(|cc| cc.sequence_number)
+            .max()
     }
 }
 
@@ -231,9 +260,14 @@ mod tests {
             vec![Data::new(vec![])],
             ParameterList::empty(),
         );
-        hc.add_change(change);
+        hc.add_change(
+            change,
+            &HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        );
         hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::new(1));
-        assert!(hc.change_list().is_empty());
+        assert!(hc.change_list().count() == 0);
     }
 
     #[test]
@@ -257,8 +291,18 @@ mod tests {
             vec![Data::new(vec![])],
             ParameterList::empty(),
         );
-        hc.add_change(change1);
-        hc.add_change(change2);
+        hc.add_change(
+            change1,
+            &HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        );
+        hc.add_change(
+            change2,
+            &HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        );
         assert_eq!(hc.get_seq_num_min(), Some(SequenceNumber::new(1)));
     }
 
@@ -283,8 +327,18 @@ mod tests {
             vec![Data::new(vec![])],
             ParameterList::empty(),
         );
-        hc.add_change(change1);
-        hc.add_change(change2);
+        hc.add_change(
+            change1,
+            &HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        );
+        hc.add_change(
+            change2,
+            &HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        );
         assert_eq!(hc.get_seq_num_max(), Some(SequenceNumber::new(2)));
     }
 }
