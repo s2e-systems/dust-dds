@@ -279,7 +279,6 @@ impl DdsDataWriter {
         if let Some(highest_available_change_sn) = self
             .writer_cache
             .change_list()
-            .iter()
             .map(|cc| cc.sequence_number())
             .max()
         {
@@ -290,7 +289,7 @@ impl DdsDataWriter {
     }
 
     fn add_change(&mut self, change: RtpsWriterCacheChange) {
-        self.writer_cache.add_change(change)
+        self.writer_cache.add_change(change, &self.qos.history)
     }
 }
 
@@ -779,7 +778,6 @@ impl DdsDataWriter {
                 {
                     self.writer_cache
                         .change_list()
-                        .iter()
                         .map(|cc| cc.sequence_number())
                         .max()
                         .unwrap_or(SequenceNumber::new(0))
@@ -932,7 +930,6 @@ impl DdsDataWriter {
                         if let Some(cache_change) = self
                             .writer_cache
                             .change_list()
-                            .iter()
                             .find(|cc| cc.sequence_number() == unsent_change_seq_num)
                         {
                             let info_ts_submessage = RtpsSubmessageWriteKind::InfoTimestamp(
@@ -1226,7 +1223,6 @@ fn send_message_to_reader_proxy_best_effort(
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         } else if let Some(cache_change) = writer_cache
             .change_list()
-            .iter()
             .find(|cc| cc.sequence_number() == next_unsent_change_seq_num)
         {
             // Either send a DATAFRAG submessages or send a single DATA submessage
@@ -1357,13 +1353,11 @@ fn send_message_to_reader_proxy_reliable(
     {
         let first_sn = writer_cache
             .change_list()
-            .iter()
             .map(|x| x.sequence_number())
             .min()
             .unwrap_or_else(|| SequenceNumber::new(1));
         let last_sn = writer_cache
             .change_list()
-            .iter()
             .map(|x| x.sequence_number())
             .max()
             .unwrap_or_else(|| SequenceNumber::new(0));
@@ -1408,7 +1402,6 @@ fn send_change_message_reader_proxy_reliable(
 ) {
     match writer_cache
         .change_list()
-        .iter()
         .find(|cc| cc.sequence_number() == change_seq_num)
     {
         Some(cache_change) if change_seq_num > reader_proxy.first_relevant_sample_seq_num() => {
@@ -1466,13 +1459,11 @@ fn send_change_message_reader_proxy_reliable(
 
                 let first_sn = writer_cache
                     .change_list()
-                    .iter()
                     .map(|x| x.sequence_number())
                     .min()
                     .unwrap_or_else(|| SequenceNumber::new(1));
                 let last_sn = writer_cache
                     .change_list()
-                    .iter()
                     .map(|x| x.sequence_number())
                     .max()
                     .unwrap_or_else(|| SequenceNumber::new(0));
@@ -1504,13 +1495,11 @@ fn send_change_message_reader_proxy_reliable(
             ));
             let first_sn = writer_cache
                 .change_list()
-                .iter()
                 .map(|x| x.sequence_number())
                 .min()
                 .unwrap_or_else(|| SequenceNumber::new(1));
             let last_sn = writer_cache
                 .change_list()
-                .iter()
                 .map(|x| x.sequence_number())
                 .max()
                 .unwrap_or_else(|| SequenceNumber::new(0));

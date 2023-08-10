@@ -32,7 +32,6 @@ impl RtpsReaderLocator {
 
         writer_history_cache
             .change_list()
-            .iter()
             .map(|cc| cc.sequence_number())
             .filter(|sn| sn > &self.highest_sent_change_sn)
             .min()

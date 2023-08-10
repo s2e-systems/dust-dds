@@ -191,7 +191,6 @@ impl RtpsReaderProxy {
         // ELSE return MIN { unsent_changes.sequenceNumber }
         writer_history_cache
             .change_list()
-            .iter()
             .map(|cc| cc.sequence_number())
             .filter(|cc_sn| cc_sn > &self.highest_sent_seq_num)
             .min()
@@ -226,7 +225,6 @@ impl RtpsReaderProxy {
 
         let highest_available_seq_num = writer_history_cache
             .change_list()
-            .iter()
             .map(|cc| cc.sequence_number())
             .max();
 
