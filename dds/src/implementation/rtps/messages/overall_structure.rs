@@ -1,4 +1,4 @@
-use std::{io::BufRead, sync::Arc};
+use std::{io::{BufRead, Write}, sync::Arc};
 
 use crate::implementation::rtps::{
     messages::{
@@ -44,22 +44,13 @@ where
     T: Submessage,
 {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let mut len = 4;
+        let (header, body) = buf.split_at_mut(4);
+        let mut len = 0;
         for submessage_element in self.submessage_elements() {
-            len += if self.endianness_flag() {
-                submessage_element.endian_write_bytes::<byteorder::LittleEndian>(&mut buf[len..])
-            } else {
-                submessage_element.endian_write_bytes::<byteorder::BigEndian>(&mut buf[len..])
-            };
+            len += submessage_element.write_bytes(&mut body[len..]);
         }
-        let octets_to_next_header = len - 4;
-        let submessage_header = self.submessage_header(octets_to_next_header as u16);
-        if self.endianness_flag() {
-            submessage_header.endian_write_bytes::<byteorder::LittleEndian>(&mut buf[0..]);
-        } else {
-            submessage_header.endian_write_bytes::<byteorder::BigEndian>(&mut buf[0..]);
-        }
-        len
+        let submessage_header = self.submessage_header(len as u16);
+        submessage_header.write_bytes(header) + len
     }
 }
 
@@ -186,14 +177,11 @@ pub trait WriteBytes {
     fn write_bytes(&self, buf: &mut [u8]) -> usize;
 }
 
-pub trait EndianWriteBytes {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize;
-}
 
 #[allow(dead_code)]
-pub fn into_bytes_le_vec<T: EndianWriteBytes>(value: T) -> Vec<u8> {
+pub fn into_bytes_le_vec<T: WriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
-    let len = value.endian_write_bytes::<byteorder::LittleEndian>(buf.as_mut_slice());
+    let len = value.write_bytes(buf.as_mut_slice());
     Vec::from(&buf[0..len])
 }
 
@@ -213,7 +201,7 @@ pub struct RtpsMessageWrite {
 impl RtpsMessageWrite {
     pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageWriteKind<'_>>) -> Self {
         let mut buffer = [0; BUFFER_SIZE];
-        let mut len = header.endian_write_bytes::<byteorder::LittleEndian>(&mut buffer[0..]);
+        let mut len = header.write_bytes(&mut buffer[0..]);
         for submessage in &submessages {
             len += submessage.write_bytes(&mut buffer[len..]);
         }
@@ -311,12 +299,12 @@ impl RtpsMessageHeader {
     }
 }
 
-impl EndianWriteBytes for RtpsMessageHeader {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        self.protocol.endian_write_bytes::<E>(&mut buf[0..]);
-        self.version.endian_write_bytes::<E>(&mut buf[4..]);
-        self.vendor_id.endian_write_bytes::<E>(&mut buf[6..]);
-        self.guid_prefix.endian_write_bytes::<E>(&mut buf[8..]);
+impl WriteBytes for RtpsMessageHeader {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        self.protocol.write_bytes(&mut buf[0..]);
+        self.version.write_bytes(&mut buf[4..]);
+        self.vendor_id.write_bytes(&mut buf[6..]);
+        self.guid_prefix.write_bytes(&mut buf[8..]);
         20
     }
 }
@@ -345,12 +333,12 @@ impl SubmessageHeaderWrite {
     }
 }
 
-impl EndianWriteBytes for SubmessageHeaderWrite {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for SubmessageHeaderWrite {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.submessage_id.write_bytes(&mut buf[0..]);
         self.flags.write_bytes(&mut buf[1..]);
         self.submessage_length
-            .endian_write_bytes::<E>(&mut buf[2..]);
+            .write_bytes(&mut buf[2..]);
         4
     }
 }

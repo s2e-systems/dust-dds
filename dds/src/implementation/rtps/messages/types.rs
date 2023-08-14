@@ -1,5 +1,7 @@
+use byteorder::ByteOrder;
+
+use super::overall_structure::WriteBytes;
 use std::io::Read;
-use super::overall_structure::{EndianWriteBytes, WriteBytes};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
@@ -14,8 +16,8 @@ pub enum ProtocolId {
     PROTOCOL_RTPS,
 }
 
-impl EndianWriteBytes for ProtocolId {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for ProtocolId {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         b"RTPS".as_slice().read(buf).unwrap()
     }
 }
@@ -119,11 +121,9 @@ impl Time {
     }
 }
 
-impl EndianWriteBytes for Time {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        self.seconds.endian_write_bytes::<E>(&mut buf[0..]);
-        self.fraction.endian_write_bytes::<E>(&mut buf[4..]);
-        8
+impl WriteBytes for Time {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        self.seconds.write_bytes(&mut buf[0..]) + self.fraction.write_bytes(&mut buf[4..])
     }
 }
 
@@ -165,20 +165,18 @@ impl PartialOrd<Count> for Count {
     }
 }
 
-impl EndianWriteBytes for Count {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_i32(buf, self.0);
+impl WriteBytes for Count {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        byteorder::LittleEndian::write_i32(buf, self.0);
         4
     }
 }
-
 
 /// ParameterId_t
 /// Type used to uniquely identify a parameter in a parameter list.
 /// Used extensively by the Discovery Module mainly to define QoS Parameters. A range of values is reserved for protocol-defined parameters, while another range can be used for vendor-defined parameters, see 8.3.5.9.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into)]
 pub struct ParameterId(pub u16);
-
 
 /// FragmentNumber_t
 /// Type used to hold fragment numbers.
@@ -206,9 +204,9 @@ impl FragmentNumber {
     }
 }
 
-impl EndianWriteBytes for FragmentNumber {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_u32(buf, self.0);
+impl WriteBytes for FragmentNumber {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        byteorder::LittleEndian::write_u32(buf, self.0);
         4
     }
 }
@@ -223,4 +221,3 @@ impl GroupDigest {
         Self(value)
     }
 }
-

@@ -1,7 +1,9 @@
-use std::io::BufRead;
+use std::io::{BufRead, Write};
+
+use byteorder::ByteOrder;
 
 use super::{
-    overall_structure::{EndianWriteBytes, FromBytes, WriteBytes},
+    overall_structure::{FromBytes, WriteBytes},
     types::{ParameterId, Time},
 };
 use crate::implementation::{
@@ -40,54 +42,50 @@ pub enum SubmessageElement<'a> {
     VendorId(VendorId),
 }
 
-impl EndianWriteBytes for SubmessageElement<'_> {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for SubmessageElement<'_> {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         match self {
-            SubmessageElement::Count(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::EntityId(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::FragmentNumber(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::FragmentNumberSet(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::GuidPrefix(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::LocatorList(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::Long(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::ParameterList(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::ProtocolVersion(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::SequenceNumber(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::SequenceNumberSet(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::Count(e) => e.write_bytes(buf),
+            SubmessageElement::EntityId(e) => e.write_bytes(buf),
+            SubmessageElement::FragmentNumber(e) => e.write_bytes(buf),
+            SubmessageElement::FragmentNumberSet(e) => e.write_bytes(buf),
+            SubmessageElement::GuidPrefix(e) => e.write_bytes(buf),
+            SubmessageElement::LocatorList(e) => e.write_bytes(buf),
+            SubmessageElement::Long(e) => e.write_bytes(buf),
+            SubmessageElement::ParameterList(e) => e.write_bytes(buf),
+            SubmessageElement::ProtocolVersion(e) => e.write_bytes(buf),
+            SubmessageElement::SequenceNumber(e) => e.write_bytes(buf),
+            SubmessageElement::SequenceNumberSet(e) => e.write_bytes(buf),
             SubmessageElement::SerializedData(e) => e.write_bytes(buf),
-            SubmessageElement::Timestamp(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::ULong(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::UShort(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::VendorId(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::Timestamp(e) => e.write_bytes(buf),
+            SubmessageElement::ULong(e) => e.write_bytes(buf),
+            SubmessageElement::UShort(e) => e.write_bytes(buf),
+            SubmessageElement::VendorId(e) => e.write_bytes(buf),
         }
     }
 }
 
-impl EndianWriteBytes for i32 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_i32(buf, *self);
-        4
+impl WriteBytes for i32 {
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(&self.to_le_bytes()).expect("buf not sufficient")
     }
 }
 
-impl EndianWriteBytes for u32 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_u32(buf, *self);
-        4
+impl WriteBytes for u32 {
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(&self.to_le_bytes()).expect("buf not sufficient")
     }
 }
 
-impl EndianWriteBytes for u16 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_u16(buf, *self);
-        2
+impl WriteBytes for u16 {
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(&self.to_le_bytes()).expect("buf not sufficient")
     }
 }
 
-impl EndianWriteBytes for i16 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_i16(buf, *self);
-        2
+impl WriteBytes for i16 {
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(&self.to_le_bytes()).expect("buf not sufficient")
     }
 }
 
@@ -117,8 +115,8 @@ impl SequenceNumberSet {
     }
 }
 
-impl EndianWriteBytes for SequenceNumberSet {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for SequenceNumberSet {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for sequence_number in &self.set {
@@ -131,11 +129,11 @@ impl EndianWriteBytes for SequenceNumberSet {
         }
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
 
-        self.base.endian_write_bytes::<E>(&mut buf[0..]);
-        E::write_u32(&mut buf[8..], num_bits);
+        self.base.write_bytes(&mut buf[0..]);
+        byteorder::LittleEndian::write_u32(&mut buf[8..], num_bits);
         let mut len = 12;
         for bitmap_element in &bitmap[..number_of_bitmap_elements] {
-            E::write_i32(&mut buf[len..], *bitmap_element);
+            byteorder::LittleEndian::write_i32(&mut buf[len..], *bitmap_element);
             len += 4;
         }
         len
@@ -160,8 +158,8 @@ impl FragmentNumberSet {
     }
 }
 
-impl EndianWriteBytes for FragmentNumberSet {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for FragmentNumberSet {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for fragment_number in &self.set {
@@ -175,11 +173,11 @@ impl EndianWriteBytes for FragmentNumberSet {
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
 
         let mut len = 0;
-        len += self.base.endian_write_bytes::<E>(&mut buf[len..]);
-        len += num_bits.endian_write_bytes::<E>(&mut buf[len..]);
+        len += self.base.write_bytes(&mut buf[len..]);
+        len += num_bits.write_bytes(&mut buf[len..]);
 
         for bitmap_element in &bitmap[..number_of_bitmap_elements] {
-            len += bitmap_element.endian_write_bytes::<E>(&mut buf[len..]);
+            len += bitmap_element.write_bytes(&mut buf[len..]);
         }
         len
     }
@@ -200,13 +198,13 @@ impl LocatorList {
     }
 }
 
-impl EndianWriteBytes for LocatorList {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for LocatorList {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let num_locators = self.value().len() as u32;
-        num_locators.endian_write_bytes::<E>(&mut buf[0..]);
+        num_locators.write_bytes(&mut buf[0..]);
         let mut len = 4;
         for locator in self.value().iter() {
-            len += locator.endian_write_bytes::<E>(&mut buf[len..]);
+            len += locator.write_bytes(&mut buf[len..]);
         }
         len
     }
@@ -290,8 +288,8 @@ impl FromBytes for ParameterList {
     }
 }
 
-impl EndianWriteBytes for Parameter {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, mut buf: &mut [u8]) -> usize {
+impl WriteBytes for Parameter {
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
         let padding_len = match self.value().len() % 4 {
             1 => 3,
             2 => 2,
@@ -299,8 +297,8 @@ impl EndianWriteBytes for Parameter {
             _ => 0,
         };
         let length = self.value().len() + padding_len;
-        E::write_u16(&mut buf[0..], self.parameter_id().into());
-        E::write_i16(&mut buf[2..], length as i16);
+        byteorder::LittleEndian::write_u16(&mut buf[0..], self.parameter_id().into());
+        byteorder::LittleEndian::write_i16(&mut buf[2..], length as i16);
         buf = &mut buf[4..];
         buf[..self.value().len()].copy_from_slice(self.value().as_ref());
         buf[self.value().len()..length].fill(0);
@@ -308,13 +306,13 @@ impl EndianWriteBytes for Parameter {
     }
 }
 
-impl EndianWriteBytes for &ParameterList {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for &ParameterList {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let mut length = 0;
         for parameter in self.parameter().iter() {
-            length += parameter.endian_write_bytes::<E>(&mut buf[length..]);
+            length += parameter.write_bytes(&mut buf[length..]);
         }
-        E::write_u16(&mut buf[length..], PID_SENTINEL);
+        byteorder::LittleEndian::write_u16(&mut buf[length..], PID_SENTINEL);
         buf[length + 2..length + 4].fill(0);
         length + 4
     }
