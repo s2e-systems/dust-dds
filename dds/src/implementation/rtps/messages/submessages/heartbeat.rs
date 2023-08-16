@@ -55,7 +55,6 @@ impl<'a> HeartbeatSubmessageRead<'a> {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct HeartbeatSubmessageWrite<'a> {
-    endianness_flag: SubmessageFlag,
     final_flag: SubmessageFlag,
     liveliness_flag: SubmessageFlag,
     submessage_elements: [SubmessageElement<'a>; 5],
@@ -72,7 +71,6 @@ impl HeartbeatSubmessageWrite<'_> {
         count: Count,
     ) -> Self {
         Self {
-            endianness_flag: true,
             final_flag,
             liveliness_flag,
             submessage_elements: [
@@ -90,7 +88,7 @@ impl Submessage for HeartbeatSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::HEARTBEAT,
-            &[self.endianness_flag, self.final_flag, self.liveliness_flag],
+            &[self.final_flag, self.liveliness_flag],
             octets_to_next_header,
         )
     }

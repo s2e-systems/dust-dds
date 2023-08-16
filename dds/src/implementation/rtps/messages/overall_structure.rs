@@ -1,4 +1,4 @@
-use std::{io::{BufRead, Write}, sync::Arc};
+use std::{io::BufRead, sync::Arc};
 
 use crate::implementation::rtps::{
     messages::{
@@ -176,7 +176,6 @@ pub trait WriteBytes {
     fn write_bytes(&self, buf: &mut [u8]) -> usize;
 }
 
-
 #[allow(dead_code)]
 pub fn into_bytes_le_vec<T: WriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
@@ -318,11 +317,13 @@ pub struct SubmessageHeaderWrite {
 impl SubmessageHeaderWrite {
     pub fn new(
         submessage_id: SubmessageKind,
+        // flags without endianness
         flags: &[SubmessageFlag],
         submessage_length: u16,
     ) -> Self {
         let mut flags_array = [false; 8];
-        flags_array[..flags.len()].copy_from_slice(flags);
+        // Skip endianness flag
+        flags_array[1..flags.len()+1].copy_from_slice(flags);
 
         Self {
             submessage_id,
@@ -335,9 +336,11 @@ impl SubmessageHeaderWrite {
 impl WriteBytes for SubmessageHeaderWrite {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.submessage_id.write_bytes(&mut buf[0..]);
-        self.flags.write_bytes(&mut buf[1..]);
-        self.submessage_length
-            .write_bytes(&mut buf[2..]);
+        let mut flags = self.flags;
+        // Set endianness flag to LittleEndian
+        flags[0] = true;
+        flags.write_bytes(&mut buf[1..]);
+        self.submessage_length.write_bytes(&mut buf[2..]);
         4
     }
 }

@@ -4,7 +4,7 @@ use crate::implementation::rtps::{
             RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
         },
         submessage_elements::{FragmentNumberSet, SubmessageElement},
-        types::{Count, SubmessageFlag, SubmessageKind},
+        types::{Count, SubmessageKind},
     },
     types::{EntityId, SequenceNumber},
 };
@@ -48,7 +48,6 @@ impl<'a> NackFragSubmessageRead<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct NackFragSubmessageWrite<'a> {
-    endianness_flag: SubmessageFlag,
     submessage_elements: [SubmessageElement<'a>; 5],
 }
 
@@ -61,7 +60,6 @@ impl NackFragSubmessageWrite<'_> {
         count: Count,
     ) -> Self {
         Self {
-            endianness_flag: true,
             submessage_elements: [
                 SubmessageElement::EntityId(reader_id),
                 SubmessageElement::EntityId(writer_id),
@@ -75,11 +73,7 @@ impl NackFragSubmessageWrite<'_> {
 
 impl Submessage for NackFragSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite::new(
-            SubmessageKind::NACK_FRAG,
-            &[self.endianness_flag],
-            octets_to_next_header,
-        )
+        SubmessageHeaderWrite::new(SubmessageKind::NACK_FRAG, &[], octets_to_next_header)
     }
 
     fn submessage_elements(&self) -> &[SubmessageElement] {

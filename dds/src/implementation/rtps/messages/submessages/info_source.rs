@@ -4,7 +4,7 @@ use crate::implementation::rtps::{
             RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
         },
         submessage_elements::SubmessageElement,
-        types::{SubmessageFlag, SubmessageKind},
+        types::SubmessageKind,
     },
     types::{GuidPrefix, ProtocolVersion, VendorId},
 };
@@ -40,7 +40,6 @@ impl<'a> InfoSourceSubmessageRead<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoSourceSubmessageWrite<'a> {
-    endianness_flag: SubmessageFlag,
     submessage_elements: [SubmessageElement<'a>; 4],
 }
 
@@ -51,7 +50,6 @@ impl InfoSourceSubmessageWrite<'_> {
         guid_prefix: GuidPrefix,
     ) -> Self {
         Self {
-            endianness_flag: true,
             submessage_elements: [
                 SubmessageElement::Long(0),
                 SubmessageElement::ProtocolVersion(protocol_version),
@@ -64,11 +62,7 @@ impl InfoSourceSubmessageWrite<'_> {
 
 impl Submessage for InfoSourceSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite::new(
-            SubmessageKind::INFO_SRC,
-            &[self.endianness_flag],
-            octets_to_next_header,
-        )
+        SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], octets_to_next_header)
     }
 
     fn submessage_elements(&self) -> &[SubmessageElement] {

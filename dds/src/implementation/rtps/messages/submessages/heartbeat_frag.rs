@@ -4,7 +4,7 @@ use crate::implementation::rtps::{
             RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
         },
         submessage_elements::SubmessageElement,
-        types::{Count, FragmentNumber, SubmessageFlag, SubmessageKind},
+        types::{Count, FragmentNumber, SubmessageKind},
     },
     types::{EntityId, SequenceNumber},
 };
@@ -48,7 +48,6 @@ impl<'a> HeartbeatFragSubmessageRead<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct HeartbeatFragSubmessageWrite<'a> {
-    endianness_flag: SubmessageFlag,
     submessage_elements: [SubmessageElement<'a>; 5],
 }
 impl HeartbeatFragSubmessageWrite<'_> {
@@ -60,7 +59,6 @@ impl HeartbeatFragSubmessageWrite<'_> {
         count: Count,
     ) -> Self {
         Self {
-            endianness_flag: true,
             submessage_elements: [
                 SubmessageElement::EntityId(reader_id),
                 SubmessageElement::EntityId(writer_id),
@@ -77,11 +75,7 @@ impl Submessage for HeartbeatFragSubmessageWrite<'_> {
         &self,
         octets_to_next_header: u16,
     ) -> crate::implementation::rtps::messages::overall_structure::SubmessageHeaderWrite {
-        SubmessageHeaderWrite::new(
-            SubmessageKind::HEARTBEAT_FRAG,
-            &[self.endianness_flag],
-            octets_to_next_header,
-        )
+        SubmessageHeaderWrite::new(SubmessageKind::HEARTBEAT_FRAG, &[], octets_to_next_header)
     }
 
     fn submessage_elements(&self) -> &[SubmessageElement] {
