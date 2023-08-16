@@ -43,7 +43,6 @@ impl<'a> InfoReplySubmessageRead<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoReplySubmessageWrite<'a> {
-    endianness_flag: SubmessageFlag,
     multicast_flag: SubmessageFlag,
     submessage_elements: Vec<SubmessageElement<'a>>,
 }
@@ -59,7 +58,6 @@ impl<'a> InfoReplySubmessageWrite<'a> {
             submessage_elements.push(SubmessageElement::LocatorList(multicast_locator_list));
         }
         Self {
-            endianness_flag: true,
             multicast_flag,
             submessage_elements,
         }
@@ -68,19 +66,11 @@ impl<'a> InfoReplySubmessageWrite<'a> {
 
 impl Submessage for InfoReplySubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite::new(
-            SubmessageKind::INFO_REPLY,
-            &[self.endianness_flag],
-            octets_to_next_header,
-        )
+        SubmessageHeaderWrite::new(SubmessageKind::INFO_REPLY, &[], octets_to_next_header)
     }
 
     fn submessage_elements(&self) -> &[SubmessageElement] {
         &self.submessage_elements
-    }
-
-    fn endianness_flag(&self) -> bool {
-        self.endianness_flag
     }
 }
 

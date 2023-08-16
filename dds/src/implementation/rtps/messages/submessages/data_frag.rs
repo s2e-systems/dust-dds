@@ -114,7 +114,6 @@ impl<'a> DataFragSubmessageRead<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataFragSubmessageWrite<'a> {
-    endianness_flag: SubmessageFlag,
     inline_qos_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
     key_flag: SubmessageFlag,
@@ -156,7 +155,6 @@ impl<'a> DataFragSubmessageWrite<'a> {
         submessage_elements.push(SubmessageElement::SerializedData(serialized_payload));
 
         Self {
-            endianness_flag: true,
             inline_qos_flag,
             non_standard_payload_flag,
             key_flag,
@@ -191,7 +189,6 @@ impl Submessage for DataFragSubmessageWrite<'_> {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA_FRAG,
             &[
-                self.endianness_flag,
                 self.inline_qos_flag,
                 self.key_flag,
                 self.non_standard_payload_flag,
@@ -202,10 +199,6 @@ impl Submessage for DataFragSubmessageWrite<'_> {
 
     fn submessage_elements(&self) -> &[SubmessageElement] {
         &self.submessage_elements
-    }
-
-    fn endianness_flag(&self) -> bool {
-        self.endianness_flag
     }
 }
 

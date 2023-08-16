@@ -4,7 +4,7 @@ use crate::implementation::rtps::{
             RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
         },
         submessage_elements::SubmessageElement,
-        types::{SubmessageFlag, SubmessageKind},
+        types::SubmessageKind,
     },
     types::GuidPrefix,
 };
@@ -31,14 +31,12 @@ impl<'a> InfoDestinationSubmessageRead<'a> {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoDestinationSubmessageWrite<'a> {
-    endianness_flag: SubmessageFlag,
     submessage_elements: [SubmessageElement<'a>; 1],
 }
 
 impl InfoDestinationSubmessageWrite<'_> {
     pub fn new(guid_prefix: GuidPrefix) -> Self {
         Self {
-            endianness_flag: true,
             submessage_elements: [SubmessageElement::GuidPrefix(guid_prefix)],
         }
     }
@@ -46,19 +44,11 @@ impl InfoDestinationSubmessageWrite<'_> {
 
 impl Submessage for InfoDestinationSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite::new(
-            SubmessageKind::INFO_DST,
-            &[self.endianness_flag],
-            octets_to_next_header,
-        )
+        SubmessageHeaderWrite::new(SubmessageKind::INFO_DST, &[], octets_to_next_header)
     }
 
     fn submessage_elements(&self) -> &[SubmessageElement] {
         &self.submessage_elements
-    }
-
-    fn endianness_flag(&self) -> bool {
-        self.endianness_flag
     }
 }
 

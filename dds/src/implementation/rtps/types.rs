@@ -1,9 +1,10 @@
-use super::messages::overall_structure::EndianWriteBytes;
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS;
 use std::{
     io::Read,
     ops::{Add, AddAssign, Sub, SubAssign},
 };
+
+use super::messages::overall_structure::WriteBytes;
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -102,8 +103,8 @@ impl GuidPrefix {
     }
 }
 
-impl EndianWriteBytes for GuidPrefix {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for GuidPrefix {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.0.as_slice().read(buf).unwrap()
     }
 }
@@ -151,10 +152,10 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
     entity_kind: BUILT_IN_PARTICIPANT,
 };
 
-impl EndianWriteBytes for EntityId {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        self.entity_key().endian_write_bytes::<E>(&mut buf[0..]);
-        self.entity_kind().endian_write_bytes::<E>(&mut buf[3..]);
+impl WriteBytes for EntityId {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        self.entity_key().write_bytes(&mut buf[0..]);
+        self.entity_kind().write_bytes(&mut buf[3..]);
         4
     }
 }
@@ -168,8 +169,8 @@ impl EntityKind {
     }
 }
 
-impl EndianWriteBytes for EntityKind {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for EntityKind {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         buf[0] = self.0;
         1
     }
@@ -219,8 +220,8 @@ impl EntityKey {
     }
 }
 
-impl EndianWriteBytes for EntityKey {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for EntityKey {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.0.as_slice().read(buf).unwrap()
     }
 }
@@ -252,13 +253,11 @@ impl SequenceNumber {
     }
 }
 
-impl EndianWriteBytes for SequenceNumber {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        let high = (<i64>::from(*self) >> 32) as i32;
-        let low = <i64>::from(*self) as i32;
-        E::write_i32(&mut buf[0..], high);
-        E::write_i32(&mut buf[4..], low);
-        8
+impl WriteBytes for SequenceNumber {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        let high = (self.0 >> 32) as i32;
+        let low = self.0 as i32;
+        high.write_bytes(&mut buf[0..]) + low.write_bytes(&mut buf[4..])
     }
 }
 
@@ -301,11 +300,11 @@ pub struct Locator {
     address: LocatorAddress,
 }
 
-impl EndianWriteBytes for Locator {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        self.kind.endian_write_bytes::<E>(&mut buf[0..]);
-        self.port.endian_write_bytes::<E>(&mut buf[4..]);
-        self.address.endian_write_bytes::<E>(&mut buf[8..]);
+impl WriteBytes for Locator {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        self.kind.write_bytes(&mut buf[0..]);
+        self.port.write_bytes(&mut buf[4..]);
+        self.address.write_bytes(&mut buf[8..]);
         24
     }
 }
@@ -321,9 +320,9 @@ impl LocatorKind {
     }
 }
 
-impl EndianWriteBytes for LocatorKind {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        self.0.endian_write_bytes::<E>(buf)
+impl WriteBytes for LocatorKind {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        self.0.write_bytes(buf)
     }
 }
 
@@ -338,9 +337,9 @@ impl LocatorPort {
     }
 }
 
-impl EndianWriteBytes for LocatorPort {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        self.0.endian_write_bytes::<E>(buf)
+impl WriteBytes for LocatorPort {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        self.0.write_bytes(buf)
     }
 }
 
@@ -355,8 +354,8 @@ impl LocatorAddress {
     }
 }
 
-impl EndianWriteBytes for LocatorAddress {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for LocatorAddress {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         buf[..self.0.len()].copy_from_slice(&self.0);
         16
     }
@@ -445,8 +444,8 @@ pub struct ProtocolVersion {
     minor: u8,
 }
 
-impl EndianWriteBytes for ProtocolVersion {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for ProtocolVersion {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         buf[0] = self.major;
         buf[1] = self.minor;
         2
@@ -494,8 +493,8 @@ impl VendorId {
     }
 }
 
-impl EndianWriteBytes for VendorId {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for VendorId {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.0.as_slice().read(buf).unwrap()
     }
 }
@@ -532,12 +531,12 @@ impl Default for ExpectsInlineQos {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::messages::overall_structure::into_bytes_le_vec;
+    use crate::implementation::rtps::messages::overall_structure::into_bytes_vec;
 
     #[test]
     fn serialize_sequence_number() {
         let data = SequenceNumber::new(7);
-        let result = into_bytes_le_vec(data);
+        let result = into_bytes_vec(data);
         assert_eq!(
             result,
             vec![
@@ -551,7 +550,7 @@ mod tests {
     fn serialize_entity_id() {
         let data = EntityId::new(EntityKey::new([1, 2, 3]), EntityKind::new(0x04));
         assert_eq!(
-            into_bytes_le_vec(data),
+            into_bytes_vec(data),
             vec![
             1, 2, 3, 0x04, //value (long)
         ]

@@ -36,22 +36,17 @@ impl<'a> InfoTimestampSubmessageRead<'a> {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoTimestampSubmessageWrite<'a> {
-    pub endianness_flag: SubmessageFlag,
     pub invalidate_flag: SubmessageFlag,
     submessage_elements: Vec<SubmessageElement<'a>>,
 }
 
 impl InfoTimestampSubmessageWrite<'_> {
-    pub fn new(
-        invalidate_flag: SubmessageFlag,
-        timestamp: Time,
-    ) -> Self {
+    pub fn new(invalidate_flag: SubmessageFlag, timestamp: Time) -> Self {
         let mut submessage_elements = vec![];
         if !invalidate_flag {
             submessage_elements.push(SubmessageElement::Timestamp(timestamp))
         }
         Self {
-            endianness_flag: true,
             invalidate_flag,
             submessage_elements,
         }
@@ -62,17 +57,13 @@ impl Submessage for InfoTimestampSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::INFO_TS,
-            &[self.endianness_flag, self.invalidate_flag],
+            &[self.invalidate_flag],
             octets_to_next_header,
         )
     }
 
     fn submessage_elements(&self) -> &[SubmessageElement] {
         &self.submessage_elements
-    }
-
-    fn endianness_flag(&self) -> bool {
-        self.endianness_flag
     }
 }
 

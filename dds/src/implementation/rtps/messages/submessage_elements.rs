@@ -1,7 +1,5 @@
-use std::io::BufRead;
-
 use super::{
-    overall_structure::{EndianWriteBytes, FromBytes, WriteBytes},
+    overall_structure::{FromBytes, WriteBytes},
     types::{ParameterId, Time},
 };
 use crate::implementation::{
@@ -14,7 +12,7 @@ use crate::implementation::{
         },
     },
 };
-
+use std::io::BufRead;
 ///
 /// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
@@ -40,54 +38,26 @@ pub enum SubmessageElement<'a> {
     VendorId(VendorId),
 }
 
-impl EndianWriteBytes for SubmessageElement<'_> {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for SubmessageElement<'_> {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         match self {
-            SubmessageElement::Count(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::EntityId(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::FragmentNumber(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::FragmentNumberSet(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::GuidPrefix(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::LocatorList(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::Long(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::ParameterList(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::ProtocolVersion(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::SequenceNumber(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::SequenceNumberSet(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::Count(e) => e.write_bytes(buf),
+            SubmessageElement::EntityId(e) => e.write_bytes(buf),
+            SubmessageElement::FragmentNumber(e) => e.write_bytes(buf),
+            SubmessageElement::FragmentNumberSet(e) => e.write_bytes(buf),
+            SubmessageElement::GuidPrefix(e) => e.write_bytes(buf),
+            SubmessageElement::LocatorList(e) => e.write_bytes(buf),
+            SubmessageElement::Long(e) => e.write_bytes(buf),
+            SubmessageElement::ParameterList(e) => e.write_bytes(buf),
+            SubmessageElement::ProtocolVersion(e) => e.write_bytes(buf),
+            SubmessageElement::SequenceNumber(e) => e.write_bytes(buf),
+            SubmessageElement::SequenceNumberSet(e) => e.write_bytes(buf),
             SubmessageElement::SerializedData(e) => e.write_bytes(buf),
-            SubmessageElement::Timestamp(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::ULong(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::UShort(e) => e.endian_write_bytes::<E>(buf),
-            SubmessageElement::VendorId(e) => e.endian_write_bytes::<E>(buf),
+            SubmessageElement::Timestamp(e) => e.write_bytes(buf),
+            SubmessageElement::ULong(e) => e.write_bytes(buf),
+            SubmessageElement::UShort(e) => e.write_bytes(buf),
+            SubmessageElement::VendorId(e) => e.write_bytes(buf),
         }
-    }
-}
-
-impl EndianWriteBytes for i32 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_i32(buf, *self);
-        4
-    }
-}
-
-impl EndianWriteBytes for u32 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_u32(buf, *self);
-        4
-    }
-}
-
-impl EndianWriteBytes for u16 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_u16(buf, *self);
-        2
-    }
-}
-
-impl EndianWriteBytes for i16 {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
-        E::write_i16(buf, *self);
-        2
     }
 }
 
@@ -117,8 +87,8 @@ impl SequenceNumberSet {
     }
 }
 
-impl EndianWriteBytes for SequenceNumberSet {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for SequenceNumberSet {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for sequence_number in &self.set {
@@ -131,11 +101,11 @@ impl EndianWriteBytes for SequenceNumberSet {
         }
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
 
-        self.base.endian_write_bytes::<E>(&mut buf[0..]);
-        E::write_u32(&mut buf[8..], num_bits);
+        self.base.write_bytes(&mut buf[0..]);
+        num_bits.write_bytes(&mut buf[8..]);
         let mut len = 12;
         for bitmap_element in &bitmap[..number_of_bitmap_elements] {
-            E::write_i32(&mut buf[len..], *bitmap_element);
+            bitmap_element.write_bytes(&mut buf[len..]);
             len += 4;
         }
         len
@@ -160,8 +130,8 @@ impl FragmentNumberSet {
     }
 }
 
-impl EndianWriteBytes for FragmentNumberSet {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for FragmentNumberSet {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for fragment_number in &self.set {
@@ -175,11 +145,11 @@ impl EndianWriteBytes for FragmentNumberSet {
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
 
         let mut len = 0;
-        len += self.base.endian_write_bytes::<E>(&mut buf[len..]);
-        len += num_bits.endian_write_bytes::<E>(&mut buf[len..]);
+        len += self.base.write_bytes(&mut buf[len..]);
+        len += num_bits.write_bytes(&mut buf[len..]);
 
         for bitmap_element in &bitmap[..number_of_bitmap_elements] {
-            len += bitmap_element.endian_write_bytes::<E>(&mut buf[len..]);
+            len += bitmap_element.write_bytes(&mut buf[len..]);
         }
         len
     }
@@ -200,13 +170,13 @@ impl LocatorList {
     }
 }
 
-impl EndianWriteBytes for LocatorList {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for LocatorList {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let num_locators = self.value().len() as u32;
-        num_locators.endian_write_bytes::<E>(&mut buf[0..]);
+        num_locators.write_bytes(&mut buf[0..]);
         let mut len = 4;
         for locator in self.value().iter() {
-            len += locator.endian_write_bytes::<E>(&mut buf[len..]);
+            len += locator.write_bytes(&mut buf[len..]);
         }
         len
     }
@@ -290,8 +260,8 @@ impl FromBytes for ParameterList {
     }
 }
 
-impl EndianWriteBytes for Parameter {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, mut buf: &mut [u8]) -> usize {
+impl WriteBytes for Parameter {
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
         let padding_len = match self.value().len() % 4 {
             1 => 3,
             2 => 2,
@@ -299,8 +269,9 @@ impl EndianWriteBytes for Parameter {
             _ => 0,
         };
         let length = self.value().len() + padding_len;
-        E::write_u16(&mut buf[0..], self.parameter_id().into());
-        E::write_i16(&mut buf[2..], length as i16);
+        let parameter_id = <u16>::from(self.parameter_id());
+        parameter_id.write_bytes(&mut buf[0..]);
+        (length as i16).write_bytes(&mut buf[2..]);
         buf = &mut buf[4..];
         buf[..self.value().len()].copy_from_slice(self.value().as_ref());
         buf[self.value().len()..length].fill(0);
@@ -308,13 +279,13 @@ impl EndianWriteBytes for Parameter {
     }
 }
 
-impl EndianWriteBytes for &ParameterList {
-    fn endian_write_bytes<E: byteorder::ByteOrder>(&self, buf: &mut [u8]) -> usize {
+impl WriteBytes for &ParameterList {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let mut length = 0;
         for parameter in self.parameter().iter() {
-            length += parameter.endian_write_bytes::<E>(&mut buf[length..]);
+            length += parameter.write_bytes(&mut buf[length..]);
         }
-        E::write_u16(&mut buf[length..], PID_SENTINEL);
+        PID_SENTINEL.write_bytes(&mut buf[length..]);
         buf[length + 2..length + 4].fill(0);
         length + 4
     }
@@ -502,7 +473,7 @@ impl FromBytes for FragmentNumberSet {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_le_vec,
+        messages::overall_structure::into_bytes_vec,
         types::{Locator, LocatorAddress, LocatorKind, LocatorPort},
     };
 
@@ -513,7 +484,7 @@ mod tests {
             set: vec![FragmentNumber::new(2), FragmentNumber::new(257)],
         };
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(fragment_number_set), vec![
+        assert_eq!(into_bytes_vec(fragment_number_set), vec![
             2, 0, 0, 0, // bitmapBase: (unsigned long)
             0, 1, 0, 0, // numBits (unsigned long)
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
@@ -541,7 +512,7 @@ mod tests {
         );
         let locator_list = LocatorList::new(vec![locator_1, locator_2]);
         assert_eq!(
-            into_bytes_le_vec(locator_list),
+            into_bytes_vec(locator_list),
             vec![
                 2, 0, 0, 0, // numLocators (unsigned long)
                 1, 0, 0, 0, // kind (long)
@@ -686,7 +657,7 @@ mod tests {
             set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
         };
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(sequence_number_set), vec![
+        assert_eq!(into_bytes_vec(sequence_number_set), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
             2, 0, 0, 0, // bitmapBase: low (unsigned long)
             0, 1, 0, 0, // numBits (unsigned long)
@@ -728,7 +699,7 @@ mod tests {
     fn serialize_parameter() {
         let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7, 8]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(parameter), vec![
+        assert_eq!(into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 8,       // value
         ]);
@@ -738,7 +709,7 @@ mod tests {
     fn serialize_parameter_non_multiple_4() {
         let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(parameter), vec![
+        assert_eq!(into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 0,       // value
         ]);
@@ -748,7 +719,7 @@ mod tests {
     fn serialize_parameter_zero_size() {
         let parameter = Parameter::new(ParameterId(2), vec![]);
         assert_eq!(
-            into_bytes_le_vec(parameter),
+            into_bytes_vec(parameter),
             vec![
             0x02, 0x00, 0, 0, // Parameter | length
         ]
@@ -761,7 +732,7 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(3), vec![52, 62, 0, 0]);
         let parameter_list_submessage_element = &ParameterList::new(vec![parameter_1, parameter_2]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(parameter_list_submessage_element), vec![
+        assert_eq!(into_bytes_vec(parameter_list_submessage_element), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
             51, 61, 71, 81,   // value
             0x03, 0x00, 4, 0, // Parameter ID | length
@@ -774,7 +745,7 @@ mod tests {
     fn serialize_parameter_list_empty() {
         let parameter = &ParameterList::empty();
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(parameter), vec![
+        assert_eq!(into_bytes_vec(parameter), vec![
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
         ]);
     }

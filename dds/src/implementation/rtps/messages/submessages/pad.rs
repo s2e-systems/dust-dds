@@ -3,7 +3,7 @@ use crate::implementation::rtps::messages::{
         Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
     },
     submessage_elements::SubmessageElement,
-    types::{SubmessageFlag, SubmessageKind},
+    types::SubmessageKind,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -24,13 +24,11 @@ impl<'a> PadSubmessageRead<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct PadSubmessageWrite {
-    endianness_flag: SubmessageFlag,
-}
+pub struct PadSubmessageWrite {}
 
 impl PadSubmessageWrite {
     pub fn new() -> Self {
-        Self { endianness_flag: true }
+        Self {}
     }
 }
 
@@ -41,19 +39,11 @@ impl Default for PadSubmessageWrite {
 }
 impl Submessage for PadSubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite::new(
-            SubmessageKind::PAD,
-            &[self.endianness_flag],
-            octets_to_next_header,
-        )
+        SubmessageHeaderWrite::new(SubmessageKind::PAD, &[], octets_to_next_header)
     }
 
     fn submessage_elements(&self) -> &[SubmessageElement] {
         &[]
-    }
-
-    fn endianness_flag(&self) -> bool {
-        self.endianness_flag
     }
 }
 
@@ -81,7 +71,7 @@ mod tests {
         let expected_endianness_flag = true;
         assert_eq!(
             expected_endianness_flag,
-            submessage.submessage_header().endianness_flag()
+            submessage.submessage_header().flags()[0]
         );
     }
 }

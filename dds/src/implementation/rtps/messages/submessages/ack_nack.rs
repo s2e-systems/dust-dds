@@ -48,7 +48,6 @@ impl<'a> AckNackSubmessageRead<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AckNackSubmessageWrite<'a> {
-    endianness_flag: SubmessageFlag,
     final_flag: SubmessageFlag,
     submessage_elements: [SubmessageElement<'a>; 4],
 }
@@ -62,7 +61,6 @@ impl AckNackSubmessageWrite<'_> {
         count: Count,
     ) -> Self {
         Self {
-            endianness_flag: true,
             final_flag,
             submessage_elements: [
                 SubmessageElement::EntityId(reader_id),
@@ -78,17 +76,13 @@ impl Submessage for AckNackSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::ACKNACK,
-            &[self.endianness_flag, self.final_flag],
+            &[self.final_flag],
             octets_to_next_header,
         )
     }
 
     fn submessage_elements(&self) -> &[SubmessageElement] {
         &self.submessage_elements
-    }
-
-    fn endianness_flag(&self) -> bool {
-        self.endianness_flag
     }
 }
 

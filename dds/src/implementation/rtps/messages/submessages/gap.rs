@@ -4,7 +4,7 @@ use crate::implementation::rtps::{
             RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
         },
         submessage_elements::{SequenceNumberSet, SubmessageElement},
-        types::{SubmessageFlag, SubmessageKind},
+        types::SubmessageKind,
     },
     types::{EntityId, SequenceNumber},
 };
@@ -44,7 +44,6 @@ impl<'a> GapSubmessageRead<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct GapSubmessageWrite<'a> {
-    endianness_flag: SubmessageFlag,
     submessage_elements: [SubmessageElement<'a>; 4],
 }
 
@@ -56,7 +55,6 @@ impl GapSubmessageWrite<'_> {
         gap_list: SequenceNumberSet,
     ) -> Self {
         Self {
-            endianness_flag: true,
             submessage_elements: [
                 SubmessageElement::EntityId(reader_id),
                 SubmessageElement::EntityId(writer_id),
@@ -69,19 +67,11 @@ impl GapSubmessageWrite<'_> {
 
 impl Submessage for GapSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite::new(
-            SubmessageKind::GAP,
-            &[self.endianness_flag],
-            octets_to_next_header,
-        )
+        SubmessageHeaderWrite::new(SubmessageKind::GAP, &[], octets_to_next_header)
     }
 
     fn submessage_elements(&self) -> &[SubmessageElement] {
         &self.submessage_elements
-    }
-
-    fn endianness_flag(&self) -> bool {
-        self.endianness_flag
     }
 }
 
@@ -97,12 +87,8 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let gap_start = SequenceNumber::new(5);
-        let gap_list = SequenceNumberSet::new(
-            SequenceNumber::new(10),
-            vec![],
-        );
-        let submessage =
-            GapSubmessageWrite::new(reader_id, writer_id, gap_start, gap_list);
+        let gap_list = SequenceNumberSet::new(SequenceNumber::new(10), vec![]);
+        let submessage = GapSubmessageWrite::new(reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
@@ -125,10 +111,7 @@ mod tests {
         let expected_writer_id =
             EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let expected_gap_start = SequenceNumber::new(5);
-        let expected_gap_list = SequenceNumberSet::new(
-             SequenceNumber::new(10),
-             vec![],
-        );
+        let expected_gap_list = SequenceNumberSet::new(SequenceNumber::new(10), vec![]);
         #[rustfmt::skip]
         let submessage = GapSubmessageRead::new(&[
             0x08, 0b_0000_0001, 28, 0, // Submessage header
