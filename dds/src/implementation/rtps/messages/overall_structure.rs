@@ -1,5 +1,15 @@
-use std::{io::BufRead, sync::Arc};
-
+use super::{
+    submessage_elements::SubmessageElement,
+    submessages::{
+        ack_nack::AckNackSubmessageWrite, data::DataSubmessageWrite,
+        data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
+        heartbeat::HeartbeatSubmessageWrite, heartbeat_frag::HeartbeatFragSubmessageWrite,
+        info_destination::InfoDestinationSubmessageWrite, info_reply::InfoReplySubmessageWrite,
+        info_source::InfoSourceSubmessageWrite, info_timestamp::InfoTimestampSubmessageWrite,
+        nack_frag::NackFragSubmessageWrite, pad::PadSubmessageWrite,
+    },
+    types::{ProtocolId, SubmessageFlag, SubmessageKind},
+};
 use crate::implementation::rtps::{
     messages::{
         submessages::{
@@ -17,20 +27,10 @@ use crate::implementation::rtps::{
     },
     types::{GuidPrefix, ProtocolVersion, VendorId},
 };
+use byteorder::ByteOrder;
+use std::{io::BufRead, marker::PhantomData, sync::Arc};
 
-use super::{
-    submessage_elements::SubmessageElement,
-    submessages::{
-        ack_nack::AckNackSubmessageWrite, data::DataSubmessageWrite,
-        data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
-        heartbeat::HeartbeatSubmessageWrite, heartbeat_frag::HeartbeatFragSubmessageWrite,
-        info_destination::InfoDestinationSubmessageWrite, info_reply::InfoReplySubmessageWrite,
-        info_source::InfoSourceSubmessageWrite, info_timestamp::InfoTimestampSubmessageWrite,
-        nack_frag::NackFragSubmessageWrite, pad::PadSubmessageWrite,
-    },
-    types::{ProtocolId, SubmessageFlag, SubmessageKind},
-};
-
+type WriteEndianness = byteorder::LittleEndian;
 const BUFFER_SIZE: usize = 65000;
 
 pub trait Submessage {
@@ -72,10 +72,6 @@ pub trait RtpsMap: SubmessageHeader {
 }
 
 impl<T: SubmessageHeader> RtpsMap for T {}
-
-pub trait EndiannessFlag {
-    fn endianness_flag(&self) -> bool;
-}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsMessageRead {
@@ -176,11 +172,39 @@ pub trait WriteBytes {
     fn write_bytes(&self, buf: &mut [u8]) -> usize;
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Only used as convenience in tests
 pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
     let len = value.write_bytes(buf.as_mut_slice());
     Vec::from(&buf[0..len])
+}
+
+impl WriteBytes for i32 {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_i32(buf, *self);
+        4
+    }
+}
+
+impl WriteBytes for u32 {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_u32(buf, *self);
+        4
+    }
+}
+
+impl WriteBytes for u16 {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_u16(buf, *self);
+        2
+    }
+}
+
+impl WriteBytes for i16 {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_i16(buf, *self);
+        2
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -326,11 +350,28 @@ impl SubmessageHeaderWrite {
     }
 }
 
+struct EndiannessFlag<E> {
+    endianness: PhantomData<E>,
+}
+impl EndiannessFlag<byteorder::LittleEndian> {
+    fn get() -> bool {
+        true
+    }
+}
+
 impl WriteBytes for SubmessageHeaderWrite {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.submessage_id.write_bytes(&mut buf[0..]);
-        // Set endianness flag to LittleEndian
-        let flags = [true, self.flags[0], self.flags[1], self.flags[2], self.flags[3], self.flags[4], self.flags[5], self.flags[6]];
+        let flags = [
+            EndiannessFlag::<WriteEndianness>::get(),
+            self.flags[0],
+            self.flags[1],
+            self.flags[2],
+            self.flags[3],
+            self.flags[4],
+            self.flags[5],
+            self.flags[6],
+        ];
         flags.write_bytes(&mut buf[1..]);
         self.submessage_length.write_bytes(&mut buf[2..]);
         4

@@ -1,7 +1,3 @@
-use std::io::{BufRead, Write};
-
-use byteorder::ByteOrder;
-
 use super::{
     overall_structure::{FromBytes, WriteBytes},
     types::{ParameterId, Time},
@@ -16,7 +12,7 @@ use crate::implementation::{
         },
     },
 };
-
+use std::io::BufRead;
 ///
 /// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
@@ -65,30 +61,6 @@ impl WriteBytes for SubmessageElement<'_> {
     }
 }
 
-impl WriteBytes for i32 {
-    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
-        buf.write(&self.to_le_bytes()).expect("buf not sufficient")
-    }
-}
-
-impl WriteBytes for u32 {
-    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
-        buf.write(&self.to_le_bytes()).expect("buf not sufficient")
-    }
-}
-
-impl WriteBytes for u16 {
-    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
-        buf.write(&self.to_le_bytes()).expect("buf not sufficient")
-    }
-}
-
-impl WriteBytes for i16 {
-    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
-        buf.write(&self.to_le_bytes()).expect("buf not sufficient")
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SequenceNumberSet {
     base: SequenceNumber,
@@ -130,10 +102,10 @@ impl WriteBytes for SequenceNumberSet {
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
 
         self.base.write_bytes(&mut buf[0..]);
-        byteorder::LittleEndian::write_u32(&mut buf[8..], num_bits);
+        num_bits.write_bytes(&mut buf[8..]);
         let mut len = 12;
         for bitmap_element in &bitmap[..number_of_bitmap_elements] {
-            byteorder::LittleEndian::write_i32(&mut buf[len..], *bitmap_element);
+            bitmap_element.write_bytes(&mut buf[len..]);
             len += 4;
         }
         len
@@ -297,8 +269,9 @@ impl WriteBytes for Parameter {
             _ => 0,
         };
         let length = self.value().len() + padding_len;
-        byteorder::LittleEndian::write_u16(&mut buf[0..], self.parameter_id().into());
-        byteorder::LittleEndian::write_i16(&mut buf[2..], length as i16);
+        let parameter_id = <u16>::from(self.parameter_id());
+        parameter_id.write_bytes(&mut buf[0..]);
+        (length as i16).write_bytes(&mut buf[2..]);
         buf = &mut buf[4..];
         buf[..self.value().len()].copy_from_slice(self.value().as_ref());
         buf[self.value().len()..length].fill(0);
@@ -312,7 +285,7 @@ impl WriteBytes for &ParameterList {
         for parameter in self.parameter().iter() {
             length += parameter.write_bytes(&mut buf[length..]);
         }
-        byteorder::LittleEndian::write_u16(&mut buf[length..], PID_SENTINEL);
+        PID_SENTINEL.write_bytes(&mut buf[length..]);
         buf[length + 2..length + 4].fill(0);
         length + 4
     }
