@@ -63,7 +63,7 @@ pub trait SubmessageHeader {
 
 pub trait RtpsMap: SubmessageHeader {
     fn map<T: FromBytes>(&self, data: &[u8]) -> T {
-        if self.submessage_header().endianness_flag() {
+        if self.submessage_header().flags()[0] {
             T::from_bytes::<byteorder::LittleEndian>(data)
         } else {
             T::from_bytes::<byteorder::BigEndian>(data)
@@ -391,7 +391,7 @@ impl<'a> SubmessageHeaderRead<'a> {
     pub fn flags(&self) -> [SubmessageFlag; 8] {
         let flags_byte = self.data[1];
         [
-            self.endianness_flag(),
+            flags_byte & 0b_0000_0001 != 0,
             flags_byte & 0b_0000_0010 != 0,
             flags_byte & 0b_0000_0100 != 0,
             flags_byte & 0b_0000_1000 != 0,
@@ -400,10 +400,6 @@ impl<'a> SubmessageHeaderRead<'a> {
             flags_byte & 0b_0100_0000 != 0,
             flags_byte & 0b_1000_0000 != 0,
         ]
-    }
-
-    pub fn endianness_flag(&self) -> bool {
-        self.data[1] & 0b_0000_0001 != 0
     }
 }
 

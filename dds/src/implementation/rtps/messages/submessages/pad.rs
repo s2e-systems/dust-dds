@@ -71,7 +71,7 @@ mod tests {
         let expected_endianness_flag = true;
         assert_eq!(
             expected_endianness_flag,
-            submessage.submessage_header().endianness_flag()
+            submessage.submessage_header().flags()[0]
         );
     }
 }
