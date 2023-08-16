@@ -177,13 +177,6 @@ pub trait WriteBytes {
 }
 
 #[allow(dead_code)]
-pub fn into_bytes_le_vec<T: WriteBytes>(value: T) -> Vec<u8> {
-    let mut buf = [0u8; BUFFER_SIZE];
-    let len = value.write_bytes(buf.as_mut_slice());
-    Vec::from(&buf[0..len])
-}
-
-#[allow(dead_code)]
 pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
     let len = value.write_bytes(buf.as_mut_slice());
@@ -310,7 +303,8 @@ impl WriteBytes for RtpsMessageHeader {
 #[derive(Debug, PartialEq, Eq)]
 pub struct SubmessageHeaderWrite {
     submessage_id: SubmessageKind,
-    flags: [SubmessageFlag; 8],
+    // flags without endianness
+    flags: [SubmessageFlag; 7],
     submessage_length: u16,
 }
 
@@ -321,9 +315,8 @@ impl SubmessageHeaderWrite {
         flags: &[SubmessageFlag],
         submessage_length: u16,
     ) -> Self {
-        let mut flags_array = [false; 8];
-        // Skip endianness flag
-        flags_array[1..flags.len()+1].copy_from_slice(flags);
+        let mut flags_array = [false; 7];
+        flags_array[..flags.len()].copy_from_slice(flags);
 
         Self {
             submessage_id,
@@ -336,9 +329,8 @@ impl SubmessageHeaderWrite {
 impl WriteBytes for SubmessageHeaderWrite {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.submessage_id.write_bytes(&mut buf[0..]);
-        let mut flags = self.flags;
         // Set endianness flag to LittleEndian
-        flags[0] = true;
+        let flags = [true, self.flags[0], self.flags[1], self.flags[2], self.flags[3], self.flags[4], self.flags[5], self.flags[6]];
         flags.write_bytes(&mut buf[1..]);
         self.submessage_length.write_bytes(&mut buf[2..]);
         4
@@ -367,13 +359,6 @@ impl<'a> SubmessageHeaderRead<'a> {
             flags_byte & 0b_0100_0000 != 0,
             flags_byte & 0b_1000_0000 != 0,
         ]
-    }
-    pub fn _submessage_length(&self) -> u16 {
-        let length_bytes = [self.data[2], self.data[3]];
-        match self.endianness_flag() {
-            true => u16::from_le_bytes(length_bytes),
-            false => u16::from_be_bytes(length_bytes),
-        }
     }
 
     pub fn endianness_flag(&self) -> bool {

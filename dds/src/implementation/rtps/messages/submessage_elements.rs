@@ -500,7 +500,7 @@ impl FromBytes for FragmentNumberSet {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_le_vec,
+        messages::overall_structure::into_bytes_vec,
         types::{Locator, LocatorAddress, LocatorKind, LocatorPort},
     };
 
@@ -511,7 +511,7 @@ mod tests {
             set: vec![FragmentNumber::new(2), FragmentNumber::new(257)],
         };
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(fragment_number_set), vec![
+        assert_eq!(into_bytes_vec(fragment_number_set), vec![
             2, 0, 0, 0, // bitmapBase: (unsigned long)
             0, 1, 0, 0, // numBits (unsigned long)
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
@@ -539,7 +539,7 @@ mod tests {
         );
         let locator_list = LocatorList::new(vec![locator_1, locator_2]);
         assert_eq!(
-            into_bytes_le_vec(locator_list),
+            into_bytes_vec(locator_list),
             vec![
                 2, 0, 0, 0, // numLocators (unsigned long)
                 1, 0, 0, 0, // kind (long)
@@ -684,7 +684,7 @@ mod tests {
             set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
         };
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(sequence_number_set), vec![
+        assert_eq!(into_bytes_vec(sequence_number_set), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
             2, 0, 0, 0, // bitmapBase: low (unsigned long)
             0, 1, 0, 0, // numBits (unsigned long)
@@ -726,7 +726,7 @@ mod tests {
     fn serialize_parameter() {
         let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7, 8]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(parameter), vec![
+        assert_eq!(into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 8,       // value
         ]);
@@ -736,7 +736,7 @@ mod tests {
     fn serialize_parameter_non_multiple_4() {
         let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(parameter), vec![
+        assert_eq!(into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 0,       // value
         ]);
@@ -746,7 +746,7 @@ mod tests {
     fn serialize_parameter_zero_size() {
         let parameter = Parameter::new(ParameterId(2), vec![]);
         assert_eq!(
-            into_bytes_le_vec(parameter),
+            into_bytes_vec(parameter),
             vec![
             0x02, 0x00, 0, 0, // Parameter | length
         ]
@@ -759,7 +759,7 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(3), vec![52, 62, 0, 0]);
         let parameter_list_submessage_element = &ParameterList::new(vec![parameter_1, parameter_2]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(parameter_list_submessage_element), vec![
+        assert_eq!(into_bytes_vec(parameter_list_submessage_element), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
             51, 61, 71, 81,   // value
             0x03, 0x00, 4, 0, // Parameter ID | length
@@ -772,7 +772,7 @@ mod tests {
     fn serialize_parameter_list_empty() {
         let parameter = &ParameterList::empty();
         #[rustfmt::skip]
-        assert_eq!(into_bytes_le_vec(parameter), vec![
+        assert_eq!(into_bytes_vec(parameter), vec![
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
         ]);
     }

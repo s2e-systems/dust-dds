@@ -531,12 +531,12 @@ impl Default for ExpectsInlineQos {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::messages::overall_structure::into_bytes_le_vec;
+    use crate::implementation::rtps::messages::overall_structure::into_bytes_vec;
 
     #[test]
     fn serialize_sequence_number() {
         let data = SequenceNumber::new(7);
-        let result = into_bytes_le_vec(data);
+        let result = into_bytes_vec(data);
         assert_eq!(
             result,
             vec![
@@ -550,7 +550,7 @@ mod tests {
     fn serialize_entity_id() {
         let data = EntityId::new(EntityKey::new([1, 2, 3]), EntityKind::new(0x04));
         assert_eq!(
-            into_bytes_le_vec(data),
+            into_bytes_vec(data),
             vec![
             1, 2, 3, 0x04, //value (long)
         ]
