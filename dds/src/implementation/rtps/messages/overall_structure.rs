@@ -36,7 +36,6 @@ const BUFFER_SIZE: usize = 65000;
 pub trait Submessage {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite;
     fn submessage_elements(&self) -> &[SubmessageElement];
-    fn endianness_flag(&self) -> bool;
 }
 
 impl<T> WriteBytes for T

@@ -51,10 +51,6 @@ impl Submessage for PadSubmessageWrite {
     fn submessage_elements(&self) -> &[SubmessageElement] {
         &[]
     }
-
-    fn endianness_flag(&self) -> bool {
-        self.endianness_flag
-    }
 }
 
 #[cfg(test)]

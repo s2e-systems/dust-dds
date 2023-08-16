@@ -86,10 +86,6 @@ impl Submessage for AckNackSubmessageWrite<'_> {
     fn submessage_elements(&self) -> &[SubmessageElement] {
         &self.submessage_elements
     }
-
-    fn endianness_flag(&self) -> bool {
-        self.endianness_flag
-    }
 }
 
 #[cfg(test)]
