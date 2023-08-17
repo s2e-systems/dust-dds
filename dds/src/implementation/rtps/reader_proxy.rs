@@ -7,7 +7,7 @@ use super::{
         },
         types::{Count, FragmentNumber},
     },
-    types::{EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind, SequenceNumber},
+    types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
     utils::clock::{StdTimer, Timer, TimerConstructor},
 };
 use crate::infrastructure::time::Duration;
@@ -90,7 +90,7 @@ pub struct RtpsReaderProxy {
     highest_sent_seq_num: SequenceNumber,
     highest_acked_seq_num: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
-    expects_inline_qos: ExpectsInlineQos,
+    expects_inline_qos: bool,
     is_active: bool,
     last_received_acknack_count: Count,
     last_received_nack_frag_count: Count,
@@ -122,7 +122,7 @@ impl RtpsReaderProxy {
             highest_sent_seq_num: SequenceNumber::from(0),
             highest_acked_seq_num: SequenceNumber::from(0),
             requested_changes: Vec::new(),
-            expects_inline_qos: expects_inline_qos.into(),
+            expects_inline_qos,
             is_active,
             last_received_acknack_count: Count::new(0),
             last_received_nack_frag_count: Count::new(0),

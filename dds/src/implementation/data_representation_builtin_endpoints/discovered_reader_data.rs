@@ -2,7 +2,7 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
-        rtps::types::{EntityId, ExpectsInlineQos, Guid, Locator},
+        rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
     topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
@@ -10,11 +10,27 @@ use crate::{
 
 use super::parameter_id_values::{
     PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
-    PID_UNICAST_LOCATOR,
+    PID_UNICAST_LOCATOR, DEFAULT_EXPECTS_INLINE_QOS,
 };
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    derive_more::From,
+    derive_more::AsRef,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+struct ExpectsInlineQos(bool);
+impl Default for ExpectsInlineQos {
+    fn default() -> Self {
+        Self(DEFAULT_EXPECTS_INLINE_QOS)
+    }
+}
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ReaderProxy {
     #[serde(skip_serializing)]
@@ -59,7 +75,7 @@ impl ReaderProxy {
     }
 
     pub fn expects_inline_qos(&self) -> bool {
-        (*self.expects_inline_qos.as_ref()).into()
+        *self.expects_inline_qos.as_ref().as_ref()
     }
 }
 

@@ -1,7 +1,5 @@
-use byteorder::ByteOrder;
-
 use super::messages::overall_structure::{WriteBytes, WriteEndianness};
-use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS;
+use byteorder::ByteOrder;
 use std::{
     io::Read,
     ops::{Add, AddAssign, Sub, SubAssign},
@@ -436,26 +434,6 @@ impl WriteBytes for VendorId {
 #[allow(dead_code)]
 pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
 pub const VENDOR_ID_S2E: VendorId = [0x01, 0x14];
-
-
-/// Additionally defined here (should move to DDS)
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    serde::Deserialize,
-    serde::Serialize,
-    derive_more::Into,
-    derive_more::From,
-)]
-pub struct ExpectsInlineQos(bool);
-impl Default for ExpectsInlineQos {
-    fn default() -> Self {
-        Self(DEFAULT_EXPECTS_INLINE_QOS)
-    }
-}
 
 #[cfg(test)]
 mod tests {

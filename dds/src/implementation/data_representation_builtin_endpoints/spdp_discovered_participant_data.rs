@@ -6,7 +6,7 @@ use crate::{
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             messages::types::Count,
-            types::{ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
+            types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
         },
     },
     infrastructure::{error::DdsResult, time::Duration},
@@ -18,7 +18,7 @@ use super::parameter_id_values::{
     PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
     PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
     PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
+    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID, DEFAULT_EXPECTS_INLINE_QOS,
 };
 
 #[derive(
@@ -37,7 +37,22 @@ impl Default for DomainTag {
         Self(DEFAULT_DOMAIN_TAG.to_string())
     }
 }
-
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    derive_more::From,
+    derive_more::AsRef,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+struct ExpectsInlineQos(bool);
+impl Default for ExpectsInlineQos {
+    fn default() -> Self {
+        Self(DEFAULT_EXPECTS_INLINE_QOS)
+    }
+}
 #[derive(
     Debug,
     PartialEq,
@@ -132,8 +147,8 @@ impl ParticipantProxy {
         *self.vendor_id.as_ref()
     }
 
-    pub fn _expects_inline_qos(&self) -> ExpectsInlineQos {
-        *self.expects_inline_qos.as_ref()
+    pub fn _expects_inline_qos(&self) -> bool {
+        *self.expects_inline_qos.as_ref().as_ref()
     }
 
     pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
