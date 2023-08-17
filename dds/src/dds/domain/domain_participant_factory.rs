@@ -28,9 +28,9 @@ use crate::{
             participant::RtpsParticipant,
             reader_proxy::RtpsReaderProxy,
             types::{
-                DurabilityKind, Guid, Locator, LocatorAddress, LocatorPort, ReliabilityKind,
-                SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4,
-                PROTOCOLVERSION, VENDOR_ID_S2E,
+                DurabilityKind, Guid, Locator, LocatorAddress, ReliabilityKind, SequenceNumber,
+                ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
+                VENDOR_ID_S2E,
             },
             writer_proxy::RtpsWriterProxy,
         },
@@ -141,7 +141,7 @@ impl DomainParticipantFactory {
             .local_addr()
             .map_err(|_| DdsError::Error)?
             .port();
-        let user_defined_unicast_locator_port = LocatorPort::new(user_defined_unicast_port.into());
+        let user_defined_unicast_locator_port = user_defined_unicast_port.into();
 
         let default_unicast_locator_list: Vec<Locator> = interface_address_list
             .iter()
@@ -157,13 +157,11 @@ impl DomainParticipantFactory {
             .set_nonblocking(true)
             .map_err(|_| DdsError::Error)?;
 
-        let metattrafic_unicast_locator_port = LocatorPort::new(
-            metattrafic_unicast_socket
-                .local_addr()
-                .map_err(|_| DdsError::Error)?
-                .port()
-                .into(),
-        );
+        let metattrafic_unicast_locator_port = metattrafic_unicast_socket
+            .local_addr()
+            .map_err(|_| DdsError::Error)?
+            .port()
+            .into();
         let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
             .iter()
             .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
@@ -1207,8 +1205,8 @@ const DG: i32 = 250;
 #[allow(non_upper_case_globals)]
 const d0: i32 = 0;
 
-fn port_builtin_multicast(domain_id: DomainId) -> LocatorPort {
-    LocatorPort::new((PB + DG * domain_id + d0) as u32)
+fn port_builtin_multicast(domain_id: DomainId) -> u32 {
+    (PB + DG * domain_id + d0) as u32
 }
 
 fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAddress> {
@@ -1239,7 +1237,7 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
 
 fn get_multicast_socket(
     multicast_address: LocatorAddress,
-    port: LocatorPort,
+    port: u32,
 ) -> std::io::Result<tokio::net::UdpSocket> {
     let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, <u32>::from(port) as u16));
 

@@ -277,7 +277,7 @@ impl WriteBytes for SequenceNumber {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Locator {
     kind: Long,
-    port: LocatorPort,
+    port: UnsignedLong,
     address: LocatorAddress,
 }
 
@@ -287,23 +287,6 @@ impl WriteBytes for Locator {
         self.port.write_bytes(&mut buf[4..]);
         self.address.write_bytes(&mut buf[8..]);
         24
-    }
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct LocatorPort(u32);
-
-impl LocatorPort {
-    pub const fn new(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for LocatorPort {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.0.write_bytes(buf)
     }
 }
 
@@ -331,7 +314,7 @@ pub const LOCATOR_KIND_INVALID: Long = -1;
 pub const LOCATOR_KIND_RESERVED: Long = 0;
 pub const LOCATOR_KIND_UDP_V4: Long = 1;
 pub const LOCATOR_KIND_UDP_V6: Long = 2;
-pub const LOCATOR_PORT_INVALID: LocatorPort = LocatorPort(0);
+pub const LOCATOR_PORT_INVALID: UnsignedLong = 0;
 pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = LocatorAddress([0; 16]);
 
 #[allow(dead_code)]
@@ -342,7 +325,7 @@ pub const LOCATOR_INVALID: Locator = Locator::new(
 );
 
 impl Locator {
-    pub const fn new(kind: Long, port: LocatorPort, address: LocatorAddress) -> Self {
+    pub const fn new(kind: Long, port: UnsignedLong, address: LocatorAddress) -> Self {
         Self {
             kind,
             port,
@@ -352,7 +335,7 @@ impl Locator {
     pub const fn kind(&self) -> Long {
         self.kind
     }
-    pub const fn port(&self) -> LocatorPort {
+    pub const fn port(&self) -> UnsignedLong {
         self.port
     }
     pub const fn address(&self) -> LocatorAddress {

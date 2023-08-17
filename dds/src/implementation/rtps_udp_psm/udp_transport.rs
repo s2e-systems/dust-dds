@@ -1,7 +1,7 @@
 use crate::implementation::{
     rtps::{
         messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
-        types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
+        types::{Locator, LocatorAddress, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
     },
     utils::actor::actor_interface,
 };
@@ -111,7 +111,7 @@ impl From<SocketAddr> for UdpLocator {
     fn from(socket_addr: SocketAddr) -> Self {
         match socket_addr {
             SocketAddr::V4(socket_addr) => {
-                let port = LocatorPort::new(socket_addr.port() as u32);
+                let port = socket_addr.port() as u32;
                 let address = socket_addr.ip().octets();
                 let locator = Locator::new(
                     LOCATOR_KIND_UDP_V4,
@@ -149,7 +149,7 @@ impl UdpLocator {
 mod tests {
     use std::str::FromStr;
 
-    use crate::implementation::rtps::types::{LocatorAddress, LocatorPort, LOCATOR_INVALID};
+    use crate::implementation::rtps::types::{LocatorAddress, LOCATOR_INVALID};
 
     use super::*;
 
@@ -157,7 +157,7 @@ mod tests {
     fn udpv4_locator_conversion_address1() {
         let locator = Locator::new(
             LOCATOR_KIND_UDP_V4,
-            LocatorPort::new(7400),
+            7400,
             LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1]),
         );
 
@@ -170,7 +170,7 @@ mod tests {
     fn udpv4_locator_conversion_address2() {
         let locator = Locator::new(
             LOCATOR_KIND_UDP_V4,
-            LocatorPort::new(7500),
+            7500,
             LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 25]),
         );
 
@@ -189,7 +189,7 @@ mod tests {
         let socket_addr = SocketAddr::from_str("127.0.0.1:7400").unwrap();
         let locator = UdpLocator::from(socket_addr).0;
         assert_eq!(locator.kind(), LOCATOR_KIND_UDP_V4);
-        assert_eq!(locator.port(), LocatorPort::new(7400));
+        assert_eq!(locator.port(), 7400);
         assert_eq!(
             locator.address(),
             LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1])
