@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{
     messages::{
         submessage_elements::{Data, ParameterList},
@@ -7,14 +5,12 @@ use super::{
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
-use crate::{
-    implementation::rtps::messages::types::FragmentNumber,
-    infrastructure::{
-        instance::InstanceHandle,
-        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
-        time::Time,
-    },
+use crate::infrastructure::{
+    instance::InstanceHandle,
+    qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
+    time::Time,
 };
+use std::collections::HashMap;
 
 pub struct RtpsWriterCacheChange {
     kind: ChangeKind,
@@ -77,7 +73,7 @@ impl<'a> Iterator for DataFragSubmessagesIter<'a> {
             let reader_id = self.reader_id;
             let writer_id = self.cache_change.writer_guid().entity_id();
             let writer_sn = self.cache_change.sequence_number();
-            let fragment_starting_num = FragmentNumber::new(self.pos as u32 + 1);
+            let fragment_starting_num = self.pos as u32 + 1;
             let fragments_in_submessage = 1;
             let data_size = self.data.iter().map(|d| d.len()).sum::<usize>() as u32;
             let fragment_size = self.data[0].len() as u16;

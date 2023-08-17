@@ -97,7 +97,7 @@ mod tests {
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
             SequenceNumber::from(5),
-            FragmentNumber::new(7),
+            7,
             2,
         );
         #[rustfmt::skip]
@@ -129,7 +129,7 @@ mod tests {
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let expected_writer_sn = SequenceNumber::from(5);
-        let expected_last_fragment_num = FragmentNumber::new(7);
+        let expected_last_fragment_num = 7;
         let expected_count = 2;
 
         assert_eq!(expected_reader_id, submessage.reader_id());

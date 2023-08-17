@@ -1,5 +1,4 @@
 use super::overall_structure::WriteBytes;
-use byteorder::ByteOrder;
 use std::io::Read;
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -160,35 +159,7 @@ pub type ParameterId = Short;
 /// FragmentNumber_t
 /// Type used to hold fragment numbers.
 /// Must be possible to represent using 32 bits.
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Debug,
-    derive_more::Into,
-    derive_more::Sub,
-    derive_more::SubAssign,
-    derive_more::Add,
-    derive_more::AddAssign,
-)]
-pub struct FragmentNumber(u32);
-
-impl FragmentNumber {
-    pub const fn new(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for FragmentNumber {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        byteorder::LittleEndian::write_u32(buf, self.0);
-        4
-    }
-}
+pub type FragmentNumber = UnsignedLong;
 
 /// GroupDigest_t
 /// Type used to hold a digest value that uniquely identifies a group of Entities belonging to the same Participant.

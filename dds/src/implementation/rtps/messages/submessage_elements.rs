@@ -119,7 +119,7 @@ impl FragmentNumberSet {
     pub fn new(base: FragmentNumber, set: Vec<FragmentNumber>) -> Self {
         if let Some(&min) = set.iter().min() {
             let max = *set.iter().max().unwrap();
-            if !(max - min < FragmentNumber::new(256) && min >= FragmentNumber::new(1)) {
+            if !(max - min < 256 && min >= 1) {
                 panic!("FragmentNumberSet set max - min < 256 && min >= 1 must hold")
             }
         }
@@ -132,7 +132,7 @@ impl WriteBytes for FragmentNumberSet {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for fragment_number in &self.set {
-            let delta_n = <u32>::from(*fragment_number - self.base);
+            let delta_n = *fragment_number - self.base;
             let bitmap_num = delta_n / 32;
             bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
             if delta_n + 1 > num_bits {
@@ -392,12 +392,6 @@ impl FromBytes for u32 {
     }
 }
 
-impl FromBytes for FragmentNumber {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(E::read_u32(v))
-    }
-}
-
 impl FromBytes for Locator {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let kind = E::read_i32(&v[0..]);
@@ -458,10 +452,10 @@ impl FromBytes for FragmentNumberSet {
         let mut set = Vec::with_capacity(256);
         for delta_n in 0..num_bits as usize {
             if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(FragmentNumber::new(base + delta_n as u32));
+                set.push(base + delta_n as u32);
             }
         }
-        Self::new(FragmentNumber::new(base), set)
+        Self::new(base, set)
     }
 }
 
@@ -475,8 +469,8 @@ mod tests {
     #[test]
     fn serialize_fragment_number_max_gap() {
         let fragment_number_set = FragmentNumberSet {
-            base: FragmentNumber::new(2),
-            set: vec![FragmentNumber::new(2), FragmentNumber::new(257)],
+            base: 2,
+            set: vec![2, 257],
         };
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(fragment_number_set), vec![
@@ -556,7 +550,7 @@ mod tests {
 
     #[test]
     fn deserialize_fragment_number() {
-        let expected = FragmentNumber::new(7);
+        let expected = 7;
         assert_eq!(
             expected,
             FragmentNumber::from_bytes::<byteorder::LittleEndian>(&[
@@ -568,8 +562,8 @@ mod tests {
     #[test]
     fn deserialize_fragment_number_set_max_gap() {
         let expected = FragmentNumberSet {
-            base: FragmentNumber::new(2),
-            set: vec![FragmentNumber::new(2), FragmentNumber::new(257)],
+            base: 2,
+            set: vec![2, 257],
         };
         #[rustfmt::skip]
         let result = FragmentNumberSet::from_bytes::<byteorder::LittleEndian>(&[
