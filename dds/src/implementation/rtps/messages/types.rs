@@ -3,8 +3,8 @@ use std::io::Read;
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.13 - Types used to define RTPS messages
-///
 
+type Octet = u8;
 type Long = i32;
 type UnsignedLong = u32;
 type Short = i16;
@@ -143,7 +143,7 @@ pub type Count = Long;
 /// Type used to hold a checksum. Used to detect RTPS message corruption by the underlying transport.
 /// The following values are reserved by the protocol: CHECKSUM_INVALID.
 #[allow(dead_code)]
-struct Checksum;
+pub type Checksum32 = [Octet; 4];
 
 /// MessageLength_t
 /// Type used to hold the length of an RTPS Message.
@@ -163,21 +163,15 @@ pub type FragmentNumber = UnsignedLong;
 
 /// GroupDigest_t
 /// Type used to hold a digest value that uniquely identifies a group of Entities belonging to the same Participant.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into)]
-pub struct GroupDigest([u8; 4]);
-
-impl GroupDigest {
-    pub const fn new(value: [u8; 4]) -> Self {
-        Self(value)
-    }
-}
+#[allow(dead_code)]
+pub type GroupDigest = [Octet; 4];
 
 /// UExtension4_t
 /// Type used to hold an undefined 4-byte value. It is intended to be used in future revisions of the specification.
 #[allow(dead_code)]
-struct UExtension4;
+pub type UExtension4 = [Octet; 4];
 
 /// WExtension8_t
 /// Type used to hold an undefined 8-byte value. It is intended to be used in future revisions of the specification.
 #[allow(dead_code)]
-struct WExtension8;
+pub type WExtension8 = [Octet; 8];
