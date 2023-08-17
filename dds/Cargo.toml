@@ -1,6 +1,6 @@
 [package]
 name = "dust_dds"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
 	"Joao Rebelo <jrebelo@s2e-systems.com>",
 	"Stefan Kimmer <skimmer@s2e-systems.com>",
