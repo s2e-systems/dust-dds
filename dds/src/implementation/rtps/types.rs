@@ -35,10 +35,7 @@ impl Guid {
     }
 }
 
-pub const GUID_UNKNOWN: Guid = Guid {
-    prefix: GUIDPREFIX_UNKNOWN,
-    entity_id: ENTITYID_UNKNOWN,
-};
+pub const GUID_UNKNOWN: Guid = Guid::new(GUIDPREFIX_UNKNOWN, ENTITYID_UNKNOWN);
 
 impl From<[u8; 16]> for Guid {
     fn from(value: [u8; 16]) -> Self {
@@ -46,10 +43,7 @@ impl From<[u8; 16]> for Guid {
             value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
             value[8], value[9], value[10], value[11],
         ];
-        let entity_id = EntityId::new(
-            [value[12], value[13], value[14]],
-            EntityKind(value[15]),
-        );
+        let entity_id = EntityId::new([value[12], value[13], value[14]], value[15]);
         Self { prefix, entity_id }
     }
 }
@@ -72,7 +66,7 @@ impl From<Guid> for [u8; 16] {
             guid.entity_id.entity_key[0],
             guid.entity_id.entity_key[1],
             guid.entity_id.entity_key[2],
-            guid.entity_id.entity_kind.0,
+            guid.entity_id.entity_kind,
         ]
     }
 }
@@ -98,11 +92,11 @@ type OctetArray3 = [u8; 3];
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EntityId {
     entity_key: OctetArray3,
-    entity_kind: EntityKind,
+    entity_kind: Octet,
 }
 
 impl EntityId {
-    pub const fn new(entity_key: OctetArray3, entity_kind: EntityKind) -> Self {
+    pub const fn new(entity_key: OctetArray3, entity_kind: Octet) -> Self {
         Self {
             entity_key,
             entity_kind,
@@ -113,7 +107,7 @@ impl EntityId {
         self.entity_key
     }
 
-    pub const fn entity_kind(&self) -> EntityKind {
+    pub const fn entity_kind(&self) -> Octet {
         self.entity_kind
     }
 }
@@ -124,15 +118,8 @@ impl Default for EntityId {
     }
 }
 
-pub const ENTITYID_UNKNOWN: EntityId = EntityId {
-    entity_key: [0; 3],
-    entity_kind: USER_DEFINED_UNKNOWN,
-};
-
-pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
-    entity_key: [0, 0, 0x01],
-    entity_kind: BUILT_IN_PARTICIPANT,
-};
+pub const ENTITYID_UNKNOWN: EntityId = EntityId::new([0; 3], USER_DEFINED_UNKNOWN);
+pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_PARTICIPANT);
 
 impl WriteBytes for EntityId {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
@@ -142,44 +129,37 @@ impl WriteBytes for EntityId {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct EntityKind(u8);
+type Octet = u8;
 
-impl EntityKind {
-    pub const fn new(value: u8) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for EntityKind {
+impl WriteBytes for Octet {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[0] = self.0;
+        buf[0] = *self;
         1
     }
 }
 
 // Table 9.1 - entityKind octet of an EntityId_t
-pub const USER_DEFINED_UNKNOWN: EntityKind = EntityKind(0x00);
+pub const USER_DEFINED_UNKNOWN: Octet = 0x00;
 #[allow(dead_code)]
-pub const BUILT_IN_UNKNOWN: EntityKind = EntityKind(0xc0);
-pub const BUILT_IN_PARTICIPANT: EntityKind = EntityKind(0xc1);
-pub const USER_DEFINED_WRITER_WITH_KEY: EntityKind = EntityKind(0x02);
-pub const BUILT_IN_WRITER_WITH_KEY: EntityKind = EntityKind(0xc2);
-pub const USER_DEFINED_WRITER_NO_KEY: EntityKind = EntityKind(0x03);
+pub const BUILT_IN_UNKNOWN: Octet = 0xc0;
+pub const BUILT_IN_PARTICIPANT: Octet = 0xc1;
+pub const USER_DEFINED_WRITER_WITH_KEY: Octet = 0x02;
+pub const BUILT_IN_WRITER_WITH_KEY: Octet = 0xc2;
+pub const USER_DEFINED_WRITER_NO_KEY: Octet = 0x03;
 #[allow(dead_code)]
-pub const BUILT_IN_WRITER_NO_KEY: EntityKind = EntityKind(0xc3);
-pub const USER_DEFINED_READER_WITH_KEY: EntityKind = EntityKind(0x07);
-pub const BUILT_IN_READER_WITH_KEY: EntityKind = EntityKind(0xc7);
-pub const USER_DEFINED_READER_NO_KEY: EntityKind = EntityKind(0x04);
+pub const BUILT_IN_WRITER_NO_KEY: Octet = 0xc3;
+pub const USER_DEFINED_READER_WITH_KEY: Octet = 0x07;
+pub const BUILT_IN_READER_WITH_KEY: Octet = 0xc7;
+pub const USER_DEFINED_READER_NO_KEY: Octet = 0x04;
 #[allow(dead_code)]
-pub const BUILT_IN_READER_NO_KEY: EntityKind = EntityKind(0xc4);
-pub const USER_DEFINED_WRITER_GROUP: EntityKind = EntityKind(0x08);
-pub const BUILT_IN_WRITER_GROUP: EntityKind = EntityKind(0xc8);
-pub const USER_DEFINED_READER_GROUP: EntityKind = EntityKind(0x09);
-pub const BUILT_IN_READER_GROUP: EntityKind = EntityKind(0xc9);
+pub const BUILT_IN_READER_NO_KEY: Octet = 0xc4;
+pub const USER_DEFINED_WRITER_GROUP: Octet = 0x08;
+pub const BUILT_IN_WRITER_GROUP: Octet = 0xc8;
+pub const USER_DEFINED_READER_GROUP: Octet = 0x09;
+pub const BUILT_IN_READER_GROUP: Octet = 0xc9;
 // Added in comparison to the RTPS standard
-pub const BUILT_IN_TOPIC: EntityKind = EntityKind(0xca);
-pub const USER_DEFINED_TOPIC: EntityKind = EntityKind(0x0a);
+pub const BUILT_IN_TOPIC: Octet = 0xca;
+pub const USER_DEFINED_TOPIC: Octet = 0x0a;
 
 impl WriteBytes for OctetArray3 {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
@@ -509,7 +489,7 @@ mod tests {
 
     #[test]
     fn serialize_entity_id() {
-        let data = EntityId::new([1, 2, 3], EntityKind::new(0x04));
+        let data = EntityId::new([1, 2, 3], 0x04);
         assert_eq!(
             into_bytes_vec(data),
             vec![
