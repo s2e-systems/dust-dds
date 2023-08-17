@@ -224,19 +224,19 @@ impl DdsType for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::builtin_topics::BuiltInTopicKey;
-    use crate::implementation::rtps::types::{LocatorAddress, LocatorKind, LocatorPort};
+    use crate::implementation::rtps::types::{LocatorAddress, LocatorPort};
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
     use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
 
     #[test]
     fn deserialize_spdp_discovered_participant_data() {
         let locator1 = Locator::new(
-            LocatorKind::new(11),
+            11,
             LocatorPort::new(12),
             LocatorAddress::new([1; 16]),
         );
         let locator2 = Locator::new(
-            LocatorKind::new(21),
+            21,
             LocatorPort::new(22),
             LocatorAddress::new([2; 16]),
         );
@@ -355,12 +355,12 @@ mod tests {
     #[test]
     fn serialize_spdp_discovered_participant_data() {
         let locator1 = Locator::new(
-            LocatorKind::new(11),
+            11,
             LocatorPort::new(12),
             LocatorAddress::new([1; 16]),
         );
         let locator2 = Locator::new(
-            LocatorKind::new(21),
+            21,
             LocatorPort::new(22),
             LocatorAddress::new([2; 16]),
         );

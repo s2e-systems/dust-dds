@@ -27,10 +27,9 @@ use crate::implementation::rtps::{
     },
     types::{GuidPrefix, ProtocolVersion, VendorId},
 };
-use byteorder::ByteOrder;
 use std::{io::BufRead, marker::PhantomData, sync::Arc};
 
-type WriteEndianness = byteorder::LittleEndian;
+pub(in crate::implementation::rtps) type WriteEndianness = byteorder::LittleEndian;
 const BUFFER_SIZE: usize = 65000;
 
 pub trait Submessage {
@@ -177,34 +176,6 @@ pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
     let len = value.write_bytes(buf.as_mut_slice());
     Vec::from(&buf[0..len])
-}
-
-impl WriteBytes for i32 {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_i32(buf, *self);
-        4
-    }
-}
-
-impl WriteBytes for u32 {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_u32(buf, *self);
-        4
-    }
-}
-
-impl WriteBytes for u16 {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_u16(buf, *self);
-        2
-    }
-}
-
-impl WriteBytes for i16 {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_i16(buf, *self);
-        2
-    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

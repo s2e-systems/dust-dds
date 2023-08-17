@@ -1,4 +1,6 @@
-use super::messages::overall_structure::WriteBytes;
+use byteorder::ByteOrder;
+
+use super::messages::overall_structure::{WriteBytes, WriteEndianness};
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS;
 use std::{
     io::Read,
@@ -13,6 +15,34 @@ use std::{
 type Octet = u8;
 type Long = i32;
 type UnsignedLong = u32;
+
+impl WriteBytes for Long {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_i32(buf, *self);
+        4
+    }
+}
+
+impl WriteBytes for UnsignedLong {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_u32(buf, *self);
+        4
+    }
+}
+
+impl WriteBytes for u16 {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_u16(buf, *self);
+        2
+    }
+}
+
+impl WriteBytes for i16 {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_i16(buf, *self);
+        2
+    }
+}
 
 /// GUID_t
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
@@ -246,7 +276,7 @@ impl WriteBytes for SequenceNumber {
 /// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDP_V4 LOCATOR_KIND_UDP_V6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Locator {
-    kind: LocatorKind,
+    kind: Long,
     port: LocatorPort,
     address: LocatorAddress,
 }
@@ -257,23 +287,6 @@ impl WriteBytes for Locator {
         self.port.write_bytes(&mut buf[4..]);
         self.address.write_bytes(&mut buf[8..]);
         24
-    }
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct LocatorKind(i32);
-
-impl LocatorKind {
-    pub const fn new(value: i32) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for LocatorKind {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.0.write_bytes(buf)
     }
 }
 
@@ -313,30 +326,30 @@ impl WriteBytes for LocatorAddress {
 }
 
 #[allow(dead_code)]
-pub const LOCATOR_KIND_INVALID: LocatorKind = LocatorKind(-1);
+pub const LOCATOR_KIND_INVALID: Long = -1;
 #[allow(dead_code)]
-pub const LOCATOR_KIND_RESERVED: LocatorKind = LocatorKind(0);
-pub const LOCATOR_KIND_UDP_V4: LocatorKind = LocatorKind(1);
-pub const LOCATOR_KIND_UDP_V6: LocatorKind = LocatorKind(2);
+pub const LOCATOR_KIND_RESERVED: Long = 0;
+pub const LOCATOR_KIND_UDP_V4: Long = 1;
+pub const LOCATOR_KIND_UDP_V6: Long = 2;
 pub const LOCATOR_PORT_INVALID: LocatorPort = LocatorPort(0);
 pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = LocatorAddress([0; 16]);
 
 #[allow(dead_code)]
-pub const LOCATOR_INVALID: Locator = Locator {
-    kind: LOCATOR_KIND_INVALID,
-    port: LOCATOR_PORT_INVALID,
-    address: LOCATOR_ADDRESS_INVALID,
-};
+pub const LOCATOR_INVALID: Locator = Locator::new(
+    LOCATOR_KIND_INVALID,
+    LOCATOR_PORT_INVALID,
+    LOCATOR_ADDRESS_INVALID,
+);
 
 impl Locator {
-    pub const fn new(kind: LocatorKind, port: LocatorPort, address: LocatorAddress) -> Self {
+    pub const fn new(kind: Long, port: LocatorPort, address: LocatorAddress) -> Self {
         Self {
             kind,
             port,
             address,
         }
     }
-    pub const fn kind(&self) -> LocatorKind {
+    pub const fn kind(&self) -> Long {
         self.kind
     }
     pub const fn port(&self) -> LocatorPort {

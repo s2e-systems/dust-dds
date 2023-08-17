@@ -7,8 +7,8 @@ use crate::implementation::{
     rtps::{
         messages::types::{Count, FragmentNumber},
         types::{
-            EntityId, GuidPrefix, Locator, LocatorAddress, LocatorKind, LocatorPort,
-            ProtocolVersion, SequenceNumber, VendorId,
+            EntityId, GuidPrefix, Locator, LocatorAddress, LocatorPort, ProtocolVersion,
+            SequenceNumber, VendorId,
         },
     },
 };
@@ -404,7 +404,7 @@ impl FromBytes for FragmentNumber {
 
 impl FromBytes for Locator {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let kind = LocatorKind::new(E::read_i32(&v[0..]));
+        let kind = E::read_i32(&v[0..]);
         let port = LocatorPort::new(E::read_u32(&v[4..]));
         let address = LocatorAddress::new([
             v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17], v[18], v[19],
@@ -474,7 +474,7 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::overall_structure::into_bytes_vec,
-        types::{Locator, LocatorAddress, LocatorKind, LocatorPort},
+        types::{Locator, LocatorAddress, LocatorPort},
     };
 
     #[test]
@@ -500,16 +500,8 @@ mod tests {
 
     #[test]
     fn serialize_locator_list() {
-        let locator_1 = Locator::new(
-            LocatorKind::new(1),
-            LocatorPort::new(2),
-            LocatorAddress::new([3; 16]),
-        );
-        let locator_2 = Locator::new(
-            LocatorKind::new(2),
-            LocatorPort::new(2),
-            LocatorAddress::new([3; 16]),
-        );
+        let locator_1 = Locator::new(1, LocatorPort::new(2), LocatorAddress::new([3; 16]));
+        let locator_2 = Locator::new(2, LocatorPort::new(2), LocatorAddress::new([3; 16]));
         let locator_list = LocatorList::new(vec![locator_1, locator_2]);
         assert_eq!(
             into_bytes_vec(locator_list),
@@ -544,16 +536,8 @@ mod tests {
 
     #[test]
     fn deserialize_locator_list() {
-        let locator_1 = Locator::new(
-            LocatorKind::new(1),
-            LocatorPort::new(2),
-            LocatorAddress::new([3; 16]),
-        );
-        let locator_2 = Locator::new(
-            LocatorKind::new(2),
-            LocatorPort::new(2),
-            LocatorAddress::new([3; 16]),
-        );
+        let locator_1 = Locator::new(1, LocatorPort::new(2), LocatorAddress::new([3; 16]));
+        let locator_2 = Locator::new(2, LocatorPort::new(2), LocatorAddress::new([3; 16]));
         let expected = LocatorList::new(vec![locator_1, locator_2]);
         #[rustfmt::skip]
         let result = LocatorList::from_bytes::<byteorder::LittleEndian>(&[
