@@ -440,7 +440,7 @@ fn add_matched_publications_detector(
             true,
             ReliabilityKind::Reliable,
             DurabilityKind::TransientLocal,
-            SequenceNumber::new(0),
+            SequenceNumber::from(0),
         );
         writer.matched_reader_add(proxy).unwrap();
     }
@@ -510,7 +510,7 @@ fn add_matched_subscriptions_detector(
             true,
             ReliabilityKind::Reliable,
             DurabilityKind::TransientLocal,
-            SequenceNumber::new(0),
+            SequenceNumber::from(0),
         );
         writer.matched_reader_add(proxy).unwrap();
     }
@@ -579,7 +579,7 @@ fn add_matched_topics_detector(
             true,
             ReliabilityKind::Reliable,
             DurabilityKind::TransientLocal,
-            SequenceNumber::new(0),
+            SequenceNumber::from(0),
         );
         writer.matched_reader_add(proxy).unwrap();
     }

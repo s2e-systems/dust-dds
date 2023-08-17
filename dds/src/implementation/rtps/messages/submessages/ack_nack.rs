@@ -103,7 +103,7 @@ mod tests {
             final_flag,
             reader_id,
             writer_id,
-            SequenceNumberSet::new(SequenceNumber::new(10), vec![]),
+            SequenceNumberSet::new(SequenceNumber::from(10), vec![]),
             Count::new(14),
         );
         #[rustfmt::skip]
@@ -137,7 +137,7 @@ mod tests {
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id =
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let expected_reader_sn_state = SequenceNumberSet::new(SequenceNumber::new(10), vec![]);
+        let expected_reader_sn_state = SequenceNumberSet::new(SequenceNumber::from(10), vec![]);
         let expected_count = Count::new(2);
 
         assert_eq!(expected_final_flag, submessage.final_flag());

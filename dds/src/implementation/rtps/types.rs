@@ -1,15 +1,18 @@
+use super::messages::overall_structure::WriteBytes;
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS;
 use std::{
     io::Read,
     ops::{Add, AddAssign, Sub, SubAssign},
 };
 
-use super::messages::overall_structure::WriteBytes;
-
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
+
+type Octet = u8;
+type Long = i32;
+type UnsignedLong = u32;
 
 /// GUID_t
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
@@ -88,7 +91,7 @@ impl WriteBytes for GuidPrefix {
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
-type OctetArray3 = [u8; 3];
+type OctetArray3 = [Octet; 3];
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EntityId {
     entity_key: OctetArray3,
@@ -128,8 +131,6 @@ impl WriteBytes for EntityId {
         4
     }
 }
-
-type Octet = u8;
 
 impl WriteBytes for Octet {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
@@ -171,62 +172,71 @@ impl WriteBytes for OctetArray3 {
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
 /// The following values are reserved by the protocol: SEQUENCENUMBER_UNKNOWN
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Debug,
-    derive_more::Into,
-    derive_more::Add,
-    derive_more::AddAssign,
-    derive_more::Sub,
-    derive_more::SubAssign,
-)]
-pub struct SequenceNumber(i64);
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct SequenceNumber {
+    high: Long,
+    low: UnsignedLong,
+}
+
+#[allow(dead_code)]
+pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber::new(-1, 0);
 
 impl SequenceNumber {
-    pub const fn new(value: i64) -> Self {
-        Self(value)
+    pub const fn new(high: Long, low: UnsignedLong) -> Self {
+        Self { high, low }
+    }
+}
+impl From<SequenceNumber> for i64 {
+    fn from(value: SequenceNumber) -> Self {
+        ((value.high as i64) << 32) + value.low as i64
+    }
+}
+impl From<i64> for SequenceNumber {
+    fn from(value: i64) -> Self {
+        Self {
+            high: (value >> 32) as Long,
+            low: value as UnsignedLong,
+        }
+    }
+}
+impl Add for SequenceNumber {
+    type Output = Self;
+    fn add(self, rhs: SequenceNumber) -> Self::Output {
+        Self::from(<i64>::from(self) + <i64>::from(rhs))
+    }
+}
+impl Sub for SequenceNumber {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from(<i64>::from(self) - <i64>::from(rhs))
+    }
+}
+impl AddAssign<i64> for SequenceNumber {
+    fn add_assign(&mut self, rhs: i64) {
+        *self = Self::from(<i64>::from(*self) + rhs);
+    }
+}
+impl Add<i64> for SequenceNumber {
+    type Output = Self;
+    fn add(self, rhs: i64) -> Self::Output {
+        Self::from(<i64>::from(self) + rhs)
+    }
+}
+impl SubAssign<i64> for SequenceNumber {
+    fn sub_assign(&mut self, rhs: i64) {
+        *self = Self::from(<i64>::from(*self) - rhs);
+    }
+}
+impl Sub<i64> for SequenceNumber {
+    type Output = Self;
+    fn sub(self, rhs: i64) -> Self::Output {
+        Self::from(<i64>::from(self) - rhs)
     }
 }
 
 impl WriteBytes for SequenceNumber {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let high = (self.0 >> 32) as i32;
-        let low = self.0 as i32;
-        high.write_bytes(&mut buf[0..]) + low.write_bytes(&mut buf[4..])
-    }
-}
-
-#[allow(dead_code)]
-pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber(i64::MIN);
-
-impl AddAssign<i64> for SequenceNumber {
-    fn add_assign(&mut self, rhs: i64) {
-        self.0 += rhs;
-    }
-}
-impl Add<i64> for SequenceNumber {
-    type Output = SequenceNumber;
-
-    fn add(self, rhs: i64) -> Self::Output {
-        SequenceNumber(self.0 + rhs)
-    }
-}
-impl SubAssign<i64> for SequenceNumber {
-    fn sub_assign(&mut self, rhs: i64) {
-        self.0 -= rhs
-    }
-}
-impl Sub<i64> for SequenceNumber {
-    type Output = SequenceNumber;
-
-    fn sub(self, rhs: i64) -> Self::Output {
-        SequenceNumber(self.0 - rhs)
+        self.high.write_bytes(&mut buf[0..]) + self.low.write_bytes(&mut buf[4..])
     }
 }
 
@@ -476,7 +486,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number() {
-        let data = SequenceNumber::new(7);
+        let data = SequenceNumber::from(7);
         let result = into_bytes_vec(data);
         assert_eq!(
             result,

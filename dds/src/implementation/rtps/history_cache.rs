@@ -255,7 +255,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::new(1),
+            SequenceNumber::from(1),
             TIME_INVALID,
             vec![Data::new(vec![])],
             ParameterList::empty(),
@@ -266,7 +266,7 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::new(1));
+        hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::from(1));
         assert!(hc.change_list().count() == 0);
     }
 
@@ -277,7 +277,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::new(1),
+            SequenceNumber::from(1),
             TIME_INVALID,
             vec![Data::new(vec![])],
             ParameterList::empty(),
@@ -286,7 +286,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::new(2),
+            SequenceNumber::from(2),
             TIME_INVALID,
             vec![Data::new(vec![])],
             ParameterList::empty(),
@@ -303,7 +303,7 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        assert_eq!(hc.get_seq_num_min(), Some(SequenceNumber::new(1)));
+        assert_eq!(hc.get_seq_num_min(), Some(SequenceNumber::from(1)));
     }
 
     #[test]
@@ -313,7 +313,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::new(1),
+            SequenceNumber::from(1),
             TIME_INVALID,
             vec![Data::new(vec![])],
             ParameterList::empty(),
@@ -322,7 +322,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::new(2),
+            SequenceNumber::from(2),
             TIME_INVALID,
             vec![Data::new(vec![])],
             ParameterList::empty(),
@@ -339,6 +339,6 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        assert_eq!(hc.get_seq_num_max(), Some(SequenceNumber::new(2)));
+        assert_eq!(hc.get_seq_num_max(), Some(SequenceNumber::from(2)));
     }
 }

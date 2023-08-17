@@ -71,7 +71,7 @@ impl SequenceNumberSet {
     pub fn new(base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
         if let Some(&min) = set.iter().min() {
             let max = *set.iter().max().unwrap();
-            if !(max - min < SequenceNumber::new(256) && min >= SequenceNumber::new(1)) {
+            if !(max - min < SequenceNumber::from(256) && min >= SequenceNumber::from(1)) {
                 panic!("SequenceNumber set max - min < 256 && min >= 1 must hold")
             }
         }
@@ -343,7 +343,7 @@ impl FromBytes for SequenceNumber {
         let high = E::read_i32(&v[0..]);
         let low = E::read_i32(&v[4..]);
         let value = ((high as i64) << 32) + low as i64;
-        SequenceNumber::new(value)
+        SequenceNumber::from(value)
     }
 }
 
@@ -371,10 +371,10 @@ impl FromBytes for SequenceNumberSet {
         let mut set = Vec::with_capacity(256);
         for delta_n in 0..num_bits as usize {
             if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(SequenceNumber::new(base + delta_n as i64));
+                set.push(SequenceNumber::from(base + delta_n as i64));
             }
         }
-        SequenceNumberSet::new(SequenceNumber::new(base), set)
+        SequenceNumberSet::new(SequenceNumber::from(base), set)
     }
 }
 
@@ -640,7 +640,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number() {
-        let expected = SequenceNumber::new(7);
+        let expected = SequenceNumber::from(7);
         assert_eq!(
             expected,
             SequenceNumber::from_bytes::<byteorder::LittleEndian>(&[
@@ -653,8 +653,8 @@ mod tests {
     #[test]
     fn serialize_sequence_number_max_gap() {
         let sequence_number_set = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
+            base: SequenceNumber::from(2),
+            set: vec![SequenceNumber::from(2), SequenceNumber::from(257)],
         };
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(sequence_number_set), vec![
@@ -675,8 +675,8 @@ mod tests {
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
         let expected = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
+            base: SequenceNumber::from(2),
+            set: vec![SequenceNumber::from(2), SequenceNumber::from(257)],
         };
         #[rustfmt::skip]
         let result = SequenceNumberSet::from_bytes::<byteorder::LittleEndian>(&[

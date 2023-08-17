@@ -1229,7 +1229,7 @@ impl DdsDataReader {
             for seq_num in
                 i64::from(gap_submessage.gap_start())..i64::from(gap_submessage.gap_list().base())
             {
-                writer_proxy.irrelevant_change_set(SequenceNumber::new(seq_num))
+                writer_proxy.irrelevant_change_set(SequenceNumber::from(seq_num))
             }
 
             for seq_num in gap_submessage.gap_list().set() {

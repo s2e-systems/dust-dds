@@ -671,14 +671,14 @@ impl DdsDataWriter {
         //     .iter()
         //     .map(|x| x.sequence_number())
         //     .min()
-        //     .unwrap_or_else(|| SequenceNumber::new(1));
+        //     .unwrap_or_else(|| SequenceNumber::from(1));
         // let last_sn = self
         //     .writer_cache
         //     .change_list()
         //     .iter()
         //     .map(|x| x.sequence_number())
         //     .max()
-        //     .unwrap_or_else(|| SequenceNumber::new(0));
+        //     .unwrap_or_else(|| SequenceNumber::from(0));
         // let heartbeat_period = self.heartbeat_period();
         // for reader_proxy in &mut self.matched_reader_list() {
         //     match reader_proxy.reliability() {
@@ -779,9 +779,9 @@ impl DdsDataWriter {
                         .change_list()
                         .map(|cc| cc.sequence_number())
                         .max()
-                        .unwrap_or(SequenceNumber::new(0))
+                        .unwrap_or(SequenceNumber::from(0))
                 } else {
-                    SequenceNumber::new(0)
+                    SequenceNumber::from(0)
                 };
 
                 let reader_proxy = RtpsReaderProxy::new(
@@ -1354,12 +1354,12 @@ fn send_message_to_reader_proxy_reliable(
             .change_list()
             .map(|x| x.sequence_number())
             .min()
-            .unwrap_or_else(|| SequenceNumber::new(1));
+            .unwrap_or_else(|| SequenceNumber::from(1));
         let last_sn = writer_cache
             .change_list()
             .map(|x| x.sequence_number())
             .max()
-            .unwrap_or_else(|| SequenceNumber::new(0));
+            .unwrap_or_else(|| SequenceNumber::from(0));
         let heartbeat_submessage = reader_proxy
             .heartbeat_machine()
             .submessage(writer_id, first_sn, last_sn);
@@ -1460,12 +1460,12 @@ fn send_change_message_reader_proxy_reliable(
                     .change_list()
                     .map(|x| x.sequence_number())
                     .min()
-                    .unwrap_or_else(|| SequenceNumber::new(1));
+                    .unwrap_or_else(|| SequenceNumber::from(1));
                 let last_sn = writer_cache
                     .change_list()
                     .map(|x| x.sequence_number())
                     .max()
-                    .unwrap_or_else(|| SequenceNumber::new(0));
+                    .unwrap_or_else(|| SequenceNumber::from(0));
                 let heartbeat = reader_proxy
                     .heartbeat_machine()
                     .submessage(writer_id, first_sn, last_sn);
@@ -1496,12 +1496,12 @@ fn send_change_message_reader_proxy_reliable(
                 .change_list()
                 .map(|x| x.sequence_number())
                 .min()
-                .unwrap_or_else(|| SequenceNumber::new(1));
+                .unwrap_or_else(|| SequenceNumber::from(1));
             let last_sn = writer_cache
                 .change_list()
                 .map(|x| x.sequence_number())
                 .max()
-                .unwrap_or_else(|| SequenceNumber::new(0));
+                .unwrap_or_else(|| SequenceNumber::from(0));
             let heartbeat = reader_proxy
                 .heartbeat_machine()
                 .submessage(writer_id, first_sn, last_sn);

@@ -222,7 +222,7 @@ mod tests {
             false,
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
-            SequenceNumber::new(5),
+            SequenceNumber::from(5),
             FragmentNumber::new(2),
             3,
             4,
@@ -256,7 +256,7 @@ mod tests {
             false,
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
-            SequenceNumber::new(6),
+            SequenceNumber::from(6),
             FragmentNumber::new(2),
             3,
             8,
@@ -303,7 +303,7 @@ mod tests {
         let expected_key_flag = false;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let expected_writer_sn = SequenceNumber::new(5);
+        let expected_writer_sn = SequenceNumber::from(5);
         let expected_fragment_starting_num = FragmentNumber::new(2);
         let expected_fragments_in_submessage = 3;
         let expected_data_size = 4;
@@ -358,7 +358,7 @@ mod tests {
         let expected_key_flag = false;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let expected_writer_sn = SequenceNumber::new(6);
+        let expected_writer_sn = SequenceNumber::from(6);
         let expected_fragment_starting_num = FragmentNumber::new(2);
         let expected_fragments_in_submessage = 3;
         let expected_data_size = 8;

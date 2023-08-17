@@ -81,10 +81,10 @@ impl RtpsWriterProxy {
             multicast_locator_list: multicast_locator_list.to_vec(),
             data_max_size_serialized,
             remote_group_entity_id,
-            first_available_seq_num: SequenceNumber::new(1),
-            last_available_seq_num: SequenceNumber::new(0),
+            first_available_seq_num: SequenceNumber::from(1),
+            last_available_seq_num: SequenceNumber::from(0),
             irrelevant_changes: Vec::new(),
-            highest_received_change_sn: SequenceNumber::new(0),
+            highest_received_change_sn: SequenceNumber::from(0),
             must_send_acknacks: false,
             last_received_heartbeat_count: Count::new(0),
             last_received_heartbeat_frag_count: Count::new(0),
@@ -180,7 +180,7 @@ impl RtpsWriterProxy {
             .iter()
             .max()
             .cloned()
-            .unwrap_or(SequenceNumber::new(0));
+            .unwrap_or(SequenceNumber::from(0));
         // The highest sequence number of all present
         let highest_number = max(
             self.last_available_seq_num,
@@ -266,7 +266,7 @@ impl RtpsWriterProxy {
 
             if let Some(&min) = self.missing_changes().iter().min() {
                 let max = self.missing_changes().iter().max().cloned().unwrap();
-                if !(max - min < SequenceNumber::new(256) && min >= SequenceNumber::new(1)) {
+                if !(max - min < SequenceNumber::from(256) && min >= SequenceNumber::from(1)) {
                     todo!("Use ack_frag")
                 }
             };
