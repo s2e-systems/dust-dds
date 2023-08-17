@@ -121,8 +121,7 @@ mod tests {
     use super::*;
     use crate::builtin_topics::BuiltInTopicKey;
     use crate::implementation::rtps::types::{
-        EntityKey, GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
-        USER_DEFINED_UNKNOWN,
+        EntityKey, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
     };
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -137,7 +136,7 @@ mod tests {
         let data = DiscoveredReaderData {
             reader_proxy: ReaderProxy::new(
                 Guid::new(
-                    GuidPrefix::new([5; 12]),
+                    [5; 12],
                     EntityId::new(EntityKey::new([11, 12, 13]), USER_DEFINED_READER_WITH_KEY),
                 ),
                 EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_WRITER_WITH_KEY),
@@ -202,7 +201,7 @@ mod tests {
             reader_proxy: ReaderProxy::new(
                 // must correspond to subscription_builtin_topic_data.key
                 Guid::new(
-                    GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
+                    [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
                     EntityId::new(EntityKey::new([4, 0, 0]), USER_DEFINED_UNKNOWN),
                 ),
                 EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_WRITER_WITH_KEY),
@@ -265,7 +264,7 @@ mod tests {
     fn deserialize_reader_proxy() {
         let expected = ReaderProxy::new(
             Guid::new(
-                GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
+                [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
                 EntityId::new(EntityKey::new([4, 0, 0]), USER_DEFINED_UNKNOWN),
             ),
             EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_WRITER_WITH_KEY),

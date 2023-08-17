@@ -28,9 +28,9 @@ use crate::{
             participant::RtpsParticipant,
             reader_proxy::RtpsReaderProxy,
             types::{
-                DurabilityKind, Guid, GuidPrefix, Locator, LocatorAddress, LocatorPort,
-                ReliabilityKind, SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
-                LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E,
+                DurabilityKind, Guid, Locator, LocatorAddress, LocatorPort, ReliabilityKind,
+                SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4,
+                PROTOCOLVERSION, VENDOR_ID_S2E,
             },
             writer_proxy::RtpsWriterProxy,
         },
@@ -122,11 +122,11 @@ impl DomainParticipantFactory {
         let instance_id = self.0.address().get_unique_participant_id()?.to_ne_bytes();
 
         #[rustfmt::skip]
-        let guid_prefix = GuidPrefix::new([
+        let guid_prefix = [
             mac_address_octets[2],  mac_address_octets[3], mac_address_octets[4], mac_address_octets[5], // Host ID
             app_id[0], app_id[1], app_id[2], app_id[3], // App ID
             instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
-        ]);
+        ];
 
         let interface_address_list =
             get_interface_address_list(THE_DDS_CONFIGURATION.interface_name.as_ref());

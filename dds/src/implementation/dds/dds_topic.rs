@@ -8,7 +8,11 @@ use crate::{
             shared_object::{DdsRwLock, DdsShared},
         },
     },
-    infrastructure::{instance::InstanceHandle, qos::TopicQos, status::{InconsistentTopicStatus, StatusKind}},
+    infrastructure::{
+        instance::InstanceHandle,
+        qos::TopicQos,
+        status::{InconsistentTopicStatus, StatusKind},
+    },
 };
 
 use super::status_condition_impl::StatusConditionImpl;
@@ -187,16 +191,14 @@ fn is_discovered_topic_consistent(
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::rtps::types::{
-        EntityId, EntityKey, GuidPrefix, BUILT_IN_PARTICIPANT,
-    };
+    use crate::implementation::rtps::types::{EntityId, EntityKey, BUILT_IN_PARTICIPANT};
 
     use super::*;
 
     #[test]
     fn get_instance_handle() {
         let guid = Guid::new(
-            GuidPrefix::new([2; 12]),
+            [2; 12],
             EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
         let mut topic = DdsTopic::new(guid, TopicQos::default(), "", "");

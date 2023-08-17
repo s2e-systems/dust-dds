@@ -42,10 +42,10 @@ pub const GUID_UNKNOWN: Guid = Guid {
 
 impl From<[u8; 16]> for Guid {
     fn from(value: [u8; 16]) -> Self {
-        let prefix = GuidPrefix::new([
+        let prefix = [
             value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
             value[8], value[9], value[10], value[11],
-        ]);
+        ];
         let entity_id = EntityId::new(
             EntityKey::new([value[12], value[13], value[14]]),
             EntityKind(value[15]),
@@ -57,18 +57,18 @@ impl From<[u8; 16]> for Guid {
 impl From<Guid> for [u8; 16] {
     fn from(guid: Guid) -> Self {
         [
-            guid.prefix.0[0],
-            guid.prefix.0[1],
-            guid.prefix.0[2],
-            guid.prefix.0[3],
-            guid.prefix.0[4],
-            guid.prefix.0[5],
-            guid.prefix.0[6],
-            guid.prefix.0[7],
-            guid.prefix.0[8],
-            guid.prefix.0[9],
-            guid.prefix.0[10],
-            guid.prefix.0[11],
+            guid.prefix[0],
+            guid.prefix[1],
+            guid.prefix[2],
+            guid.prefix[3],
+            guid.prefix[4],
+            guid.prefix[5],
+            guid.prefix[6],
+            guid.prefix[7],
+            guid.prefix[8],
+            guid.prefix[9],
+            guid.prefix[10],
+            guid.prefix[11],
             guid.entity_id.entity_key.0[0],
             guid.entity_id.entity_key.0[1],
             guid.entity_id.entity_key.0[2],
@@ -81,31 +81,12 @@ impl From<Guid> for [u8; 16] {
 /// Type used to hold the prefix of the globally-unique RTPS-entity identifiers. The GUIDs of entities belonging to the same participant all have the same prefix (see 8.2.4.3).
 /// Must be possible to represent using 12 octets.
 /// The following values are reserved by the protocol: GUIDPREFIX_UNKNOWN
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    Default,
-    derive_more::From,
-    derive_more::Into,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-pub struct GuidPrefix([u8; 12]);
-pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
-
-impl GuidPrefix {
-    pub const fn new(value: [u8; 12]) -> Self {
-        Self(value)
-    }
-}
+pub type GuidPrefix = [u8; 12];
+pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
 impl WriteBytes for GuidPrefix {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.0.as_slice().read(buf).unwrap()
+        self.as_slice().read(buf).unwrap()
     }
 }
 

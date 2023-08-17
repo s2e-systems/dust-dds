@@ -94,9 +94,9 @@ impl RtpsMessageRead {
         let minor = v[5];
         let version = ProtocolVersion::new(major, minor);
         let vendor_id = VendorId::new([v[6], v[7]]);
-        let guid_prefix = GuidPrefix::new([
+        let guid_prefix = [
             v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17], v[18], v[19],
-        ]);
+        ];
         RtpsMessageHeader {
             protocol,
             version,
@@ -424,7 +424,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
+            guid_prefix: [3; 12],
         };
         let message = RtpsMessageWrite::new(header, Vec::new());
         #[rustfmt::skip]
@@ -443,7 +443,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
+            guid_prefix: [3; 12],
         };
         let inline_qos_flag = true;
         let data_flag = false;
@@ -496,7 +496,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
+            guid_prefix: [3; 12],
         };
 
         #[rustfmt::skip]
@@ -517,7 +517,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
+            guid_prefix: [3; 12],
         };
 
         #[rustfmt::skip]

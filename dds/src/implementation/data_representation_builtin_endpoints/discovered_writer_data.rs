@@ -116,8 +116,8 @@ impl DdsType for DiscoveredWriterData {
 mod tests {
     use crate::builtin_topics::BuiltInTopicKey;
     use crate::implementation::rtps::types::{
-        EntityKey, GuidPrefix, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP,
-        BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_UNKNOWN,
+        EntityKey, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
+        USER_DEFINED_UNKNOWN,
     };
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -157,7 +157,7 @@ mod tests {
             ),
             WriterProxy::new(
                 Guid::new(
-                    GuidPrefix::new([5; 12]),
+                    [5; 12],
                     EntityId::new(EntityKey::new([11, 12, 13]), BUILT_IN_WRITER_WITH_KEY),
                 ),
                 EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_READER_GROUP),
@@ -222,7 +222,7 @@ mod tests {
             WriterProxy::new(
                 // must correspond to publication_builtin_topic_data.key
                 Guid::new(
-                    GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
+                    [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
                     EntityId::new(EntityKey::new([4, 0, 0]), USER_DEFINED_UNKNOWN),
                 ),
                 EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_PARTICIPANT),
