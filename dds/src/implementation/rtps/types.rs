@@ -1,9 +1,6 @@
 use super::messages::overall_structure::{WriteBytes, WriteEndianness};
 use byteorder::ByteOrder;
-use std::{
-    io::Read,
-    ops::{Add, AddAssign, Sub, SubAssign},
-};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -39,6 +36,13 @@ impl WriteBytes for i16 {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         WriteEndianness::write_i16(buf, *self);
         2
+    }
+}
+
+impl<const N: usize> WriteBytes for [Octet; N] {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        buf[..self.len()].copy_from_slice(self);
+        N
     }
 }
 
@@ -108,12 +112,6 @@ impl From<Guid> for [u8; 16] {
 /// The following values are reserved by the protocol: GUIDPREFIX_UNKNOWN
 pub type GuidPrefix = [u8; 12];
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
-
-impl WriteBytes for GuidPrefix {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.as_slice().read(buf).unwrap()
-    }
-}
 
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
@@ -189,12 +187,6 @@ pub const BUILT_IN_READER_GROUP: Octet = 0xc9;
 // Added in comparison to the RTPS standard
 pub const BUILT_IN_TOPIC: Octet = 0xca;
 pub const USER_DEFINED_TOPIC: Octet = 0x0a;
-
-impl WriteBytes for OctetArray3 {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.as_slice().read(buf).unwrap()
-    }
-}
 
 /// SequenceNumber_t
 /// Type used to hold sequence numbers.
@@ -285,13 +277,6 @@ impl WriteBytes for Locator {
         self.port.write_bytes(&mut buf[4..]);
         self.address.write_bytes(&mut buf[8..]);
         24
-    }
-}
-
-impl WriteBytes for [Octet; 16] {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[..self.len()].copy_from_slice(self);
-        16
     }
 }
 
@@ -426,11 +411,6 @@ impl ProtocolVersion {
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
 pub type VendorId = [Octet; 2];
 
-impl WriteBytes for VendorId {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.as_slice().read(buf).unwrap()
-    }
-}
 #[allow(dead_code)]
 pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
 pub const VENDOR_ID_S2E: VendorId = [0x01, 0x14];
