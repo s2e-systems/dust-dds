@@ -1,7 +1,8 @@
-use std::collections::{HashMap, HashSet};
-
-use serde::Serialize;
-
+use super::{
+    dds_data_writer_listener::DdsDataWriterListener, dds_domain_participant::DdsDomainParticipant,
+    dds_publisher::DdsPublisher, message_receiver::MessageReceiver, nodes::DataWriterNode,
+    status_condition_impl::StatusConditionImpl,
+};
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     implementation::{
@@ -29,7 +30,6 @@ use crate::{
                     info_timestamp::InfoTimestampSubmessageWrite,
                     nack_frag::NackFragSubmessageRead,
                 },
-                types::ParameterId,
             },
             reader_locator::RtpsReaderLocator,
             reader_proxy::RtpsReaderProxy,
@@ -70,12 +70,8 @@ use crate::{
         },
     },
 };
-
-use super::{
-    dds_data_writer_listener::DdsDataWriterListener, dds_domain_participant::DdsDomainParticipant,
-    dds_publisher::DdsPublisher, message_receiver::MessageReceiver, nodes::DataWriterNode,
-    status_condition_impl::StatusConditionImpl,
-};
+use serde::Serialize;
+use std::collections::{HashMap, HashSet};
 
 struct MatchedSubscriptions {
     matched_subscription_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
@@ -481,7 +477,7 @@ impl DdsDataWriter {
         }
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
-            ParameterId(PID_STATUS_INFO),
+            PID_STATUS_INFO,
             serialized_status_info,
         )]);
 
@@ -553,7 +549,7 @@ impl DdsDataWriter {
         STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
-            ParameterId(PID_STATUS_INFO),
+            PID_STATUS_INFO,
             serialized_status_info,
         )]);
 

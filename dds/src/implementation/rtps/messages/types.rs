@@ -8,6 +8,7 @@ use std::io::Read;
 
 type Long = i32;
 type UnsignedLong = u32;
+type Short = i16;
 
 /// ProtocolId_t
 /// Enumeration used to identify the protocol.
@@ -154,8 +155,7 @@ struct MessageLength;
 /// ParameterId_t
 /// Type used to uniquely identify a parameter in a parameter list.
 /// Used extensively by the Discovery Module mainly to define QoS Parameters. A range of values is reserved for protocol-defined parameters, while another range can be used for vendor-defined parameters, see 8.3.5.9.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into)]
-pub struct ParameterId(pub u16);
+pub type ParameterId = Short;
 
 /// FragmentNumber_t
 /// Type used to hold fragment numbers.

@@ -4,18 +4,24 @@ use serde::de::{self};
 use serde::ser::SerializeTuple;
 
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
+use crate::implementation::rtps::messages::types::ParameterId;
 
-#[derive(Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, derive_more::Constructor)]
-pub struct Parameter<const PID: u16, T>(T);
+#[derive(
+    Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, derive_more::Constructor,
+)]
+pub struct Parameter<const PID: ParameterId, T>(T);
 
-#[derive(Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, derive_more::Constructor)]
-pub struct ParameterWithDefault<const PID: u16, T>(T);
+#[derive(
+    Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, derive_more::Constructor,
+)]
+pub struct ParameterWithDefault<const PID: ParameterId, T>(T);
 
-#[derive(Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, derive_more::Constructor)]
-pub struct ParameterVector<const PID: u16, T>(Vec<T>);
+#[derive(
+    Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, derive_more::Constructor,
+)]
+pub struct ParameterVector<const PID: ParameterId, T>(Vec<T>);
 
-
-impl<const PID: u16, T> serde::Serialize for Parameter<PID, T>
+impl<const PID: ParameterId, T> serde::Serialize for Parameter<PID, T>
 where
     T: serde::Serialize,
 {
@@ -41,7 +47,7 @@ where
     }
 }
 
-impl<const PID: u16, T> serde::Serialize for ParameterWithDefault<PID, T>
+impl<const PID: ParameterId, T> serde::Serialize for ParameterWithDefault<PID, T>
 where
     T: serde::Serialize + Default + PartialEq,
 {
@@ -71,7 +77,7 @@ where
     }
 }
 
-impl<const PID: u16, T> serde::Serialize for ParameterVector<PID, T>
+impl<const PID: ParameterId, T> serde::Serialize for ParameterVector<PID, T>
 where
     T: serde::Serialize,
 {
@@ -102,7 +108,7 @@ where
     }
 }
 
-impl<'de, const PID: u16, T> serde::Deserialize<'de> for Parameter<PID, T>
+impl<'de, const PID: ParameterId, T> serde::Deserialize<'de> for Parameter<PID, T>
 where
     T: serde::Deserialize<'de>,
 {
@@ -110,14 +116,14 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        struct Visitor<'de, const PID: u16, T>
+        struct Visitor<'de, const PID: ParameterId, T>
         where
             T: serde::Deserialize<'de>,
         {
             marker: PhantomData<Parameter<PID, T>>,
             lifetime: PhantomData<&'de ()>,
         }
-        impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
+        impl<'de, const PID: ParameterId, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
         where
             T: serde::Deserialize<'de>,
         {
@@ -131,7 +137,7 @@ where
                 A: de::MapAccess<'de>,
             {
                 loop {
-                    if let Some(key) = map.next_key::<u16>()? {
+                    if let Some(key) = map.next_key::<ParameterId>()? {
                         if key == PID {
                             return Ok(Parameter(map.next_value()?));
                         }
@@ -149,7 +155,7 @@ where
     }
 }
 
-impl<'de, const PID: u16, T> serde::Deserialize<'de> for ParameterWithDefault<PID, T>
+impl<'de, const PID: ParameterId, T> serde::Deserialize<'de> for ParameterWithDefault<PID, T>
 where
     T: serde::Deserialize<'de> + Default,
 {
@@ -157,14 +163,14 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        struct Visitor<'de, const PID: u16, T>
+        struct Visitor<'de, const PID: ParameterId, T>
         where
             T: serde::Deserialize<'de>,
         {
             marker: PhantomData<ParameterWithDefault<PID, T>>,
             lifetime: PhantomData<&'de ()>,
         }
-        impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
+        impl<'de, const PID: ParameterId, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
         where
             T: serde::Deserialize<'de> + Default,
         {
@@ -177,7 +183,7 @@ where
             where
                 A: de::MapAccess<'de>,
             {
-                while let Some(key) = map.next_key::<u16>()? {
+                while let Some(key) = map.next_key::<ParameterId>()? {
                     if key == PID {
                         return Ok(ParameterWithDefault(map.next_value()?));
                     } else if key == PID_SENTINEL {
@@ -197,7 +203,7 @@ where
     }
 }
 
-impl<'de, const PID: u16, T> serde::Deserialize<'de> for ParameterVector<PID, T>
+impl<'de, const PID: ParameterId, T> serde::Deserialize<'de> for ParameterVector<PID, T>
 where
     T: serde::Deserialize<'de>,
 {
@@ -205,14 +211,14 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        struct Visitor<'de, const PID: u16, T>
+        struct Visitor<'de, const PID: ParameterId, T>
         where
             T: serde::Deserialize<'de>,
         {
             marker: PhantomData<ParameterVector<PID, T>>,
             lifetime: PhantomData<&'de ()>,
         }
-        impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
+        impl<'de, const PID: ParameterId, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
         where
             T: serde::Deserialize<'de>,
         {
@@ -226,7 +232,7 @@ where
                 A: de::MapAccess<'de>,
             {
                 let mut values = vec![];
-                while let Some(key) = map.next_key::<u16>()? {
+                while let Some(key) = map.next_key::<ParameterId>()? {
                     if key == PID {
                         values.push(map.next_value()?);
                     } else if key == PID_SENTINEL {

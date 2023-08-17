@@ -227,7 +227,7 @@ impl ParameterList {
 
 impl FromBytes for Parameter {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let parameter_id = E::read_u16(&v[0..]);
+        let parameter_id = E::read_i16(&v[0..]);
         let length = E::read_i16(&v[2..]);
         let value = if parameter_id == PID_SENTINEL {
             &[]
@@ -235,7 +235,7 @@ impl FromBytes for Parameter {
             &v[4..length as usize + 4]
         };
 
-        Self::new(ParameterId(parameter_id), value.to_vec())
+        Self::new(parameter_id, value.to_vec())
     }
 }
 
@@ -246,7 +246,7 @@ impl FromBytes for ParameterList {
         let mut parameter = vec![];
         for _ in 0..MAX_PARAMETERS {
             let parameter_i = Parameter::from_bytes::<E>(v);
-            if parameter_i.parameter_id() == ParameterId(PID_SENTINEL) {
+            if parameter_i.parameter_id() == PID_SENTINEL {
                 break;
             } else {
                 v.consume(parameter_i.length() as usize + 4);
@@ -266,8 +266,7 @@ impl WriteBytes for Parameter {
             _ => 0,
         };
         let length = self.value().len() + padding_len;
-        let parameter_id = <u16>::from(self.parameter_id());
-        parameter_id.write_bytes(&mut buf[0..]);
+        self.parameter_id().write_bytes(&mut buf[0..]);
         (length as i16).write_bytes(&mut buf[2..]);
         buf = &mut buf[4..];
         buf[..self.value().len()].copy_from_slice(self.value().as_ref());
@@ -677,7 +676,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7, 8]);
+        let parameter = Parameter::new(2, vec![5, 6, 7, 8]);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -687,7 +686,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_non_multiple_4() {
-        let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7]);
+        let parameter = Parameter::new(2, vec![5, 6, 7]);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -697,7 +696,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_zero_size() {
-        let parameter = Parameter::new(ParameterId(2), vec![]);
+        let parameter = Parameter::new(2, vec![]);
         assert_eq!(
             into_bytes_vec(parameter),
             vec![
@@ -708,8 +707,8 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let parameter_1 = Parameter::new(ParameterId(2), vec![51, 61, 71, 81]);
-        let parameter_2 = Parameter::new(ParameterId(3), vec![52, 62, 0, 0]);
+        let parameter_1 = Parameter::new(2, vec![51, 61, 71, 81]);
+        let parameter_2 = Parameter::new(3, vec![52, 62, 0, 0]);
         let parameter_list_submessage_element = &ParameterList::new(vec![parameter_1, parameter_2]);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(parameter_list_submessage_element), vec![
@@ -732,7 +731,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
-        let expected = Parameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 0]);
+        let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 0]);
         #[rustfmt::skip]
         let result = Parameter::from_bytes::<byteorder::LittleEndian>(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -744,7 +743,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = Parameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 12]);
+        let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 12]);
         #[rustfmt::skip]
         let result = Parameter::from_bytes::<byteorder::LittleEndian>(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -757,8 +756,8 @@ mod tests {
     #[test]
     fn deserialize_parameter_list() {
         let expected = ParameterList::new(vec![
-            Parameter::new(ParameterId(2), vec![15, 16, 17, 18]),
-            Parameter::new(ParameterId(3), vec![25, 26, 27, 28]),
+            Parameter::new(2, vec![15, 16, 17, 18]),
+            Parameter::new(3, vec![25, 26, 27, 28]),
         ]);
         #[rustfmt::skip]
         let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
@@ -783,10 +782,7 @@ mod tests {
             0x01, 0x01, 0x01, 0x01,
         ];
 
-        let expected = ParameterList::new(vec![Parameter::new(
-            ParameterId(0x32),
-            parameter_value_expected,
-        )]);
+        let expected = ParameterList::new(vec![Parameter::new(0x32, parameter_value_expected)]);
         #[rustfmt::skip]
         let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
             0x32, 0x00, 24, 0x00, // Parameter ID | length
@@ -823,8 +819,8 @@ mod tests {
         ];
 
         let expected = ParameterList::new(vec![
-            Parameter::new(ParameterId(0x32), parameter_value_expected1),
-            Parameter::new(ParameterId(0x32), parameter_value_expected2),
+            Parameter::new(0x32, parameter_value_expected1),
+            Parameter::new(0x32, parameter_value_expected2),
         ]);
         #[rustfmt::skip]
         let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[

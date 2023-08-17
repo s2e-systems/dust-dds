@@ -8,7 +8,7 @@ use crate::implementation::{
                 RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
             submessage_elements::{Data, ParameterList, SubmessageElement},
-            types::{FragmentNumber, SubmessageFlag, SubmessageKind},
+            types::{FragmentNumber, ParameterId, SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber},
     },
@@ -39,7 +39,7 @@ impl<'a> DataFragSubmessageRead<'a> {
             let mut parameter_list_buf = &self.data[8 + self.octets_to_inline_qos() as usize..];
             let parameter_list_buf_length = parameter_list_buf.len();
             loop {
-                let pid: u16 = self.map(parameter_list_buf);
+                let pid: ParameterId = self.map(parameter_list_buf);
                 parameter_list_buf.consume(2);
                 let length: i16 = self.map(parameter_list_buf);
                 parameter_list_buf.consume(2);
@@ -206,9 +206,7 @@ impl Submessage for DataFragSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{
-            overall_structure::into_bytes_vec, submessage_elements::Parameter, types::ParameterId,
-        },
+        messages::{overall_structure::into_bytes_vec, submessage_elements::Parameter},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -247,8 +245,7 @@ mod tests {
 
     #[test]
     fn serialize_with_inline_qos_with_serialized_payload() {
-        let inline_qos =
-            ParameterList::new(vec![Parameter::new(ParameterId(8), vec![71, 72, 73, 74])]);
+        let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74])]);
         let serialized_payload = Data::new(vec![1, 2, 3]);
         let submessage = DataFragSubmessageWrite::new(
             true,
@@ -363,8 +360,7 @@ mod tests {
         let expected_fragments_in_submessage = 3;
         let expected_data_size = 8;
         let expected_fragment_size = 5;
-        let expected_inline_qos =
-            ParameterList::new(vec![Parameter::new(ParameterId(8), vec![71, 72, 73, 74])]);
+        let expected_inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74])]);
         let expected_serialized_payload = Data::new(vec![1, 2, 3, 0]);
 
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());
