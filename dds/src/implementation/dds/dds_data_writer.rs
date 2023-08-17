@@ -34,8 +34,8 @@ use crate::{
             reader_locator::RtpsReaderLocator,
             reader_proxy::RtpsReaderProxy,
             types::{
-                ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
-                SequenceNumber, ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
+                ChangeKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+                ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
             writer::RtpsWriter,
         },
@@ -764,24 +764,17 @@ impl DdsDataWriter {
                     ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
                 };
 
-                let proxy_durability = match discovered_reader_data
+                let first_relevant_sample_seq_num = match discovered_reader_data
                     .subscription_builtin_topic_data()
                     .durability()
                     .kind
                 {
-                    DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
-                    DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
-                };
-
-                let first_relevant_sample_seq_num = if proxy_durability == DurabilityKind::Volatile
-                {
-                    self.writer_cache
+                    DurabilityQosPolicyKind::Volatile => self.writer_cache
                         .change_list()
                         .map(|cc| cc.sequence_number())
                         .max()
-                        .unwrap_or(SequenceNumber::from(0))
-                } else {
-                    SequenceNumber::from(0)
+                        .unwrap_or(SequenceNumber::from(0)),
+                    DurabilityQosPolicyKind::TransientLocal => SequenceNumber::from(0)
                 };
 
                 let reader_proxy = RtpsReaderProxy::new(
@@ -794,7 +787,6 @@ impl DdsDataWriter {
                     discovered_reader_data.reader_proxy().expects_inline_qos(),
                     true,
                     proxy_reliability,
-                    proxy_durability,
                     first_relevant_sample_seq_num,
                 );
 

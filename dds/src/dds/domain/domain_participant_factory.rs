@@ -28,7 +28,7 @@ use crate::{
             participant::RtpsParticipant,
             reader_proxy::RtpsReaderProxy,
             types::{
-                DurabilityKind, Guid, Locator, ReliabilityKind, SequenceNumber,
+                Guid, Locator, ReliabilityKind, SequenceNumber,
                 ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
                 VENDOR_ID_S2E,
             },
@@ -437,7 +437,6 @@ fn add_matched_publications_detector(
             expects_inline_qos,
             true,
             ReliabilityKind::Reliable,
-            DurabilityKind::TransientLocal,
             SequenceNumber::from(0),
         );
         writer.matched_reader_add(proxy).unwrap();
@@ -507,7 +506,6 @@ fn add_matched_subscriptions_detector(
             expects_inline_qos,
             true,
             ReliabilityKind::Reliable,
-            DurabilityKind::TransientLocal,
             SequenceNumber::from(0),
         );
         writer.matched_reader_add(proxy).unwrap();
@@ -576,7 +574,6 @@ fn add_matched_topics_detector(
             expects_inline_qos,
             true,
             ReliabilityKind::Reliable,
-            DurabilityKind::TransientLocal,
             SequenceNumber::from(0),
         );
         writer.matched_reader_add(proxy).unwrap();

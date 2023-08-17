@@ -437,12 +437,6 @@ impl WriteBytes for VendorId {
 pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
 pub const VENDOR_ID_S2E: VendorId = [0x01, 0x14];
 
-/// Additionally defined here (should move to DDS)
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DurabilityKind {
-    Volatile,
-    TransientLocal,
-}
 
 /// Additionally defined here (should move to DDS)
 #[derive(

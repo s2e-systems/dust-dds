@@ -7,9 +7,7 @@ use super::{
         },
         types::{Count, FragmentNumber},
     },
-    types::{
-        DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind, SequenceNumber,
-    },
+    types::{EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind, SequenceNumber},
     utils::clock::{StdTimer, Timer, TimerConstructor},
 };
 use crate::infrastructure::time::Duration;
@@ -99,7 +97,6 @@ pub struct RtpsReaderProxy {
     heartbeat_machine: HeartbeatMachine,
     heartbeat_frag_machine: HeartbeatFragMachine,
     reliability: ReliabilityKind,
-    durability: DurabilityKind,
     first_relevant_sample_seq_num: SequenceNumber,
 }
 
@@ -113,7 +110,6 @@ impl RtpsReaderProxy {
         expects_inline_qos: bool,
         is_active: bool,
         reliability: ReliabilityKind,
-        durability: DurabilityKind,
         first_relevant_sample_seq_num: SequenceNumber,
     ) -> Self {
         let heartbeat_machine = HeartbeatMachine::new(remote_reader_guid.entity_id());
@@ -133,17 +129,12 @@ impl RtpsReaderProxy {
             heartbeat_machine,
             heartbeat_frag_machine,
             reliability,
-            durability,
             first_relevant_sample_seq_num,
         }
     }
 
     pub fn remote_reader_guid(&self) -> Guid {
         self.remote_reader_guid
-    }
-
-    pub fn durability(&self) -> DurabilityKind {
-        self.durability
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
