@@ -28,7 +28,7 @@ use crate::{
             participant::RtpsParticipant,
             reader_proxy::RtpsReaderProxy,
             types::{
-                DurabilityKind, Guid, Locator, LocatorAddress, ReliabilityKind, SequenceNumber,
+                DurabilityKind, Guid, Locator, ReliabilityKind, SequenceNumber,
                 ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
                 VENDOR_ID_S2E,
             },
@@ -169,7 +169,7 @@ impl DomainParticipantFactory {
 
         let metatraffic_multicast_locator_list = vec![Locator::new(
             LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id),
+            port_builtin_multicast(domain_id) as u32,
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
 
@@ -1196,17 +1196,18 @@ fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfigu
     serde_json::from_value(instance).map_err(|e| e.to_string())
 }
 
+type LocatorAddress = [u8; 16];
 // As of 9.6.1.4.1  Default multicast address
 const DEFAULT_MULTICAST_LOCATOR_ADDRESS: LocatorAddress =
-    LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1]);
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
 
 const PB: i32 = 7400;
 const DG: i32 = 250;
 #[allow(non_upper_case_globals)]
 const d0: i32 = 0;
 
-fn port_builtin_multicast(domain_id: DomainId) -> u32 {
-    (PB + DG * domain_id + d0) as u32
+fn port_builtin_multicast(domain_id: DomainId) -> u16 {
+    (PB + DG * domain_id + d0) as u16
 }
 
 fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAddress> {
@@ -1224,10 +1225,10 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
             i.addr.into_iter().filter_map(|a| match a {
                 #[rustfmt::skip]
                 Addr::V4(v4) if !v4.ip.is_loopback() => Some(
-                    LocatorAddress::new([0, 0, 0, 0,
+                    [0, 0, 0, 0,
                         0, 0, 0, 0,
                         0, 0, 0, 0,
-                        v4.ip.octets()[0], v4.ip.octets()[1], v4.ip.octets()[2], v4.ip.octets()[3]])
+                        v4.ip.octets()[0], v4.ip.octets()[1], v4.ip.octets()[2], v4.ip.octets()[3]]
                     ),
                 _ => None,
             })
@@ -1237,9 +1238,9 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
 
 fn get_multicast_socket(
     multicast_address: LocatorAddress,
-    port: u32,
+    port: u16,
 ) -> std::io::Result<tokio::net::UdpSocket> {
-    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, <u32>::from(port) as u16));
+    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
 
     let socket = Socket::new(
         socket2::Domain::IPV4,
@@ -1252,12 +1253,11 @@ fn get_multicast_socket(
     socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
 
     socket.bind(&socket_addr.into())?;
-    let multicast_addr_bytes: [u8; 16] = multicast_address.into();
     let addr = Ipv4Addr::new(
-        multicast_addr_bytes[12],
-        multicast_addr_bytes[13],
-        multicast_addr_bytes[14],
-        multicast_addr_bytes[15],
+        multicast_address[12],
+        multicast_address[13],
+        multicast_address[14],
+        multicast_address[15],
     );
     socket.join_multicast_v4(&addr, &Ipv4Addr::UNSPECIFIED)?;
     socket.set_multicast_loop_v4(true)?;

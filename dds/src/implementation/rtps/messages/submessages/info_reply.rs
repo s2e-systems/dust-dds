@@ -78,13 +78,12 @@ impl Submessage for InfoReplySubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_vec,
-        types::{Locator, LocatorAddress},
+        messages::overall_structure::into_bytes_vec, types::Locator,
     };
 
     #[test]
     fn serialize_info_reply() {
-        let locator = Locator::new(11, 12, LocatorAddress::new([1; 16]));
+        let locator = Locator::new(11, 12, [1; 16]);
         let submessage = InfoReplySubmessageWrite::new(
             false,
             LocatorList::new(vec![locator]),
@@ -117,7 +116,7 @@ mod tests {
             1, 1, 1, 1, //address
             1, 1, 1, 1, //address
         ]);
-        let locator = Locator::new(11, 12, LocatorAddress::new([1; 16]));
+        let locator = Locator::new(11, 12, [1; 16]);
         let expected_multicast_flag = false;
         let expected_unicast_locator_list = LocatorList::new(vec![locator]);
         let expected_multicast_locator_list = LocatorList::new(vec![]);
@@ -153,7 +152,7 @@ mod tests {
             1, 1, 1, 1, //address
             1, 1, 1, 1, //address
         ]);
-        let locator = Locator::new(11, 12, LocatorAddress::new([1; 16]));
+        let locator = Locator::new(11, 12, [1; 16]);
         let expected_multicast_flag = true;
         let expected_unicast_locator_list = LocatorList::new(vec![]);
         let expected_multicast_locator_list = LocatorList::new(vec![locator, locator]);

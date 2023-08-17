@@ -223,15 +223,16 @@ impl DdsType for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builtin_topics::BuiltInTopicKey;
-    use crate::implementation::rtps::types::LocatorAddress;
-    use crate::infrastructure::qos_policy::UserDataQosPolicy;
-    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
+    use crate::{
+        builtin_topics::BuiltInTopicKey,
+        infrastructure::qos_policy::UserDataQosPolicy,
+        topic_definition::type_support::{dds_deserialize, dds_serialize},
+    };
 
     #[test]
     fn deserialize_spdp_discovered_participant_data() {
-        let locator1 = Locator::new(11, 12, LocatorAddress::new([1; 16]));
-        let locator2 = Locator::new(21, 22, LocatorAddress::new([2; 16]));
+        let locator1 = Locator::new(11, 12, [1; 16]);
+        let locator2 = Locator::new(21, 22, [2; 16]);
 
         let domain_id = 1;
         let domain_tag = "ab".to_string();
@@ -346,8 +347,8 @@ mod tests {
 
     #[test]
     fn serialize_spdp_discovered_participant_data() {
-        let locator1 = Locator::new(11, 12, LocatorAddress::new([1; 16]));
-        let locator2 = Locator::new(21, 22, LocatorAddress::new([2; 16]));
+        let locator1 = Locator::new(11, 12, [1; 16]);
+        let locator2 = Locator::new(21, 22, [2; 16]);
 
         let domain_id = 1;
         let domain_tag = "ab".to_string();

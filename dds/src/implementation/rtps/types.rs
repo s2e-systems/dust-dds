@@ -8,7 +8,7 @@ use std::{
 };
 
 ///
-/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
+/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
 
@@ -278,7 +278,7 @@ impl WriteBytes for SequenceNumber {
 pub struct Locator {
     kind: Long,
     port: UnsignedLong,
-    address: LocatorAddress,
+    address: [Octet; 16],
 }
 
 impl WriteBytes for Locator {
@@ -290,20 +290,9 @@ impl WriteBytes for Locator {
     }
 }
 
-#[derive(
-    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct LocatorAddress([u8; 16]);
-
-impl LocatorAddress {
-    pub const fn new(value: [u8; 16]) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for LocatorAddress {
+impl WriteBytes for [Octet; 16] {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(&self.0);
+        buf[..self.len()].copy_from_slice(self);
         16
     }
 }
@@ -315,7 +304,7 @@ pub const LOCATOR_KIND_RESERVED: Long = 0;
 pub const LOCATOR_KIND_UDP_V4: Long = 1;
 pub const LOCATOR_KIND_UDP_V6: Long = 2;
 pub const LOCATOR_PORT_INVALID: UnsignedLong = 0;
-pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = LocatorAddress([0; 16]);
+pub const LOCATOR_ADDRESS_INVALID: [Octet; 16] = [0; 16];
 
 #[allow(dead_code)]
 pub const LOCATOR_INVALID: Locator = Locator::new(
@@ -325,7 +314,7 @@ pub const LOCATOR_INVALID: Locator = Locator::new(
 );
 
 impl Locator {
-    pub const fn new(kind: Long, port: UnsignedLong, address: LocatorAddress) -> Self {
+    pub const fn new(kind: Long, port: UnsignedLong, address: [Octet; 16]) -> Self {
         Self {
             kind,
             port,
@@ -338,15 +327,14 @@ impl Locator {
     pub const fn port(&self) -> UnsignedLong {
         self.port
     }
-    pub const fn address(&self) -> LocatorAddress {
+    pub const fn address(&self) -> [Octet; 16] {
         self.address
     }
 }
 
 /// TopicKind_t
 /// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
-/// The following values are reserved by the protocol: NO_KEY
-/// WITH_KEY
+/// The following values are reserved by the protocol: NO_KEY, WITH_KEY
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TopicKind {
     NoKey,
@@ -365,6 +353,15 @@ pub enum ChangeKind {
     NotAliveDisposed,
     NotAliveUnregistered,
     NotAliveDisposedUnregistered,
+}
+
+/// ChangeCount_t
+/// Type used to hold a counter representing the number of HistoryCache changes that belong to a certain category.
+/// For example, the number of changes that have been filtered for an RTPS Reader endpoint.
+#[allow(dead_code)]
+pub struct ChangeCount {
+    high: Long,
+    low: UnsignedLong,
 }
 
 /// ReliabilityKind_t

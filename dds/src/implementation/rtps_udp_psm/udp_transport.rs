@@ -1,7 +1,7 @@
 use crate::implementation::{
     rtps::{
         messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
-        types::{Locator, LocatorAddress, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
+        types::{Locator, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
     },
     utils::actor::actor_interface,
 };
@@ -87,7 +87,7 @@ impl ToSocketAddrs for UdpLocator {
     type Iter = std::option::IntoIter<SocketAddr>;
 
     fn to_socket_addrs(&self) -> std::io::Result<Self::Iter> {
-        let locator_address = <[u8; 16]>::from(self.0.address());
+        let locator_address = self.0.address();
         match self.0.kind() {
             LOCATOR_KIND_UDP_V4 => {
                 let address = SocketAddrV4::new(
@@ -97,7 +97,7 @@ impl ToSocketAddrs for UdpLocator {
                         locator_address[14],
                         locator_address[15],
                     ),
-                    <u32>::from(self.0.port()) as u16,
+                    self.0.port() as u16,
                 );
                 Ok(Some(SocketAddr::V4(address)).into_iter())
             }
@@ -116,10 +116,10 @@ impl From<SocketAddr> for UdpLocator {
                 let locator = Locator::new(
                     LOCATOR_KIND_UDP_V4,
                     port,
-                    LocatorAddress::new([
+                    [
                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, address[0], address[1], address[2],
                         address[3],
-                    ]),
+                    ],
                 );
                 UdpLocator(locator)
             }
@@ -130,7 +130,7 @@ impl From<SocketAddr> for UdpLocator {
 
 impl UdpLocator {
     fn is_multicast(&self) -> bool {
-        let locator_address = <[u8; 16]>::from(self.0.address());
+        let locator_address = self.0.address();
         match self.0.kind() {
             LOCATOR_KIND_UDP_V4 => Ipv4Addr::new(
                 locator_address[12],
@@ -149,7 +149,7 @@ impl UdpLocator {
 mod tests {
     use std::str::FromStr;
 
-    use crate::implementation::rtps::types::{LocatorAddress, LOCATOR_INVALID};
+    use crate::implementation::rtps::types::LOCATOR_INVALID;
 
     use super::*;
 
@@ -158,7 +158,7 @@ mod tests {
         let locator = Locator::new(
             LOCATOR_KIND_UDP_V4,
             7400,
-            LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1]),
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
         );
 
         let mut socket_addrs = UdpLocator(locator).to_socket_addrs().unwrap();
@@ -171,7 +171,7 @@ mod tests {
         let locator = Locator::new(
             LOCATOR_KIND_UDP_V4,
             7500,
-            LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 25]),
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 25],
         );
 
         let mut socket_addrs = UdpLocator(locator).to_socket_addrs().unwrap();
@@ -192,7 +192,7 @@ mod tests {
         assert_eq!(locator.port(), 7400);
         assert_eq!(
             locator.address(),
-            LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1])
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1]
         );
     }
 }
