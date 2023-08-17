@@ -15,7 +15,7 @@ use super::messages::overall_structure::WriteBytes;
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
 /// Must be possible to represent using 16 octets.
 /// The following values are reserved by the protocol: GUID_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Guid {
     prefix: GuidPrefix,
     entity_id: EntityId,
@@ -94,21 +94,22 @@ impl WriteBytes for GuidPrefix {
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+type OctetArray3 = [u8; 3];
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EntityId {
-    entity_key: EntityKey,
+    entity_key: OctetArray3,
     entity_kind: EntityKind,
 }
 
 impl EntityId {
-    pub const fn new(entity_key: EntityKey, entity_kind: EntityKind) -> Self {
+    pub const fn new(entity_key: OctetArray3, entity_kind: EntityKind) -> Self {
         Self {
             entity_key,
             entity_kind,
         }
     }
 
-    pub const fn entity_key(&self) -> EntityKey {
+    pub const fn entity_key(&self) -> OctetArray3 {
         self.entity_key
     }
 
@@ -180,9 +181,7 @@ pub const BUILT_IN_READER_GROUP: EntityKind = EntityKind(0xc9);
 pub const BUILT_IN_TOPIC: EntityKind = EntityKind(0xca);
 pub const USER_DEFINED_TOPIC: EntityKind = EntityKind(0x0a);
 
-pub type EntityKey = [u8; 3];
-
-impl WriteBytes for EntityKey {
+impl WriteBytes for OctetArray3 {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.as_slice().read(buf).unwrap()
     }
