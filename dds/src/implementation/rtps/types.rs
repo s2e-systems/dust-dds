@@ -384,8 +384,8 @@ pub enum ReliabilityKind {
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ProtocolVersion {
-    major: u8,
-    minor: u8,
+    major: Octet,
+    minor: Octet,
 }
 
 impl WriteBytes for ProtocolVersion {
@@ -398,27 +398,27 @@ impl WriteBytes for ProtocolVersion {
 
 pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion { major: 1, minor: 0 };
+pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion::new(1, 0);
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_1_1: ProtocolVersion = ProtocolVersion { major: 1, minor: 1 };
+pub const PROTOCOLVERSION_1_1: ProtocolVersion = ProtocolVersion::new(1, 1);
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_2_0: ProtocolVersion = ProtocolVersion { major: 2, minor: 0 };
+pub const PROTOCOLVERSION_2_0: ProtocolVersion = ProtocolVersion::new(2, 0);
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion { major: 2, minor: 1 };
+pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion::new(2, 1);
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion { major: 2, minor: 2 };
+pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion::new(2, 2);
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
-pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
+pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion::new(2, 3);
+pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion::new(2, 4);
 
 impl ProtocolVersion {
-    pub const fn new(major: u8, minor: u8) -> Self {
+    pub const fn new(major: Octet, minor: Octet) -> Self {
         Self { major, minor }
     }
-    pub const fn major(&self) -> u8 {
+    pub const fn major(&self) -> Octet {
         self.major
     }
-    pub const fn minor(&self) -> u8 {
+    pub const fn minor(&self) -> Octet {
         self.minor
     }
 }
@@ -426,25 +426,16 @@ impl ProtocolVersion {
 /// VendorId_t
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct VendorId([u8; 2]);
-
-impl VendorId {
-    pub const fn new(value: [u8; 2]) -> Self {
-        Self(value)
-    }
-}
+pub type VendorId = [Octet; 2];
 
 impl WriteBytes for VendorId {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.0.as_slice().read(buf).unwrap()
+        self.as_slice().read(buf).unwrap()
     }
 }
-
-pub const _VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
-pub const VENDOR_ID_S2E: VendorId = VendorId([0x01, 0x14]);
+#[allow(dead_code)]
+pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
+pub const VENDOR_ID_S2E: VendorId = [0x01, 0x14];
 
 /// Additionally defined here (should move to DDS)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

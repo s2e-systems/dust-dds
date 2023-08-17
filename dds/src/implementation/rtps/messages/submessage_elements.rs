@@ -432,7 +432,7 @@ impl FromBytes for ProtocolVersion {
 
 impl FromBytes for VendorId {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new([v[0], v[1]])
+        [v[0], v[1]]
     }
 }
 
@@ -611,7 +611,7 @@ mod tests {
 
     #[test]
     fn deserialize_vendor_id() {
-        let expected = VendorId::new([1, 2]);
+        let expected = [1, 2];
         assert_eq!(
             expected,
             VendorId::from_bytes::<byteorder::LittleEndian>(&[1, 2,])

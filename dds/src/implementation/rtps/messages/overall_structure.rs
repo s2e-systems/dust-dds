@@ -92,7 +92,7 @@ impl RtpsMessageRead {
         let major = v[4];
         let minor = v[5];
         let version = ProtocolVersion::new(major, minor);
-        let vendor_id = VendorId::new([v[6], v[7]]);
+        let vendor_id = [v[6], v[7]];
         let guid_prefix = [
             v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17], v[18], v[19],
         ];
@@ -391,7 +391,7 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
+            vendor_id: [9, 8],
             guid_prefix: [3; 12],
         };
         let message = RtpsMessageWrite::new(header, Vec::new());
@@ -410,7 +410,7 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
+            vendor_id: [9, 8],
             guid_prefix: [3; 12],
         };
         let inline_qos_flag = true;
@@ -463,7 +463,7 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
+            vendor_id: [9, 8],
             guid_prefix: [3; 12],
         };
 
@@ -484,7 +484,7 @@ mod tests {
         let expected_header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
+            vendor_id: [9, 8],
             guid_prefix: [3; 12],
         };
 

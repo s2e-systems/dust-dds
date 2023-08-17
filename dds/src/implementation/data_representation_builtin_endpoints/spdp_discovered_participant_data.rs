@@ -238,7 +238,7 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = [8; 12];
-        let vendor_id = VendorId::new([73, 74]);
+        let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
@@ -354,7 +354,7 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = [8; 12];
-        let vendor_id = VendorId::new([73, 74]);
+        let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
