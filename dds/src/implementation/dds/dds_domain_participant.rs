@@ -376,7 +376,7 @@ impl DdsDomainParticipant {
             topic_list: Vec::new(),
             user_defined_topic_counter: 0,
             default_topic_qos: TopicQos::default(),
-            manual_liveliness_count: Count::new(0),
+            manual_liveliness_count: 0,
             lease_duration,
             discovered_participant_list: HashMap::new(),
             discovered_topic_list: HashMap::new(),

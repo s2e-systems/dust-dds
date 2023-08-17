@@ -104,7 +104,7 @@ mod tests {
             reader_id,
             writer_id,
             SequenceNumberSet::new(SequenceNumber::from(10), vec![]),
-            Count::new(14),
+            14,
         );
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
@@ -138,7 +138,7 @@ mod tests {
         let expected_writer_id =
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let expected_reader_sn_state = SequenceNumberSet::new(SequenceNumber::from(10), vec![]);
-        let expected_count = Count::new(2);
+        let expected_count = 2;
 
         assert_eq!(expected_final_flag, submessage.final_flag());
         assert_eq!(expected_reader_id, submessage.reader_id());

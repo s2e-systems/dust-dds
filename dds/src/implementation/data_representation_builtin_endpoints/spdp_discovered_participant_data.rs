@@ -261,7 +261,7 @@ mod tests {
         let default_multicast_locator_list = vec![locator1];
         let available_builtin_endpoints =
             BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
-        let manual_liveliness_count = Count::new(2);
+        let manual_liveliness_count = 2;
         let builtin_endpoint_qos = BuiltinEndpointQos::new(
             BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
         );
@@ -377,7 +377,7 @@ mod tests {
         let default_multicast_locator_list = vec![locator1];
         let available_builtin_endpoints =
             BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
-        let manual_liveliness_count = Count::new(2);
+        let manual_liveliness_count = 2;
         let builtin_endpoint_qos = BuiltinEndpointQos::new(
             BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
         );

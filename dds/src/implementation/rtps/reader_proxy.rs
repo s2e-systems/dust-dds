@@ -21,7 +21,7 @@ pub struct HeartbeatMachine {
 impl HeartbeatMachine {
     fn new(reader_id: EntityId) -> Self {
         HeartbeatMachine {
-            count: Count::new(0),
+            count: 0,
             reader_id,
             timer: StdTimer::new(),
         }
@@ -60,7 +60,7 @@ pub struct HeartbeatFragMachine {
 impl HeartbeatFragMachine {
     fn new(reader_id: EntityId) -> Self {
         HeartbeatFragMachine {
-            count: Count::new(0),
+            count: 0,
             reader_id,
         }
     }
@@ -124,8 +124,8 @@ impl RtpsReaderProxy {
             requested_changes: Vec::new(),
             expects_inline_qos,
             is_active,
-            last_received_acknack_count: Count::new(0),
-            last_received_nack_frag_count: Count::new(0),
+            last_received_acknack_count: 0,
+            last_received_nack_frag_count: 0,
             heartbeat_machine,
             heartbeat_frag_machine,
             reliability,

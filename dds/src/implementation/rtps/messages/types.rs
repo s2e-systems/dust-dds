@@ -1,11 +1,13 @@
-use byteorder::ByteOrder;
-
 use super::overall_structure::WriteBytes;
+use byteorder::ByteOrder;
 use std::io::Read;
 
-/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
+/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.13 - Types used to define RTPS messages
 ///
+
+type Long = i32;
+type UnsignedLong = u32;
 
 /// ProtocolId_t
 /// Enumeration used to identify the protocol.
@@ -98,28 +100,34 @@ impl WriteBytes for SubmessageKind {
 /// Time_t
 /// Type used to hold a timestamp.
 /// Should have at least nano-second resolution.
-/// The following values are reserved by the protocol: TIME_ZERO
-/// TIME_INVALID TIME_INFINITE
+/// The following values are reserved by the protocol:
+/// TIME_ZERO, TIME_INVALID, TIME_INFINITE
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Time {
-    seconds: i32,
-    fraction: u32,
+    seconds: UnsignedLong,
+    fraction: UnsignedLong,
 }
 
 impl Time {
-    pub const fn new(seconds: i32, fraction: u32) -> Self {
+    pub const fn new(seconds: UnsignedLong, fraction: UnsignedLong) -> Self {
         Self { seconds, fraction }
     }
 
-    pub fn seconds(&self) -> i32 {
+    pub fn seconds(&self) -> UnsignedLong {
         self.seconds
     }
 
-    pub fn fraction(&self) -> u32 {
+    pub fn fraction(&self) -> UnsignedLong {
         self.fraction
     }
 }
+
+#[allow(dead_code)]
+pub const TIME_ZERO: Time = Time::new(0, 0);
+pub const TIME_INVALID: Time = Time::new(0xffffffff, 0xffffffff);
+#[allow(dead_code)]
+pub const TIME_INFINITE: Time = Time::new(0xffffffff, 0xfffffffe);
 
 impl WriteBytes for Time {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
@@ -127,50 +135,21 @@ impl WriteBytes for Time {
     }
 }
 
-pub const TIME_INVALID: Time = Time {
-    seconds: 0xffff,
-    fraction: 0xffff,
-};
-
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    Default,
-    derive_more::Into,
-    derive_more::Add,
-    derive_more::AddAssign,
-    derive_more::Sub,
-    derive_more::SubAssign,
-)]
-pub struct Count(i32);
+pub type Count = Long;
 
-impl Count {
-    pub const fn new(value: i32) -> Self {
-        Self(value)
-    }
-    pub const fn wrapping_add(self, rhs: i32) -> Self {
-        Self(self.0.wrapping_add(rhs))
-    }
-}
-impl PartialOrd<Count> for Count {
-    fn partial_cmp(&self, other: &Count) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
-    }
-}
+/// Checksum_t
+/// Type used to hold a checksum. Used to detect RTPS message corruption by the underlying transport.
+/// The following values are reserved by the protocol: CHECKSUM_INVALID.
+#[allow(dead_code)]
+struct Checksum;
 
-impl WriteBytes for Count {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        byteorder::LittleEndian::write_i32(buf, self.0);
-        4
-    }
-}
+/// MessageLength_t
+/// Type used to hold the length of an RTPS Message.
+/// The following values are reserved by the protocol: MESSAGE_LENGTH_INVALID
+#[allow(dead_code)]
+struct MessageLength;
 
 /// ParameterId_t
 /// Type used to uniquely identify a parameter in a parameter list.
@@ -221,3 +200,13 @@ impl GroupDigest {
         Self(value)
     }
 }
+
+/// UExtension4_t
+/// Type used to hold an undefined 4-byte value. It is intended to be used in future revisions of the specification.
+#[allow(dead_code)]
+struct UExtension4;
+
+/// WExtension8_t
+/// Type used to hold an undefined 8-byte value. It is intended to be used in future revisions of the specification.
+#[allow(dead_code)]
+struct WExtension8;

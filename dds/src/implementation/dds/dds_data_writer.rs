@@ -927,7 +927,7 @@ impl DdsDataWriter {
                                 InfoTimestampSubmessageWrite::new(
                                     false,
                                     crate::implementation::rtps::messages::types::Time::new(
-                                        cache_change.timestamp().sec(),
+                                        cache_change.timestamp().sec() as u32,
                                         cache_change.timestamp().nanosec(),
                                     ),
                                 ),
@@ -1233,7 +1233,7 @@ fn send_message_to_reader_proxy_best_effort(
                         RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
                             false,
                             crate::implementation::rtps::messages::types::Time::new(
-                                cache_change.timestamp().sec(),
+                                cache_change.timestamp().sec() as u32,
                                 cache_change.timestamp().nanosec(),
                             ),
                         ));
@@ -1259,7 +1259,7 @@ fn send_message_to_reader_proxy_best_effort(
                     RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
                         false,
                         crate::implementation::rtps::messages::types::Time::new(
-                            cache_change.timestamp().sec(),
+                            cache_change.timestamp().sec() as u32,
                             cache_change.timestamp().nanosec(),
                         ),
                     ));
@@ -1413,7 +1413,7 @@ fn send_change_message_reader_proxy_reliable(
                         RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
                             false,
                             crate::implementation::rtps::messages::types::Time::new(
-                                cache_change.timestamp().sec(),
+                                cache_change.timestamp().sec() as u32,
                                 cache_change.timestamp().nanosec(),
                             ),
                         ));
@@ -1439,7 +1439,7 @@ fn send_change_message_reader_proxy_reliable(
                     RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
                         false,
                         crate::implementation::rtps::messages::types::Time::new(
-                            cache_change.timestamp().sec(),
+                            cache_change.timestamp().sec() as u32,
                             cache_change.timestamp().nanosec(),
                         ),
                     ));

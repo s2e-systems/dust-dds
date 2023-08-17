@@ -346,7 +346,7 @@ impl FromBytes for SequenceNumber {
 
 impl FromBytes for Count {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(E::read_i32(v))
+        E::read_i32(v)
     }
 }
 
@@ -438,7 +438,7 @@ impl FromBytes for VendorId {
 
 impl FromBytes for Time {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let seconds = E::read_i32(&v[0..]);
+        let seconds = E::read_u32(&v[0..]);
         let fractions = E::read_u32(&v[4..]);
         Self::new(seconds, fractions)
     }
@@ -521,7 +521,7 @@ mod tests {
 
     #[test]
     fn deserialize_count() {
-        let expected = Count::new(7);
+        let expected = 7;
         assert_eq!(
             expected,
             Count::from_bytes::<byteorder::LittleEndian>(&[
