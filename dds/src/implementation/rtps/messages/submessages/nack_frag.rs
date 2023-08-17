@@ -86,14 +86,14 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::{overall_structure::into_bytes_vec, types::FragmentNumber},
-        types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
     fn serialize_nack_frag() {
         let submessage = NackFragSubmessageWrite::new(
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
             SequenceNumber::new(4),
             FragmentNumberSet::new(FragmentNumber::new(10), vec![]),
             Count::new(6),
@@ -127,9 +127,9 @@ mod tests {
         ]);
 
         let expected_reader_id =
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id =
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let expected_writer_sn = SequenceNumber::new(4);
         let expected_fragment_number_state =
             FragmentNumberSet::new(FragmentNumber::new(10), vec![]);

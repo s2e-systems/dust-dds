@@ -209,7 +209,7 @@ mod tests {
         messages::{
             overall_structure::into_bytes_vec, submessage_elements::Parameter, types::ParameterId,
         },
-        types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
@@ -220,8 +220,8 @@ mod tests {
             false,
             false,
             false,
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
             SequenceNumber::new(5),
             FragmentNumber::new(2),
             3,
@@ -254,8 +254,8 @@ mod tests {
             true,
             false,
             false,
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
             SequenceNumber::new(6),
             FragmentNumber::new(2),
             3,
@@ -301,10 +301,8 @@ mod tests {
         let expected_inline_qos_flag = false;
         let expected_non_standard_payload_flag = false;
         let expected_key_flag = false;
-        let expected_reader_id =
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let expected_writer_id =
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let expected_writer_sn = SequenceNumber::new(5);
         let expected_fragment_starting_num = FragmentNumber::new(2);
         let expected_fragments_in_submessage = 3;
@@ -358,10 +356,8 @@ mod tests {
         let expected_inline_qos_flag = true;
         let expected_non_standard_payload_flag = false;
         let expected_key_flag = false;
-        let expected_reader_id =
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let expected_writer_id =
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let expected_writer_sn = SequenceNumber::new(6);
         let expected_fragment_starting_num = FragmentNumber::new(2);
         let expected_fragments_in_submessage = 3;

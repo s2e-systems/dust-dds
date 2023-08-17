@@ -11,8 +11,7 @@ use crate::{
             endpoint::RtpsEndpoint,
             messages::overall_structure::RtpsMessageHeader,
             types::{
-                EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-                USER_DEFINED_WRITER_WITH_KEY,
+                EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
         },
@@ -115,11 +114,11 @@ impl Publisher {
             true => USER_DEFINED_WRITER_WITH_KEY,
             false => USER_DEFINED_WRITER_NO_KEY,
         };
-        let entity_key = EntityKey::new([
-            <[u8; 3]>::from(self.0.address().guid()?.entity_id().entity_key())[0],
+        let entity_key = [
+            self.0.address().guid()?.entity_id().entity_key()[0],
             self.0.address().get_unique_writer_id()?,
             0,
-        ]);
+        ];
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = Guid::new(guid_prefix, entity_id);
 

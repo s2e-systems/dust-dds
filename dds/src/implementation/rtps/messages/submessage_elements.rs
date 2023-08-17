@@ -7,8 +7,8 @@ use crate::implementation::{
     rtps::{
         messages::types::{Count, FragmentNumber},
         types::{
-            EntityId, EntityKey, EntityKind, GuidPrefix, Locator, LocatorAddress, LocatorKind,
-            LocatorPort, ProtocolVersion, SequenceNumber, VendorId,
+            EntityId, EntityKind, GuidPrefix, Locator, LocatorAddress, LocatorKind, LocatorPort,
+            ProtocolVersion, SequenceNumber, VendorId,
         },
     },
 };
@@ -326,7 +326,7 @@ impl FromBytes for Data {
 
 impl FromBytes for EntityId {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(EntityKey::new([v[0], v[1], v[2]]), EntityKind::new(v[3]))
+        Self::new([v[0], v[1], v[2]], EntityKind::new(v[3]))
     }
 }
 

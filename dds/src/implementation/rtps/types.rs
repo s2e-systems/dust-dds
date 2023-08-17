@@ -47,7 +47,7 @@ impl From<[u8; 16]> for Guid {
             value[8], value[9], value[10], value[11],
         ];
         let entity_id = EntityId::new(
-            EntityKey::new([value[12], value[13], value[14]]),
+            [value[12], value[13], value[14]],
             EntityKind(value[15]),
         );
         Self { prefix, entity_id }
@@ -69,9 +69,9 @@ impl From<Guid> for [u8; 16] {
             guid.prefix[9],
             guid.prefix[10],
             guid.prefix[11],
-            guid.entity_id.entity_key.0[0],
-            guid.entity_id.entity_key.0[1],
-            guid.entity_id.entity_key.0[2],
+            guid.entity_id.entity_key[0],
+            guid.entity_id.entity_key[1],
+            guid.entity_id.entity_key[2],
             guid.entity_id.entity_kind.0,
         ]
     }
@@ -124,12 +124,12 @@ impl Default for EntityId {
 }
 
 pub const ENTITYID_UNKNOWN: EntityId = EntityId {
-    entity_key: EntityKey::new([0; 3]),
+    entity_key: [0; 3],
     entity_kind: USER_DEFINED_UNKNOWN,
 };
 
 pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
-    entity_key: EntityKey::new([0, 0, 0x01]),
+    entity_key: [0, 0, 0x01],
     entity_kind: BUILT_IN_PARTICIPANT,
 };
 
@@ -180,30 +180,11 @@ pub const BUILT_IN_READER_GROUP: EntityKind = EntityKind(0xc9);
 pub const BUILT_IN_TOPIC: EntityKind = EntityKind(0xca);
 pub const USER_DEFINED_TOPIC: EntityKind = EntityKind(0x0a);
 
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Debug,
-    derive_more::Into,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-pub struct EntityKey([u8; 3]);
-
-impl EntityKey {
-    pub const fn new(value: [u8; 3]) -> Self {
-        Self(value)
-    }
-}
+pub type EntityKey = [u8; 3];
 
 impl WriteBytes for EntityKey {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.0.as_slice().read(buf).unwrap()
+        self.as_slice().read(buf).unwrap()
     }
 }
 
@@ -529,7 +510,7 @@ mod tests {
 
     #[test]
     fn serialize_entity_id() {
-        let data = EntityId::new(EntityKey::new([1, 2, 3]), EntityKind::new(0x04));
+        let data = EntityId::new([1, 2, 3], EntityKind::new(0x04));
         assert_eq!(
             into_bytes_vec(data),
             vec![

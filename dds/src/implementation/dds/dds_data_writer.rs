@@ -34,9 +34,8 @@ use crate::{
             reader_locator::RtpsReaderLocator,
             reader_proxy::RtpsReaderProxy,
             types::{
-                ChangeKind, DurabilityKind, EntityId, EntityKey, Guid, GuidPrefix, Locator,
-                ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN, GUID_UNKNOWN,
-                USER_DEFINED_UNKNOWN,
+                ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
+                SequenceNumber, ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
             writer::RtpsWriter,
         },
@@ -624,7 +623,7 @@ impl DdsDataWriter {
             ),
             WriterProxy::new(
                 self.rtps_writer.guid(),
-                EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
+                EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
                 unicast_locator_list,
                 multicast_locator_list,
                 None,
