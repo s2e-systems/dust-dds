@@ -12,7 +12,10 @@ use crate::{
         },
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
-            types::StatusInfo,
+            types::{
+                StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
+                STATUS_INFO_UNREGISTERED,
+            },
         },
         dds::nodes::DataReaderNode,
         rtps::{
@@ -618,6 +621,12 @@ impl DdsDataReader {
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
         let sequence_number = data_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
+        let change_result = self.convert_data_to_cache_change(
+            data_submessage,
+            source_timestamp,
+            source_guid_prefix,
+            reception_timestamp,
+        );
 
         let data_submessage_received_result = if let Some(writer_proxy) = self
             .matched_writers
@@ -628,12 +637,6 @@ impl DdsDataReader {
             match self.qos.reliability.kind {
                 ReliabilityQosPolicyKind::BestEffort => {
                     if sequence_number >= expected_seq_num {
-                        let change_result = self.convert_data_to_cache_change(
-                            data_submessage,
-                            source_timestamp,
-                            source_guid_prefix,
-                            reception_timestamp,
-                        );
                         match change_result {
                             Ok(change) => {
                                 let add_change_result = self.add_change(change);
@@ -661,12 +664,6 @@ impl DdsDataReader {
                 }
                 ReliabilityQosPolicyKind::Reliable => {
                     if sequence_number == expected_seq_num {
-                        let change_result = self.convert_data_to_cache_change(
-                            data_submessage,
-                            source_timestamp,
-                            source_guid_prefix,
-                            reception_timestamp,
-                        );
                         match change_result {
                             Ok(change) => {
                                 let add_change_result = self.add_change(change);
@@ -1352,7 +1349,7 @@ impl DdsDataReader {
                 self.qos.ownership.clone(),
                 self.qos.destination_order.clone(),
                 self.qos.user_data.clone(),
-                self.qos.time_based_filter,
+                self.qos.time_based_filter.clone(),
                 subscriber_qos.presentation.clone(),
                 subscriber_qos.partition.clone(),
                 topic_qos.topic_data,

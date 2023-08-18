@@ -137,7 +137,7 @@ impl Subscriber {
                     false => TopicKind::NoKey,
                 };
 
-                let rtps_reader = RtpsReader::new::<Foo>(
+                let rtps_reader = RtpsReader::new(
                     RtpsEndpoint::new(
                         guid,
                         topic_kind,
@@ -147,16 +147,16 @@ impl Subscriber {
                     DURATION_ZERO,
                     DURATION_ZERO,
                     false,
-                    qos,
                 );
 
                 let listener =
                     a_listener.map(|l| spawn_actor(DdsDataReaderListener::new(Box::new(l))));
                 let status_kind = mask.to_vec();
-                let data_reader = DdsDataReader::new(
+                let data_reader = DdsDataReader::new::<Foo>(
                     rtps_reader,
                     Foo::type_name(),
                     a_topic.get_name()?,
+                    qos,
                     listener,
                     status_kind,
                 );
