@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn serialize_heart_beat() {
-        let guid_prefix = GuidPrefix::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let submessage = InfoDestinationSubmessageWrite::new(guid_prefix);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![

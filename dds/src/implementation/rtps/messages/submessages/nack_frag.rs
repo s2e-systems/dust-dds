@@ -85,18 +85,18 @@ impl Submessage for NackFragSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{overall_structure::into_bytes_vec, types::FragmentNumber},
-        types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        messages::overall_structure::into_bytes_vec,
+        types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
     fn serialize_nack_frag() {
         let submessage = NackFragSubmessageWrite::new(
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-            SequenceNumber::new(4),
-            FragmentNumberSet::new(FragmentNumber::new(10), vec![]),
-            Count::new(6),
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            SequenceNumber::from(4),
+            FragmentNumberSet::new(10, vec![]),
+            6,
         );
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
@@ -126,14 +126,11 @@ mod tests {
             6, 0, 0, 0, // count
         ]);
 
-        let expected_reader_id =
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let expected_writer_id =
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let expected_writer_sn = SequenceNumber::new(4);
-        let expected_fragment_number_state =
-            FragmentNumberSet::new(FragmentNumber::new(10), vec![]);
-        let expected_count = Count::new(6);
+        let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let expected_writer_sn = SequenceNumber::from(4);
+        let expected_fragment_number_state = FragmentNumberSet::new(10, vec![]);
+        let expected_count = 6;
 
         assert_eq!(expected_reader_id, submessage.reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());

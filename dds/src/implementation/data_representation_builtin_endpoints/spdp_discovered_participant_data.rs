@@ -6,7 +6,7 @@ use crate::{
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             messages::types::Count,
-            types::{ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
+            types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
         },
     },
     infrastructure::{error::DdsResult, time::Duration},
@@ -18,7 +18,7 @@ use super::parameter_id_values::{
     PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
     PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
     PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
+    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID, DEFAULT_EXPECTS_INLINE_QOS,
 };
 
 #[derive(
@@ -37,7 +37,22 @@ impl Default for DomainTag {
         Self(DEFAULT_DOMAIN_TAG.to_string())
     }
 }
-
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    derive_more::From,
+    derive_more::AsRef,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+struct ExpectsInlineQos(bool);
+impl Default for ExpectsInlineQos {
+    fn default() -> Self {
+        Self(DEFAULT_EXPECTS_INLINE_QOS)
+    }
+}
 #[derive(
     Debug,
     PartialEq,
@@ -132,8 +147,8 @@ impl ParticipantProxy {
         *self.vendor_id.as_ref()
     }
 
-    pub fn _expects_inline_qos(&self) -> ExpectsInlineQos {
-        *self.expects_inline_qos.as_ref()
+    pub fn _expects_inline_qos(&self) -> bool {
+        *self.expects_inline_qos.as_ref().as_ref()
     }
 
     pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
@@ -223,29 +238,22 @@ impl DdsType for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builtin_topics::BuiltInTopicKey;
-    use crate::implementation::rtps::types::{LocatorAddress, LocatorKind, LocatorPort};
-    use crate::infrastructure::qos_policy::UserDataQosPolicy;
-    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
+    use crate::{
+        builtin_topics::BuiltInTopicKey,
+        infrastructure::qos_policy::UserDataQosPolicy,
+        topic_definition::type_support::{dds_deserialize, dds_serialize},
+    };
 
     #[test]
     fn deserialize_spdp_discovered_participant_data() {
-        let locator1 = Locator::new(
-            LocatorKind::new(11),
-            LocatorPort::new(12),
-            LocatorAddress::new([1; 16]),
-        );
-        let locator2 = Locator::new(
-            LocatorKind::new(21),
-            LocatorPort::new(22),
-            LocatorAddress::new([2; 16]),
-        );
+        let locator1 = Locator::new(11, 12, [1; 16]);
+        let locator2 = Locator::new(21, 22, [2; 16]);
 
         let domain_id = 1;
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion::new(2, 4);
-        let guid_prefix = GuidPrefix::new([8; 12]);
-        let vendor_id = VendorId::new([73, 74]);
+        let guid_prefix = [8; 12];
+        let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
@@ -253,7 +261,7 @@ mod tests {
         let default_multicast_locator_list = vec![locator1];
         let available_builtin_endpoints =
             BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
-        let manual_liveliness_count = Count::new(2);
+        let manual_liveliness_count = 2;
         let builtin_endpoint_qos = BuiltinEndpointQos::new(
             BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
         );
@@ -354,22 +362,14 @@ mod tests {
 
     #[test]
     fn serialize_spdp_discovered_participant_data() {
-        let locator1 = Locator::new(
-            LocatorKind::new(11),
-            LocatorPort::new(12),
-            LocatorAddress::new([1; 16]),
-        );
-        let locator2 = Locator::new(
-            LocatorKind::new(21),
-            LocatorPort::new(22),
-            LocatorAddress::new([2; 16]),
-        );
+        let locator1 = Locator::new(11, 12, [1; 16]);
+        let locator2 = Locator::new(21, 22, [2; 16]);
 
         let domain_id = 1;
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion::new(2, 4);
-        let guid_prefix = GuidPrefix::new([8; 12]);
-        let vendor_id = VendorId::new([73, 74]);
+        let guid_prefix = [8; 12];
+        let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
@@ -377,7 +377,7 @@ mod tests {
         let default_multicast_locator_list = vec![locator1];
         let available_builtin_endpoints =
             BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
-        let manual_liveliness_count = Count::new(2);
+        let manual_liveliness_count = 2;
         let builtin_endpoint_qos = BuiltinEndpointQos::new(
             BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
         );

@@ -35,7 +35,7 @@ impl RtpsWriter {
             heartbeat_period,
             _nack_response_delay: nack_response_delay,
             _nack_suppression_duration: nack_suppression_duration,
-            last_change_sequence_number: SequenceNumber::new(0),
+            last_change_sequence_number: SequenceNumber::from(0),
             data_max_size_serialized,
         }
     }

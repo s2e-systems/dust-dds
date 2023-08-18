@@ -1,7 +1,8 @@
-use std::collections::{HashMap, HashSet};
-
-use serde::Serialize;
-
+use super::{
+    dds_data_writer_listener::DdsDataWriterListener, dds_domain_participant::DdsDomainParticipant,
+    dds_publisher::DdsPublisher, message_receiver::MessageReceiver, nodes::DataWriterNode,
+    status_condition_impl::StatusConditionImpl,
+};
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     implementation::{
@@ -29,14 +30,12 @@ use crate::{
                     info_timestamp::InfoTimestampSubmessageWrite,
                     nack_frag::NackFragSubmessageRead,
                 },
-                types::ParameterId,
             },
             reader_locator::RtpsReaderLocator,
             reader_proxy::RtpsReaderProxy,
             types::{
-                ChangeKind, DurabilityKind, EntityId, EntityKey, Guid, GuidPrefix, Locator,
-                ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN, GUID_UNKNOWN,
-                USER_DEFINED_UNKNOWN,
+                ChangeKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+                ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
             writer::RtpsWriter,
         },
@@ -71,12 +70,8 @@ use crate::{
         },
     },
 };
-
-use super::{
-    dds_data_writer_listener::DdsDataWriterListener, dds_domain_participant::DdsDomainParticipant,
-    dds_publisher::DdsPublisher, message_receiver::MessageReceiver, nodes::DataWriterNode,
-    status_condition_impl::StatusConditionImpl,
-};
+use serde::Serialize;
+use std::collections::{HashMap, HashSet};
 
 struct MatchedSubscriptions {
     matched_subscription_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
@@ -482,7 +477,7 @@ impl DdsDataWriter {
         }
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
-            ParameterId(PID_STATUS_INFO),
+            PID_STATUS_INFO,
             serialized_status_info,
         )]);
 
@@ -554,7 +549,7 @@ impl DdsDataWriter {
         STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
-            ParameterId(PID_STATUS_INFO),
+            PID_STATUS_INFO,
             serialized_status_info,
         )]);
 
@@ -624,7 +619,7 @@ impl DdsDataWriter {
             ),
             WriterProxy::new(
                 self.rtps_writer.guid(),
-                EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
+                EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
                 unicast_locator_list,
                 multicast_locator_list,
                 None,
@@ -672,14 +667,14 @@ impl DdsDataWriter {
         //     .iter()
         //     .map(|x| x.sequence_number())
         //     .min()
-        //     .unwrap_or_else(|| SequenceNumber::new(1));
+        //     .unwrap_or_else(|| SequenceNumber::from(1));
         // let last_sn = self
         //     .writer_cache
         //     .change_list()
         //     .iter()
         //     .map(|x| x.sequence_number())
         //     .max()
-        //     .unwrap_or_else(|| SequenceNumber::new(0));
+        //     .unwrap_or_else(|| SequenceNumber::from(0));
         // let heartbeat_period = self.heartbeat_period();
         // for reader_proxy in &mut self.matched_reader_list() {
         //     match reader_proxy.reliability() {
@@ -765,24 +760,17 @@ impl DdsDataWriter {
                     ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
                 };
 
-                let proxy_durability = match discovered_reader_data
+                let first_relevant_sample_seq_num = match discovered_reader_data
                     .subscription_builtin_topic_data()
                     .durability()
                     .kind
                 {
-                    DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
-                    DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
-                };
-
-                let first_relevant_sample_seq_num = if proxy_durability == DurabilityKind::Volatile
-                {
-                    self.writer_cache
+                    DurabilityQosPolicyKind::Volatile => self.writer_cache
                         .change_list()
                         .map(|cc| cc.sequence_number())
                         .max()
-                        .unwrap_or(SequenceNumber::new(0))
-                } else {
-                    SequenceNumber::new(0)
+                        .unwrap_or_else(|| SequenceNumber::from(0)),
+                    DurabilityQosPolicyKind::TransientLocal => SequenceNumber::from(0)
                 };
 
                 let reader_proxy = RtpsReaderProxy::new(
@@ -795,7 +783,6 @@ impl DdsDataWriter {
                     discovered_reader_data.reader_proxy().expects_inline_qos(),
                     true,
                     proxy_reliability,
-                    proxy_durability,
                     first_relevant_sample_seq_num,
                 );
 
@@ -936,7 +923,7 @@ impl DdsDataWriter {
                                 InfoTimestampSubmessageWrite::new(
                                     false,
                                     crate::implementation::rtps::messages::types::Time::new(
-                                        cache_change.timestamp().sec(),
+                                        cache_change.timestamp().sec() as u32,
                                         cache_change.timestamp().nanosec(),
                                     ),
                                 ),
@@ -1242,7 +1229,7 @@ fn send_message_to_reader_proxy_best_effort(
                         RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
                             false,
                             crate::implementation::rtps::messages::types::Time::new(
-                                cache_change.timestamp().sec(),
+                                cache_change.timestamp().sec() as u32,
                                 cache_change.timestamp().nanosec(),
                             ),
                         ));
@@ -1268,7 +1255,7 @@ fn send_message_to_reader_proxy_best_effort(
                     RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
                         false,
                         crate::implementation::rtps::messages::types::Time::new(
-                            cache_change.timestamp().sec(),
+                            cache_change.timestamp().sec() as u32,
                             cache_change.timestamp().nanosec(),
                         ),
                     ));
@@ -1355,12 +1342,12 @@ fn send_message_to_reader_proxy_reliable(
             .change_list()
             .map(|x| x.sequence_number())
             .min()
-            .unwrap_or_else(|| SequenceNumber::new(1));
+            .unwrap_or_else(|| SequenceNumber::from(1));
         let last_sn = writer_cache
             .change_list()
             .map(|x| x.sequence_number())
             .max()
-            .unwrap_or_else(|| SequenceNumber::new(0));
+            .unwrap_or_else(|| SequenceNumber::from(0));
         let heartbeat_submessage = reader_proxy
             .heartbeat_machine()
             .submessage(writer_id, first_sn, last_sn);
@@ -1422,7 +1409,7 @@ fn send_change_message_reader_proxy_reliable(
                         RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
                             false,
                             crate::implementation::rtps::messages::types::Time::new(
-                                cache_change.timestamp().sec(),
+                                cache_change.timestamp().sec() as u32,
                                 cache_change.timestamp().nanosec(),
                             ),
                         ));
@@ -1448,7 +1435,7 @@ fn send_change_message_reader_proxy_reliable(
                     RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
                         false,
                         crate::implementation::rtps::messages::types::Time::new(
-                            cache_change.timestamp().sec(),
+                            cache_change.timestamp().sec() as u32,
                             cache_change.timestamp().nanosec(),
                         ),
                     ));
@@ -1461,12 +1448,12 @@ fn send_change_message_reader_proxy_reliable(
                     .change_list()
                     .map(|x| x.sequence_number())
                     .min()
-                    .unwrap_or_else(|| SequenceNumber::new(1));
+                    .unwrap_or_else(|| SequenceNumber::from(1));
                 let last_sn = writer_cache
                     .change_list()
                     .map(|x| x.sequence_number())
                     .max()
-                    .unwrap_or_else(|| SequenceNumber::new(0));
+                    .unwrap_or_else(|| SequenceNumber::from(0));
                 let heartbeat = reader_proxy
                     .heartbeat_machine()
                     .submessage(writer_id, first_sn, last_sn);
@@ -1497,12 +1484,12 @@ fn send_change_message_reader_proxy_reliable(
                 .change_list()
                 .map(|x| x.sequence_number())
                 .min()
-                .unwrap_or_else(|| SequenceNumber::new(1));
+                .unwrap_or_else(|| SequenceNumber::from(1));
             let last_sn = writer_cache
                 .change_list()
                 .map(|x| x.sequence_number())
                 .max()
-                .unwrap_or_else(|| SequenceNumber::new(0));
+                .unwrap_or_else(|| SequenceNumber::from(0));
             let heartbeat = reader_proxy
                 .heartbeat_machine()
                 .submessage(writer_id, first_sn, last_sn);

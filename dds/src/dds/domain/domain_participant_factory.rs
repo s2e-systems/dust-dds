@@ -28,9 +28,9 @@ use crate::{
             participant::RtpsParticipant,
             reader_proxy::RtpsReaderProxy,
             types::{
-                DurabilityKind, Guid, GuidPrefix, Locator, LocatorAddress, LocatorPort,
-                ReliabilityKind, SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
-                LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E,
+                Guid, Locator, ReliabilityKind, SequenceNumber,
+                ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
+                VENDOR_ID_S2E,
             },
             writer_proxy::RtpsWriterProxy,
         },
@@ -122,11 +122,11 @@ impl DomainParticipantFactory {
         let instance_id = self.0.address().get_unique_participant_id()?.to_ne_bytes();
 
         #[rustfmt::skip]
-        let guid_prefix = GuidPrefix::new([
+        let guid_prefix = [
             mac_address_octets[2],  mac_address_octets[3], mac_address_octets[4], mac_address_octets[5], // Host ID
             app_id[0], app_id[1], app_id[2], app_id[3], // App ID
             instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
-        ]);
+        ];
 
         let interface_address_list =
             get_interface_address_list(THE_DDS_CONFIGURATION.interface_name.as_ref());
@@ -141,7 +141,7 @@ impl DomainParticipantFactory {
             .local_addr()
             .map_err(|_| DdsError::Error)?
             .port();
-        let user_defined_unicast_locator_port = LocatorPort::new(user_defined_unicast_port.into());
+        let user_defined_unicast_locator_port = user_defined_unicast_port.into();
 
         let default_unicast_locator_list: Vec<Locator> = interface_address_list
             .iter()
@@ -157,13 +157,11 @@ impl DomainParticipantFactory {
             .set_nonblocking(true)
             .map_err(|_| DdsError::Error)?;
 
-        let metattrafic_unicast_locator_port = LocatorPort::new(
-            metattrafic_unicast_socket
-                .local_addr()
-                .map_err(|_| DdsError::Error)?
-                .port()
-                .into(),
-        );
+        let metattrafic_unicast_locator_port = metattrafic_unicast_socket
+            .local_addr()
+            .map_err(|_| DdsError::Error)?
+            .port()
+            .into();
         let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
             .iter()
             .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
@@ -171,7 +169,7 @@ impl DomainParticipantFactory {
 
         let metatraffic_multicast_locator_list = vec![Locator::new(
             LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id),
+            port_builtin_multicast(domain_id) as u32,
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
 
@@ -439,8 +437,7 @@ fn add_matched_publications_detector(
             expects_inline_qos,
             true,
             ReliabilityKind::Reliable,
-            DurabilityKind::TransientLocal,
-            SequenceNumber::new(0),
+            SequenceNumber::from(0),
         );
         writer.matched_reader_add(proxy).unwrap();
     }
@@ -509,8 +506,7 @@ fn add_matched_subscriptions_detector(
             expects_inline_qos,
             true,
             ReliabilityKind::Reliable,
-            DurabilityKind::TransientLocal,
-            SequenceNumber::new(0),
+            SequenceNumber::from(0),
         );
         writer.matched_reader_add(proxy).unwrap();
     }
@@ -578,8 +574,7 @@ fn add_matched_topics_detector(
             expects_inline_qos,
             true,
             ReliabilityKind::Reliable,
-            DurabilityKind::TransientLocal,
-            SequenceNumber::new(0),
+            SequenceNumber::from(0),
         );
         writer.matched_reader_add(proxy).unwrap();
     }
@@ -1198,17 +1193,18 @@ fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfigu
     serde_json::from_value(instance).map_err(|e| e.to_string())
 }
 
+type LocatorAddress = [u8; 16];
 // As of 9.6.1.4.1  Default multicast address
 const DEFAULT_MULTICAST_LOCATOR_ADDRESS: LocatorAddress =
-    LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1]);
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
 
 const PB: i32 = 7400;
 const DG: i32 = 250;
 #[allow(non_upper_case_globals)]
 const d0: i32 = 0;
 
-fn port_builtin_multicast(domain_id: DomainId) -> LocatorPort {
-    LocatorPort::new((PB + DG * domain_id + d0) as u32)
+fn port_builtin_multicast(domain_id: DomainId) -> u16 {
+    (PB + DG * domain_id + d0) as u16
 }
 
 fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAddress> {
@@ -1226,10 +1222,10 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
             i.addr.into_iter().filter_map(|a| match a {
                 #[rustfmt::skip]
                 Addr::V4(v4) if !v4.ip.is_loopback() => Some(
-                    LocatorAddress::new([0, 0, 0, 0,
+                    [0, 0, 0, 0,
                         0, 0, 0, 0,
                         0, 0, 0, 0,
-                        v4.ip.octets()[0], v4.ip.octets()[1], v4.ip.octets()[2], v4.ip.octets()[3]])
+                        v4.ip.octets()[0], v4.ip.octets()[1], v4.ip.octets()[2], v4.ip.octets()[3]]
                     ),
                 _ => None,
             })
@@ -1239,9 +1235,9 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
 
 fn get_multicast_socket(
     multicast_address: LocatorAddress,
-    port: LocatorPort,
+    port: u16,
 ) -> std::io::Result<tokio::net::UdpSocket> {
-    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, <u32>::from(port) as u16));
+    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
 
     let socket = Socket::new(
         socket2::Domain::IPV4,
@@ -1254,12 +1250,11 @@ fn get_multicast_socket(
     socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
 
     socket.bind(&socket_addr.into())?;
-    let multicast_addr_bytes: [u8; 16] = multicast_address.into();
     let addr = Ipv4Addr::new(
-        multicast_addr_bytes[12],
-        multicast_addr_bytes[13],
-        multicast_addr_bytes[14],
-        multicast_addr_bytes[15],
+        multicast_address[12],
+        multicast_address[13],
+        multicast_address[14],
+        multicast_address[15],
     );
     socket.join_multicast_v4(&addr, &Ipv4Addr::UNSPECIFIED)?;
     socket.set_multicast_loop_v4(true)?;

@@ -103,18 +103,18 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::overall_structure::into_bytes_vec,
-        types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
     fn serialize_heart_beat() {
         let final_flag = false;
         let liveliness_flag = true;
-        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let first_sn = SequenceNumber::new(5);
-        let last_sn = SequenceNumber::new(7);
-        let count = Count::new(2);
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let first_sn = SequenceNumber::from(5);
+        let last_sn = SequenceNumber::from(7);
+        let count = 2;
         let submessage = HeartbeatSubmessageWrite::new(
             final_flag,
             liveliness_flag,
@@ -142,13 +142,11 @@ mod tests {
     fn deserialize_heart_beat() {
         let expected_final_flag = false;
         let expected_liveliness_flag = true;
-        let expected_reader_id =
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let expected_writer_id =
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let expected_first_sn = SequenceNumber::new(5);
-        let expected_last_sn = SequenceNumber::new(7);
-        let expected_count = Count::new(2);
+        let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let expected_first_sn = SequenceNumber::from(5);
+        let expected_last_sn = SequenceNumber::from(7);
+        let expected_count = 2;
         #[rustfmt::skip]
         let submessage = HeartbeatSubmessageRead::new(&[
             0x07, 0b_0000_0101, 28, 0, // Submessage header

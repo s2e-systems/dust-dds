@@ -75,14 +75,14 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::overall_structure::into_bytes_vec,
-        types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, _VENDOR_ID_UNKNOWN},
+        types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
     };
 
     #[test]
     fn serialize_info_source() {
         let submessage = InfoSourceSubmessageWrite::new(
             PROTOCOLVERSION_1_0,
-            _VENDOR_ID_UNKNOWN,
+            VENDOR_ID_UNKNOWN,
             GUIDPREFIX_UNKNOWN,
         );
         #[rustfmt::skip]
@@ -110,7 +110,7 @@ mod tests {
         ]);
 
         let expected_protocol_version = PROTOCOLVERSION_1_0;
-        let expected_vendor_id = _VENDOR_ID_UNKNOWN;
+        let expected_vendor_id = VENDOR_ID_UNKNOWN;
         let expected_guid_prefix = GUIDPREFIX_UNKNOWN;
 
         assert_eq!(expected_protocol_version, submessage.protocol_version());

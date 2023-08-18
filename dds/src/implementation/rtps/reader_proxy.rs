@@ -7,9 +7,7 @@ use super::{
         },
         types::{Count, FragmentNumber},
     },
-    types::{
-        DurabilityKind, EntityId, ExpectsInlineQos, Guid, Locator, ReliabilityKind, SequenceNumber,
-    },
+    types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
     utils::clock::{StdTimer, Timer, TimerConstructor},
 };
 use crate::infrastructure::time::Duration;
@@ -23,7 +21,7 @@ pub struct HeartbeatMachine {
 impl HeartbeatMachine {
     fn new(reader_id: EntityId) -> Self {
         HeartbeatMachine {
-            count: Count::new(0),
+            count: 0,
             reader_id,
             timer: StdTimer::new(),
         }
@@ -62,7 +60,7 @@ pub struct HeartbeatFragMachine {
 impl HeartbeatFragMachine {
     fn new(reader_id: EntityId) -> Self {
         HeartbeatFragMachine {
-            count: Count::new(0),
+            count: 0,
             reader_id,
         }
     }
@@ -92,14 +90,13 @@ pub struct RtpsReaderProxy {
     highest_sent_seq_num: SequenceNumber,
     highest_acked_seq_num: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
-    expects_inline_qos: ExpectsInlineQos,
+    expects_inline_qos: bool,
     is_active: bool,
     last_received_acknack_count: Count,
     last_received_nack_frag_count: Count,
     heartbeat_machine: HeartbeatMachine,
     heartbeat_frag_machine: HeartbeatFragMachine,
     reliability: ReliabilityKind,
-    durability: DurabilityKind,
     first_relevant_sample_seq_num: SequenceNumber,
 }
 
@@ -113,7 +110,6 @@ impl RtpsReaderProxy {
         expects_inline_qos: bool,
         is_active: bool,
         reliability: ReliabilityKind,
-        durability: DurabilityKind,
         first_relevant_sample_seq_num: SequenceNumber,
     ) -> Self {
         let heartbeat_machine = HeartbeatMachine::new(remote_reader_guid.entity_id());
@@ -123,27 +119,22 @@ impl RtpsReaderProxy {
             remote_group_entity_id,
             unicast_locator_list: unicast_locator_list.to_vec(),
             multicast_locator_list: multicast_locator_list.to_vec(),
-            highest_sent_seq_num: SequenceNumber::new(0),
-            highest_acked_seq_num: SequenceNumber::new(0),
+            highest_sent_seq_num: SequenceNumber::from(0),
+            highest_acked_seq_num: SequenceNumber::from(0),
             requested_changes: Vec::new(),
-            expects_inline_qos: expects_inline_qos.into(),
+            expects_inline_qos,
             is_active,
-            last_received_acknack_count: Count::new(0),
-            last_received_nack_frag_count: Count::new(0),
+            last_received_acknack_count: 0,
+            last_received_nack_frag_count: 0,
             heartbeat_machine,
             heartbeat_frag_machine,
             reliability,
-            durability,
             first_relevant_sample_seq_num,
         }
     }
 
     pub fn remote_reader_guid(&self) -> Guid {
         self.remote_reader_guid
-    }
-
-    pub fn durability(&self) -> DurabilityKind {
-        self.durability
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {

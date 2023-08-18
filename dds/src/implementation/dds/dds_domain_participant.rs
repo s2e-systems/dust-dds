@@ -20,7 +20,7 @@ use crate::{
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
             types::{
-                EntityId, EntityKey, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
+                EntityId, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
                 BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
                 BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             },
@@ -61,28 +61,28 @@ use super::{
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
-    EntityId::new(EntityKey::new([0x00, 0x01, 0x00]), BUILT_IN_WRITER_WITH_KEY);
+    EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
-    EntityId::new(EntityKey::new([0x00, 0x01, 0x00]), BUILT_IN_READER_WITH_KEY);
+    EntityId::new([0x00, 0x01, 0x00], BUILT_IN_READER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
-    EntityId::new(EntityKey::new([0, 0, 0x02]), BUILT_IN_WRITER_WITH_KEY);
+    EntityId::new([0, 0, 0x02], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId =
-    EntityId::new(EntityKey::new([0, 0, 0x02]), BUILT_IN_READER_WITH_KEY);
+    EntityId::new([0, 0, 0x02], BUILT_IN_READER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
-    EntityId::new(EntityKey::new([0, 0, 0x03]), BUILT_IN_WRITER_WITH_KEY);
+    EntityId::new([0, 0, 0x03], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId =
-    EntityId::new(EntityKey::new([0, 0, 0x03]), BUILT_IN_READER_WITH_KEY);
+    EntityId::new([0, 0, 0x03], BUILT_IN_READER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
-    EntityId::new(EntityKey::new([0, 0, 0x04]), BUILT_IN_WRITER_WITH_KEY);
+    EntityId::new([0, 0, 0x04], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
-    EntityId::new(EntityKey::new([0, 0, 0x04]), BUILT_IN_READER_WITH_KEY);
+    EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
 pub const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
 pub const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
@@ -136,7 +136,7 @@ impl DdsDomainParticipant {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
 
-        let spdp_topic_entity_id = EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_TOPIC);
+        let spdp_topic_entity_id = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
         let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
         let _spdp_topic_participant = DdsTopic::new(
             spdp_topic_guid,
@@ -145,7 +145,7 @@ impl DdsDomainParticipant {
             DCPS_PARTICIPANT,
         );
 
-        let sedp_topics_entity_id = EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_TOPIC);
+        let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
         let sedp_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
         let _sedp_topic_topics = DdsTopic::new(
             sedp_topics_guid,
@@ -154,7 +154,7 @@ impl DdsDomainParticipant {
             DCPS_TOPIC,
         );
 
-        let sedp_publications_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
+        let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
         let sedp_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
         let _sedp_topic_publications = DdsTopic::new(
             sedp_publications_guid,
@@ -163,7 +163,7 @@ impl DdsDomainParticipant {
             DCPS_PUBLICATION,
         );
 
-        let sedp_subscriptions_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
+        let sedp_subscriptions_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
         let sedp_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
         let _sedp_topic_subscriptions = DdsTopic::new(
             sedp_subscriptions_guid,
@@ -221,7 +221,7 @@ impl DdsDomainParticipant {
             SubscriberQos::default(),
             RtpsGroup::new(Guid::new(
                 guid_prefix,
-                EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_READER_GROUP),
+                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
             None,
             vec![],
@@ -337,7 +337,7 @@ impl DdsDomainParticipant {
             PublisherQos::default(),
             RtpsGroup::new(Guid::new(
                 guid_prefix,
-                EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_WRITER_GROUP),
+                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
             None,
             vec![],
@@ -376,7 +376,7 @@ impl DdsDomainParticipant {
             topic_list: Vec::new(),
             user_defined_topic_counter: 0,
             default_topic_qos: TopicQos::default(),
-            manual_liveliness_count: Count::new(0),
+            manual_liveliness_count: 0,
             lease_duration,
             discovered_participant_list: HashMap::new(),
             discovered_topic_list: HashMap::new(),

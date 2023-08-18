@@ -8,7 +8,7 @@ use crate::implementation::{
                 RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
             submessage_elements::{Data, ParameterList, SubmessageElement},
-            types::{FragmentNumber, SubmessageFlag, SubmessageKind},
+            types::{FragmentNumber, ParameterId, SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber},
     },
@@ -39,7 +39,7 @@ impl<'a> DataFragSubmessageRead<'a> {
             let mut parameter_list_buf = &self.data[8 + self.octets_to_inline_qos() as usize..];
             let parameter_list_buf_length = parameter_list_buf.len();
             loop {
-                let pid: u16 = self.map(parameter_list_buf);
+                let pid: ParameterId = self.map(parameter_list_buf);
                 parameter_list_buf.consume(2);
                 let length: i16 = self.map(parameter_list_buf);
                 parameter_list_buf.consume(2);
@@ -206,10 +206,8 @@ impl Submessage for DataFragSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{
-            overall_structure::into_bytes_vec, submessage_elements::Parameter, types::ParameterId,
-        },
-        types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        messages::{overall_structure::into_bytes_vec, submessage_elements::Parameter},
+        types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
@@ -220,10 +218,10 @@ mod tests {
             false,
             false,
             false,
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-            SequenceNumber::new(5),
-            FragmentNumber::new(2),
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            SequenceNumber::from(5),
+            2,
             3,
             4,
             5,
@@ -247,17 +245,16 @@ mod tests {
 
     #[test]
     fn serialize_with_inline_qos_with_serialized_payload() {
-        let inline_qos =
-            ParameterList::new(vec![Parameter::new(ParameterId(8), vec![71, 72, 73, 74])]);
+        let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74])]);
         let serialized_payload = Data::new(vec![1, 2, 3]);
         let submessage = DataFragSubmessageWrite::new(
             true,
             false,
             false,
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-            SequenceNumber::new(6),
-            FragmentNumber::new(2),
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            SequenceNumber::from(6),
+            2,
             3,
             8,
             5,
@@ -301,12 +298,10 @@ mod tests {
         let expected_inline_qos_flag = false;
         let expected_non_standard_payload_flag = false;
         let expected_key_flag = false;
-        let expected_reader_id =
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let expected_writer_id =
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let expected_writer_sn = SequenceNumber::new(5);
-        let expected_fragment_starting_num = FragmentNumber::new(2);
+        let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let expected_writer_sn = SequenceNumber::from(5);
+        let expected_fragment_starting_num = 2;
         let expected_fragments_in_submessage = 3;
         let expected_data_size = 4;
         let expected_fragment_size = 5;
@@ -358,17 +353,14 @@ mod tests {
         let expected_inline_qos_flag = true;
         let expected_non_standard_payload_flag = false;
         let expected_key_flag = false;
-        let expected_reader_id =
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let expected_writer_id =
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let expected_writer_sn = SequenceNumber::new(6);
-        let expected_fragment_starting_num = FragmentNumber::new(2);
+        let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let expected_writer_sn = SequenceNumber::from(6);
+        let expected_fragment_starting_num = 2;
         let expected_fragments_in_submessage = 3;
         let expected_data_size = 8;
         let expected_fragment_size = 5;
-        let expected_inline_qos =
-            ParameterList::new(vec![Parameter::new(ParameterId(8), vec![71, 72, 73, 74])]);
+        let expected_inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74])]);
         let expected_serialized_payload = Data::new(vec![1, 2, 3, 0]);
 
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());

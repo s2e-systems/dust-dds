@@ -45,7 +45,7 @@ impl<'a> Iterator for MessageReceiver<'a> {
                     if !m.invalidate_flag() {
                         self.have_timestamp = true;
                         self.timestamp =
-                            Time::new(m.timestamp().seconds(), m.timestamp().fraction());
+                            Time::new(m.timestamp().seconds() as i32, m.timestamp().fraction());
                     } else {
                         self.have_timestamp = false;
                         self.timestamp = TIME_INVALID;

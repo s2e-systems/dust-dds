@@ -1,21 +1,56 @@
-use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS;
-use std::{
-    io::Read,
-    ops::{Add, AddAssign, Sub, SubAssign},
-};
-
-use super::messages::overall_structure::WriteBytes;
+use super::messages::overall_structure::{WriteBytes, WriteEndianness};
+use byteorder::ByteOrder;
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 ///
-/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
+/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
+
+type Octet = u8;
+type Long = i32;
+type UnsignedLong = u32;
+
+impl WriteBytes for Long {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_i32(buf, *self);
+        4
+    }
+}
+
+impl WriteBytes for UnsignedLong {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_u32(buf, *self);
+        4
+    }
+}
+
+impl WriteBytes for u16 {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_u16(buf, *self);
+        2
+    }
+}
+
+impl WriteBytes for i16 {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        WriteEndianness::write_i16(buf, *self);
+        2
+    }
+}
+
+impl<const N: usize> WriteBytes for [Octet; N] {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+        buf[..self.len()].copy_from_slice(self);
+        N
+    }
+}
 
 /// GUID_t
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
 /// Must be possible to represent using 16 octets.
 /// The following values are reserved by the protocol: GUID_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Guid {
     prefix: GuidPrefix,
     entity_id: EntityId,
@@ -35,21 +70,15 @@ impl Guid {
     }
 }
 
-pub const GUID_UNKNOWN: Guid = Guid {
-    prefix: GUIDPREFIX_UNKNOWN,
-    entity_id: ENTITYID_UNKNOWN,
-};
+pub const GUID_UNKNOWN: Guid = Guid::new(GUIDPREFIX_UNKNOWN, ENTITYID_UNKNOWN);
 
 impl From<[u8; 16]> for Guid {
     fn from(value: [u8; 16]) -> Self {
-        let prefix = GuidPrefix::new([
+        let prefix = [
             value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
             value[8], value[9], value[10], value[11],
-        ]);
-        let entity_id = EntityId::new(
-            EntityKey::new([value[12], value[13], value[14]]),
-            EntityKind(value[15]),
-        );
+        ];
+        let entity_id = EntityId::new([value[12], value[13], value[14]], value[15]);
         Self { prefix, entity_id }
     }
 }
@@ -57,22 +86,22 @@ impl From<[u8; 16]> for Guid {
 impl From<Guid> for [u8; 16] {
     fn from(guid: Guid) -> Self {
         [
-            guid.prefix.0[0],
-            guid.prefix.0[1],
-            guid.prefix.0[2],
-            guid.prefix.0[3],
-            guid.prefix.0[4],
-            guid.prefix.0[5],
-            guid.prefix.0[6],
-            guid.prefix.0[7],
-            guid.prefix.0[8],
-            guid.prefix.0[9],
-            guid.prefix.0[10],
-            guid.prefix.0[11],
-            guid.entity_id.entity_key.0[0],
-            guid.entity_id.entity_key.0[1],
-            guid.entity_id.entity_key.0[2],
-            guid.entity_id.entity_kind.0,
+            guid.prefix[0],
+            guid.prefix[1],
+            guid.prefix[2],
+            guid.prefix[3],
+            guid.prefix[4],
+            guid.prefix[5],
+            guid.prefix[6],
+            guid.prefix[7],
+            guid.prefix[8],
+            guid.prefix[9],
+            guid.prefix[10],
+            guid.prefix[11],
+            guid.entity_id.entity_key[0],
+            guid.entity_id.entity_key[1],
+            guid.entity_id.entity_key[2],
+            guid.entity_id.entity_kind,
         ]
     }
 }
@@ -81,57 +110,33 @@ impl From<Guid> for [u8; 16] {
 /// Type used to hold the prefix of the globally-unique RTPS-entity identifiers. The GUIDs of entities belonging to the same participant all have the same prefix (see 8.2.4.3).
 /// Must be possible to represent using 12 octets.
 /// The following values are reserved by the protocol: GUIDPREFIX_UNKNOWN
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    Default,
-    derive_more::From,
-    derive_more::Into,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-pub struct GuidPrefix([u8; 12]);
-pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
-
-impl GuidPrefix {
-    pub const fn new(value: [u8; 12]) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for GuidPrefix {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.0.as_slice().read(buf).unwrap()
-    }
-}
+pub type GuidPrefix = [u8; 12];
+pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+type OctetArray3 = [Octet; 3];
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EntityId {
-    entity_key: EntityKey,
-    entity_kind: EntityKind,
+    entity_key: OctetArray3,
+    entity_kind: Octet,
 }
 
 impl EntityId {
-    pub const fn new(entity_key: EntityKey, entity_kind: EntityKind) -> Self {
+    pub const fn new(entity_key: OctetArray3, entity_kind: Octet) -> Self {
         Self {
             entity_key,
             entity_kind,
         }
     }
 
-    pub const fn entity_key(&self) -> EntityKey {
+    pub const fn entity_key(&self) -> OctetArray3 {
         self.entity_key
     }
 
-    pub const fn entity_kind(&self) -> EntityKind {
+    pub const fn entity_kind(&self) -> Octet {
         self.entity_kind
     }
 }
@@ -142,15 +147,8 @@ impl Default for EntityId {
     }
 }
 
-pub const ENTITYID_UNKNOWN: EntityId = EntityId {
-    entity_key: EntityKey::new([0; 3]),
-    entity_kind: USER_DEFINED_UNKNOWN,
-};
-
-pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
-    entity_key: EntityKey::new([0, 0, 0x01]),
-    entity_kind: BUILT_IN_PARTICIPANT,
-};
+pub const ENTITYID_UNKNOWN: EntityId = EntityId::new([0; 3], USER_DEFINED_UNKNOWN);
+pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_PARTICIPANT);
 
 impl WriteBytes for EntityId {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
@@ -160,132 +158,105 @@ impl WriteBytes for EntityId {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct EntityKind(u8);
-
-impl EntityKind {
-    pub const fn new(value: u8) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for EntityKind {
+impl WriteBytes for Octet {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[0] = self.0;
+        buf[0] = *self;
         1
     }
 }
 
 // Table 9.1 - entityKind octet of an EntityId_t
-pub const USER_DEFINED_UNKNOWN: EntityKind = EntityKind(0x00);
+pub const USER_DEFINED_UNKNOWN: Octet = 0x00;
 #[allow(dead_code)]
-pub const BUILT_IN_UNKNOWN: EntityKind = EntityKind(0xc0);
-pub const BUILT_IN_PARTICIPANT: EntityKind = EntityKind(0xc1);
-pub const USER_DEFINED_WRITER_WITH_KEY: EntityKind = EntityKind(0x02);
-pub const BUILT_IN_WRITER_WITH_KEY: EntityKind = EntityKind(0xc2);
-pub const USER_DEFINED_WRITER_NO_KEY: EntityKind = EntityKind(0x03);
+pub const BUILT_IN_UNKNOWN: Octet = 0xc0;
+pub const BUILT_IN_PARTICIPANT: Octet = 0xc1;
+pub const USER_DEFINED_WRITER_WITH_KEY: Octet = 0x02;
+pub const BUILT_IN_WRITER_WITH_KEY: Octet = 0xc2;
+pub const USER_DEFINED_WRITER_NO_KEY: Octet = 0x03;
 #[allow(dead_code)]
-pub const BUILT_IN_WRITER_NO_KEY: EntityKind = EntityKind(0xc3);
-pub const USER_DEFINED_READER_WITH_KEY: EntityKind = EntityKind(0x07);
-pub const BUILT_IN_READER_WITH_KEY: EntityKind = EntityKind(0xc7);
-pub const USER_DEFINED_READER_NO_KEY: EntityKind = EntityKind(0x04);
+pub const BUILT_IN_WRITER_NO_KEY: Octet = 0xc3;
+pub const USER_DEFINED_READER_WITH_KEY: Octet = 0x07;
+pub const BUILT_IN_READER_WITH_KEY: Octet = 0xc7;
+pub const USER_DEFINED_READER_NO_KEY: Octet = 0x04;
 #[allow(dead_code)]
-pub const BUILT_IN_READER_NO_KEY: EntityKind = EntityKind(0xc4);
-pub const USER_DEFINED_WRITER_GROUP: EntityKind = EntityKind(0x08);
-pub const BUILT_IN_WRITER_GROUP: EntityKind = EntityKind(0xc8);
-pub const USER_DEFINED_READER_GROUP: EntityKind = EntityKind(0x09);
-pub const BUILT_IN_READER_GROUP: EntityKind = EntityKind(0xc9);
+pub const BUILT_IN_READER_NO_KEY: Octet = 0xc4;
+pub const USER_DEFINED_WRITER_GROUP: Octet = 0x08;
+pub const BUILT_IN_WRITER_GROUP: Octet = 0xc8;
+pub const USER_DEFINED_READER_GROUP: Octet = 0x09;
+pub const BUILT_IN_READER_GROUP: Octet = 0xc9;
 // Added in comparison to the RTPS standard
-pub const BUILT_IN_TOPIC: EntityKind = EntityKind(0xca);
-pub const USER_DEFINED_TOPIC: EntityKind = EntityKind(0x0a);
-
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Debug,
-    derive_more::Into,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-pub struct EntityKey([u8; 3]);
-
-impl EntityKey {
-    pub const fn new(value: [u8; 3]) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for EntityKey {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.0.as_slice().read(buf).unwrap()
-    }
-}
+pub const BUILT_IN_TOPIC: Octet = 0xca;
+pub const USER_DEFINED_TOPIC: Octet = 0x0a;
 
 /// SequenceNumber_t
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
 /// The following values are reserved by the protocol: SEQUENCENUMBER_UNKNOWN
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Debug,
-    derive_more::Into,
-    derive_more::Add,
-    derive_more::AddAssign,
-    derive_more::Sub,
-    derive_more::SubAssign,
-)]
-pub struct SequenceNumber(i64);
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct SequenceNumber {
+    high: Long,
+    low: UnsignedLong,
+}
+
+#[allow(dead_code)]
+pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber::new(-1, 0);
 
 impl SequenceNumber {
-    pub const fn new(value: i64) -> Self {
-        Self(value)
+    pub const fn new(high: Long, low: UnsignedLong) -> Self {
+        Self { high, low }
+    }
+}
+impl From<SequenceNumber> for i64 {
+    fn from(value: SequenceNumber) -> Self {
+        ((value.high as i64) << 32) + value.low as i64
+    }
+}
+impl From<i64> for SequenceNumber {
+    fn from(value: i64) -> Self {
+        Self {
+            high: (value >> 32) as Long,
+            low: value as UnsignedLong,
+        }
+    }
+}
+impl Add for SequenceNumber {
+    type Output = Self;
+    fn add(self, rhs: SequenceNumber) -> Self::Output {
+        Self::from(<i64>::from(self) + <i64>::from(rhs))
+    }
+}
+impl Sub for SequenceNumber {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from(<i64>::from(self) - <i64>::from(rhs))
+    }
+}
+impl AddAssign<i64> for SequenceNumber {
+    fn add_assign(&mut self, rhs: i64) {
+        *self = Self::from(<i64>::from(*self) + rhs);
+    }
+}
+impl Add<i64> for SequenceNumber {
+    type Output = Self;
+    fn add(self, rhs: i64) -> Self::Output {
+        Self::from(<i64>::from(self) + rhs)
+    }
+}
+impl SubAssign<i64> for SequenceNumber {
+    fn sub_assign(&mut self, rhs: i64) {
+        *self = Self::from(<i64>::from(*self) - rhs);
+    }
+}
+impl Sub<i64> for SequenceNumber {
+    type Output = Self;
+    fn sub(self, rhs: i64) -> Self::Output {
+        Self::from(<i64>::from(self) - rhs)
     }
 }
 
 impl WriteBytes for SequenceNumber {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let high = (self.0 >> 32) as i32;
-        let low = self.0 as i32;
-        high.write_bytes(&mut buf[0..]) + low.write_bytes(&mut buf[4..])
-    }
-}
-
-#[allow(dead_code)]
-pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber(i64::MIN);
-
-impl AddAssign<i64> for SequenceNumber {
-    fn add_assign(&mut self, rhs: i64) {
-        self.0 += rhs;
-    }
-}
-impl Add<i64> for SequenceNumber {
-    type Output = SequenceNumber;
-
-    fn add(self, rhs: i64) -> Self::Output {
-        SequenceNumber(self.0 + rhs)
-    }
-}
-impl SubAssign<i64> for SequenceNumber {
-    fn sub_assign(&mut self, rhs: i64) {
-        self.0 -= rhs
-    }
-}
-impl Sub<i64> for SequenceNumber {
-    type Output = SequenceNumber;
-
-    fn sub(self, rhs: i64) -> Self::Output {
-        SequenceNumber(self.0 - rhs)
+        self.high.write_bytes(&mut buf[0..]) + self.low.write_bytes(&mut buf[4..])
     }
 }
 
@@ -295,9 +266,9 @@ impl Sub<i64> for SequenceNumber {
 /// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDP_V4 LOCATOR_KIND_UDP_V6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Locator {
-    kind: LocatorKind,
-    port: LocatorPort,
-    address: LocatorAddress,
+    kind: Long,
+    port: UnsignedLong,
+    address: [Octet; 16],
 }
 
 impl WriteBytes for Locator {
@@ -309,97 +280,44 @@ impl WriteBytes for Locator {
     }
 }
 
-#[derive(
-    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct LocatorKind(i32);
-
-impl LocatorKind {
-    pub const fn new(value: i32) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for LocatorKind {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.0.write_bytes(buf)
-    }
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct LocatorPort(u32);
-
-impl LocatorPort {
-    pub const fn new(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for LocatorPort {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.0.write_bytes(buf)
-    }
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct LocatorAddress([u8; 16]);
-
-impl LocatorAddress {
-    pub const fn new(value: [u8; 16]) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for LocatorAddress {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(&self.0);
-        16
-    }
-}
+#[allow(dead_code)]
+pub const LOCATOR_KIND_INVALID: Long = -1;
+#[allow(dead_code)]
+pub const LOCATOR_KIND_RESERVED: Long = 0;
+pub const LOCATOR_KIND_UDP_V4: Long = 1;
+pub const LOCATOR_KIND_UDP_V6: Long = 2;
+pub const LOCATOR_PORT_INVALID: UnsignedLong = 0;
+pub const LOCATOR_ADDRESS_INVALID: [Octet; 16] = [0; 16];
 
 #[allow(dead_code)]
-pub const LOCATOR_KIND_INVALID: LocatorKind = LocatorKind(-1);
-#[allow(dead_code)]
-pub const LOCATOR_KIND_RESERVED: LocatorKind = LocatorKind(0);
-pub const LOCATOR_KIND_UDP_V4: LocatorKind = LocatorKind(1);
-pub const LOCATOR_KIND_UDP_V6: LocatorKind = LocatorKind(2);
-pub const LOCATOR_PORT_INVALID: LocatorPort = LocatorPort(0);
-pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = LocatorAddress([0; 16]);
-
-#[allow(dead_code)]
-pub const LOCATOR_INVALID: Locator = Locator {
-    kind: LOCATOR_KIND_INVALID,
-    port: LOCATOR_PORT_INVALID,
-    address: LOCATOR_ADDRESS_INVALID,
-};
+pub const LOCATOR_INVALID: Locator = Locator::new(
+    LOCATOR_KIND_INVALID,
+    LOCATOR_PORT_INVALID,
+    LOCATOR_ADDRESS_INVALID,
+);
 
 impl Locator {
-    pub const fn new(kind: LocatorKind, port: LocatorPort, address: LocatorAddress) -> Self {
+    pub const fn new(kind: Long, port: UnsignedLong, address: [Octet; 16]) -> Self {
         Self {
             kind,
             port,
             address,
         }
     }
-    pub const fn kind(&self) -> LocatorKind {
+    pub const fn kind(&self) -> Long {
         self.kind
     }
-    pub const fn port(&self) -> LocatorPort {
+    pub const fn port(&self) -> UnsignedLong {
         self.port
     }
-    pub const fn address(&self) -> LocatorAddress {
+    pub const fn address(&self) -> [Octet; 16] {
         self.address
     }
 }
 
 /// TopicKind_t
 /// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
-/// The following values are reserved by the protocol: NO_KEY
-/// WITH_KEY
+/// The following values are reserved by the protocol: NO_KEY, WITH_KEY
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TopicKind {
     NoKey,
@@ -418,6 +336,15 @@ pub enum ChangeKind {
     NotAliveDisposed,
     NotAliveUnregistered,
     NotAliveDisposedUnregistered,
+}
+
+/// ChangeCount_t
+/// Type used to hold a counter representing the number of HistoryCache changes that belong to a certain category.
+/// For example, the number of changes that have been filtered for an RTPS Reader endpoint.
+#[allow(dead_code)]
+pub struct ChangeCount {
+    high: Long,
+    low: UnsignedLong,
 }
 
 /// ReliabilityKind_t
@@ -440,8 +367,8 @@ pub enum ReliabilityKind {
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ProtocolVersion {
-    major: u8,
-    minor: u8,
+    major: Octet,
+    minor: Octet,
 }
 
 impl WriteBytes for ProtocolVersion {
@@ -454,27 +381,27 @@ impl WriteBytes for ProtocolVersion {
 
 pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion { major: 1, minor: 0 };
+pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion::new(1, 0);
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_1_1: ProtocolVersion = ProtocolVersion { major: 1, minor: 1 };
+pub const PROTOCOLVERSION_1_1: ProtocolVersion = ProtocolVersion::new(1, 1);
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_2_0: ProtocolVersion = ProtocolVersion { major: 2, minor: 0 };
+pub const PROTOCOLVERSION_2_0: ProtocolVersion = ProtocolVersion::new(2, 0);
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion { major: 2, minor: 1 };
+pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion::new(2, 1);
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion { major: 2, minor: 2 };
+pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion::new(2, 2);
 #[allow(dead_code)]
-pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
-pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
+pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion::new(2, 3);
+pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion::new(2, 4);
 
 impl ProtocolVersion {
-    pub const fn new(major: u8, minor: u8) -> Self {
+    pub const fn new(major: Octet, minor: Octet) -> Self {
         Self { major, minor }
     }
-    pub const fn major(&self) -> u8 {
+    pub const fn major(&self) -> Octet {
         self.major
     }
-    pub const fn minor(&self) -> u8 {
+    pub const fn minor(&self) -> Octet {
         self.minor
     }
 }
@@ -482,51 +409,11 @@ impl ProtocolVersion {
 /// VendorId_t
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Into,
-)]
-pub struct VendorId([u8; 2]);
+pub type VendorId = [Octet; 2];
 
-impl VendorId {
-    pub const fn new(value: [u8; 2]) -> Self {
-        Self(value)
-    }
-}
-
-impl WriteBytes for VendorId {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.0.as_slice().read(buf).unwrap()
-    }
-}
-
-pub const _VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
-pub const VENDOR_ID_S2E: VendorId = VendorId([0x01, 0x14]);
-
-/// Additionally defined here (should move to DDS)
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DurabilityKind {
-    Volatile,
-    TransientLocal,
-}
-
-/// Additionally defined here (should move to DDS)
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    serde::Deserialize,
-    serde::Serialize,
-    derive_more::Into,
-    derive_more::From,
-)]
-pub struct ExpectsInlineQos(bool);
-impl Default for ExpectsInlineQos {
-    fn default() -> Self {
-        Self(DEFAULT_EXPECTS_INLINE_QOS)
-    }
-}
+#[allow(dead_code)]
+pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
+pub const VENDOR_ID_S2E: VendorId = [0x01, 0x14];
 
 #[cfg(test)]
 mod tests {
@@ -535,7 +422,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number() {
-        let data = SequenceNumber::new(7);
+        let data = SequenceNumber::from(7);
         let result = into_bytes_vec(data);
         assert_eq!(
             result,
@@ -548,7 +435,7 @@ mod tests {
 
     #[test]
     fn serialize_entity_id() {
-        let data = EntityId::new(EntityKey::new([1, 2, 3]), EntityKind::new(0x04));
+        let data = EntityId::new([1, 2, 3], 0x04);
         assert_eq!(
             into_bytes_vec(data),
             vec![

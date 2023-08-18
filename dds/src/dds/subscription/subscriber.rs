@@ -12,8 +12,7 @@ use crate::{
             messages::overall_structure::RtpsMessageHeader,
             reader::RtpsReader,
             types::{
-                EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_READER_NO_KEY,
-                USER_DEFINED_READER_WITH_KEY,
+                EntityId, Guid, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
             },
         },
         utils::actor::spawn_actor,
@@ -124,11 +123,11 @@ impl Subscriber {
                 };
                 let subscriber_guid = s.address().guid()?;
 
-                let entity_key = EntityKey::new([
-                    <[u8; 3]>::from(subscriber_guid.entity_id().entity_key())[0],
+                let entity_key: [u8; 3] = [
+                    subscriber_guid.entity_id().entity_key()[0],
                     s.address().get_unique_reader_id()?,
                     0,
-                ]);
+                ];
 
                 let entity_id = EntityId::new(entity_key, entity_kind);
                 let guid = Guid::new(subscriber_guid.prefix(), entity_id);

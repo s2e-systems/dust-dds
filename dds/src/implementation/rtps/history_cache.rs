@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{
     messages::{
         submessage_elements::{Data, ParameterList},
@@ -7,14 +5,12 @@ use super::{
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
-use crate::{
-    implementation::rtps::messages::types::FragmentNumber,
-    infrastructure::{
-        instance::InstanceHandle,
-        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
-        time::Time,
-    },
+use crate::infrastructure::{
+    instance::InstanceHandle,
+    qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
+    time::Time,
 };
+use std::collections::HashMap;
 
 pub struct RtpsWriterCacheChange {
     kind: ChangeKind,
@@ -77,7 +73,7 @@ impl<'a> Iterator for DataFragSubmessagesIter<'a> {
             let reader_id = self.reader_id;
             let writer_id = self.cache_change.writer_guid().entity_id();
             let writer_sn = self.cache_change.sequence_number();
-            let fragment_starting_num = FragmentNumber::new(self.pos as u32 + 1);
+            let fragment_starting_num = self.pos as u32 + 1;
             let fragments_in_submessage = 1;
             let data_size = self.data.iter().map(|d| d.len()).sum::<usize>() as u32;
             let fragment_size = self.data[0].len() as u16;
@@ -255,7 +251,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::new(1),
+            SequenceNumber::from(1),
             TIME_INVALID,
             vec![Data::new(vec![])],
             ParameterList::empty(),
@@ -266,7 +262,7 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::new(1));
+        hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::from(1));
         assert!(hc.change_list().count() == 0);
     }
 
@@ -277,7 +273,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::new(1),
+            SequenceNumber::from(1),
             TIME_INVALID,
             vec![Data::new(vec![])],
             ParameterList::empty(),
@@ -286,7 +282,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::new(2),
+            SequenceNumber::from(2),
             TIME_INVALID,
             vec![Data::new(vec![])],
             ParameterList::empty(),
@@ -303,7 +299,7 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        assert_eq!(hc.get_seq_num_min(), Some(SequenceNumber::new(1)));
+        assert_eq!(hc.get_seq_num_min(), Some(SequenceNumber::from(1)));
     }
 
     #[test]
@@ -313,7 +309,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::new(1),
+            SequenceNumber::from(1),
             TIME_INVALID,
             vec![Data::new(vec![])],
             ParameterList::empty(),
@@ -322,7 +318,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::new(2),
+            SequenceNumber::from(2),
             TIME_INVALID,
             vec![Data::new(vec![])],
             ParameterList::empty(),
@@ -339,6 +335,6 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        assert_eq!(hc.get_seq_num_max(), Some(SequenceNumber::new(2)));
+        assert_eq!(hc.get_seq_num_max(), Some(SequenceNumber::from(2)));
     }
 }

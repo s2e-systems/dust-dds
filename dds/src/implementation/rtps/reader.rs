@@ -1,8 +1,11 @@
-use std::{
-    collections::{HashMap, HashSet},
-    convert::TryInto,
+use super::{
+    endpoint::RtpsEndpoint,
+    messages::{
+        submessage_elements::{Data, Parameter, ParameterList},
+        submessages::{data::DataSubmessageRead, data_frag::DataFragSubmessageRead},
+    },
+    types::{ChangeKind, Guid, GuidPrefix, Locator},
 };
-
 use crate::{
     implementation::{
         data_representation_inline_qos::{
@@ -28,15 +31,9 @@ use crate::{
     },
     topic_definition::type_support::{dds_deserialize, DdsDeserialize, DdsSerializedKey, DdsType},
 };
-
-use super::{
-    endpoint::RtpsEndpoint,
-    messages::{
-        submessage_elements::{Data, Parameter, ParameterList},
-        submessages::{data::DataSubmessageRead, data_frag::DataFragSubmessageRead},
-        types::ParameterId,
-    },
-    types::{ChangeKind, Guid, GuidPrefix, Locator},
+use std::{
+    collections::{HashMap, HashSet},
+    convert::TryInto,
 };
 
 pub type RtpsReaderResult<T> = Result<T, RtpsReaderError>;
@@ -74,7 +71,7 @@ pub fn convert_data_frag_to_cache_change(
         if let Some(p) = inline_qos
             .parameter()
             .iter()
-            .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
         {
             let mut deserializer =
                 cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
@@ -139,7 +136,7 @@ impl InstanceHandleBuilder {
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => match inline_qos
                 .iter()
-                .find(|&x| x.parameter_id() == ParameterId(PID_KEY_HASH))
+                .find(|&x| x.parameter_id() == PID_KEY_HASH)
             {
                 Some(p) => InstanceHandle::new(p.value().try_into().unwrap()),
                 None => dds_deserialize::<DdsSerializedKey>(data)
@@ -277,7 +274,7 @@ impl RtpsReader {
                 if let Some(p) = inline_qos
                     .parameter()
                     .iter()
-                    .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
+                    .find(|&x| x.parameter_id() == PID_STATUS_INFO)
                 {
                     let mut deserializer =
                         cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);

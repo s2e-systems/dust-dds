@@ -2,7 +2,7 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
-        rtps::types::{EntityId, ExpectsInlineQos, Guid, Locator},
+        rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
     topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
@@ -10,11 +10,27 @@ use crate::{
 
 use super::parameter_id_values::{
     PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
-    PID_UNICAST_LOCATOR,
+    PID_UNICAST_LOCATOR, DEFAULT_EXPECTS_INLINE_QOS,
 };
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    derive_more::From,
+    derive_more::AsRef,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+struct ExpectsInlineQos(bool);
+impl Default for ExpectsInlineQos {
+    fn default() -> Self {
+        Self(DEFAULT_EXPECTS_INLINE_QOS)
+    }
+}
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ReaderProxy {
     #[serde(skip_serializing)]
@@ -59,7 +75,7 @@ impl ReaderProxy {
     }
 
     pub fn expects_inline_qos(&self) -> bool {
-        (*self.expects_inline_qos.as_ref()).into()
+        *self.expects_inline_qos.as_ref().as_ref()
     }
 }
 
@@ -121,8 +137,7 @@ mod tests {
     use super::*;
     use crate::builtin_topics::BuiltInTopicKey;
     use crate::implementation::rtps::types::{
-        EntityKey, GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
-        USER_DEFINED_UNKNOWN,
+        BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
     };
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -137,10 +152,10 @@ mod tests {
         let data = DiscoveredReaderData {
             reader_proxy: ReaderProxy::new(
                 Guid::new(
-                    GuidPrefix::new([5; 12]),
-                    EntityId::new(EntityKey::new([11, 12, 13]), USER_DEFINED_READER_WITH_KEY),
+                    [5; 12],
+                    EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
                 ),
-                EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_WRITER_WITH_KEY),
+                EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
                 vec![],
                 vec![],
                 false,
@@ -202,10 +217,10 @@ mod tests {
             reader_proxy: ReaderProxy::new(
                 // must correspond to subscription_builtin_topic_data.key
                 Guid::new(
-                    GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                    EntityId::new(EntityKey::new([4, 0, 0]), USER_DEFINED_UNKNOWN),
+                    [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
+                    EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
                 ),
-                EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_WRITER_WITH_KEY),
+                EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
                 vec![],
                 vec![],
                 false,
@@ -265,10 +280,10 @@ mod tests {
     fn deserialize_reader_proxy() {
         let expected = ReaderProxy::new(
             Guid::new(
-                GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                EntityId::new(EntityKey::new([4, 0, 0]), USER_DEFINED_UNKNOWN),
+                [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
+                EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
             ),
-            EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_WRITER_WITH_KEY),
+            EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
             vec![],
             vec![],
             false,

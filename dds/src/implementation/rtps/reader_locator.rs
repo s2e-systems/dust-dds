@@ -14,7 +14,7 @@ impl RtpsReaderLocator {
         Self {
             locator,
             _expects_inline_qos: expects_inline_qos,
-            highest_sent_change_sn: SequenceNumber::new(0),
+            highest_sent_change_sn: SequenceNumber::from(0),
         }
     }
 

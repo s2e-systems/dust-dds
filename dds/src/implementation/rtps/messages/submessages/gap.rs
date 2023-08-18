@@ -79,15 +79,15 @@ impl Submessage for GapSubmessageWrite<'_> {
 mod tests {
     use crate::implementation::rtps::{
         messages::overall_structure::into_bytes_vec,
-        types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
     fn serialize_gap() {
-        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let gap_start = SequenceNumber::new(5);
-        let gap_list = SequenceNumberSet::new(SequenceNumber::new(10), vec![]);
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let gap_start = SequenceNumber::from(5);
+        let gap_list = SequenceNumberSet::new(SequenceNumber::from(10), vec![]);
         let submessage = GapSubmessageWrite::new(reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
@@ -106,12 +106,10 @@ mod tests {
     use super::*;
     #[test]
     fn deserialize_gap() {
-        let expected_reader_id =
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let expected_writer_id =
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let expected_gap_start = SequenceNumber::new(5);
-        let expected_gap_list = SequenceNumberSet::new(SequenceNumber::new(10), vec![]);
+        let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let expected_gap_start = SequenceNumber::from(5);
+        let expected_gap_list = SequenceNumberSet::new(SequenceNumber::from(10), vec![]);
         #[rustfmt::skip]
         let submessage = GapSubmessageRead::new(&[
             0x08, 0b_0000_0001, 28, 0, // Submessage header

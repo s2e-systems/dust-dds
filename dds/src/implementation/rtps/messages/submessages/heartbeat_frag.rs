@@ -88,17 +88,17 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::overall_structure::into_bytes_vec,
-        types::{EntityKey, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
     fn serialize_heart_beat() {
         let submessage = HeartbeatFragSubmessageWrite::new(
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-            SequenceNumber::new(5),
-            FragmentNumber::new(7),
-            Count::new(2),
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            SequenceNumber::from(5),
+            7,
+            2,
         );
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
@@ -126,13 +126,11 @@ mod tests {
             2, 0, 0, 0, // count: Count
         ]);
 
-        let expected_reader_id =
-            EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let expected_writer_id =
-            EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let expected_writer_sn = SequenceNumber::new(5);
-        let expected_last_fragment_num = FragmentNumber::new(7);
-        let expected_count = Count::new(2);
+        let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let expected_writer_sn = SequenceNumber::from(5);
+        let expected_last_fragment_num = 7;
+        let expected_count = 2;
 
         assert_eq!(expected_reader_id, submessage.reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());

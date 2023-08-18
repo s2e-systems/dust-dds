@@ -81,15 +81,15 @@ impl RtpsWriterProxy {
             multicast_locator_list: multicast_locator_list.to_vec(),
             data_max_size_serialized,
             remote_group_entity_id,
-            first_available_seq_num: SequenceNumber::new(1),
-            last_available_seq_num: SequenceNumber::new(0),
+            first_available_seq_num: SequenceNumber::from(1),
+            last_available_seq_num: SequenceNumber::from(0),
             irrelevant_changes: Vec::new(),
-            highest_received_change_sn: SequenceNumber::new(0),
+            highest_received_change_sn: SequenceNumber::from(0),
             must_send_acknacks: false,
-            last_received_heartbeat_count: Count::new(0),
-            last_received_heartbeat_frag_count: Count::new(0),
-            acknack_count: Count::new(0),
-            nack_frag_count: Count::new(0),
+            last_received_heartbeat_count: 0,
+            last_received_heartbeat_frag_count: 0,
+            acknack_count: 0,
+            nack_frag_count: 0,
             frag_buffer: HashMap::new(),
         }
     }
@@ -180,7 +180,7 @@ impl RtpsWriterProxy {
             .iter()
             .max()
             .cloned()
-            .unwrap_or(SequenceNumber::new(0));
+            .unwrap_or_else(|| SequenceNumber::from(0));
         // The highest sequence number of all present
         let highest_number = max(
             self.last_available_seq_num,
@@ -231,7 +231,6 @@ impl RtpsWriterProxy {
         self.last_received_heartbeat_count
     }
 
-
     pub fn set_last_received_heartbeat_count(&mut self, last_received_heartbeat_count: Count) {
         self.last_received_heartbeat_count = last_received_heartbeat_count;
     }
@@ -266,7 +265,7 @@ impl RtpsWriterProxy {
 
             if let Some(&min) = self.missing_changes().iter().min() {
                 let max = self.missing_changes().iter().max().cloned().unwrap();
-                if !(max - min < SequenceNumber::new(256) && min >= SequenceNumber::new(1)) {
+                if !(max - min < SequenceNumber::from(256) && min >= SequenceNumber::from(1)) {
                     todo!("Use ack_frag")
                 }
             };
@@ -288,12 +287,11 @@ impl RtpsWriterProxy {
                 let mut missing_fragment_number = Vec::new();
                 for fragment_number in 1..=total_fragments_expected {
                     if !owning_data_frag_list.iter().any(|x| {
-                        fragment_number >= u32::from(x.fragment_starting_num)
+                        fragment_number >= x.fragment_starting_num
                             && fragment_number
-                                < u32::from(x.fragment_starting_num)
-                                    + (x.fragments_in_submessage as u32)
+                                < x.fragment_starting_num + (x.fragments_in_submessage as u32)
                     }) {
-                        missing_fragment_number.push(FragmentNumber::new(fragment_number))
+                        missing_fragment_number.push(fragment_number)
                     }
                 }
 
@@ -305,7 +303,7 @@ impl RtpsWriterProxy {
                             self.remote_writer_guid().entity_id(),
                             *seq_num,
                             FragmentNumberSet::new(
-                                 missing_fragment_number[0],
+                                missing_fragment_number[0],
                                 missing_fragment_number,
                             ),
                             self.nack_frag_count,
@@ -325,7 +323,7 @@ impl RtpsWriterProxy {
     }
 
     pub fn is_historical_data_received(&self) -> bool {
-        let at_least_one_heartbeat_received = self.last_received_heartbeat_count > Count::new(0);
+        let at_least_one_heartbeat_received = self.last_received_heartbeat_count > 0;
         at_least_one_heartbeat_received && self.missing_changes().is_empty()
     }
 }

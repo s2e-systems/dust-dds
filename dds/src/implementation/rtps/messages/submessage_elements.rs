@@ -6,10 +6,7 @@ use crate::implementation::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::{
         messages::types::{Count, FragmentNumber},
-        types::{
-            EntityId, EntityKey, EntityKind, GuidPrefix, Locator, LocatorAddress, LocatorKind,
-            LocatorPort, ProtocolVersion, SequenceNumber, VendorId,
-        },
+        types::{EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId},
     },
 };
 use std::io::BufRead;
@@ -71,7 +68,7 @@ impl SequenceNumberSet {
     pub fn new(base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
         if let Some(&min) = set.iter().min() {
             let max = *set.iter().max().unwrap();
-            if !(max - min < SequenceNumber::new(256) && min >= SequenceNumber::new(1)) {
+            if !(max - min < SequenceNumber::from(256) && min >= SequenceNumber::from(1)) {
                 panic!("SequenceNumber set max - min < 256 && min >= 1 must hold")
             }
         }
@@ -122,7 +119,7 @@ impl FragmentNumberSet {
     pub fn new(base: FragmentNumber, set: Vec<FragmentNumber>) -> Self {
         if let Some(&min) = set.iter().min() {
             let max = *set.iter().max().unwrap();
-            if !(max - min < FragmentNumber::new(256) && min >= FragmentNumber::new(1)) {
+            if !(max - min < 256 && min >= 1) {
                 panic!("FragmentNumberSet set max - min < 256 && min >= 1 must hold")
             }
         }
@@ -135,7 +132,7 @@ impl WriteBytes for FragmentNumberSet {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for fragment_number in &self.set {
-            let delta_n = <u32>::from(*fragment_number - self.base);
+            let delta_n = *fragment_number - self.base;
             let bitmap_num = delta_n / 32;
             bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
             if delta_n + 1 > num_bits {
@@ -230,7 +227,7 @@ impl ParameterList {
 
 impl FromBytes for Parameter {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let parameter_id = E::read_u16(&v[0..]);
+        let parameter_id = E::read_i16(&v[0..]);
         let length = E::read_i16(&v[2..]);
         let value = if parameter_id == PID_SENTINEL {
             &[]
@@ -238,7 +235,7 @@ impl FromBytes for Parameter {
             &v[4..length as usize + 4]
         };
 
-        Self::new(ParameterId(parameter_id), value.to_vec())
+        Self::new(parameter_id, value.to_vec())
     }
 }
 
@@ -249,7 +246,7 @@ impl FromBytes for ParameterList {
         let mut parameter = vec![];
         for _ in 0..MAX_PARAMETERS {
             let parameter_i = Parameter::from_bytes::<E>(v);
-            if parameter_i.parameter_id() == ParameterId(PID_SENTINEL) {
+            if parameter_i.parameter_id() == PID_SENTINEL {
                 break;
             } else {
                 v.consume(parameter_i.length() as usize + 4);
@@ -269,8 +266,7 @@ impl WriteBytes for Parameter {
             _ => 0,
         };
         let length = self.value().len() + padding_len;
-        let parameter_id = <u16>::from(self.parameter_id());
-        parameter_id.write_bytes(&mut buf[0..]);
+        self.parameter_id().write_bytes(&mut buf[0..]);
         (length as i16).write_bytes(&mut buf[2..]);
         buf = &mut buf[4..];
         buf[..self.value().len()].copy_from_slice(self.value().as_ref());
@@ -326,15 +322,15 @@ impl FromBytes for Data {
 
 impl FromBytes for EntityId {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(EntityKey::new([v[0], v[1], v[2]]), EntityKind::new(v[3]))
+        Self::new([v[0], v[1], v[2]], v[3])
     }
 }
 
 impl FromBytes for GuidPrefix {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new([
+        [
             v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11],
-        ])
+        ]
     }
 }
 
@@ -343,13 +339,13 @@ impl FromBytes for SequenceNumber {
         let high = E::read_i32(&v[0..]);
         let low = E::read_i32(&v[4..]);
         let value = ((high as i64) << 32) + low as i64;
-        SequenceNumber::new(value)
+        SequenceNumber::from(value)
     }
 }
 
 impl FromBytes for Count {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(E::read_i32(v))
+        E::read_i32(v)
     }
 }
 
@@ -371,10 +367,10 @@ impl FromBytes for SequenceNumberSet {
         let mut set = Vec::with_capacity(256);
         for delta_n in 0..num_bits as usize {
             if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(SequenceNumber::new(base + delta_n as i64));
+                set.push(SequenceNumber::from(base + delta_n as i64));
             }
         }
-        SequenceNumberSet::new(SequenceNumber::new(base), set)
+        SequenceNumberSet::new(SequenceNumber::from(base), set)
     }
 }
 
@@ -396,20 +392,14 @@ impl FromBytes for u32 {
     }
 }
 
-impl FromBytes for FragmentNumber {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(E::read_u32(v))
-    }
-}
-
 impl FromBytes for Locator {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let kind = LocatorKind::new(E::read_i32(&v[0..]));
-        let port = LocatorPort::new(E::read_u32(&v[4..]));
-        let address = LocatorAddress::new([
+        let kind = E::read_i32(&v[0..]);
+        let port = E::read_u32(&v[4..]);
+        let address = [
             v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17], v[18], v[19],
             v[20], v[21], v[22], v[23],
-        ]);
+        ];
         Self::new(kind, port, address)
     }
 }
@@ -435,13 +425,13 @@ impl FromBytes for ProtocolVersion {
 
 impl FromBytes for VendorId {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new([v[0], v[1]])
+        [v[0], v[1]]
     }
 }
 
 impl FromBytes for Time {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let seconds = E::read_i32(&v[0..]);
+        let seconds = E::read_u32(&v[0..]);
         let fractions = E::read_u32(&v[4..]);
         Self::new(seconds, fractions)
     }
@@ -462,10 +452,10 @@ impl FromBytes for FragmentNumberSet {
         let mut set = Vec::with_capacity(256);
         for delta_n in 0..num_bits as usize {
             if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(FragmentNumber::new(base + delta_n as u32));
+                set.push(base + delta_n as u32);
             }
         }
-        Self::new(FragmentNumber::new(base), set)
+        Self::new(base, set)
     }
 }
 
@@ -473,15 +463,14 @@ impl FromBytes for FragmentNumberSet {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_vec,
-        types::{Locator, LocatorAddress, LocatorKind, LocatorPort},
+        messages::overall_structure::into_bytes_vec, types::Locator,
     };
 
     #[test]
     fn serialize_fragment_number_max_gap() {
         let fragment_number_set = FragmentNumberSet {
-            base: FragmentNumber::new(2),
-            set: vec![FragmentNumber::new(2), FragmentNumber::new(257)],
+            base: 2,
+            set: vec![2, 257],
         };
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(fragment_number_set), vec![
@@ -500,16 +489,8 @@ mod tests {
 
     #[test]
     fn serialize_locator_list() {
-        let locator_1 = Locator::new(
-            LocatorKind::new(1),
-            LocatorPort::new(2),
-            LocatorAddress::new([3; 16]),
-        );
-        let locator_2 = Locator::new(
-            LocatorKind::new(2),
-            LocatorPort::new(2),
-            LocatorAddress::new([3; 16]),
-        );
+        let locator_1 = Locator::new(1, 2, [3; 16]);
+        let locator_2 = Locator::new(2, 2, [3; 16]);
         let locator_list = LocatorList::new(vec![locator_1, locator_2]);
         assert_eq!(
             into_bytes_vec(locator_list),
@@ -533,7 +514,7 @@ mod tests {
 
     #[test]
     fn deserialize_count() {
-        let expected = Count::new(7);
+        let expected = 7;
         assert_eq!(
             expected,
             Count::from_bytes::<byteorder::LittleEndian>(&[
@@ -544,16 +525,8 @@ mod tests {
 
     #[test]
     fn deserialize_locator_list() {
-        let locator_1 = Locator::new(
-            LocatorKind::new(1),
-            LocatorPort::new(2),
-            LocatorAddress::new([3; 16]),
-        );
-        let locator_2 = Locator::new(
-            LocatorKind::new(2),
-            LocatorPort::new(2),
-            LocatorAddress::new([3; 16]),
-        );
+        let locator_1 = Locator::new(1, 2, [3; 16]);
+        let locator_2 = Locator::new(2, 2, [3; 16]);
         let expected = LocatorList::new(vec![locator_1, locator_2]);
         #[rustfmt::skip]
         let result = LocatorList::from_bytes::<byteorder::LittleEndian>(&[
@@ -577,7 +550,7 @@ mod tests {
 
     #[test]
     fn deserialize_fragment_number() {
-        let expected = FragmentNumber::new(7);
+        let expected = 7;
         assert_eq!(
             expected,
             FragmentNumber::from_bytes::<byteorder::LittleEndian>(&[
@@ -589,8 +562,8 @@ mod tests {
     #[test]
     fn deserialize_fragment_number_set_max_gap() {
         let expected = FragmentNumberSet {
-            base: FragmentNumber::new(2),
-            set: vec![FragmentNumber::new(2), FragmentNumber::new(257)],
+            base: 2,
+            set: vec![2, 257],
         };
         #[rustfmt::skip]
         let result = FragmentNumberSet::from_bytes::<byteorder::LittleEndian>(&[
@@ -611,7 +584,7 @@ mod tests {
 
     #[test]
     fn deserialize_guid_prefix() {
-        let expected = GuidPrefix::new([1; 12]);
+        let expected = [1; 12];
         #[rustfmt::skip]
         assert_eq!(expected, GuidPrefix::from_bytes::<byteorder::LittleEndian>(&[
             1, 1, 1, 1,
@@ -631,7 +604,7 @@ mod tests {
 
     #[test]
     fn deserialize_vendor_id() {
-        let expected = VendorId::new([1, 2]);
+        let expected = [1, 2];
         assert_eq!(
             expected,
             VendorId::from_bytes::<byteorder::LittleEndian>(&[1, 2,])
@@ -640,7 +613,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number() {
-        let expected = SequenceNumber::new(7);
+        let expected = SequenceNumber::from(7);
         assert_eq!(
             expected,
             SequenceNumber::from_bytes::<byteorder::LittleEndian>(&[
@@ -653,8 +626,8 @@ mod tests {
     #[test]
     fn serialize_sequence_number_max_gap() {
         let sequence_number_set = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
+            base: SequenceNumber::from(2),
+            set: vec![SequenceNumber::from(2), SequenceNumber::from(257)],
         };
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(sequence_number_set), vec![
@@ -675,8 +648,8 @@ mod tests {
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
         let expected = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
+            base: SequenceNumber::from(2),
+            set: vec![SequenceNumber::from(2), SequenceNumber::from(257)],
         };
         #[rustfmt::skip]
         let result = SequenceNumberSet::from_bytes::<byteorder::LittleEndian>(&[
@@ -697,7 +670,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7, 8]);
+        let parameter = Parameter::new(2, vec![5, 6, 7, 8]);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -707,7 +680,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_non_multiple_4() {
-        let parameter = Parameter::new(ParameterId(2), vec![5, 6, 7]);
+        let parameter = Parameter::new(2, vec![5, 6, 7]);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -717,7 +690,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_zero_size() {
-        let parameter = Parameter::new(ParameterId(2), vec![]);
+        let parameter = Parameter::new(2, vec![]);
         assert_eq!(
             into_bytes_vec(parameter),
             vec![
@@ -728,8 +701,8 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let parameter_1 = Parameter::new(ParameterId(2), vec![51, 61, 71, 81]);
-        let parameter_2 = Parameter::new(ParameterId(3), vec![52, 62, 0, 0]);
+        let parameter_1 = Parameter::new(2, vec![51, 61, 71, 81]);
+        let parameter_2 = Parameter::new(3, vec![52, 62, 0, 0]);
         let parameter_list_submessage_element = &ParameterList::new(vec![parameter_1, parameter_2]);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(parameter_list_submessage_element), vec![
@@ -752,7 +725,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
-        let expected = Parameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 0]);
+        let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 0]);
         #[rustfmt::skip]
         let result = Parameter::from_bytes::<byteorder::LittleEndian>(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -764,7 +737,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = Parameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 12]);
+        let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 12]);
         #[rustfmt::skip]
         let result = Parameter::from_bytes::<byteorder::LittleEndian>(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -777,8 +750,8 @@ mod tests {
     #[test]
     fn deserialize_parameter_list() {
         let expected = ParameterList::new(vec![
-            Parameter::new(ParameterId(2), vec![15, 16, 17, 18]),
-            Parameter::new(ParameterId(3), vec![25, 26, 27, 28]),
+            Parameter::new(2, vec![15, 16, 17, 18]),
+            Parameter::new(3, vec![25, 26, 27, 28]),
         ]);
         #[rustfmt::skip]
         let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
@@ -803,10 +776,7 @@ mod tests {
             0x01, 0x01, 0x01, 0x01,
         ];
 
-        let expected = ParameterList::new(vec![Parameter::new(
-            ParameterId(0x32),
-            parameter_value_expected,
-        )]);
+        let expected = ParameterList::new(vec![Parameter::new(0x32, parameter_value_expected)]);
         #[rustfmt::skip]
         let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
             0x32, 0x00, 24, 0x00, // Parameter ID | length
@@ -843,8 +813,8 @@ mod tests {
         ];
 
         let expected = ParameterList::new(vec![
-            Parameter::new(ParameterId(0x32), parameter_value_expected1),
-            Parameter::new(ParameterId(0x32), parameter_value_expected2),
+            Parameter::new(0x32, parameter_value_expected1),
+            Parameter::new(0x32, parameter_value_expected2),
         ]);
         #[rustfmt::skip]
         let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[

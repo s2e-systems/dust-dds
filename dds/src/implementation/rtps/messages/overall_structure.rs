@@ -27,10 +27,9 @@ use crate::implementation::rtps::{
     },
     types::{GuidPrefix, ProtocolVersion, VendorId},
 };
-use byteorder::ByteOrder;
 use std::{io::BufRead, marker::PhantomData, sync::Arc};
 
-type WriteEndianness = byteorder::LittleEndian;
+pub(in crate::implementation::rtps) type WriteEndianness = byteorder::LittleEndian;
 const BUFFER_SIZE: usize = 65000;
 
 pub trait Submessage {
@@ -93,10 +92,10 @@ impl RtpsMessageRead {
         let major = v[4];
         let minor = v[5];
         let version = ProtocolVersion::new(major, minor);
-        let vendor_id = VendorId::new([v[6], v[7]]);
-        let guid_prefix = GuidPrefix::new([
+        let vendor_id = [v[6], v[7]];
+        let guid_prefix = [
             v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17], v[18], v[19],
-        ]);
+        ];
         RtpsMessageHeader {
             protocol,
             version,
@@ -177,34 +176,6 @@ pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
     let len = value.write_bytes(buf.as_mut_slice());
     Vec::from(&buf[0..len])
-}
-
-impl WriteBytes for i32 {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_i32(buf, *self);
-        4
-    }
-}
-
-impl WriteBytes for u32 {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_u32(buf, *self);
-        4
-    }
-}
-
-impl WriteBytes for u16 {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_u16(buf, *self);
-        2
-    }
-}
-
-impl WriteBytes for i16 {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_i16(buf, *self);
-        2
-    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -410,12 +381,8 @@ mod tests {
         messages::{
             submessage_elements::{Data, Parameter, ParameterList},
             submessages::{data::DataSubmessageRead, heartbeat::HeartbeatSubmessageRead},
-            types::ParameterId,
         },
-        types::{
-            EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
-            USER_DEFINED_READER_NO_KEY,
-        },
+        types::{EntityId, SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
@@ -423,8 +390,8 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
+            vendor_id: [9, 8],
+            guid_prefix: [3; 12],
         };
         let message = RtpsMessageWrite::new(header, Vec::new());
         #[rustfmt::skip]
@@ -442,18 +409,18 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
+            vendor_id: [9, 8],
+            guid_prefix: [3; 12],
         };
         let inline_qos_flag = true;
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
-        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
-        let writer_sn = SequenceNumber::new(5);
-        let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
-        let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let writer_sn = SequenceNumber::from(5);
+        let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13]);
+        let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23]);
         let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = &Data::new(vec![]);
 
@@ -495,8 +462,8 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
+            vendor_id: [9, 8],
+            guid_prefix: [3; 12],
         };
 
         #[rustfmt::skip]
@@ -516,8 +483,8 @@ mod tests {
         let expected_header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
-            vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefix::new([3; 12]),
+            vendor_id: [9, 8],
+            guid_prefix: [3; 12],
         };
 
         #[rustfmt::skip]

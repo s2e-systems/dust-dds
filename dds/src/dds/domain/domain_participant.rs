@@ -17,7 +17,7 @@ use crate::{
             group::RtpsGroup,
             messages::overall_structure::RtpsMessageHeader,
             types::{
-                EntityId, EntityKey, Guid, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+                EntityId, Guid, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
                 USER_DEFINED_WRITER_GROUP,
             },
         },
@@ -97,10 +97,7 @@ impl DomainParticipant {
             QosKind::Specific(q) => q,
         };
         let publisher_counter = self.0.create_unique_publisher_id()?;
-        let entity_id = EntityId::new(
-            EntityKey::new([publisher_counter, 0, 0]),
-            USER_DEFINED_WRITER_GROUP,
-        );
+        let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
         let listener = a_listener.map(|l| spawn_actor(DdsPublisherListener::new(l)));
@@ -162,10 +159,7 @@ impl DomainParticipant {
             QosKind::Specific(q) => q,
         };
         let subcriber_counter = self.0.create_unique_subscriber_id()?;
-        let entity_id = EntityId::new(
-            EntityKey::new([subcriber_counter, 0, 0]),
-            USER_DEFINED_READER_GROUP,
-        );
+        let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
         let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
@@ -239,7 +233,7 @@ impl DomainParticipant {
             QosKind::Specific(q) => q,
         };
         let topic_counter = self.0.create_unique_topic_id()?;
-        let entity_id = EntityId::new(EntityKey::new([topic_counter, 0, 0]), USER_DEFINED_TOPIC);
+        let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
 
         let topic = DdsTopic::new(guid, qos, Foo::type_name(), topic_name);
