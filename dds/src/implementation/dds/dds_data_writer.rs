@@ -769,7 +769,7 @@ impl DdsDataWriter {
                         .change_list()
                         .map(|cc| cc.sequence_number())
                         .max()
-                        .unwrap_or(SequenceNumber::from(0)),
+                        .unwrap_or_else(|| SequenceNumber::from(0)),
                     DurabilityQosPolicyKind::TransientLocal => SequenceNumber::from(0)
                 };
 

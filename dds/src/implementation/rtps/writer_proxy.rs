@@ -180,7 +180,7 @@ impl RtpsWriterProxy {
             .iter()
             .max()
             .cloned()
-            .unwrap_or(SequenceNumber::from(0));
+            .unwrap_or_else(|| SequenceNumber::from(0));
         // The highest sequence number of all present
         let highest_number = max(
             self.last_available_seq_num,
