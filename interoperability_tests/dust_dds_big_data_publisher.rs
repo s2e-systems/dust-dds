@@ -25,7 +25,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<big_data::BigDataType>(
+        .create_topic(
             "BigData",
             big_data::BigDataType::type_name(),
             QosKind::Default,

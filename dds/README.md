@@ -37,7 +37,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
             .unwrap();
 
         let topic = participant
-            .create_topic::<HelloWorldType>("HelloWorld", HelloWorldType::type_name(), QosKind::Default, None, NO_STATUS)
+            .create_topic("HelloWorld", HelloWorldType::type_name(), QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let publisher = participant
@@ -45,7 +45,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
             .unwrap();
 
         let writer = publisher
-            .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+            .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let hello_world = HelloWorldType {
@@ -84,7 +84,7 @@ The subscriber side can be implemented as:
             .unwrap();
 
         let topic = participant
-            .create_topic::<HelloWorldType>("HelloWorld", HelloWorldType::type_name(), QosKind::Default, None, NO_STATUS)
+            .create_topic("HelloWorld", HelloWorldType::type_name(), QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let subscriber = participant
@@ -92,7 +92,7 @@ The subscriber side can be implemented as:
             .unwrap();
 
         let reader = subscriber
-            .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
+            .create_datareader::<HelloWorldType>(&topic, QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let samples = reader

@@ -32,7 +32,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<HelloWorldType>(
+        .create_topic(
             "HelloWorld",
             HelloWorldType::type_name(),
             QosKind::Default,
@@ -56,7 +56,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<HelloWorldType>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let reader_cond = reader.get_statuscondition().unwrap();

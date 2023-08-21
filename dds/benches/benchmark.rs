@@ -28,7 +28,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<KeyedData>(
+        .create_topic(
             "MyTopic",
             KeyedData::type_name(),
             QosKind::Default,
@@ -46,7 +46,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _reader = subscriber
-        .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -72,7 +72,7 @@ pub fn best_effort_read_only(c: &mut Criterion) {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<KeyedData>(
+        .create_topic(
             "MyTopic",
             KeyedData::type_name(),
             QosKind::Default,
@@ -90,7 +90,7 @@ pub fn best_effort_read_only(c: &mut Criterion) {
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -135,7 +135,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<KeyedData>(
+        .create_topic(
             "TestTopic",
             KeyedData::type_name(),
             QosKind::Default,

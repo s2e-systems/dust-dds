@@ -257,7 +257,7 @@ impl DomainParticipant {
     /// it, it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
-    pub fn delete_topic<Foo>(&self, a_topic: &Topic) -> DdsResult<()> {
+    pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
         match &a_topic.node() {
             TopicNodeKind::UserDefined(t) => {
                 if self.0.get_guid()?.prefix() != t.address().guid()?.prefix() {
