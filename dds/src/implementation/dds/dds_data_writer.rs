@@ -17,7 +17,7 @@ use crate::{
             },
         },
         rtps::{
-            history_cache::{DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache},
+            writer_history_cache::{DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache},
             messages::{
                 overall_structure::{
                     RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,

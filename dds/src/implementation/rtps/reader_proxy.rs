@@ -1,5 +1,5 @@
 use super::{
-    history_cache::WriterHistoryCache,
+    writer_history_cache::WriterHistoryCache,
     messages::{
         overall_structure::RtpsSubmessageWriteKind,
         submessages::{
