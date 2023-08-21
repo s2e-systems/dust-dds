@@ -155,7 +155,7 @@ impl Subscriber {
                 let status_kind = mask.to_vec();
                 let data_reader = DdsDataReader::new(
                     rtps_reader,
-                    Foo::type_name(),
+                    a_topic.get_type_name()?,
                     a_topic.get_name()?,
                     listener,
                     status_kind,

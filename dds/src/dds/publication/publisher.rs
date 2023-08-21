@@ -145,7 +145,7 @@ impl Publisher {
         let status_kind = mask.to_vec();
         let data_writer = DdsDataWriter::new(
             rtps_writer_impl,
-            Foo::type_name(),
+            a_topic.get_type_name()?,
             topic_name,
             listener,
             status_kind,

@@ -91,7 +91,7 @@ impl<Foo> Topic<Foo> {
     }
 
     /// The name of the type used to create the [`Topic`]
-    pub fn get_type_name(&self) -> DdsResult<&'static str> {
+    pub fn get_type_name(&self) -> DdsResult<String> {
         match &self.node {
             TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
                 t.address().get_type_name()

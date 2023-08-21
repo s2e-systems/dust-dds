@@ -221,7 +221,7 @@ impl DomainParticipant {
     pub fn create_topic<Foo>(
         &self,
         topic_name: &str,
-        _type_name: &str,
+        type_name: &str,
         qos: QosKind<TopicQos>,
         _a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
         _mask: &[StatusKind],
@@ -237,7 +237,7 @@ impl DomainParticipant {
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
 
-        let topic = DdsTopic::new(guid, qos, Foo::type_name(), topic_name);
+        let topic = DdsTopic::new(guid, qos, type_name.to_string(), topic_name);
 
         let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
         let topic_address = topic_actor.address().clone();

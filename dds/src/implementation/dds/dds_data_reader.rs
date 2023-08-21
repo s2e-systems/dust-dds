@@ -195,7 +195,7 @@ impl SubscriptionMatchedStatus {
 pub struct DdsDataReader {
     rtps_reader: RtpsReader,
     matched_writers: Vec<RtpsWriterProxy>,
-    type_name: &'static str,
+    type_name: String,
     topic_name: String,
     liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
@@ -216,7 +216,7 @@ pub struct DdsDataReader {
 impl DdsDataReader {
     pub fn new(
         rtps_reader: RtpsReader,
-        type_name: &'static str,
+        type_name: String,
         topic_name: String,
         listener: Option<Actor<DdsDataReaderListener>>,
         status_kind: Vec<StatusKind>,
@@ -243,8 +243,8 @@ impl DdsDataReader {
         }
     }
 
-    pub fn get_type_name(&self) -> &'static str {
-        self.type_name
+    pub fn get_type_name(&self) -> String {
+        self.type_name.clone()
     }
 
     pub fn get_topic_name(&self) -> String {
