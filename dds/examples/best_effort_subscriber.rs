@@ -60,7 +60,7 @@ fn main() {
 
     let topic = participant
         .create_topic::<BestEffortExampleType>(
-            "BestEffortExampleTopic",
+            "BestEffortExampleTopic",BestEffortExampleType::type_name(),
             QosKind::Default,
             None,
             NO_STATUS,

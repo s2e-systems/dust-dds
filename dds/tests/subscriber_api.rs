@@ -43,7 +43,13 @@ fn default_data_reader_qos() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserType>("default_data_reader_qos", QosKind::Default, None, NO_STATUS)
+        .create_topic::<UserType>(
+            "default_data_reader_qos",
+            UserType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -86,7 +92,13 @@ fn different_readers_have_different_instance_handles() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserType>("default_data_writer_qos", QosKind::Default, None, NO_STATUS)
+        .create_topic::<UserType>(
+            "default_data_writer_qos",
+            UserType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber1 = participant
@@ -133,7 +145,13 @@ fn data_reader_get_topicdescription() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserType>("default_data_writer_qos", QosKind::Default, None, NO_STATUS)
+        .create_topic::<UserType>(
+            "default_data_writer_qos",
+            UserType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant

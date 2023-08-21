@@ -70,7 +70,13 @@ fn not_allowed_to_delete_participant_with_entities() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic::<KeyedData>(
+            "Test",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -100,7 +106,13 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic::<KeyedData>(
+            "Test",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -135,7 +147,13 @@ fn all_objects_are_dropped() {
             .unwrap();
 
         let topic = participant
-            .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+            .create_topic::<KeyedData>(
+                "MyTopic",
+                KeyedData::type_name(),
+                QosKind::Default,
+                None,
+                NO_STATUS,
+            )
             .unwrap();
 
         let publisher = participant
@@ -211,7 +229,13 @@ fn objects_are_correctly_dropped() {
             .unwrap();
         {
             let topic = participant
-                .create_topic::<KeyedData>(topic_name, QosKind::Default, None, NO_STATUS)
+                .create_topic::<KeyedData>(
+                    topic_name,
+                    KeyedData::type_name(),
+                    QosKind::Default,
+                    None,
+                    NO_STATUS,
+                )
                 .unwrap();
             {
                 let publisher = participant

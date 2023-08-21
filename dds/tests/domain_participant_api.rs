@@ -84,7 +84,13 @@ fn create_delete_topic() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<TestType>("abc", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "abc",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     assert_eq!(participant.delete_topic(&topic), Ok(()));
@@ -151,7 +157,13 @@ fn not_allowed_to_delete_topic_from_different_participant() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<TestType>("abc", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "abc",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
     assert_eq!(
         other_participant.delete_topic(&topic),
@@ -170,7 +182,13 @@ fn not_allowed_to_delete_publisher_with_writer() {
         .unwrap();
 
     let writer_topic = participant
-        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "Test",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let publisher = participant
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -196,7 +214,13 @@ fn not_allowed_to_delete_subscriber_with_reader() {
         .unwrap();
 
     let reader_topic = participant
-        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "Test",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -222,7 +246,13 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
         .unwrap();
 
     let reader_topic = participant
-        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "Test",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -248,7 +278,13 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
         .unwrap();
 
     let writer_topic = participant
-        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "Test",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let publisher = participant
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -274,7 +310,13 @@ fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
         .unwrap();
 
     let writer_topic = participant
-        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "Test",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let publisher = participant
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -297,7 +339,13 @@ fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
         .unwrap();
 
     let reader_topic = participant
-        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "Test",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -320,7 +368,13 @@ fn allowed_to_delete_topic_with_created_and_deleted_writer() {
         .unwrap();
 
     let writer_topic = participant
-        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "Test",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let publisher = participant
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -343,7 +397,13 @@ fn allowed_to_delete_topic_with_created_and_deleted_reader() {
         .unwrap();
 
     let reader_topic = participant
-        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "Test",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -448,7 +508,13 @@ fn default_topic_qos() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<TestType>("default_topic_qos", QosKind::Default, None, NO_STATUS)
+        .create_topic::<TestType>(
+            "default_topic_qos",
+            TestType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     assert_eq!(
@@ -516,6 +582,7 @@ fn get_discovery_data_from_builtin_reader() {
     let topic = participant
         .create_topic::<MyData>(
             "topic_name",
+            MyData::type_name(),
             QosKind::Specific(TopicQos {
                 topic_data: TopicDataQosPolicy {
                     value: topic_user_data.clone(),
@@ -682,7 +749,13 @@ fn ignore_publication() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<MyData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic::<MyData>(
+            "MyTopic",
+            MyData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -739,7 +812,13 @@ fn ignore_subscription() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<MyData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic::<MyData>(
+            "MyTopic",
+            MyData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant

@@ -221,6 +221,7 @@ impl DomainParticipant {
     pub fn create_topic<Foo>(
         &self,
         topic_name: &str,
+        _type_name: &str,
         qos: QosKind<TopicQos>,
         _a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
         _mask: &[StatusKind],
@@ -346,6 +347,7 @@ impl DomainParticipant {
                         };
                         let topic = self.create_topic::<Foo>(
                             topic_name,
+                            Foo::type_name(),
                             QosKind::Specific(qos),
                             None,
                             NO_STATUS,
