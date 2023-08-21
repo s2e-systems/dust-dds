@@ -83,7 +83,7 @@ impl Publisher {
 
     pub fn create_datawriter<Foo>(
         &self,
-        a_topic: &Topic<Foo>,
+        a_topic: &Topic,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],

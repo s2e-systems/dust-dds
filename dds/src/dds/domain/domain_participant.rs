@@ -218,17 +218,14 @@ impl DomainParticipant {
     /// The [`Topic`] is bound to a type specified by the generic type parameter 'Foo'. Only types which implement
     /// [`DdsType`] and have a `'static` lifetime can be associated to a [`Topic`].
     /// In case of failure, the operation will return an error and no [`Topic`] will be created.
-    pub fn create_topic<Foo>(
+    pub fn create_topic(
         &self,
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
+        _a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
         _mask: &[StatusKind],
-    ) -> DdsResult<Topic<Foo>>
-    where
-        Foo: DdsType + 'static,
-    {
+    ) -> DdsResult<Topic> {
         let qos = match qos {
             QosKind::Default => self.0.default_topic_qos()?,
             QosKind::Specific(q) => q,
@@ -260,7 +257,7 @@ impl DomainParticipant {
     /// it, it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
-    pub fn delete_topic<Foo>(&self, a_topic: &Topic<Foo>) -> DdsResult<()> {
+    pub fn delete_topic<Foo>(&self, a_topic: &Topic) -> DdsResult<()> {
         match &a_topic.node() {
             TopicNodeKind::UserDefined(t) => {
                 if self.0.get_guid()?.prefix() != t.address().guid()?.prefix() {
@@ -293,7 +290,6 @@ impl DomainParticipant {
 
                 self.0.delete_topic(t.address().get_instance_handle()?)
             }
-            TopicNodeKind::Listener(_) => Ok(()),
         }
     }
 
@@ -308,15 +304,12 @@ impl DomainParticipant {
     /// of times using [`DomainParticipant::delete_topic()`].
     /// Regardless of whether the middleware chooses to propagate topics, the [`DomainParticipant::delete_topic()`] operation deletes only the local proxy.
     /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
-    pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic<Foo>>
-    where
-        Foo: DdsType + 'static,
-    {
+    pub fn find_topic(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic> {
         let start_time = Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(timeout) {
             for topic in self.0.get_user_defined_topic_list()? {
-                if topic.get_name()? == topic_name && topic.get_type_name()? == Foo::type_name() {
+                if topic.get_name()? == topic_name {
                     return Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
                         topic,
                         self.0.clone(),
@@ -328,9 +321,7 @@ impl DomainParticipant {
                 if let Ok(discovered_topic_data) =
                     self.0.discovered_topic_data(discovered_topic_handle)?
                 {
-                    if discovered_topic_data.name() == topic_name
-                        && discovered_topic_data.get_type_name() == Foo::type_name()
-                    {
+                    if discovered_topic_data.name() == topic_name {
                         let qos = TopicQos {
                             topic_data: discovered_topic_data.topic_data().clone(),
                             durability: discovered_topic_data.durability().clone(),
@@ -345,9 +336,9 @@ impl DomainParticipant {
                             lifespan: discovered_topic_data.lifespan().clone(),
                             ownership: discovered_topic_data.ownership().clone(),
                         };
-                        let topic = self.create_topic::<Foo>(
+                        let topic = self.create_topic(
                             topic_name,
-                            Foo::type_name(),
+                            discovered_topic_data.get_type_name(),
                             QosKind::Specific(qos),
                             None,
                             NO_STATUS,
@@ -371,10 +362,7 @@ impl DomainParticipant {
     /// deletion. It is still possible to delete the [`Topic`] returned by [`DomainParticipant::lookup_topicdescription()`], provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a [`Topic`], the operation succeeds and a [`None`] value is returned.
-    pub fn lookup_topicdescription<Foo>(&self, _topic_name: &str) -> DdsResult<Option<Topic<Foo>>>
-    where
-        Foo: DdsType,
-    {
+    pub fn lookup_topicdescription(&self, _topic_name: &str) -> DdsResult<Option<Topic>> {
         todo!()
         // self.call_participant_method(|dp| {
         //     Ok(

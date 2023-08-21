@@ -91,7 +91,7 @@ impl Subscriber {
     /// use the resulting [`DataReaderQos`] to construct the [`DataReader`].
     pub fn create_datareader<Foo>(
         &self,
-        a_topic: &Topic<Foo>,
+        a_topic: &Topic,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
