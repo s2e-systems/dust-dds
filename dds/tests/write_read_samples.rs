@@ -1750,7 +1750,7 @@ fn data_reader_resource_limits() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<UserData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
