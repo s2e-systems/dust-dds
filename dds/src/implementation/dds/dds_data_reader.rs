@@ -21,7 +21,7 @@ use crate::{
         rtps::{
             messages::{
                 overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
-                submessage_elements::{Data, Parameter, ParameterList},
+                submessage_elements::{Data, Parameter},
                 submessages::{
                     data::DataSubmessageRead, data_frag::DataFragSubmessageRead,
                     gap::GapSubmessageRead, heartbeat::HeartbeatSubmessageRead,
@@ -29,6 +29,9 @@ use crate::{
                 },
             },
             reader::RtpsReader,
+            reader_history_cache::{
+                ReaderHistoryCache, RtpsReaderCacheChange, RtpsReaderError, RtpsReaderResult,
+            },
             types::{
                 ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
                 GUID_UNKNOWN,
@@ -46,8 +49,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
-            DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicyKind,
-            QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
+            DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
@@ -70,26 +72,6 @@ use super::{
     dds_subscriber::DdsSubscriber, message_receiver::MessageReceiver, nodes::SubscriberNode,
     status_condition_impl::StatusConditionImpl,
 };
-
-pub type RtpsReaderResult<T> = Result<T, RtpsReaderError>;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum RtpsReaderError {
-    InvalidData(&'static str),
-    Rejected(InstanceHandle, SampleRejectedStatusKind),
-}
-
-pub struct RtpsReaderCacheChange {
-    kind: ChangeKind,
-    writer_guid: Guid,
-    data: Data,
-    inline_qos: ParameterList,
-    source_timestamp: Option<Time>,
-    sample_state: SampleStateKind,
-    disposed_generation_count: i32,
-    no_writers_generation_count: i32,
-    reception_timestamp: Time,
-}
 
 pub fn convert_data_frag_to_cache_change(
     data_frag_submessage: &DataFragSubmessageRead,
@@ -380,7 +362,7 @@ impl SubscriptionMatchedStatus {
 pub struct DdsDataReader {
     rtps_reader: RtpsReader,
     matched_writers: Vec<RtpsWriterProxy>,
-    changes: Vec<RtpsReaderCacheChange>,
+    reader_cache: ReaderHistoryCache,
     qos: DataReaderQos,
     instance_handle_builder: InstanceHandleBuilder,
     instances: HashMap<InstanceHandle, Instance>,
@@ -435,7 +417,7 @@ impl DdsDataReader {
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             status_kind,
             listener,
-            changes: Vec::new(),
+            reader_cache: ReaderHistoryCache::new(),
             qos,
             instance_handle_builder,
             instances: HashMap::new(),
@@ -639,7 +621,8 @@ impl DdsDataReader {
                     if sequence_number >= expected_seq_num {
                         match change_result {
                             Ok(change) => {
-                                let add_change_result = self.add_change(change);
+                                let add_change_result =
+                                    self.reader_cache.add_change(change, &self.qos);
 
                                 match add_change_result {
                                     Ok(instance_handle) => {
@@ -666,7 +649,8 @@ impl DdsDataReader {
                     if sequence_number == expected_seq_num {
                         match change_result {
                             Ok(change) => {
-                                let add_change_result = self.add_change(change);
+                                let add_change_result =
+                                    self.reader_cache.add_change(change, &self.qos);
 
                                 match add_change_result {
                                     Ok(instance_handle) => {
@@ -693,7 +677,7 @@ impl DdsDataReader {
             );
             match change_result {
                 Ok(change) => {
-                    let add_change_result = self.add_change(change);
+                    let add_change_result = self.reader_cache.add_change(change, &self.qos);
 
                     match add_change_result {
                         Ok(h) => DataReceivedResult::NewSampleAdded(h),
@@ -798,7 +782,8 @@ impl DdsDataReader {
                             );
                             match change_results {
                                 Ok(change) => {
-                                    let add_change_result = self.add_change(change);
+                                    let add_change_result =
+                                        self.reader_cache.add_change(change, &self.qos);
                                     match add_change_result {
                                         Ok(instance_handle) => {
                                             writer_proxy.received_change_set(sequence_number);
@@ -839,7 +824,8 @@ impl DdsDataReader {
 
                             match change_result {
                                 Ok(change) => {
-                                    let add_change_result = self.add_change(change);
+                                    let add_change_result =
+                                        self.reader_cache.add_change(change, &self.qos);
                                     match add_change_result {
                                         Ok(instance_handle) => {
                                             writer_proxy.received_change_set(sequence_number);
@@ -1153,7 +1139,7 @@ impl DdsDataReader {
         (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
 
         for index in change_index_list {
-            self.changes[index].sample_state = SampleStateKind::Read;
+            self.reader_cache.changes[index].sample_state = SampleStateKind::Read;
         }
 
         Ok(samples)
@@ -1192,7 +1178,7 @@ impl DdsDataReader {
         (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
 
         while let Some(index) = change_index_list.pop() {
-            self.changes.remove(index);
+            self.reader_cache.changes.remove(index);
         }
 
         Ok(samples)
@@ -1723,192 +1709,6 @@ impl DdsDataReader {
         })
     }
 
-    fn is_max_samples_limit_reached(&self, change_instance_handle: &InstanceHandle) -> bool {
-        let total_samples = self
-            .changes
-            .iter()
-            .filter(|cc| {
-                &self
-                    .instance_handle_builder
-                    .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
-                    .expect("Change in cache must have valid instance handle")
-                    == change_instance_handle
-            })
-            .count();
-
-        total_samples == self.qos.resource_limits.max_samples
-    }
-
-    fn is_max_instances_limit_reached(&self, change_instance_handle: &InstanceHandle) -> bool {
-        let instance_handle_list: HashSet<_> = self
-            .changes
-            .iter()
-            .map(|cc| {
-                self.instance_handle_builder
-                    .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
-                    .expect("Change in cache must have valid instance handle")
-            })
-            .collect();
-
-        if instance_handle_list.contains(change_instance_handle) {
-            false
-        } else {
-            instance_handle_list.len() == self.qos.resource_limits.max_instances
-        }
-    }
-
-    fn is_max_samples_per_instance_limit_reached(
-        &self,
-        change_instance_handle: &InstanceHandle,
-    ) -> bool {
-        let total_samples_of_instance = self
-            .changes
-            .iter()
-            .filter(|cc| {
-                &self
-                    .instance_handle_builder
-                    .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
-                    .expect("Change in cache must have valid instance handle")
-                    == change_instance_handle
-            })
-            .count();
-
-        total_samples_of_instance == self.qos.resource_limits.max_samples_per_instance
-    }
-
-    fn is_sample_of_interest_based_on_time(
-        &self,
-        change: &RtpsReaderCacheChange,
-        change_instance_handle: &InstanceHandle,
-    ) -> bool {
-        let closest_timestamp_before_received_sample = self
-            .changes
-            .iter()
-            .filter(|cc| {
-                &self
-                    .instance_handle_builder
-                    .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
-                    .expect("Change in cache must have valid instance handle")
-                    == change_instance_handle
-            })
-            .filter(|cc| cc.source_timestamp <= change.source_timestamp)
-            .map(|cc| cc.source_timestamp)
-            .max();
-
-        if let Some(Some(t)) = closest_timestamp_before_received_sample {
-            if let Some(sample_source_time) = change.source_timestamp {
-                let sample_separation = sample_source_time - t;
-                DurationKind::Finite(sample_separation)
-                    >= self.qos.time_based_filter.minimum_separation
-            } else {
-                true
-            }
-        } else {
-            true
-        }
-    }
-
-    pub fn add_change(
-        &mut self,
-        mut change: RtpsReaderCacheChange,
-    ) -> RtpsReaderResult<InstanceHandle> {
-        let change_instance_handle = self.instance_handle_builder.build_instance_handle(
-            change.kind,
-            change.data.as_ref(),
-            change.inline_qos.parameter(),
-        )?;
-        if self.is_sample_of_interest_based_on_time(&change, &change_instance_handle) {
-            if self.is_max_samples_limit_reached(&change_instance_handle) {
-                Err(RtpsReaderError::Rejected(
-                    change_instance_handle,
-                    SampleRejectedStatusKind::RejectedBySamplesLimit,
-                ))
-            } else if self.is_max_instances_limit_reached(&change_instance_handle) {
-                Err(RtpsReaderError::Rejected(
-                    change_instance_handle,
-                    SampleRejectedStatusKind::RejectedByInstancesLimit,
-                ))
-            } else if self.is_max_samples_per_instance_limit_reached(&change_instance_handle) {
-                Err(RtpsReaderError::Rejected(
-                    change_instance_handle,
-                    SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
-                ))
-            } else {
-                let num_alive_samples_of_instance = self
-                    .changes
-                    .iter()
-                    .filter(|cc| {
-                        self.instance_handle_builder
-                            .build_instance_handle(
-                                cc.kind,
-                                cc.data.as_ref(),
-                                cc.inline_qos.parameter(),
-                            )
-                            .unwrap()
-                            == change_instance_handle
-                            && cc.kind == ChangeKind::Alive
-                    })
-                    .count() as i32;
-
-                if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-                    if depth == num_alive_samples_of_instance {
-                        let index_sample_to_remove = self
-                            .changes
-                            .iter()
-                            .position(|cc| {
-                                self.instance_handle_builder
-                                    .build_instance_handle(
-                                        cc.kind,
-                                        cc.data.as_ref(),
-                                        cc.inline_qos.parameter(),
-                                    )
-                                    .unwrap()
-                                    == change_instance_handle
-                                    && cc.kind == ChangeKind::Alive
-                            })
-                            .expect("Samples must exist");
-                        self.changes.remove(index_sample_to_remove);
-                    }
-                }
-
-                let instance_entry = self
-                    .instances
-                    .entry(change_instance_handle)
-                    .or_insert_with(Instance::new);
-
-                instance_entry.update_state(change.kind);
-
-                change.disposed_generation_count =
-                    instance_entry.most_recent_disposed_generation_count;
-                change.no_writers_generation_count =
-                    instance_entry.most_recent_no_writers_generation_count;
-                self.changes.push(change);
-
-                match self.qos.destination_order.kind {
-                    DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                        self.changes.sort_by(|a, b| {
-                            a.source_timestamp
-                                .as_ref()
-                                .expect("Missing source timestamp")
-                                .cmp(
-                                    b.source_timestamp
-                                        .as_ref()
-                                        .expect("Missing source timestamp"),
-                                )
-                        });
-                    }
-                    DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
-                        .changes
-                        .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
-                }
-
-                Ok(change_instance_handle)
-            }
-        } else {
-            Ok(change_instance_handle)
-        }
-    }
-
     fn create_indexed_sample_collection<Foo>(
         &mut self,
         max_samples: i32,
@@ -1932,6 +1732,7 @@ impl DdsDataReader {
         let instances = &self.instances;
         let mut instances_in_collection = HashMap::new();
         for (index, cache_change) in self
+            .reader_cache
             .changes
             .iter_mut()
             .enumerate()
