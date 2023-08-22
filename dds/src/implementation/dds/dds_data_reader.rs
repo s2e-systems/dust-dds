@@ -47,7 +47,7 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::{InstanceHandle, HANDLE_NIL},
+        instance::InstanceHandle,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
@@ -74,12 +74,13 @@ use super::{
     status_condition_impl::StatusConditionImpl,
 };
 
-pub fn convert_data_frag_to_cache_change(
+fn convert_data_frag_to_cache_change(
     data_frag_submessage: &DataFragSubmessageRead,
     data: Vec<u8>,
     source_timestamp: Option<Time>,
     source_guid_prefix: GuidPrefix,
     reception_timestamp: Time,
+    instance_handle_builder: &InstanceHandleBuilder,
 ) -> Result<RtpsReaderCacheChange, RtpsReaderError> {
     let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
 
@@ -110,13 +111,19 @@ pub fn convert_data_frag_to_cache_change(
         Ok(ChangeKind::Alive)
     }?;
 
+    let instance_handle = instance_handle_builder.build_instance_handle(
+        change_kind,
+        &data,
+        inline_qos.parameter(),
+    )?;
+
     Ok(RtpsReaderCacheChange {
         kind: change_kind,
         writer_guid,
         data: Data::new(data),
         inline_qos,
         source_timestamp,
-        instance_handle: HANDLE_NIL,
+        instance_handle,
         sample_state: SampleStateKind::NotRead,
         disposed_generation_count: 0, // To be filled up only when getting stored
         no_writers_generation_count: 0, // To be filled up only when getting stored
@@ -722,6 +729,7 @@ impl DdsDataReader {
                                 source_timestamp,
                                 source_guid_prefix,
                                 reception_timestamp,
+                                &self.instance_handle_builder,
                             );
                             match change_results {
                                 Ok(change) => {
@@ -763,6 +771,7 @@ impl DdsDataReader {
                                 source_timestamp,
                                 source_guid_prefix,
                                 reception_timestamp,
+                                &self.instance_handle_builder,
                             );
 
                             match change_result {
