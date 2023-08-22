@@ -1,6 +1,6 @@
 use crate::{
     implementation::utils::actor::ActorAddress, publication::data_writer::AnyDataWriter,
-    subscription::data_reader::AnyDataReader, topic_definition::topic::AnyTopic,
+    subscription::data_reader::AnyDataReader,
 };
 
 use super::{
@@ -33,7 +33,6 @@ pub enum DataReaderNodeKind {
 #[derive(Clone, PartialEq, Eq)]
 pub enum TopicNodeKind {
     UserDefined(TopicNode),
-    Listener(TopicNode),
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -126,8 +125,6 @@ impl TopicNode {
         &self.parent
     }
 }
-
-impl AnyTopic for TopicNode {}
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DataWriterNode {

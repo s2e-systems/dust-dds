@@ -11,7 +11,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::{DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 use serde::{Deserialize, Serialize};
@@ -32,7 +32,13 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "HelloWorld",
+            HelloWorldType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -50,7 +56,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<HelloWorldType>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let reader_cond = reader.get_statuscondition().unwrap();

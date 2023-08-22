@@ -31,7 +31,13 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "HelloWorld",
+            HelloWorldType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant

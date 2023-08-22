@@ -11,6 +11,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    DdsType,
 };
 
 mod hello_world {
@@ -26,8 +27,9 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<hello_world::HelloWorldType>(
+        .create_topic(
             "HelloWorld",
+            hello_world::HelloWorldType::type_name(),
             QosKind::Default,
             None,
             NO_STATUS,
@@ -49,7 +51,12 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<hello_world::HelloWorldType>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let reader_cond = reader.get_statuscondition().unwrap();

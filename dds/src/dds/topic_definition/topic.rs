@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
@@ -10,7 +8,7 @@ use crate::{
     },
     infrastructure::{
         condition::StatusCondition,
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
@@ -23,25 +21,14 @@ use super::{topic_listener::TopicListener, type_support::dds_serialize};
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
-pub struct Topic<Foo> {
+#[derive(PartialEq, Eq)]
+pub struct Topic {
     node: TopicNodeKind,
-    phantom: PhantomData<Foo>,
 }
 
-impl<Foo> PartialEq for Topic<Foo> {
-    fn eq(&self, other: &Self) -> bool {
-        self.node == other.node
-    }
-}
-
-impl<Foo> Eq for Topic<Foo> {}
-
-impl<Foo> Topic<Foo> {
+impl Topic {
     pub(crate) fn new(node: TopicNodeKind) -> Self {
-        Self {
-            node,
-            phantom: PhantomData,
-        }
+        Self { node }
     }
 
     pub(crate) fn node(&self) -> &TopicNodeKind {
@@ -68,47 +55,43 @@ impl<Foo> Topic<Foo> {
 //     }
 // }
 
-impl<Foo> Topic<Foo> {
+impl Topic {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
-                t.address().get_inconsistent_topic_status()
-            }
+            TopicNodeKind::UserDefined(t) => t.address().get_inconsistent_topic_status(),
         }
     }
 }
 
 /// This implementation block represents the TopicDescription operations for the [`Topic`].
-impl<Foo> Topic<Foo> {
+impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+            TopicNodeKind::UserDefined(t) => {
                 Ok(DomainParticipant::new(t.parent_participant().clone()))
             }
         }
     }
 
     /// The name of the type used to create the [`Topic`]
-    pub fn get_type_name(&self) -> DdsResult<&'static str> {
+    pub fn get_type_name(&self) -> DdsResult<String> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
-                t.address().get_type_name()
-            }
+            TopicNodeKind::UserDefined(t) => t.address().get_type_name(),
         }
     }
 
     /// The name used to create the [`Topic`]
     pub fn get_name(&self) -> DdsResult<String> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => t.address().get_name(),
+            TopicNodeKind::UserDefined(t) => t.address().get_name(),
         }
     }
 }
 
 /// This implementation block contains the Entity operations for the [`Topic`].
-impl<Foo> Topic<Foo> {
+impl Topic {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
@@ -123,7 +106,7 @@ impl<Foo> Topic<Foo> {
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+            TopicNodeKind::UserDefined(t) => {
                 let qos = match qos {
                     QosKind::Default => t.parent_participant().default_topic_qos()?,
                     QosKind::Specific(q) => {
@@ -144,7 +127,7 @@ impl<Foo> Topic<Foo> {
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => t.address().get_qos(),
+            TopicNodeKind::UserDefined(t) => t.address().get_qos(),
         }
     }
 
@@ -153,7 +136,7 @@ impl<Foo> Topic<Foo> {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
+            TopicNodeKind::UserDefined(t) => {
                 t.address().get_statuscondition().map(StatusCondition::new)
             }
         }
@@ -213,24 +196,16 @@ impl<Foo> Topic<Foo> {
 
                 Ok(())
             }
-            TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) | TopicNodeKind::Listener(t) => {
-                t.address().get_instance_handle()
-            }
+            TopicNodeKind::UserDefined(t) => t.address().get_instance_handle(),
         }
     }
-}
 
-impl<Foo> Topic<Foo>
-where
-    Foo: 'static,
-{
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
@@ -239,7 +214,7 @@ where
     /// will be removed.
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
+        _a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
@@ -249,8 +224,6 @@ where
         // }
     }
 }
-
-pub trait AnyTopic {}
 
 fn announce_topic(
     domain_participant: &ActorAddress<DdsDomainParticipant>,

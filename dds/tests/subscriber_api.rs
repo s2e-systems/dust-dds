@@ -43,7 +43,13 @@ fn default_data_reader_qos() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserType>("default_data_reader_qos", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "default_data_reader_qos",
+            UserType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -63,7 +69,7 @@ fn default_data_reader_qos() {
         .unwrap();
 
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -86,7 +92,13 @@ fn different_readers_have_different_instance_handles() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserType>("default_data_writer_qos", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "default_data_writer_qos",
+            UserType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber1 = participant
@@ -98,16 +110,16 @@ fn different_readers_have_different_instance_handles() {
         .unwrap();
 
     let reader1_1 = subscriber1
-        .create_datareader(&topic, QosKind::Default, None, &[])
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
     let reader1_2 = subscriber1
-        .create_datareader(&topic, QosKind::Default, None, &[])
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
     let reader2_1 = subscriber2
-        .create_datareader(&topic, QosKind::Default, None, &[])
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
     let reader2_2 = subscriber2
-        .create_datareader(&topic, QosKind::Default, None, &[])
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
 
     assert_ne!(
@@ -133,7 +145,13 @@ fn data_reader_get_topicdescription() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserType>("default_data_writer_qos", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "default_data_writer_qos",
+            UserType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -141,7 +159,7 @@ fn data_reader_get_topicdescription() {
         .unwrap();
 
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Default, None, &[])
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
 
     assert!(reader.get_topicdescription().unwrap() == topic);

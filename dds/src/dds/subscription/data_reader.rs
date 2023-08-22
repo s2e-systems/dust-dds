@@ -559,7 +559,7 @@ impl<Foo> DataReader<Foo> {
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
-    pub fn get_topicdescription(&self) -> DdsResult<Topic<Foo>> {
+    pub fn get_topicdescription(&self) -> DdsResult<Topic> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateful(dr)
             | DataReaderNodeKind::_BuiltinStateless(dr)

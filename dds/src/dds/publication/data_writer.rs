@@ -478,7 +478,7 @@ impl<Foo> DataWriter<Foo> {
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
-    pub fn get_topic(&self) -> DdsResult<Topic<Foo>> {
+    pub fn get_topic(&self) -> DdsResult<Topic> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(_) => todo!(),
             DataWriterNodeKind::Listener(_) => todo!(),
