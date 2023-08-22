@@ -70,7 +70,13 @@ fn not_allowed_to_delete_participant_with_entities() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "Test",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -83,7 +89,7 @@ fn not_allowed_to_delete_participant_with_entities() {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _datawriter = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(domain_participant_factory
@@ -100,7 +106,13 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("Test", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "Test",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .expect("Error creating topic");
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -113,7 +125,7 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _datawriter = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     participant.delete_contained_entities().unwrap();
@@ -135,7 +147,13 @@ fn all_objects_are_dropped() {
             .unwrap();
 
         let topic = participant
-            .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+            .create_topic(
+                "MyTopic",
+                KeyedData::type_name(),
+                QosKind::Default,
+                None,
+                NO_STATUS,
+            )
             .unwrap();
 
         let publisher = participant
@@ -163,7 +181,7 @@ fn all_objects_are_dropped() {
             ..Default::default()
         };
         let reader = subscriber
-            .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+            .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
             .unwrap();
 
         let cond = writer.get_statuscondition().unwrap();
@@ -211,7 +229,13 @@ fn objects_are_correctly_dropped() {
             .unwrap();
         {
             let topic = participant
-                .create_topic::<KeyedData>(topic_name, QosKind::Default, None, NO_STATUS)
+                .create_topic(
+                    topic_name,
+                    KeyedData::type_name(),
+                    QosKind::Default,
+                    None,
+                    NO_STATUS,
+                )
                 .unwrap();
             {
                 let publisher = participant
@@ -219,7 +243,7 @@ fn objects_are_correctly_dropped() {
                     .unwrap();
                 {
                     let _writer = publisher
-                        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+                        .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
                         .unwrap();
                     {
                         let subscriber = participant
@@ -227,7 +251,12 @@ fn objects_are_correctly_dropped() {
                             .unwrap();
                         {
                             let _reader = subscriber
-                                .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
+                                .create_datareader::<KeyedData>(
+                                    &topic,
+                                    QosKind::Default,
+                                    None,
+                                    NO_STATUS,
+                                )
                                 .unwrap();
 
                             assert!(subscriber
@@ -252,12 +281,12 @@ fn objects_are_correctly_dropped() {
                     .is_none(),);
             }
             assert!(participant
-                .lookup_topicdescription::<KeyedData>(topic_name)
+                .lookup_topicdescription(topic_name)
                 .unwrap()
                 .is_some());
         }
         assert!(participant
-            .lookup_topicdescription::<KeyedData>(topic_name)
+            .lookup_topicdescription(topic_name)
             .unwrap()
             .is_none());
         assert!(domain_participant_factory

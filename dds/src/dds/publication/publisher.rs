@@ -83,7 +83,7 @@ impl Publisher {
 
     pub fn create_datawriter<Foo>(
         &self,
-        a_topic: &Topic<Foo>,
+        a_topic: &Topic,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
@@ -145,7 +145,7 @@ impl Publisher {
         let status_kind = mask.to_vec();
         let data_writer = DdsDataWriter::new(
             rtps_writer_impl,
-            Foo::type_name(),
+            a_topic.get_type_name()?,
             topic_name,
             listener,
             status_kind,

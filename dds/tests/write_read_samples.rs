@@ -53,7 +53,13 @@ fn large_data_should_be_fragmented() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<LargeData>("LargeDataTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "LargeDataTopic",
+            LargeData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -81,7 +87,7 @@ fn large_data_should_be_fragmented() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<LargeData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -127,7 +133,13 @@ fn large_data_should_be_fragmented_reliable() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<LargeData>("LargeDataTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "LargeDataTopic",
+            LargeData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -155,7 +167,7 @@ fn large_data_should_be_fragmented_reliable() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<LargeData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -196,7 +208,13 @@ fn samples_are_taken() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -224,7 +242,7 @@ fn samples_are_taken() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -280,7 +298,13 @@ fn read_only_unread_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -308,7 +332,7 @@ fn read_only_unread_samples() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -383,7 +407,13 @@ fn read_next_sample() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -411,7 +441,7 @@ fn read_next_sample() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -451,7 +481,13 @@ fn take_next_sample() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -479,7 +515,7 @@ fn take_next_sample() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -519,7 +555,13 @@ fn each_key_sample_is_read() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -547,7 +589,7 @@ fn each_key_sample_is_read() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -605,7 +647,13 @@ fn read_specific_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -633,7 +681,7 @@ fn read_specific_instance() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -681,7 +729,13 @@ fn read_next_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -709,7 +763,7 @@ fn read_next_instance() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -787,7 +841,13 @@ fn take_next_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -815,7 +875,7 @@ fn take_next_instance() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -893,7 +953,13 @@ fn take_specific_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -921,7 +987,7 @@ fn take_specific_instance() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -969,7 +1035,13 @@ fn take_specific_unknown_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -997,7 +1069,7 @@ fn take_specific_unknown_instance() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1044,7 +1116,13 @@ fn write_read_disposed_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1079,7 +1157,7 @@ fn write_read_disposed_samples() {
     };
 
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1126,7 +1204,13 @@ fn write_read_sample_view_state() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("OtherTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "OtherTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1154,7 +1238,7 @@ fn write_read_sample_view_state() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1215,8 +1299,9 @@ fn inconsistent_topic_status_condition() {
         ..Default::default()
     };
     let topic_best_effort = participant
-        .create_topic::<KeyedData>(
+        .create_topic(
             "Topic",
+            KeyedData::type_name(),
             QosKind::Specific(best_effort_topic_qos),
             None,
             NO_STATUS,
@@ -1241,8 +1326,9 @@ fn inconsistent_topic_status_condition() {
         ..Default::default()
     };
     let _topic_reliable = participant
-        .create_topic::<KeyedData>(
+        .create_topic(
             "Topic",
+            KeyedData::type_name(),
             QosKind::Specific(reliable_topic_qos),
             None,
             NO_STATUS,
@@ -1269,7 +1355,13 @@ fn reader_with_minimum_time_separation_qos() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1306,7 +1398,7 @@ fn reader_with_minimum_time_separation_qos() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1369,7 +1461,13 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1417,7 +1515,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
     };
 
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = reader.get_statuscondition().unwrap();
@@ -1451,7 +1549,13 @@ fn volatile_writer_reader_receives_only_new_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1494,7 +1598,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1532,8 +1636,9 @@ fn write_read_unkeyed_topic() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserData>(
+        .create_topic(
             "write_read_unkeyed_topic",
+            UserData::type_name(),
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1565,7 +1670,7 @@ fn write_read_unkeyed_topic() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<UserData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1598,8 +1703,9 @@ fn data_reader_resource_limits() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<UserData>(
+        .create_topic(
             "data_reader_resource_limits",
+            UserData::type_name(),
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1644,7 +1750,7 @@ fn data_reader_resource_limits() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<UserData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1688,7 +1794,13 @@ fn data_reader_order_by_source_timestamp() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<UserData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            UserData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1776,7 +1888,13 @@ fn data_reader_publication_handle_sample_info() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            UserData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1806,7 +1924,7 @@ fn data_reader_publication_handle_sample_info() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1844,7 +1962,13 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1884,7 +2008,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         ..Default::default()
     };
     let _reader = subscriber
-        .create_datareader(
+        .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos.clone()),
             None,
@@ -1911,7 +2035,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .unwrap();
 
     let reader_new = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     // Wait for writer to match reader
@@ -1944,7 +2068,13 @@ fn write_read_unregistered_samples_are_also_disposed() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1982,7 +2112,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
     };
 
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -2028,7 +2158,13 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -2083,7 +2219,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
     };
 
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = reader.get_statuscondition().unwrap();
@@ -2137,7 +2273,13 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<KeyedData>("TestTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "TestTopic",
+            KeyedData::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)

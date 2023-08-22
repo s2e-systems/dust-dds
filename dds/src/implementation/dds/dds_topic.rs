@@ -33,7 +33,7 @@ impl InconsistentTopicStatus {
 pub struct DdsTopic {
     guid: Guid,
     qos: TopicQos,
-    type_name: &'static str,
+    type_name: String,
     topic_name: String,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
@@ -41,7 +41,7 @@ pub struct DdsTopic {
 }
 
 impl DdsTopic {
-    pub fn new(guid: Guid, qos: TopicQos, type_name: &'static str, topic_name: &str) -> Self {
+    pub fn new(guid: Guid, qos: TopicQos, type_name: String, topic_name: &str) -> Self {
         Self {
             guid,
             qos,
@@ -62,8 +62,8 @@ impl DdsTopic {
         status
     }
 
-    pub fn get_type_name(&self) -> &'static str {
-        self.type_name
+    pub fn get_type_name(&self) -> String {
+        self.type_name.clone()
     }
 
     pub fn get_name(&self) -> String {
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn get_instance_handle() {
         let guid = Guid::new([2; 12], EntityId::new([3; 3], BUILT_IN_PARTICIPANT));
-        let mut topic = DdsTopic::new(guid, TopicQos::default(), "", "");
+        let mut topic = DdsTopic::new(guid, TopicQos::default(), "".to_string(), "");
         topic.enabled = true;
 
         let expected_instance_handle: InstanceHandle = guid.into();

@@ -10,6 +10,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
+    DdsType,
 };
 
 mod hello_world {
@@ -25,8 +26,9 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<hello_world::HelloWorldType>(
+        .create_topic(
             "HelloWorld",
+            hello_world::HelloWorldType::type_name(),
             QosKind::Default,
             None,
             NO_STATUS,

@@ -366,7 +366,7 @@ pub struct DdsDataReader {
     qos: DataReaderQos,
     instance_handle_builder: InstanceHandleBuilder,
     instances: HashMap<InstanceHandle, Instance>,
-    type_name: &'static str,
+    type_name: String,
     topic_name: String,
     liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
@@ -387,7 +387,7 @@ pub struct DdsDataReader {
 impl DdsDataReader {
     pub fn new<Foo>(
         rtps_reader: RtpsReader,
-        type_name: &'static str,
+        type_name: String,
         topic_name: String,
         qos: DataReaderQos,
         listener: Option<Actor<DdsDataReaderListener>>,
@@ -424,8 +424,8 @@ impl DdsDataReader {
         }
     }
 
-    pub fn get_type_name(&self) -> &'static str {
-        self.type_name
+    pub fn get_type_name(&self) -> String {
+        self.type_name.clone()
     }
 
     pub fn get_topic_name(&self) -> String {

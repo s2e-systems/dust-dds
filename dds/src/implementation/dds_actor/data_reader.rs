@@ -68,11 +68,11 @@ impl ActorAddress<DdsDataReader> {
         self.send_blocking(IsEnabled)
     }
 
-    pub fn get_type_name(&self) -> DdsResult<&'static str> {
+    pub fn get_type_name(&self) -> DdsResult<String> {
         struct GetTypeName;
 
         impl Mail for GetTypeName {
-            type Result = &'static str;
+            type Result = String;
         }
 
         impl MailHandler<GetTypeName> for DdsDataReader {

@@ -207,7 +207,7 @@ pub struct DdsDataWriter {
     rtps_writer: RtpsWriter,
     reader_locators: Vec<RtpsReaderLocator>,
     matched_readers: Vec<RtpsReaderProxy>,
-    type_name: &'static str,
+    type_name: String,
     topic_name: String,
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
@@ -223,7 +223,7 @@ pub struct DdsDataWriter {
 impl DdsDataWriter {
     pub fn new(
         rtps_writer: RtpsWriter,
-        type_name: &'static str,
+        type_name: String,
         topic_name: String,
         listener: Option<Actor<DdsDataWriterListener>>,
         status_kind: Vec<StatusKind>,
@@ -367,8 +367,8 @@ impl DdsDataWriter {
         self.topic_name.clone()
     }
 
-    pub fn get_type_name(&self) -> &'static str {
-        self.type_name
+    pub fn get_type_name(&self) -> String {
+        self.type_name.clone()
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {

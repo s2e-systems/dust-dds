@@ -11,6 +11,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    DdsType,
 };
 
 mod big_data {
@@ -26,7 +27,13 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<big_data::BigDataType>("BigData", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "BigData",
+            big_data::BigDataType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -44,7 +51,12 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<big_data::BigDataType>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let reader_cond = reader.get_statuscondition().unwrap();

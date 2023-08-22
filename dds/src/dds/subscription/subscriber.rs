@@ -91,7 +91,7 @@ impl Subscriber {
     /// use the resulting [`DataReaderQos`] to construct the [`DataReader`].
     pub fn create_datareader<Foo>(
         &self,
-        a_topic: &Topic<Foo>,
+        a_topic: &Topic,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
@@ -154,7 +154,7 @@ impl Subscriber {
                 let status_kind = mask.to_vec();
                 let data_reader = DdsDataReader::new::<Foo>(
                     rtps_reader,
-                    Foo::type_name(),
+                    a_topic.get_type_name()?,
                     a_topic.get_name()?,
                     qos,
                     listener,

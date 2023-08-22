@@ -43,7 +43,13 @@ fn default_data_writer_qos() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserType>("default_data_writer_qos", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "default_data_writer_qos",
+            UserType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -63,7 +69,7 @@ fn default_data_writer_qos() {
         .unwrap();
 
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -86,7 +92,13 @@ fn different_writers_have_different_instance_handles() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserType>("default_data_writer_qos", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "default_data_writer_qos",
+            UserType::type_name(),
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher1 = participant
@@ -98,16 +110,16 @@ fn different_writers_have_different_instance_handles() {
         .unwrap();
 
     let writer1_1 = publisher1
-        .create_datawriter(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
     let writer1_2 = publisher1
-        .create_datawriter(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
     let writer2_1 = publisher2
-        .create_datawriter(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
     let writer2_2 = publisher2
-        .create_datawriter(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
 
     assert_ne!(
