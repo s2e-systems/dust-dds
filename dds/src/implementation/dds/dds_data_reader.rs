@@ -549,6 +549,7 @@ impl DdsDataReader {
             source_timestamp,
             source_guid_prefix,
             reception_timestamp,
+            &self.instance_handle_builder,
         );
 
         let data_submessage_received_result = if let Some(writer_proxy) = self
@@ -615,6 +616,7 @@ impl DdsDataReader {
                 source_timestamp,
                 source_guid_prefix,
                 reception_timestamp,
+                &self.instance_handle_builder,
             );
             match change_result {
                 Ok(change) => {
@@ -1593,12 +1595,13 @@ impl DdsDataReader {
         self.rtps_reader.guid()
     }
 
-    pub fn convert_data_to_cache_change(
+    fn convert_data_to_cache_change(
         &self,
         data_submessage: &DataSubmessageRead,
         source_timestamp: Option<Time>,
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
+        instance_handle_builder: &InstanceHandleBuilder,
     ) -> RtpsReaderResult<RtpsReaderCacheChange> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
 
@@ -1637,7 +1640,11 @@ impl DdsDataReader {
             )),
         }?;
 
-        let instance_handle = HANDLE_NIL;
+        let instance_handle = instance_handle_builder.build_instance_handle(
+            change_kind,
+            data.as_ref(),
+            inline_qos.parameter(),
+        )?;
 
         Ok(RtpsReaderCacheChange {
             kind: change_kind,
