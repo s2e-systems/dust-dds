@@ -30,7 +30,8 @@ use crate::{
             },
             reader::RtpsReader,
             reader_history_cache::{
-                ReaderHistoryCache, RtpsReaderCacheChange, RtpsReaderError, RtpsReaderResult,
+                Instance, ReaderHistoryCache, RtpsReaderCacheChange, RtpsReaderError,
+                RtpsReaderResult,
             },
             types::{
                 ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
@@ -46,7 +47,7 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
+        instance::{InstanceHandle, HANDLE_NIL},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
@@ -115,6 +116,7 @@ pub fn convert_data_frag_to_cache_change(
         data: Data::new(data),
         inline_qos,
         source_timestamp,
+        instance_handle: HANDLE_NIL,
         sample_state: SampleStateKind::NotRead,
         disposed_generation_count: 0, // To be filled up only when getting stored
         no_writers_generation_count: 0, // To be filled up only when getting stored
@@ -161,65 +163,6 @@ impl InstanceHandleBuilder {
                     .into(),
             },
         })
-    }
-}
-
-struct Instance {
-    view_state: ViewStateKind,
-    instance_state: InstanceStateKind,
-    most_recent_disposed_generation_count: i32,
-    most_recent_no_writers_generation_count: i32,
-}
-
-impl Instance {
-    fn new() -> Self {
-        Self {
-            view_state: ViewStateKind::New,
-            instance_state: InstanceStateKind::Alive,
-            most_recent_disposed_generation_count: 0,
-            most_recent_no_writers_generation_count: 0,
-        }
-    }
-
-    fn update_state(&mut self, change_kind: ChangeKind) {
-        match self.instance_state {
-            InstanceStateKind::Alive => {
-                if change_kind == ChangeKind::NotAliveDisposed
-                    || change_kind == ChangeKind::NotAliveDisposedUnregistered
-                {
-                    self.instance_state = InstanceStateKind::NotAliveDisposed;
-                } else if change_kind == ChangeKind::NotAliveUnregistered {
-                    self.instance_state = InstanceStateKind::NotAliveNoWriters;
-                }
-            }
-            InstanceStateKind::NotAliveDisposed => {
-                if change_kind == ChangeKind::Alive {
-                    self.instance_state = InstanceStateKind::Alive;
-                    self.most_recent_disposed_generation_count += 1;
-                }
-            }
-            InstanceStateKind::NotAliveNoWriters => {
-                if change_kind == ChangeKind::Alive {
-                    self.instance_state = InstanceStateKind::Alive;
-                    self.most_recent_no_writers_generation_count += 1;
-                }
-            }
-        }
-
-        match self.view_state {
-            ViewStateKind::New => (),
-            ViewStateKind::NotNew => {
-                if change_kind == ChangeKind::NotAliveDisposed
-                    || change_kind == ChangeKind::NotAliveUnregistered
-                {
-                    self.view_state = ViewStateKind::New;
-                }
-            }
-        }
-    }
-
-    fn mark_viewed(&mut self) {
-        self.view_state = ViewStateKind::NotNew;
     }
 }
 
@@ -365,7 +308,6 @@ pub struct DdsDataReader {
     reader_cache: ReaderHistoryCache,
     qos: DataReaderQos,
     instance_handle_builder: InstanceHandleBuilder,
-    instances: HashMap<InstanceHandle, Instance>,
     type_name: String,
     topic_name: String,
     liveliness_changed_status: LivelinessChangedStatus,
@@ -420,7 +362,6 @@ impl DdsDataReader {
             reader_cache: ReaderHistoryCache::new(),
             qos,
             instance_handle_builder,
-            instances: HashMap::new(),
         }
     }
 
@@ -1696,12 +1637,15 @@ impl DdsDataReader {
             )),
         }?;
 
+        let instance_handle = HANDLE_NIL;
+
         Ok(RtpsReaderCacheChange {
             kind: change_kind,
             writer_guid,
             data,
             inline_qos,
             source_timestamp,
+            instance_handle,
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: 0, // To be filled up only when getting stored
             no_writers_generation_count: 0, // To be filled up only when getting stored
@@ -1721,7 +1665,7 @@ impl DdsDataReader {
         Foo: for<'de> DdsDeserialize<'de>,
     {
         if let Some(h) = specific_instance_handle {
-            if !self.instances.contains_key(&h) {
+            if !self.reader_cache.instances.contains_key(&h) {
                 return Err(DdsError::BadParameter);
             }
         };
@@ -1729,7 +1673,7 @@ impl DdsDataReader {
         let mut indexed_samples = Vec::new();
 
         let instance_handle_build = &self.instance_handle_builder;
-        let instances = &self.instances;
+        let instances = &self.reader_cache.instances;
         let mut instances_in_collection = HashMap::new();
         for (index, cache_change) in self
             .reader_cache
@@ -1769,12 +1713,14 @@ impl DdsDataReader {
                 .unwrap()
                 .update_state(cache_change.kind);
             let sample_state = cache_change.sample_state;
-            let view_state = self.instances[&sample_instance_handle].view_state;
-            let instance_state = self.instances[&sample_instance_handle].instance_state;
+            let view_state = self.reader_cache.instances[&sample_instance_handle].view_state;
+            let instance_state =
+                self.reader_cache.instances[&sample_instance_handle].instance_state;
 
-            let absolute_generation_rank = (self.instances[&sample_instance_handle]
+            let absolute_generation_rank = (self.reader_cache.instances[&sample_instance_handle]
                 .most_recent_disposed_generation_count
-                + self.instances[&sample_instance_handle].most_recent_no_writers_generation_count)
+                + self.reader_cache.instances[&sample_instance_handle]
+                    .most_recent_no_writers_generation_count)
                 - (instances_in_collection[&sample_instance_handle]
                     .most_recent_disposed_generation_count
                     + instances_in_collection[&sample_instance_handle]
@@ -1838,7 +1784,8 @@ impl DdsDataReader {
                 sample.sample_info.sample_rank = total_instance_samples_in_collection as i32;
             }
 
-            self.instances
+            self.reader_cache
+                .instances
                 .get_mut(&handle)
                 .expect("Sample must exist on hash map")
                 .mark_viewed()
@@ -1853,8 +1800,14 @@ impl DdsDataReader {
 
     fn next_instance(&self, previous_handle: Option<InstanceHandle>) -> Option<InstanceHandle> {
         match previous_handle {
-            Some(p) => self.instances.keys().filter(|&h| h > &p).min().cloned(),
-            None => self.instances.keys().min().cloned(),
+            Some(p) => self
+                .reader_cache
+                .instances
+                .keys()
+                .filter(|&h| h > &p)
+                .min()
+                .cloned(),
+            None => self.reader_cache.instances.keys().min().cloned(),
         }
     }
 }
