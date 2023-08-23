@@ -725,7 +725,7 @@ fn announce_data_writer(
         .get_builtin_publisher()?
         .data_writer_list()?
         .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+        .find(|x| x.get_type_name().unwrap() == "DiscoveredWriterData")
     {
         sedp_writer_announcer.write_w_timestamp(
             serialized_data,

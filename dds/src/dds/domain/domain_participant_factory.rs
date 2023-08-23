@@ -662,7 +662,7 @@ fn process_spdp_metatraffic(
 
     if let Some(spdp_data_reader) = builtin_subscriber.data_reader_list()?.iter().find(|dr| {
         if let Ok(type_name) = dr.get_type_name() {
-            type_name == SpdpDiscoveredParticipantData::type_name()
+            type_name == "SpdpDiscoveredParticipantData"
         } else {
             false
         }

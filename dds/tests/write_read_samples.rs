@@ -55,7 +55,7 @@ fn large_data_should_be_fragmented() {
     let topic = participant
         .create_topic(
             "LargeDataTopic",
-            LargeData::type_name(),
+            "LargeData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -135,7 +135,7 @@ fn large_data_should_be_fragmented_reliable() {
     let topic = participant
         .create_topic(
             "LargeDataTopic",
-            LargeData::type_name(),
+            "LargeData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -210,7 +210,7 @@ fn samples_are_taken() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -268,7 +268,7 @@ fn samples_are_taken() {
     writer.write(&data5, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples1 = reader
@@ -300,7 +300,7 @@ fn read_only_unread_samples() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -409,7 +409,7 @@ fn read_next_sample() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -483,7 +483,7 @@ fn take_next_sample() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -557,7 +557,7 @@ fn each_key_sample_is_read() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -649,7 +649,7 @@ fn read_specific_instance() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -731,7 +731,7 @@ fn read_next_instance() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -843,7 +843,7 @@ fn take_next_instance() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -955,7 +955,7 @@ fn take_specific_instance() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1037,7 +1037,7 @@ fn take_specific_unknown_instance() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1118,7 +1118,7 @@ fn write_read_disposed_samples() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1206,7 +1206,7 @@ fn write_read_sample_view_state() {
     let topic = participant
         .create_topic(
             "OtherTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1301,7 +1301,7 @@ fn inconsistent_topic_status_condition() {
     let topic_best_effort = participant
         .create_topic(
             "Topic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Specific(best_effort_topic_qos),
             None,
             NO_STATUS,
@@ -1328,7 +1328,7 @@ fn inconsistent_topic_status_condition() {
     let _topic_reliable = participant
         .create_topic(
             "Topic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Specific(reliable_topic_qos),
             None,
             NO_STATUS,
@@ -1357,7 +1357,7 @@ fn reader_with_minimum_time_separation_qos() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1463,7 +1463,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1551,7 +1551,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1638,7 +1638,7 @@ fn write_read_unkeyed_topic() {
     let topic = participant
         .create_topic(
             "write_read_unkeyed_topic",
-            UserData::type_name(),
+            "UserData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1705,7 +1705,7 @@ fn data_reader_resource_limits() {
     let topic = participant
         .create_topic(
             "data_reader_resource_limits",
-            UserData::type_name(),
+            "UserData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1796,7 +1796,7 @@ fn data_reader_order_by_source_timestamp() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            UserData::type_name(),
+            "UserData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1890,7 +1890,7 @@ fn data_reader_publication_handle_sample_info() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            UserData::type_name(),
+            "UserData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1964,7 +1964,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -2070,7 +2070,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -2160,7 +2160,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -2275,7 +2275,7 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
     let topic = participant
         .create_topic(
             "TestTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,

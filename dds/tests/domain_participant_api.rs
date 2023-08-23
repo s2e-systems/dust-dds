@@ -86,7 +86,7 @@ fn create_delete_topic() {
     let topic = participant
         .create_topic(
             "abc",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -159,7 +159,7 @@ fn not_allowed_to_delete_topic_from_different_participant() {
     let topic = participant
         .create_topic(
             "abc",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -184,7 +184,7 @@ fn not_allowed_to_delete_publisher_with_writer() {
     let writer_topic = participant
         .create_topic(
             "Test",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -216,7 +216,7 @@ fn not_allowed_to_delete_subscriber_with_reader() {
     let reader_topic = participant
         .create_topic(
             "Test",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -248,7 +248,7 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
     let reader_topic = participant
         .create_topic(
             "Test",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -280,7 +280,7 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
     let writer_topic = participant
         .create_topic(
             "Test",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -312,7 +312,7 @@ fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
     let writer_topic = participant
         .create_topic(
             "Test",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -341,7 +341,7 @@ fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
     let reader_topic = participant
         .create_topic(
             "Test",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -370,7 +370,7 @@ fn allowed_to_delete_topic_with_created_and_deleted_writer() {
     let writer_topic = participant
         .create_topic(
             "Test",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -399,7 +399,7 @@ fn allowed_to_delete_topic_with_created_and_deleted_reader() {
     let reader_topic = participant
         .create_topic(
             "Test",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -510,7 +510,7 @@ fn default_topic_qos() {
     let topic = participant
         .create_topic(
             "default_topic_qos",
-            TestType::type_name(),
+            "TestType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -582,7 +582,7 @@ fn get_discovery_data_from_builtin_reader() {
     let topic = participant
         .create_topic(
             "topic_name",
-            MyData::type_name(),
+            "MyData",
             QosKind::Specific(TopicQos {
                 topic_data: TopicDataQosPolicy {
                     value: topic_user_data.clone(),
@@ -751,7 +751,7 @@ fn ignore_publication() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -814,7 +814,7 @@ fn ignore_subscription() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,

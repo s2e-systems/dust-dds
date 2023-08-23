@@ -27,7 +27,7 @@ fn main() {
     let topic = participant
         .create_topic(
             "BestEffortExampleTopic",
-            BestEffortExampleType::type_name(),
+            "BestEffortExampleType",
             QosKind::Default,
             None,
             NO_STATUS,

@@ -33,7 +33,7 @@ fn main() {
     let topic = participant
         .create_topic(
             "HelloWorld",
-            HelloWorldType::type_name(),
+            "HelloWorldType",
             QosKind::Default,
             None,
             NO_STATUS,

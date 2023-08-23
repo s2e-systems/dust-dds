@@ -10,7 +10,6 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    DdsType,
 };
 mod big_data {
     include!("build/idl/big_data.rs");
@@ -27,7 +26,7 @@ fn main() {
     let topic = participant
         .create_topic(
             "BigData",
-            big_data::BigDataType::type_name(),
+            "BigDataType",
             QosKind::Default,
             None,
             NO_STATUS,

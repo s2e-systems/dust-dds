@@ -78,11 +78,7 @@ impl ParticipantBuiltinTopicData {
     }
 }
 
-impl DdsType for ParticipantBuiltinTopicData {
-    fn type_name() -> &'static str {
-        "ParticipantBuiltinTopicData"
-    }
-}
+impl DdsType for ParticipantBuiltinTopicData {}
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TopicBuiltinTopicData {
@@ -202,11 +198,7 @@ impl TopicBuiltinTopicData {
     }
 }
 
-impl DdsType for TopicBuiltinTopicData {
-    fn type_name() -> &'static str {
-        "TopicBuiltinTopicData"
-    }
-}
+impl DdsType for TopicBuiltinTopicData {}
 
 #[derive(
     Debug,
@@ -375,11 +367,7 @@ impl PublicationBuiltinTopicData {
     }
 }
 
-impl DdsType for PublicationBuiltinTopicData {
-    fn type_name() -> &'static str {
-        "PublicationBuiltinTopicData"
-    }
-}
+impl DdsType for PublicationBuiltinTopicData {}
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SubscriptionBuiltinTopicData {
@@ -516,8 +504,4 @@ impl SubscriptionBuiltinTopicData {
     }
 }
 
-impl DdsType for SubscriptionBuiltinTopicData {
-    fn type_name() -> &'static str {
-        "SubscriptionBuiltinTopicData"
-    }
-}
+impl DdsType for SubscriptionBuiltinTopicData {}

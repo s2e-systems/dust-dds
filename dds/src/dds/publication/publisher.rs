@@ -1,7 +1,6 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::{
             dds_data_writer::DdsDataWriter,
             dds_data_writer_listener::DdsDataWriterListener,
@@ -209,7 +208,7 @@ impl Publisher {
                         .get_builtin_publisher()?
                         .data_writer_list()?
                         .iter()
-                        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+                        .find(|x| x.get_type_name().unwrap() == "DiscoveredWriterData")
                     {
                         sedp_writer_announcer.dispose_w_timestamp(
                             instance_serialized_key,
@@ -233,7 +232,7 @@ impl Publisher {
                     //     .get_builtin_publisher_mut()
                     //     .stateful_data_writer_list()
                     //     .iter()
-                    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+                    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData)
                     //     .unwrap()
                     //     .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
                     //     .expect("Should not fail to write built-in message");
@@ -260,7 +259,7 @@ impl Publisher {
         //         crate::implementation::behavior::user_defined_publisher::lookup_datawriter(
         //             dp,
         //             self.0.guid(),
-        //             Foo::type_name(),
+        //             Foo,
         //             topic_name,
         //         )?
         //         .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x))),

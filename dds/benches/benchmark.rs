@@ -30,7 +30,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -74,7 +74,7 @@ pub fn best_effort_read_only(c: &mut Criterion) {
     let topic = participant
         .create_topic(
             "MyTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -137,7 +137,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     let topic = participant
         .create_topic(
             "TestTopic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,

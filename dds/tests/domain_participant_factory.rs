@@ -72,7 +72,7 @@ fn not_allowed_to_delete_participant_with_entities() {
     let topic = participant
         .create_topic(
             "Test",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -108,7 +108,7 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
     let topic = participant
         .create_topic(
             "Test",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -149,7 +149,7 @@ fn all_objects_are_dropped() {
         let topic = participant
             .create_topic(
                 "MyTopic",
-                KeyedData::type_name(),
+                "KeyedData",
                 QosKind::Default,
                 None,
                 NO_STATUS,
@@ -231,7 +231,7 @@ fn objects_are_correctly_dropped() {
             let topic = participant
                 .create_topic(
                     topic_name,
-                    KeyedData::type_name(),
+                    "KeyedData",
                     QosKind::Default,
                     None,
                     NO_STATUS,

@@ -1,7 +1,6 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         dds::{
             dds_data_reader::DdsDataReader,
             dds_data_reader_listener::DdsDataReaderListener,
@@ -224,9 +223,7 @@ impl Subscriber {
                             .get_builtin_publisher()?
                             .data_writer_list()?
                             .iter()
-                            .find(|x| {
-                                x.get_type_name().unwrap() == DiscoveredReaderData::type_name()
-                            })
+                            .find(|x| x.get_type_name().unwrap() == "DiscoveredReaderData")
                         {
                             sedp_reader_announcer.dispose_w_timestamp(
                                 instance_serialized_key,
@@ -289,7 +286,7 @@ impl Subscriber {
         //             Ok(crate::implementation::behavior::user_defined_subscriber::lookup_datareader(
         //                 dp.ok_or(DdsError::AlreadyDeleted)?,
         //                 s.guid(),
-        //                 Foo::type_name(),
+        //                 Foo,
         //                 topic_name,
         //             )?
         //             .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x))))

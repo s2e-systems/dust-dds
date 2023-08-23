@@ -850,7 +850,7 @@ fn announce_data_reader(
         .get_builtin_publisher()?
         .data_writer_list()?
         .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
+        .find(|x| x.get_type_name().unwrap() == "DiscoveredReaderData")
     {
         sedp_reader_announcer.write_w_timestamp(
             serialized_data,

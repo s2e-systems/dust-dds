@@ -141,7 +141,7 @@ impl DdsDomainParticipant {
         let _spdp_topic_participant = DdsTopic::new(
             spdp_topic_guid,
             TopicQos::default(),
-            SpdpDiscoveredParticipantData::type_name().to_string(),
+            "SpdpDiscoveredParticipantData".to_string(),
             DCPS_PARTICIPANT,
         );
 
@@ -150,7 +150,7 @@ impl DdsDomainParticipant {
         let _sedp_topic_topics = DdsTopic::new(
             sedp_topics_guid,
             TopicQos::default(),
-            DiscoveredTopicData::type_name().to_string(),
+            "DiscoveredTopicData".to_string(),
             DCPS_TOPIC,
         );
 
@@ -159,7 +159,7 @@ impl DdsDomainParticipant {
         let _sedp_topic_publications = DdsTopic::new(
             sedp_publications_guid,
             TopicQos::default(),
-            DiscoveredWriterData::type_name().to_string(),
+            "DiscoveredWriterData".to_string(),
             DCPS_PUBLICATION,
         );
 
@@ -168,7 +168,7 @@ impl DdsDomainParticipant {
         let _sedp_topic_subscriptions = DdsTopic::new(
             sedp_subscriptions_guid,
             TopicQos::default(),
-            DiscoveredReaderData::type_name().to_string(),
+            "DiscoveredReaderData".to_string(),
             DCPS_SUBSCRIPTION,
         );
 
@@ -178,7 +178,7 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             )),
-            SpdpDiscoveredParticipantData::type_name().to_string(),
+            "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
             None,
             vec![],
@@ -189,7 +189,7 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             )),
-            DiscoveredTopicData::type_name().to_string(),
+            "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
             None,
             vec![],
@@ -200,7 +200,7 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             )),
-            DiscoveredWriterData::type_name().to_string(),
+            "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
             None,
             vec![],
@@ -211,7 +211,7 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             )),
-            DiscoveredReaderData::type_name().to_string(),
+            "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
             None,
             vec![],
@@ -263,7 +263,7 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
             )),
-            SpdpDiscoveredParticipantData::type_name().to_string(),
+            "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
             None,
             vec![],
@@ -298,7 +298,7 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             )),
-            DiscoveredTopicData::type_name().to_string(),
+            "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
             None,
             vec![],
@@ -311,7 +311,7 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             )),
-            DiscoveredWriterData::type_name().to_string(),
+            "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
             None,
             vec![],
@@ -324,7 +324,7 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             )),
-            DiscoveredReaderData::type_name().to_string(),
+            "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
             None,
             vec![],

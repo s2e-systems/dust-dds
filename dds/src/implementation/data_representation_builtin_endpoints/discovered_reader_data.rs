@@ -9,8 +9,8 @@ use crate::{
 };
 
 use super::parameter_id_values::{
-    PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
-    PID_UNICAST_LOCATOR, DEFAULT_EXPECTS_INLINE_QOS,
+    DEFAULT_EXPECTS_INLINE_QOS, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_ENTITYID,
+    PID_MULTICAST_LOCATOR, PID_UNICAST_LOCATOR,
 };
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
@@ -107,10 +107,6 @@ impl DiscoveredReaderData {
 
 impl DdsType for DiscoveredReaderData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-    fn type_name() -> &'static str {
-        "DiscoveredReaderData"
-    }
 
     fn has_key() -> bool {
         true

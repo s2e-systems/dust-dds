@@ -9,7 +9,6 @@ struct StructNoKey {
 
 #[test]
 fn test_struct_no_key_info() {
-    assert_eq!(StructNoKey::type_name(), "StructNoKey");
     assert!(!StructNoKey::has_key());
 }
 
@@ -37,7 +36,6 @@ struct StructWithKey {
 
 #[test]
 fn test_struct_with_key_info() {
-    assert_eq!(StructWithKey::type_name(), "StructWithKey");
     assert!(StructWithKey::has_key());
 }
 
@@ -74,7 +72,6 @@ struct StructManyKeys {
 
 #[test]
 fn test_struct_many_keys_info() {
-    assert_eq!(StructManyKeys::type_name(), "StructManyKeys");
     assert!(StructManyKeys::has_key());
 }
 
@@ -119,7 +116,6 @@ struct TypeWithGeneric<T> {
 
 #[test]
 fn test_dds_type_derive_with_generic_info() {
-    assert_eq!(TypeWithGeneric::<i32>::type_name(), "TypeWithGeneric");
     assert!(TypeWithGeneric::<i32>::has_key());
 }
 
@@ -149,7 +145,6 @@ struct TupleNoKey(i32, i32);
 
 #[test]
 fn test_tuple_no_key_info() {
-    assert_eq!(TupleNoKey::type_name(), "TupleNoKey");
     assert!(!TupleNoKey::has_key());
 }
 
@@ -173,7 +168,6 @@ struct TupleWithKeys(i32, #[key] i32, #[key] bool, char);
 
 #[test]
 fn test_tuple_with_keys_info() {
-    assert_eq!(TupleWithKeys::type_name(), "TupleWithKeys");
     assert!(TupleWithKeys::has_key());
 }
 
@@ -203,7 +197,6 @@ enum EnumNoKey {
 
 #[test]
 fn test_enum_no_key_info() {
-    assert_eq!(EnumNoKey::type_name(), "EnumNoKey");
     assert!(!EnumNoKey::has_key());
 }
 
@@ -231,7 +224,6 @@ enum EnumKey {
 
 #[test]
 fn test_enum_key_info() {
-    assert_eq!(EnumKey::type_name(), "EnumKey");
     assert!(EnumKey::has_key());
 }
 

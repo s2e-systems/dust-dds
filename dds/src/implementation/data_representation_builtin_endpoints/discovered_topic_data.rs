@@ -26,10 +26,6 @@ impl DiscoveredTopicData {
 impl DdsType for DiscoveredTopicData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
-    fn type_name() -> &'static str {
-        "DiscoveredTopicData"
-    }
-
     fn has_key() -> bool {
         true
     }

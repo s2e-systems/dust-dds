@@ -92,10 +92,6 @@ pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 impl DdsType for DiscoveredWriterData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
-    fn type_name() -> &'static str {
-        "DiscoveredWriterData"
-    }
-
     fn has_key() -> bool {
         true
     }

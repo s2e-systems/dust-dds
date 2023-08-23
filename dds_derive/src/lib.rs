@@ -36,15 +36,10 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
 
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
     let ident = input.ident;
-    let type_name = ident.to_string();
 
     if is_key {
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
-                fn type_name() -> &'static str {
-                    #type_name
-                }
-
                 fn has_key() -> bool {
                     true
                 }
@@ -71,10 +66,6 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
 
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
-                fn type_name() -> &'static str {
-                    #type_name
-                }
-
                 fn has_key() -> bool {
                     true
                 }
@@ -93,10 +84,6 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     } else {
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
-                fn type_name() -> &'static str {
-                    #type_name
-                }
-
                 fn has_key() -> bool {
                     false
                 }
@@ -182,4 +169,3 @@ fn has_key_attribute(attr_list: &[Attribute]) -> bool {
             .unwrap_or(false)
     })
 }
-

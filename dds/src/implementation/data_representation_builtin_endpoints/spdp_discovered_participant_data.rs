@@ -216,10 +216,6 @@ impl SpdpDiscoveredParticipantData {
 impl DdsType for SpdpDiscoveredParticipantData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
-    fn type_name() -> &'static str {
-        "SpdpDiscoveredParticipantData"
-    }
-
     fn has_key() -> bool {
         true
     }

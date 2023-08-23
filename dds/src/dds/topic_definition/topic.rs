@@ -236,7 +236,7 @@ fn announce_topic(
         .get_builtin_publisher()?
         .data_writer_list()?
         .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredTopicData::type_name())
+        .find(|x| x.get_type_name().unwrap() == "DiscoveredTopicData")
     {
         sedp_topic_announcer.write_w_timestamp(
             serialized_data,

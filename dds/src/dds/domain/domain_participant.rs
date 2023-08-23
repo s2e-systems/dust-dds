@@ -3,7 +3,6 @@ use std::time::Instant;
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         dds::{
             dds_domain_participant::DdsDomainParticipant,
             dds_publisher::DdsPublisher,
@@ -369,7 +368,7 @@ impl DomainParticipant {
         //         crate::implementation::behavior::domain_participant::lookup_topicdescription(
         //             dp,
         //             topic_name,
-        //             Foo::type_name(),
+        //             Foo,
         //         )?
         //         .map(|x| Topic::new(TopicNodeKind::UserDefined(x))),
         //     )
@@ -737,7 +736,7 @@ impl DomainParticipant {
                         if let Some(participant_announcer) =
                             builtin_publisher.data_writer_list()?.iter().find(|dw| {
                                 if let Ok(name) = dw.get_type_name() {
-                                    name == SpdpDiscoveredParticipantData::type_name()
+                                    name == "SpdpDiscoveredParticipantData"
                                 } else {
                                     false
                                 }

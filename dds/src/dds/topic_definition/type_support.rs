@@ -40,16 +40,10 @@ impl AsRef<[u8]> for DdsSerializedKey {
     }
 }
 
-impl DdsType for DdsSerializedKey {
-    fn type_name() -> &'static str {
-        "DdsSerializedKey"
-    }
-}
+impl DdsType for DdsSerializedKey {}
 
 pub trait DdsType {
     const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
-
-    fn type_name() -> &'static str;
 
     fn has_key() -> bool {
         false
