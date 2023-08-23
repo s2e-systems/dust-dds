@@ -29,7 +29,7 @@ use crate::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     },
-    topic_definition::type_support::{dds_deserialize, DdsDeserialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{DdsDeserialize, DdsSerializedKey, DdsType},
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -110,13 +110,13 @@ struct InstanceHandleBuilder(fn(&mut &[u8]) -> RtpsReaderResult<DdsSerializedKey
 impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
-        Foo: for<'de> serde::Deserialize<'de> + DdsType,
+        Foo: for<'de> DdsDeserialize<'de> + DdsType,
     {
         fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>
         where
-            Foo: for<'de> serde::Deserialize<'de> + DdsType,
+            Foo: for<'de> DdsDeserialize<'de> + DdsType,
         {
-            Ok(dds_deserialize::<Foo>(data)
+            Ok(Foo::dds_deserialize(data)
                 .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize data"))?
                 .get_serialized_key())
         }
@@ -139,7 +139,7 @@ impl InstanceHandleBuilder {
                 .find(|&x| x.parameter_id() == PID_KEY_HASH)
             {
                 Some(p) => InstanceHandle::new(p.value().try_into().unwrap()),
-                None => dds_deserialize::<DdsSerializedKey>(data)
+                None => DdsSerializedKey::dds_deserialize(data)
                     .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize key"))?
                     .into(),
             },
@@ -581,7 +581,7 @@ impl RtpsReader {
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (
                     Some(
-                        dds_deserialize(cache_change.data.as_ref())
+                        Foo::dds_deserialize(cache_change.data.as_ref())
                             .map_err(|_err| DdsError::Error)?,
                     ),
                     true,

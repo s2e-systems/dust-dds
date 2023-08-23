@@ -141,7 +141,7 @@ mod tests {
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{dds_deserialize, DdsSerialize};
+    use crate::topic_definition::type_support::{DdsDeserialize, DdsSerialize};
 
     #[test]
     fn serialize_all_default() {
@@ -268,7 +268,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredReaderData = dds_deserialize(data).unwrap();
+        let result = DiscoveredReaderData::dds_deserialize(data).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -297,7 +297,7 @@ mod tests {
             21, 22, 23, 0xc2, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: ReaderProxy = dds_deserialize(data).unwrap();
+        let result = ReaderProxy::dds_deserialize(data).unwrap();
         assert_eq!(result, expected);
     }
 }

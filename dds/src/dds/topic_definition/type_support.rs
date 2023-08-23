@@ -152,48 +152,54 @@ where
     }
 }
 
-pub trait DdsDeserialize<'de>: serde::Deserialize<'de> {}
-
-impl<'de, Foo> DdsDeserialize<'de> for Foo where Foo: serde::Deserialize<'de> {}
-
-pub fn dds_deserialize<'de, T>(mut data: &'de [u8]) -> DdsResult<T>
+pub trait DdsDeserialize<'de>
 where
-    T: serde::Deserialize<'de>,
+    Self: Sized,
 {
-    let mut representation_identifier: RepresentationType = [0, 0];
-    data.read_exact(&mut representation_identifier)
-        .map_err(|err| PreconditionNotMet(err.to_string()))?;
+    fn dds_deserialize(data: &'de [u8]) -> DdsResult<Self>;
+}
 
-    let mut representation_option: RepresentationOptions = [0, 0];
-    data.read_exact(&mut representation_option)
-        .map_err(|err| PreconditionNotMet(err.to_string()))?;
+impl<'de, Foo> DdsDeserialize<'de> for Foo
+where
+    Foo: serde::Deserialize<'de>,
+{
+    fn dds_deserialize(mut data: &'de [u8]) -> DdsResult<Self> {
+        let mut representation_identifier: RepresentationType = [0, 0];
+        data.read_exact(&mut representation_identifier)
+            .map_err(|err| PreconditionNotMet(err.to_string()))?;
 
-    match representation_identifier {
-        CDR_BE => {
-            let mut deserializer =
-                cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
-            serde::Deserialize::deserialize(&mut deserializer)
-                .map_err(|err| PreconditionNotMet(err.to_string()))
+        let mut representation_option: RepresentationOptions = [0, 0];
+        data.read_exact(&mut representation_option)
+            .map_err(|err| PreconditionNotMet(err.to_string()))?;
+
+        match representation_identifier {
+            CDR_BE => {
+                let mut deserializer =
+                    cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
+                serde::Deserialize::deserialize(&mut deserializer)
+                    .map_err(|err| PreconditionNotMet(err.to_string()))
+            }
+            CDR_LE => {
+                let mut deserializer =
+                    cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(data, cdr::Infinite);
+                serde::Deserialize::deserialize(&mut deserializer)
+                    .map_err(|err| PreconditionNotMet(err.to_string()))
+            }
+            PL_CDR_BE => {
+                let mut deserializer = ParameterListDeserializer::<byteorder::BigEndian>::new(data);
+                serde::Deserialize::deserialize(&mut deserializer)
+                    .map_err(|err| PreconditionNotMet(err.to_string()))
+            }
+            PL_CDR_LE => {
+                let mut deserializer =
+                    ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
+                serde::Deserialize::deserialize(&mut deserializer)
+                    .map_err(|err| PreconditionNotMet(err.to_string()))
+            }
+            _ => Err(PreconditionNotMet(
+                "Illegal representation identifier".to_string(),
+            )),
         }
-        CDR_LE => {
-            let mut deserializer =
-                cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(data, cdr::Infinite);
-            serde::Deserialize::deserialize(&mut deserializer)
-                .map_err(|err| PreconditionNotMet(err.to_string()))
-        }
-        PL_CDR_BE => {
-            let mut deserializer = ParameterListDeserializer::<byteorder::BigEndian>::new(data);
-            serde::Deserialize::deserialize(&mut deserializer)
-                .map_err(|err| PreconditionNotMet(err.to_string()))
-        }
-        PL_CDR_LE => {
-            let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
-            serde::Deserialize::deserialize(&mut deserializer)
-                .map_err(|err| PreconditionNotMet(err.to_string()))
-        }
-        _ => Err(PreconditionNotMet(
-            "Illegal representation identifier".to_string(),
-        )),
     }
 }
 

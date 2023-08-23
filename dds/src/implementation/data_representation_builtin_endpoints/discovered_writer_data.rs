@@ -120,7 +120,7 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
-    use crate::topic_definition::type_support::{dds_deserialize, DdsSerialize};
+    use crate::topic_definition::type_support::{DdsDeserialize, DdsSerialize};
 
     use super::*;
 
@@ -249,7 +249,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredWriterData = dds_deserialize(data).unwrap();
+        let result = DiscoveredWriterData::dds_deserialize(data).unwrap();
         assert_eq!(result, expected);
     }
 }
