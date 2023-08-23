@@ -25,7 +25,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{dds_serialize, DdsSerialize, DdsType},
+        type_support::{DdsKeySerialize, DdsSerialize, DdsType},
     },
 };
 
@@ -66,7 +66,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsType + DdsSerialize,
+    Foo: DdsType + DdsSerialize + DdsKeySerialize,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -184,8 +184,9 @@ where
                 }
             }?;
 
-            let instance_serialized_key =
-                dds_serialize(&instance.get_serialized_key()).map_err(|_err| DdsError::Error)?;
+            let instance_serialized_key = instance
+                .dds_serialize_key()
+                .map_err(|_err| DdsError::Error)?;
 
             match &self.0 {
                 DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
@@ -277,7 +278,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
+        let serialized_data = data.dds_serialize().map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
@@ -360,8 +361,7 @@ where
             }
         }?;
 
-        let instance_serialized_key =
-            dds_serialize(&data.get_serialized_key()).map_err(|_err| DdsError::Error)?;
+        let instance_serialized_key = data.dds_serialize_key().map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
@@ -718,7 +718,7 @@ fn announce_data_writer(
     domain_participant: &ActorAddress<DdsDomainParticipant>,
     discovered_writer_data: &DiscoveredWriterData,
 ) -> DdsResult<()> {
-    let serialized_data = dds_serialize(discovered_writer_data)?;
+    let serialized_data = discovered_writer_data.dds_serialize()?;
     let timestamp = domain_participant.get_current_time()?;
 
     if let Some(sedp_writer_announcer) = domain_participant

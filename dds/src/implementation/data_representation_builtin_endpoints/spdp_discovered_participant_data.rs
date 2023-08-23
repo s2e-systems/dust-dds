@@ -14,11 +14,12 @@ use crate::{
 };
 
 use super::parameter_id_values::{
-    DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
-    PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
-    PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
-    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID, DEFAULT_EXPECTS_INLINE_QOS,
+    DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION,
+    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+    PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
+    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+    PID_VENDORID,
 };
 
 #[derive(
@@ -237,7 +238,7 @@ mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos_policy::UserDataQosPolicy,
-        topic_definition::type_support::{dds_deserialize, dds_serialize},
+        topic_definition::type_support::{dds_deserialize, DdsSerialize},
     };
 
     #[test]
@@ -468,7 +469,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let result = dds_serialize(&data).unwrap();
+        let result = data.dds_serialize().unwrap();
         assert_eq!(result, expected);
     }
 }

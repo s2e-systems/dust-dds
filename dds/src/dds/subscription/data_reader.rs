@@ -18,7 +18,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{dds_serialize, DdsDeserialize, DdsType},
+        type_support::{DdsDeserialize, DdsSerialize, DdsType},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -843,7 +843,7 @@ fn announce_data_reader(
     domain_participant: &ActorAddress<DdsDomainParticipant>,
     discovered_reader_data: DiscoveredReaderData,
 ) -> DdsResult<()> {
-    let serialized_data = dds_serialize(&discovered_reader_data)?;
+    let serialized_data = discovered_reader_data.dds_serialize()?;
     let timestamp = domain_participant.get_current_time()?;
 
     if let Some(sedp_reader_announcer) = domain_participant

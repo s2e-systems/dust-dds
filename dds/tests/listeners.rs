@@ -75,13 +75,7 @@ fn deadline_missed_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            "MyData",
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -709,13 +703,7 @@ fn on_data_available_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            "MyData",
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -813,13 +801,7 @@ fn data_on_readers_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            "MyData",
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -927,13 +909,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            "MyData",
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1042,13 +1018,7 @@ fn participant_deadline_missed_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            "MyData",
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1690,13 +1660,7 @@ fn subscriber_deadline_missed_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            "MyData",
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant

@@ -16,7 +16,7 @@ use crate::{
     DdsType,
 };
 
-use super::{topic_listener::TopicListener, type_support::dds_serialize};
+use super::{topic_listener::TopicListener, type_support::DdsSerialize};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
@@ -229,7 +229,7 @@ fn announce_topic(
     domain_participant: &ActorAddress<DdsDomainParticipant>,
     discovered_topic_data: DiscoveredTopicData,
 ) -> DdsResult<()> {
-    let serialized_data = dds_serialize(&discovered_topic_data)?;
+    let serialized_data = discovered_topic_data.dds_serialize()?;
     let timestamp = domain_participant.get_current_time()?;
 
     if let Some(sedp_topic_announcer) = domain_participant

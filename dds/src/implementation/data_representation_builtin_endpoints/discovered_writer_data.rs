@@ -120,7 +120,7 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
-    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
+    use crate::topic_definition::type_support::{dds_deserialize, DdsSerialize};
 
     use super::*;
 
@@ -184,7 +184,7 @@ mod tests {
             21, 22, 23, 0xc9, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let result = dds_serialize(&data).unwrap();
+        let result = data.dds_serialize().unwrap();
         assert_eq!(result, expected);
     }
 

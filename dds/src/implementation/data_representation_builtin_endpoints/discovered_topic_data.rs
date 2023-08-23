@@ -51,7 +51,7 @@ mod tests {
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
+    use crate::topic_definition::type_support::{dds_deserialize, DdsSerialize};
 
     use super::*;
 
@@ -94,7 +94,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let result = dds_serialize(&data).unwrap();
+        let result = data.dds_serialize().unwrap();
         assert_eq!(result, expected);
     }
 
