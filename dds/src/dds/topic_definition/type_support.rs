@@ -40,14 +40,16 @@ impl AsRef<[u8]> for DdsSerializedKey {
     }
 }
 
-impl DdsType for DdsSerializedKey {}
+impl DdsType for DdsSerializedKey {
+    fn has_key() -> bool {
+        false
+    }
+}
 
 pub trait DdsType {
     const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
 
-    fn has_key() -> bool {
-        false
-    }
+    fn has_key() -> bool;
 
     fn get_serialized_key(&self) -> DdsSerializedKey {
         if Self::has_key() {

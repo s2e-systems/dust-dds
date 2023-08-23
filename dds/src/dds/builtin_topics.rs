@@ -78,7 +78,11 @@ impl ParticipantBuiltinTopicData {
     }
 }
 
-impl DdsType for ParticipantBuiltinTopicData {}
+impl DdsType for ParticipantBuiltinTopicData {
+    fn has_key() -> bool {
+        true
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TopicBuiltinTopicData {
@@ -198,7 +202,11 @@ impl TopicBuiltinTopicData {
     }
 }
 
-impl DdsType for TopicBuiltinTopicData {}
+impl DdsType for TopicBuiltinTopicData {
+    fn has_key() -> bool {
+        true
+    }
+}
 
 #[derive(
     Debug,
@@ -367,7 +375,11 @@ impl PublicationBuiltinTopicData {
     }
 }
 
-impl DdsType for PublicationBuiltinTopicData {}
+impl DdsType for PublicationBuiltinTopicData {
+    fn has_key() -> bool {
+        true
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SubscriptionBuiltinTopicData {
@@ -504,4 +516,8 @@ impl SubscriptionBuiltinTopicData {
     }
 }
 
-impl DdsType for SubscriptionBuiltinTopicData {}
+impl DdsType for SubscriptionBuiltinTopicData {
+    fn has_key() -> bool {
+        true
+    }
+}
