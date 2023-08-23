@@ -25,7 +25,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsKeySerialize, DdsSerialize, DdsType},
+        type_support::{DdsSerializeKey, DdsSerialize, DdsType},
     },
 };
 
@@ -66,7 +66,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsType + DdsSerialize + DdsKeySerialize,
+    Foo: DdsType + DdsSerialize + DdsSerializeKey,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
