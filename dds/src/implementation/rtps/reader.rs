@@ -227,7 +227,7 @@ impl RtpsReader {
         qos: DataReaderQos,
     ) -> Self
     where
-        Foo: DdsType + for<'de> serde::Deserialize<'de>,
+        Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
         let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
         Self {
