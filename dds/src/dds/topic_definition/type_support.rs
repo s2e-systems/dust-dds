@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::Read;
 
 use crate::{
     implementation::parameter_list_serde::{
@@ -71,11 +71,11 @@ pub trait DdsType {
 }
 
 pub trait DdsSerializeKey {
-    fn dds_serialize_key(&self) -> DdsResult<Vec<u8>>;
+    fn dds_serialize_key(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
 
 impl<T> DdsSerializeKey for T {
-    fn dds_serialize_key(&self) -> DdsResult<Vec<u8>> {
+    fn dds_serialize_key(&self, _writer: impl std::io::Write) -> DdsResult<()> {
         todo!()
     }
 }
@@ -85,15 +85,14 @@ pub trait DdsKeyDeserialize {
 }
 
 pub trait DdsSerialize {
-    fn dds_serialize(&self) -> DdsResult<Vec<u8>>;
+    fn dds_serialize(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
 
 impl<Foo> DdsSerialize for Foo
 where
     Foo: serde::Serialize + DdsType,
 {
-    fn dds_serialize(&self) -> DdsResult<Vec<u8>> {
-        let mut writer = vec![];
+    fn dds_serialize(&self, mut writer: impl std::io::Write) -> DdsResult<()> {
         match Self::REPRESENTATION_IDENTIFIER {
             CDR_BE => {
                 writer
@@ -145,7 +144,7 @@ where
             }
             _ => todo!(),
         };
-        Ok(writer)
+        Ok(())
     }
 }
 
@@ -224,4 +223,22 @@ where
         cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
     serde::Deserialize::deserialize(&mut deserializer)
         .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))
+}
+
+pub fn dds_serialize_to_bytes<T>(value: &T) -> DdsResult<Vec<u8>>
+where
+    T: DdsSerialize,
+{
+    let mut writer = Vec::new();
+    value.dds_serialize(&mut writer)?;
+    Ok(writer)
+}
+
+pub fn dds_serialize_key_to_bytes<T>(value: &T) -> DdsResult<Vec<u8>>
+where
+    T: DdsSerializeKey,
+{
+    let mut writer = Vec::new();
+    value.dds_serialize_key(&mut writer)?;
+    Ok(writer)
 }

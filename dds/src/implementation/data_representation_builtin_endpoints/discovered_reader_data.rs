@@ -141,7 +141,7 @@ mod tests {
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{DdsDeserialize, DdsSerialize};
+    use crate::topic_definition::type_support::{dds_serialize_to_bytes, DdsDeserialize};
 
     #[test]
     fn serialize_all_default() {
@@ -203,7 +203,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let result = data.dds_serialize().unwrap();
+        let result = dds_serialize_to_bytes(&data).unwrap();
         assert_eq!(result, expected);
     }
 

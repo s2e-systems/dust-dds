@@ -238,7 +238,7 @@ mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos_policy::UserDataQosPolicy,
-        topic_definition::type_support::{DdsDeserialize, DdsSerialize},
+        topic_definition::type_support::{dds_serialize_to_bytes, DdsDeserialize},
     };
 
     #[test]
@@ -469,7 +469,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let result = data.dds_serialize().unwrap();
+        let result = dds_serialize_to_bytes(&data).unwrap();
         assert_eq!(result, expected);
     }
 }

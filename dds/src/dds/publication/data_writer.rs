@@ -25,7 +25,10 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsSerializeKey, DdsSerialize, DdsType},
+        type_support::{
+            dds_serialize_key_to_bytes, dds_serialize_to_bytes, DdsSerialize, DdsSerializeKey,
+            DdsType,
+        },
     },
 };
 
@@ -184,9 +187,8 @@ where
                 }
             }?;
 
-            let instance_serialized_key = instance
-                .dds_serialize_key()
-                .map_err(|_err| DdsError::Error)?;
+            let instance_serialized_key =
+                dds_serialize_key_to_bytes(instance).map_err(|_err| DdsError::Error)?;
 
             match &self.0 {
                 DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
@@ -278,7 +280,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let serialized_data = data.dds_serialize().map_err(|_err| DdsError::Error)?;
+        let serialized_data = dds_serialize_to_bytes(data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
@@ -361,7 +363,8 @@ where
             }
         }?;
 
-        let instance_serialized_key = data.dds_serialize_key().map_err(|_err| DdsError::Error)?;
+        let instance_serialized_key =
+            dds_serialize_key_to_bytes(&data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
@@ -718,7 +721,7 @@ fn announce_data_writer(
     domain_participant: &ActorAddress<DdsDomainParticipant>,
     discovered_writer_data: &DiscoveredWriterData,
 ) -> DdsResult<()> {
-    let serialized_data = discovered_writer_data.dds_serialize()?;
+    let serialized_data = dds_serialize_to_bytes(discovered_writer_data)?;
     let timestamp = domain_participant.get_current_time()?;
 
     if let Some(sedp_writer_announcer) = domain_participant

@@ -35,7 +35,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{DdsSerialize, DdsType},
+        type_support::{dds_serialize_to_bytes, DdsType},
     },
 };
 
@@ -744,9 +744,9 @@ impl DomainParticipant {
                         {
                             let spdp_discovered_participant_data =
                                 domain_participant_address.as_spdp_discovered_participant_data()?;
-                            let serialized_data = spdp_discovered_participant_data
-                                .dds_serialize()
-                                .map_err(|_err| DdsError::Error)?;
+                            let serialized_data =
+                                dds_serialize_to_bytes(&spdp_discovered_participant_data)
+                                    .map_err(|_err| DdsError::Error)?;
                             let timestamp = domain_participant_address.get_current_time()?;
                             participant_announcer.write_w_timestamp(
                                 serialized_data,
