@@ -364,7 +364,7 @@ where
         }?;
 
         let instance_serialized_key =
-            dds_serialize_key_to_bytes(&data).map_err(|_err| DdsError::Error)?;
+            dds_serialize_key_to_bytes(data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw

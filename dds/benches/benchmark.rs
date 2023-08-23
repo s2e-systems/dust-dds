@@ -12,7 +12,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::{DdsType},
+    topic_definition::type_support::{DdsSerializeKey, DdsType},
 };
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
@@ -20,6 +20,22 @@ struct KeyedData {
     #[key]
     id: u8,
     value: u8,
+}
+
+impl DdsSerializeKey for KeyedData {
+    fn dds_serialize_key(
+        &self,
+        writer: impl std::io::Write,
+    ) -> dust_dds::infrastructure::error::DdsResult<()> {
+        #[derive(serde::Serialize)]
+        struct KeyedDataKeyHolder<'a> {
+            id: &'a u8,
+        }
+
+        let key_holder = KeyedDataKeyHolder { id: &self.id };
+
+        dust_dds::topic_definition::type_support::serialize_key_cdr(&key_holder, writer)
+    }
 }
 
 pub fn best_effort_write_only(c: &mut Criterion) {

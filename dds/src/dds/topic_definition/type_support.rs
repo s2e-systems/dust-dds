@@ -74,10 +74,10 @@ pub trait DdsSerializeKey {
     fn dds_serialize_key(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
 
-impl<T> DdsSerializeKey for T {
-    fn dds_serialize_key(&self, _writer: impl std::io::Write) -> DdsResult<()> {
-        todo!()
-    }
+pub trait DdsKey {
+    type KeyHolder;
+
+    fn get_key(&self) -> Self::KeyHolder;
 }
 
 pub trait DdsKeyDeserialize {
@@ -241,4 +241,13 @@ where
     let mut writer = Vec::new();
     value.dds_serialize_key(&mut writer)?;
     Ok(writer)
+}
+
+pub fn serialize_key_cdr<T>(value: &T, writer: impl std::io::Write) -> DdsResult<()>
+where
+    T: serde::Serialize,
+{
+    let mut serializer = cdr::ser::Serializer::<_, byteorder::BigEndian>::new(writer);
+    serde::Serialize::serialize(value, &mut serializer)
+        .map_err(|err| PreconditionNotMet(err.to_string()))
 }

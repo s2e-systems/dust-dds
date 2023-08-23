@@ -6,6 +6,7 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
+    topic_definition::type_support::DdsSerializeKey,
     DdsType,
 };
 
@@ -14,6 +15,22 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, DdsType, Debug)]
 struct BestEffortExampleType {
     id: i32,
+}
+
+impl DdsSerializeKey for BestEffortExampleType {
+    fn dds_serialize_key(
+        &self,
+        writer: impl std::io::Write,
+    ) -> dust_dds::infrastructure::error::DdsResult<()> {
+        #[derive(serde::Serialize)]
+        struct BestEffortExampleTypeKeyHolder<'a> {
+            id: &'a i32,
+        }
+
+        let key_holder = BestEffortExampleTypeKeyHolder { id: &self.id };
+
+        dust_dds::topic_definition::type_support::serialize_key_cdr(&key_holder, writer)
+    }
 }
 
 fn main() {

@@ -21,8 +21,7 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::
-    DdsType,
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -31,6 +30,15 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 #[derive(Debug, PartialEq, DdsType, serde::Serialize, serde::Deserialize)]
 struct UserData(u8);
 
+impl dust_dds::topic_definition::type_support::DdsSerializeKey for UserData {
+    fn dds_serialize_key(
+        &self,
+        _writer: impl std::io::Write,
+    ) -> dust_dds::infrastructure::error::DdsResult<()> {
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct KeyedData {
     #[key]
@@ -38,11 +46,43 @@ struct KeyedData {
     value: u8,
 }
 
+impl dust_dds::topic_definition::type_support::DdsSerializeKey for KeyedData {
+    fn dds_serialize_key(
+        &self,
+        writer: impl std::io::Write,
+    ) -> dust_dds::infrastructure::error::DdsResult<()> {
+        #[derive(serde::Serialize)]
+        struct KeyedDataKeyHolder<'a> {
+            id: &'a u8,
+        }
+
+        let key_holder = KeyedDataKeyHolder { id: &self.id };
+
+        dust_dds::topic_definition::type_support::serialize_key_cdr(&key_holder, writer)
+    }
+}
+
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct LargeData {
     #[key]
     id: u8,
     value: Vec<u8>,
+}
+
+impl dust_dds::topic_definition::type_support::DdsSerializeKey for LargeData {
+    fn dds_serialize_key(
+        &self,
+        writer: impl std::io::Write,
+    ) -> dust_dds::infrastructure::error::DdsResult<()> {
+        #[derive(serde::Serialize)]
+        struct LargeDataKeyHolder<'a> {
+            id: &'a u8,
+        }
+
+        let key_holder = LargeDataKeyHolder { id: &self.id };
+
+        dust_dds::topic_definition::type_support::serialize_key_cdr(&key_holder, writer)
+    }
 }
 
 #[test]
