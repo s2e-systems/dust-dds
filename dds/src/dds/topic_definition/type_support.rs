@@ -131,21 +131,6 @@ where
     }
 }
 
-// pub fn dds_serialize_key<'a, T>(value: &'a T) -> DdsResult<Vec<u8>>
-// where
-//     T: DdsKeySerialize,
-//     T::BorrowKeyHolder: From<&'a T> + serde::Serialize,
-// {
-//     let key = T::BorrowKeyHolder::from(value);
-//     let mut writer = vec![];
-
-//     let mut serializer = cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
-//     serde::Serialize::serialize(&key, &mut serializer)
-//         .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
-
-//     Ok(writer)
-// }
-
 pub fn dds_deserialize_key<'de, T>(data: &'de [u8]) -> DdsResult<T::OwningKeyHolder>
 where
     T: DdsKeyDeserialize,
