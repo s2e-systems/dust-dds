@@ -34,6 +34,8 @@ impl DdsKey for TestType {
     fn get_key(&self) -> Self::KeyHolder {
         ()
     }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {}
 }
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
@@ -48,6 +50,10 @@ impl DdsKey for MyData {
 
     fn get_key(&self) -> Self::KeyHolder {
         self.id
+    }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {
+        self.id = key_holder;
     }
 }
 

@@ -28,6 +28,10 @@ impl DdsKey for KeyedData {
     fn get_key(&self) -> Self::KeyHolder {
         self.id
     }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {
+        self.id = key_holder;
+    }
 }
 
 pub fn best_effort_write_only(c: &mut Criterion) {

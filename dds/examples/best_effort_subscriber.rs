@@ -31,6 +31,8 @@ impl DdsKey for BestEffortExampleType {
     fn get_key(&self) -> Self::KeyHolder {
         ()
     }
+
+    fn set_key_from_holder(&mut self, _key_holder: Self::KeyHolder) {}
 }
 
 struct Listener {

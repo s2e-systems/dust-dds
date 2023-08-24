@@ -112,6 +112,10 @@ impl DdsKey for DiscoveredWriterData {
     fn get_key(&self) -> Self::KeyHolder {
         self.dds_publication_data.key().value
     }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {
+        todo!()
+    }
 }
 
 #[cfg(test)]

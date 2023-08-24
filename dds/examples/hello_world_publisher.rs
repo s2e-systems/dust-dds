@@ -27,6 +27,10 @@ impl DdsKey for HelloWorldType {
     fn get_key(&self) -> Self::KeyHolder {
         self.id
     }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {
+        self.id = key_holder;
+    }
 }
 
 fn main() {

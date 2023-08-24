@@ -36,6 +36,8 @@ impl DdsKey for UserData {
     fn get_key(&self) -> Self::KeyHolder {
         ()
     }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {}
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
@@ -51,6 +53,10 @@ impl DdsKey for KeyedData {
     fn get_key(&self) -> Self::KeyHolder {
         self.id
     }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {
+        self.id = key_holder;
+    }
 }
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
@@ -65,6 +71,10 @@ impl DdsKey for LargeData {
 
     fn get_key(&self) -> Self::KeyHolder {
         self.id
+    }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {
+        self.id = key_holder;
     }
 }
 
