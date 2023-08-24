@@ -43,22 +43,6 @@ struct MyData {
     value: u8,
 }
 
-impl dust_dds::topic_definition::type_support::DdsSerializeKey for MyData {
-    fn dds_serialize_key(
-        &self,
-        writer: impl std::io::Write,
-    ) -> dust_dds::infrastructure::error::DdsResult<()> {
-        #[derive(serde::Serialize)]
-        struct MyDataKeyHolder<'a> {
-            id: &'a u8,
-        }
-
-        let key_holder = MyDataKeyHolder { id: &self.id };
-
-        dust_dds::topic_definition::type_support::serialize_key_cdr(&key_holder, writer)
-    }
-}
-
 #[test]
 fn deadline_missed_listener() {
     mock! {

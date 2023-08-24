@@ -26,7 +26,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsDeserialize, DdsSerializedKey, DdsType, DdsSerialize},
+        type_support::{DdsDeserialize, DdsSerializedKey, DdsType},
     },
 };
 

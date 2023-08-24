@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{Read, Write};
 
 use crate::{
     implementation::parameter_list_serde::{
@@ -70,10 +70,6 @@ pub trait DdsType {
     }
 }
 
-pub trait DdsSerializeKey {
-    fn dds_serialize_key(&self, writer: impl std::io::Write) -> DdsResult<()>;
-}
-
 pub trait DdsKey {
     type KeyHolder;
 
@@ -82,70 +78,6 @@ pub trait DdsKey {
 
 pub trait DdsKeyDeserialize {
     type OwningKeyHolder;
-}
-
-pub trait DdsSerialize {
-    fn dds_serialize(&self, writer: impl std::io::Write) -> DdsResult<()>;
-}
-
-impl<Foo> DdsSerialize for Foo
-where
-    Foo: serde::Serialize + DdsType,
-{
-    fn dds_serialize(&self, mut writer: impl std::io::Write) -> DdsResult<()> {
-        match Self::REPRESENTATION_IDENTIFIER {
-            CDR_BE => {
-                writer
-                    .write_all(&CDR_BE)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                let mut serializer =
-                    cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
-                serde::Serialize::serialize(self, &mut serializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-            }
-            CDR_LE => {
-                writer
-                    .write_all(&CDR_LE)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                let mut serializer =
-                    cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
-                serde::Serialize::serialize(self, &mut serializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-            }
-            PL_CDR_BE => {
-                writer
-                    .write_all(&PL_CDR_BE)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                let mut serializer =
-                    ParameterListSerializer::<_, byteorder::BigEndian>::new(&mut writer);
-                serde::Serialize::serialize(self, &mut serializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-            }
-            PL_CDR_LE => {
-                writer
-                    .write_all(&PL_CDR_LE)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                let mut serializer =
-                    ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut writer);
-                serde::Serialize::serialize(self, &mut serializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-            }
-            _ => todo!(),
-        };
-        Ok(())
-    }
 }
 
 pub trait DdsDeserialize<'de>
@@ -227,19 +159,71 @@ where
 
 pub fn dds_serialize_to_bytes<T>(value: &T) -> DdsResult<Vec<u8>>
 where
-    T: DdsSerialize,
+    T: serde::Serialize + DdsType,
 {
-    let mut writer = Vec::new();
-    value.dds_serialize(&mut writer)?;
+    let mut writer = vec![];
+    match T::REPRESENTATION_IDENTIFIER {
+        CDR_BE => {
+            writer
+                .write_all(&CDR_BE)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+            writer
+                .write_all(&REPRESENTATION_OPTIONS)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+            let mut serializer = cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
+            serde::Serialize::serialize(value, &mut serializer)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+        }
+        CDR_LE => {
+            writer
+                .write_all(&CDR_LE)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+            writer
+                .write_all(&REPRESENTATION_OPTIONS)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+            let mut serializer =
+                cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
+            serde::Serialize::serialize(value, &mut serializer)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+        }
+        PL_CDR_BE => {
+            writer
+                .write_all(&PL_CDR_BE)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+            writer
+                .write_all(&REPRESENTATION_OPTIONS)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+            let mut serializer =
+                ParameterListSerializer::<_, byteorder::BigEndian>::new(&mut writer);
+            serde::Serialize::serialize(value, &mut serializer)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+        }
+        PL_CDR_LE => {
+            writer
+                .write_all(&PL_CDR_LE)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+            writer
+                .write_all(&REPRESENTATION_OPTIONS)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+            let mut serializer =
+                ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut writer);
+            serde::Serialize::serialize(value, &mut serializer)
+                .map_err(|err| PreconditionNotMet(err.to_string()))?;
+        }
+        _ => todo!(),
+    };
     Ok(writer)
 }
 
 pub fn dds_serialize_key_to_bytes<T>(value: &T) -> DdsResult<Vec<u8>>
 where
-    T: DdsSerializeKey,
+    T: serde::Serialize,
 {
-    let mut writer = Vec::new();
-    value.dds_serialize_key(&mut writer)?;
+    let mut writer = vec![];
+
+    let mut serializer = cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
+    serde::Serialize::serialize(value, &mut serializer)
+        .map_err(|err| PreconditionNotMet(err.to_string()))?;
     Ok(writer)
 }
 
