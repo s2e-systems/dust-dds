@@ -107,10 +107,10 @@ impl DdsType for DiscoveredWriterData {
 }
 
 impl DdsKey for DiscoveredWriterData {
-    type KeyHolder = [u8; 16];
+    type BorrowedKeyHolder = [u8; 16];
     type OwningKeyHolder = [u8; 16];
 
-    fn get_key(&self) -> Self::KeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder {
         self.dds_publication_data.key().value
     }
 

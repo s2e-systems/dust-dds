@@ -113,12 +113,12 @@ impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
         Foo: for<'de> DdsDeserialize<'de> + DdsType + DdsKey,
-        Foo::KeyHolder: serde::Serialize,
+        Foo::BorrowedKeyHolder: serde::Serialize,
     {
         fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>
         where
             Foo: for<'de> DdsDeserialize<'de> + DdsType + DdsKey,
-            Foo::KeyHolder: serde::Serialize,
+            Foo::BorrowedKeyHolder: serde::Serialize,
         {
             dds_serialize_key_to_bytes(
                 &Foo::dds_deserialize(data)
@@ -234,7 +234,7 @@ impl RtpsReader {
     ) -> Self
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de> + DdsKey,
-        Foo::KeyHolder: serde::Serialize,
+        Foo::BorrowedKeyHolder: serde::Serialize,
     {
         let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
         Self {

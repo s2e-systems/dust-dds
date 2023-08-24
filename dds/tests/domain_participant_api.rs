@@ -29,10 +29,10 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 struct TestType(u8);
 
 impl DdsKey for TestType {
-    type KeyHolder = ();
+    type BorrowedKeyHolder = ();
     type OwningKeyHolder = ();
 
-    fn get_key(&self) -> Self::KeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder {
         ()
     }
 
@@ -47,10 +47,10 @@ struct MyData {
 }
 
 impl DdsKey for MyData {
-    type KeyHolder = u8;
+    type BorrowedKeyHolder = u8;
     type OwningKeyHolder = u8;
 
-    fn get_key(&self) -> Self::KeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder {
         self.id
     }
 

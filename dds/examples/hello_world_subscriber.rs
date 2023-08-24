@@ -25,10 +25,10 @@ struct HelloWorldType {
 }
 
 impl DdsKey for HelloWorldType {
-    type KeyHolder = u8;
+    type BorrowedKeyHolder = u8;
     type OwningKeyHolder = u8;
 
-    fn get_key(&self) -> Self::KeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder {
         self.id
     }
 

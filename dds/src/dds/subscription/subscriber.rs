@@ -97,7 +97,7 @@ impl Subscriber {
     ) -> DdsResult<DataReader<Foo>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de> + DdsKey + Send + 'static,
-        Foo::KeyHolder: serde::Serialize,
+        Foo::BorrowedKeyHolder: serde::Serialize,
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {

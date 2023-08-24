@@ -63,10 +63,10 @@ pub trait DdsType {
 }
 
 pub trait DdsKey {
-    type KeyHolder;
+    type BorrowedKeyHolder;
     type OwningKeyHolder;
 
-    fn get_key(&self) -> Self::KeyHolder;
+    fn get_key(&self) -> Self::BorrowedKeyHolder;
 
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder);
 }
@@ -198,7 +198,7 @@ where
 pub fn dds_serialize_key_to_bytes<T>(value: &T) -> DdsResult<DdsSerializedKey>
 where
     T: DdsKey,
-    T::KeyHolder: serde::Serialize,
+    T::BorrowedKeyHolder: serde::Serialize,
 {
     let mut writer = vec![];
 

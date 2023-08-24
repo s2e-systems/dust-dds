@@ -123,10 +123,10 @@ impl DdsType for DiscoveredReaderData {
 }
 
 impl DdsKey for DiscoveredReaderData {
-    type KeyHolder = [u8; 16];
+    type BorrowedKeyHolder = [u8; 16];
     type OwningKeyHolder = [u8; 16];
 
-    fn get_key(&self) -> Self::KeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder {
         self.subscription_builtin_topic_data.key().value
     }
 
