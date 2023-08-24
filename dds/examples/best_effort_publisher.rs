@@ -6,6 +6,7 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
+    topic_definition::type_support::DdsKey,
     DdsType,
 };
 
@@ -14,6 +15,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, DdsType, Debug)]
 struct BestEffortExampleType {
     id: i32,
+}
+
+impl DdsKey for BestEffortExampleType {
+    type KeyHolder = ();
+
+    fn get_key(&self) -> Self::KeyHolder {
+        ()
+    }
 }
 
 fn main() {

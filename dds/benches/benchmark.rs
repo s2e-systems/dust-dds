@@ -12,7 +12,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsKey, DdsType},
 };
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
@@ -20,6 +20,14 @@ struct KeyedData {
     #[key]
     id: u8,
     value: u8,
+}
+
+impl DdsKey for KeyedData {
+    type KeyHolder = u8;
+
+    fn get_key(&self) -> Self::KeyHolder {
+        self.id
+    }
 }
 
 pub fn best_effort_write_only(c: &mut Criterion) {

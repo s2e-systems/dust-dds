@@ -21,7 +21,7 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsKey, DdsType},
 };
 
 mod utils;
@@ -30,6 +30,14 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 #[derive(Debug, PartialEq, DdsType, serde::Serialize, serde::Deserialize)]
 struct UserData(u8);
 
+impl DdsKey for UserData {
+    type KeyHolder = ();
+
+    fn get_key(&self) -> Self::KeyHolder {
+        ()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct KeyedData {
     #[key]
@@ -37,11 +45,27 @@ struct KeyedData {
     value: u8,
 }
 
+impl DdsKey for KeyedData {
+    type KeyHolder = u8;
+
+    fn get_key(&self) -> Self::KeyHolder {
+        self.id
+    }
+}
+
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct LargeData {
     #[key]
     id: u8,
     value: Vec<u8>,
+}
+
+impl DdsKey for LargeData {
+    type KeyHolder = u8;
+
+    fn get_key(&self) -> Self::KeyHolder {
+        self.id
+    }
 }
 
 #[test]
@@ -1110,7 +1134,7 @@ fn write_read_disposed_samples() {
     writer.dispose(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader

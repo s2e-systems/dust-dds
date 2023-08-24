@@ -202,12 +202,14 @@ where
 
 pub fn dds_serialize_key_to_bytes<T>(value: &T) -> DdsResult<Vec<u8>>
 where
-    T: serde::Serialize,
+    T: DdsKey,
+    T::KeyHolder: serde::Serialize,
 {
     let mut writer = vec![];
 
     let mut serializer = cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
-    serde::Serialize::serialize(value, &mut serializer)
+    let key = value.get_key();
+    serde::Serialize::serialize(&key, &mut serializer)
         .map_err(|err| PreconditionNotMet(err.to_string()))?;
     Ok(writer)
 }

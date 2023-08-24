@@ -10,6 +10,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
+    topic_definition::type_support::DdsKey,
     DdsType,
 };
 
@@ -18,6 +19,14 @@ struct HelloWorldType {
     #[key]
     id: u8,
     msg: String,
+}
+
+impl DdsKey for HelloWorldType {
+    type KeyHolder = u8;
+
+    fn get_key(&self) -> Self::KeyHolder {
+        self.id
+    }
 }
 
 fn main() {

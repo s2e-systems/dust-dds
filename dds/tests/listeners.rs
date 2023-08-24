@@ -28,7 +28,7 @@ use dust_dds::{
         subscriber::Subscriber,
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsKey, DdsType},
 };
 
 use mockall::mock;
@@ -41,6 +41,14 @@ struct MyData {
     #[key]
     id: u8,
     value: u8,
+}
+
+impl DdsKey for MyData {
+    type KeyHolder = u8;
+
+    fn get_key(&self) -> Self::KeyHolder {
+        self.id
+    }
 }
 
 #[test]
