@@ -37,7 +37,7 @@ impl DdsKey for UserData {
         ()
     }
 
-    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {}
+    fn set_key_from_holder(&mut self, _key_holder: Self::KeyHolder) {}
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]

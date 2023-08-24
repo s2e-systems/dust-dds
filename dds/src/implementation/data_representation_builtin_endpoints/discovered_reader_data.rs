@@ -129,7 +129,7 @@ impl DdsKey for DiscoveredReaderData {
         self.subscription_builtin_topic_data.key().value
     }
 
-    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {
+    fn set_key_from_holder(&mut self, _key_holder: Self::KeyHolder) {
         todo!()
     }
 }

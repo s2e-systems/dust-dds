@@ -23,7 +23,7 @@ impl DdsKey for UserType {
         ()
     }
 
-    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {}
+    fn set_key_from_holder(&mut self, _key_holder: Self::KeyHolder) {}
 }
 
 #[test]
