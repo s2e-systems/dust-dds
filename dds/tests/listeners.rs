@@ -45,12 +45,13 @@ struct MyData {
 
 impl DdsKey for MyData {
     type KeyHolder = u8;
+    type OwningKeyHolder = u8;
 
     fn get_key(&self) -> Self::KeyHolder {
         self.id
     }
 
-    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {
+    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
         self.id = key_holder;
     }
 }

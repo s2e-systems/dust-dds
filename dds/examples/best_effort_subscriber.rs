@@ -27,12 +27,13 @@ struct BestEffortExampleType {
 
 impl DdsKey for BestEffortExampleType {
     type KeyHolder = ();
+    type OwningKeyHolder = ();
 
     fn get_key(&self) -> Self::KeyHolder {
         ()
     }
 
-    fn set_key_from_holder(&mut self, _key_holder: Self::KeyHolder) {}
+    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {}
 }
 
 struct Listener {

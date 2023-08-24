@@ -108,12 +108,13 @@ impl DdsType for DiscoveredWriterData {
 
 impl DdsKey for DiscoveredWriterData {
     type KeyHolder = [u8; 16];
+    type OwningKeyHolder = [u8; 16];
 
     fn get_key(&self) -> Self::KeyHolder {
         self.dds_publication_data.key().value
     }
 
-    fn set_key_from_holder(&mut self, _key_holder: Self::KeyHolder) {
+    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
         todo!()
     }
 }

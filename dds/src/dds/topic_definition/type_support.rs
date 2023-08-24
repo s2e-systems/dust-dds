@@ -64,10 +64,11 @@ pub trait DdsType {
 
 pub trait DdsKey {
     type KeyHolder;
+    type OwningKeyHolder;
 
     fn get_key(&self) -> Self::KeyHolder;
 
-    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder);
+    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder);
 }
 
 pub trait DdsKeyDeserialize {

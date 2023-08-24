@@ -32,12 +32,13 @@ struct UserData(u8);
 
 impl DdsKey for UserData {
     type KeyHolder = ();
+    type OwningKeyHolder = ();
 
     fn get_key(&self) -> Self::KeyHolder {
         ()
     }
 
-    fn set_key_from_holder(&mut self, _key_holder: Self::KeyHolder) {}
+    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {}
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
@@ -49,12 +50,13 @@ struct KeyedData {
 
 impl DdsKey for KeyedData {
     type KeyHolder = u8;
+    type OwningKeyHolder = u8;
 
     fn get_key(&self) -> Self::KeyHolder {
         self.id
     }
 
-    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {
+    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
         self.id = key_holder;
     }
 }
@@ -68,12 +70,13 @@ struct LargeData {
 
 impl DdsKey for LargeData {
     type KeyHolder = u8;
+    type OwningKeyHolder = u8;
 
     fn get_key(&self) -> Self::KeyHolder {
         self.id
     }
 
-    fn set_key_from_holder(&mut self, key_holder: Self::KeyHolder) {
+    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
         self.id = key_holder;
     }
 }
