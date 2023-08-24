@@ -54,14 +54,6 @@ pub trait DdsType {
 
     fn has_key() -> bool;
 
-    fn get_serialized_key(&self) -> DdsSerializedKey {
-        if Self::has_key() {
-            unimplemented!("DdsType with key must provide an implementation for get_serialized_key")
-        } else {
-            DdsSerializedKey(vec![])
-        }
-    }
-
     fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
@@ -200,7 +192,7 @@ where
     Ok(writer)
 }
 
-pub fn dds_serialize_key_to_bytes<T>(value: &T) -> DdsResult<Vec<u8>>
+pub fn dds_serialize_key_to_bytes<T>(value: &T) -> DdsResult<DdsSerializedKey>
 where
     T: DdsKey,
     T::KeyHolder: serde::Serialize,
@@ -211,7 +203,7 @@ where
     let key = value.get_key();
     serde::Serialize::serialize(&key, &mut serializer)
         .map_err(|err| PreconditionNotMet(err.to_string()))?;
-    Ok(writer)
+    Ok(writer.into())
 }
 
 pub fn serialize_key_cdr<T>(value: &T, writer: impl std::io::Write) -> DdsResult<()>

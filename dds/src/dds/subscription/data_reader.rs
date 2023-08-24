@@ -18,7 +18,9 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{dds_serialize_to_bytes, DdsDeserialize, DdsType},
+        type_support::{
+            dds_serialize_key_to_bytes, dds_serialize_to_bytes, DdsDeserialize, DdsType,
+        },
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -854,7 +856,7 @@ fn announce_data_reader(
     {
         sedp_reader_announcer.write_w_timestamp(
             serialized_data,
-            discovered_reader_data.get_serialized_key(),
+            dds_serialize_key_to_bytes(&discovered_reader_data)?,
             None,
             timestamp,
         )??;

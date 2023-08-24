@@ -191,7 +191,7 @@ where
             match &self.0 {
                 DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
                     dw.address().unregister_instance_w_timestamp(
-                        instance_serialized_key,
+                        instance_serialized_key.as_ref().to_vec(),
                         instance_handle,
                         timestamp,
                     )?
@@ -222,7 +222,7 @@ where
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
                 .address()
-                .lookup_instance(instance.get_serialized_key())?,
+                .lookup_instance(dds_serialize_key_to_bytes(instance)?)?,
         }
     }
 
@@ -284,7 +284,7 @@ where
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
                 dw.address().write_w_timestamp(
                     serialized_data,
-                    data.get_serialized_key(),
+                    dds_serialize_key_to_bytes(data)?,
                     handle,
                     timestamp,
                 )??;
@@ -365,9 +365,13 @@ where
             dds_serialize_key_to_bytes(data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
-                .address()
-                .dispose_w_timestamp(instance_serialized_key, instance_handle, timestamp)?,
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().dispose_w_timestamp(
+                    instance_serialized_key.as_ref().to_vec(),
+                    instance_handle,
+                    timestamp,
+                )?
+            }
         }
     }
 }
@@ -730,7 +734,7 @@ fn announce_data_writer(
     {
         sedp_writer_announcer.write_w_timestamp(
             serialized_data,
-            discovered_writer_data.get_serialized_key(),
+            dds_serialize_key_to_bytes(discovered_writer_data)?,
             None,
             timestamp,
         )??;

@@ -1,7 +1,9 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{
+        DdsKey, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
+    },
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
@@ -30,15 +32,19 @@ impl DdsType for DiscoveredTopicData {
         true
     }
 
-    fn get_serialized_key(&self) -> DdsSerializedKey {
-        self.topic_builtin_topic_data.key().value.as_ref().into()
-    }
-
     fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
         }
         Ok(())
+    }
+}
+
+impl DdsKey for DiscoveredTopicData {
+    type KeyHolder = [u8; 16];
+
+    fn get_key(&self) -> Self::KeyHolder {
+        self.topic_builtin_topic_data.key().value
     }
 }
 

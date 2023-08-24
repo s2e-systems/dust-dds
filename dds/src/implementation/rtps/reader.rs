@@ -29,7 +29,9 @@ use crate::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{
+        dds_serialize_key_to_bytes, DdsDeserialize, DdsKey, DdsSerializedKey, DdsType,
+    },
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -110,15 +112,19 @@ struct InstanceHandleBuilder(fn(&mut &[u8]) -> RtpsReaderResult<DdsSerializedKey
 impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
-        Foo: for<'de> DdsDeserialize<'de> + DdsType,
+        Foo: for<'de> DdsDeserialize<'de> + DdsType + DdsKey,
+        Foo::KeyHolder: serde::Serialize,
     {
         fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>
         where
-            Foo: for<'de> DdsDeserialize<'de> + DdsType,
+            Foo: for<'de> DdsDeserialize<'de> + DdsType + DdsKey,
+            Foo::KeyHolder: serde::Serialize,
         {
-            Ok(Foo::dds_deserialize(data)
-                .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize data"))?
-                .get_serialized_key())
+            dds_serialize_key_to_bytes(
+                &Foo::dds_deserialize(data)
+                    .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize data"))?,
+            )
+            .map_err(|_| RtpsReaderError::InvalidData("Failed to serialize key"))
         }
 
         Self(deserialize_data_to_key::<Foo>)
@@ -227,7 +233,8 @@ impl RtpsReader {
         qos: DataReaderQos,
     ) -> Self
     where
-        Foo: DdsType + for<'de> DdsDeserialize<'de>,
+        Foo: DdsType + for<'de> DdsDeserialize<'de> + DdsKey,
+        Foo::KeyHolder: serde::Serialize,
     {
         let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
         Self {

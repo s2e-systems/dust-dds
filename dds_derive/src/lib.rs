@@ -44,10 +44,6 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     true
                 }
 
-                fn get_serialized_key(&self) -> dust_dds::topic_definition::type_support::DdsSerializedKey {
-                    cdr::ser::serialize_data::<_, _, cdr::LittleEndian>(self, cdr::Infinite).unwrap().into()
-                }
-
                 fn set_key_fields_from_serialized_key(&mut self, key: &dust_dds::topic_definition::type_support::DdsSerializedKey) -> dust_dds::infrastructure::error::DdsResult<()> {
                     *self = cdr::de::deserialize_data::<_, cdr::LittleEndian>(&key.as_ref()).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
                     Ok(())
@@ -61,17 +57,12 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
         } else {
             unreachable!()
         };
-        let build_key = struct_build_key(&struct_data);
         let set_key = struct_set_key(&struct_data);
 
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
                 fn has_key() -> bool {
                     true
-                }
-
-                fn get_serialized_key(&self) -> dust_dds::topic_definition::type_support::DdsSerializedKey {
-                    #build_key
                 }
 
                 fn set_key_fields_from_serialized_key(&mut self, key: &dust_dds::topic_definition::type_support::DdsSerializedKey) -> dust_dds::infrastructure::error::DdsResult<()> {
@@ -88,39 +79,12 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     false
                 }
 
-                fn get_serialized_key(&self) -> dust_dds::topic_definition::type_support::DdsSerializedKey {
-                    vec![].into()
-                }
-
                 fn set_key_fields_from_serialized_key(&mut self, _key: &dust_dds::topic_definition::type_support::DdsSerializedKey) -> dust_dds::infrastructure::error::DdsResult<()> {
                     Ok(())
                 }
             }
         }
         .into()
-    }
-}
-
-fn struct_build_key(struct_data: &DataStruct) -> TokenStream2 {
-    let indexed_key_fields = struct_data
-        .fields
-        .iter()
-        .enumerate()
-        .filter(|(_, field)| has_key_attribute(&field.attrs));
-
-    let mut field_list_ts = quote! {};
-    for (i, field) in indexed_key_fields {
-        let field_ident = field
-            .ident
-            .clone()
-            .map(|field| field.into_token_stream())
-            .unwrap_or_else(|| syn::Index::from(i).into_token_stream());
-
-        field_list_ts.extend(quote! {&self.#field_ident,});
-    }
-
-    quote! {
-        cdr::ser::serialize_data::<_, _, cdr::LittleEndian>(&(#field_list_ts), cdr::Infinite).unwrap().into()
     }
 }
 

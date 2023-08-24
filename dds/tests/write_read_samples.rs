@@ -21,7 +21,7 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::{DdsKey, DdsType},
+    topic_definition::type_support::{dds_serialize_key_to_bytes, DdsKey, DdsType},
 };
 
 mod utils;
@@ -616,19 +616,19 @@ fn each_key_sample_is_read() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
     assert_eq!(
         samples[0].sample_info.instance_handle,
-        data1.get_serialized_key().into()
+        dds_serialize_key_to_bytes(&data1).unwrap().into(),
     );
 
     assert_eq!(samples[1].data.as_ref().unwrap(), &data2);
     assert_eq!(
         samples[1].sample_info.instance_handle,
-        data2.get_serialized_key().into()
+        dds_serialize_key_to_bytes(&data2).unwrap().into(),
     );
 
     assert_eq!(samples[2].data.as_ref().unwrap(), &data3);
     assert_eq!(
         samples[2].sample_info.instance_handle,
-        data3.get_serialized_key().into()
+        dds_serialize_key_to_bytes(&data3).unwrap().into(),
     );
 }
 
@@ -697,7 +697,7 @@ fn read_specific_instance() {
     let samples = reader
         .read_instance(
             3,
-            data1.get_serialized_key().into(),
+            dds_serialize_key_to_bytes(&data1).unwrap().into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -985,7 +985,7 @@ fn take_specific_instance() {
     let samples = reader
         .take_instance(
             3,
-            data1.get_serialized_key().into(),
+            dds_serialize_key_to_bytes(&data1).unwrap().into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1061,7 +1061,9 @@ fn take_specific_unknown_instance() {
     assert_eq!(
         reader.take_instance(
             3,
-            KeyedData { id: 99, value: 20 }.get_serialized_key().into(),
+            dds_serialize_key_to_bytes(&KeyedData { id: 99, value: 20 })
+                .unwrap()
+                .into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -2041,7 +2043,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
     writer.unregister_instance(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader

@@ -13,12 +13,6 @@ fn test_struct_no_key_info() {
 }
 
 #[test]
-fn test_struct_no_key_get() {
-    let snk = StructNoKey { a: 1, b: 2 };
-    assert!(snk.get_serialized_key().as_ref().is_empty());
-}
-
-#[test]
 fn test_struct_no_key_set() {
     let mut snk2 = StructNoKey { a: 3, b: 4 };
     snk2.set_key_fields_from_serialized_key(&[][..].into())
@@ -37,12 +31,6 @@ struct StructWithKey {
 #[test]
 fn test_struct_with_key_info() {
     assert!(StructWithKey::has_key());
-}
-
-#[test]
-fn test_struct_with_key_get() {
-    let swk = StructWithKey { a: 1, b: 2 };
-    assert_eq!(swk.get_serialized_key(), [2, 0, 0, 0][..].into());
 }
 
 #[test]
@@ -73,17 +61,6 @@ struct StructManyKeys {
 #[test]
 fn test_struct_many_keys_info() {
     assert!(StructManyKeys::has_key());
-}
-
-#[test]
-fn test_struct_many_keys_get() {
-    let smk = StructManyKeys {
-        a: 1,
-        b: 2,
-        c: 'X',
-        d: false,
-    };
-    assert_eq!(smk.get_serialized_key(), [1, 0, 0, 0, b'X', 0][..].into());
 }
 
 #[test]
@@ -120,15 +97,6 @@ fn test_dds_type_derive_with_generic_info() {
 }
 
 #[test]
-fn test_dds_type_derive_with_generic_get() {
-    let twg = TypeWithGeneric {
-        a: vec![0, 1, 0],
-        b: 42,
-    };
-    assert_eq!(twg.get_serialized_key(), [42, 0, 0, 0][..].into())
-}
-
-#[test]
 fn test_dds_type_derive_with_generic_set() {
     let mut twg = TypeWithGeneric {
         a: vec![false],
@@ -149,12 +117,6 @@ fn test_tuple_no_key_info() {
 }
 
 #[test]
-fn test_tuple_no_key_get() {
-    let twk = TupleNoKey(10, 25);
-    assert!(twk.get_serialized_key().as_ref().is_empty());
-}
-
-#[test]
 fn test_tuple_no_key_set() {
     let mut twk = TupleNoKey(1, 2);
     twk.set_key_fields_from_serialized_key(&[][..].into())
@@ -169,12 +131,6 @@ struct TupleWithKeys(i32, #[key] i32, #[key] bool, char);
 #[test]
 fn test_tuple_with_keys_info() {
     assert!(TupleWithKeys::has_key());
-}
-
-#[test]
-fn test_tuple_with_keys_get() {
-    let twk = TupleWithKeys(1, 2, true, '🦀');
-    assert_eq!(twk.get_serialized_key(), [2, 0, 0, 0, 1][..].into())
 }
 
 #[test]
@@ -201,12 +157,6 @@ fn test_enum_no_key_info() {
 }
 
 #[test]
-fn test_enum_no_key_get() {
-    let enk = EnumNoKey::_Two;
-    assert!(enk.get_serialized_key().as_ref().is_empty());
-}
-
-#[test]
 fn test_enum_no_key_set() {
     let mut enk = EnumNoKey::_Two;
     enk.set_key_fields_from_serialized_key(&[][..].into())
@@ -225,12 +175,6 @@ enum EnumKey {
 #[test]
 fn test_enum_key_info() {
     assert!(EnumKey::has_key());
-}
-
-#[test]
-fn test_enum_key_get() {
-    let ek = EnumKey::_Two;
-    assert_eq!(ek.get_serialized_key(), [1, 0, 0, 0][..].into());
 }
 
 #[test]

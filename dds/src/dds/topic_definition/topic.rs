@@ -13,10 +13,12 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    DdsType,
 };
 
-use super::{topic_listener::TopicListener, type_support::dds_serialize_to_bytes};
+use super::{
+    topic_listener::TopicListener,
+    type_support::{dds_serialize_key_to_bytes, dds_serialize_to_bytes},
+};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
@@ -240,7 +242,7 @@ fn announce_topic(
     {
         sedp_topic_announcer.write_w_timestamp(
             serialized_data,
-            discovered_topic_data.get_serialized_key(),
+            dds_serialize_key_to_bytes(&discovered_topic_data)?,
             None,
             timestamp,
         )??;

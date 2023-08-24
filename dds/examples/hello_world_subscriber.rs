@@ -11,6 +11,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    topic_definition::type_support::DdsKey,
     DdsType,
 };
 
@@ -21,6 +22,14 @@ struct HelloWorldType {
     #[key]
     id: u8,
     msg: String,
+}
+
+impl DdsKey for HelloWorldType {
+    type KeyHolder = u8;
+
+    fn get_key(&self) -> Self::KeyHolder {
+        self.id
+    }
 }
 
 fn main() {

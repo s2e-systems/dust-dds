@@ -10,7 +10,9 @@ use crate::{
         },
     },
     infrastructure::{error::DdsResult, time::Duration},
-    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{
+        DdsKey, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
+    },
 };
 
 use super::parameter_id_values::{
@@ -221,10 +223,6 @@ impl DdsType for SpdpDiscoveredParticipantData {
         true
     }
 
-    fn get_serialized_key(&self) -> DdsSerializedKey {
-        self.dds_participant_data.key().value.as_ref().into()
-    }
-
     fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
@@ -232,6 +230,15 @@ impl DdsType for SpdpDiscoveredParticipantData {
         Ok(())
     }
 }
+
+impl DdsKey for SpdpDiscoveredParticipantData {
+    type KeyHolder = [u8; 16];
+
+    fn get_key(&self) -> Self::KeyHolder {
+        self.dds_participant_data.key().value
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -14,6 +14,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
+    topic_definition::type_support::DdsKey,
     DdsType,
 };
 
@@ -22,6 +23,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, DdsType, Debug)]
 struct BestEffortExampleType {
     id: i32,
+}
+
+impl DdsKey for BestEffortExampleType {
+    type KeyHolder = ();
+
+    fn get_key(&self) -> Self::KeyHolder {
+        ()
+    }
 }
 
 struct Listener {

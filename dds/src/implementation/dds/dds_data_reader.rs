@@ -47,7 +47,7 @@ use crate::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsType},
+    topic_definition::type_support::{dds_serialize_key_to_bytes, DdsDeserialize},
 };
 
 use super::{
@@ -790,7 +790,9 @@ impl DdsDataReader {
         if publication_builtin_topic_data.topic_name() == self.topic_name
             && publication_builtin_topic_data.get_type_name() == self.type_name
         {
-            let instance_handle = discovered_writer_data.get_serialized_key().into();
+            let instance_handle = dds_serialize_key_to_bytes(&discovered_writer_data)
+                .unwrap()
+                .into();
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &discovered_writer_data,

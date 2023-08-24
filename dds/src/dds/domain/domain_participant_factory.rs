@@ -28,9 +28,8 @@ use crate::{
             participant::RtpsParticipant,
             reader_proxy::RtpsReaderProxy,
             types::{
-                Guid, Locator, ReliabilityKind, SequenceNumber,
-                ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
-                VENDOR_ID_S2E,
+                Guid, Locator, ReliabilityKind, SequenceNumber, ENTITYID_PARTICIPANT,
+                ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E,
             },
             writer_proxy::RtpsWriterProxy,
         },
@@ -50,7 +49,7 @@ use crate::{
             ANY_VIEW_STATE,
         },
     },
-    DdsType,
+    topic_definition::type_support::dds_serialize_key_to_bytes,
 };
 use fnmatch_regex::glob_to_regex;
 use jsonschema::JSONSchema;
@@ -704,7 +703,7 @@ fn process_spdp_metatraffic(
                     discovered_participant_data.participant_proxy().domain_tag()
                         == participant_address.get_domain_tag()?;
                 let is_participant_ignored = participant_address.is_participant_ignored(
-                    discovered_participant_data.get_serialized_key().into(),
+                    dds_serialize_key_to_bytes(&discovered_participant_data)?.into(),
                 )?;
 
                 if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
@@ -804,7 +803,7 @@ fn process_spdp_metatraffic(
                     }
 
                     participant_address.discovered_participant_add(
-                        discovered_participant_data.get_serialized_key().into(),
+                        dds_serialize_key_to_bytes(&discovered_participant_data)?.into(),
                         discovered_participant_data,
                     )?;
                 }
@@ -1164,7 +1163,7 @@ fn discover_matched_topics(
                 }
 
                 participant_address.discovered_topic_add(
-                    topic_data.get_serialized_key().into(),
+                    dds_serialize_key_to_bytes(topic_data)?.into(),
                     topic_data.topic_builtin_topic_data().clone(),
                 )?;
             }
