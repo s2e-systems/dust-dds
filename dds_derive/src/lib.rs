@@ -40,9 +40,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     if is_key {
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
-                fn has_key() -> bool {
-                    true
-                }
+
 
                 fn set_key_fields_from_serialized_key(&mut self, key: &dust_dds::topic_definition::type_support::DdsSerializedKey) -> dust_dds::infrastructure::error::DdsResult<()> {
                     *self = cdr::de::deserialize_data::<_, cdr::LittleEndian>(&key.as_ref()).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
@@ -61,9 +59,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
 
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
-                fn has_key() -> bool {
-                    true
-                }
+
 
                 fn set_key_fields_from_serialized_key(&mut self, key: &dust_dds::topic_definition::type_support::DdsSerializedKey) -> dust_dds::infrastructure::error::DdsResult<()> {
                     #set_key
@@ -75,9 +71,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     } else {
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
-                fn has_key() -> bool {
-                    false
-                }
+
 
                 fn set_key_fields_from_serialized_key(&mut self, _key: &dust_dds::topic_definition::type_support::DdsSerializedKey) -> dust_dds::infrastructure::error::DdsResult<()> {
                     Ok(())

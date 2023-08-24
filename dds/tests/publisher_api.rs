@@ -5,7 +5,7 @@ use dust_dds::{
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsKey, DdsType},
 };
 
 mod utils;
@@ -13,6 +13,24 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[derive(serde::Serialize, serde::Deserialize, DdsType)]
 struct UserType(i32);
+
+impl DdsKey for UserType {
+    type BorrowedKeyHolder<'a> = ();
+
+    type OwningKeyHolder = ();
+
+    fn has_key() -> bool {
+        false
+    }
+
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
+        ()
+    }
+
+    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
+        ()
+    }
+}
 
 #[test]
 fn get_publisher_parent_participant() {

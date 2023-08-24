@@ -34,6 +34,10 @@ impl DdsKey for UserData {
     type BorrowedKeyHolder<'a> = ();
     type OwningKeyHolder = ();
 
+    fn has_key() -> bool {
+        false
+    }
+
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         ()
     }
@@ -51,6 +55,10 @@ struct KeyedData {
 impl DdsKey for KeyedData {
     type BorrowedKeyHolder<'a> = u8;
     type OwningKeyHolder = u8;
+
+    fn has_key() -> bool {
+        true
+    }
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.id
@@ -71,6 +79,10 @@ struct LargeData {
 impl DdsKey for LargeData {
     type BorrowedKeyHolder<'a> = u8;
     type OwningKeyHolder = u8;
+
+    fn has_key() -> bool {
+        true
+    }
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.id

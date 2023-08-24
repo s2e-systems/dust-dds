@@ -32,6 +32,10 @@ impl DdsKey for TestType {
     type BorrowedKeyHolder<'a> = ();
     type OwningKeyHolder = ();
 
+    fn has_key() -> bool {
+        false
+    }
+
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         ()
     }
@@ -49,6 +53,10 @@ struct MyData {
 impl DdsKey for MyData {
     type BorrowedKeyHolder<'a> = u8;
     type OwningKeyHolder = u8;
+
+    fn has_key() -> bool {
+        true
+    }
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.id

@@ -94,10 +94,6 @@ pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 impl DdsType for DiscoveredWriterData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
-    fn has_key() -> bool {
-        true
-    }
-
     fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
@@ -109,6 +105,10 @@ impl DdsType for DiscoveredWriterData {
 impl DdsKey for DiscoveredWriterData {
     type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
+
+    fn has_key() -> bool {
+        true
+    }
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.dds_publication_data.key().value

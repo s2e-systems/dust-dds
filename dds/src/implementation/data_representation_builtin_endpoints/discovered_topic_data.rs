@@ -28,10 +28,6 @@ impl DiscoveredTopicData {
 impl DdsType for DiscoveredTopicData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
-    fn has_key() -> bool {
-        true
-    }
-
     fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
@@ -43,6 +39,10 @@ impl DdsType for DiscoveredTopicData {
 impl DdsKey for DiscoveredTopicData {
     type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
+
+    fn has_key() -> bool {
+        true
+    }
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.topic_builtin_topic_data.key().value

@@ -20,6 +20,10 @@ impl DdsKey for UserType {
     type BorrowedKeyHolder<'a> = ();
     type OwningKeyHolder = ();
 
+    fn has_key() -> bool {
+        false
+    }
+
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         ()
     }

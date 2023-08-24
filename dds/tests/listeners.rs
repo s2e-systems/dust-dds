@@ -47,6 +47,10 @@ impl DdsKey for MyData {
     type BorrowedKeyHolder<'a> = u8;
     type OwningKeyHolder = u8;
 
+    fn has_key() -> bool {
+        false
+    }
+
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.id
     }

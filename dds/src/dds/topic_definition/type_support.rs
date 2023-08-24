@@ -43,22 +43,11 @@ impl AsRef<[u8]> for DdsSerializedKey {
     }
 }
 
-impl DdsType for DdsSerializedKey {
-    fn has_key() -> bool {
-        false
-    }
-}
-
 pub trait DdsType {
     const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
 
-    fn has_key() -> bool;
-
     fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
-        if Self::has_key() {
-            unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
-        }
-        Ok(())
+        unimplemented!()
     }
 }
 
@@ -69,6 +58,8 @@ pub trait DdsKey {
     where
         Self: 'a;
     type OwningKeyHolder: for<'de> serde::Deserialize<'de>;
+
+    fn has_key() -> bool;
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_>;
 

@@ -8,11 +8,6 @@ struct StructNoKey {
 }
 
 #[test]
-fn test_struct_no_key_info() {
-    assert!(!StructNoKey::has_key());
-}
-
-#[test]
 fn test_struct_no_key_set() {
     let mut snk2 = StructNoKey { a: 3, b: 4 };
     snk2.set_key_fields_from_serialized_key(&[][..].into())
@@ -26,11 +21,6 @@ struct StructWithKey {
     a: i32,
     #[key]
     b: i32,
-}
-
-#[test]
-fn test_struct_with_key_info() {
-    assert!(StructWithKey::has_key());
 }
 
 #[test]
@@ -57,11 +47,6 @@ struct StructManyKeys {
  * cdr::serialize only seems to work for ascii characters (I tried a few
  * Unicode and Latin-1 chars)
  */
-
-#[test]
-fn test_struct_many_keys_info() {
-    assert!(StructManyKeys::has_key());
-}
 
 #[test]
 fn test_struct_many_keys_set() {
@@ -92,11 +77,6 @@ struct TypeWithGeneric<T> {
 }
 
 #[test]
-fn test_dds_type_derive_with_generic_info() {
-    assert!(TypeWithGeneric::<i32>::has_key());
-}
-
-#[test]
 fn test_dds_type_derive_with_generic_set() {
     let mut twg = TypeWithGeneric {
         a: vec![false],
@@ -112,11 +92,6 @@ fn test_dds_type_derive_with_generic_set() {
 struct TupleNoKey(i32, i32);
 
 #[test]
-fn test_tuple_no_key_info() {
-    assert!(!TupleNoKey::has_key());
-}
-
-#[test]
 fn test_tuple_no_key_set() {
     let mut twk = TupleNoKey(1, 2);
     twk.set_key_fields_from_serialized_key(&[][..].into())
@@ -127,11 +102,6 @@ fn test_tuple_no_key_set() {
 
 #[derive(DdsType)]
 struct TupleWithKeys(i32, #[key] i32, #[key] bool, char);
-
-#[test]
-fn test_tuple_with_keys_info() {
-    assert!(TupleWithKeys::has_key());
-}
 
 #[test]
 fn test_tuple_with_keys_set() {
@@ -152,11 +122,6 @@ enum EnumNoKey {
 }
 
 #[test]
-fn test_enum_no_key_info() {
-    assert!(!EnumNoKey::has_key());
-}
-
-#[test]
 fn test_enum_no_key_set() {
     let mut enk = EnumNoKey::_Two;
     enk.set_key_fields_from_serialized_key(&[][..].into())
@@ -170,11 +135,6 @@ enum EnumKey {
     _One,
     _Two,
     _Three,
-}
-
-#[test]
-fn test_enum_key_info() {
-    assert!(EnumKey::has_key());
 }
 
 #[test]
