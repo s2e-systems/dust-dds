@@ -15,10 +15,10 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 struct UserType(i32);
 
 impl DdsKey for UserType {
-    type BorrowedKeyHolder = ();
+    type BorrowedKeyHolder<'a> = ();
     type OwningKeyHolder = ();
 
-    fn get_key(&self) -> Self::BorrowedKeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         ()
     }
 

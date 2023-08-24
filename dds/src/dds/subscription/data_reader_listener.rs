@@ -3,13 +3,13 @@ use crate::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
-    topic_definition::type_support::{DdsDeserialize, DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 use super::data_reader::DataReader;
 
 pub trait DataReaderListener {
-    type Foo: DdsType + for<'de> DdsDeserialize<'de>;
+    type Foo: DdsType + for<'de> serde::Deserialize<'de>;
 
     fn on_data_available(&mut self, _the_reader: &DataReader<Self::Foo>) {}
     fn on_sample_rejected(

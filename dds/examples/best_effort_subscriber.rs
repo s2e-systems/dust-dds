@@ -26,10 +26,10 @@ struct BestEffortExampleType {
 }
 
 impl DdsKey for BestEffortExampleType {
-    type BorrowedKeyHolder = ();
+    type BorrowedKeyHolder<'a> = ();
     type OwningKeyHolder = ();
 
-    fn get_key(&self) -> Self::BorrowedKeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         ()
     }
 

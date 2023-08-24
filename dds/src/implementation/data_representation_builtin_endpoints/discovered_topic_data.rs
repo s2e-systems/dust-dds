@@ -41,10 +41,10 @@ impl DdsType for DiscoveredTopicData {
 }
 
 impl DdsKey for DiscoveredTopicData {
-    type BorrowedKeyHolder = [u8; 16];
+    type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
 
-    fn get_key(&self) -> Self::BorrowedKeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.topic_builtin_topic_data.key().value
     }
 
@@ -62,7 +62,9 @@ mod tests {
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{dds_serialize_to_bytes, DdsDeserialize};
+    use crate::topic_definition::type_support::{
+        dds_deserialize_from_bytes, dds_serialize_to_bytes,
+    };
 
     use super::*;
 
@@ -148,7 +150,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result = DiscoveredTopicData::dds_deserialize(data).unwrap();
+        let result = dds_deserialize_from_bytes::<DiscoveredTopicData>(data).unwrap();
         assert_eq!(result, expected);
     }
 }

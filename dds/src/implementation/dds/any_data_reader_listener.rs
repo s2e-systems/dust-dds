@@ -4,18 +4,14 @@ use crate::{
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
-    topic_definition::type_support::{DdsDeserialize, DdsType},
+    topic_definition::type_support::DdsType,
 };
 
-use super::nodes::{DataReaderNodeKind, DataReaderNode};
+use super::nodes::{DataReaderNode, DataReaderNodeKind};
 
 pub trait AnyDataReaderListener {
     fn trigger_on_data_available(&mut self, reader: DataReaderNode);
-    fn trigger_on_sample_rejected(
-        &mut self,
-        reader: DataReaderNode,
-        status: SampleRejectedStatus,
-    );
+    fn trigger_on_sample_rejected(&mut self, reader: DataReaderNode, status: SampleRejectedStatus);
     fn trigger_on_liveliness_changed(
         &mut self,
         reader: DataReaderNode,
@@ -36,26 +32,18 @@ pub trait AnyDataReaderListener {
         reader: DataReaderNode,
         status: SubscriptionMatchedStatus,
     );
-    fn trigger_on_sample_lost(
-        &mut self,
-        reader: DataReaderNode,
-        status: SampleLostStatus,
-    );
+    fn trigger_on_sample_lost(&mut self, reader: DataReaderNode, status: SampleLostStatus);
 }
 
 impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
 where
-    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
+    Foo: DdsType + for<'de> serde::Deserialize<'de> + 'static,
 {
     fn trigger_on_data_available(&mut self, reader: DataReaderNode) {
         self.on_data_available(&DataReader::new(DataReaderNodeKind::Listener(reader)))
     }
 
-    fn trigger_on_sample_rejected(
-        &mut self,
-        reader: DataReaderNode,
-        status: SampleRejectedStatus,
-    ) {
+    fn trigger_on_sample_rejected(&mut self, reader: DataReaderNode, status: SampleRejectedStatus) {
         self.on_sample_rejected(
             &DataReader::new(DataReaderNodeKind::Listener(reader)),
             status,
@@ -106,11 +94,7 @@ where
         )
     }
 
-    fn trigger_on_sample_lost(
-        &mut self,
-        reader: DataReaderNode,
-        status: SampleLostStatus,
-    ) {
+    fn trigger_on_sample_lost(&mut self, reader: DataReaderNode, status: SampleLostStatus) {
         self.on_sample_lost(
             &DataReader::new(DataReaderNodeKind::Listener(reader)),
             status,

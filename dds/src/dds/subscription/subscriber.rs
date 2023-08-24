@@ -26,7 +26,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsDeserialize, DdsKey, DdsSerializedKey, DdsType},
+        type_support::{DdsKey, DdsSerializedKey, DdsType},
     },
 };
 
@@ -96,8 +96,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsType + for<'de> DdsDeserialize<'de> + DdsKey + Send + 'static,
-        Foo::BorrowedKeyHolder: serde::Serialize,
+        Foo: DdsType + for<'de> serde::Deserialize<'de> + DdsKey + Send + 'static,
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
@@ -257,7 +256,7 @@ impl Subscriber {
     /// The use of this operation on the built-in [`Subscriber`] allows access to the built-in [`DataReader`] entities for the built-in topics.
     pub fn lookup_datareader<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataReader<Foo>>>
     where
-        Foo: DdsType + for<'de> DdsDeserialize<'de>,
+        Foo: DdsType + for<'de> serde::Deserialize<'de>,
     {
         todo!()
         // Ok(self

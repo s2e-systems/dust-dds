@@ -22,11 +22,11 @@ struct HelloWorldType {
 }
 
 impl DdsKey for HelloWorldType {
-    type BorrowedKeyHolder = u8;
+    type BorrowedKeyHolder<'a> = &'a u8;
     type OwningKeyHolder = u8;
 
-    fn get_key(&self) -> Self::BorrowedKeyHolder {
-        self.id
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
+        &self.id
     }
 
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {

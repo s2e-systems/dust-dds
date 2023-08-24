@@ -232,10 +232,10 @@ impl DdsType for SpdpDiscoveredParticipantData {
 }
 
 impl DdsKey for SpdpDiscoveredParticipantData {
-    type BorrowedKeyHolder = [u8; 16];
+    type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
 
-    fn get_key(&self) -> Self::BorrowedKeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.dds_participant_data.key().value
     }
 
@@ -250,7 +250,7 @@ mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos_policy::UserDataQosPolicy,
-        topic_definition::type_support::{dds_serialize_to_bytes, DdsDeserialize},
+        topic_definition::type_support::{dds_deserialize_from_bytes, dds_serialize_to_bytes},
     };
 
     #[test]
@@ -365,7 +365,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result = SpdpDiscoveredParticipantData::dds_deserialize(data).unwrap();
+        let result = dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(data).unwrap();
         assert_eq!(result, expected);
     }
 

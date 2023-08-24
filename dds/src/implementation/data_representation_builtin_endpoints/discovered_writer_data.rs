@@ -107,10 +107,10 @@ impl DdsType for DiscoveredWriterData {
 }
 
 impl DdsKey for DiscoveredWriterData {
-    type BorrowedKeyHolder = [u8; 16];
+    type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
 
-    fn get_key(&self) -> Self::BorrowedKeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.dds_publication_data.key().value
     }
 
@@ -131,7 +131,9 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
-    use crate::topic_definition::type_support::{dds_serialize_to_bytes, DdsDeserialize};
+    use crate::topic_definition::type_support::{
+        dds_deserialize_from_bytes, dds_serialize_to_bytes,
+    };
 
     use super::*;
 
@@ -260,7 +262,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result = DiscoveredWriterData::dds_deserialize(data).unwrap();
+        let result = dds_deserialize_from_bytes::<DiscoveredWriterData>(data).unwrap();
         assert_eq!(result, expected);
     }
 }

@@ -791,7 +791,6 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
 fn create_builtin_stateless_reader<Foo>(guid: Guid) -> RtpsReader
 where
     Foo: DdsType + for<'de> serde::Deserialize<'de> + DdsKey,
-    Foo::BorrowedKeyHolder: serde::Serialize,
 {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
@@ -825,7 +824,6 @@ where
 fn create_builtin_stateful_reader<Foo>(guid: Guid) -> RtpsReader
 where
     Foo: DdsType + for<'de> serde::Deserialize<'de> + DdsKey,
-    Foo::BorrowedKeyHolder: serde::Serialize,
 {
     let qos = DataReaderQos {
         durability: DurabilityQosPolicy {

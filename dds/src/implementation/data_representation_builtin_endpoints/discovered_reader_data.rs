@@ -123,10 +123,10 @@ impl DdsType for DiscoveredReaderData {
 }
 
 impl DdsKey for DiscoveredReaderData {
-    type BorrowedKeyHolder = [u8; 16];
+    type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
 
-    fn get_key(&self) -> Self::BorrowedKeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.subscription_builtin_topic_data.key().value
     }
 
@@ -148,7 +148,9 @@ mod tests {
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{dds_serialize_to_bytes, DdsDeserialize};
+    use crate::topic_definition::type_support::{
+        dds_deserialize_from_bytes, dds_serialize_to_bytes,
+    };
 
     #[test]
     fn serialize_all_default() {
@@ -275,7 +277,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result = DiscoveredReaderData::dds_deserialize(data).unwrap();
+        let result = dds_deserialize_from_bytes::<DiscoveredReaderData>(data).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -304,7 +306,7 @@ mod tests {
             21, 22, 23, 0xc2, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result = ReaderProxy::dds_deserialize(data).unwrap();
+        let result = dds_deserialize_from_bytes::<ReaderProxy>(data).unwrap();
         assert_eq!(result, expected);
     }
 }

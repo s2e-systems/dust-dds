@@ -23,10 +23,10 @@ struct KeyedData {
 }
 
 impl DdsKey for KeyedData {
-    type BorrowedKeyHolder = u8;
+    type BorrowedKeyHolder<'a> = u8;
     type OwningKeyHolder = u8;
 
-    fn get_key(&self) -> Self::BorrowedKeyHolder {
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.id
     }
 

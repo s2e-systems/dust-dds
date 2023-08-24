@@ -47,7 +47,7 @@ use crate::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     },
-    topic_definition::type_support::{dds_serialize_key_to_bytes, DdsDeserialize},
+    topic_definition::type_support::dds_serialize_key_to_bytes,
 };
 
 use super::{
@@ -939,7 +939,7 @@ impl DdsDataReader {
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> DdsDeserialize<'de>,
+        Foo: for<'de> serde::Deserialize<'de>,
     {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -963,7 +963,7 @@ impl DdsDataReader {
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> DdsDeserialize<'de>,
+        Foo: for<'de> serde::Deserialize<'de>,
     {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -987,7 +987,7 @@ impl DdsDataReader {
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> DdsDeserialize<'de>,
+        Foo: for<'de> serde::Deserialize<'de>,
     {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -1011,7 +1011,7 @@ impl DdsDataReader {
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> DdsDeserialize<'de>,
+        Foo: for<'de> serde::Deserialize<'de>,
     {
         if !self.enabled {
             return Err(DdsError::NotEnabled);

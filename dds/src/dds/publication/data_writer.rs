@@ -67,7 +67,7 @@ impl<Foo> DataWriter<Foo> {
 impl<Foo> DataWriter<Foo>
 where
     Foo: DdsKey + DdsType + serde::Serialize,
-    Foo::BorrowedKeyHolder: serde::Serialize,
+    for<'a> Foo::BorrowedKeyHolder<'a>: serde::Serialize,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
