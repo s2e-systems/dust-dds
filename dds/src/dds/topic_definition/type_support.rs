@@ -20,6 +20,7 @@ pub const CDR_BE: RepresentationType = [0x00, 0x00];
 pub const CDR_LE: RepresentationType = [0x00, 0x01];
 pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
 pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
+pub const XML: RepresentationType = [0x00, 0x04];
 pub const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 #[derive(Debug, PartialEq, Clone, Eq, serde::Serialize, serde::Deserialize)]
