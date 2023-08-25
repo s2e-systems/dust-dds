@@ -46,10 +46,6 @@ impl AsRef<[u8]> for DdsSerializedKey {
 
 pub trait DdsType {
     const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
-
-    fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
-        unimplemented!()
-    }
 }
 
 pub trait DdsKey {
@@ -65,21 +61,6 @@ pub trait DdsKey {
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_>;
 
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder);
-}
-
-pub trait DdsKeyDeserialize {
-    type OwningKeyHolder;
-}
-
-pub fn dds_deserialize_key<'de, T>(data: &'de [u8]) -> DdsResult<T::OwningKeyHolder>
-where
-    T: DdsKeyDeserialize,
-    T::OwningKeyHolder: serde::Deserialize<'de>,
-{
-    let mut deserializer =
-        cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
-    serde::Deserialize::deserialize(&mut deserializer)
-        .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))
 }
 
 pub fn dds_serialize_to_bytes<T>(value: &T) -> DdsResult<Vec<u8>>
@@ -192,4 +173,26 @@ where
     serde::Serialize::serialize(&key, &mut serializer)
         .map_err(|err| PreconditionNotMet(err.to_string()))?;
     Ok(writer.into())
+}
+
+pub fn dds_deserialize_key_from_bytes<'de, T>(data: &'de [u8]) -> DdsResult<T::OwningKeyHolder>
+where
+    T: DdsKey,
+{
+    let mut deserializer =
+        cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
+    serde::Deserialize::deserialize(&mut deserializer)
+        .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))
+}
+
+pub fn dds_set_key_fields_from_serialized_key<T>(
+    value: &mut T,
+    serialized_key: &[u8],
+) -> DdsResult<()>
+where
+    T: DdsKey,
+{
+    let key_holder = dds_deserialize_key_from_bytes::<T>(serialized_key)?;
+    value.set_key_from_holder(key_holder);
+    Ok(())
 }

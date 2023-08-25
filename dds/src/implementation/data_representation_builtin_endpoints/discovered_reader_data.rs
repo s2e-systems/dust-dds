@@ -4,10 +4,7 @@ use crate::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
-    infrastructure::error::DdsResult,
-    topic_definition::type_support::{
-        DdsKey, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
-    },
+    topic_definition::type_support::{DdsKey, DdsType, RepresentationType, PL_CDR_LE},
 };
 
 use super::parameter_id_values::{
@@ -109,13 +106,6 @@ impl DiscoveredReaderData {
 
 impl DdsType for DiscoveredReaderData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-    fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
-        if Self::has_key() {
-            unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
-        }
-        Ok(())
-    }
 }
 
 impl DdsKey for DiscoveredReaderData {

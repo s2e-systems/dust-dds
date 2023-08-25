@@ -9,10 +9,8 @@ use crate::{
             types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
         },
     },
-    infrastructure::{error::DdsResult, time::Duration},
-    topic_definition::type_support::{
-        DdsKey, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
-    },
+    infrastructure::time::Duration,
+    topic_definition::type_support::{DdsKey, DdsType, RepresentationType, PL_CDR_LE},
 };
 
 use super::parameter_id_values::{
@@ -218,13 +216,6 @@ impl SpdpDiscoveredParticipantData {
 
 impl DdsType for SpdpDiscoveredParticipantData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
-    fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
-        if Self::has_key() {
-            unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
-        }
-        Ok(())
-    }
 }
 
 impl DdsKey for SpdpDiscoveredParticipantData {
