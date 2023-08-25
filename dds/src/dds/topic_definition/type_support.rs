@@ -63,6 +63,83 @@ pub trait DdsKey {
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder);
 }
 
+macro_rules! implement_dds_key_for_built_in_type {
+    ($t:ty) => {
+        impl DdsKey for $t {
+            type BorrowedKeyHolder<'a> = $t;
+            type OwningKeyHolder = $t;
+
+            fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
+                *self
+            }
+
+            fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
+                *self = key_holder;
+            }
+        }
+    };
+}
+
+implement_dds_key_for_built_in_type!(bool);
+implement_dds_key_for_built_in_type!(char);
+implement_dds_key_for_built_in_type!(u8);
+implement_dds_key_for_built_in_type!(i8);
+implement_dds_key_for_built_in_type!(u16);
+implement_dds_key_for_built_in_type!(i16);
+implement_dds_key_for_built_in_type!(u32);
+implement_dds_key_for_built_in_type!(i32);
+implement_dds_key_for_built_in_type!(u64);
+implement_dds_key_for_built_in_type!(i64);
+implement_dds_key_for_built_in_type!(usize);
+implement_dds_key_for_built_in_type!(isize);
+implement_dds_key_for_built_in_type!(f32);
+implement_dds_key_for_built_in_type!(f64);
+
+impl<T> DdsKey for Vec<T>
+where
+    T: serde::Serialize + for<'de> serde::Deserialize<'de>,
+{
+    type BorrowedKeyHolder<'a> = &'a Vec<T> where T:'a;
+    type OwningKeyHolder = Vec<T>;
+
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
+        &self
+    }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
+        *self = key_holder;
+    }
+}
+
+impl DdsKey for String {
+    type BorrowedKeyHolder<'a> = &'a str;
+    type OwningKeyHolder = String;
+
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
+        &self
+    }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
+        *self = key_holder;
+    }
+}
+
+impl<const N: usize, T> DdsKey for [T; N]
+where
+    [T; N]: serde::Serialize + for<'de> serde::Deserialize<'de>,
+{
+    type BorrowedKeyHolder<'a> = &'a [T; N] where T:'a;
+    type OwningKeyHolder = [T; N];
+
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
+        &self
+    }
+
+    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
+        *self = key_holder;
+    }
+}
+
 pub fn dds_serialize_to_bytes<T>(value: &T) -> DdsResult<Vec<u8>>
 where
     T: serde::Serialize + DdsType,
