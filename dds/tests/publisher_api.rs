@@ -11,22 +11,8 @@ use dust_dds::{
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(serde::Serialize, serde::Deserialize, DdsType, DdsKey)]
 struct UserType(i32);
-
-impl DdsKey for UserType {
-    type BorrowedKeyHolder<'a> = ();
-
-    type OwningKeyHolder = ();
-
-    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        ()
-    }
-
-    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
-        ()
-    }
-}
 
 #[test]
 fn get_publisher_parent_participant() {

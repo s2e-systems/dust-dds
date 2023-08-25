@@ -15,24 +15,11 @@ use dust_dds::{
     topic_definition::type_support::{DdsKey, DdsType},
 };
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsKey)]
 struct KeyedData {
     #[key]
     id: u8,
     value: u8,
-}
-
-impl DdsKey for KeyedData {
-    type BorrowedKeyHolder<'a> = u8;
-    type OwningKeyHolder = u8;
-
-    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        self.id
-    }
-
-    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
-        self.id = key_holder;
-    }
 }
 
 pub fn best_effort_write_only(c: &mut Criterion) {

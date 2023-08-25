@@ -27,58 +27,21 @@ use dust_dds::{
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, DdsType, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, DdsType, DdsKey, serde::Serialize, serde::Deserialize)]
 struct UserData(u8);
 
-impl DdsKey for UserData {
-    type BorrowedKeyHolder<'a> = ();
-    type OwningKeyHolder = ();
-
-    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        ()
-    }
-
-    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {}
-}
-
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsKey)]
 struct KeyedData {
     #[key]
     id: u8,
     value: u8,
 }
 
-impl DdsKey for KeyedData {
-    type BorrowedKeyHolder<'a> = u8;
-    type OwningKeyHolder = u8;
-
-    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        self.id
-    }
-
-    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
-        self.id = key_holder;
-    }
-}
-
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsKey)]
 struct LargeData {
     #[key]
     id: u8,
     value: Vec<u8>,
-}
-
-impl DdsKey for LargeData {
-    type BorrowedKeyHolder<'a> = u8;
-    type OwningKeyHolder = u8;
-
-    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        self.id
-    }
-
-    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
-        self.id = key_holder;
-    }
 }
 
 #[test]

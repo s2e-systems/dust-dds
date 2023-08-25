@@ -14,24 +14,11 @@ use dust_dds::{
     DdsType,
 };
 
-#[derive(serde::Serialize, serde::Deserialize, DdsType, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, DdsType, DdsKey, Debug)]
 struct HelloWorldType {
     #[key]
     id: u8,
     msg: String,
-}
-
-impl DdsKey for HelloWorldType {
-    type BorrowedKeyHolder<'a> = &'a u8;
-    type OwningKeyHolder = u8;
-
-    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        &self.id
-    }
-
-    fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
-        self.id = key_holder;
-    }
 }
 
 fn main() {

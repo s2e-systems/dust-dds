@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-pub use dust_dds_derive::DdsType;
+pub use dust_dds_derive::{DdsKey, DdsType};
 
 pub type RepresentationType = [u8; 2];
 pub type RepresentationOptions = [u8; 2];
