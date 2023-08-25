@@ -14,8 +14,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::DdsKey,
-    DdsType,
+    topic_definition::type_support::{DdsKey, DdsType},
 };
 
 use serde::{Deserialize, Serialize};

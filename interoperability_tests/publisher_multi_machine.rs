@@ -10,32 +10,16 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::type_support::{DdsSerializeKey, DdsType},
+    topic_definition::type_support::{DdsKey, DdsType},
 };
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, DdsType)]
+#[derive(Deserialize, Serialize, DdsType, DdsKey)]
 struct HelloWorldType {
     #[key]
     id: u8,
     msg: String,
-}
-
-impl DdsSerializeKey for HelloWorldType {
-    fn dds_serialize_key(
-        &self,
-        writer: impl std::io::Write,
-    ) -> dust_dds::infrastructure::error::DdsResult<()> {
-        #[derive(serde::Serialize)]
-        struct HelloWorldTypeKeyHolder<'a> {
-            id: &'a u8,
-        }
-
-        let key_holder = HelloWorldTypeKeyHolder { id: &self.id };
-
-        dust_dds::topic_definition::type_support::serialize_key_cdr(&key_holder, writer)
-    }
 }
 
 fn main() {

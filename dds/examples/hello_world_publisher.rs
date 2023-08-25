@@ -10,8 +10,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::type_support::DdsKey,
-    DdsType,
+    topic_definition::type_support::{DdsKey, DdsType},
 };
 
 #[derive(serde::Serialize, serde::Deserialize, DdsType, DdsKey, Debug)]
