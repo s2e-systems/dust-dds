@@ -28,10 +28,6 @@ impl DdsKey for HelloWorldType {
     type BorrowedKeyHolder<'a> = u8;
     type OwningKeyHolder = u8;
 
-    fn has_key() -> bool {
-        true
-    }
-
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.id
     }

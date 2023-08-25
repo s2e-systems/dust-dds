@@ -90,15 +90,15 @@ pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
 impl DdsType for DiscoveredWriterData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+    fn has_key() -> bool {
+        true
+    }
 }
 
 impl DdsKey for DiscoveredWriterData {
     type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
-
-    fn has_key() -> bool {
-        true
-    }
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.dds_publication_data.key().value

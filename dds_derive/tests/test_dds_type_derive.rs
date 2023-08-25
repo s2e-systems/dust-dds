@@ -1,34 +1,43 @@
 use dust_dds::topic_definition::type_support::DdsType;
-use serde::{Deserialize, Serialize};
 
 #[derive(DdsType)]
 struct StructNoKey {
-    a: i32,
-    b: i32,
+    _a: i32,
+    _b: i32,
+}
+
+#[test]
+fn struct_no_key() {
+    assert_eq!(StructNoKey::has_key(), false);
 }
 
 #[derive(DdsType)]
 struct StructWithKey {
-    a: i32,
+    _a: i32,
     #[key]
-    b: i32,
+    _b: i32,
+}
+
+#[test]
+fn struct_with_key() {
+    assert_eq!(StructWithKey::has_key(), true);
 }
 
 #[derive(DdsType)]
 struct StructManyKeys {
     #[key]
-    a: i32,
-    b: i32,
+    _a: i32,
+    _b: i32,
     #[key]
-    c: char,
+    _c: char,
     #[key]
-    d: bool,
+    _d: bool,
 }
 
-/*
- * cdr::serialize only seems to work for ascii characters (I tried a few
- * Unicode and Latin-1 chars)
- */
+#[test]
+fn struct_many_key() {
+    assert_eq!(StructManyKeys::has_key(), true);
+}
 
 /*
  * Derive macros must take care of types with generics
@@ -37,28 +46,28 @@ struct StructManyKeys {
 
 #[derive(DdsType)]
 struct TypeWithGeneric<T> {
-    a: T,
+    _a: T,
     #[key]
-    b: i32,
+    _b: i32,
+}
+
+#[test]
+fn type_with_generic() {
+    assert_eq!(TypeWithGeneric::<u8>::has_key(), true);
 }
 
 #[derive(DdsType)]
 struct TupleNoKey(i32, i32);
 
+#[test]
+fn tuple_no_key() {
+    assert_eq!(TupleNoKey::has_key(), false);
+}
+
 #[derive(DdsType)]
 struct TupleWithKeys(i32, #[key] i32, #[key] bool, char);
 
-#[derive(DdsType, PartialEq, Eq, Debug)]
-enum EnumNoKey {
-    _One,
-    _Two,
-    _Three,
-}
-
-#[derive(Serialize, Deserialize, DdsType, PartialEq, Eq, Debug)]
-#[key]
-enum EnumKey {
-    _One,
-    _Two,
-    _Three,
+#[test]
+fn tuple_with_keys() {
+    assert_eq!(TupleWithKeys::has_key(), true);
 }

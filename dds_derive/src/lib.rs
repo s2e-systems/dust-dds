@@ -1,116 +1,40 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::{quote, quote_spanned, ToTokens};
-use syn::spanned::Spanned;
-use syn::{parse_macro_input, Attribute, DataStruct, DeriveInput, Ident};
+use quote::{quote, quote_spanned};
+use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Field};
 
 #[proc_macro_derive(DdsType, attributes(key))]
 pub fn derive_dds_type(input: TokenStream) -> TokenStream {
+    fn field_has_key_attribute(field: &Field) -> bool {
+        field.attrs.iter().any(|attr| {
+            attr.parse_meta()
+                .ok()
+                .and_then(|meta| meta.path().get_ident().cloned())
+                .map(|ident| ident == "key")
+                .unwrap_or(false)
+        })
+    }
+
     let input: DeriveInput = parse_macro_input!(input);
 
-    let is_key = has_key_attribute(&input.attrs);
+    if let syn::Data::Struct(struct_data) = &input.data {
+        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+        let ident = input.ident;
 
-    let struct_with_key_attributes = match &input.data {
-        syn::Data::Struct(struct_data) => struct_data
-            .fields
-            .iter()
-            .any(|field| has_key_attribute(&field.attrs)),
-        syn::Data::Enum(enum_data) => {
-            if enum_data
-                .variants
-                .iter()
-                .any(|variant| has_key_attribute(&variant.attrs))
-            {
-                return quote_spanned!(input.span() => compile_error!("An enum variant cannot be a key")).into();
-            }
-            false
-        }
-        syn::Data::Union(_) => {
-            return quote_spanned!(input.span() => compile_error!("DdsType doesn't support derive for unions")).into();
-        }
-    };
-
-    if is_key && struct_with_key_attributes {
-        return quote_spanned!(input.span() => compile_error!("Using #[key] on fields is undefined when the whole struct is already marked with #[key]")).into();
-    }
-
-    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-    let ident = input.ident;
-
-    if is_key {
-        quote! {
-            impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
-            }
-        }
-        .into()
-    } else if struct_with_key_attributes {
-        let struct_data = if let syn::Data::Struct(struct_data) = input.data {
-            struct_data
-        } else {
-            unreachable!()
-        };
-        let set_key = struct_set_key(&struct_data);
+        let has_key = struct_data.fields.iter().any(field_has_key_attribute);
 
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
+                const REPRESENTATION_IDENTIFIER: dust_dds::topic_definition::type_support::RepresentationType
+                    = dust_dds::topic_definition::type_support::CDR_LE;
+
+                fn has_key() -> bool {
+                    #has_key
+                }
 
             }
         }
-        .into()
     } else {
-        quote! {
-            impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
-
-
-
-            }
-        }
-        .into()
+        quote_spanned!{input.span() => compile_error!("DdsType can only be derived for structs");}
     }
-}
-
-fn struct_set_key(struct_data: &DataStruct) -> TokenStream2 {
-    let indexed_key_fields = struct_data
-        .fields
-        .iter()
-        .enumerate()
-        .filter(|(_, field)| has_key_attribute(&field.attrs))
-        .collect::<Vec<_>>();
-
-    let identifiers = (0..indexed_key_fields.len())
-        .map(|i| Ident::new(&format!("__field_{}", i), Span::call_site()))
-        .collect::<Vec<_>>();
-
-    let mut identifier_list_ts = quote! {};
-    for ident in identifiers.iter() {
-        identifier_list_ts.extend(quote! {#ident,});
-    }
-
-    let mut token_stream = quote! {
-        let (#identifier_list_ts) = cdr::de::deserialize_data::<_,cdr::LittleEndian>(&key.as_ref()).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
-    };
-
-    for (&(i, field), ident) in indexed_key_fields.iter().zip(identifiers.iter()) {
-        let field_ident = field
-            .ident
-            .clone()
-            .map(|field| field.into_token_stream())
-            .unwrap_or_else(|| syn::Index::from(i).into_token_stream());
-
-        token_stream.extend(quote! {
-            self.#field_ident = #ident;
-        });
-    }
-
-    token_stream
-}
-
-fn has_key_attribute(attr_list: &[Attribute]) -> bool {
-    attr_list.iter().any(|attr| {
-        attr.parse_meta()
-            .ok()
-            .and_then(|meta| meta.path().get_ident().cloned())
-            .map(|ident| ident == "key")
-            .unwrap_or(false)
-    })
+    .into()
 }

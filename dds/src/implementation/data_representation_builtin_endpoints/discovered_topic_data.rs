@@ -24,15 +24,15 @@ impl DiscoveredTopicData {
 
 impl DdsType for DiscoveredTopicData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+    fn has_key() -> bool {
+        true
+    }
 }
 
 impl DdsKey for DiscoveredTopicData {
     type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
-
-    fn has_key() -> bool {
-        true
-    }
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.topic_builtin_topic_data.key().value

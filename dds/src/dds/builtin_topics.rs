@@ -18,7 +18,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsType, RepresentationType, PL_CDR_LE},
 };
 
 #[derive(
@@ -78,7 +78,13 @@ impl ParticipantBuiltinTopicData {
     }
 }
 
-impl DdsType for ParticipantBuiltinTopicData {}
+impl DdsType for ParticipantBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+    fn has_key() -> bool {
+        true
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TopicBuiltinTopicData {
@@ -198,7 +204,13 @@ impl TopicBuiltinTopicData {
     }
 }
 
-impl DdsType for TopicBuiltinTopicData {}
+impl DdsType for TopicBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+    fn has_key() -> bool {
+        true
+    }
+}
 
 #[derive(
     Debug,
@@ -367,7 +379,13 @@ impl PublicationBuiltinTopicData {
     }
 }
 
-impl DdsType for PublicationBuiltinTopicData {}
+impl DdsType for PublicationBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+    fn has_key() -> bool {
+        true
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SubscriptionBuiltinTopicData {
@@ -504,4 +522,10 @@ impl SubscriptionBuiltinTopicData {
     }
 }
 
-impl DdsType for SubscriptionBuiltinTopicData {}
+impl DdsType for SubscriptionBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+    fn has_key() -> bool {
+        true
+    }
+}

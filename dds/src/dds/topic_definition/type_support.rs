@@ -45,7 +45,9 @@ impl AsRef<[u8]> for DdsSerializedKey {
 }
 
 pub trait DdsType {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
+    const REPRESENTATION_IDENTIFIER: RepresentationType;
+
+    fn has_key() -> bool;
 }
 
 pub trait DdsKey {
@@ -55,8 +57,6 @@ pub trait DdsKey {
     where
         Self: 'a;
     type OwningKeyHolder: for<'de> serde::Deserialize<'de>;
-
-    fn has_key() -> bool;
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_>;
 

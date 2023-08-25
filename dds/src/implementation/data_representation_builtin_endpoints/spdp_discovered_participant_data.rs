@@ -216,15 +216,15 @@ impl SpdpDiscoveredParticipantData {
 
 impl DdsType for SpdpDiscoveredParticipantData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+    fn has_key() -> bool {
+        true
+    }
 }
 
 impl DdsKey for SpdpDiscoveredParticipantData {
     type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
-
-    fn has_key() -> bool {
-        true
-    }
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.dds_participant_data.key().value

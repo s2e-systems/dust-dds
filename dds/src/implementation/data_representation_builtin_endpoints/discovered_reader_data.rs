@@ -106,15 +106,15 @@ impl DiscoveredReaderData {
 
 impl DdsType for DiscoveredReaderData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+    fn has_key() -> bool {
+        true
+    }
 }
 
 impl DdsKey for DiscoveredReaderData {
     type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
-
-    fn has_key() -> bool {
-        true
-    }
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.subscription_builtin_topic_data.key().value
