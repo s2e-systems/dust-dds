@@ -244,22 +244,47 @@ where
     T: DdsKey,
 {
     let mut writer = vec![];
-
-    let mut serializer = cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
+    writer
+        .write_all(&CDR_LE)
+        .map_err(|err| PreconditionNotMet(err.to_string()))?;
+    writer
+        .write_all(&REPRESENTATION_OPTIONS)
+        .map_err(|err| PreconditionNotMet(err.to_string()))?;
+    let mut serializer = cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
     let key = value.get_key();
     serde::Serialize::serialize(&key, &mut serializer)
         .map_err(|err| PreconditionNotMet(err.to_string()))?;
     Ok(writer.into())
 }
 
-pub fn dds_deserialize_key_from_bytes<'de, T>(data: &'de [u8]) -> DdsResult<T::OwningKeyHolder>
+pub fn dds_deserialize_key_from_bytes<'de, T>(mut data: &'de [u8]) -> DdsResult<T::OwningKeyHolder>
 where
     T: DdsKey,
 {
-    let mut deserializer =
-        cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
-    serde::Deserialize::deserialize(&mut deserializer)
-        .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))
+    let mut representation_identifier: RepresentationType = [0, 0];
+    data.read_exact(&mut representation_identifier)
+        .map_err(|err| PreconditionNotMet(err.to_string()))?;
+
+    let mut representation_option: RepresentationOptions = [0, 0];
+    data.read_exact(&mut representation_option)
+        .map_err(|err| PreconditionNotMet(err.to_string()))?;
+    match representation_identifier {
+        CDR_BE => {
+            let mut deserializer =
+                cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
+            serde::Deserialize::deserialize(&mut deserializer)
+                .map_err(|err| PreconditionNotMet(err.to_string()))
+        }
+        CDR_LE => {
+            let mut deserializer =
+                cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(data, cdr::Infinite);
+            serde::Deserialize::deserialize(&mut deserializer)
+                .map_err(|err| PreconditionNotMet(err.to_string()))
+        }
+        _ => Err(PreconditionNotMet(
+            "Illegal representation identifier".to_string(),
+        )),
+    }
 }
 
 pub fn dds_set_key_fields_from_serialized_key<T>(
