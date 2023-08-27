@@ -751,8 +751,7 @@ impl DomainParticipant {
                             participant_announcer.write_w_timestamp(
                                 serialized_data,
                                 dds_serialize_key_to_bytes(&spdp_discovered_participant_data)
-                                    .unwrap()
-                                    .into(),
+                                    .unwrap(),
                                 None,
                                 timestamp,
                             )??;

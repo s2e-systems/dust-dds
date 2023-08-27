@@ -100,7 +100,7 @@ where
     type OwningKeyHolder = Vec<T>;
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        &self
+        self
     }
 
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
@@ -113,7 +113,7 @@ impl DdsKey for String {
     type OwningKeyHolder = String;
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        &self
+        self
     }
 
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
@@ -129,7 +129,7 @@ where
     type OwningKeyHolder = [T; N];
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        &self
+        self
     }
 
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
@@ -254,7 +254,7 @@ where
     Ok(writer.into())
 }
 
-pub fn dds_deserialize_key_from_bytes<'de, T>(mut data: &'de [u8]) -> DdsResult<T::OwningKeyHolder>
+pub fn dds_deserialize_key_from_bytes<T>(mut data: &[u8]) -> DdsResult<T::OwningKeyHolder>
 where
     T: DdsKey,
 {
