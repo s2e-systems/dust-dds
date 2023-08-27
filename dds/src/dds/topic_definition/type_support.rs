@@ -5,10 +5,7 @@ use crate::{
         serde_parameter_list_deserializer::ParameterListDeserializer,
         serde_parameter_list_serializer::ParameterListSerializer,
     },
-    infrastructure::error::{
-        DdsError::{self, PreconditionNotMet},
-        DdsResult,
-    },
+    infrastructure::error::{DdsError::PreconditionNotMet, DdsResult},
 };
 
 pub use dust_dds_derive::{DdsKey, DdsType};
