@@ -47,6 +47,13 @@ pub trait DdsType {
 
 pub trait DdsRepresentation {
     const REPRESENTATION_IDENTIFIER: RepresentationType;
+
+    fn from_bytes(_bytes: &[u8]) -> DdsResult<Self>
+    where
+        Self: Sized,
+    {
+        unimplemented!("Not possible to interpret type from custom representation")
+    }
 }
 
 pub trait DdsKey {
