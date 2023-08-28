@@ -39,17 +39,12 @@ pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
 
                 let mut borrowed_key_holder_fields = quote!{};
                 let mut borrowed_key_holder_field_assignment = quote!{};
-                let mut owning_key_holder_fields = quote!{};
-                let mut set_key_fields = quote!{};
 
                 for key_field in key_fields {
                     let field_ident = &key_field.ident;
                     let field_type = &key_field.ty;
                     borrowed_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsGetKey>::BorrowedKeyHolder<'a>,});
                     borrowed_key_holder_field_assignment.extend(quote!{#field_ident: self.#field_ident.get_key(),});
-
-                    owning_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsGetKey>::OwningKeyHolder,});
-                    set_key_fields.extend(quote!{ self.#field_ident.set_key_from_holder(key_holder.#field_ident);});
 
                 }
 
@@ -104,22 +99,17 @@ pub fn derive_dds_set_key_fields(input: TokenStream) -> TokenStream {
         match key_fields.is_empty() {
             false => {
 
-                let mut borrowed_key_holder_fields = quote!{};
-                let mut borrowed_key_holder_field_assignment = quote!{};
                 let mut owning_key_holder_fields = quote!{};
                 let mut set_key_fields = quote!{};
 
                 for key_field in key_fields {
                     let field_ident = &key_field.ident;
                     let field_type = &key_field.ty;
-                    borrowed_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsGetKey>::BorrowedKeyHolder<'a>,});
-                    borrowed_key_holder_field_assignment.extend(quote!{#field_ident: self.#field_ident.get_key(),});
 
-                    owning_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsGetKey>::OwningKeyHolder,});
+                    owning_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsSetKeyFields>::OwningKeyHolder,});
                     set_key_fields.extend(quote!{ self.#field_ident.set_key_from_holder(key_holder.#field_ident);});
 
                 }
-
 
                 // Create the new structs and implementation inside a const to avoid name conflicts
                 quote! {
@@ -141,7 +131,7 @@ pub fn derive_dds_set_key_fields(input: TokenStream) -> TokenStream {
             },
             true => {
                 quote! {
-                    impl #impl_generics dust_dds::topic_definition::type_support::DdsGetKey for #ident #type_generics #where_clause {
+                    impl #impl_generics dust_dds::topic_definition::type_support::DdsSetKeyFields for #ident #type_generics #where_clause {
                         type OwningKeyHolder = ();
 
                         fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {}
@@ -172,6 +162,18 @@ pub fn derive_dds_representation(input: TokenStream) -> TokenStream {
     }else {
         quote_spanned! {input.span() => compile_error!("DdsRepresentation can only be derived for structs");}
     }.into()
+}
+
+#[proc_macro_derive(DdsType, attributes(key))]
+pub fn derive_dds_type(input: TokenStream) -> TokenStream {
+    let mut output = TokenStream::new();
+
+    output.extend(derive_dds_representation(input.clone()));
+    output.extend(derive_dds_has_key(input.clone()));
+    output.extend(derive_dds_get_key(input.clone()));
+    output.extend(derive_dds_set_key_fields(input));
+
+    output.into()
 }
 
 fn field_has_key_attribute(field: &Field) -> bool {

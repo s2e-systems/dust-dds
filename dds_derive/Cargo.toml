@@ -8,7 +8,7 @@ authors = [
 ]
 edition = "2018"
 license = "Apache-2.0"
-description = "Derive macro for `DdsHasKey` from `dust-dds`"
+description = "Derive macro for `DdsType` and other traits from `dust-dds`"
 readme = "README.md"
 homepage = "https://s2e-systems.com/products/dust-dds"
 repository = "https://github.com/s2e-systems/dust-dds"

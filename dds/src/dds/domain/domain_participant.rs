@@ -214,8 +214,6 @@ impl DomainParticipant {
     /// set in the factory. The use of this value is equivalent to the application obtaining the default Topic QoS by means of the
     /// operation [`DomainParticipant::get_default_topic_qos`] and using the resulting QoS to create the [`Topic`].
     /// The created [`Topic`] belongs to the [`DomainParticipant`] that is its factory.
-    /// The [`Topic`] is bound to a type specified by the generic type parameter 'Foo'. Only types which implement
-    /// [`DdsHasKey`] and have a `'static` lifetime can be associated to a [`Topic`].
     /// In case of failure, the operation will return an error and no [`Topic`] will be created.
     pub fn create_topic(
         &self,

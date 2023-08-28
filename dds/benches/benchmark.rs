@@ -12,20 +12,10 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::{DdsGetKey, DdsHasKey},
+    topic_definition::type_support::DdsType,
 };
-use dust_dds_derive::DdsRepresentation;
 
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    DdsHasKey,
-    DdsGetKey,
-    DdsRepresentation,
-)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct KeyedData {
     #[key]
     id: u8,

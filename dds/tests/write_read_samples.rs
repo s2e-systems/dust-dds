@@ -21,39 +21,23 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::{
-        dds_serialize_key, dds_serialize_key_to_bytes, DdsGetKey, DdsHasKey,
-    },
+    topic_definition::type_support::{dds_serialize_key, dds_serialize_key_to_bytes, DdsType},
 };
-use dust_dds_derive::DdsRepresentation;
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(
-    Debug, PartialEq, DdsHasKey, DdsGetKey, DdsRepresentation, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct UserData(u8);
 
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    DdsHasKey,
-    DdsGetKey,
-    DdsRepresentation,
-)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct KeyedData {
     #[key]
     id: u8,
     value: u8,
 }
 
-#[derive(
-    Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsHasKey, DdsGetKey, DdsRepresentation,
-)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct LargeData {
     #[key]
     id: u8,

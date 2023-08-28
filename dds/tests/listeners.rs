@@ -28,7 +28,7 @@ use dust_dds::{
         subscriber::Subscriber,
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::{DdsGetKey, DdsRepresentation, DdsHasKey},
+    topic_definition::type_support::DdsType,
 };
 
 use mockall::mock;
@@ -36,9 +36,7 @@ use mockall::mock;
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(
-    Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsHasKey, DdsGetKey, DdsRepresentation,
-)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct MyData {
     #[key]
     id: u8,
