@@ -12,7 +12,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::{DdsKey, DdsType},
+    topic_definition::type_support::{DdsGetKey, DdsType},
 };
 use dust_dds_derive::DdsRepresentation;
 
@@ -23,7 +23,7 @@ use dust_dds_derive::DdsRepresentation;
     serde::Serialize,
     serde::Deserialize,
     DdsType,
-    DdsKey,
+    DdsGetKey,
     DdsRepresentation,
 )]
 struct KeyedData {

@@ -8,7 +8,7 @@ use crate::{
     infrastructure::error::{DdsError::PreconditionNotMet, DdsResult},
 };
 
-pub use dust_dds_derive::{DdsKey, DdsRepresentation, DdsType};
+pub use dust_dds_derive::{DdsGetKey, DdsRepresentation, DdsType};
 
 pub type RepresentationType = [u8; 2];
 pub type RepresentationOptions = [u8; 2];
@@ -56,7 +56,7 @@ pub trait DdsRepresentation {
     }
 }
 
-pub trait DdsKey {
+pub trait DdsGetKey {
     // Serde trait bounds placed here since there is no easy way to express this bound
     // without specifying the lifetime 'a which makes the bounds on usage very complicated
     type BorrowedKeyHolder<'a>: serde::Serialize
@@ -69,9 +69,9 @@ pub trait DdsKey {
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder);
 }
 
-macro_rules! implement_dds_key_for_built_in_type {
+macro_rules! implement_dds_get_key_for_built_in_type {
     ($t:ty) => {
-        impl DdsKey for $t {
+        impl DdsGetKey for $t {
             type BorrowedKeyHolder<'a> = $t;
             type OwningKeyHolder = $t;
 
@@ -86,22 +86,22 @@ macro_rules! implement_dds_key_for_built_in_type {
     };
 }
 
-implement_dds_key_for_built_in_type!(bool);
-implement_dds_key_for_built_in_type!(char);
-implement_dds_key_for_built_in_type!(u8);
-implement_dds_key_for_built_in_type!(i8);
-implement_dds_key_for_built_in_type!(u16);
-implement_dds_key_for_built_in_type!(i16);
-implement_dds_key_for_built_in_type!(u32);
-implement_dds_key_for_built_in_type!(i32);
-implement_dds_key_for_built_in_type!(u64);
-implement_dds_key_for_built_in_type!(i64);
-implement_dds_key_for_built_in_type!(usize);
-implement_dds_key_for_built_in_type!(isize);
-implement_dds_key_for_built_in_type!(f32);
-implement_dds_key_for_built_in_type!(f64);
+implement_dds_get_key_for_built_in_type!(bool);
+implement_dds_get_key_for_built_in_type!(char);
+implement_dds_get_key_for_built_in_type!(u8);
+implement_dds_get_key_for_built_in_type!(i8);
+implement_dds_get_key_for_built_in_type!(u16);
+implement_dds_get_key_for_built_in_type!(i16);
+implement_dds_get_key_for_built_in_type!(u32);
+implement_dds_get_key_for_built_in_type!(i32);
+implement_dds_get_key_for_built_in_type!(u64);
+implement_dds_get_key_for_built_in_type!(i64);
+implement_dds_get_key_for_built_in_type!(usize);
+implement_dds_get_key_for_built_in_type!(isize);
+implement_dds_get_key_for_built_in_type!(f32);
+implement_dds_get_key_for_built_in_type!(f64);
 
-impl<T> DdsKey for Vec<T>
+impl<T> DdsGetKey for Vec<T>
 where
     T: serde::Serialize + for<'de> serde::Deserialize<'de>,
 {
@@ -117,7 +117,7 @@ where
     }
 }
 
-impl DdsKey for String {
+impl DdsGetKey for String {
     type BorrowedKeyHolder<'a> = &'a str;
     type OwningKeyHolder = String;
 
@@ -130,7 +130,7 @@ impl DdsKey for String {
     }
 }
 
-impl<const N: usize, T> DdsKey for [T; N]
+impl<const N: usize, T> DdsGetKey for [T; N]
 where
     [T; N]: serde::Serialize + for<'de> serde::Deserialize<'de>,
 {
@@ -247,7 +247,7 @@ where
 
 pub fn dds_serialize_key<T>(value: &T) -> DdsResult<DdsSerializedKey>
 where
-    T: DdsKey,
+    T: DdsGetKey,
 {
     let mut writer = vec![];
     let mut serializer = cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
@@ -259,7 +259,7 @@ where
 
 pub fn dds_serialize_key_to_bytes<T>(value: &T) -> DdsResult<DdsSerializedKey>
 where
-    T: DdsKey,
+    T: DdsGetKey,
 {
     let mut writer = vec![];
     writer
@@ -277,7 +277,7 @@ where
 
 pub fn dds_deserialize_key_from_bytes<T>(mut data: &[u8]) -> DdsResult<T::OwningKeyHolder>
 where
-    T: DdsKey,
+    T: DdsGetKey,
 {
     let mut representation_identifier: RepresentationType = [0, 0];
     data.read_exact(&mut representation_identifier)
@@ -310,7 +310,7 @@ pub fn dds_set_key_fields_from_serialized_key<T>(
     serialized_key: &[u8],
 ) -> DdsResult<()>
 where
-    T: DdsKey,
+    T: DdsGetKey,
 {
     let key_holder = dds_deserialize_key_from_bytes::<T>(serialized_key)?;
     value.set_key_from_holder(key_holder);

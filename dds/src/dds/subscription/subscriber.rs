@@ -26,7 +26,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsKey, DdsType},
+        type_support::{DdsGetKey, DdsType},
     },
 };
 
@@ -96,7 +96,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsType + for<'de> serde::Deserialize<'de> + DdsKey + Send + 'static,
+        Foo: DdsType + for<'de> serde::Deserialize<'de> + DdsGetKey + Send + 'static,
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {

@@ -61,7 +61,7 @@ use crate::{
         time::DurationKind,
     },
     topic_definition::type_support::{
-        dds_serialize_key, dds_set_key_fields_from_serialized_key, DdsKey, DdsSerializedKey,
+        dds_serialize_key, dds_set_key_fields_from_serialized_key, DdsGetKey, DdsSerializedKey,
     },
     {
         builtin_topics::SubscriptionBuiltinTopicData,
@@ -251,7 +251,7 @@ impl DdsDataWriter {
 
     pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
     where
-        Foo: DdsKey,
+        Foo: DdsGetKey,
     {
         if !self.enabled {
             return Err(DdsError::NotEnabled);

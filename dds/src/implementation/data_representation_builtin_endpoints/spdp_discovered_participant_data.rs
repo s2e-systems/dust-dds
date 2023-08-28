@@ -11,7 +11,7 @@ use crate::{
     },
     infrastructure::time::Duration,
     topic_definition::type_support::{
-        DdsKey, DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE,
+        DdsGetKey, DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE,
     },
 };
 
@@ -226,7 +226,7 @@ impl DdsRepresentation for SpdpDiscoveredParticipantData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }
 
-impl DdsKey for SpdpDiscoveredParticipantData {
+impl DdsGetKey for SpdpDiscoveredParticipantData {
     type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
 

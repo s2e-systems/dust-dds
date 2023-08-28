@@ -30,7 +30,7 @@ use crate::{
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     },
     topic_definition::type_support::{
-        dds_deserialize_from_bytes, dds_serialize_key, DdsKey, DdsSerializedKey, DdsType,
+        dds_deserialize_from_bytes, dds_serialize_key, DdsGetKey, DdsSerializedKey, DdsType,
     },
 };
 use std::{
@@ -112,11 +112,11 @@ struct InstanceHandleBuilder(fn(&mut &[u8]) -> RtpsReaderResult<DdsSerializedKey
 impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
-        Foo: for<'de> serde::Deserialize<'de> + DdsType + DdsKey,
+        Foo: for<'de> serde::Deserialize<'de> + DdsType + DdsGetKey,
     {
         fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>
         where
-            Foo: for<'de> serde::Deserialize<'de> + DdsType + DdsKey,
+            Foo: for<'de> serde::Deserialize<'de> + DdsType + DdsGetKey,
         {
             dds_serialize_key(
                 &dds_deserialize_from_bytes::<Foo>(data)
@@ -229,7 +229,7 @@ impl RtpsReader {
         qos: DataReaderQos,
     ) -> Self
     where
-        Foo: DdsType + for<'de> serde::Deserialize<'de> + DdsKey,
+        Foo: DdsType + for<'de> serde::Deserialize<'de> + DdsGetKey,
     {
         let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
         Self {

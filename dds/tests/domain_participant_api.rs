@@ -19,16 +19,16 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::{DdsKey, DdsRepresentation, DdsType},
+    topic_definition::type_support::{DdsGetKey, DdsRepresentation, DdsType},
 };
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(serde::Serialize, serde::Deserialize, DdsType, DdsKey, DdsRepresentation)]
+#[derive(serde::Serialize, serde::Deserialize, DdsType, DdsGetKey, DdsRepresentation)]
 struct TestType(u8);
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsKey)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsGetKey)]
 struct MyData {
     #[key]
     id: u8,

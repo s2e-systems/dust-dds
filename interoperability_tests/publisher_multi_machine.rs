@@ -10,12 +10,12 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::type_support::{DdsKey, DdsRepresentation, DdsType},
+    topic_definition::type_support::{DdsGetKey, DdsRepresentation, DdsType},
 };
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, DdsType, DdsKey, DdsRepresentation)]
+#[derive(Deserialize, Serialize, DdsType, DdsGetKey, DdsRepresentation)]
 struct HelloWorldType {
     #[key]
     id: u8,

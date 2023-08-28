@@ -16,12 +16,12 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
         infrastructure::{qos::QosKind, status::NO_STATUS},
-        topic_definition::type_support::{DdsType, DdsKey, DdsRepresentation},
+        topic_definition::type_support::{DdsType, DdsGetKey, DdsRepresentation},
     };
 
     use serde::{Deserialize, Serialize};
 
-    #[derive(Deserialize, Serialize, DdsType, DdsKey, DdsRepresentation)]
+    #[derive(Deserialize, Serialize, DdsType, DdsGetKey, DdsRepresentation)]
     struct HelloWorldType {
         #[key]
         id: u8,
@@ -63,12 +63,12 @@ The subscriber side can be implemented as:
         domain::domain_participant_factory::DomainParticipantFactory,
         infrastructure::{qos::QosKind, status::NO_STATUS},
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        topic_definition::type_support::{DdsType, DdsKey, DdsRepresentation},
+        topic_definition::type_support::{DdsType, DdsGetKey, DdsRepresentation},
     };
 
     use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Deserialize, Serialize, DdsType, DdsKey, DdsRepresentation)]
+    #[derive(Debug, Deserialize, Serialize, DdsType, DdsGetKey, DdsRepresentation)]
     struct HelloWorldType {
         #[key]
         id: u8,

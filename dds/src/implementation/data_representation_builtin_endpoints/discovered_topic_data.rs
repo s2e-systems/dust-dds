@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     topic_definition::type_support::{
-        DdsKey, DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE,
+        DdsGetKey, DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE,
     },
 };
 
@@ -34,7 +34,7 @@ impl DdsRepresentation for DiscoveredTopicData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }
 
-impl DdsKey for DiscoveredTopicData {
+impl DdsGetKey for DiscoveredTopicData {
     type BorrowedKeyHolder<'a> = [u8; 16];
     type OwningKeyHolder = [u8; 16];
 

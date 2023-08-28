@@ -14,12 +14,12 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::{DdsKey, DdsRepresentation, DdsType},
+    topic_definition::type_support::{DdsGetKey, DdsRepresentation, DdsType},
 };
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, DdsType, DdsKey, DdsRepresentation, Debug)]
+#[derive(Deserialize, Serialize, DdsType, DdsGetKey, DdsRepresentation, Debug)]
 struct BestEffortExampleType {
     id: i32,
 }

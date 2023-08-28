@@ -26,7 +26,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         type_support::{
-            dds_serialize_key, dds_serialize_key_to_bytes, dds_serialize_to_bytes, DdsKey,
+            dds_serialize_key, dds_serialize_key_to_bytes, dds_serialize_to_bytes, DdsGetKey,
             DdsRepresentation, DdsType,
         },
     },
@@ -69,7 +69,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsKey + DdsType + DdsRepresentation + serde::Serialize,
+    Foo: DdsGetKey + DdsType + DdsRepresentation + serde::Serialize,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
