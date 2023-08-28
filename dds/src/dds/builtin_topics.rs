@@ -18,7 +18,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    topic_definition::type_support::{DdsHasKey, DdsRepresentation, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{DdsHasKey, DdsRepresentation, RepresentationType},
 };
 
 #[derive(
@@ -83,7 +83,7 @@ impl DdsHasKey for ParticipantBuiltinTopicData {
 }
 
 impl DdsRepresentation for ParticipantBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    const REPRESENTATION_IDENTIFIER: RepresentationType = RepresentationType::PlCdrLe;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
@@ -209,7 +209,7 @@ impl DdsHasKey for TopicBuiltinTopicData {
 }
 
 impl DdsRepresentation for TopicBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    const REPRESENTATION_IDENTIFIER: RepresentationType = RepresentationType::PlCdrLe;
 }
 
 #[derive(
@@ -384,7 +384,7 @@ impl DdsHasKey for PublicationBuiltinTopicData {
 }
 
 impl DdsRepresentation for PublicationBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    const REPRESENTATION_IDENTIFIER: RepresentationType = RepresentationType::PlCdrLe;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
@@ -527,5 +527,5 @@ impl DdsHasKey for SubscriptionBuiltinTopicData {
 }
 
 impl DdsRepresentation for SubscriptionBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    const REPRESENTATION_IDENTIFIER: RepresentationType = RepresentationType::PlCdrLe;
 }

@@ -18,7 +18,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{dds_serialize_key, dds_serialize_to_bytes, DdsHasKey},
+        type_support::{dds_serialize_key, dds_serialize_to_bytes, DdsHasKey, DdsRepresentation},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -96,7 +96,7 @@ impl<Foo> DataReader<Foo> {
 
 impl<Foo> DataReader<Foo>
 where
-    Foo: DdsHasKey + Send + 'static + for<'de> serde::Deserialize<'de>,
+    Foo: DdsRepresentation + DdsHasKey + for<'de> serde::Deserialize<'de> + Send + 'static,
 {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The size of the returned collection will
     /// be limited to the specified `max_samples`. The properties of the data values collection and the setting of the

@@ -30,7 +30,8 @@ use crate::{
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     },
     topic_definition::type_support::{
-        dds_deserialize_from_bytes, dds_serialize_key, DdsGetKey, DdsSerializedKey, DdsHasKey,
+        dds_deserialize_from_bytes, dds_serialize_key, DdsGetKey, DdsHasKey, DdsRepresentation,
+        DdsSerializedKey,
     },
 };
 use std::{
@@ -112,11 +113,11 @@ struct InstanceHandleBuilder(fn(&mut &[u8]) -> RtpsReaderResult<DdsSerializedKey
 impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
-        Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey,
+        Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
     {
         fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>
         where
-            Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey,
+            Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
         {
             dds_serialize_key(
                 &dds_deserialize_from_bytes::<Foo>(data)
@@ -229,7 +230,7 @@ impl RtpsReader {
         qos: DataReaderQos,
     ) -> Self
     where
-        Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + DdsGetKey,
+        Foo: DdsRepresentation + DdsHasKey + DdsGetKey + for<'de> serde::Deserialize<'de>,
     {
         let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
         Self {
@@ -519,7 +520,7 @@ impl RtpsReader {
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<(usize, Sample<Foo>)>>
     where
-        Foo: for<'de> serde::Deserialize<'de>,
+        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
     {
         if let Some(h) = specific_instance_handle {
             if !self.instances.contains_key(&h) {
@@ -660,7 +661,7 @@ impl RtpsReader {
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> serde::Deserialize<'de>,
+        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
     {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
@@ -694,7 +695,7 @@ impl RtpsReader {
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> serde::Deserialize<'de>,
+        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
     {
         let indexed_sample_list = self.create_indexed_sample_collection::<Foo>(
             max_samples,
@@ -735,7 +736,7 @@ impl RtpsReader {
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> serde::Deserialize<'de>,
+        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
     {
         match self.next_instance(previous_handle) {
             Some(next_handle) => self.read(
@@ -758,7 +759,7 @@ impl RtpsReader {
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> serde::Deserialize<'de>,
+        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
     {
         match self.next_instance(previous_handle) {
             Some(next_handle) => self.take(

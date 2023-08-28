@@ -11,7 +11,7 @@ use crate::{
     },
     infrastructure::time::Duration,
     topic_definition::type_support::{
-        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, RepresentationType, PL_CDR_LE,
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, RepresentationType,
     },
 };
 
@@ -221,7 +221,7 @@ impl DdsHasKey for SpdpDiscoveredParticipantData {
 }
 
 impl DdsRepresentation for SpdpDiscoveredParticipantData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    const REPRESENTATION_IDENTIFIER: RepresentationType = RepresentationType::PlCdrLe;
 }
 
 impl DdsGetKey for SpdpDiscoveredParticipantData {

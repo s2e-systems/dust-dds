@@ -5,7 +5,7 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     topic_definition::type_support::{
-        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, RepresentationType, PL_CDR_LE,
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, RepresentationType,
     },
 };
 
@@ -111,7 +111,7 @@ impl DdsHasKey for DiscoveredReaderData {
 }
 
 impl DdsRepresentation for DiscoveredReaderData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    const REPRESENTATION_IDENTIFIER: RepresentationType = RepresentationType::PlCdrLe;
 }
 
 impl DdsGetKey for DiscoveredReaderData {
@@ -273,35 +273,6 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
         let result = dds_deserialize_from_bytes::<DiscoveredReaderData>(data).unwrap();
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn deserialize_reader_proxy() {
-        let expected = ReaderProxy::new(
-            Guid::new(
-                [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
-                EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
-            ),
-            EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
-            vec![],
-            vec![],
-            false,
-        );
-
-        let data = &[
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x5a, 0x00, 16,
-            0, //PID_ENDPOINT_GUID, length (SubscriptionBuiltinTopicData::key) used for remote_reader_guid
-            1, 0, 0, 0, // ,
-            2, 0, 0, 0, // ,
-            3, 0, 0, 0, // ,
-            4, 0, 0, 0, // ,
-            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID (remote_group_entity_id)
-            21, 22, 23, 0xc2, // u8[3], u8
-            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-        ][..];
-        let result = dds_deserialize_from_bytes::<ReaderProxy>(data).unwrap();
         assert_eq!(result, expected);
     }
 }
