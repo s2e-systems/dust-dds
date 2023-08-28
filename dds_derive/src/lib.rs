@@ -96,13 +96,9 @@ pub fn derive_dds_key(input: TokenStream) -> TokenStream {
                         type BorrowedKeyHolder<'a> = ();
                         type OwningKeyHolder = ();
 
-                        fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-                            ()
-                        }
+                        fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {}
 
-                        fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
-                            ()
-                        }
+                        fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {}
                     }
                 }
             }

@@ -84,7 +84,6 @@ pub fn module_def(def: idl::Module) -> impl Iterator<Item = String> {
             def.definitions
                 .into_iter()
                 .flat_map(definition)
-                .into_iter()
                 .map(|line| "    ".to_string() + &line),
         )
         .chain(["}\n".to_string()].into_iter())
