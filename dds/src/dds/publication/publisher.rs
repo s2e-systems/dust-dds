@@ -26,7 +26,7 @@ use crate::{
     },
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
-    topic_definition::type_support::{DdsGetKey, DdsType},
+    topic_definition::type_support::{DdsGetKey, DdsHasKey},
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
@@ -88,7 +88,7 @@ impl Publisher {
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
-        Foo: DdsType + DdsGetKey + serde::Serialize + Send + 'static,
+        Foo: DdsHasKey + DdsGetKey + serde::Serialize + Send + 'static,
     {
         let default_unicast_locator_list = self
             .0
@@ -250,7 +250,7 @@ impl Publisher {
     /// specified which one.
     pub fn lookup_datawriter<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>>
     where
-        Foo: DdsType,
+        Foo: DdsHasKey,
     {
         todo!()
         // self.call_participant_mut_method(|dp| {

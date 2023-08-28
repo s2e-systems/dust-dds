@@ -12,7 +12,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::{DdsGetKey, DdsType},
+    topic_definition::type_support::{DdsGetKey, DdsHasKey},
 };
 use dust_dds_derive::DdsRepresentation;
 
@@ -22,7 +22,7 @@ use dust_dds_derive::DdsRepresentation;
     PartialEq,
     serde::Serialize,
     serde::Deserialize,
-    DdsType,
+    DdsHasKey,
     DdsGetKey,
     DdsRepresentation,
 )]

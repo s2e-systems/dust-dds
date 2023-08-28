@@ -22,7 +22,7 @@ use dust_dds::{
         },
     },
     topic_definition::type_support::{
-        dds_serialize_key, dds_serialize_key_to_bytes, DdsGetKey, DdsType,
+        dds_serialize_key, dds_serialize_key_to_bytes, DdsGetKey, DdsHasKey,
     },
 };
 use dust_dds_derive::DdsRepresentation;
@@ -31,7 +31,7 @@ mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[derive(
-    Debug, PartialEq, DdsType, DdsGetKey, DdsRepresentation, serde::Serialize, serde::Deserialize,
+    Debug, PartialEq, DdsHasKey, DdsGetKey, DdsRepresentation, serde::Serialize, serde::Deserialize,
 )]
 struct UserData(u8);
 
@@ -41,7 +41,7 @@ struct UserData(u8);
     PartialEq,
     serde::Serialize,
     serde::Deserialize,
-    DdsType,
+    DdsHasKey,
     DdsGetKey,
     DdsRepresentation,
 )]
@@ -52,7 +52,7 @@ struct KeyedData {
 }
 
 #[derive(
-    Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsGetKey, DdsRepresentation,
+    Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsHasKey, DdsGetKey, DdsRepresentation,
 )]
 struct LargeData {
     #[key]

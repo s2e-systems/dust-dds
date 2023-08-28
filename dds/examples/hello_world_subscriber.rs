@@ -11,12 +11,12 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::{DdsGetKey, DdsType},
+    topic_definition::type_support::{DdsGetKey, DdsHasKey},
 };
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, DdsType, DdsGetKey)]
+#[derive(Debug, Deserialize, Serialize, DdsHasKey, DdsGetKey)]
 struct HelloWorldType {
     #[key]
     id: u8,

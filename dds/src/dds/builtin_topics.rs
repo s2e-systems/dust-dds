@@ -18,7 +18,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    topic_definition::type_support::{DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{DdsRepresentation, DdsHasKey, RepresentationType, PL_CDR_LE},
 };
 
 #[derive(
@@ -78,7 +78,7 @@ impl ParticipantBuiltinTopicData {
     }
 }
 
-impl DdsType for ParticipantBuiltinTopicData {
+impl DdsHasKey for ParticipantBuiltinTopicData {
     fn has_key() -> bool {
         true
     }
@@ -206,7 +206,7 @@ impl TopicBuiltinTopicData {
     }
 }
 
-impl DdsType for TopicBuiltinTopicData {
+impl DdsHasKey for TopicBuiltinTopicData {
     fn has_key() -> bool {
         true
     }
@@ -383,7 +383,7 @@ impl PublicationBuiltinTopicData {
     }
 }
 
-impl DdsType for PublicationBuiltinTopicData {
+impl DdsHasKey for PublicationBuiltinTopicData {
     fn has_key() -> bool {
         true
     }
@@ -528,7 +528,7 @@ impl SubscriptionBuiltinTopicData {
     }
 }
 
-impl DdsType for SubscriptionBuiltinTopicData {
+impl DdsHasKey for SubscriptionBuiltinTopicData {
     fn has_key() -> bool {
         true
     }

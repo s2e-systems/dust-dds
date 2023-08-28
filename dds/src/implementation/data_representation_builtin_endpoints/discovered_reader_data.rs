@@ -5,7 +5,7 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     topic_definition::type_support::{
-        DdsGetKey, DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE,
+        DdsGetKey, DdsRepresentation, DdsHasKey, RepresentationType, PL_CDR_LE,
     },
 };
 
@@ -106,7 +106,7 @@ impl DiscoveredReaderData {
     }
 }
 
-impl DdsType for DiscoveredReaderData {
+impl DdsHasKey for DiscoveredReaderData {
     fn has_key() -> bool {
         true
     }

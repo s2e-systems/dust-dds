@@ -9,7 +9,7 @@ mod Game {
             Queen,
             King,
         }
-        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsType, dust_dds::topic_definition::type_support::DdsGetKey, dust_dds::topic_definition::type_support::DdsRepresentation)]
+        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsHasKey, dust_dds::topic_definition::type_support::DdsGetKey, dust_dds::topic_definition::type_support::DdsRepresentation)]
         pub struct ChessSquare {
             pub column: char,
             pub line: u16,
@@ -25,7 +25,7 @@ mod Game {
         }
     }
 }
-#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsType, dust_dds::topic_definition::type_support::DdsGetKey, dust_dds::topic_definition::type_support::DdsRepresentation)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsHasKey, dust_dds::topic_definition::type_support::DdsGetKey, dust_dds::topic_definition::type_support::DdsRepresentation)]
 pub struct Point {
     pub x: f64,
     pub y: f64,

@@ -27,7 +27,7 @@ use crate::{
         topic::Topic,
         type_support::{
             dds_serialize_key, dds_serialize_key_to_bytes, dds_serialize_to_bytes, DdsGetKey,
-            DdsRepresentation, DdsType,
+            DdsRepresentation, DdsHasKey,
         },
     },
 };
@@ -69,7 +69,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsGetKey + DdsType + DdsRepresentation + serde::Serialize,
+    Foo: DdsGetKey + DdsHasKey + DdsRepresentation + serde::Serialize,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -555,7 +555,7 @@ impl<Foo> DataWriter<Foo> {
 /// This implementation block contains the Entity operations for the [`DataWriter`].
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsType + serde::Serialize + 'static,
+    Foo: DdsHasKey + serde::Serialize + 'static,
 {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.

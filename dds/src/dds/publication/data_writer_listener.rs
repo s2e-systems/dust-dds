@@ -3,13 +3,13 @@ use crate::{
         LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
         PublicationMatchedStatus,
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::DdsHasKey,
 };
 
 use super::data_writer::DataWriter;
 
 pub trait DataWriterListener {
-    type Foo: DdsType + serde::Serialize;
+    type Foo: DdsHasKey + serde::Serialize;
 
     fn on_liveliness_lost(
         &mut self,

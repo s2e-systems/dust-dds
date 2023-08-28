@@ -51,7 +51,7 @@ pub fn struct_member(member: idl::StructMember) -> String {
 
 pub fn struct_def(def: idl::Struct) -> impl Iterator<Item = String> {
     [
-        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsType, dust_dds::topic_definition::type_support::DdsGetKey, dust_dds::topic_definition::type_support::DdsRepresentation)]\n".to_string(),
+        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsHasKey, dust_dds::topic_definition::type_support::DdsGetKey, dust_dds::topic_definition::type_support::DdsRepresentation)]\n".to_string(),
         format!("pub struct {} {{\n", def.name),
     ]
         .into_iter()
@@ -128,7 +128,7 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsType, dust_dds::topic_definition::type_support::DdsGetKey, dust_dds::topic_definition::type_support::DdsRepresentation)]\n",
+                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsHasKey, dust_dds::topic_definition::type_support::DdsGetKey, dust_dds::topic_definition::type_support::DdsRepresentation)]\n",
                 "pub struct Toto {\n",
                 "    pub a: i64,\n",
                 "    pub b: char,\n",
@@ -189,7 +189,7 @@ mod tests {
             .collect::<Vec<String>>(),
             vec![
                 "mod M {\n",
-                "    #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsType, dust_dds::topic_definition::type_support::DdsGetKey, dust_dds::topic_definition::type_support::DdsRepresentation)]\n",
+                "    #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsHasKey, dust_dds::topic_definition::type_support::DdsGetKey, dust_dds::topic_definition::type_support::DdsRepresentation)]\n",
                 "    pub struct A {\n",
                 "        pub a: i16,\n",
                 "    }\n",

@@ -8,7 +8,7 @@ use crate::{
     infrastructure::error::{DdsError::PreconditionNotMet, DdsResult},
 };
 
-pub use dust_dds_derive::{DdsGetKey, DdsRepresentation, DdsType};
+pub use dust_dds_derive::{DdsGetKey, DdsRepresentation, DdsHasKey};
 
 pub type RepresentationType = [u8; 2];
 pub type RepresentationOptions = [u8; 2];
@@ -41,7 +41,7 @@ impl AsRef<[u8]> for DdsSerializedKey {
     }
 }
 
-pub trait DdsType {
+pub trait DdsHasKey {
     fn has_key() -> bool;
 }
 

@@ -2,8 +2,8 @@ use proc_macro::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Field};
 
-#[proc_macro_derive(DdsType, attributes(key))]
-pub fn derive_dds_type(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(DdsHasKey, attributes(key))]
+pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
 
     if let syn::Data::Struct(struct_data) = &input.data {
@@ -13,7 +13,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
         let has_key = struct_data.fields.iter().any(field_has_key_attribute);
 
         quote! {
-            impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
+            impl #impl_generics dust_dds::topic_definition::type_support::DdsHasKey for #ident #type_generics #where_clause {
                 fn has_key() -> bool {
                     #has_key
                 }
@@ -21,7 +21,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
             }
         }
     } else {
-        quote_spanned!{input.span() => compile_error!("DdsType can only be derived for structs");}
+        quote_spanned!{input.span() => compile_error!("DdsHasKey can only be derived for structs");}
     }
     .into()
 }

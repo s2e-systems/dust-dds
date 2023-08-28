@@ -11,7 +11,7 @@ use crate::{
     },
     infrastructure::time::Duration,
     topic_definition::type_support::{
-        DdsGetKey, DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE,
+        DdsGetKey, DdsRepresentation, DdsHasKey, RepresentationType, PL_CDR_LE,
     },
 };
 
@@ -216,7 +216,7 @@ impl SpdpDiscoveredParticipantData {
     }
 }
 
-impl DdsType for SpdpDiscoveredParticipantData {
+impl DdsHasKey for SpdpDiscoveredParticipantData {
     fn has_key() -> bool {
         true
     }

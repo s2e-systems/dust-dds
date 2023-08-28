@@ -5,7 +5,7 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     topic_definition::type_support::{
-        DdsGetKey, DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE,
+        DdsGetKey, DdsRepresentation, DdsHasKey, RepresentationType, PL_CDR_LE,
     },
 };
 
@@ -90,7 +90,7 @@ impl DiscoveredWriterData {
 
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
-impl DdsType for DiscoveredWriterData {
+impl DdsHasKey for DiscoveredWriterData {
     fn has_key() -> bool {
         true
     }
