@@ -3,6 +3,7 @@
 members = [
     "dds",
     "dds_derive",
-    # "interoperability_tests",
+    "dds_gen",
+    "interoperability_tests",
     "schema_generator",
 ]
