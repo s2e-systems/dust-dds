@@ -5,7 +5,7 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     topic_definition::type_support::{
-        DdsGetKey, DdsRepresentation, DdsHasKey, RepresentationType, PL_CDR_LE,
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, RepresentationType, PL_CDR_LE,
     },
 };
 
@@ -116,11 +116,14 @@ impl DdsRepresentation for DiscoveredReaderData {
 
 impl DdsGetKey for DiscoveredReaderData {
     type BorrowedKeyHolder<'a> = [u8; 16];
-    type OwningKeyHolder = [u8; 16];
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.subscription_builtin_topic_data.key().value
     }
+}
+
+impl DdsSetKeyFields for DiscoveredReaderData {
+    type OwningKeyHolder = [u8; 16];
 
     fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
         todo!()

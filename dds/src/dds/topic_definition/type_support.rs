@@ -8,7 +8,7 @@ use crate::{
     infrastructure::error::{DdsError::PreconditionNotMet, DdsResult},
 };
 
-pub use dust_dds_derive::{DdsGetKey, DdsRepresentation, DdsHasKey};
+pub use dust_dds_derive::{DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields};
 
 pub type RepresentationType = [u8; 2];
 pub type RepresentationOptions = [u8; 2];
@@ -62,9 +62,12 @@ pub trait DdsGetKey {
     type BorrowedKeyHolder<'a>: serde::Serialize
     where
         Self: 'a;
-    type OwningKeyHolder: for<'de> serde::Deserialize<'de>;
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_>;
+}
+
+pub trait DdsSetKeyFields {
+    type OwningKeyHolder: for<'de> serde::Deserialize<'de>;
 
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder);
 }
@@ -73,11 +76,14 @@ macro_rules! implement_dds_get_key_for_built_in_type {
     ($t:ty) => {
         impl DdsGetKey for $t {
             type BorrowedKeyHolder<'a> = $t;
-            type OwningKeyHolder = $t;
 
             fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
                 *self
             }
+        }
+
+        impl DdsSetKeyFields for $t {
+            type OwningKeyHolder = $t;
 
             fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
                 *self = key_holder;
@@ -106,11 +112,17 @@ where
     T: serde::Serialize + for<'de> serde::Deserialize<'de>,
 {
     type BorrowedKeyHolder<'a> = &'a Vec<T> where T:'a;
-    type OwningKeyHolder = Vec<T>;
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self
     }
+}
+
+impl<T> DdsSetKeyFields for Vec<T>
+where
+    T: serde::Serialize + for<'de> serde::Deserialize<'de>,
+{
+    type OwningKeyHolder = Vec<T>;
 
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
         *self = key_holder;
@@ -119,11 +131,14 @@ where
 
 impl DdsGetKey for String {
     type BorrowedKeyHolder<'a> = &'a str;
-    type OwningKeyHolder = String;
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self
     }
+}
+
+impl DdsSetKeyFields for String {
+    type OwningKeyHolder = String;
 
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
         *self = key_holder;
@@ -135,11 +150,17 @@ where
     [T; N]: serde::Serialize + for<'de> serde::Deserialize<'de>,
 {
     type BorrowedKeyHolder<'a> = &'a [T; N] where T:'a;
-    type OwningKeyHolder = [T; N];
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self
     }
+}
+
+impl<const N: usize, T> DdsSetKeyFields for [T; N]
+where
+    [T; N]: serde::Serialize + for<'de> serde::Deserialize<'de>,
+{
+    type OwningKeyHolder = [T; N];
 
     fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
         *self = key_holder;
@@ -277,7 +298,7 @@ where
 
 pub fn dds_deserialize_key_from_bytes<T>(mut data: &[u8]) -> DdsResult<T::OwningKeyHolder>
 where
-    T: DdsGetKey,
+    T: DdsSetKeyFields,
 {
     let mut representation_identifier: RepresentationType = [0, 0];
     data.read_exact(&mut representation_identifier)
@@ -310,7 +331,7 @@ pub fn dds_set_key_fields_from_serialized_key<T>(
     serialized_key: &[u8],
 ) -> DdsResult<()>
 where
-    T: DdsGetKey,
+    T: DdsSetKeyFields,
 {
     let key_holder = dds_deserialize_key_from_bytes::<T>(serialized_key)?;
     value.set_key_from_holder(key_holder);

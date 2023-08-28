@@ -11,7 +11,7 @@ use crate::{
     },
     infrastructure::time::Duration,
     topic_definition::type_support::{
-        DdsGetKey, DdsHasKey, DdsRepresentation, RepresentationType, PL_CDR_LE,
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, RepresentationType, PL_CDR_LE,
     },
 };
 
@@ -226,11 +226,14 @@ impl DdsRepresentation for SpdpDiscoveredParticipantData {
 
 impl DdsGetKey for SpdpDiscoveredParticipantData {
     type BorrowedKeyHolder<'a> = [u8; 16];
-    type OwningKeyHolder = [u8; 16];
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.dds_participant_data.key().value
     }
+}
+
+impl DdsSetKeyFields for SpdpDiscoveredParticipantData {
+    type OwningKeyHolder = [u8; 16];
 
     fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
         todo!()

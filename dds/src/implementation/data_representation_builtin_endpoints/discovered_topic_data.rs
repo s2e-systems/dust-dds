@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     topic_definition::type_support::{
-        DdsGetKey, DdsHasKey, DdsRepresentation, RepresentationType, PL_CDR_LE,
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, RepresentationType, PL_CDR_LE,
     },
 };
 
@@ -34,11 +34,14 @@ impl DdsRepresentation for DiscoveredTopicData {
 
 impl DdsGetKey for DiscoveredTopicData {
     type BorrowedKeyHolder<'a> = [u8; 16];
-    type OwningKeyHolder = [u8; 16];
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
         self.topic_builtin_topic_data.key().value
     }
+}
+
+impl DdsSetKeyFields for DiscoveredTopicData {
+    type OwningKeyHolder = [u8; 16];
 
     fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
         todo!()
