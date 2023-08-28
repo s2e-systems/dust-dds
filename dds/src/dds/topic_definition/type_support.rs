@@ -41,6 +41,8 @@ impl AsRef<[u8]> for DdsSerializedKey {
     }
 }
 
+pub trait DdsType: DdsRepresentation + DdsHasKey + DdsGetKey + DdsSetKeyFields {}
+
 pub trait DdsHasKey {
     const HAS_KEY: bool;
 }
