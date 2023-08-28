@@ -14,8 +14,18 @@ use dust_dds::{
     },
     topic_definition::type_support::{DdsKey, DdsType},
 };
+use dust_dds_derive::DdsRepresentation;
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsKey)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    DdsType,
+    DdsKey,
+    DdsRepresentation,
+)]
 struct KeyedData {
     #[key]
     id: u8,

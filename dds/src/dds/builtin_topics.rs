@@ -18,7 +18,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    topic_definition::type_support::{DdsType, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE},
 };
 
 #[derive(
@@ -79,11 +79,13 @@ impl ParticipantBuiltinTopicData {
 }
 
 impl DdsType for ParticipantBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
     fn has_key() -> bool {
         true
     }
+}
+
+impl DdsRepresentation for ParticipantBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
@@ -205,11 +207,13 @@ impl TopicBuiltinTopicData {
 }
 
 impl DdsType for TopicBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
     fn has_key() -> bool {
         true
     }
+}
+
+impl DdsRepresentation for TopicBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }
 
 #[derive(
@@ -380,11 +384,13 @@ impl PublicationBuiltinTopicData {
 }
 
 impl DdsType for PublicationBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
     fn has_key() -> bool {
         true
     }
+}
+
+impl DdsRepresentation for PublicationBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
@@ -523,9 +529,11 @@ impl SubscriptionBuiltinTopicData {
 }
 
 impl DdsType for SubscriptionBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
     fn has_key() -> bool {
         true
     }
+}
+
+impl DdsRepresentation for SubscriptionBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }

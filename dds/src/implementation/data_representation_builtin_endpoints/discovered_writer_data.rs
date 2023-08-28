@@ -4,7 +4,9 @@ use crate::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
-    topic_definition::type_support::{DdsKey, DdsType, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{
+        DdsKey, DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE,
+    },
 };
 
 use super::parameter_id_values::{
@@ -89,11 +91,13 @@ impl DiscoveredWriterData {
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
 impl DdsType for DiscoveredWriterData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
     fn has_key() -> bool {
         true
     }
+}
+
+impl DdsRepresentation for DiscoveredWriterData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }
 
 impl DdsKey for DiscoveredWriterData {

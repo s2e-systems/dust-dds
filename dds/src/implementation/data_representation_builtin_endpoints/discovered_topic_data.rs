@@ -1,6 +1,8 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    topic_definition::type_support::{DdsKey, DdsType, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{
+        DdsKey, DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE,
+    },
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
@@ -23,11 +25,13 @@ impl DiscoveredTopicData {
 }
 
 impl DdsType for DiscoveredTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
     fn has_key() -> bool {
         true
     }
+}
+
+impl DdsRepresentation for DiscoveredTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }
 
 impl DdsKey for DiscoveredTopicData {

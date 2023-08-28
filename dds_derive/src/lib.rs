@@ -14,9 +14,6 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
 
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
-                const REPRESENTATION_IDENTIFIER: dust_dds::topic_definition::type_support::RepresentationType
-                    = dust_dds::topic_definition::type_support::CDR_LE;
-
                 fn has_key() -> bool {
                     #has_key
                 }
@@ -107,6 +104,25 @@ pub fn derive_dds_key(input: TokenStream) -> TokenStream {
         quote_spanned! {input.span() => compile_error!("DdsKey can only be derived for structs");}
     }
     .into()
+}
+
+#[proc_macro_derive(DdsRepresentation, attributes(key))]
+pub fn derive_dds_representation(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+
+    if let syn::Data::Struct(_) = &input.data {
+        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+        let ident = input.ident;
+
+        quote! {
+            impl #impl_generics dust_dds::topic_definition::type_support::DdsRepresentation for #ident #type_generics #where_clause {
+                const REPRESENTATION_IDENTIFIER: dust_dds::topic_definition::type_support::RepresentationType
+                    = dust_dds::topic_definition::type_support::CDR_LE;
+            }
+        }
+    }else {
+        quote_spanned! {input.span() => compile_error!("DdsRepresentation can only be derived for structs");}
+    }.into()
 }
 
 fn field_has_key_attribute(field: &Field) -> bool {

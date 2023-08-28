@@ -10,7 +10,9 @@ use crate::{
         },
     },
     infrastructure::time::Duration,
-    topic_definition::type_support::{DdsKey, DdsType, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{
+        DdsKey, DdsRepresentation, DdsType, RepresentationType, PL_CDR_LE,
+    },
 };
 
 use super::parameter_id_values::{
@@ -215,11 +217,13 @@ impl SpdpDiscoveredParticipantData {
 }
 
 impl DdsType for SpdpDiscoveredParticipantData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-
     fn has_key() -> bool {
         true
     }
+}
+
+impl DdsRepresentation for SpdpDiscoveredParticipantData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 }
 
 impl DdsKey for SpdpDiscoveredParticipantData {

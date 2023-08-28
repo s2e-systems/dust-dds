@@ -8,7 +8,7 @@ use crate::{
     infrastructure::error::{DdsError::PreconditionNotMet, DdsResult},
 };
 
-pub use dust_dds_derive::{DdsKey, DdsType};
+pub use dust_dds_derive::{DdsKey, DdsRepresentation, DdsType};
 
 pub type RepresentationType = [u8; 2];
 pub type RepresentationOptions = [u8; 2];
@@ -42,9 +42,11 @@ impl AsRef<[u8]> for DdsSerializedKey {
 }
 
 pub trait DdsType {
-    const REPRESENTATION_IDENTIFIER: RepresentationType;
-
     fn has_key() -> bool;
+}
+
+pub trait DdsRepresentation {
+    const REPRESENTATION_IDENTIFIER: RepresentationType;
 }
 
 pub trait DdsKey {
@@ -139,7 +141,7 @@ where
 
 pub fn dds_serialize_to_bytes<T>(value: &T) -> DdsResult<Vec<u8>>
 where
-    T: serde::Serialize + DdsType,
+    T: serde::Serialize + DdsRepresentation,
 {
     let mut writer = vec![];
     match T::REPRESENTATION_IDENTIFIER {
