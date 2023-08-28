@@ -107,9 +107,7 @@ impl DiscoveredReaderData {
 }
 
 impl DdsHasKey for DiscoveredReaderData {
-    fn has_key() -> bool {
-        true
-    }
+    const HAS_KEY: bool = true;
 }
 
 impl DdsRepresentation for DiscoveredReaderData {

@@ -42,7 +42,7 @@ impl AsRef<[u8]> for DdsSerializedKey {
 }
 
 pub trait DdsHasKey {
-    fn has_key() -> bool;
+    const HAS_KEY: bool;
 }
 
 pub trait DdsRepresentation {

@@ -14,10 +14,7 @@ pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
 
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsHasKey for #ident #type_generics #where_clause {
-                fn has_key() -> bool {
-                    #has_key
-                }
-
+                const HAS_KEY: bool = #has_key;
             }
         }
     } else {

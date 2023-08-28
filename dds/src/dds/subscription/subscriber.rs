@@ -116,7 +116,7 @@ impl Subscriber {
                     }
                 };
 
-                let entity_kind = match Foo::has_key() {
+                let entity_kind = match Foo::HAS_KEY {
                     true => USER_DEFINED_READER_WITH_KEY,
                     false => USER_DEFINED_READER_NO_KEY,
                 };
@@ -131,7 +131,7 @@ impl Subscriber {
                 let entity_id = EntityId::new(entity_key, entity_kind);
                 let guid = Guid::new(subscriber_guid.prefix(), entity_id);
 
-                let topic_kind = match Foo::has_key() {
+                let topic_kind = match Foo::HAS_KEY {
                     true => TopicKind::WithKey,
                     false => TopicKind::NoKey,
                 };

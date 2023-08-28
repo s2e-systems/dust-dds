@@ -161,7 +161,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        if Foo::has_key() {
+        if Foo::HAS_KEY {
             let instance_handle = match handle {
                 Some(h) => {
                     if let Some(stored_handle) = self.lookup_instance(instance)? {
