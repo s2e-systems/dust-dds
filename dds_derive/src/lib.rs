@@ -173,7 +173,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     output.extend(derive_dds_get_key(input.clone()));
     output.extend(derive_dds_set_key_fields(input));
 
-    output.into()
+    output
 }
 
 fn field_has_key_attribute(field: &Field) -> bool {
