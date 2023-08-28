@@ -30,7 +30,7 @@ use crate::{
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     },
     topic_definition::type_support::{
-        dds_deserialize_from_bytes, dds_serialize_key_to_bytes, DdsKey, DdsSerializedKey, DdsType,
+        dds_deserialize_from_bytes, dds_serialize_key, DdsKey, DdsSerializedKey, DdsType,
     },
 };
 use std::{
@@ -118,7 +118,7 @@ impl InstanceHandleBuilder {
         where
             Foo: for<'de> serde::Deserialize<'de> + DdsType + DdsKey,
         {
-            dds_serialize_key_to_bytes(
+            dds_serialize_key(
                 &dds_deserialize_from_bytes::<Foo>(data)
                     .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize data"))?,
             )
@@ -143,9 +143,7 @@ impl InstanceHandleBuilder {
                 .find(|&x| x.parameter_id() == PID_KEY_HASH)
             {
                 Some(p) => InstanceHandle::new(p.value().try_into().unwrap()),
-                None => dds_deserialize_from_bytes::<DdsSerializedKey>(data)
-                    .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize key"))?
-                    .into(),
+                None => DdsSerializedKey::from(data[4..].to_vec()).into(),
             },
         })
     }

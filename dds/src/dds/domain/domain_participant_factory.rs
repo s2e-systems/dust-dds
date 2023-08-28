@@ -49,7 +49,7 @@ use crate::{
             ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::dds_serialize_key_to_bytes,
+    topic_definition::type_support::dds_serialize_key,
 };
 use fnmatch_regex::glob_to_regex;
 use jsonschema::JSONSchema;
@@ -703,7 +703,7 @@ fn process_spdp_metatraffic(
                     discovered_participant_data.participant_proxy().domain_tag()
                         == participant_address.get_domain_tag()?;
                 let is_participant_ignored = participant_address.is_participant_ignored(
-                    dds_serialize_key_to_bytes(&discovered_participant_data)?.into(),
+                    dds_serialize_key(&discovered_participant_data)?.into(),
                 )?;
 
                 if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
@@ -803,7 +803,7 @@ fn process_spdp_metatraffic(
                     }
 
                     participant_address.discovered_participant_add(
-                        dds_serialize_key_to_bytes(&discovered_participant_data)?.into(),
+                        dds_serialize_key(&discovered_participant_data)?.into(),
                         discovered_participant_data,
                     )?;
                 }
@@ -1163,7 +1163,7 @@ fn discover_matched_topics(
                 }
 
                 participant_address.discovered_topic_add(
-                    dds_serialize_key_to_bytes(topic_data)?.into(),
+                    dds_serialize_key(topic_data)?.into(),
                     topic_data.topic_builtin_topic_data().clone(),
                 )?;
             }

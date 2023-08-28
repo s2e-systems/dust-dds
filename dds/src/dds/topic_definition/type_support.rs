@@ -236,6 +236,18 @@ where
     }
 }
 
+pub fn dds_serialize_key<T>(value: &T) -> DdsResult<DdsSerializedKey>
+where
+    T: DdsKey,
+{
+    let mut writer = vec![];
+    let mut serializer = cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
+    let key = value.get_key();
+    serde::Serialize::serialize(&key, &mut serializer)
+        .map_err(|err| PreconditionNotMet(err.to_string()))?;
+    Ok(writer.into())
+}
+
 pub fn dds_serialize_key_to_bytes<T>(value: &T) -> DdsResult<DdsSerializedKey>
 where
     T: DdsKey,

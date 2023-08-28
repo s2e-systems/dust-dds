@@ -35,7 +35,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{dds_serialize_key_to_bytes, dds_serialize_to_bytes},
+        type_support::{dds_serialize_key, dds_serialize_to_bytes},
     },
 };
 
@@ -750,8 +750,7 @@ impl DomainParticipant {
                             let timestamp = domain_participant_address.get_current_time()?;
                             participant_announcer.write_w_timestamp(
                                 serialized_data,
-                                dds_serialize_key_to_bytes(&spdp_discovered_participant_data)
-                                    .unwrap(),
+                                dds_serialize_key(&spdp_discovered_participant_data).unwrap(),
                                 None,
                                 timestamp,
                             )??;

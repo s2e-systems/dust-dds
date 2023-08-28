@@ -26,7 +26,7 @@ use crate::{
     },
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
-    topic_definition::type_support::{DdsKey, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{DdsKey, DdsType},
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
@@ -195,9 +195,8 @@ impl Publisher {
 
                 // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
                 if writer_is_enabled {
-                    let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
                     let instance_serialized_key =
-                        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+                        cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
                             .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
                             .expect("Failed to serialize data");
 

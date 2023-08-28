@@ -25,7 +25,9 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{dds_serialize_key_to_bytes, dds_serialize_to_bytes, DdsKey, DdsType},
+        type_support::{
+            dds_serialize_key, dds_serialize_key_to_bytes, dds_serialize_to_bytes, DdsKey, DdsType,
+        },
     },
 };
 
@@ -220,9 +222,9 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
-                .address()
-                .lookup_instance(dds_serialize_key_to_bytes(instance)?)?,
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().lookup_instance(dds_serialize_key(instance)?)?
+            }
         }
     }
 
@@ -284,7 +286,7 @@ where
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
                 dw.address().write_w_timestamp(
                     serialized_data,
-                    dds_serialize_key_to_bytes(data)?,
+                    dds_serialize_key(data)?,
                     handle,
                     timestamp,
                 )??;
@@ -734,7 +736,7 @@ fn announce_data_writer(
     {
         sedp_writer_announcer.write_w_timestamp(
             serialized_data,
-            dds_serialize_key_to_bytes(discovered_writer_data)?,
+            dds_serialize_key(discovered_writer_data)?,
             None,
             timestamp,
         )??;

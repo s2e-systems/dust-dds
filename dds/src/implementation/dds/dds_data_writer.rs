@@ -61,8 +61,7 @@ use crate::{
         time::DurationKind,
     },
     topic_definition::type_support::{
-        dds_serialize_key_to_bytes, dds_set_key_fields_from_serialized_key, DdsKey,
-        DdsSerializedKey,
+        dds_serialize_key, dds_set_key_fields_from_serialized_key, DdsKey, DdsSerializedKey,
     },
     {
         builtin_topics::SubscriptionBuiltinTopicData,
@@ -725,7 +724,7 @@ impl DdsDataWriter {
                 discovered_reader_data.subscription_builtin_topic_data(),
                 &publisher_address.get_qos().unwrap(),
             );
-            let instance_handle = dds_serialize_key_to_bytes(&discovered_reader_data).unwrap().into();
+            let instance_handle = dds_serialize_key(&discovered_reader_data).unwrap().into();
 
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_reader_data

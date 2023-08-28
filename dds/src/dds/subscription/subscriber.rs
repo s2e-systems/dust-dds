@@ -26,7 +26,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsKey, DdsSerializedKey, DdsType},
+        type_support::{DdsKey, DdsType},
     },
 };
 
@@ -210,9 +210,8 @@ impl Subscriber {
                     s.address().data_reader_delete(reader_handle)?;
 
                     if reader_is_enabled {
-                        let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
                         let instance_serialized_key =
-                            cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+                            cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
                                 .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
                                 .expect("Failed to serialize data");
 
