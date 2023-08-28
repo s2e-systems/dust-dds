@@ -11,7 +11,7 @@ edition = "2021"
 readme = "README.md"
 description = "OMG IDL compiler for Dust DDS"
 homepage = "https://s2e-systems.com/products/dust-dds"
-repository = "https://github.com/s2e-systems/dust-dds-gen"
+repository = "https://github.com/s2e-systems/dust-dds"
 keywords = ["dds", "idl", "middleware"]
 categories = ["compilers"]
 
