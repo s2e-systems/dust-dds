@@ -14,7 +14,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    DdsType,
+    topic_definition::type_support::DdsType,
 };
 
 use serde::{Deserialize, Serialize};
@@ -61,7 +61,7 @@ fn main() {
     let topic = participant
         .create_topic(
             "BestEffortExampleTopic",
-            BestEffortExampleType::type_name(),
+            "BestEffortExampleType",
             QosKind::Default,
             None,
             NO_STATUS,

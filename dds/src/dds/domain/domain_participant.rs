@@ -3,7 +3,6 @@ use std::time::Instant;
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         dds::{
             dds_domain_participant::DdsDomainParticipant,
             dds_publisher::DdsPublisher,
@@ -36,7 +35,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{dds_serialize, DdsType},
+        type_support::{dds_serialize_key, dds_serialize_to_bytes},
     },
 };
 
@@ -215,8 +214,6 @@ impl DomainParticipant {
     /// set in the factory. The use of this value is equivalent to the application obtaining the default Topic QoS by means of the
     /// operation [`DomainParticipant::get_default_topic_qos`] and using the resulting QoS to create the [`Topic`].
     /// The created [`Topic`] belongs to the [`DomainParticipant`] that is its factory.
-    /// The [`Topic`] is bound to a type specified by the generic type parameter 'Foo'. Only types which implement
-    /// [`DdsType`] and have a `'static` lifetime can be associated to a [`Topic`].
     /// In case of failure, the operation will return an error and no [`Topic`] will be created.
     pub fn create_topic(
         &self,
@@ -369,7 +366,7 @@ impl DomainParticipant {
         //         crate::implementation::behavior::domain_participant::lookup_topicdescription(
         //             dp,
         //             topic_name,
-        //             Foo::type_name(),
+        //             Foo,
         //         )?
         //         .map(|x| Topic::new(TopicNodeKind::UserDefined(x))),
         //     )
@@ -737,7 +734,7 @@ impl DomainParticipant {
                         if let Some(participant_announcer) =
                             builtin_publisher.data_writer_list()?.iter().find(|dw| {
                                 if let Ok(name) = dw.get_type_name() {
-                                    name == SpdpDiscoveredParticipantData::type_name()
+                                    name == "SpdpDiscoveredParticipantData"
                                 } else {
                                     false
                                 }
@@ -745,12 +742,13 @@ impl DomainParticipant {
                         {
                             let spdp_discovered_participant_data =
                                 domain_participant_address.as_spdp_discovered_participant_data()?;
-                            let serialized_data = dds_serialize(&spdp_discovered_participant_data)
-                                .map_err(|_err| DdsError::Error)?;
+                            let serialized_data =
+                                dds_serialize_to_bytes(&spdp_discovered_participant_data)
+                                    .map_err(|_err| DdsError::Error)?;
                             let timestamp = domain_participant_address.get_current_time()?;
                             participant_announcer.write_w_timestamp(
                                 serialized_data,
-                                spdp_discovered_participant_data.get_serialized_key(),
+                                dds_serialize_key(&spdp_discovered_participant_data).unwrap(),
                                 None,
                                 timestamp,
                             )??;

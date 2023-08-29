@@ -9,16 +9,19 @@ use crate::{
             types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
         },
     },
-    infrastructure::{error::DdsResult, time::Duration},
-    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
+    infrastructure::time::Duration,
+    topic_definition::type_support::{
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, Representation,
+    },
 };
 
 use super::parameter_id_values::{
-    DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
-    PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
-    PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
-    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID, DEFAULT_EXPECTS_INLINE_QOS,
+    DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION,
+    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+    PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
+    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+    PID_VENDORID,
 };
 
 #[derive(
@@ -213,35 +216,37 @@ impl SpdpDiscoveredParticipantData {
     }
 }
 
-impl DdsType for SpdpDiscoveredParticipantData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+impl DdsHasKey for SpdpDiscoveredParticipantData {
+    const HAS_KEY: bool = true;
+}
 
-    fn type_name() -> &'static str {
-        "SpdpDiscoveredParticipantData"
-    }
+impl DdsRepresentation for SpdpDiscoveredParticipantData {
+    const REPRESENTATION: Representation = Representation::PlCdrLe;
+}
 
-    fn has_key() -> bool {
-        true
-    }
+impl DdsGetKey for SpdpDiscoveredParticipantData {
+    type BorrowedKeyHolder<'a> = [u8; 16];
 
-    fn get_serialized_key(&self) -> DdsSerializedKey {
-        self.dds_participant_data.key().value.as_ref().into()
-    }
-
-    fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
-        if Self::has_key() {
-            unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
-        }
-        Ok(())
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
+        self.dds_participant_data.key().value
     }
 }
+
+impl DdsSetKeyFields for SpdpDiscoveredParticipantData {
+    type OwningKeyHolder = [u8; 16];
+
+    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos_policy::UserDataQosPolicy,
-        topic_definition::type_support::{dds_deserialize, dds_serialize},
+        topic_definition::type_support::{dds_deserialize_from_bytes, dds_serialize_to_bytes},
     };
 
     #[test]
@@ -356,7 +361,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result: SpdpDiscoveredParticipantData = dds_deserialize(data).unwrap();
+        let result = dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(data).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -472,7 +477,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let result = dds_serialize(&data).unwrap();
+        let result = dds_serialize_to_bytes(&data).unwrap();
         assert_eq!(result, expected);
     }
 }

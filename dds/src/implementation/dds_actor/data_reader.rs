@@ -33,7 +33,7 @@ use crate::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     },
-    topic_definition::type_support::DdsDeserialize,
+    topic_definition::type_support::DdsRepresentation,
 };
 
 impl ActorAddress<DdsDataReader> {
@@ -369,7 +369,7 @@ impl ActorAddress<DdsDataReader> {
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> DdsDeserialize<'de> + Send + 'static,
+        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
     {
         struct ReadNextInstance<Foo> {
             phantom: PhantomData<Foo>,
@@ -386,7 +386,7 @@ impl ActorAddress<DdsDataReader> {
 
         impl<Foo> MailHandler<ReadNextInstance<Foo>> for DdsDataReader
         where
-            Foo: for<'de> DdsDeserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
         {
             fn handle(
                 &mut self,
@@ -421,7 +421,7 @@ impl ActorAddress<DdsDataReader> {
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> DdsDeserialize<'de> + Send + 'static,
+        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
     {
         struct Take<Foo> {
             phantom: PhantomData<Foo>,
@@ -438,7 +438,7 @@ impl ActorAddress<DdsDataReader> {
 
         impl<Foo> MailHandler<Take<Foo>> for DdsDataReader
         where
-            Foo: for<'de> DdsDeserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
         {
             fn handle(&mut self, mail: Take<Foo>) -> <Take<Foo> as Mail>::Result {
                 self.take(
@@ -470,7 +470,7 @@ impl ActorAddress<DdsDataReader> {
         instance_states: Vec<InstanceStateKind>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> DdsDeserialize<'de> + Send + 'static,
+        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
     {
         struct TakeNextInstance<Foo> {
             phantom_data: PhantomData<Foo>,
@@ -487,7 +487,7 @@ impl ActorAddress<DdsDataReader> {
 
         impl<Foo> MailHandler<TakeNextInstance<Foo>> for DdsDataReader
         where
-            Foo: for<'de> DdsDeserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
         {
             fn handle(
                 &mut self,
@@ -623,7 +623,7 @@ impl ActorAddress<DdsDataReader> {
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
-        Foo: for<'de> DdsDeserialize<'de> + Send + 'static,
+        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
     {
         struct Read<Foo> {
             phantom: PhantomData<Foo>,
@@ -640,7 +640,7 @@ impl ActorAddress<DdsDataReader> {
 
         impl<Foo> MailHandler<Read<Foo>> for DdsDataReader
         where
-            Foo: for<'de> DdsDeserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
         {
             fn handle(&mut self, mail: Read<Foo>) -> <Read<Foo> as Mail>::Result {
                 self.read(

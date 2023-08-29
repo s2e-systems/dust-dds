@@ -2,7 +2,7 @@
 
 This package provides a derive macro for `DdsType` to support [dust-dds](https://github.com/s2e-systems/dust-dds).
 
-`DdsType` can only be derived for `struct`s, tuples and `enum`s. For `struct`s and tuples, the attribute `#[key]` can be specified either on the whole type or on a subset of fields. For `enum`s, the `#[key]` attribute can only be specified on the whole type.
+`DdsType` can only be derived for `struct`s, tuples and `enum`s. For `struct`s and tuples, the attribute `#[key]` can be specified either on the whole type or on a subset of fields.
 
 ## Example
 

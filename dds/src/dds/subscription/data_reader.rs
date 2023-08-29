@@ -18,7 +18,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{dds_serialize, DdsDeserialize, DdsType},
+        type_support::{dds_serialize_key, dds_serialize_to_bytes, DdsHasKey, DdsRepresentation},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -96,7 +96,7 @@ impl<Foo> DataReader<Foo> {
 
 impl<Foo> DataReader<Foo>
 where
-    Foo: DdsType + Send + 'static + for<'de> DdsDeserialize<'de>,
+    Foo: DdsRepresentation + DdsHasKey + for<'de> serde::Deserialize<'de> + Send + 'static,
 {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The size of the returned collection will
     /// be limited to the specified `max_samples`. The properties of the data values collection and the setting of the
@@ -807,7 +807,7 @@ impl<Foo> DataReader<Foo> {
 
 impl<Foo> DataReader<Foo>
 where
-    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static + Send + Sync,
+    Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + 'static + Send + Sync,
 {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
@@ -843,18 +843,18 @@ fn announce_data_reader(
     domain_participant: &ActorAddress<DdsDomainParticipant>,
     discovered_reader_data: DiscoveredReaderData,
 ) -> DdsResult<()> {
-    let serialized_data = dds_serialize(&discovered_reader_data)?;
+    let serialized_data = dds_serialize_to_bytes(&discovered_reader_data)?;
     let timestamp = domain_participant.get_current_time()?;
 
     if let Some(sedp_reader_announcer) = domain_participant
         .get_builtin_publisher()?
         .data_writer_list()?
         .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredReaderData::type_name())
+        .find(|x| x.get_type_name().unwrap() == "DiscoveredReaderData")
     {
         sedp_reader_announcer.write_w_timestamp(
             serialized_data,
-            discovered_reader_data.get_serialized_key(),
+            dds_serialize_key(&discovered_reader_data)?,
             None,
             timestamp,
         )??;

@@ -21,7 +21,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 cdr = "=0.2.4"
 
 [build-dependencies]
-dust_dds_gen = {version = "0.3" }
+dust_dds_gen = { path="../dds_gen" }
 
 [[bin]]
 name = "dust_dds_publisher"

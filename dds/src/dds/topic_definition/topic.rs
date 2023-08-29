@@ -13,10 +13,12 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    DdsType,
 };
 
-use super::{topic_listener::TopicListener, type_support::dds_serialize};
+use super::{
+    topic_listener::TopicListener,
+    type_support::{dds_serialize_key_to_bytes, dds_serialize_to_bytes},
+};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
@@ -229,18 +231,18 @@ fn announce_topic(
     domain_participant: &ActorAddress<DdsDomainParticipant>,
     discovered_topic_data: DiscoveredTopicData,
 ) -> DdsResult<()> {
-    let serialized_data = dds_serialize(&discovered_topic_data)?;
+    let serialized_data = dds_serialize_to_bytes(&discovered_topic_data)?;
     let timestamp = domain_participant.get_current_time()?;
 
     if let Some(sedp_topic_announcer) = domain_participant
         .get_builtin_publisher()?
         .data_writer_list()?
         .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredTopicData::type_name())
+        .find(|x| x.get_type_name().unwrap() == "DiscoveredTopicData")
     {
         sedp_topic_announcer.write_w_timestamp(
             serialized_data,
-            discovered_topic_data.get_serialized_key(),
+            dds_serialize_key_to_bytes(&discovered_topic_data)?,
             None,
             timestamp,
         )??;

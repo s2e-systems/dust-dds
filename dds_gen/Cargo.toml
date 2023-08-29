@@ -1,0 +1,20 @@
+[package]
+name = "dust_dds_gen"
+version = "0.4.0"
+authors = [
+	"Joao Rebelo <jrebelo@s2e-systems.com>",
+	"Stefan Kimmer <skimmer@s2e-systems.com>",
+	"Pierre Martinet <pmartinet@s2e-systems.com>"
+]
+license = "Apache-2.0"
+edition = "2021"
+readme = "README.md"
+description = "OMG IDL compiler for Dust DDS"
+homepage = "https://s2e-systems.com/products/dust-dds"
+repository = "https://github.com/s2e-systems/dust-dds"
+keywords = ["dds", "idl", "middleware"]
+categories = ["compilers"]
+
+[dependencies]
+pest = "=2.5.3"
+pest_derive = "=2.5.3"

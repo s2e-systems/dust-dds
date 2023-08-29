@@ -1,3 +1,4 @@
+use big_data::BigDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -10,7 +11,6 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    DdsType,
 };
 mod big_data {
     include!("build/idl/big_data.rs");
@@ -25,13 +25,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "BigData",
-            big_data::BigDataType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("BigData", "BigDataType", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -49,7 +43,7 @@ fn main() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter::<BigDataType>(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
         .unwrap();
     let writer_cond = writer.get_statuscondition().unwrap();
     writer_cond

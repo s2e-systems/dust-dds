@@ -60,7 +60,10 @@ use crate::{
         },
         time::DurationKind,
     },
-    topic_definition::type_support::{DdsSerializedKey, DdsType},
+    topic_definition::type_support::{
+        dds_serialize_key, dds_set_key_fields_from_serialized_key, DdsSerializedKey,
+        DdsSetKeyFields,
+    },
     {
         builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
@@ -249,17 +252,17 @@ impl DdsDataWriter {
 
     pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
     where
-        Foo: DdsType,
+        Foo: DdsSetKeyFields,
     {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        key_holder.set_key_fields_from_serialized_key(
-            self.registered_instance_list
-                .get(&handle)
-                .ok_or(DdsError::BadParameter)?,
-        )
+        let serialized_key = self
+            .registered_instance_list
+            .get(&handle)
+            .ok_or(DdsError::BadParameter)?;
+        dds_set_key_fields_from_serialized_key(key_holder, serialized_key.as_ref())
     }
 
     pub fn reader_locator_list(&mut self) -> &[RtpsReaderLocator] {
@@ -722,7 +725,7 @@ impl DdsDataWriter {
                 discovered_reader_data.subscription_builtin_topic_data(),
                 &publisher_address.get_qos().unwrap(),
             );
-            let instance_handle = discovered_reader_data.get_serialized_key().into();
+            let instance_handle = dds_serialize_key(&discovered_reader_data).unwrap().into();
 
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_reader_data

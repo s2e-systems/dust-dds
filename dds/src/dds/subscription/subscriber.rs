@@ -1,7 +1,6 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         dds::{
             dds_data_reader::DdsDataReader,
             dds_data_reader_listener::DdsDataReaderListener,
@@ -27,7 +26,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsDeserialize, DdsSerializedKey, DdsType},
+        type_support::{DdsGetKey, DdsHasKey, DdsRepresentation},
     },
 };
 
@@ -97,7 +96,12 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsType + for<'de> serde::Deserialize<'de> + Send + 'static,
+        Foo: DdsRepresentation
+            + DdsHasKey
+            + DdsGetKey
+            + for<'de> serde::Deserialize<'de>
+            + Send
+            + 'static,
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
@@ -117,7 +121,7 @@ impl Subscriber {
                     }
                 };
 
-                let entity_kind = match Foo::has_key() {
+                let entity_kind = match Foo::HAS_KEY {
                     true => USER_DEFINED_READER_WITH_KEY,
                     false => USER_DEFINED_READER_NO_KEY,
                 };
@@ -132,7 +136,7 @@ impl Subscriber {
                 let entity_id = EntityId::new(entity_key, entity_kind);
                 let guid = Guid::new(subscriber_guid.prefix(), entity_id);
 
-                let topic_kind = match Foo::has_key() {
+                let topic_kind = match Foo::HAS_KEY {
                     true => TopicKind::WithKey,
                     false => TopicKind::NoKey,
                 };
@@ -211,9 +215,8 @@ impl Subscriber {
                     s.address().data_reader_delete(reader_handle)?;
 
                     if reader_is_enabled {
-                        let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
                         let instance_serialized_key =
-                            cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+                            cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
                                 .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
                                 .expect("Failed to serialize data");
 
@@ -224,9 +227,7 @@ impl Subscriber {
                             .get_builtin_publisher()?
                             .data_writer_list()?
                             .iter()
-                            .find(|x| {
-                                x.get_type_name().unwrap() == DiscoveredReaderData::type_name()
-                            })
+                            .find(|x| x.get_type_name().unwrap() == "DiscoveredReaderData")
                         {
                             sedp_reader_announcer.dispose_w_timestamp(
                                 instance_serialized_key,
@@ -259,7 +260,7 @@ impl Subscriber {
     /// The use of this operation on the built-in [`Subscriber`] allows access to the built-in [`DataReader`] entities for the built-in topics.
     pub fn lookup_datareader<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataReader<Foo>>>
     where
-        Foo: DdsType + for<'de> DdsDeserialize<'de>,
+        Foo: DdsHasKey + for<'de> serde::Deserialize<'de>,
     {
         todo!()
         // Ok(self
@@ -289,7 +290,7 @@ impl Subscriber {
         //             Ok(crate::implementation::behavior::user_defined_subscriber::lookup_datareader(
         //                 dp.ok_or(DdsError::AlreadyDeleted)?,
         //                 s.guid(),
-        //                 Foo::type_name(),
+        //                 Foo,
         //                 topic_name,
         //             )?
         //             .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x))))

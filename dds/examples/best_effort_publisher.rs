@@ -6,7 +6,7 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    DdsType,
+    topic_definition::type_support::DdsType,
 };
 
 use serde::{Deserialize, Serialize};
@@ -27,7 +27,7 @@ fn main() {
     let topic = participant
         .create_topic(
             "BestEffortExampleTopic",
-            BestEffortExampleType::type_name(),
+            "BestEffortExampleType",
             QosKind::Default,
             None,
             NO_STATUS,

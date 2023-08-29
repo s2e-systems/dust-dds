@@ -1,7 +1,8 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    infrastructure::error::DdsResult,
-    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, Representation,
+    },
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
@@ -23,26 +24,27 @@ impl DiscoveredTopicData {
     }
 }
 
-impl DdsType for DiscoveredTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+impl DdsHasKey for DiscoveredTopicData {
+    const HAS_KEY: bool = true;
+}
 
-    fn type_name() -> &'static str {
-        "DiscoveredTopicData"
+impl DdsRepresentation for DiscoveredTopicData {
+    const REPRESENTATION: Representation = Representation::PlCdrLe;
+}
+
+impl DdsGetKey for DiscoveredTopicData {
+    type BorrowedKeyHolder<'a> = [u8; 16];
+
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
+        self.topic_builtin_topic_data.key().value
     }
+}
 
-    fn has_key() -> bool {
-        true
-    }
+impl DdsSetKeyFields for DiscoveredTopicData {
+    type OwningKeyHolder = [u8; 16];
 
-    fn get_serialized_key(&self) -> DdsSerializedKey {
-        self.topic_builtin_topic_data.key().value.as_ref().into()
-    }
-
-    fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
-        if Self::has_key() {
-            unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
-        }
-        Ok(())
+    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
+        todo!()
     }
 }
 
@@ -55,7 +57,9 @@ mod tests {
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
+    use crate::topic_definition::type_support::{
+        dds_deserialize_from_bytes, dds_serialize_to_bytes,
+    };
 
     use super::*;
 
@@ -98,7 +102,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let result = dds_serialize(&data).unwrap();
+        let result = dds_serialize_to_bytes(&data).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -141,7 +145,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredTopicData = dds_deserialize(data).unwrap();
+        let result = dds_deserialize_from_bytes::<DiscoveredTopicData>(data).unwrap();
         assert_eq!(result, expected);
     }
 }

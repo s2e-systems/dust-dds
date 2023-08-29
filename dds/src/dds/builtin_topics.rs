@@ -18,7 +18,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsHasKey, DdsRepresentation, Representation},
 };
 
 #[derive(
@@ -78,10 +78,12 @@ impl ParticipantBuiltinTopicData {
     }
 }
 
-impl DdsType for ParticipantBuiltinTopicData {
-    fn type_name() -> &'static str {
-        "ParticipantBuiltinTopicData"
-    }
+impl DdsHasKey for ParticipantBuiltinTopicData {
+    const HAS_KEY: bool = true;
+}
+
+impl DdsRepresentation for ParticipantBuiltinTopicData {
+    const REPRESENTATION: Representation = Representation::PlCdrLe;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
@@ -202,10 +204,12 @@ impl TopicBuiltinTopicData {
     }
 }
 
-impl DdsType for TopicBuiltinTopicData {
-    fn type_name() -> &'static str {
-        "TopicBuiltinTopicData"
-    }
+impl DdsHasKey for TopicBuiltinTopicData {
+    const HAS_KEY: bool = true;
+}
+
+impl DdsRepresentation for TopicBuiltinTopicData {
+    const REPRESENTATION: Representation = Representation::PlCdrLe;
 }
 
 #[derive(
@@ -375,10 +379,12 @@ impl PublicationBuiltinTopicData {
     }
 }
 
-impl DdsType for PublicationBuiltinTopicData {
-    fn type_name() -> &'static str {
-        "PublicationBuiltinTopicData"
-    }
+impl DdsHasKey for PublicationBuiltinTopicData {
+    const HAS_KEY: bool = true;
+}
+
+impl DdsRepresentation for PublicationBuiltinTopicData {
+    const REPRESENTATION: Representation = Representation::PlCdrLe;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
@@ -516,8 +522,10 @@ impl SubscriptionBuiltinTopicData {
     }
 }
 
-impl DdsType for SubscriptionBuiltinTopicData {
-    fn type_name() -> &'static str {
-        "SubscriptionBuiltinTopicData"
-    }
+impl DdsHasKey for SubscriptionBuiltinTopicData {
+    const HAS_KEY: bool = true;
+}
+
+impl DdsRepresentation for SubscriptionBuiltinTopicData {
+    const REPRESENTATION: Representation = Representation::PlCdrLe;
 }
