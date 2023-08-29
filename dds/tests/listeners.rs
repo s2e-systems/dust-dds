@@ -75,13 +75,7 @@ fn deadline_missed_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            MyData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -195,7 +189,7 @@ fn sample_rejected_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -315,7 +309,7 @@ fn subscription_matched_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -416,7 +410,7 @@ fn requested_incompatible_qos_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -516,7 +510,7 @@ fn publication_matched_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -618,7 +612,7 @@ fn offered_incompatible_qos_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -709,13 +703,7 @@ fn on_data_available_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            MyData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -813,13 +801,7 @@ fn data_on_readers_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            MyData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -927,13 +909,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            MyData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1042,13 +1018,7 @@ fn participant_deadline_missed_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            MyData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1161,7 +1131,7 @@ fn participant_sample_rejected_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1286,7 +1256,7 @@ fn participant_subscription_matched_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1389,7 +1359,7 @@ fn participant_requested_incompatible_qos_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1490,7 +1460,7 @@ fn publisher_publication_matched_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1590,7 +1560,7 @@ fn publisher_offered_incompatible_qos_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1690,13 +1660,7 @@ fn subscriber_deadline_missed_listener() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            MyData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1806,7 +1770,7 @@ fn subscriber_sample_rejected_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1928,7 +1892,7 @@ fn subscriber_subscription_matched_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -2028,7 +1992,7 @@ fn subscriber_requested_incompatible_qos_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -2130,7 +2094,7 @@ fn data_writer_publication_matched_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -2232,7 +2196,7 @@ fn data_writer_offered_incompatible_qos_listener() {
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
-            MyData::type_name(),
+            "MyData",
             QosKind::Default,
             None,
             NO_STATUS,

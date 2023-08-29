@@ -28,13 +28,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = participant
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -72,13 +66,7 @@ pub fn best_effort_read_only(c: &mut Criterion) {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = participant
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -135,13 +123,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic(
-            "TestTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("TestTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)

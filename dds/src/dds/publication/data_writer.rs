@@ -25,7 +25,10 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{dds_serialize, DdsSerialize, DdsType},
+        type_support::{
+            dds_serialize_key, dds_serialize_key_to_bytes, dds_serialize_to_bytes, DdsGetKey,
+            DdsRepresentation, DdsHasKey,
+        },
     },
 };
 
@@ -66,7 +69,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsType + DdsSerialize,
+    Foo: DdsGetKey + DdsHasKey + DdsRepresentation + serde::Serialize,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -158,7 +161,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        if Foo::has_key() {
+        if Foo::HAS_KEY {
             let instance_handle = match handle {
                 Some(h) => {
                     if let Some(stored_handle) = self.lookup_instance(instance)? {
@@ -185,12 +188,12 @@ where
             }?;
 
             let instance_serialized_key =
-                dds_serialize(&instance.get_serialized_key()).map_err(|_err| DdsError::Error)?;
+                dds_serialize_key_to_bytes(instance).map_err(|_err| DdsError::Error)?;
 
             match &self.0 {
                 DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
                     dw.address().unregister_instance_w_timestamp(
-                        instance_serialized_key,
+                        instance_serialized_key.as_ref().to_vec(),
                         instance_handle,
                         timestamp,
                     )?
@@ -219,9 +222,9 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
-                .address()
-                .lookup_instance(instance.get_serialized_key())?,
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().lookup_instance(dds_serialize_key(instance)?)?
+            }
         }
     }
 
@@ -277,13 +280,13 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let serialized_data = dds_serialize(data).map_err(|_err| DdsError::Error)?;
+        let serialized_data = dds_serialize_to_bytes(data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
                 dw.address().write_w_timestamp(
                     serialized_data,
-                    data.get_serialized_key(),
+                    dds_serialize_key(data)?,
                     handle,
                     timestamp,
                 )??;
@@ -361,12 +364,16 @@ where
         }?;
 
         let instance_serialized_key =
-            dds_serialize(&data.get_serialized_key()).map_err(|_err| DdsError::Error)?;
+            dds_serialize_key_to_bytes(data).map_err(|_err| DdsError::Error)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
-                .address()
-                .dispose_w_timestamp(instance_serialized_key, instance_handle, timestamp)?,
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
+                dw.address().dispose_w_timestamp(
+                    instance_serialized_key.as_ref().to_vec(),
+                    instance_handle,
+                    timestamp,
+                )?
+            }
         }
     }
 }
@@ -548,7 +555,7 @@ impl<Foo> DataWriter<Foo> {
 /// This implementation block contains the Entity operations for the [`DataWriter`].
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsType + DdsSerialize + 'static,
+    Foo: DdsHasKey + serde::Serialize + 'static,
 {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
@@ -718,18 +725,18 @@ fn announce_data_writer(
     domain_participant: &ActorAddress<DdsDomainParticipant>,
     discovered_writer_data: &DiscoveredWriterData,
 ) -> DdsResult<()> {
-    let serialized_data = dds_serialize(discovered_writer_data)?;
+    let serialized_data = dds_serialize_to_bytes(discovered_writer_data)?;
     let timestamp = domain_participant.get_current_time()?;
 
     if let Some(sedp_writer_announcer) = domain_participant
         .get_builtin_publisher()?
         .data_writer_list()?
         .iter()
-        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+        .find(|x| x.get_type_name().unwrap() == "DiscoveredWriterData")
     {
         sedp_writer_announcer.write_w_timestamp(
             serialized_data,
-            discovered_writer_data.get_serialized_key(),
+            dds_serialize_key(discovered_writer_data)?,
             None,
             timestamp,
         )??;

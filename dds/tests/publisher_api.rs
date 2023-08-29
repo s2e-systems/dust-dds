@@ -45,7 +45,7 @@ fn default_data_writer_qos() {
     let topic = participant
         .create_topic(
             "default_data_writer_qos",
-            UserType::type_name(),
+            "UserType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -94,7 +94,7 @@ fn different_writers_have_different_instance_handles() {
     let topic = participant
         .create_topic(
             "default_data_writer_qos",
-            UserType::type_name(),
+            "UserType",
             QosKind::Default,
             None,
             NO_STATUS,

@@ -70,13 +70,7 @@ fn not_allowed_to_delete_participant_with_entities() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "Test",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("Test", "KeyedData", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -106,13 +100,7 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "Test",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("Test", "KeyedData", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -147,13 +135,7 @@ fn all_objects_are_dropped() {
             .unwrap();
 
         let topic = participant
-            .create_topic(
-                "MyTopic",
-                KeyedData::type_name(),
-                QosKind::Default,
-                None,
-                NO_STATUS,
-            )
+            .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let publisher = participant
@@ -229,13 +211,7 @@ fn objects_are_correctly_dropped() {
             .unwrap();
         {
             let topic = participant
-                .create_topic(
-                    topic_name,
-                    KeyedData::type_name(),
-                    QosKind::Default,
-                    None,
-                    NO_STATUS,
-                )
+                .create_topic(topic_name, "KeyedData", QosKind::Default, None, NO_STATUS)
                 .unwrap();
             {
                 let publisher = participant

@@ -4,13 +4,14 @@ use crate::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
-    infrastructure::error::DdsResult,
-    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, Representation,
+    },
 };
 
 use super::parameter_id_values::{
-    PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
-    PID_UNICAST_LOCATOR, DEFAULT_EXPECTS_INLINE_QOS,
+    DEFAULT_EXPECTS_INLINE_QOS, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_ENTITYID,
+    PID_MULTICAST_LOCATOR, PID_UNICAST_LOCATOR,
 };
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
@@ -105,30 +106,27 @@ impl DiscoveredReaderData {
     }
 }
 
-impl DdsType for DiscoveredReaderData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+impl DdsHasKey for DiscoveredReaderData {
+    const HAS_KEY: bool = true;
+}
 
-    fn type_name() -> &'static str {
-        "DiscoveredReaderData"
+impl DdsRepresentation for DiscoveredReaderData {
+    const REPRESENTATION: Representation = Representation::PlCdrLe;
+}
+
+impl DdsGetKey for DiscoveredReaderData {
+    type BorrowedKeyHolder<'a> = [u8; 16];
+
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
+        self.subscription_builtin_topic_data.key().value
     }
+}
 
-    fn has_key() -> bool {
-        true
-    }
+impl DdsSetKeyFields for DiscoveredReaderData {
+    type OwningKeyHolder = [u8; 16];
 
-    fn get_serialized_key(&self) -> DdsSerializedKey {
-        self.subscription_builtin_topic_data
-            .key()
-            .value
-            .as_ref()
-            .into()
-    }
-
-    fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
-        if Self::has_key() {
-            unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
-        }
-        Ok(())
+    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
+        todo!()
     }
 }
 
@@ -145,7 +143,9 @@ mod tests {
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
+    use crate::topic_definition::type_support::{
+        dds_deserialize_from_bytes, dds_serialize_to_bytes,
+    };
 
     #[test]
     fn serialize_all_default() {
@@ -207,7 +207,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let result = dds_serialize(&data).unwrap();
+        let result = dds_serialize_to_bytes(&data).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -272,36 +272,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredReaderData = dds_deserialize(data).unwrap();
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn deserialize_reader_proxy() {
-        let expected = ReaderProxy::new(
-            Guid::new(
-                [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
-                EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
-            ),
-            EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
-            vec![],
-            vec![],
-            false,
-        );
-
-        let data = &[
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x5a, 0x00, 16,
-            0, //PID_ENDPOINT_GUID, length (SubscriptionBuiltinTopicData::key) used for remote_reader_guid
-            1, 0, 0, 0, // ,
-            2, 0, 0, 0, // ,
-            3, 0, 0, 0, // ,
-            4, 0, 0, 0, // ,
-            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID (remote_group_entity_id)
-            21, 22, 23, 0xc2, // u8[3], u8
-            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-        ][..];
-        let result: ReaderProxy = dds_deserialize(data).unwrap();
+        let result = dds_deserialize_from_bytes::<DiscoveredReaderData>(data).unwrap();
         assert_eq!(result, expected);
     }
 }

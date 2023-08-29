@@ -24,13 +24,7 @@ fn writer_discovers_reader_in_same_participant() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -65,13 +59,7 @@ fn deleted_readers_are_disposed_from_writer() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -111,13 +99,7 @@ fn updated_readers_are_announced_to_writer() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -169,13 +151,7 @@ fn reader_discovers_writer_in_same_participant() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -210,13 +186,7 @@ fn deleted_writers_are_disposed_from_reader() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -256,13 +226,7 @@ fn updated_writers_are_announced_to_reader() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -315,13 +279,7 @@ fn two_participants_should_get_subscription_matched() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic1 = dp1
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp1
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -334,13 +292,7 @@ fn two_participants_should_get_subscription_matched() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic2 = dp2
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let subscriber = dp2
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -379,13 +331,7 @@ fn participant_records_discovered_topics() {
     for name in topic_names {
         topics.push(
             participant1
-                .create_topic(
-                    name,
-                    UserType::type_name(),
-                    QosKind::Default,
-                    None,
-                    NO_STATUS,
-                )
+                .create_topic(name, "UserType", QosKind::Default, None, NO_STATUS)
                 .unwrap(),
         );
     }
@@ -448,13 +394,7 @@ fn reader_discovers_disposed_writer_same_participant() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -494,13 +434,7 @@ fn publisher_and_subscriber_different_partition_not_matched() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher_qos = PublisherQos {
         partition: PartitionQosPolicy {
@@ -547,13 +481,7 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher_qos = PublisherQos {
         partition: PartitionQosPolicy {
@@ -611,13 +539,7 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher_qos = PublisherQos {
         partition: PartitionQosPolicy {
@@ -675,13 +597,7 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher_qos = PublisherQos {
         partition: PartitionQosPolicy {
@@ -739,13 +655,7 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
         .create_publisher(QosKind::Default, None, NO_STATUS)
@@ -792,13 +702,7 @@ fn reader_matched_to_already_existing_writer_with_matched_reader() {
         .unwrap();
 
     let topic = dp
-        .create_topic(
-            "topic_name",
-            UserType::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
         .create_publisher(QosKind::Default, None, NO_STATUS)

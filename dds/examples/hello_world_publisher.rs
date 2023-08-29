@@ -10,12 +10,10 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    DdsType,
+    topic_definition::type_support::DdsType,
 };
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Deserialize, Serialize, DdsType)]
+#[derive(serde::Serialize, serde::Deserialize, DdsType, Debug)]
 struct HelloWorldType {
     #[key]
     id: u8,
@@ -33,7 +31,7 @@ fn main() {
     let topic = participant
         .create_topic(
             "HelloWorld",
-            HelloWorldType::type_name(),
+            "HelloWorldType",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -72,6 +70,7 @@ fn main() {
         id: 8,
         msg: "Hello world!".to_string(),
     };
+
     writer.write(&hello_world, None).unwrap();
 
     writer

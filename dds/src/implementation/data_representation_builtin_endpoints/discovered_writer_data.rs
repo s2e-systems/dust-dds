@@ -4,8 +4,9 @@ use crate::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
-    infrastructure::error::DdsResult,
-    topic_definition::type_support::{DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE},
+    topic_definition::type_support::{
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, Representation,
+    },
 };
 
 use super::parameter_id_values::{
@@ -89,26 +90,27 @@ impl DiscoveredWriterData {
 
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
-impl DdsType for DiscoveredWriterData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+impl DdsHasKey for DiscoveredWriterData {
+    const HAS_KEY: bool = true;
+}
 
-    fn type_name() -> &'static str {
-        "DiscoveredWriterData"
+impl DdsRepresentation for DiscoveredWriterData {
+    const REPRESENTATION: Representation = Representation::PlCdrLe;
+}
+
+impl DdsGetKey for DiscoveredWriterData {
+    type BorrowedKeyHolder<'a> = [u8; 16];
+
+    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
+        self.dds_publication_data.key().value
     }
+}
 
-    fn has_key() -> bool {
-        true
-    }
+impl DdsSetKeyFields for DiscoveredWriterData {
+    type OwningKeyHolder = [u8; 16];
 
-    fn get_serialized_key(&self) -> DdsSerializedKey {
-        self.dds_publication_data.key().value.as_ref().into()
-    }
-
-    fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
-        if Self::has_key() {
-            unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
-        }
-        Ok(())
+    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
+        todo!()
     }
 }
 
@@ -124,7 +126,9 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
-    use crate::topic_definition::type_support::{dds_deserialize, dds_serialize};
+    use crate::topic_definition::type_support::{
+        dds_deserialize_from_bytes, dds_serialize_to_bytes,
+    };
 
     use super::*;
 
@@ -188,7 +192,7 @@ mod tests {
             21, 22, 23, 0xc9, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let result = dds_serialize(&data).unwrap();
+        let result = dds_serialize_to_bytes(&data).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -253,7 +257,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredWriterData = dds_deserialize(data).unwrap();
+        let result = dds_deserialize_from_bytes::<DiscoveredWriterData>(data).unwrap();
         assert_eq!(result, expected);
     }
 }

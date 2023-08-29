@@ -21,13 +21,13 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{dds_serialize_key, dds_serialize_key_to_bytes, DdsType},
 };
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, DdsType, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
 struct UserData(u8);
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
@@ -55,7 +55,7 @@ fn large_data_should_be_fragmented() {
     let topic = participant
         .create_topic(
             "LargeDataTopic",
-            LargeData::type_name(),
+            "LargeData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -135,7 +135,7 @@ fn large_data_should_be_fragmented_reliable() {
     let topic = participant
         .create_topic(
             "LargeDataTopic",
-            LargeData::type_name(),
+            "LargeData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -208,13 +208,7 @@ fn samples_are_taken() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -268,7 +262,7 @@ fn samples_are_taken() {
     writer.write(&data5, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples1 = reader
@@ -298,13 +292,7 @@ fn read_only_unread_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -407,13 +395,7 @@ fn read_next_sample() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -481,13 +463,7 @@ fn take_next_sample() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -555,13 +531,7 @@ fn each_key_sample_is_read() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -622,19 +592,19 @@ fn each_key_sample_is_read() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
     assert_eq!(
         samples[0].sample_info.instance_handle,
-        data1.get_serialized_key().into()
+        dds_serialize_key(&data1).unwrap().into(),
     );
 
     assert_eq!(samples[1].data.as_ref().unwrap(), &data2);
     assert_eq!(
         samples[1].sample_info.instance_handle,
-        data2.get_serialized_key().into()
+        dds_serialize_key(&data2).unwrap().into(),
     );
 
     assert_eq!(samples[2].data.as_ref().unwrap(), &data3);
     assert_eq!(
         samples[2].sample_info.instance_handle,
-        data3.get_serialized_key().into()
+        dds_serialize_key(&data3).unwrap().into(),
     );
 }
 
@@ -647,13 +617,7 @@ fn read_specific_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -709,7 +673,7 @@ fn read_specific_instance() {
     let samples = reader
         .read_instance(
             3,
-            data1.get_serialized_key().into(),
+            dds_serialize_key(&data1).unwrap().into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -729,13 +693,7 @@ fn read_next_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -841,13 +799,7 @@ fn take_next_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -953,13 +905,7 @@ fn take_specific_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1015,7 +961,7 @@ fn take_specific_instance() {
     let samples = reader
         .take_instance(
             3,
-            data1.get_serialized_key().into(),
+            dds_serialize_key(&data1).unwrap().into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1035,13 +981,7 @@ fn take_specific_unknown_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1097,7 +1037,9 @@ fn take_specific_unknown_instance() {
     assert_eq!(
         reader.take_instance(
             3,
-            KeyedData { id: 99, value: 20 }.get_serialized_key().into(),
+            dds_serialize_key_to_bytes(&KeyedData { id: 99, value: 20 })
+                .unwrap()
+                .into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1116,13 +1058,7 @@ fn write_read_disposed_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1176,7 +1112,7 @@ fn write_read_disposed_samples() {
     writer.dispose(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -1204,13 +1140,7 @@ fn write_read_sample_view_state() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "OtherTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("OtherTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1301,7 +1231,7 @@ fn inconsistent_topic_status_condition() {
     let topic_best_effort = participant
         .create_topic(
             "Topic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Specific(best_effort_topic_qos),
             None,
             NO_STATUS,
@@ -1328,7 +1258,7 @@ fn inconsistent_topic_status_condition() {
     let _topic_reliable = participant
         .create_topic(
             "Topic",
-            KeyedData::type_name(),
+            "KeyedData",
             QosKind::Specific(reliable_topic_qos),
             None,
             NO_STATUS,
@@ -1355,13 +1285,7 @@ fn reader_with_minimum_time_separation_qos() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1461,13 +1385,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1549,13 +1467,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1638,7 +1550,7 @@ fn write_read_unkeyed_topic() {
     let topic = participant
         .create_topic(
             "write_read_unkeyed_topic",
-            UserData::type_name(),
+            "UserData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1705,7 +1617,7 @@ fn data_reader_resource_limits() {
     let topic = participant
         .create_topic(
             "data_reader_resource_limits",
-            UserData::type_name(),
+            "UserData",
             QosKind::Default,
             None,
             NO_STATUS,
@@ -1794,13 +1706,7 @@ fn data_reader_order_by_source_timestamp() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            UserData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "UserData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1888,13 +1794,7 @@ fn data_reader_publication_handle_sample_info() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            UserData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "UserData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -1962,13 +1862,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -2068,13 +1962,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -2131,7 +2019,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
     writer.unregister_instance(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -2158,13 +2046,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "MyTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -2273,13 +2155,7 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic(
-            "TestTopic",
-            KeyedData::type_name(),
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic("TestTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)

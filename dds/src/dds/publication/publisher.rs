@@ -1,7 +1,6 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::{
             dds_data_writer::DdsDataWriter,
             dds_data_writer_listener::DdsDataWriterListener,
@@ -27,7 +26,7 @@ use crate::{
     },
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
-    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{DdsGetKey, DdsHasKey},
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
@@ -89,7 +88,7 @@ impl Publisher {
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
-        Foo: DdsType + DdsSerialize + Send + 'static,
+        Foo: DdsHasKey + DdsGetKey + serde::Serialize + Send + 'static,
     {
         let default_unicast_locator_list = self
             .0
@@ -110,7 +109,7 @@ impl Publisher {
         };
 
         let guid_prefix = self.0.address().guid()?.prefix();
-        let entity_kind = match Foo::has_key() {
+        let entity_kind = match Foo::HAS_KEY {
             true => USER_DEFINED_WRITER_WITH_KEY,
             false => USER_DEFINED_WRITER_NO_KEY,
         };
@@ -122,7 +121,7 @@ impl Publisher {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = Guid::new(guid_prefix, entity_id);
 
-        let topic_kind = match Foo::has_key() {
+        let topic_kind = match Foo::HAS_KEY {
             true => TopicKind::WithKey,
             false => TopicKind::NoKey,
         };
@@ -196,9 +195,8 @@ impl Publisher {
 
                 // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
                 if writer_is_enabled {
-                    let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
                     let instance_serialized_key =
-                        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+                        cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
                             .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
                             .expect("Failed to serialize data");
 
@@ -209,7 +207,7 @@ impl Publisher {
                         .get_builtin_publisher()?
                         .data_writer_list()?
                         .iter()
-                        .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+                        .find(|x| x.get_type_name().unwrap() == "DiscoveredWriterData")
                     {
                         sedp_writer_announcer.dispose_w_timestamp(
                             instance_serialized_key,
@@ -233,7 +231,7 @@ impl Publisher {
                     //     .get_builtin_publisher_mut()
                     //     .stateful_data_writer_list()
                     //     .iter()
-                    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData::type_name())
+                    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData)
                     //     .unwrap()
                     //     .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
                     //     .expect("Should not fail to write built-in message");
@@ -252,7 +250,7 @@ impl Publisher {
     /// specified which one.
     pub fn lookup_datawriter<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>>
     where
-        Foo: DdsType,
+        Foo: DdsHasKey,
     {
         todo!()
         // self.call_participant_mut_method(|dp| {
@@ -260,7 +258,7 @@ impl Publisher {
         //         crate::implementation::behavior::user_defined_publisher::lookup_datawriter(
         //             dp,
         //             self.0.guid(),
-        //             Foo::type_name(),
+        //             Foo,
         //             topic_name,
         //         )?
         //         .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x))),

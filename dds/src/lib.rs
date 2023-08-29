@@ -3,5 +3,4 @@
 #[forbid(unsafe_code)]
 mod dds;
 pub use dds::*;
-pub use topic_definition::type_support::DdsType;
 mod implementation;
