@@ -621,13 +621,6 @@ impl DdsDataReader {
                 }
             }
         } else if data_submessage.reader_id() == ENTITYID_UNKNOWN {
-            let change_result = self.convert_data_to_cache_change(
-                data_submessage,
-                source_timestamp,
-                source_guid_prefix,
-                reception_timestamp,
-                &self.instance_handle_builder,
-            );
             match change_result {
                 Ok(change) => {
                     let add_change_result = self.reader_cache.add_change(change, &self.qos);
