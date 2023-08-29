@@ -155,8 +155,8 @@ pub fn derive_dds_representation(input: TokenStream) -> TokenStream {
 
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsRepresentation for #ident #type_generics #where_clause {
-                const REPRESENTATION_IDENTIFIER: dust_dds::topic_definition::type_support::RepresentationType
-                    = dust_dds::topic_definition::type_support::RepresentationType::CdrLe;
+                const REPRESENTATION: dust_dds::topic_definition::type_support::Representation
+                    = dust_dds::topic_definition::type_support::Representation::CdrLe;
             }
         }
     }else {

@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     topic_definition::type_support::{
-        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, RepresentationType,
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, Representation,
     },
 };
 
@@ -29,7 +29,7 @@ impl DdsHasKey for DiscoveredTopicData {
 }
 
 impl DdsRepresentation for DiscoveredTopicData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = RepresentationType::PlCdrLe;
+    const REPRESENTATION: Representation = Representation::PlCdrLe;
 }
 
 impl DdsGetKey for DiscoveredTopicData {

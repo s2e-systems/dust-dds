@@ -5,7 +5,7 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     topic_definition::type_support::{
-        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, RepresentationType,
+        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, Representation,
     },
 };
 
@@ -95,7 +95,7 @@ impl DdsHasKey for DiscoveredWriterData {
 }
 
 impl DdsRepresentation for DiscoveredWriterData {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = RepresentationType::PlCdrLe;
+    const REPRESENTATION: Representation = Representation::PlCdrLe;
 }
 
 impl DdsGetKey for DiscoveredWriterData {
