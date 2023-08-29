@@ -262,15 +262,15 @@ where
             todo!()
         }
         _ => {
-            let mut REPRESENTATION = [0u8, 0];
-            data.read_exact(&mut REPRESENTATION)
+            let mut representation_identifier = [0u8, 0];
+            data.read_exact(&mut representation_identifier)
                 .map_err(|err| PreconditionNotMet(err.to_string()))?;
 
             let mut representation_option = [0u8, 0];
             data.read_exact(&mut representation_option)
                 .map_err(|err| PreconditionNotMet(err.to_string()))?;
 
-            match REPRESENTATION {
+            match representation_identifier {
                 CDR_BE => {
                     let mut deserializer =
                         cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
@@ -344,14 +344,14 @@ pub fn dds_deserialize_key_from_bytes<T>(mut data: &[u8]) -> DdsResult<T::Owning
 where
     T: DdsSetKeyFields,
 {
-    let mut REPRESENTATION = [0u8, 0];
-    data.read_exact(&mut REPRESENTATION)
+    let mut representation_identifier = [0u8, 0];
+    data.read_exact(&mut representation_identifier)
         .map_err(|err| PreconditionNotMet(err.to_string()))?;
 
     let mut representation_option = [0u8, 0];
     data.read_exact(&mut representation_option)
         .map_err(|err| PreconditionNotMet(err.to_string()))?;
-    match REPRESENTATION {
+    match representation_identifier {
         CDR_BE => {
             let mut deserializer =
                 cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
