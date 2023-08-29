@@ -176,11 +176,6 @@ impl InstanceHandleBuilder {
     }
 }
 
-pub enum UserDefinedReaderDataSubmessageReceivedResult {
-    NoChange,
-    NewDataAvailable,
-}
-
 pub enum DataReceivedResult {
     NoMatchedWriterProxy,
     UnexpectedDataSequenceNumber,
@@ -551,7 +546,7 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-    ) -> UserDefinedReaderDataSubmessageReceivedResult {
+    ) {
         let sequence_number = data_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let change_result = self.convert_data_to_cache_change(
@@ -561,6 +556,30 @@ impl DdsDataReader {
             reception_timestamp,
             &self.instance_handle_builder,
         );
+
+        match self.qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffort => {
+                match self
+                    .matched_writers
+                    .iter()
+                    .find(|wp| wp.remote_writer_guid() == writer_guid)
+                {
+                    Some(writer_proxy) => todo!(),
+                    None if data_submessage.reader_id() == ENTITYID_UNKNOWN => todo!(),
+                    _ => return,
+                }
+            }
+            ReliabilityQosPolicyKind::Reliable => {
+                match self
+                    .matched_writers
+                    .iter()
+                    .find(|wp| wp.remote_writer_guid() == writer_guid)
+                {
+                    Some(writer_proxy) => todo!(),
+                    None => todo!(),
+                }
+            }
+        }
 
         let data_submessage_received_result = if let Some(writer_proxy) = self
             .matched_writers
@@ -642,12 +661,8 @@ impl DdsDataReader {
         };
 
         match data_submessage_received_result {
-            DataReceivedResult::NoMatchedWriterProxy => {
-                UserDefinedReaderDataSubmessageReceivedResult::NoChange
-            }
-            DataReceivedResult::UnexpectedDataSequenceNumber => {
-                UserDefinedReaderDataSubmessageReceivedResult::NoChange
-            }
+            DataReceivedResult::NoMatchedWriterProxy => (),
+            DataReceivedResult::UnexpectedDataSequenceNumber => (),
             DataReceivedResult::NewSampleAdded(instance_handle) => {
                 self.data_available_status_changed_flag = true;
                 self.instance_reception_time
@@ -657,7 +672,6 @@ impl DdsDataReader {
                     subscriber_address,
                     participant_address,
                 );
-                UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             DataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
                 self.instance_reception_time
@@ -673,7 +687,6 @@ impl DdsDataReader {
                     subscriber_address,
                     participant_address,
                 );
-                UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             DataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
                 self.on_sample_rejected(
@@ -683,14 +696,9 @@ impl DdsDataReader {
                     subscriber_address,
                     participant_address,
                 );
-                UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
-            DataReceivedResult::InvalidData(_) => {
-                UserDefinedReaderDataSubmessageReceivedResult::NoChange
-            }
-            DataReceivedResult::NotForThisReader => {
-                UserDefinedReaderDataSubmessageReceivedResult::NoChange
-            }
+            DataReceivedResult::InvalidData(_) => (),
+            DataReceivedResult::NotForThisReader => (),
         }
     }
 
@@ -704,7 +712,7 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-    ) -> UserDefinedReaderDataSubmessageReceivedResult {
+    ) {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
 
@@ -799,12 +807,8 @@ impl DdsDataReader {
         };
 
         match data_submessage_received_result {
-            DataReceivedResult::NoMatchedWriterProxy => {
-                UserDefinedReaderDataSubmessageReceivedResult::NoChange
-            }
-            DataReceivedResult::UnexpectedDataSequenceNumber => {
-                UserDefinedReaderDataSubmessageReceivedResult::NoChange
-            }
+            DataReceivedResult::NoMatchedWriterProxy => (),
+            DataReceivedResult::UnexpectedDataSequenceNumber => (),
             DataReceivedResult::NewSampleAdded(instance_handle) => {
                 self.instance_reception_time
                     .insert(instance_handle, reception_timestamp);
@@ -814,7 +818,6 @@ impl DdsDataReader {
                     subscriber_address,
                     participant_address,
                 );
-                UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             DataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
                 self.instance_reception_time
@@ -830,7 +833,6 @@ impl DdsDataReader {
                     subscriber_address,
                     participant_address,
                 );
-                UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             DataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
                 self.on_sample_rejected(
@@ -840,11 +842,8 @@ impl DdsDataReader {
                     subscriber_address,
                     participant_address,
                 );
-                UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
-            DataReceivedResult::InvalidData(_) | DataReceivedResult::NotForThisReader => {
-                UserDefinedReaderDataSubmessageReceivedResult::NoChange
-            }
+            DataReceivedResult::InvalidData(_) | DataReceivedResult::NotForThisReader => (),
         }
     }
 
