@@ -15,7 +15,6 @@ pub enum Representation {
     CdrBe,
     PlCdrBe,
     PlCdrLe,
-    Xml,
     Custom,
 }
 
@@ -26,7 +25,6 @@ const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
-const XML: RepresentationIdentifier = [0x00, 0x04];
 const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 #[derive(Debug, PartialEq, Clone, Eq, serde::Serialize, serde::Deserialize)]
@@ -235,17 +233,6 @@ where
             serde::Serialize::serialize(value, &mut serializer)
                 .map_err(|err| PreconditionNotMet(err.to_string()))?;
         }
-        Representation::Xml => {
-            writer
-                .write_all(&PL_CDR_LE)
-                .map_err(|err| PreconditionNotMet(err.to_string()))?;
-            writer
-                .write_all(&REPRESENTATION_OPTIONS)
-                .map_err(|err| PreconditionNotMet(err.to_string()))?;
-            let mut serializer = serde_xml_rs::Serializer::new(&mut writer);
-            serde::Serialize::serialize(value, &mut serializer)
-                .map_err(|e| PreconditionNotMet(e.to_string()))?;
-        }
         Representation::Custom => {
             T::to_bytes(value, &mut writer)?;
         }
@@ -258,9 +245,7 @@ where
     T: serde::Deserialize<'de> + DdsRepresentation,
 {
     match T::REPRESENTATION {
-        Representation::Custom => {
-            todo!()
-        }
+        Representation::Custom => T::from_bytes(data),
         _ => {
             let mut representation_identifier = [0u8, 0];
             data.read_exact(&mut representation_identifier)
@@ -294,11 +279,6 @@ where
                 PL_CDR_LE => {
                     let mut deserializer =
                         ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
-                    serde::Deserialize::deserialize(&mut deserializer)
-                        .map_err(|err| PreconditionNotMet(err.to_string()))
-                }
-                XML => {
-                    let mut deserializer = serde_xml_rs::Deserializer::new_from_reader(data);
                     serde::Deserialize::deserialize(&mut deserializer)
                         .map_err(|err| PreconditionNotMet(err.to_string()))
                 }
