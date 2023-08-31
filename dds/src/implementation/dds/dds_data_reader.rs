@@ -29,11 +29,9 @@ use crate::{
                 },
             },
             reader::RtpsReader,
-            reader_history_cache::{
-                Instance, ReaderHistoryCache, RtpsReaderCacheChange, RtpsReaderError,
-            },
+            reader_history_cache::{Instance, ReaderHistoryCache, RtpsReaderCacheChange},
             types::{
-                ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
+                ChangeKind, EntityId, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
                 GUID_UNKNOWN,
             },
             writer_proxy::RtpsWriterProxy,
@@ -115,27 +113,6 @@ impl InstanceHandleBuilder {
                 None => DdsSerializedKey::from(data[4..].to_vec()).into(),
             },
         })
-    }
-}
-
-pub enum DataReceivedResult {
-    NoMatchedWriterProxy,
-    UnexpectedDataSequenceNumber,
-    NewSampleAdded(InstanceHandle),
-    NewSampleAddedAndSamplesLost(InstanceHandle),
-    SampleRejected(InstanceHandle, SampleRejectedStatusKind),
-    InvalidData(&'static str),
-    NotForThisReader,
-}
-
-impl From<RtpsReaderError> for DataReceivedResult {
-    fn from(e: RtpsReaderError) -> Self {
-        match e {
-            RtpsReaderError::InvalidData(s) => DataReceivedResult::InvalidData(s),
-            RtpsReaderError::Rejected(instance_handle, reason) => {
-                DataReceivedResult::SampleRejected(instance_handle, reason)
-            }
-        }
     }
 }
 
@@ -493,158 +470,22 @@ impl DdsDataReader {
     ) {
         let sequence_number = data_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
-        let change_result = self.convert_received_data_to_cache_change(
-            writer_guid,
-            data_submessage.key_flag(),
-            data_submessage.inline_qos(),
-            data_submessage.serialized_payload(),
-            source_timestamp,
-            reception_timestamp,
+        let cache_change = self
+            .convert_received_data_to_cache_change(
+                writer_guid,
+                data_submessage.key_flag(),
+                data_submessage.inline_qos(),
+                data_submessage.serialized_payload(),
+                source_timestamp,
+                reception_timestamp,
+            )
+            .unwrap();
+
+        self.process_received_change(
+            cache_change,
+            data_submessage.reader_id(),
+            data_submessage.writer_sn(),
         );
-
-        match self.qos.reliability.kind {
-            ReliabilityQosPolicyKind::BestEffort => {
-                match self
-                    .matched_writers
-                    .iter()
-                    .find(|wp| wp.remote_writer_guid() == writer_guid)
-                {
-                    Some(writer_proxy) => todo!(),
-                    None if data_submessage.reader_id() == ENTITYID_UNKNOWN => todo!(),
-                    _ => return,
-                }
-            }
-            ReliabilityQosPolicyKind::Reliable => {
-                match self
-                    .matched_writers
-                    .iter()
-                    .find(|wp| wp.remote_writer_guid() == writer_guid)
-                {
-                    Some(writer_proxy) => todo!(),
-                    None => todo!(),
-                }
-            }
-        }
-
-        let data_submessage_received_result = if let Some(writer_proxy) = self
-            .matched_writers
-            .iter_mut()
-            .find(|wp| wp.remote_writer_guid() == writer_guid)
-        {
-            let expected_seq_num = writer_proxy.available_changes_max() + 1;
-            match self.qos.reliability.kind {
-                ReliabilityQosPolicyKind::BestEffort => {
-                    if sequence_number >= expected_seq_num {
-                        match change_result {
-                            Ok(change) => {
-                                let add_change_result =
-                                    self.reader_cache.add_change(change, &self.qos);
-
-                                match add_change_result {
-                                    Ok(instance_handle) => {
-                                        writer_proxy.received_change_set(sequence_number);
-                                        if sequence_number > expected_seq_num {
-                                            writer_proxy.lost_changes_update(sequence_number);
-                                            DataReceivedResult::NewSampleAddedAndSamplesLost(
-                                                instance_handle,
-                                            )
-                                        } else {
-                                            DataReceivedResult::NewSampleAdded(instance_handle)
-                                        }
-                                    }
-                                    Err(err) => err.into(),
-                                }
-                            }
-                            Err(_) => DataReceivedResult::InvalidData("Invalid data submessage"),
-                        }
-                    } else {
-                        DataReceivedResult::UnexpectedDataSequenceNumber
-                    }
-                }
-                ReliabilityQosPolicyKind::Reliable => {
-                    if sequence_number == expected_seq_num {
-                        match change_result {
-                            Ok(change) => {
-                                let add_change_result =
-                                    self.reader_cache.add_change(change, &self.qos);
-
-                                match add_change_result {
-                                    Ok(instance_handle) => {
-                                        writer_proxy
-                                            .received_change_set(data_submessage.writer_sn());
-                                        DataReceivedResult::NewSampleAdded(instance_handle)
-                                    }
-                                    Err(err) => err.into(),
-                                }
-                            }
-                            Err(_) => DataReceivedResult::InvalidData("Invalid data submessage"),
-                        }
-                    } else {
-                        DataReceivedResult::UnexpectedDataSequenceNumber
-                    }
-                }
-            }
-        } else if data_submessage.reader_id() == ENTITYID_UNKNOWN {
-            match change_result {
-                Ok(change) => {
-                    let add_change_result = self.reader_cache.add_change(change, &self.qos);
-
-                    match add_change_result {
-                        Ok(h) => DataReceivedResult::NewSampleAdded(h),
-                        Err(e) => match e {
-                            RtpsReaderError::InvalidData(s) => DataReceivedResult::InvalidData(s),
-                            RtpsReaderError::Rejected(h, k) => {
-                                DataReceivedResult::SampleRejected(h, k)
-                            }
-                        },
-                    }
-                }
-                Err(_) => DataReceivedResult::InvalidData("Invalid data submessage"), // Change is ignored,
-            }
-        } else {
-            DataReceivedResult::NotForThisReader
-        };
-
-        match data_submessage_received_result {
-            DataReceivedResult::NoMatchedWriterProxy => (),
-            DataReceivedResult::UnexpectedDataSequenceNumber => (),
-            DataReceivedResult::NewSampleAdded(instance_handle) => {
-                self.data_available_status_changed_flag = true;
-                self.instance_reception_time
-                    .insert(instance_handle, reception_timestamp);
-                self.on_data_available(
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                );
-            }
-            DataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
-                self.instance_reception_time
-                    .insert(instance_handle, reception_timestamp);
-                self.data_available_status_changed_flag = true;
-                // self.on_sample_lost(
-                //     parent_subscriber_guid,
-                //     parent_participant_guid,
-                //     listener_sender,
-                // );
-                self.on_data_available(
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                );
-            }
-            DataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
-                self.on_sample_rejected(
-                    instance_handle,
-                    rejected_reason,
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                );
-            }
-            DataReceivedResult::InvalidData(_) => (),
-            DataReceivedResult::NotForThisReader => (),
-        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -661,14 +502,13 @@ impl DdsDataReader {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
 
-        let change_results = if let Some(writer_proxy) = self
+        if let Some(writer_proxy) = self
             .matched_writers
             .iter_mut()
             .find(|wp| wp.remote_writer_guid() == writer_guid)
         {
             writer_proxy.push_data_frag(data_frag_submessage);
-            writer_proxy.extract_frag(sequence_number).map(|data| {
-                let key_flag: bool = false;
+            let cache_change = writer_proxy.extract_frag(sequence_number).map(|data| {
                 self.convert_received_data_to_cache_change(
                     writer_guid,
                     data_frag_submessage.key_flag(),
@@ -677,139 +517,17 @@ impl DdsDataReader {
                     source_timestamp,
                     reception_timestamp,
                 )
-            })
-        } else {
-            None
-        };
+                .unwrap()
+            });
 
-        todo!()
-
-        // let data_submessage_received_result = if let Some(writer_proxy) = self
-        //     .matched_writers
-        //     .iter_mut()
-        //     .find(|wp| wp.remote_writer_guid() == writer_guid)
-        // {
-        //     let expected_seq_num = writer_proxy.available_changes_max() + 1;
-        //     match self.qos.reliability.kind {
-        //         ReliabilityQosPolicyKind::BestEffort => {
-        //             if sequence_number >= expected_seq_num {
-        //                 writer_proxy.push_data_frag(data_frag_submessage);
-        //                 if let Some(data) = writer_proxy.extract_frag(sequence_number) {
-        //                     let change_results = self.convert_data_frag_to_cache_change(
-        //                         data_frag_submessage,
-        //                         data,
-        //                         source_timestamp,
-        //                         source_guid_prefix,
-        //                         reception_timestamp,
-        //                     );
-        //                     match change_results {
-        //                         Ok(change) => {
-        //                             let add_change_result =
-        //                                 self.reader_cache.add_change(change, &self.qos);
-        //                             match add_change_result {
-        //                                 Ok(instance_handle) => {
-        //                                     writer_proxy.received_change_set(sequence_number);
-        //                                     if sequence_number > expected_seq_num {
-        //                                         writer_proxy.lost_changes_update(sequence_number);
-        //                                         DataReceivedResult::NewSampleAddedAndSamplesLost(
-        //                                             instance_handle,
-        //                                         )
-        //                                     } else {
-        //                                         DataReceivedResult::NewSampleAdded(instance_handle)
-        //                                     }
-        //                                 }
-        //                                 Err(err) => err.into(),
-        //                             }
-        //                         }
-        //                         Err(_) => {
-        //                             DataReceivedResult::InvalidData("Invalid data submessage")
-        //                         }
-        //                     }
-        //                 } else {
-        //                     DataReceivedResult::NoMatchedWriterProxy
-        //                 }
-        //             } else {
-        //                 DataReceivedResult::UnexpectedDataSequenceNumber
-        //             }
-        //         }
-        //         ReliabilityQosPolicyKind::Reliable => {
-        //             if sequence_number == expected_seq_num {
-        //                 writer_proxy.push_data_frag(data_frag_submessage);
-        //                 if let Some(data) = writer_proxy.extract_frag(sequence_number) {
-        //                     let change_result = self.convert_data_frag_to_cache_change(
-        //                         data_frag_submessage,
-        //                         data,
-        //                         source_timestamp,
-        //                         source_guid_prefix,
-        //                         reception_timestamp,
-        //                     );
-        //                     match change_result {
-        //                         Ok(change) => {
-        //                             let add_change_result =
-        //                                 self.reader_cache.add_change(change, &self.qos);
-        //                             match add_change_result {
-        //                                 Ok(instance_handle) => {
-        //                                     writer_proxy.received_change_set(sequence_number);
-        //                                     DataReceivedResult::NewSampleAdded(instance_handle)
-        //                                 }
-        //                                 Err(err) => err.into(),
-        //                             }
-        //                         }
-        //                         Err(_) => {
-        //                             DataReceivedResult::InvalidData("Invalid data submessage")
-        //                         }
-        //                     }
-        //                 } else {
-        //                     DataReceivedResult::NoMatchedWriterProxy
-        //                 }
-        //             } else {
-        //                 DataReceivedResult::UnexpectedDataSequenceNumber
-        //             }
-        //         }
-        //     }
-        // } else {
-        //     DataReceivedResult::NoMatchedWriterProxy
-        // };
-
-        // match data_submessage_received_result {
-        //     DataReceivedResult::NoMatchedWriterProxy => (),
-        //     DataReceivedResult::UnexpectedDataSequenceNumber => (),
-        //     DataReceivedResult::NewSampleAdded(instance_handle) => {
-        //         self.instance_reception_time
-        //             .insert(instance_handle, reception_timestamp);
-        //         self.data_available_status_changed_flag = true;
-        //         self.on_data_available(
-        //             data_reader_address,
-        //             subscriber_address,
-        //             participant_address,
-        //         );
-        //     }
-        //     DataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
-        //         self.instance_reception_time
-        //             .insert(instance_handle, reception_timestamp);
-        //         self.data_available_status_changed_flag = true;
-        //         // self.on_sample_lost(
-        //         //     parent_subscriber_guid,
-        //         //     parent_participant_guid,
-        //         //     listener_sender,
-        //         // );
-        //         self.on_data_available(
-        //             data_reader_address,
-        //             subscriber_address,
-        //             participant_address,
-        //         );
-        //     }
-        //     DataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
-        //         self.on_sample_rejected(
-        //             instance_handle,
-        //             rejected_reason,
-        //             data_reader_address,
-        //             subscriber_address,
-        //             participant_address,
-        //         );
-        //     }
-        //     DataReceivedResult::InvalidData(_) | DataReceivedResult::NotForThisReader => (),
-        // }
+            if let Some(cache_change) = cache_change {
+                self.process_received_change(
+                    cache_change,
+                    data_frag_submessage.reader_id(),
+                    data_frag_submessage.writer_sn(),
+                );
+            }
+        }
     }
 
     pub fn on_heartbeat_submessage_received(
@@ -1618,6 +1336,45 @@ impl DdsDataReader {
             no_writers_generation_count: 0, // To be filled up only when getting stored
             reception_timestamp,
         })
+    }
+
+    fn process_received_change(
+        &mut self,
+        cache_change: RtpsReaderCacheChange,
+        message_reader_id: EntityId,
+        sequence_number: SequenceNumber,
+    ) {
+        let writer_proxy = self
+            .matched_writers
+            .iter_mut()
+            .find(|wp| wp.remote_writer_guid() == cache_change.writer_guid);
+        match (self.qos.reliability.kind, writer_proxy) {
+            (ReliabilityQosPolicyKind::BestEffort, Some(writer_proxy)) => {
+                let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                if sequence_number >= expected_seq_num {
+                    writer_proxy.received_change_set(sequence_number);
+                    if sequence_number > expected_seq_num {
+                        writer_proxy.lost_changes_update(sequence_number);
+                        // On lost changes listener
+                    }
+                    // Add change + on data available listener OR on sample rejected listener
+                }
+            }
+            (ReliabilityQosPolicyKind::BestEffort, None)
+                if message_reader_id == ENTITYID_UNKNOWN =>
+            {
+                // Add change + on data available listener OR on sample rejected listener
+            }
+            (ReliabilityQosPolicyKind::Reliable, Some(writer_proxy)) => {
+                let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                if sequence_number == expected_seq_num {
+                    writer_proxy.received_change_set(sequence_number);
+                    // Add change + on data available listener OR on sample rejected listener
+                }
+            }
+            (ReliabilityQosPolicyKind::BestEffort, None)
+            | (ReliabilityQosPolicyKind::Reliable, None) => (), // Do nothing,
+        }
     }
 
     fn create_indexed_sample_collection<Foo>(
