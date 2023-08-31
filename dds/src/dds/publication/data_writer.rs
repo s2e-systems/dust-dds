@@ -27,7 +27,7 @@ use crate::{
         topic::Topic,
         type_support::{
             dds_serialize_key, dds_serialize_key_to_bytes, dds_serialize_to_bytes, DdsGetKey,
-            DdsRepresentation, DdsHasKey,
+            DdsHasKey, DdsRepresentation,
         },
     },
 };
@@ -187,8 +187,7 @@ where
                 }
             }?;
 
-            let instance_serialized_key =
-                dds_serialize_key_to_bytes(instance).map_err(|_err| DdsError::Error)?;
+            let instance_serialized_key = dds_serialize_key_to_bytes(instance)?;
 
             match &self.0 {
                 DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
@@ -280,7 +279,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let serialized_data = dds_serialize_to_bytes(data).map_err(|_err| DdsError::Error)?;
+        let serialized_data = dds_serialize_to_bytes(data)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
@@ -363,8 +362,7 @@ where
             }
         }?;
 
-        let instance_serialized_key =
-            dds_serialize_key_to_bytes(data).map_err(|_err| DdsError::Error)?;
+        let instance_serialized_key = dds_serialize_key_to_bytes(data)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {

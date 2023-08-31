@@ -5,7 +5,7 @@ pub type DdsResult<T> = Result<T, DdsError>;
 #[derive(Debug, PartialEq, Eq)]
 pub enum DdsError {
     /// Generic, unspecified error.
-    Error,
+    Error(String),
     /// Unsupported operation.
     Unsupported,
     /// Illegal parameter value.
@@ -55,7 +55,7 @@ const RETCODE_ILLEGAL_OPERATION: ReturnCode = 12;
 impl From<DdsError> for ReturnCode {
     fn from(e: DdsError) -> Self {
         match e {
-            DdsError::Error => RETCODE_ERROR,
+            DdsError::Error(_) => RETCODE_ERROR,
             DdsError::Unsupported => RETCODE_UNSUPPORTED,
             DdsError::BadParameter => RETCODE_BAD_PARAMETER,
             DdsError::PreconditionNotMet(_) => RETCODE_PRECONDITION_NOT_MET,

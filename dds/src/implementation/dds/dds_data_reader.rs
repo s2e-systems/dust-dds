@@ -21,7 +21,7 @@ use crate::{
         rtps::{
             messages::{
                 overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
-                submessage_elements::{Data, Parameter},
+                submessage_elements::{Data, Parameter, ParameterList},
                 submessages::{
                     data::DataSubmessageRead, data_frag::DataFragSubmessageRead,
                     gap::GapSubmessageRead, heartbeat::HeartbeatSubmessageRead,
@@ -31,7 +31,6 @@ use crate::{
             reader::RtpsReader,
             reader_history_cache::{
                 Instance, ReaderHistoryCache, RtpsReaderCacheChange, RtpsReaderError,
-                RtpsReaderResult,
             },
             types::{
                 ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
@@ -77,79 +76,22 @@ use super::{
     status_condition_impl::StatusConditionImpl,
 };
 
-fn convert_data_frag_to_cache_change(
-    data_frag_submessage: &DataFragSubmessageRead,
-    data: Vec<u8>,
-    source_timestamp: Option<Time>,
-    source_guid_prefix: GuidPrefix,
-    reception_timestamp: Time,
-    instance_handle_builder: &InstanceHandleBuilder,
-) -> Result<RtpsReaderCacheChange, RtpsReaderError> {
-    let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
-
-    let inline_qos = data_frag_submessage.inline_qos();
-
-    let change_kind = if data_frag_submessage.key_flag() {
-        if let Some(p) = inline_qos
-            .parameter()
-            .iter()
-            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-        {
-            let mut deserializer =
-                cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
-            let status_info: StatusInfo =
-                serde::Deserialize::deserialize(&mut deserializer).unwrap();
-            match status_info {
-                STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
-                STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
-                STATUS_INFO_DISPOSED_UNREGISTERED => Ok(ChangeKind::NotAliveDisposedUnregistered),
-                _ => Err(RtpsReaderError::InvalidData("Unknown status info value")),
-            }
-        } else {
-            Err(RtpsReaderError::InvalidData(
-                "Missing mandatory StatusInfo parameter",
-            ))
-        }
-    } else {
-        Ok(ChangeKind::Alive)
-    }?;
-
-    let instance_handle = instance_handle_builder.build_instance_handle(
-        change_kind,
-        &data,
-        inline_qos.parameter(),
-    )?;
-
-    Ok(RtpsReaderCacheChange {
-        kind: change_kind,
-        writer_guid,
-        data: Data::new(data),
-        inline_qos,
-        source_timestamp,
-        instance_handle,
-        sample_state: SampleStateKind::NotRead,
-        disposed_generation_count: 0, // To be filled up only when getting stored
-        no_writers_generation_count: 0, // To be filled up only when getting stored
-        reception_timestamp,
-    })
-}
-
-struct InstanceHandleBuilder(fn(&mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>);
+struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
 
 impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
         Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
     {
-        fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>
+        fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> DdsResult<DdsSerializedKey>
         where
             Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
         {
             dds_serialize_key(
                 &dds_deserialize_from_bytes::<Foo>(data)
-                    .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize data"))?,
+                    .map_err(|_| DdsError::Error("Failed to deserialize data".to_string()))?,
             )
-            .map_err(|_| RtpsReaderError::InvalidData("Failed to serialize key"))
+            .map_err(|_| DdsError::Error("Failed to serialize key".to_string()))
         }
 
         Self(deserialize_data_to_key::<Foo>)
@@ -160,7 +102,7 @@ impl InstanceHandleBuilder {
         change_kind: ChangeKind,
         mut data: &[u8],
         inline_qos: &[Parameter],
-    ) -> RtpsReaderResult<InstanceHandle> {
+    ) -> DdsResult<InstanceHandle> {
         Ok(match change_kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(&mut data)?.into(),
             ChangeKind::NotAliveDisposed
@@ -329,6 +271,7 @@ pub struct DdsDataReader {
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     listener: Option<Actor<DdsDataReaderListener>>,
     status_kind: Vec<StatusKind>,
+    instances: HashMap<InstanceHandle, Instance>,
 }
 
 impl DdsDataReader {
@@ -367,6 +310,7 @@ impl DdsDataReader {
             reader_cache: ReaderHistoryCache::new(),
             qos,
             instance_handle_builder,
+            instances: HashMap::new(),
         }
     }
 
@@ -549,12 +493,13 @@ impl DdsDataReader {
     ) {
         let sequence_number = data_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
-        let change_result = self.convert_data_to_cache_change(
-            data_submessage,
+        let change_result = self.convert_received_data_to_cache_change(
+            writer_guid,
+            data_submessage.key_flag(),
+            data_submessage.inline_qos(),
+            data_submessage.serialized_payload(),
             source_timestamp,
-            source_guid_prefix,
             reception_timestamp,
-            &self.instance_handle_builder,
         );
 
         match self.qos.reliability.kind {
@@ -716,135 +661,155 @@ impl DdsDataReader {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
 
-        let data_submessage_received_result = if let Some(writer_proxy) = self
+        let change_results = if let Some(writer_proxy) = self
             .matched_writers
             .iter_mut()
             .find(|wp| wp.remote_writer_guid() == writer_guid)
         {
-            let expected_seq_num = writer_proxy.available_changes_max() + 1;
-            match self.qos.reliability.kind {
-                ReliabilityQosPolicyKind::BestEffort => {
-                    if sequence_number >= expected_seq_num {
-                        writer_proxy.push_data_frag(data_frag_submessage);
-                        if let Some(data) = writer_proxy.extract_frag(sequence_number) {
-                            let change_results = convert_data_frag_to_cache_change(
-                                data_frag_submessage,
-                                data,
-                                source_timestamp,
-                                source_guid_prefix,
-                                reception_timestamp,
-                                &self.instance_handle_builder,
-                            );
-                            match change_results {
-                                Ok(change) => {
-                                    let add_change_result =
-                                        self.reader_cache.add_change(change, &self.qos);
-                                    match add_change_result {
-                                        Ok(instance_handle) => {
-                                            writer_proxy.received_change_set(sequence_number);
-                                            if sequence_number > expected_seq_num {
-                                                writer_proxy.lost_changes_update(sequence_number);
-                                                DataReceivedResult::NewSampleAddedAndSamplesLost(
-                                                    instance_handle,
-                                                )
-                                            } else {
-                                                DataReceivedResult::NewSampleAdded(instance_handle)
-                                            }
-                                        }
-                                        Err(err) => err.into(),
-                                    }
-                                }
-                                Err(_) => {
-                                    DataReceivedResult::InvalidData("Invalid data submessage")
-                                }
-                            }
-                        } else {
-                            DataReceivedResult::NoMatchedWriterProxy
-                        }
-                    } else {
-                        DataReceivedResult::UnexpectedDataSequenceNumber
-                    }
-                }
-                ReliabilityQosPolicyKind::Reliable => {
-                    if sequence_number == expected_seq_num {
-                        writer_proxy.push_data_frag(data_frag_submessage);
-                        if let Some(data) = writer_proxy.extract_frag(sequence_number) {
-                            let change_result = convert_data_frag_to_cache_change(
-                                data_frag_submessage,
-                                data,
-                                source_timestamp,
-                                source_guid_prefix,
-                                reception_timestamp,
-                                &self.instance_handle_builder,
-                            );
-
-                            match change_result {
-                                Ok(change) => {
-                                    let add_change_result =
-                                        self.reader_cache.add_change(change, &self.qos);
-                                    match add_change_result {
-                                        Ok(instance_handle) => {
-                                            writer_proxy.received_change_set(sequence_number);
-                                            DataReceivedResult::NewSampleAdded(instance_handle)
-                                        }
-                                        Err(err) => err.into(),
-                                    }
-                                }
-                                Err(_) => {
-                                    DataReceivedResult::InvalidData("Invalid data submessage")
-                                }
-                            }
-                        } else {
-                            DataReceivedResult::NoMatchedWriterProxy
-                        }
-                    } else {
-                        DataReceivedResult::UnexpectedDataSequenceNumber
-                    }
-                }
-            }
+            writer_proxy.push_data_frag(data_frag_submessage);
+            writer_proxy.extract_frag(sequence_number).map(|data| {
+                let key_flag: bool = false;
+                self.convert_received_data_to_cache_change(
+                    writer_guid,
+                    data_frag_submessage.key_flag(),
+                    data_frag_submessage.inline_qos(),
+                    data,
+                    source_timestamp,
+                    reception_timestamp,
+                )
+            })
         } else {
-            DataReceivedResult::NoMatchedWriterProxy
+            None
         };
 
-        match data_submessage_received_result {
-            DataReceivedResult::NoMatchedWriterProxy => (),
-            DataReceivedResult::UnexpectedDataSequenceNumber => (),
-            DataReceivedResult::NewSampleAdded(instance_handle) => {
-                self.instance_reception_time
-                    .insert(instance_handle, reception_timestamp);
-                self.data_available_status_changed_flag = true;
-                self.on_data_available(
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                );
-            }
-            DataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
-                self.instance_reception_time
-                    .insert(instance_handle, reception_timestamp);
-                self.data_available_status_changed_flag = true;
-                // self.on_sample_lost(
-                //     parent_subscriber_guid,
-                //     parent_participant_guid,
-                //     listener_sender,
-                // );
-                self.on_data_available(
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                );
-            }
-            DataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
-                self.on_sample_rejected(
-                    instance_handle,
-                    rejected_reason,
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                );
-            }
-            DataReceivedResult::InvalidData(_) | DataReceivedResult::NotForThisReader => (),
-        }
+        todo!()
+
+        // let data_submessage_received_result = if let Some(writer_proxy) = self
+        //     .matched_writers
+        //     .iter_mut()
+        //     .find(|wp| wp.remote_writer_guid() == writer_guid)
+        // {
+        //     let expected_seq_num = writer_proxy.available_changes_max() + 1;
+        //     match self.qos.reliability.kind {
+        //         ReliabilityQosPolicyKind::BestEffort => {
+        //             if sequence_number >= expected_seq_num {
+        //                 writer_proxy.push_data_frag(data_frag_submessage);
+        //                 if let Some(data) = writer_proxy.extract_frag(sequence_number) {
+        //                     let change_results = self.convert_data_frag_to_cache_change(
+        //                         data_frag_submessage,
+        //                         data,
+        //                         source_timestamp,
+        //                         source_guid_prefix,
+        //                         reception_timestamp,
+        //                     );
+        //                     match change_results {
+        //                         Ok(change) => {
+        //                             let add_change_result =
+        //                                 self.reader_cache.add_change(change, &self.qos);
+        //                             match add_change_result {
+        //                                 Ok(instance_handle) => {
+        //                                     writer_proxy.received_change_set(sequence_number);
+        //                                     if sequence_number > expected_seq_num {
+        //                                         writer_proxy.lost_changes_update(sequence_number);
+        //                                         DataReceivedResult::NewSampleAddedAndSamplesLost(
+        //                                             instance_handle,
+        //                                         )
+        //                                     } else {
+        //                                         DataReceivedResult::NewSampleAdded(instance_handle)
+        //                                     }
+        //                                 }
+        //                                 Err(err) => err.into(),
+        //                             }
+        //                         }
+        //                         Err(_) => {
+        //                             DataReceivedResult::InvalidData("Invalid data submessage")
+        //                         }
+        //                     }
+        //                 } else {
+        //                     DataReceivedResult::NoMatchedWriterProxy
+        //                 }
+        //             } else {
+        //                 DataReceivedResult::UnexpectedDataSequenceNumber
+        //             }
+        //         }
+        //         ReliabilityQosPolicyKind::Reliable => {
+        //             if sequence_number == expected_seq_num {
+        //                 writer_proxy.push_data_frag(data_frag_submessage);
+        //                 if let Some(data) = writer_proxy.extract_frag(sequence_number) {
+        //                     let change_result = self.convert_data_frag_to_cache_change(
+        //                         data_frag_submessage,
+        //                         data,
+        //                         source_timestamp,
+        //                         source_guid_prefix,
+        //                         reception_timestamp,
+        //                     );
+        //                     match change_result {
+        //                         Ok(change) => {
+        //                             let add_change_result =
+        //                                 self.reader_cache.add_change(change, &self.qos);
+        //                             match add_change_result {
+        //                                 Ok(instance_handle) => {
+        //                                     writer_proxy.received_change_set(sequence_number);
+        //                                     DataReceivedResult::NewSampleAdded(instance_handle)
+        //                                 }
+        //                                 Err(err) => err.into(),
+        //                             }
+        //                         }
+        //                         Err(_) => {
+        //                             DataReceivedResult::InvalidData("Invalid data submessage")
+        //                         }
+        //                     }
+        //                 } else {
+        //                     DataReceivedResult::NoMatchedWriterProxy
+        //                 }
+        //             } else {
+        //                 DataReceivedResult::UnexpectedDataSequenceNumber
+        //             }
+        //         }
+        //     }
+        // } else {
+        //     DataReceivedResult::NoMatchedWriterProxy
+        // };
+
+        // match data_submessage_received_result {
+        //     DataReceivedResult::NoMatchedWriterProxy => (),
+        //     DataReceivedResult::UnexpectedDataSequenceNumber => (),
+        //     DataReceivedResult::NewSampleAdded(instance_handle) => {
+        //         self.instance_reception_time
+        //             .insert(instance_handle, reception_timestamp);
+        //         self.data_available_status_changed_flag = true;
+        //         self.on_data_available(
+        //             data_reader_address,
+        //             subscriber_address,
+        //             participant_address,
+        //         );
+        //     }
+        //     DataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
+        //         self.instance_reception_time
+        //             .insert(instance_handle, reception_timestamp);
+        //         self.data_available_status_changed_flag = true;
+        //         // self.on_sample_lost(
+        //         //     parent_subscriber_guid,
+        //         //     parent_participant_guid,
+        //         //     listener_sender,
+        //         // );
+        //         self.on_data_available(
+        //             data_reader_address,
+        //             subscriber_address,
+        //             participant_address,
+        //         );
+        //     }
+        //     DataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
+        //         self.on_sample_rejected(
+        //             instance_handle,
+        //             rejected_reason,
+        //             data_reader_address,
+        //             subscriber_address,
+        //             participant_address,
+        //         );
+        //     }
+        //     DataReceivedResult::InvalidData(_) | DataReceivedResult::NotForThisReader => (),
+        // }
     }
 
     pub fn on_heartbeat_submessage_received(
@@ -1599,52 +1564,43 @@ impl DdsDataReader {
         self.rtps_reader.guid()
     }
 
-    fn convert_data_to_cache_change(
+    fn convert_received_data_to_cache_change(
         &self,
-        data_submessage: &DataSubmessageRead,
+        writer_guid: Guid,
+        key_flag: bool,
+        inline_qos: ParameterList,
+        data: Data,
         source_timestamp: Option<Time>,
-        source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
-        instance_handle_builder: &InstanceHandleBuilder,
-    ) -> RtpsReaderResult<RtpsReaderCacheChange> {
-        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
-
-        let data = data_submessage.serialized_payload();
-
-        let inline_qos = data_submessage.inline_qos();
-
-        let change_kind = match (data_submessage.data_flag(), data_submessage.key_flag()) {
-            (true, false) => Ok(ChangeKind::Alive),
-            (false, true) | (false, false) => {
-                if let Some(p) = inline_qos
-                    .parameter()
-                    .iter()
-                    .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-                {
-                    let mut deserializer =
-                        cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
-                    let status_info: StatusInfo =
-                        serde::Deserialize::deserialize(&mut deserializer).unwrap();
-                    match status_info {
-                        STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
-                        STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
-                        STATUS_INFO_DISPOSED_UNREGISTERED => {
-                            Ok(ChangeKind::NotAliveDisposedUnregistered)
-                        }
-                        _ => Err(RtpsReaderError::InvalidData("Unknown status info value")),
+    ) -> DdsResult<RtpsReaderCacheChange> {
+        let change_kind = if key_flag {
+            if let Some(p) = inline_qos
+                .parameter()
+                .iter()
+                .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+            {
+                let mut deserializer =
+                    cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
+                let status_info: StatusInfo =
+                    serde::Deserialize::deserialize(&mut deserializer).unwrap();
+                match status_info {
+                    STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
+                    STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
+                    STATUS_INFO_DISPOSED_UNREGISTERED => {
+                        Ok(ChangeKind::NotAliveDisposedUnregistered)
                     }
-                } else {
-                    Err(RtpsReaderError::InvalidData(
-                        "Missing mandatory StatusInfo parameter",
-                    ))
+                    _ => Err(DdsError::Error("Unknown status info value".to_string())),
                 }
+            } else {
+                Err(DdsError::Error(
+                    "Missing mandatory StatusInfo parameter in parameter list".to_string(),
+                ))
             }
-            (true, true) => Err(RtpsReaderError::InvalidData(
-                "Invalid data and key flag combination",
-            )),
+        } else {
+            Ok(ChangeKind::Alive)
         }?;
 
-        let instance_handle = instance_handle_builder.build_instance_handle(
+        let instance_handle = self.instance_handle_builder.build_instance_handle(
             change_kind,
             data.as_ref(),
             inline_qos.parameter(),
@@ -1739,10 +1695,9 @@ impl DdsDataReader {
 
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (
-                    Some(
-                        dds_deserialize_from_bytes::<Foo>(cache_change.data.as_ref())
-                            .map_err(|_err| DdsError::Error)?,
-                    ),
+                    Some(dds_deserialize_from_bytes::<Foo>(
+                        cache_change.data.as_ref(),
+                    )?),
                     true,
                 ),
                 ChangeKind::NotAliveDisposed
