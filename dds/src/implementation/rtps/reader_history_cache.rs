@@ -8,14 +8,6 @@ use super::{
     types::{ChangeKind, Guid},
 };
 
-pub type RtpsReaderResult<T> = Result<T, RtpsReaderError>;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum RtpsReaderError {
-    InvalidData(&'static str),
-    Rejected(InstanceHandle, SampleRejectedStatusKind),
-}
-
 pub struct RtpsReaderCacheChange {
     pub kind: ChangeKind,
     pub writer_guid: Guid,
