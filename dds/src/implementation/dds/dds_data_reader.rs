@@ -29,7 +29,7 @@ use crate::{
                 },
             },
             reader::RtpsReader,
-            reader_history_cache::{Instance, ReaderHistoryCache, RtpsReaderCacheChange},
+            reader_history_cache::{Instance, RtpsReaderCacheChange},
             types::{
                 ChangeKind, EntityId, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
                 GUID_UNKNOWN,
@@ -47,7 +47,8 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
-            DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
+            DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicyKind,
+            QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
@@ -229,7 +230,7 @@ impl SubscriptionMatchedStatus {
 pub struct DdsDataReader {
     rtps_reader: RtpsReader,
     matched_writers: Vec<RtpsWriterProxy>,
-    reader_cache: ReaderHistoryCache,
+    changes: Vec<RtpsReaderCacheChange>,
     qos: DataReaderQos,
     instance_handle_builder: InstanceHandleBuilder,
     type_name: String,
@@ -268,6 +269,7 @@ impl DdsDataReader {
         DdsDataReader {
             rtps_reader,
             matched_writers: Vec::new(),
+            changes: Vec::new(),
             type_name,
             topic_name,
             liveliness_changed_status: LivelinessChangedStatus::default(),
@@ -284,7 +286,6 @@ impl DdsDataReader {
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             status_kind,
             listener,
-            reader_cache: ReaderHistoryCache::new(),
             qos,
             instance_handle_builder,
             instances: HashMap::new(),
@@ -468,7 +469,6 @@ impl DdsDataReader {
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
     ) {
-        let sequence_number = data_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let cache_change = self
             .convert_received_data_to_cache_change(
@@ -485,6 +485,9 @@ impl DdsDataReader {
             cache_change,
             data_submessage.reader_id(),
             data_submessage.writer_sn(),
+            data_reader_address,
+            subscriber_address,
+            participant_address,
         );
     }
 
@@ -525,6 +528,9 @@ impl DdsDataReader {
                     cache_change,
                     data_frag_submessage.reader_id(),
                     data_frag_submessage.writer_sn(),
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
                 );
             }
         }
@@ -769,7 +775,7 @@ impl DdsDataReader {
         (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
 
         for index in change_index_list {
-            self.reader_cache.changes[index].sample_state = SampleStateKind::Read;
+            self.changes[index].sample_state = SampleStateKind::Read;
         }
 
         Ok(samples)
@@ -808,7 +814,7 @@ impl DdsDataReader {
         (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
 
         while let Some(index) = change_index_list.pop() {
-            self.reader_cache.changes.remove(index);
+            self.changes.remove(index);
         }
 
         Ok(samples)
@@ -1081,7 +1087,7 @@ impl DdsDataReader {
         }
     }
 
-    fn _on_sample_lost(&mut self, _parent_subscriber_guid: Guid, _parent_participant_guid: Guid) {
+    fn on_sample_lost(&mut self) {
         todo!()
         // self.sample_lost_status.increment();
         // listener_sender
@@ -1283,7 +1289,7 @@ impl DdsDataReader {
     }
 
     fn convert_received_data_to_cache_change(
-        &self,
+        &mut self,
         writer_guid: Guid,
         key_flag: bool,
         inline_qos: ParameterList,
@@ -1324,6 +1330,29 @@ impl DdsDataReader {
             inline_qos.parameter(),
         )?;
 
+        match change_kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                self.instances
+                    .entry(instance_handle)
+                    .or_insert_with(Instance::new)
+                    .update_state(change_kind);
+                Ok(())
+            }
+            ChangeKind::NotAliveDisposed
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => {
+                match self.instances.get_mut(&instance_handle) {
+                    Some(instance) => {
+                        instance.update_state(change_kind);
+                        Ok(())
+                    }
+                    None => Err(DdsError::Error(
+                        "Received message changing state of unknown instance".to_string(),
+                    )),
+                }
+            }
+        }?;
+
         Ok(RtpsReaderCacheChange {
             kind: change_kind,
             writer_guid,
@@ -1332,8 +1361,10 @@ impl DdsDataReader {
             source_timestamp,
             instance_handle,
             sample_state: SampleStateKind::NotRead,
-            disposed_generation_count: 0, // To be filled up only when getting stored
-            no_writers_generation_count: 0, // To be filled up only when getting stored
+            disposed_generation_count: self.instances[&instance_handle]
+                .most_recent_disposed_generation_count,
+            no_writers_generation_count: self.instances[&instance_handle]
+                .most_recent_no_writers_generation_count,
             reception_timestamp,
         })
     }
@@ -1343,6 +1374,9 @@ impl DdsDataReader {
         cache_change: RtpsReaderCacheChange,
         message_reader_id: EntityId,
         sequence_number: SequenceNumber,
+        data_reader_address: &ActorAddress<DdsDataReader>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
     ) {
         let writer_proxy = self
             .matched_writers
@@ -1355,26 +1389,174 @@ impl DdsDataReader {
                     writer_proxy.received_change_set(sequence_number);
                     if sequence_number > expected_seq_num {
                         writer_proxy.lost_changes_update(sequence_number);
-                        // On lost changes listener
+                        self.on_sample_lost();
                     }
-                    // Add change + on data available listener OR on sample rejected listener
+                    self.add_change(
+                        cache_change,
+                        data_reader_address,
+                        subscriber_address,
+                        participant_address,
+                    )
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
                 if message_reader_id == ENTITYID_UNKNOWN =>
             {
-                // Add change + on data available listener OR on sample rejected listener
+                self.add_change(
+                    cache_change,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                )
             }
             (ReliabilityQosPolicyKind::Reliable, Some(writer_proxy)) => {
                 let expected_seq_num = writer_proxy.available_changes_max() + 1;
                 if sequence_number == expected_seq_num {
                     writer_proxy.received_change_set(sequence_number);
-                    // Add change + on data available listener OR on sample rejected listener
+                    self.add_change(
+                        cache_change,
+                        data_reader_address,
+                        subscriber_address,
+                        participant_address,
+                    )
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
             | (ReliabilityQosPolicyKind::Reliable, None) => (), // Do nothing,
         }
+    }
+
+    fn add_change(
+        &mut self,
+        change: RtpsReaderCacheChange,
+        data_reader_address: &ActorAddress<DdsDataReader>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
+    ) {
+        if self.is_sample_of_interest_based_on_time(&change) {
+            if self.is_max_samples_limit_reached(&change) {
+                self.on_sample_rejected(
+                    change.instance_handle,
+                    SampleRejectedStatusKind::RejectedBySamplesLimit,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                )
+            } else if self.is_max_instances_limit_reached(&change) {
+                self.on_sample_rejected(
+                    change.instance_handle,
+                    SampleRejectedStatusKind::RejectedByInstancesLimit,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                )
+            } else if self.is_max_samples_per_instance_limit_reached(&change) {
+                self.on_sample_rejected(
+                    change.instance_handle,
+                    SampleRejectedStatusKind::RejectedByInstancesLimit,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                )
+            } else {
+                let num_alive_samples_of_instance = self
+                    .changes
+                    .iter()
+                    .filter(|cc| {
+                        cc.instance_handle == change.instance_handle && cc.kind == ChangeKind::Alive
+                    })
+                    .count() as i32;
+
+                if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+                    if depth == num_alive_samples_of_instance {
+                        let index_sample_to_remove = self
+                            .changes
+                            .iter()
+                            .position(|cc| {
+                                cc.instance_handle == change.instance_handle
+                                    && cc.kind == ChangeKind::Alive
+                            })
+                            .expect("Samples must exist");
+                        self.changes.remove(index_sample_to_remove);
+                    }
+
+                    self.changes.push(change);
+
+                    match self.qos.destination_order.kind {
+                        DestinationOrderQosPolicyKind::BySourceTimestamp => {
+                            self.changes.sort_by(|a, b| {
+                                a.source_timestamp
+                                    .as_ref()
+                                    .expect("Missing source timestamp")
+                                    .cmp(
+                                        b.source_timestamp
+                                            .as_ref()
+                                            .expect("Missing source timestamp"),
+                                    )
+                            });
+                        }
+                        DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
+                            .changes
+                            .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
+                    }
+                }
+
+                self.on_data_available(data_reader_address, subscriber_address, participant_address)
+            }
+        }
+    }
+
+    fn is_sample_of_interest_based_on_time(&self, change: &RtpsReaderCacheChange) -> bool {
+        let closest_timestamp_before_received_sample = self
+            .changes
+            .iter()
+            .filter(|cc| cc.instance_handle == change.instance_handle)
+            .filter(|cc| cc.source_timestamp <= change.source_timestamp)
+            .map(|cc| cc.source_timestamp)
+            .max();
+
+        if let Some(Some(t)) = closest_timestamp_before_received_sample {
+            if let Some(sample_source_time) = change.source_timestamp {
+                let sample_separation = sample_source_time - t;
+                DurationKind::Finite(sample_separation)
+                    >= self.qos.time_based_filter.minimum_separation
+            } else {
+                true
+            }
+        } else {
+            true
+        }
+    }
+
+    fn is_max_samples_limit_reached(&self, change: &RtpsReaderCacheChange) -> bool {
+        let total_samples = self
+            .changes
+            .iter()
+            .filter(|cc| cc.instance_handle == change.instance_handle)
+            .count();
+
+        total_samples == self.qos.resource_limits.max_samples
+    }
+
+    fn is_max_instances_limit_reached(&self, change: &RtpsReaderCacheChange) -> bool {
+        let instance_handle_list: HashSet<_> =
+            self.changes.iter().map(|cc| cc.instance_handle).collect();
+
+        if instance_handle_list.contains(&change.instance_handle) {
+            false
+        } else {
+            instance_handle_list.len() == self.qos.resource_limits.max_instances
+        }
+    }
+
+    fn is_max_samples_per_instance_limit_reached(&self, change: &RtpsReaderCacheChange) -> bool {
+        let total_samples_of_instance = self
+            .changes
+            .iter()
+            .filter(|cc| cc.instance_handle == change.instance_handle)
+            .count();
+
+        total_samples_of_instance == self.qos.resource_limits.max_samples_per_instance
     }
 
     fn create_indexed_sample_collection<Foo>(
@@ -1389,7 +1571,7 @@ impl DdsDataReader {
         Foo: for<'de> serde::Deserialize<'de> + DdsRepresentation,
     {
         if let Some(h) = specific_instance_handle {
-            if !self.reader_cache.instances.contains_key(&h) {
+            if !self.instances.contains_key(&h) {
                 return Err(DdsError::BadParameter);
             }
         };
@@ -1397,10 +1579,9 @@ impl DdsDataReader {
         let mut indexed_samples = Vec::new();
 
         let instance_handle_build = &self.instance_handle_builder;
-        let instances = &self.reader_cache.instances;
+        let instances = &self.instances;
         let mut instances_in_collection = HashMap::new();
         for (index, cache_change) in self
-            .reader_cache
             .changes
             .iter_mut()
             .enumerate()
@@ -1437,14 +1618,12 @@ impl DdsDataReader {
                 .unwrap()
                 .update_state(cache_change.kind);
             let sample_state = cache_change.sample_state;
-            let view_state = self.reader_cache.instances[&sample_instance_handle].view_state;
-            let instance_state =
-                self.reader_cache.instances[&sample_instance_handle].instance_state;
+            let view_state = self.instances[&sample_instance_handle].view_state;
+            let instance_state = self.instances[&sample_instance_handle].instance_state;
 
-            let absolute_generation_rank = (self.reader_cache.instances[&sample_instance_handle]
+            let absolute_generation_rank = (self.instances[&sample_instance_handle]
                 .most_recent_disposed_generation_count
-                + self.reader_cache.instances[&sample_instance_handle]
-                    .most_recent_no_writers_generation_count)
+                + self.instances[&sample_instance_handle].most_recent_no_writers_generation_count)
                 - (instances_in_collection[&sample_instance_handle]
                     .most_recent_disposed_generation_count
                     + instances_in_collection[&sample_instance_handle]
@@ -1507,8 +1686,7 @@ impl DdsDataReader {
                 sample.sample_info.sample_rank = total_instance_samples_in_collection as i32;
             }
 
-            self.reader_cache
-                .instances
+            self.instances
                 .get_mut(&handle)
                 .expect("Sample must exist on hash map")
                 .mark_viewed()
@@ -1523,14 +1701,8 @@ impl DdsDataReader {
 
     fn next_instance(&self, previous_handle: Option<InstanceHandle>) -> Option<InstanceHandle> {
         match previous_handle {
-            Some(p) => self
-                .reader_cache
-                .instances
-                .keys()
-                .filter(|&h| h > &p)
-                .min()
-                .cloned(),
-            None => self.reader_cache.instances.keys().min().cloned(),
+            Some(p) => self.instances.keys().filter(|&h| h > &p).min().cloned(),
+            None => self.instances.keys().min().cloned(),
         }
     }
 }
