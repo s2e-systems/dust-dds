@@ -1451,7 +1451,7 @@ impl DdsDataReader {
             } else if self.is_max_samples_per_instance_limit_reached(&change) {
                 self.on_sample_rejected(
                     change.instance_handle,
-                    SampleRejectedStatusKind::RejectedByInstancesLimit,
+                    SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
                     data_reader_address,
                     subscriber_address,
                     participant_address,
@@ -1479,7 +1479,10 @@ impl DdsDataReader {
                     }
                 }
 
+                self.instance_reception_time
+                    .insert(change.instance_handle, change.reception_timestamp);
                 self.changes.push(change);
+                self.data_available_status_changed_flag = true;
 
                 match self.qos.destination_order.kind {
                     DestinationOrderQosPolicyKind::BySourceTimestamp => {
@@ -1526,7 +1529,7 @@ impl DdsDataReader {
         }
     }
 
-    fn is_max_samples_limit_reached(&self, change: &RtpsReaderCacheChange) -> bool {
+    fn is_max_samples_limit_reached(&self, _change: &RtpsReaderCacheChange) -> bool {
         let total_samples = self
             .changes
             .iter()
