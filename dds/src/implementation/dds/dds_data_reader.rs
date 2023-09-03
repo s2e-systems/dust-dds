@@ -470,25 +470,23 @@ impl DdsDataReader {
         participant_address: &ActorAddress<DdsDomainParticipant>,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
-        let cache_change = self
-            .convert_received_data_to_cache_change(
-                writer_guid,
-                data_submessage.key_flag(),
-                data_submessage.inline_qos(),
-                data_submessage.serialized_payload(),
-                source_timestamp,
-                reception_timestamp,
-            )
-            .unwrap();
-
-        self.process_received_change(
-            cache_change,
-            data_submessage.reader_id(),
-            data_submessage.writer_sn(),
-            data_reader_address,
-            subscriber_address,
-            participant_address,
-        );
+        if let Ok(cache_change) = self.convert_received_data_to_cache_change(
+            writer_guid,
+            data_submessage.key_flag(),
+            data_submessage.inline_qos(),
+            data_submessage.serialized_payload(),
+            source_timestamp,
+            reception_timestamp,
+        ) {
+            self.process_received_change(
+                cache_change,
+                data_submessage.reader_id(),
+                data_submessage.writer_sn(),
+                data_reader_address,
+                subscriber_address,
+                participant_address,
+            );
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1479,26 +1477,26 @@ impl DdsDataReader {
                             .expect("Samples must exist");
                         self.changes.remove(index_sample_to_remove);
                     }
+                }
 
-                    self.changes.push(change);
+                self.changes.push(change);
 
-                    match self.qos.destination_order.kind {
-                        DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                            self.changes.sort_by(|a, b| {
-                                a.source_timestamp
-                                    .as_ref()
-                                    .expect("Missing source timestamp")
-                                    .cmp(
-                                        b.source_timestamp
-                                            .as_ref()
-                                            .expect("Missing source timestamp"),
-                                    )
-                            });
-                        }
-                        DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
-                            .changes
-                            .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
+                match self.qos.destination_order.kind {
+                    DestinationOrderQosPolicyKind::BySourceTimestamp => {
+                        self.changes.sort_by(|a, b| {
+                            a.source_timestamp
+                                .as_ref()
+                                .expect("Missing source timestamp")
+                                .cmp(
+                                    b.source_timestamp
+                                        .as_ref()
+                                        .expect("Missing source timestamp"),
+                                )
+                        });
                     }
+                    DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
+                        .changes
+                        .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
                 }
 
                 self.on_data_available(data_reader_address, subscriber_address, participant_address)
@@ -1532,7 +1530,7 @@ impl DdsDataReader {
         let total_samples = self
             .changes
             .iter()
-            .filter(|cc| cc.instance_handle == change.instance_handle)
+            .filter(|cc| cc.kind == ChangeKind::Alive)
             .count();
 
         total_samples == self.qos.resource_limits.max_samples

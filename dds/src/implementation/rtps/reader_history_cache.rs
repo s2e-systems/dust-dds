@@ -1,5 +1,5 @@
 use crate::{
-    infrastructure::{instance::InstanceHandle, status::SampleRejectedStatusKind, time::Time},
+    infrastructure::{instance::InstanceHandle, time::Time},
     subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
 };
 
