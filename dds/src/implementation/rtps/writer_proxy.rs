@@ -102,7 +102,7 @@ impl RtpsWriterProxy {
         }
     }
 
-    pub fn extract_frag(&mut self, seq_num: SequenceNumber) -> Option<Vec<u8>> {
+    pub fn extract_frag(&mut self, seq_num: SequenceNumber) -> Option<Data> {
         if let Some(seq_num_frag) = self.frag_buffer.get(&seq_num) {
             let total_fragments_expected = total_fragments_expected(&seq_num_frag[0]);
 
@@ -119,7 +119,7 @@ impl RtpsWriterProxy {
                 for frag in frag_seq_num_list {
                     data.append(&mut frag.serialized_payload.as_ref().to_vec());
                 }
-                return Some(data);
+                return Some(Data::new(data));
             }
         }
         None

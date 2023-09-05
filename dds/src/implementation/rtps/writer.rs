@@ -5,7 +5,7 @@ use crate::infrastructure::{
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::RtpsWriterCacheChange,
+    writer_history_cache::RtpsWriterCacheChange,
     messages::submessage_elements::{Data, ParameterList},
     types::{ChangeKind, Guid, Locator, SequenceNumber},
 };

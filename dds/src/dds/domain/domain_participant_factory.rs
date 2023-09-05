@@ -131,14 +131,15 @@ impl DomainParticipantFactory {
             get_interface_address_list(THE_DDS_CONFIGURATION.interface_name.as_ref());
 
         let default_unicast_socket =
-            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
-                .map_err(|_| DdsError::Error)?;
+            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).map_err(
+                |_| DdsError::Error("Failed to bind to default unicast socket".to_string()),
+            )?;
         default_unicast_socket
             .set_nonblocking(true)
-            .map_err(|_| DdsError::Error)?;
+            .map_err(|_| DdsError::Error("Failed to set socket non-blocking".to_string()))?;
         let user_defined_unicast_port = default_unicast_socket
             .local_addr()
-            .map_err(|_| DdsError::Error)?
+            .map_err(|_| DdsError::Error("Failed to get socket address".to_string()))?
             .port();
         let user_defined_unicast_locator_port = user_defined_unicast_port.into();
 
@@ -151,14 +152,16 @@ impl DomainParticipantFactory {
 
         let metattrafic_unicast_socket =
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
-                .map_err(|_| DdsError::Error)?;
+                .map_err(|_| DdsError::Error("Failed to open metatraffic socket".to_string()))?;
         metattrafic_unicast_socket
             .set_nonblocking(true)
-            .map_err(|_| DdsError::Error)?;
+            .map_err(|_| {
+                DdsError::Error("Failed to set metatraffic socket non-blocking".to_string())
+            })?;
 
         let metattrafic_unicast_locator_port = metattrafic_unicast_socket
             .local_addr()
-            .map_err(|_| DdsError::Error)?
+            .map_err(|_| DdsError::Error("Failed to get metatraffic socket address".to_string()))?
             .port()
             .into();
         let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
