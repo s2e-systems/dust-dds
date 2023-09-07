@@ -10,7 +10,7 @@ use crate::infrastructure::{
     qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
     time::Time,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 pub struct RtpsWriterCacheChange {
     kind: ChangeKind,
@@ -178,7 +178,7 @@ impl RtpsWriterCacheChange {
 
 #[derive(Default)]
 pub struct WriterHistoryCache {
-    changes: HashMap<InstanceHandle, Vec<RtpsWriterCacheChange>>,
+    changes: HashMap<InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
 }
 
 impl WriterHistoryCache {
@@ -197,16 +197,18 @@ impl WriterHistoryCache {
         change: RtpsWriterCacheChange,
         history_qos_policy: &HistoryQosPolicy,
     ) {
+        let changes_of_instance = self.changes.entry(change.instance_handle()).or_default();
+
         match history_qos_policy.kind {
             HistoryQosPolicyKind::KeepLast(depth) => {
-                for changes_of_instance in self.changes.values_mut() {
-                    changes_of_instance.truncate(depth as usize);
+                if changes_of_instance.len() == depth as usize {
+                    changes_of_instance.pop_front();
                 }
             }
             HistoryQosPolicyKind::KeepAll => (),
-        }
-        let values = self.changes.entry(change.instance_handle()).or_default();
-        values.push(change);
+        };
+
+        changes_of_instance.push_back(change);
     }
 
     pub fn remove_change<F>(&mut self, mut f: F)
