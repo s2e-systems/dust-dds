@@ -2432,8 +2432,8 @@ fn reader_joining_after_writer_writes_many_samples() {
         .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
-    let cond = reader.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
@@ -2442,7 +2442,7 @@ fn reader_joining_after_writer_writes_many_samples() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let new_data = KeyedData { id: 1, value: 255 };
+    let new_data = KeyedData { id: 1, value: 1000 };
     writer.write(&new_data, None).unwrap();
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
