@@ -288,6 +288,96 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
 }
 
 #[test]
+fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(3),
+        },
+        ..Default::default()
+    };
+
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+    let data2 = KeyedData { id: 1, value: 2 };
+    let data3 = KeyedData { id: 1, value: 3 };
+    let data4 = KeyedData { id: 1, value: 4 };
+    let data5 = KeyedData { id: 1, value: 5 };
+
+    writer.write(&data1, None).unwrap();
+    writer.write(&data2, None).unwrap();
+    writer.write(&data3, None).unwrap();
+    writer.write(&data4, None).unwrap();
+    writer.write(&data5, None).unwrap();
+
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    reader
+        .wait_for_historical_data(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(5, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 3);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data3);
+    assert_eq!(samples[1].data.as_ref().unwrap(), &data4);
+    assert_eq!(samples[2].data.as_ref().unwrap(), &data5);
+}
+
+#[test]
 fn samples_are_taken() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
