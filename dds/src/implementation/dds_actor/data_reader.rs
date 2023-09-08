@@ -18,7 +18,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{ActorAddress, Mail, MailHandler},
+            actor::{ActorAddress, CommandHandler, Mail, MailHandler},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -679,12 +679,8 @@ impl ActorAddress<DdsDataReader> {
             participant_address: ActorAddress<DdsDomainParticipant>,
         }
 
-        impl Mail for ProcessRtpsMessage {
-            type Result = ();
-        }
-
-        impl MailHandler<ProcessRtpsMessage> for DdsDataReader {
-            fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
+        impl CommandHandler<ProcessRtpsMessage> for DdsDataReader {
+            fn handle(&mut self, mail: ProcessRtpsMessage) {
                 self.process_rtps_message(
                     mail.message,
                     mail.reception_timestamp,
@@ -695,7 +691,7 @@ impl ActorAddress<DdsDataReader> {
             }
         }
 
-        self.send_blocking(ProcessRtpsMessage {
+        self.send_command(ProcessRtpsMessage {
             message,
             reception_timestamp,
             data_reader_address,
