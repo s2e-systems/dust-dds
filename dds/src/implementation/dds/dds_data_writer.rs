@@ -17,7 +17,6 @@ use crate::{
             },
         },
         rtps::{
-            writer_history_cache::{DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache},
             messages::{
                 overall_structure::{
                     RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
@@ -38,6 +37,9 @@ use crate::{
                 ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
             writer::RtpsWriter,
+            writer_history_cache::{
+                DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache,
+            },
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
@@ -1493,12 +1495,9 @@ fn send_change_message_reader_proxy_reliable(
                 .map(|x| x.sequence_number())
                 .max()
                 .unwrap_or_else(|| SequenceNumber::from(0));
-            let heartbeat = reader_proxy
-                .heartbeat_machine()
-                .submessage(writer_id, first_sn, last_sn);
             udp_transport_write
                 .write(
-                    RtpsMessageWrite::new(header, vec![info_dst, gap_submessage, heartbeat]),
+                    RtpsMessageWrite::new(header, vec![info_dst, gap_submessage]),
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
                 .expect("Should not fail cause actor always exists");
