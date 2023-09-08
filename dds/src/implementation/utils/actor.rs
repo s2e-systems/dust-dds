@@ -214,7 +214,7 @@ where
 }
 
 // Macro to create both a function for the method and the equivalent wrapper for the actor
-macro_rules! actor_function {
+macro_rules! mailbox_function {
     // Match a function definition with return type
     ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) -> $ret_type:ty $body:block) => {
         impl $type_name {
@@ -284,21 +284,21 @@ macro_rules! actor_function {
         }
     };
 }
-pub(crate) use actor_function;
+pub(crate) use mailbox_function;
 
 // This macro should wrap an impl block and create the actor address wrapper methods with exactly the same interface
 // It is kept around the "impl" block because otherwise there is no way to find the type name it refers to ($type_name)
-macro_rules! actor_interface {
+macro_rules! actor_mailbox_interface {
     (impl $type_name:ident {
         $(
         pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $(-> $ret_type:ty)?
             $body:block
         )+
     }) => {
-        $(crate::implementation::utils::actor::actor_function!($type_name, pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) $(-> $ret_type)? $body );)+
+        $(crate::implementation::utils::actor::mailbox_function!($type_name, pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) $(-> $ret_type)? $body );)+
     };
 }
-pub(crate) use actor_interface;
+pub(crate) use actor_mailbox_interface;
 
 #[cfg(test)]
 mod tests {
@@ -307,7 +307,7 @@ mod tests {
     pub struct MyData {
         data: u8,
     }
-    actor_interface!(
+    actor_mailbox_interface!(
     impl MyData {
         pub fn increment(&mut self, value: u8) -> u8 {
             self.data += value;

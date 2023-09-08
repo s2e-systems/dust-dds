@@ -1,5 +1,5 @@
 use crate::{
-    implementation::utils::actor::{actor_interface, Actor, ActorAddress},
+    implementation::utils::actor::{actor_mailbox_interface, Actor, ActorAddress},
     infrastructure::{
         instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos},
@@ -31,7 +31,7 @@ impl DdsDomainParticipantFactory {
     }
 }
 
-actor_interface! {
+actor_mailbox_interface! {
 impl DdsDomainParticipantFactory {
     pub fn add_participant(&mut self, participant: Actor<DdsDomainParticipant>) {
         self.domain_participant_list.push(participant)

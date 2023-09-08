@@ -6,7 +6,7 @@ use crate::{
     implementation::{
         rtps::{group::RtpsGroup, types::Guid},
         utils::{
-            actor::{actor_interface, Actor, ActorAddress},
+            actor::{actor_mailbox_interface, Actor, ActorAddress},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -51,7 +51,7 @@ impl DdsSubscriber {
     }
 }
 
-actor_interface! {
+actor_mailbox_interface! {
 impl DdsSubscriber {
     pub fn delete_contained_entities(&mut self) {
 

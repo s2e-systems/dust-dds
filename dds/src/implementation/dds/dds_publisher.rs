@@ -1,7 +1,7 @@
 use crate::{
     implementation::{
         rtps::{group::RtpsGroup, types::Guid},
-        utils::actor::{actor_interface, Actor, ActorAddress},
+        utils::actor::{actor_mailbox_interface, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -44,7 +44,7 @@ impl DdsPublisher {
     }
 }
 
-actor_interface! {
+actor_mailbox_interface! {
 impl DdsPublisher {
     pub fn enable(&mut self) {
         self.enabled = true;

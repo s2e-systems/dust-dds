@@ -3,7 +3,7 @@ use crate::implementation::{
         messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
         types::{Locator, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
     },
-    utils::actor::actor_interface,
+    utils::actor::actor_mailbox_interface,
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
@@ -45,7 +45,7 @@ impl UdpTransportWrite {
     }
 }
 
-actor_interface! {
+actor_mailbox_interface! {
 impl UdpTransportWrite {
     pub fn write(&self, message: RtpsMessageWrite, destination_locator_list: Vec<Locator>) {
         let buf = message.buffer();

@@ -27,7 +27,7 @@ use crate::{
             writer::RtpsWriter,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{actor_interface, spawn_actor, Actor, ActorAddress},
+        utils::actor::{actor_mailbox_interface, spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -425,7 +425,7 @@ impl DdsDomainParticipant {
     }
 }
 
-actor_interface! {
+actor_mailbox_interface! {
 // Rtps Entity methods
 impl DdsDomainParticipant {
         pub fn get_guid(&self) -> Guid {
@@ -434,7 +434,7 @@ impl DdsDomainParticipant {
 }
 }
 
-actor_interface! {
+actor_mailbox_interface! {
 // Rtps Participant methods
 impl DdsDomainParticipant {
     pub fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
@@ -459,7 +459,7 @@ impl DdsDomainParticipant {
 }
 }
 
-actor_interface! {
+actor_mailbox_interface! {
 impl DdsDomainParticipant {
     pub fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant

@@ -43,7 +43,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{actor_interface, Actor, ActorAddress, Mail, MailHandler},
+            actor::{actor_mailbox_interface, Actor, ActorAddress, Mail, MailHandler},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -293,7 +293,7 @@ impl DdsDataWriter {
     }
 }
 
-actor_interface! {
+actor_mailbox_interface! {
 impl DdsDataWriter {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_writer.guid().into()
