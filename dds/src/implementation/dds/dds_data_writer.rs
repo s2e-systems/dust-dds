@@ -1485,16 +1485,7 @@ fn send_change_message_reader_proxy_reliable(
                 change_seq_num,
                 SequenceNumberSet::new(change_seq_num + 1, vec![]),
             ));
-            let first_sn = writer_cache
-                .change_list()
-                .map(|x| x.sequence_number())
-                .min()
-                .unwrap_or_else(|| SequenceNumber::from(1));
-            let last_sn = writer_cache
-                .change_list()
-                .map(|x| x.sequence_number())
-                .max()
-                .unwrap_or_else(|| SequenceNumber::from(0));
+
             udp_transport_write
                 .write(
                     RtpsMessageWrite::new(header, vec![info_dst, gap_submessage]),
