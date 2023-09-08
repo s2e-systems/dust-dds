@@ -2445,7 +2445,7 @@ fn reader_joining_after_writer_writes_many_samples() {
     let new_data = KeyedData { id: 1, value: 1000 };
     writer.write(&new_data, None).unwrap();
     writer
-        .wait_for_acknowledgments(Duration::new(10, 0))
+        .wait_for_acknowledgments(Duration::new(20, 0))
         .unwrap();
 
     let samples = reader

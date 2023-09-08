@@ -259,9 +259,8 @@ impl DomainParticipantFactory {
             );
 
             while let Some((_locator, message)) = default_unicast_transport.read().await {
-                let r = tokio::task::block_in_place(|| {
-                    process_user_defined_data(&participant_address_clone, message)
-                });
+                let r = participant_address_clone
+                    .process_user_defined_rtps_message(message, participant_address_clone.clone());
 
                 if r.is_err() {
                     break;
@@ -613,47 +612,6 @@ fn add_matched_topics_announcer(
         );
         reader.matched_writer_add(proxy).unwrap();
     }
-}
-
-fn process_user_defined_data(
-    participant_address: &ActorAddress<DdsDomainParticipant>,
-    message: RtpsMessageRead,
-) -> DdsResult<()> {
-    for user_defined_subscriber in participant_address.get_user_defined_subscriber_list()? {
-        for user_defined_data_reader in user_defined_subscriber.data_reader_list()? {
-            user_defined_data_reader.process_rtps_message(
-                message.clone(),
-                participant_address.get_current_time()?,
-                user_defined_data_reader.clone(),
-                user_defined_subscriber.clone(),
-                participant_address.clone(),
-            )?;
-            user_defined_data_reader.send_message(
-                RtpsMessageHeader::new(
-                    participant_address.get_protocol_version()?,
-                    participant_address.get_vendor_id()?,
-                    participant_address.get_guid()?.prefix(),
-                ),
-                participant_address.get_udp_transport_write()?,
-            )?;
-        }
-    }
-
-    for user_defined_publisher in participant_address.get_user_defined_publisher_list()? {
-        for user_defined_data_writer in user_defined_publisher.data_writer_list()? {
-            user_defined_data_writer.process_rtps_message(message.clone())?;
-            user_defined_data_writer.send_message(
-                RtpsMessageHeader::new(
-                    participant_address.get_protocol_version()?,
-                    participant_address.get_vendor_id()?,
-                    participant_address.get_guid()?.prefix(),
-                ),
-                participant_address.get_udp_transport_write()?,
-                participant_address.get_current_time()?,
-            )?;
-        }
-    }
-    Ok(())
 }
 
 fn process_spdp_metatraffic(

@@ -15,7 +15,10 @@ use crate::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::types::Count,
+            messages::{
+                overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+                types::Count,
+            },
             participant::RtpsParticipant,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
@@ -27,7 +30,9 @@ use crate::{
             writer::RtpsWriter,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{actor_mailbox_interface, spawn_actor, Actor, ActorAddress},
+        utils::actor::{
+            actor_command_interface, actor_mailbox_interface, spawn_actor, Actor, ActorAddress,
+        },
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -773,6 +778,65 @@ impl DdsDomainParticipant {
 
     pub fn status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
+    }
+}
+}
+
+actor_command_interface! {
+impl DdsDomainParticipant {
+    pub fn process_user_defined_rtps_message(
+        &self,
+        message: RtpsMessageRead,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        for user_defined_subscriber in &self.user_defined_subscriber_list {
+            for user_defined_data_reader in user_defined_subscriber
+                .address()
+                .data_reader_list()
+                .unwrap()
+            {
+                user_defined_data_reader
+                    .process_rtps_message(
+                        message.clone(),
+                        self.get_current_time(),
+                        user_defined_data_reader.clone(),
+                        user_defined_subscriber.address().clone(),
+                        participant_address.clone(),
+                    )
+                    .unwrap();
+                user_defined_data_reader
+                    .send_message(
+                        RtpsMessageHeader::new(
+                            self.get_protocol_version(),
+                            self.get_vendor_id(),
+                            self.get_guid().prefix(),
+                        ),
+                        self.get_udp_transport_write(),
+                    )
+                    .unwrap();
+            }
+        }
+
+        for user_defined_publisher in &self.user_defined_publisher_list {
+            for user_defined_data_writer in
+                user_defined_publisher.address().data_writer_list().unwrap()
+            {
+                user_defined_data_writer
+                    .process_rtps_message(message.clone())
+                    .unwrap();
+                user_defined_data_writer
+                    .send_message(
+                        RtpsMessageHeader::new(
+                            self.get_protocol_version(),
+                            self.get_vendor_id(),
+                            self.get_guid().prefix(),
+                        ),
+                        self.get_udp_transport_write(),
+                        self.get_current_time(),
+                    )
+                    .unwrap();
+            }
+        }
     }
 }
 }
