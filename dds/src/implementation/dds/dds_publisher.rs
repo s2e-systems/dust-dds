@@ -1,13 +1,23 @@
 use crate::{
     implementation::{
-        rtps::{group::RtpsGroup, types::Guid},
-        utils::actor::{actor_mailbox_interface, Actor, ActorAddress},
+        dds::dds_data_writer_listener::DdsDataWriterListener,
+        rtps::{
+            endpoint::RtpsEndpoint,
+            group::RtpsGroup,
+            types::{
+                EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+                USER_DEFINED_WRITER_WITH_KEY,
+            },
+            writer::RtpsWriter,
+        },
+        utils::actor::{actor_mailbox_interface, spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
+        time::{Duration, DURATION_ZERO},
     },
 };
 
@@ -46,6 +56,69 @@ impl DdsPublisher {
 
 actor_mailbox_interface! {
 impl DdsPublisher {
+    pub fn create_datawriter(
+        &mut self,
+        type_name: String,
+        topic_name: String,
+        has_key: bool,
+        data_max_size_serialized: usize,
+        qos: QosKind<DataWriterQos>,
+        a_listener: Option<Actor<DdsDataWriterListener>>,
+        mask: Vec<StatusKind>,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+    ) -> DdsResult<ActorAddress<DdsDataWriter>> {
+        let qos = match qos {
+            QosKind::Default => self.default_datawriter_qos.clone(),
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
+
+        let guid_prefix = self.rtps_group.guid().prefix();
+        let (entity_kind, topic_kind) = match has_key {
+            true => (USER_DEFINED_WRITER_WITH_KEY,TopicKind::WithKey),
+            false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
+        };
+        let entity_key = [
+            self.rtps_group.guid().entity_id().entity_key()[0],
+            self.get_unique_writer_id(),
+            0,
+        ];
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let guid = Guid::new(guid_prefix, entity_id);
+
+
+        let rtps_writer_impl = RtpsWriter::new(
+            RtpsEndpoint::new(
+                guid,
+                topic_kind,
+                &default_unicast_locator_list,
+                &default_multicast_locator_list,
+            ),
+            true,
+            Duration::new(0, 200_000_000),
+            DURATION_ZERO,
+            DURATION_ZERO,
+            data_max_size_serialized,
+        );
+
+        let data_writer = DdsDataWriter::new(
+            rtps_writer_impl,
+            type_name,
+            topic_name,
+            a_listener,
+            mask,
+            qos,
+        );
+        let data_writer_actor = spawn_actor(data_writer);
+        let data_writer_address = data_writer_actor.address().clone();
+        self.data_writer_list.push(data_writer_actor);
+
+        Ok(data_writer_address)
+    }
+
     pub fn enable(&mut self) {
         self.enabled = true;
     }

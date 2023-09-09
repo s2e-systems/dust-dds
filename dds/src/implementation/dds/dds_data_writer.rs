@@ -855,12 +855,8 @@ impl ActorAddress<DdsDataWriter> {
             type Result = ();
         }
 
-        #[async_trait::async_trait]
         impl MailHandler<ReaderLocatorAdd> for DdsDataWriter {
-            async fn handle(
-                &mut self,
-                mail: ReaderLocatorAdd,
-            ) -> <ReaderLocatorAdd as Mail>::Result {
+            fn handle(&mut self, mail: ReaderLocatorAdd) -> <ReaderLocatorAdd as Mail>::Result {
                 self.reader_locator_add(mail.a_locator)
             }
         }

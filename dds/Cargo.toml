@@ -36,8 +36,6 @@ schemars = "=0.8.11"
 
 fnmatch-regex = "=0.2.0"
 
-async-trait = "0.1.73"
-
 tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
