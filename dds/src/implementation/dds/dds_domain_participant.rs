@@ -25,7 +25,8 @@ use crate::{
             types::{
                 EntityId, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
                 BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
-                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY,
+                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
             writer::RtpsWriter,
         },
@@ -36,7 +37,7 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
-        qos::{DataReaderQos, DataWriterQos},
+        qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
             ReliabilityQosPolicy, ReliabilityQosPolicyKind,
@@ -44,6 +45,9 @@ use crate::{
         status::StatusKind,
         time::{DurationKind, DURATION_ZERO},
     },
+    publication::publisher_listener::PublisherListener,
+    subscription::subscriber_listener::SubscriberListener,
+    topic_definition::topic_listener::TopicListener,
     {
         builtin_topics::TopicBuiltinTopicData,
         infrastructure::{
@@ -61,7 +65,8 @@ use std::{
 
 use super::{
     dds_data_writer::DdsDataWriter, dds_domain_participant_listener::DdsDomainParticipantListener,
-    dds_publisher::DdsPublisher,
+    dds_publisher::DdsPublisher, dds_publisher_listener::DdsPublisherListener,
+    dds_subscriber_listener::DdsSubscriberListener,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -431,17 +436,79 @@ impl DdsDomainParticipant {
 }
 
 actor_mailbox_interface! {
-// Rtps Entity methods
 impl DdsDomainParticipant {
-        pub fn get_guid(&self) -> Guid {
-            self.rtps_participant.guid()
-        }
-}
-}
+    pub fn create_publisher(&mut self,qos: QosKind<PublisherQos>,
+        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        mask: Vec<StatusKind>,) -> ActorAddress<DdsPublisher> {
+        let publisher_qos = match qos {
+            QosKind::Default => self.default_publisher_qos.clone(),
+            QosKind::Specific(q) => q,
+        };
+        let publisher_counter = self.create_unique_publisher_id();
+        let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
+        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroup::new(guid);
+        let listener = a_listener.map(|l| spawn_actor(DdsPublisherListener::new(l)));
+        let status_kind = mask.to_vec();
+        let publisher = DdsPublisher::new(publisher_qos, rtps_group, listener, status_kind);
 
-actor_mailbox_interface! {
-// Rtps Participant methods
-impl DdsDomainParticipant {
+        let publisher_actor = spawn_actor(publisher);
+        let publisher_address = publisher_actor.address().clone();
+        self.user_defined_publisher_list.push(publisher_actor);
+
+        publisher_address
+    }
+
+    pub fn create_subscriber(&mut self,qos: QosKind<SubscriberQos>,
+        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        mask: Vec<StatusKind>,) -> ActorAddress<DdsSubscriber> {
+            let subscriber_qos = match qos {
+                QosKind::Default => self.default_subscriber_qos.clone(),
+                QosKind::Specific(q) => q,
+            };
+            let subcriber_counter = self.create_unique_subscriber_id();
+            let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
+            let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+            let rtps_group = RtpsGroup::new(guid);
+            let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
+            let status_kind = mask.to_vec();
+
+            let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
+
+            let subscriber_actor = spawn_actor(subscriber);
+            let subscriber_address = subscriber_actor.address().clone();
+
+            self.user_defined_subscriber_list.push(subscriber_actor);
+
+            subscriber_address
+    }
+
+    pub fn create_topic(&mut self, topic_name: String,
+        type_name: String,
+        qos: QosKind<TopicQos>,
+        _a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
+        _mask: Vec<StatusKind>,) -> ActorAddress<DdsTopic> {
+        let qos = match qos {
+            QosKind::Default => self.default_topic_qos.clone(),
+            QosKind::Specific(q) => q,
+        };
+        let topic_counter = self.create_unique_topic_id();
+        let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
+        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+
+        let topic = DdsTopic::new(guid, qos, type_name.to_string(), &topic_name);
+
+        let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
+        let topic_address = topic_actor.address().clone();
+        self.topic_list.push(topic_actor);
+
+        topic_address
+    }
+
+    pub fn get_guid(&self) -> Guid {
+        self.rtps_participant.guid()
+    }
+
     pub fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_unicast_locator_list()
@@ -461,11 +528,7 @@ impl DdsDomainParticipant {
     pub fn get_vendor_id(&self) -> VendorId {
         self.rtps_participant.vendor_id()
     }
-}
-}
 
-actor_mailbox_interface! {
-impl DdsDomainParticipant {
     pub fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .metatraffic_unicast_locator_list()
@@ -569,10 +632,6 @@ impl DdsDomainParticipant {
         counter
     }
 
-    pub fn add_user_defined_publisher(&mut self, publisher: Actor<DdsPublisher>) {
-        self.user_defined_publisher_list.push(publisher)
-    }
-
     pub fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
         self.user_defined_publisher_list.iter().map(|a| a.address().clone()).collect()
     }
@@ -594,10 +653,6 @@ impl DdsDomainParticipant {
         counter
     }
 
-    pub fn add_user_defined_subscriber(&mut self, subscriber: Actor<DdsSubscriber>) {
-        self.user_defined_subscriber_list.push(subscriber)
-    }
-
     pub fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
         self.user_defined_subscriber_list.iter().map(|a| a.address().clone()).collect()
     }
@@ -617,10 +672,6 @@ impl DdsDomainParticipant {
         let counter = self.user_defined_topic_counter;
         self.user_defined_topic_counter += 1;
         counter
-    }
-
-    pub fn add_user_defined_topic(&mut self, topic: Actor<DdsTopic>) {
-        self.topic_list.push(topic)
     }
 
     pub fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {

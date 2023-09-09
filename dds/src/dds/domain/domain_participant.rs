@@ -5,22 +5,10 @@ use crate::{
     implementation::{
         dds::{
             dds_domain_participant::DdsDomainParticipant,
-            dds_publisher::DdsPublisher,
-            dds_publisher_listener::DdsPublisherListener,
-            dds_subscriber::DdsSubscriber,
-            dds_subscriber_listener::DdsSubscriberListener,
-            dds_topic::DdsTopic,
             nodes::{PublisherNode, SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind},
         },
-        rtps::{
-            group::RtpsGroup,
-            messages::overall_structure::RtpsMessageHeader,
-            types::{
-                EntityId, Guid, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
-                USER_DEFINED_WRITER_GROUP,
-            },
-        },
-        utils::actor::{spawn_actor, ActorAddress, THE_RUNTIME},
+        rtps::messages::overall_structure::RtpsMessageHeader,
+        utils::actor::{ActorAddress, THE_RUNTIME},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -91,21 +79,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher_qos = match qos {
-            QosKind::Default => self.0.default_publisher_qos()?,
-            QosKind::Specific(q) => q,
-        };
-        let publisher_counter = self.0.create_unique_publisher_id()?;
-        let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
-        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
-        let rtps_group = RtpsGroup::new(guid);
-        let listener = a_listener.map(|l| spawn_actor(DdsPublisherListener::new(l)));
-        let status_kind = mask.to_vec();
-        let publisher = DdsPublisher::new(publisher_qos, rtps_group, listener, status_kind);
-
-        let publisher_actor = spawn_actor(publisher);
-        let publisher_address = publisher_actor.address().clone();
-        self.0.add_user_defined_publisher(publisher_actor)?;
+        let publisher_address = self.0.create_publisher(qos, a_listener, mask.to_vec())?;
 
         let publisher = Publisher::new(PublisherNode::new(publisher_address, self.0.clone()));
         if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
@@ -153,25 +127,12 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber_qos = match qos {
-            QosKind::Default => self.0.default_subscriber_qos()?,
-            QosKind::Specific(q) => q,
-        };
-        let subcriber_counter = self.0.create_unique_subscriber_id()?;
-        let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
-        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
-        let rtps_group = RtpsGroup::new(guid);
-        let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
-        let status_kind = mask.to_vec();
+        let subscriber_address = self.0.create_subscriber(qos, a_listener, mask.to_vec())?;
 
-        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
-
-        let subscriber_actor = spawn_actor(subscriber);
         let subscriber = Subscriber::new(SubscriberNodeKind::UserDefined(SubscriberNode::new(
-            subscriber_actor.address().clone(),
+            subscriber_address,
             self.0.clone(),
         )));
-        self.0.add_user_defined_subscriber(subscriber_actor)?;
 
         if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
             subscriber.enable()?;
@@ -220,22 +181,16 @@ impl DomainParticipant {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<Topic> {
-        let qos = match qos {
-            QosKind::Default => self.0.default_topic_qos()?,
-            QosKind::Specific(q) => q,
-        };
-        let topic_counter = self.0.create_unique_topic_id()?;
-        let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
-        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
-
-        let topic = DdsTopic::new(guid, qos, type_name.to_string(), topic_name);
-
-        let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
-        let topic_address = topic_actor.address().clone();
-        self.0.add_user_defined_topic(topic_actor)?;
+        let topic_address = self.0.create_topic(
+            topic_name.to_string(),
+            type_name.to_string(),
+            qos,
+            a_listener,
+            mask.to_vec(),
+        )?;
 
         let topic = Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
             topic_address,
