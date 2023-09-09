@@ -81,7 +81,7 @@ impl<A> ActorAddress<A> {
 }
 
 trait GenericHandler<A> {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()>;
+    fn handle(&mut self, actor: &mut A);
 }
 
 struct SyncMail<M>
@@ -113,7 +113,7 @@ where
     M: Mail + Send,
     <M as Mail>::Result: Send,
 {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
+    fn handle(&mut self, actor: &mut A) {
         let result = <A as MailHandler<M>>::handle(
             actor,
             self.mail
@@ -124,7 +124,7 @@ where
             .take()
             .expect("Mail should be processed only once")
             .send(result)
-            .map_err(|_| ())
+            .expect("Sending should never fail");
     }
 }
 
@@ -143,14 +143,13 @@ where
     A: CommandHandler<M> + Send,
     M: Send,
 {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
+    fn handle(&mut self, actor: &mut A) {
         <A as CommandHandler<M>>::handle(
             actor,
             self.mail
                 .take()
                 .expect("Mail should be processed only once"),
         );
-        Ok(())
     }
 }
 
@@ -166,10 +165,17 @@ impl<A> Actor<A> {
     }
 }
 
+impl<A> GenericHandler<A> for () {
+    fn handle(&mut self, _actor: &mut A) {
+        // Do nothing. This is just a placeholder message to allow joining the threads;
+    }
+}
+
 impl<A> Drop for Actor<A> {
     fn drop(&mut self) {
         self.cancellation_token
             .store(true, atomic::Ordering::Release);
+        self.address.sender.send(Box::new(())).ok();
         self.join_handle.take().unwrap().join().unwrap();
     }
 }
@@ -203,10 +209,12 @@ where
         runtime.block_on(async move {
             while let Some(mut m) = actor_obj.mailbox.recv().await {
                 if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                    m.handle(&mut actor_obj.value).ok();
+                    m.handle(&mut actor_obj.value);
+                } else {
+                    break;
                 }
             }
-        })
+        });
     });
 
     Actor {
