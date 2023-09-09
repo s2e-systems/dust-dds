@@ -5,6 +5,8 @@ use std::sync::{
 
 use lazy_static::lazy_static;
 
+use async_trait::async_trait;
+
 use crate::infrastructure::error::{DdsError, DdsResult};
 
 lazy_static! {
@@ -19,16 +21,18 @@ pub trait Mail {
     type Result;
 }
 
+#[async_trait]
 pub trait MailHandler<M>
 where
     M: Mail,
     Self: Sized,
 {
-    fn handle(&mut self, mail: M) -> M::Result;
+    async fn handle(&mut self, mail: M) -> M::Result;
 }
 
+#[async_trait]
 pub trait CommandHandler<M> {
-    fn handle(&mut self, mail: M);
+    async fn handle(&mut self, mail: M);
 }
 
 #[derive(Debug)]
@@ -55,7 +59,7 @@ impl<A> Eq for ActorAddress<A> {}
 impl<A> ActorAddress<A> {
     pub fn send_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
     where
-        A: MailHandler<M>,
+        A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
         M::Result: Send,
     {
@@ -69,9 +73,25 @@ impl<A> ActorAddress<A> {
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
+    pub async fn send_async<M>(&self, mail: M) -> DdsResult<M::Result>
+    where
+        A: MailHandler<M> + Send,
+        M: Mail + Send + 'static,
+        M::Result: Send,
+    {
+        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
+
+        self.sender
+            .send(Box::new(AsyncMail::new(mail, response_sender)))
+            .map_err(|_| DdsError::AlreadyDeleted)?;
+        response_receiver
+            .await
+            .map_err(|_| DdsError::AlreadyDeleted)
+    }
+
     pub fn send_command<M>(&self, command: M) -> DdsResult<()>
     where
-        A: CommandHandler<M>,
+        A: CommandHandler<M> + Send,
         M: Send + 'static,
     {
         self.sender
@@ -80,8 +100,9 @@ impl<A> ActorAddress<A> {
     }
 }
 
+#[async_trait]
 trait GenericHandler<A> {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()>;
+    async fn handle(&mut self, actor: &mut A) -> Result<(), ()>;
 }
 
 struct SyncMail<M>
@@ -95,18 +116,33 @@ where
     sender: Option<std::sync::mpsc::Sender<M::Result>>,
 }
 
-impl<A, M> GenericHandler<A> for SyncMail<M>
+impl<M> SyncMail<M>
 where
-    A: MailHandler<M>,
     M: Mail,
 {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
+    fn new(message: M, sender: std::sync::mpsc::Sender<M::Result>) -> Self {
+        Self {
+            mail: Some(message),
+            sender: Some(sender),
+        }
+    }
+}
+
+#[async_trait]
+impl<A, M> GenericHandler<A> for SyncMail<M>
+where
+    A: MailHandler<M> + Send,
+    M: Mail + Send,
+    <M as Mail>::Result: Send,
+{
+    async fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
         let result = <A as MailHandler<M>>::handle(
             actor,
             self.mail
                 .take()
                 .expect("Mail should be processed only once"),
-        );
+        )
+        .await;
         self.sender
             .take()
             .expect("Mail should be processed only once")
@@ -125,19 +161,67 @@ impl<M> CommandMail<M> {
     }
 }
 
+#[async_trait]
 impl<A, M> GenericHandler<A> for CommandMail<M>
 where
-    A: CommandHandler<M>,
+    A: CommandHandler<M> + Send,
+    M: Send,
 {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
+    async fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
         <A as CommandHandler<M>>::handle(
             actor,
             self.mail
                 .take()
                 .expect("Mail should be processed only once"),
-        );
-
+        )
+        .await;
         Ok(())
+    }
+}
+
+struct AsyncMail<M>
+where
+    M: Mail,
+{
+    // Both fields have to be inside an option because later on the contents
+    // have to be moved out and the struct. Because the struct is passed as a Boxed
+    // trait object this is only feasible by using the Option fields.
+    mail: Option<M>,
+    sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
+}
+
+impl<M> AsyncMail<M>
+where
+    M: Mail,
+{
+    fn new(message: M, sender: tokio::sync::oneshot::Sender<M::Result>) -> Self {
+        Self {
+            mail: Some(message),
+            sender: Some(sender),
+        }
+    }
+}
+
+#[async_trait]
+impl<A, M> GenericHandler<A> for AsyncMail<M>
+where
+    A: MailHandler<M> + Send,
+    M: Mail + Send,
+    <M as Mail>::Result: Send,
+{
+    async fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
+        let result = <A as MailHandler<M>>::handle(
+            actor,
+            self.mail
+                .take()
+                .expect("Mail should be processed only once"),
+        )
+        .await;
+        self.sender
+            .take()
+            .expect("Mail should be processed only once")
+            .send(result)
+            .map_err(|_| ())
     }
 }
 
@@ -184,12 +268,7 @@ where
     let join_handle = THE_RUNTIME.spawn(async move {
         while let Some(mut m) = actor_obj.mailbox.recv().await {
             if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                // Handling mail can be synchronous and allowed to call blocking code
-                // (e.g. send mail to other actors). It is not allowed to be an async function
-                // otherwise multiple mails could interrupt each other and modify the object in between.
-                // To allow calling blocking code inside the block_in_place method is used to prevent
-                // the runtime from crashing
-                tokio::task::block_in_place(|| m.handle(&mut actor_obj.value).ok());
+                m.handle(&mut actor_obj.value).await.ok();
             }
         }
     });
@@ -198,18 +277,6 @@ where
         address,
         join_handle,
         cancellation_token,
-    }
-}
-
-impl<M> SyncMail<M>
-where
-    M: Mail,
-{
-    fn new(message: M, sender: std::sync::mpsc::Sender<M::Result>) -> Self {
-        Self {
-            mail: Some(message),
-            sender: Some(sender),
-        }
     }
 }
 
@@ -234,9 +301,10 @@ macro_rules! mailbox_function {
                     type Result = $ret_type;
                 }
 
+                #[async_trait::async_trait]
                 impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
                     #[allow(unused_variables)]
-                    fn handle(&mut self, mail: $fn_name) -> $ret_type {
+                    async fn handle(&mut self, mail: $fn_name) -> $ret_type {
                         self.$fn_name($(mail.$arg_name,)*)
                     }
                 }
@@ -269,9 +337,10 @@ macro_rules! mailbox_function {
                     type Result = ();
                 }
 
+                #[async_trait::async_trait]
                 impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
                     #[allow(unused_variables)]
-                    fn handle(&mut self, mail: $fn_name) {
+                    async fn handle(&mut self, mail: $fn_name) {
                         self.$fn_name($(mail.$arg_name,)*)
                     }
                 }
@@ -316,9 +385,10 @@ macro_rules! command_function {
                     $($arg_name:$arg_type,)*
                 }
 
+                #[async_trait::async_trait]
                 impl crate::implementation::utils::actor::CommandHandler<$fn_name> for $type_name {
                     #[allow(unused_variables)]
-                    fn handle(&mut self, mail: $fn_name) {
+                    async fn handle(&mut self, mail: $fn_name) {
                         self.$fn_name($(mail.$arg_name,)*)
                     }
                 }

@@ -44,8 +44,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = ();
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<Enable> for DdsDataReader {
-            fn handle(&mut self, _mail: Enable) -> <Enable as Mail>::Result {
+            async fn handle(&mut self, _mail: Enable) -> <Enable as Mail>::Result {
                 self.enable()
             }
         }
@@ -59,8 +60,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = bool;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<IsEnabled> for DdsDataReader {
-            fn handle(&mut self, _mail: IsEnabled) -> <IsEnabled as Mail>::Result {
+            async fn handle(&mut self, _mail: IsEnabled) -> <IsEnabled as Mail>::Result {
                 self.is_enabled()
             }
         }
@@ -75,8 +77,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = String;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<GetTypeName> for DdsDataReader {
-            fn handle(&mut self, _mail: GetTypeName) -> <GetTypeName as Mail>::Result {
+            async fn handle(&mut self, _mail: GetTypeName) -> <GetTypeName as Mail>::Result {
                 self.get_type_name()
             }
         }
@@ -90,8 +93,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = String;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<GetTopicName> for DdsDataReader {
-            fn handle(&mut self, _mail: GetTopicName) -> <GetTopicName as Mail>::Result {
+            async fn handle(&mut self, _mail: GetTopicName) -> <GetTopicName as Mail>::Result {
                 self.get_topic_name()
             }
         }
@@ -106,8 +110,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = DdsShared<DdsRwLock<StatusConditionImpl>>;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<GetStatusConditions> for DdsDataReader {
-            fn handle(
+            async fn handle(
                 &mut self,
                 _mail: GetStatusConditions,
             ) -> <GetStatusConditions as Mail>::Result {
@@ -124,8 +129,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = SubscriptionMatchedStatus;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<GetSubscriptionMatchedStatus> for DdsDataReader {
-            fn handle(
+            async fn handle(
                 &mut self,
                 _mail: GetSubscriptionMatchedStatus,
             ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
@@ -143,8 +149,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = Vec<InstanceHandle>;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<GetMatchedPublications> for DdsDataReader {
-            fn handle(
+            async fn handle(
                 &mut self,
                 _mail: GetMatchedPublications,
             ) -> <GetMatchedPublications as Mail>::Result {
@@ -167,8 +174,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = DdsResult<PublicationBuiltinTopicData>;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<GetMatchedPublicationData> for DdsDataReader {
-            fn handle(
+            async fn handle(
                 &mut self,
                 mail: GetMatchedPublicationData,
             ) -> <GetMatchedPublicationData as Mail>::Result {
@@ -203,8 +211,12 @@ impl ActorAddress<DdsDataReader> {
             type Result = ();
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<AddMatchedWriter> for DdsDataReader {
-            fn handle(&mut self, mail: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
+            async fn handle(
+                &mut self,
+                mail: AddMatchedWriter,
+            ) -> <AddMatchedWriter as Mail>::Result {
                 self.add_matched_writer(
                     mail.discovered_writer_data,
                     mail.default_unicast_locator_list,
@@ -244,8 +256,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = ();
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<RemoveMatchedWriter> for DdsDataReader {
-            fn handle(
+            async fn handle(
                 &mut self,
                 mail: RemoveMatchedWriter,
             ) -> <RemoveMatchedWriter as Mail>::Result {
@@ -275,8 +288,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = DdsResult<()>;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<SetQos> for DdsDataReader {
-            fn handle(&mut self, mail: SetQos) -> <SetQos as Mail>::Result {
+            async fn handle(&mut self, mail: SetQos) -> <SetQos as Mail>::Result {
                 self.set_qos(mail.qos)
             }
         }
@@ -291,8 +305,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = DataReaderQos;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<GetQos> for DdsDataReader {
-            fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
+            async fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
                 self.get_qos()
             }
         }
@@ -314,8 +329,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = ();
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<SendMessage> for DdsDataReader {
-            fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+            async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
                 self.send_message(mail.header, mail.udp_transport_write)
             }
         }
@@ -335,8 +351,12 @@ impl ActorAddress<DdsDataReader> {
             type Result = ();
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<MatchedWriterAdd> for DdsDataReader {
-            fn handle(&mut self, mail: MatchedWriterAdd) -> <MatchedWriterAdd as Mail>::Result {
+            async fn handle(
+                &mut self,
+                mail: MatchedWriterAdd,
+            ) -> <MatchedWriterAdd as Mail>::Result {
                 self.matched_writer_add(mail.a_writer_proxy)
             }
         }
@@ -351,8 +371,12 @@ impl ActorAddress<DdsDataReader> {
             type Result = InstanceHandle;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<GetInstanceHandle> for DdsDataReader {
-            fn handle(&mut self, _mail: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+            async fn handle(
+                &mut self,
+                _mail: GetInstanceHandle,
+            ) -> <GetInstanceHandle as Mail>::Result {
                 self.guid().into()
             }
         }
@@ -384,11 +408,12 @@ impl ActorAddress<DdsDataReader> {
             type Result = DdsResult<Vec<Sample<Foo>>>;
         }
 
+        #[async_trait::async_trait]
         impl<Foo> MailHandler<ReadNextInstance<Foo>> for DdsDataReader
         where
-            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
         {
-            fn handle(
+            async fn handle(
                 &mut self,
                 mail: ReadNextInstance<Foo>,
             ) -> <ReadNextInstance<Foo> as Mail>::Result {
@@ -436,11 +461,12 @@ impl ActorAddress<DdsDataReader> {
             type Result = DdsResult<Vec<Sample<Foo>>>;
         }
 
+        #[async_trait::async_trait]
         impl<Foo> MailHandler<Take<Foo>> for DdsDataReader
         where
-            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
         {
-            fn handle(&mut self, mail: Take<Foo>) -> <Take<Foo> as Mail>::Result {
+            async fn handle(&mut self, mail: Take<Foo>) -> <Take<Foo> as Mail>::Result {
                 self.take(
                     mail.max_samples,
                     &mail.sample_states,
@@ -485,11 +511,12 @@ impl ActorAddress<DdsDataReader> {
             type Result = DdsResult<Vec<Sample<Foo>>>;
         }
 
+        #[async_trait::async_trait]
         impl<Foo> MailHandler<TakeNextInstance<Foo>> for DdsDataReader
         where
-            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
         {
-            fn handle(
+            async fn handle(
                 &mut self,
                 mail: TakeNextInstance<Foo>,
             ) -> <TakeNextInstance<Foo> as Mail>::Result {
@@ -520,8 +547,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = DdsResult<bool>;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<IsHistoricalDataReceived> for DdsDataReader {
-            fn handle(
+            async fn handle(
                 &mut self,
                 _mail: IsHistoricalDataReceived,
             ) -> <IsHistoricalDataReceived as Mail>::Result {
@@ -550,8 +578,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = DiscoveredReaderData;
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<AsDiscoveredReaderData> for DdsDataReader {
-            fn handle(
+            async fn handle(
                 &mut self,
                 mail: AsDiscoveredReaderData,
             ) -> <AsDiscoveredReaderData as Mail>::Result {
@@ -590,8 +619,9 @@ impl ActorAddress<DdsDataReader> {
             type Result = ();
         }
 
+        #[async_trait::async_trait]
         impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
-            fn handle(
+            async fn handle(
                 &mut self,
                 mail: UpdateCommunicationStatus,
             ) -> <UpdateCommunicationStatus as Mail>::Result {
@@ -638,11 +668,12 @@ impl ActorAddress<DdsDataReader> {
             type Result = DdsResult<Vec<Sample<Foo>>>;
         }
 
+        #[async_trait::async_trait]
         impl<Foo> MailHandler<Read<Foo>> for DdsDataReader
         where
-            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
         {
-            fn handle(&mut self, mail: Read<Foo>) -> <Read<Foo> as Mail>::Result {
+            async fn handle(&mut self, mail: Read<Foo>) -> <Read<Foo> as Mail>::Result {
                 self.read(
                     mail.max_samples,
                     &mail.sample_states,
@@ -679,8 +710,9 @@ impl ActorAddress<DdsDataReader> {
             participant_address: ActorAddress<DdsDomainParticipant>,
         }
 
+        #[async_trait::async_trait]
         impl CommandHandler<ProcessRtpsMessage> for DdsDataReader {
-            fn handle(&mut self, mail: ProcessRtpsMessage) {
+            async fn handle(&mut self, mail: ProcessRtpsMessage) {
                 self.process_rtps_message(
                     mail.message,
                     mail.reception_timestamp,
