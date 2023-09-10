@@ -55,23 +55,23 @@ impl<A> Eq for ActorAddress<A> {}
 impl<A> ActorAddress<A> {
     pub fn send_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
     where
-        A: MailHandler<M> + Send,
+        A: MailHandler<M>,
         M: Mail + Send + 'static,
         M::Result: Send,
     {
-        let (response_sender, response_receiver) = std::sync::mpsc::channel();
+        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
 
         self.sender
             .send(Box::new(SyncMail::new(mail, response_sender)))
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
-            .recv()
+            .blocking_recv()
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
     pub fn send_command<M>(&self, command: M) -> DdsResult<()>
     where
-        A: CommandHandler<M> + Send,
+        A: CommandHandler<M>,
         M: Send + 'static,
     {
         self.sender
@@ -92,14 +92,14 @@ where
     // have to be moved out and the struct. Because the struct is passed as a Boxed
     // trait object this is only feasible by using the Option fields.
     mail: Option<M>,
-    sender: Option<std::sync::mpsc::Sender<M::Result>>,
+    sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
 }
 
 impl<M> SyncMail<M>
 where
     M: Mail,
 {
-    fn new(message: M, sender: std::sync::mpsc::Sender<M::Result>) -> Self {
+    fn new(message: M, sender: tokio::sync::oneshot::Sender<M::Result>) -> Self {
         Self {
             mail: Some(message),
             sender: Some(sender),
@@ -109,9 +109,8 @@ where
 
 impl<A, M> GenericHandler<A> for SyncMail<M>
 where
-    A: MailHandler<M> + Send,
-    M: Mail + Send,
-    <M as Mail>::Result: Send,
+    A: MailHandler<M>,
+    M: Mail,
 {
     fn handle(&mut self, actor: &mut A) {
         let result = <A as MailHandler<M>>::handle(
@@ -124,6 +123,7 @@ where
             .take()
             .expect("Mail should be processed only once")
             .send(result)
+            .map_err(|_| "Failed to send message on type withou Debug")
             .expect("Sending should never fail");
     }
 }
@@ -140,8 +140,7 @@ impl<M> CommandMail<M> {
 
 impl<A, M> GenericHandler<A> for CommandMail<M>
 where
-    A: CommandHandler<M> + Send,
-    M: Send,
+    A: CommandHandler<M>,
 {
     fn handle(&mut self, actor: &mut A) {
         <A as CommandHandler<M>>::handle(
