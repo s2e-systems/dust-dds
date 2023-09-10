@@ -193,21 +193,14 @@ where
     let cancellation_token = Arc::new(AtomicBool::new(false));
     let cancellation_token_cloned = cancellation_token.clone();
 
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
-    let join_handle = THE_RUNTIME.spawn_blocking(move || {
-        runtime.block_on(async move {
-            while let Some(mut m) = actor_obj.mailbox.recv().await {
-                if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                    m.handle(&mut actor_obj.value);
-                } else {
-                    break;
-                }
+    let join_handle = THE_RUNTIME.spawn(async move {
+        while let Some(mut m) = actor_obj.mailbox.recv().await {
+            if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
+                m.handle(&mut actor_obj.value);
+            } else {
+                break;
             }
-        });
+        }
     });
 
     Actor {
