@@ -155,7 +155,7 @@ where
 
 pub struct Actor<A> {
     address: ActorAddress<A>,
-    join_handle: Option<std::thread::JoinHandle<()>>,
+    join_handle: tokio::task::JoinHandle<()>,
     cancellation_token: Arc<AtomicBool>,
 }
 
@@ -165,18 +165,11 @@ impl<A> Actor<A> {
     }
 }
 
-impl<A> GenericHandler<A> for () {
-    fn handle(&mut self, _actor: &mut A) {
-        // Do nothing. This is just a placeholder message to allow joining the threads;
-    }
-}
-
 impl<A> Drop for Actor<A> {
     fn drop(&mut self) {
         self.cancellation_token
             .store(true, atomic::Ordering::Release);
-        self.address.sender.send(Box::new(())).ok();
-        self.join_handle.take().unwrap().join().unwrap();
+        self.join_handle.abort();
     }
 }
 
@@ -205,7 +198,7 @@ where
         .build()
         .unwrap();
 
-    let join_handle = std::thread::spawn(move || {
+    let join_handle = THE_RUNTIME.spawn_blocking(move || {
         runtime.block_on(async move {
             while let Some(mut m) = actor_obj.mailbox.recv().await {
                 if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
@@ -219,7 +212,7 @@ where
 
     Actor {
         address,
-        join_handle: Some(join_handle),
+        join_handle,
         cancellation_token,
     }
 }

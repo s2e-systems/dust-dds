@@ -310,17 +310,13 @@ impl ActorAddress<DdsDataReader> {
             udp_transport_write: ActorAddress<UdpTransportWrite>,
         }
 
-        impl Mail for SendMessage {
-            type Result = ();
-        }
-
-        impl MailHandler<SendMessage> for DdsDataReader {
-            fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+        impl CommandHandler<SendMessage> for DdsDataReader {
+            fn handle(&mut self, mail: SendMessage) {
                 self.send_message(mail.header, mail.udp_transport_write)
             }
         }
 
-        self.send_blocking(SendMessage {
+        self.send_command(SendMessage {
             header,
             udp_transport_write,
         })
