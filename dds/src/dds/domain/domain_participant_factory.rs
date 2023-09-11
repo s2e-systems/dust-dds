@@ -955,6 +955,29 @@ fn discover_matched_writers(
                                 for data_reader_address in
                                     user_defined_subscriber_address.data_reader_list()?
                                 {
+                                    let subscriber_subscription_matched_listener =
+                                        match user_defined_subscriber_address.get_listener()? {
+                                            Some(l)
+                                                if user_defined_subscriber_address
+                                                    .status_kind()?
+                                                    .contains(&StatusKind::SubscriptionMatched) =>
+                                            {
+                                                Some(l)
+                                            }
+                                            _ => None,
+                                        };
+                                    let participant_subscription_matched_listener =
+                                        match participant_address.get_listener()? {
+                                            Some(l)
+                                                if participant_address
+                                                    .status_kind()?
+                                                    .contains(&StatusKind::SubscriptionMatched) =>
+                                            {
+                                                Some(l)
+                                            }
+                                            _ => None,
+                                        };
+
                                     data_reader_address.add_matched_writer(
                                         discovered_writer_data.clone(),
                                         default_unicast_locator_list.clone(),
@@ -962,6 +985,9 @@ fn discover_matched_writers(
                                         data_reader_address.clone(),
                                         user_defined_subscriber_address.clone(),
                                         participant_address.clone(),
+                                        user_defined_subscriber_address.get_qos()?,
+                                        subscriber_subscription_matched_listener,
+                                        participant_subscription_matched_listener,
                                     )?;
                                     data_reader_address.send_message(
                                         RtpsMessageHeader::new(
@@ -981,11 +1007,36 @@ fn discover_matched_writers(
         InstanceStateKind::NotAliveDisposed => {
             for subscriber in participant_address.get_user_defined_subscriber_list()? {
                 for data_reader in subscriber.data_reader_list()? {
+                    let subscriber_subscription_matched_listener =
+                        match subscriber.get_listener()? {
+                            Some(l)
+                                if subscriber
+                                    .status_kind()?
+                                    .contains(&StatusKind::SubscriptionMatched) =>
+                            {
+                                Some(l)
+                            }
+                            _ => None,
+                        };
+                    let participant_subscription_matched_listener =
+                        match participant_address.get_listener()? {
+                            Some(l)
+                                if participant_address
+                                    .status_kind()?
+                                    .contains(&StatusKind::SubscriptionMatched) =>
+                            {
+                                Some(l)
+                            }
+                            _ => None,
+                        };
+
                     data_reader.remove_matched_writer(
                         discovered_writer_sample.sample_info.instance_handle,
                         data_reader.clone(),
                         subscriber.clone(),
                         participant_address.clone(),
+                        subscriber_subscription_matched_listener,
+                        participant_subscription_matched_listener,
                     )?;
                 }
             }
@@ -1070,6 +1121,28 @@ pub fn discover_matched_readers(
                                 for data_writer in
                                     user_defined_publisher_address.data_writer_list()?
                                 {
+                                    let publisher_publication_matched_listener =
+                                        match user_defined_publisher_address.get_listener()? {
+                                            Some(l)
+                                                if user_defined_publisher_address
+                                                    .status_kind()?
+                                                    .contains(&StatusKind::PublicationMatched) =>
+                                            {
+                                                Some(l)
+                                            }
+                                            _ => None,
+                                        };
+                                    let participant_publication_matched_listener =
+                                        match participant_address.get_listener()? {
+                                            Some(l)
+                                                if participant_address
+                                                    .status_kind()?
+                                                    .contains(&StatusKind::PublicationMatched) =>
+                                            {
+                                                Some(l)
+                                            }
+                                            _ => None,
+                                        };
                                     data_writer.add_matched_reader(
                                         discovered_reader_data.clone(),
                                         default_unicast_locator_list.clone(),
@@ -1077,6 +1150,9 @@ pub fn discover_matched_readers(
                                         data_writer.clone(),
                                         user_defined_publisher_address.clone(),
                                         participant_address.clone(),
+                                        publisher_qos.clone(),
+                                        publisher_publication_matched_listener,
+                                        participant_publication_matched_listener,
                                     )?;
                                     data_writer.send_message(
                                         RtpsMessageHeader::new(
@@ -1097,11 +1173,34 @@ pub fn discover_matched_readers(
         InstanceStateKind::NotAliveDisposed => {
             for publisher in participant_address.get_user_defined_publisher_list()? {
                 for data_writer in publisher.data_writer_list()? {
+                    let publisher_publication_matched_listener = match publisher.get_listener()? {
+                        Some(l)
+                            if publisher
+                                .status_kind()?
+                                .contains(&StatusKind::PublicationMatched) =>
+                        {
+                            Some(l)
+                        }
+                        _ => None,
+                    };
+                    let participant_publication_matched_listener =
+                        match participant_address.get_listener()? {
+                            Some(l)
+                                if participant_address
+                                    .status_kind()?
+                                    .contains(&StatusKind::PublicationMatched) =>
+                            {
+                                Some(l)
+                            }
+                            _ => None,
+                        };
                     data_writer.remove_matched_reader(
                         discovered_reader_sample.sample_info.instance_handle,
                         data_writer.clone(),
                         publisher.clone(),
                         participant_address.clone(),
+                        publisher_publication_matched_listener,
+                        participant_publication_matched_listener,
                     )?;
                 }
             }

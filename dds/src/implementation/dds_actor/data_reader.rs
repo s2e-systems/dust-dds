@@ -9,6 +9,7 @@ use crate::{
         },
         dds::{
             dds_data_reader::DdsDataReader, dds_domain_participant::DdsDomainParticipant,
+            dds_domain_participant_listener::DdsDomainParticipantListener,
             dds_subscriber::DdsSubscriber, dds_subscriber_listener::DdsSubscriberListener,
             status_condition_impl::StatusConditionImpl,
         },
@@ -190,6 +191,11 @@ impl ActorAddress<DdsDataReader> {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_qos: SubscriberQos,
+        subscriber_subscription_matched_listener: Option<ActorAddress<DdsSubscriberListener>>,
+        participant_subscription_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
     ) -> DdsResult<()> {
         struct AddMatchedWriter {
             discovered_writer_data: DiscoveredWriterData,
@@ -198,6 +204,10 @@ impl ActorAddress<DdsDataReader> {
             data_reader_address: ActorAddress<DdsDataReader>,
             subscriber_address: ActorAddress<DdsSubscriber>,
             participant_address: ActorAddress<DdsDomainParticipant>,
+            subscriber_qos: SubscriberQos,
+            subscriber_subscription_matched_listener: Option<ActorAddress<DdsSubscriberListener>>,
+            participant_subscription_matched_listener:
+                Option<ActorAddress<DdsDomainParticipantListener>>,
         }
 
         impl Mail for AddMatchedWriter {
@@ -213,6 +223,9 @@ impl ActorAddress<DdsDataReader> {
                     mail.data_reader_address,
                     mail.subscriber_address,
                     mail.participant_address,
+                    mail.subscriber_qos,
+                    mail.subscriber_subscription_matched_listener,
+                    mail.participant_subscription_matched_listener,
                 )
             }
         }
@@ -224,6 +237,9 @@ impl ActorAddress<DdsDataReader> {
             data_reader_address,
             subscriber_address,
             participant_address,
+            subscriber_qos,
+            subscriber_subscription_matched_listener,
+            participant_subscription_matched_listener,
         })
     }
 
@@ -233,12 +249,19 @@ impl ActorAddress<DdsDataReader> {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_subscription_matched_listener: Option<ActorAddress<DdsSubscriberListener>>,
+        participant_subscription_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
     ) -> DdsResult<()> {
         struct RemoveMatchedWriter {
             discovered_writer_handle: InstanceHandle,
             data_reader_address: ActorAddress<DdsDataReader>,
             subscriber_address: ActorAddress<DdsSubscriber>,
             participant_address: ActorAddress<DdsDomainParticipant>,
+            subscriber_subscription_matched_listener: Option<ActorAddress<DdsSubscriberListener>>,
+            participant_subscription_matched_listener:
+                Option<ActorAddress<DdsDomainParticipantListener>>,
         }
 
         impl Mail for RemoveMatchedWriter {
@@ -255,6 +278,8 @@ impl ActorAddress<DdsDataReader> {
                     mail.data_reader_address,
                     mail.subscriber_address,
                     mail.participant_address,
+                    mail.subscriber_subscription_matched_listener,
+                    mail.participant_subscription_matched_listener,
                 )
             }
         }
@@ -264,6 +289,8 @@ impl ActorAddress<DdsDataReader> {
             data_reader_address,
             subscriber_address,
             participant_address,
+            subscriber_subscription_matched_listener,
+            participant_subscription_matched_listener,
         })
     }
 

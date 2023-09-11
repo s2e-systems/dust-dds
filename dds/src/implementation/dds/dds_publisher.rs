@@ -4,20 +4,24 @@ use crate::{
         rtps::{
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
+            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
             types::{
                 EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
                 USER_DEFINED_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
         },
-        utils::actor::{actor_mailbox_interface, spawn_actor, Actor, ActorAddress},
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
+        utils::actor::{
+            actor_command_interface, actor_mailbox_interface, spawn_actor, Actor, ActorAddress,
+        },
     },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
-        time::{Duration, DURATION_ZERO},
+        time::{Duration, Time, DURATION_ZERO},
     },
 };
 
@@ -208,6 +212,31 @@ impl DdsPublisher {
 
     pub fn status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
+    }
+}
+}
+
+actor_command_interface! {
+impl DdsPublisher {
+    pub fn process_rtps_message(&self, message: RtpsMessageRead) {
+        for data_writer_address in self.data_writer_list.iter().map(|a| a.address()) {
+            data_writer_address
+                .process_rtps_message(message.clone())
+                .expect("Should not fail to send command");
+        }
+    }
+
+    pub fn send_message(
+        &self,
+        header: RtpsMessageHeader,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
+        now: Time,
+    ) {
+        for data_writer_address in self.data_writer_list.iter().map(|a| a.address()) {
+            data_writer_address
+                .send_message(header, udp_transport_write.clone(), now)
+                .expect("Should not fail to send command");
+        }
     }
 }
 }

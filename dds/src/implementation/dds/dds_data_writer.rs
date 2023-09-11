@@ -1,7 +1,8 @@
 use super::{
     dds_data_writer_listener::DdsDataWriterListener, dds_domain_participant::DdsDomainParticipant,
-    dds_publisher::DdsPublisher, message_receiver::MessageReceiver, nodes::DataWriterNode,
-    status_condition_impl::StatusConditionImpl,
+    dds_domain_participant_listener::DdsDomainParticipantListener, dds_publisher::DdsPublisher,
+    dds_publisher_listener::DdsPublisherListener, message_receiver::MessageReceiver,
+    nodes::DataWriterNode, status_condition_impl::StatusConditionImpl,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
@@ -43,7 +44,10 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{actor_mailbox_interface, Actor, ActorAddress, Mail, MailHandler},
+            actor::{
+                actor_command_interface, actor_mailbox_interface, Actor, ActorAddress, Mail,
+                MailHandler,
+            },
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -415,24 +419,6 @@ impl DdsDataWriter {
         self.qos = qos;
     }
 
-    pub fn process_rtps_message(&mut self, message: RtpsMessageRead) {
-        let mut message_receiver = MessageReceiver::new(&message);
-        while let Some(submessage) = message_receiver.next() {
-            match &submessage {
-                RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
-                    .on_acknack_submessage_received(
-                        acknack_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
-                    .on_nack_frag_submessage_received(
-                        nackfrag_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                _ => (),
-            }
-        }
-    }
 
     pub fn register_instance_w_timestamp(
         &mut self,
@@ -632,77 +618,6 @@ impl DdsDataWriter {
         )
     }
 
-    pub fn send_message(
-        &mut self,
-        header: RtpsMessageHeader,
-        udp_transport_write: ActorAddress<UdpTransportWrite>,
-        now: Time,
-    ) {
-        // Remove stale changes before sending
-        self.remove_stale_changes(now);
-
-        self.send_message_to_reader_locators(header, &udp_transport_write);
-        self.send_message_to_reader_proxies(header, &udp_transport_write);
-        // // Send messages to all reader locators
-        // for rl in &mut self.reader_locators {
-        //     todo!()
-        // }
-
-        // // Send messages to all reader proxies
-        // for rp in &mut self.matched_readers {
-
-        // }
-
-        // let writer_id = self.guid().entity_id();
-        // for mut rl in &mut self.reader_locator_list().into_iter() {
-        //     Self::send_message_best_effort_reader_locator(
-        //         &mut rl,
-        //         header,
-        //         &udp_transport_write,
-        //         writer_id,
-        //     );
-        // }
-
-
-
-
-        // let first_sn = self
-        //     .writer_cache
-        //     .change_list()
-        //     .iter()
-        //     .map(|x| x.sequence_number())
-        //     .min()
-        //     .unwrap_or_else(|| SequenceNumber::from(1));
-        // let last_sn = self
-        //     .writer_cache
-        //     .change_list()
-        //     .iter()
-        //     .map(|x| x.sequence_number())
-        //     .max()
-        //     .unwrap_or_else(|| SequenceNumber::from(0));
-        // let heartbeat_period = self.heartbeat_period();
-        // for reader_proxy in &mut self.matched_reader_list() {
-        //     match reader_proxy.reliability() {
-        //         ReliabilityKind::BestEffort => Self::send_message_best_effort_reader_proxy(
-        //             reader_proxy,
-        //             header,
-        //             &udp_transport_write,
-        //         ),
-        //         ReliabilityKind::Reliable => Self::send_message_reliable_reader_proxy(
-        //             reader_proxy,
-        //             header,
-        //             &udp_transport_write,
-        //             writer_id,
-        //             first_sn,
-        //             last_sn,
-        //             heartbeat_period,
-        //         ),
-        //     }
-        // }
-
-
-    }
-
     pub fn add_matched_reader(
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
@@ -711,6 +626,11 @@ impl DdsDataWriter {
         data_writer_address: ActorAddress<DdsDataWriter>,
         publisher_address: ActorAddress<DdsPublisher>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        publisher_qos: PublisherQos,
+        publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
+        participant_publication_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
@@ -723,9 +643,9 @@ impl DdsDataWriter {
 
         if is_matched_topic_name && is_matched_type_name {
             let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
-                &self.get_qos(),
+                &self.qos,
                 discovered_reader_data.subscription_builtin_topic_data(),
-                &publisher_address.get_qos().unwrap(),
+                &publisher_qos,
             );
             let instance_handle = dds_serialize_key(&discovered_reader_data).unwrap().into();
 
@@ -813,6 +733,8 @@ impl DdsDataWriter {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        publisher_publication_matched_listener,
+                        participant_publication_matched_listener,
                     )
                 }
             } else {
@@ -833,16 +755,56 @@ impl DdsDataWriter {
         data_writer_address: ActorAddress<DdsDataWriter>,
         publisher_address: ActorAddress<DdsPublisher>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
+        participant_publication_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
     ) {
         if let Some(r) = self.get_matched_subscription_data(discovered_reader_handle) {
             let handle = r.key().value.into();
             self.matched_reader_remove(handle);
             self.remove_matched_subscription(handle.into());
 
-            self.on_publication_matched(data_writer_address, publisher_address, participant_address)
+            self.on_publication_matched(data_writer_address, publisher_address, participant_address, publisher_publication_matched_listener, participant_publication_matched_listener)
         }
     }
 }
+}
+
+actor_command_interface! {
+    impl DdsDataWriter {
+        pub fn process_rtps_message(&mut self, message: RtpsMessageRead) {
+            let mut message_receiver = MessageReceiver::new(&message);
+            while let Some(submessage) = message_receiver.next() {
+                match &submessage {
+                    RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
+                        .on_acknack_submessage_received(
+                            acknack_submessage,
+                            message_receiver.source_guid_prefix(),
+                        ),
+                    RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
+                        .on_nack_frag_submessage_received(
+                            nackfrag_submessage,
+                            message_receiver.source_guid_prefix(),
+                        ),
+                    _ => (),
+                }
+            }
+        }
+
+        pub fn send_message(
+            &mut self,
+            header: RtpsMessageHeader,
+            udp_transport_write: ActorAddress<UdpTransportWrite>,
+            now: Time,
+        ) {
+            // Remove stale changes before sending
+            self.remove_stale_changes(now);
+
+            self.send_message_to_reader_locators(header, &udp_transport_write);
+            self.send_message_to_reader_proxies(header, &udp_transport_write);
+        }
+    }
 }
 
 impl ActorAddress<DdsDataWriter> {
@@ -1038,6 +1000,10 @@ impl DdsDataWriter {
         data_writer_address: ActorAddress<DdsDataWriter>,
         publisher_address: ActorAddress<DdsPublisher>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
+        participant_publication_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
     ) {
         self.status_condition
             .write_lock()
@@ -1050,30 +1016,22 @@ impl DdsDataWriter {
             listener_address
                 .trigger_on_publication_matched(writer, status)
                 .expect("Should not fail to send message");
-        } else if publisher_address.get_listener().unwrap().is_some()
-            && publisher_address
-                .status_kind()
-                .unwrap()
-                .contains(&StatusKind::PublicationMatched)
+        } else if let Some(publisher_publication_matched_listener) =
+            publisher_publication_matched_listener
         {
             let status = self.get_publication_matched_status();
-            let listener_address = publisher_address.get_listener().unwrap().unwrap();
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
-            listener_address
+            publisher_publication_matched_listener
                 .trigger_on_publication_matched(writer, status)
                 .expect("Should not fail to send message");
-        } else if participant_address.get_listener().unwrap().is_some()
-            && participant_address
-                .status_kind()
-                .unwrap()
-                .contains(&StatusKind::PublicationMatched)
+        } else if let Some(participant_publication_matched_listener) =
+            participant_publication_matched_listener
         {
             let status = self.get_publication_matched_status();
-            let listener_address = participant_address.get_listener().unwrap().unwrap();
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
-            listener_address
+            participant_publication_matched_listener
                 .trigger_on_publication_matched(writer, status)
                 .expect("Should not fail to send message");
         }

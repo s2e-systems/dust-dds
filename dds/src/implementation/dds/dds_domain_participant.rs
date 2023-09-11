@@ -840,62 +840,40 @@ impl DdsDomainParticipant {
         message: RtpsMessageRead,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
-        for user_defined_subscriber in &self.user_defined_subscriber_list {
-            user_defined_subscriber
-                .address()
+        for user_defined_subscriber_address in self.user_defined_subscriber_list.iter().map(|a| a.address()) {
+            user_defined_subscriber_address
                 .process_rtps_message(
                     message.clone(),
                     self.get_current_time(),
                     participant_address.clone(),
-                    user_defined_subscriber.address().clone(),
+                    user_defined_subscriber_address.clone(),
                 )
                 .expect("Should not fail to send command");
-            for user_defined_data_reader in user_defined_subscriber
-                .address()
-                .data_reader_list()
-                .unwrap()
-            {
-                // user_defined_data_reader
-                //     .process_rtps_message(
-                //         message.clone(),
-                //         self.get_current_time(),
-                //         user_defined_data_reader.clone(),
-                //         user_defined_subscriber.address().clone(),
-                //         participant_address.clone(),
-                //     )
-                //     .unwrap();
-                user_defined_data_reader
-                    .send_message(
-                        RtpsMessageHeader::new(
-                            self.get_protocol_version(),
-                            self.get_vendor_id(),
-                            self.get_guid().prefix(),
-                        ),
-                        self.get_udp_transport_write(),
-                    )
-                    .unwrap();
-            }
+
+            user_defined_subscriber_address
+                .send_message(
+                    RtpsMessageHeader::new(
+                        self.get_protocol_version(),
+                        self.get_vendor_id(),
+                        self.get_guid().prefix(),
+                    ),
+                    self.get_udp_transport_write(),
+                )
+                .expect("Should not fail to send command");
         }
 
-        for user_defined_publisher in &self.user_defined_publisher_list {
-            for user_defined_data_writer in
-                user_defined_publisher.address().data_writer_list().unwrap()
-            {
-                user_defined_data_writer
-                    .process_rtps_message(message.clone())
-                    .unwrap();
-                user_defined_data_writer
-                    .send_message(
-                        RtpsMessageHeader::new(
-                            self.get_protocol_version(),
-                            self.get_vendor_id(),
-                            self.get_guid().prefix(),
-                        ),
-                        self.get_udp_transport_write(),
-                        self.get_current_time(),
-                    )
-                    .unwrap();
-            }
+        for user_defined_publisher_address in self.user_defined_publisher_list.iter().map(|a| a.address()) {
+            user_defined_publisher_address.process_rtps_message(message.clone()).expect("Should not fail to send command");
+            user_defined_publisher_address .send_message(
+                RtpsMessageHeader::new(
+                    self.get_protocol_version(),
+                    self.get_vendor_id(),
+                    self.get_guid().prefix(),
+                ),
+                self.get_udp_transport_write(),
+                self.get_current_time(),
+            ).expect("Should not fail to send command");
+
         }
     }
 }

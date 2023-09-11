@@ -71,9 +71,9 @@ use crate::{
 
 use super::{
     dds_data_reader_listener::DdsDataReaderListener, dds_domain_participant::DdsDomainParticipant,
-    dds_subscriber::DdsSubscriber, dds_subscriber_listener::DdsSubscriberListener,
-    message_receiver::MessageReceiver, nodes::SubscriberNode,
-    status_condition_impl::StatusConditionImpl,
+    dds_domain_participant_listener::DdsDomainParticipantListener, dds_subscriber::DdsSubscriber,
+    dds_subscriber_listener::DdsSubscriberListener, message_receiver::MessageReceiver,
+    nodes::SubscriberNode, status_condition_impl::StatusConditionImpl,
 };
 
 struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
@@ -605,6 +605,11 @@ impl DdsDataReader {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_qos: SubscriberQos,
+        subscriber_subscription_matched_listener: Option<ActorAddress<DdsSubscriberListener>>,
+        participant_subscription_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
     ) {
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
@@ -614,7 +619,7 @@ impl DdsDataReader {
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &discovered_writer_data,
-                    &subscriber_address.get_qos().unwrap(),
+                    &subscriber_qos,
                 );
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_writer_data
@@ -666,12 +671,16 @@ impl DdsDataReader {
                             data_reader_address,
                             subscriber_address,
                             participant_address,
+                            subscriber_subscription_matched_listener,
+                            participant_subscription_matched_listener,
                         ),
                     None => self.on_subscription_matched(
                         instance_handle,
                         data_reader_address,
                         subscriber_address,
                         participant_address,
+                        subscriber_subscription_matched_listener,
+                        participant_subscription_matched_listener,
                     ),
                     _ => (),
                 }
@@ -731,6 +740,10 @@ impl DdsDataReader {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_subscription_matched_listener: Option<ActorAddress<DdsSubscriberListener>>,
+        participant_subscription_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
     ) {
         let matched_publication = self
             .matched_publication_list
@@ -743,6 +756,8 @@ impl DdsDataReader {
                 data_reader_address,
                 subscriber_address,
                 participant_address,
+                subscriber_subscription_matched_listener,
+                participant_subscription_matched_listener,
             )
         }
     }
@@ -1110,6 +1125,10 @@ impl DdsDataReader {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_subscription_matched_listener: Option<ActorAddress<DdsSubscriberListener>>,
+        participant_subscription_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
     ) {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
@@ -1122,31 +1141,33 @@ impl DdsDataReader {
             let status = self.get_subscription_matched_status();
             listener_address
                 .trigger_on_subscription_matched(reader, status)
-                .expect("Should not fail to send message");
-        } else if subscriber_address.get_listener().unwrap().is_some()
-            && subscriber_address
-                .status_kind()
-                .unwrap()
-                .contains(&StatusKind::SubscriptionMatched)
+                .expect("Should not fail to send command");
+        } else if let Some(subscriber_subscription_matched_listener) =
+            subscriber_subscription_matched_listener
+        // subscriber_address.get_listener().unwrap().is_some()
+        //     && subscriber_address
+        //         .status_kind()
+        //         .unwrap()
+        //         .contains(&StatusKind::SubscriptionMatched)
         {
-            let listener_address = subscriber_address.get_listener().unwrap().unwrap();
             let reader =
                 DataReaderNode::new(data_reader_address, subscriber_address, participant_address);
             let status = self.get_subscription_matched_status();
-            listener_address
+            subscriber_subscription_matched_listener
                 .trigger_on_subscription_matched(reader, status)
-                .expect("Should not fail to send message");
-        } else if participant_address.get_listener().unwrap().is_some()
-            && participant_address
-                .status_kind()
-                .unwrap()
-                .contains(&StatusKind::SubscriptionMatched)
+                .expect("Should not fail to send command");
+        } else if let Some(participant_subscription_matched_listener) =
+            participant_subscription_matched_listener
+        // participant_address.get_listener().unwrap().is_some()
+        //     && participant_address
+        //         .status_kind()
+        //         .unwrap()
+        //         .contains(&StatusKind::SubscriptionMatched)
         {
-            let listener_address = participant_address.get_listener().unwrap().unwrap();
             let reader =
                 DataReaderNode::new(data_reader_address, subscriber_address, participant_address);
             let status = self.get_subscription_matched_status();
-            listener_address
+            participant_subscription_matched_listener
                 .trigger_on_subscription_matched(reader, status)
                 .expect("Should not fail to send message");
         }
