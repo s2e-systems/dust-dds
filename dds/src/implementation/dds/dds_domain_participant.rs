@@ -109,7 +109,7 @@ pub struct DdsDomainParticipant {
     user_defined_subscriber_list: Vec<Actor<DdsSubscriber>>,
     user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Vec<Actor<DdsPublisher>>,
+    user_defined_publisher_list: HashMap<InstanceHandle, Actor<DdsPublisher>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
     topic_list: Vec<Actor<DdsTopic>>,
@@ -309,11 +309,10 @@ impl DdsDomainParticipant {
             },
             ..Default::default()
         };
+        let spdp_builtin_participant_writer_guid =
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
         let spdp_builtin_participant_writer = spawn_actor(DdsDataWriter::new(
-            create_builtin_stateless_writer(Guid::new(
-                guid_prefix,
-                ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-            )),
+            create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
             None,
@@ -344,11 +343,10 @@ impl DdsDomainParticipant {
             },
             ..Default::default()
         };
+        let sedp_builtin_topics_writer_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let sedp_builtin_topics_writer = DdsDataWriter::new(
-            create_builtin_stateful_writer(Guid::new(
-                guid_prefix,
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            )),
+            create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
             None,
@@ -357,11 +355,10 @@ impl DdsDomainParticipant {
         );
         let sedp_builtin_topics_writer_actor = spawn_actor(sedp_builtin_topics_writer);
 
+        let sedp_builtin_publications_writer_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let sedp_builtin_publications_writer = DdsDataWriter::new(
-            create_builtin_stateful_writer(Guid::new(
-                guid_prefix,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            )),
+            create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
             None,
@@ -370,11 +367,10 @@ impl DdsDomainParticipant {
         );
         let sedp_builtin_publications_writer_actor = spawn_actor(sedp_builtin_publications_writer);
 
+        let sedp_builtin_subscriptions_writer_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let sedp_builtin_subscriptions_writer = DdsDataWriter::new(
-            create_builtin_stateful_writer(Guid::new(
-                guid_prefix,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            )),
+            create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
             None,
@@ -396,19 +392,31 @@ impl DdsDomainParticipant {
 
         builtin_publisher
             .address()
-            .datawriter_add(spdp_builtin_participant_writer)
+            .datawriter_add(
+                spdp_builtin_participant_writer_guid.into(),
+                spdp_builtin_participant_writer,
+            )
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(sedp_builtin_topics_writer_actor)
+            .datawriter_add(
+                sedp_builtin_topics_writer_guid.into(),
+                sedp_builtin_topics_writer_actor,
+            )
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(sedp_builtin_publications_writer_actor)
+            .datawriter_add(
+                sedp_builtin_publications_writer_guid.into(),
+                sedp_builtin_publications_writer_actor,
+            )
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(sedp_builtin_subscriptions_writer_actor)
+            .datawriter_add(
+                sedp_builtin_subscriptions_writer_guid.into(),
+                sedp_builtin_subscriptions_writer_actor,
+            )
             .unwrap();
 
         Self {
@@ -421,7 +429,7 @@ impl DdsDomainParticipant {
             user_defined_subscriber_list: Vec::new(),
             user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
-            user_defined_publisher_list: Vec::new(),
+            user_defined_publisher_list: HashMap::new(),
             user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
             topic_list: Vec::new(),
@@ -462,7 +470,7 @@ impl DdsDomainParticipant {
 
         let publisher_actor = spawn_actor(publisher);
         let publisher_address = publisher_actor.address().clone();
-        self.user_defined_publisher_list.push(publisher_actor);
+        self.user_defined_publisher_list.insert(guid.into(), publisher_actor);
 
         publisher_address
     }
@@ -641,18 +649,11 @@ impl DdsDomainParticipant {
     }
 
     pub fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
-        self.user_defined_publisher_list.iter().map(|a| a.address().clone()).collect()
+        self.user_defined_publisher_list.values().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
-        self.user_defined_publisher_list
-            .retain(|p|
-                if let Ok(h) = p.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
+        self.user_defined_publisher_list.remove(&handle);
     }
 
     pub fn create_unique_subscriber_id(&mut self) -> u8 {
@@ -723,7 +724,7 @@ impl DdsDomainParticipant {
     }
 
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
-        for user_defined_publisher in self.user_defined_publisher_list.drain(..) {
+        for (_, user_defined_publisher) in self.user_defined_publisher_list.drain() {
             user_defined_publisher
                 .address()
                 .delete_contained_entities()?;
@@ -870,7 +871,7 @@ impl DdsDomainParticipant {
                 .expect("Should not fail to send command");
         }
 
-        for user_defined_publisher_address in self.user_defined_publisher_list.iter().map(|a| a.address()) {
+        for user_defined_publisher_address in self.user_defined_publisher_list.values().map(|a| a.address()) {
             user_defined_publisher_address.process_rtps_message(message.clone()).expect("Should not fail to send command");
             user_defined_publisher_address .send_message(
                 RtpsMessageHeader::new(

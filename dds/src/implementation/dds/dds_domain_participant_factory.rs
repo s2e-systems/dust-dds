@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     implementation::utils::actor::{actor_mailbox_interface, Actor, ActorAddress},
     infrastructure::{
@@ -8,7 +10,7 @@ use crate::{
 
 use super::dds_domain_participant::DdsDomainParticipant;
 pub struct DdsDomainParticipantFactory {
-    domain_participant_list: Vec<Actor<DdsDomainParticipant>>,
+    domain_participant_list: HashMap<InstanceHandle, Actor<DdsDomainParticipant>>,
     domain_participant_counter: u32,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
@@ -23,7 +25,7 @@ impl Default for DdsDomainParticipantFactory {
 impl DdsDomainParticipantFactory {
     pub fn new() -> Self {
         Self {
-            domain_participant_list: Vec::new(),
+            domain_participant_list: HashMap::new(),
             domain_participant_counter: 0,
             qos: DomainParticipantFactoryQos::default(),
             default_participant_qos: DomainParticipantQos::default(),
@@ -33,12 +35,12 @@ impl DdsDomainParticipantFactory {
 
 actor_mailbox_interface! {
 impl DdsDomainParticipantFactory {
-    pub fn add_participant(&mut self, participant: Actor<DdsDomainParticipant>) {
-        self.domain_participant_list.push(participant)
+    pub fn add_participant(&mut self, instance_handle: InstanceHandle, participant: Actor<DdsDomainParticipant>) {
+        self.domain_participant_list.insert(instance_handle, participant);
     }
 
     pub fn get_participant_list(&self) -> Vec<ActorAddress<DdsDomainParticipant>> {
-        self.domain_participant_list.iter().map(|dp| dp.address().clone()).collect()
+        self.domain_participant_list.values().map(|dp| dp.address().clone()).collect()
     }
 
     pub fn get_unique_participant_id(&mut self) -> u32 {
@@ -48,12 +50,7 @@ impl DdsDomainParticipantFactory {
     }
 
     pub fn delete_participant(&mut self, handle: InstanceHandle) {
-        self.domain_participant_list.retain(|x|
-            if let Ok(h) = x.address().get_instance_handle() {
-                h != handle
-            } else {
-                false
-            })
+        self.domain_participant_list.remove(&handle);
     }
 
     pub fn get_qos(&self) -> DomainParticipantFactoryQos {

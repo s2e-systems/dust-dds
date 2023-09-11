@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     implementation::{
         dds::dds_data_writer_listener::DdsDataWriterListener,
@@ -30,7 +32,7 @@ use super::{dds_data_writer::DdsDataWriter, dds_publisher_listener::DdsPublisher
 pub struct DdsPublisher {
     qos: PublisherQos,
     rtps_group: RtpsGroup,
-    data_writer_list: Vec<Actor<DdsDataWriter>>,
+    data_writer_list: HashMap<InstanceHandle, Actor<DdsDataWriter>>,
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
@@ -48,7 +50,7 @@ impl DdsPublisher {
         Self {
             qos,
             rtps_group,
-            data_writer_list: Vec::new(),
+            data_writer_list: HashMap::new(),
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
@@ -118,7 +120,7 @@ impl DdsPublisher {
         );
         let data_writer_actor = spawn_actor(data_writer);
         let data_writer_address = data_writer_actor.address().clone();
-        self.data_writer_list.push(data_writer_actor);
+        self.data_writer_list.insert(guid.into(), data_writer_actor);
 
         Ok(data_writer_address)
     }
@@ -147,26 +149,21 @@ impl DdsPublisher {
 
     pub fn datawriter_add(
         &mut self,
+        instance_handle: InstanceHandle,
         data_writer: Actor<DdsDataWriter>,
     ) {
-        self.data_writer_list.push(data_writer)
+        self.data_writer_list.insert(instance_handle, data_writer);
     }
 
     pub fn datawriter_delete(&mut self, handle: InstanceHandle) {
-        self.data_writer_list.retain(|dw| {
-            if let Ok(h) = dw.address().get_instance_handle() {
-                h != handle
-            } else {
-                false
-            }
-        });
+        self.data_writer_list.remove(&handle);
     }
 
     pub fn data_writer_list(
         &self,
     ) -> Vec<ActorAddress<DdsDataWriter>> {
         self.data_writer_list
-            .iter()
+            .values()
             .map(|x| x.address().clone())
             .collect()
     }
@@ -219,7 +216,7 @@ impl DdsPublisher {
 actor_command_interface! {
 impl DdsPublisher {
     pub fn process_rtps_message(&self, message: RtpsMessageRead) {
-        for data_writer_address in self.data_writer_list.iter().map(|a| a.address()) {
+        for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
             data_writer_address
                 .process_rtps_message(message.clone())
                 .expect("Should not fail to send command");
@@ -232,7 +229,7 @@ impl DdsPublisher {
         udp_transport_write: ActorAddress<UdpTransportWrite>,
         now: Time,
     ) {
-        for data_writer_address in self.data_writer_list.iter().map(|a| a.address()) {
+        for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
             data_writer_address
                 .send_message(header, udp_transport_write.clone(), now)
                 .expect("Should not fail to send command");

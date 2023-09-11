@@ -189,6 +189,7 @@ impl DomainParticipantFactory {
             PROTOCOLVERSION,
             VENDOR_ID_S2E,
         );
+        let participant_guid = rtps_participant.guid();
 
         let listener = a_listener.map(|l| spawn_actor(DdsDomainParticipantListener::new(l)));
         let status_kind = mask.to_vec();
@@ -207,7 +208,9 @@ impl DomainParticipantFactory {
 
         let participant_actor = spawn_actor(domain_participant);
         let participant_address = participant_actor.address().clone();
-        self.0.address().add_participant(participant_actor)?;
+        self.0
+            .address()
+            .add_participant(participant_guid.into(), participant_actor)?;
         let domain_participant = DomainParticipant::new(participant_address.clone());
 
         let participant_address_clone = participant_address.clone();
