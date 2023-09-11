@@ -726,10 +726,9 @@ fn announce_data_writer(
     let serialized_data = dds_serialize_to_bytes(discovered_writer_data)?;
     let timestamp = domain_participant.get_current_time()?;
 
-    let builtin_publisher = domain_participant.get_builtin_publisher()?;
-    let data_writer_list = builtin_publisher.data_writer_list()?;
-
-    if let Some(sedp_writer_announcer) = data_writer_list
+    if let Some(sedp_writer_announcer) = domain_participant
+        .get_builtin_publisher()?
+        .data_writer_list()?
         .iter()
         .find(|x| x.get_type_name().unwrap() == "DiscoveredWriterData")
     {
