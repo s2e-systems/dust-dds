@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::{
     dds_data_reader::DdsDataReader, dds_domain_participant::DdsDomainParticipant,
     dds_subscriber_listener::DdsSubscriberListener, status_condition_impl::StatusConditionImpl,
@@ -27,7 +29,7 @@ use crate::{
 pub struct DdsSubscriber {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
-    data_reader_list: Vec<Actor<DdsDataReader>>,
+    data_reader_list: HashMap<InstanceHandle, Actor<DdsDataReader>>,
     enabled: bool,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
@@ -46,7 +48,7 @@ impl DdsSubscriber {
         DdsSubscriber {
             qos,
             rtps_group,
-            data_reader_list: Vec::new(),
+            data_reader_list: HashMap::new(),
             enabled: false,
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: Default::default(),
@@ -87,24 +89,18 @@ impl DdsSubscriber {
 
     pub fn data_reader_add(
         &mut self,
+        instance_handle: InstanceHandle,
         data_reader: Actor<DdsDataReader>,
     ) {
-        self.data_reader_list.push(data_reader)
+        self.data_reader_list.insert(instance_handle, data_reader);
     }
 
     pub fn data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader>> {
-        self.data_reader_list.iter().map(|dr| dr.address().clone()).collect()
+        self.data_reader_list.values().map(|dr| dr.address().clone()).collect()
     }
 
     pub fn data_reader_delete(&mut self, handle: InstanceHandle) {
-        self.data_reader_list
-            .retain(|dr|
-                if let Ok(h) = dr.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
+        self.data_reader_list.remove(&handle);
     }
 
     pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
@@ -172,8 +168,7 @@ impl DdsSubscriber {
             Some(_listener_address) => todo!(),
             None => None,
         };
-        for data_reader in &self.data_reader_list {
-            let data_reader_address = data_reader.address();
+        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
                 .process_rtps_message(
                     message.clone(),
@@ -193,7 +188,7 @@ impl DdsSubscriber {
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
     ) {
-        for data_reader_address in self.data_reader_list.iter().map(|a| a.address()) {
+        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
                 .send_message(header, udp_transport_write.clone())
                 .expect("Should not fail to send command");

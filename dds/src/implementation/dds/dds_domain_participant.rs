@@ -195,12 +195,11 @@ impl DdsDomainParticipant {
             },
             ..Default::default()
         };
+        let spdp_builtin_participant_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
         let spdp_builtin_participant_reader =
             spawn_actor(DdsDataReader::new::<SpdpDiscoveredParticipantData>(
-                create_builtin_stateless_reader(Guid::new(
-                    guid_prefix,
-                    ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-                )),
+                create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
                 "SpdpDiscoveredParticipantData".to_string(),
                 String::from(DCPS_PARTICIPANT),
                 spdp_reader_qos,
@@ -222,11 +221,10 @@ impl DdsDomainParticipant {
             ..Default::default()
         };
 
+        let sedp_builtin_topics_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let sedp_builtin_topics_reader = spawn_actor(DdsDataReader::new::<DiscoveredTopicData>(
-            create_builtin_stateful_reader(Guid::new(
-                guid_prefix,
-                ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            )),
+            create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
             sedp_reader_qos.clone(),
@@ -234,12 +232,11 @@ impl DdsDomainParticipant {
             vec![],
         ));
 
+        let sedp_builtin_publications_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let sedp_builtin_publications_reader =
             spawn_actor(DdsDataReader::new::<DiscoveredWriterData>(
-                create_builtin_stateful_reader(Guid::new(
-                    guid_prefix,
-                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-                )),
+                create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
                 "DiscoveredWriterData".to_string(),
                 String::from(DCPS_PUBLICATION),
                 sedp_reader_qos.clone(),
@@ -247,12 +244,11 @@ impl DdsDomainParticipant {
                 vec![],
             ));
 
+        let sedp_builtin_subscriptions_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let sedp_builtin_subscriptions_reader =
             spawn_actor(DdsDataReader::new::<DiscoveredReaderData>(
-                create_builtin_stateful_reader(Guid::new(
-                    guid_prefix,
-                    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-                )),
+                create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
                 "DiscoveredReaderData".to_string(),
                 String::from(DCPS_SUBSCRIPTION),
                 sedp_reader_qos,
@@ -272,19 +268,31 @@ impl DdsDomainParticipant {
 
         builtin_subscriber
             .address()
-            .data_reader_add(spdp_builtin_participant_reader)
+            .data_reader_add(
+                spdp_builtin_participant_reader_guid.into(),
+                spdp_builtin_participant_reader,
+            )
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(sedp_builtin_topics_reader)
+            .data_reader_add(
+                sedp_builtin_topics_reader_guid.into(),
+                sedp_builtin_topics_reader,
+            )
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(sedp_builtin_publications_reader)
+            .data_reader_add(
+                sedp_builtin_publications_reader_guid.into(),
+                sedp_builtin_publications_reader,
+            )
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(sedp_builtin_subscriptions_reader)
+            .data_reader_add(
+                sedp_builtin_subscriptions_reader_guid.into(),
+                sedp_builtin_subscriptions_reader,
+            )
             .unwrap();
 
         // Built-in publisher creation
