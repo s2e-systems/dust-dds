@@ -620,6 +620,16 @@ fn process_spdp_metatraffic(
 ) -> DdsResult<()> {
     let builtin_subscriber = participant_address.get_builtin_subscriber()?;
 
+    // Receive the data on the builtin spdp reader
+    builtin_subscriber
+        .process_rtps_message(
+            message,
+            participant_address.get_current_time()?,
+            participant_address.clone(),
+            builtin_subscriber.clone(),
+        )
+        .expect("Should not fail to send command");
+
     if let Some(spdp_data_reader) = builtin_subscriber.data_reader_list()?.iter().find(|dr| {
         if let Ok(type_name) = dr.get_type_name() {
             type_name == "SpdpDiscoveredParticipantData"
@@ -627,15 +637,6 @@ fn process_spdp_metatraffic(
             false
         }
     }) {
-        // Receive the data on the builtin spdp reader
-        spdp_data_reader.process_rtps_message(
-            message,
-            participant_address.get_current_time()?,
-            spdp_data_reader.clone(),
-            builtin_subscriber,
-            participant_address.clone(),
-        )?;
-
         // Read data from each of the readers
         while let Ok(spdp_data_sample_list) = spdp_data_reader
             .read::<SpdpDiscoveredParticipantData>(
@@ -795,23 +796,23 @@ fn process_sedp_metatraffic(
         )?;
     }
 
-    for stateful_builtin_reader in builtin_subscriber.data_reader_list()? {
-        stateful_builtin_reader.process_rtps_message(
-            message.clone(),
-            participant_address.get_current_time()?,
-            stateful_builtin_reader.clone(),
-            builtin_subscriber.clone(),
-            participant_address.clone(),
-        )?;
-        stateful_builtin_reader.send_message(
+    builtin_subscriber.process_rtps_message(
+        message.clone(),
+        participant_address.get_current_time()?,
+        participant_address.clone(),
+        builtin_subscriber.clone(),
+    )?;
+
+    builtin_subscriber
+        .send_message(
             RtpsMessageHeader::new(
                 participant_address.get_protocol_version()?,
                 participant_address.get_vendor_id()?,
                 participant_address.get_guid()?.prefix(),
             ),
             participant_address.get_udp_transport_write()?,
-        )?;
-    }
+        )
+        .expect("Should not fail to send command");
 
     Ok(())
 }

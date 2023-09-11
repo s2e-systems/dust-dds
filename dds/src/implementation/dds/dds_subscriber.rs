@@ -1,12 +1,17 @@
 use super::{
-    dds_data_reader::DdsDataReader, dds_subscriber_listener::DdsSubscriberListener,
-    status_condition_impl::StatusConditionImpl,
+    dds_data_reader::DdsDataReader, dds_domain_participant::DdsDomainParticipant,
+    dds_subscriber_listener::DdsSubscriberListener, status_condition_impl::StatusConditionImpl,
 };
 use crate::{
     implementation::{
-        rtps::{group::RtpsGroup, types::Guid},
+        rtps::{
+            group::RtpsGroup,
+            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+            types::Guid,
+        },
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{actor_mailbox_interface, Actor, ActorAddress},
+            actor::{actor_command_interface, actor_mailbox_interface, Actor, ActorAddress},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -15,6 +20,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
         status::StatusKind,
+        time::Time,
     },
 };
 
@@ -151,3 +157,47 @@ impl DdsSubscriber {
         self.status_kind.clone()
     }
 }}
+
+actor_command_interface! {
+impl DdsSubscriber {
+    pub fn process_rtps_message(
+        &self,
+        message: RtpsMessageRead,
+        reception_timestamp: Time,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+    ) {
+        let subscriber_status_condition = self.status_condition.clone();
+        let subscriber_data_on_readers_listener = match self.listener.as_ref().map(|l| l.address()) {
+            Some(_listener_address) => todo!(),
+            None => None,
+        };
+        for data_reader in &self.data_reader_list {
+            let data_reader_address = data_reader.address();
+            data_reader_address
+                .process_rtps_message(
+                    message.clone(),
+                    reception_timestamp,
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                    subscriber_status_condition.clone(),
+                    subscriber_data_on_readers_listener.clone(),
+                )
+                .expect("Should not fail to send command");
+        }
+    }
+
+    pub fn send_message(
+        &self,
+        header: RtpsMessageHeader,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
+    ) {
+        for data_reader_address in self.data_reader_list.iter().map(|a| a.address()) {
+            data_reader_address
+                .send_message(header, udp_transport_write.clone())
+                .expect("Should not fail to send command");
+        }
+    }
+}
+}

@@ -9,7 +9,8 @@ use crate::{
         },
         dds::{
             dds_data_reader::DdsDataReader, dds_domain_participant::DdsDomainParticipant,
-            dds_subscriber::DdsSubscriber, status_condition_impl::StatusConditionImpl,
+            dds_subscriber::DdsSubscriber, dds_subscriber_listener::DdsSubscriberListener,
+            status_condition_impl::StatusConditionImpl,
         },
         rtps::{
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
@@ -666,6 +667,8 @@ impl ActorAddress<DdsDataReader> {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_data_on_readers_listener: Option<ActorAddress<DdsSubscriberListener>>,
     ) -> DdsResult<()> {
         struct ProcessRtpsMessage {
             message: RtpsMessageRead,
@@ -673,6 +676,8 @@ impl ActorAddress<DdsDataReader> {
             data_reader_address: ActorAddress<DdsDataReader>,
             subscriber_address: ActorAddress<DdsSubscriber>,
             participant_address: ActorAddress<DdsDomainParticipant>,
+            subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+            subscriber_data_on_readers_listener: Option<ActorAddress<DdsSubscriberListener>>,
         }
 
         impl CommandHandler<ProcessRtpsMessage> for DdsDataReader {
@@ -683,6 +688,8 @@ impl ActorAddress<DdsDataReader> {
                     mail.data_reader_address,
                     mail.subscriber_address,
                     mail.participant_address,
+                    mail.subscriber_status_condition,
+                    mail.subscriber_data_on_readers_listener,
                 )
             }
         }
@@ -693,6 +700,8 @@ impl ActorAddress<DdsDataReader> {
             data_reader_address,
             subscriber_address,
             participant_address,
+            subscriber_status_condition,
+            subscriber_data_on_readers_listener,
         })
     }
 }

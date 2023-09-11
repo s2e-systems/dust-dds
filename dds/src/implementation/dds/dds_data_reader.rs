@@ -71,7 +71,8 @@ use crate::{
 
 use super::{
     dds_data_reader_listener::DdsDataReaderListener, dds_domain_participant::DdsDomainParticipant,
-    dds_subscriber::DdsSubscriber, message_receiver::MessageReceiver, nodes::SubscriberNode,
+    dds_subscriber::DdsSubscriber, dds_subscriber_listener::DdsSubscriberListener,
+    message_receiver::MessageReceiver, nodes::SubscriberNode,
     status_condition_impl::StatusConditionImpl,
 };
 
@@ -368,6 +369,8 @@ impl DdsDataReader {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_data_on_readers_listener: Option<ActorAddress<DdsSubscriberListener>>,
     ) {
         let mut message_receiver = MessageReceiver::new(&message);
         while let Some(submessage) = message_receiver.next() {
@@ -381,6 +384,8 @@ impl DdsDataReader {
                         &data_reader_address,
                         &subscriber_address,
                         &participant_address,
+                        &subscriber_status_condition,
+                        &subscriber_data_on_readers_listener,
                     );
                 }
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
@@ -392,6 +397,8 @@ impl DdsDataReader {
                         &data_reader_address,
                         &subscriber_address,
                         &participant_address,
+                        &subscriber_status_condition,
+                        &subscriber_data_on_readers_listener,
                     );
                 }
                 RtpsSubmessageReadKind::Gap(gap_submessage) => {
@@ -420,41 +427,33 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
+        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_data_on_readers_listener: &Option<ActorAddress<DdsSubscriberListener>>,
     ) {
-        subscriber_address
-            .get_statuscondition()
-            .unwrap()
+        subscriber_status_condition
             .write_lock()
             .add_communication_state(StatusKind::DataOnReaders);
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::DataAvailable);
-        if subscriber_address.get_listener().unwrap().is_some()
-            && subscriber_address
-                .status_kind()
-                .unwrap()
-                .contains(&StatusKind::DataOnReaders)
-        {
-            let listener = subscriber_address
-                .get_listener()
-                .unwrap()
-                .expect("Already checked for some");
-            listener
+        if let Some(subscriber_data_on_readers_listener) = subscriber_data_on_readers_listener {
+            subscriber_data_on_readers_listener
                 .trigger_on_data_on_readers(SubscriberNode::new(
                     subscriber_address.clone(),
                     participant_address.clone(),
                 ))
                 .expect("Should not fail to send message");
-        } else if self.listener.is_some() && self.status_kind.contains(&StatusKind::DataAvailable) {
-            let listener_address = self.listener.as_ref().unwrap().address();
-            let reader = DataReaderNode::new(
-                data_reader_address.clone(),
-                subscriber_address.clone(),
-                participant_address.clone(),
-            );
-            listener_address
-                .trigger_on_data_available(reader)
-                .expect("Should not fail to send message");
+        } else if let Some(listener_address) = self.listener.as_ref().map(|l| l.address()) {
+            if self.status_kind.contains(&StatusKind::DataAvailable) {
+                let reader = DataReaderNode::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                );
+                listener_address
+                    .trigger_on_data_available(reader)
+                    .expect("Should not fail to send message");
+            }
         }
     }
 
@@ -468,6 +467,8 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
+        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_data_on_readers_listener: &Option<ActorAddress<DdsSubscriberListener>>,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         if let Ok(cache_change) = self.convert_received_data_to_cache_change(
@@ -485,6 +486,8 @@ impl DdsDataReader {
                 data_reader_address,
                 subscriber_address,
                 participant_address,
+                subscriber_status_condition,
+                subscriber_data_on_readers_listener,
             );
         }
     }
@@ -499,6 +502,8 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
+        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_data_on_readers_listener: &Option<ActorAddress<DdsSubscriberListener>>,
     ) {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
@@ -529,6 +534,8 @@ impl DdsDataReader {
                     data_reader_address,
                     subscriber_address,
                     participant_address,
+                    subscriber_status_condition,
+                    subscriber_data_on_readers_listener,
                 );
             }
         }
@@ -1375,6 +1382,8 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
+        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_data_on_readers_listener: &Option<ActorAddress<DdsSubscriberListener>>,
     ) {
         let writer_proxy = self
             .matched_writers
@@ -1394,6 +1403,8 @@ impl DdsDataReader {
                         data_reader_address,
                         subscriber_address,
                         participant_address,
+                        subscriber_status_condition,
+                        subscriber_data_on_readers_listener,
                     )
                 }
             }
@@ -1405,6 +1416,8 @@ impl DdsDataReader {
                     data_reader_address,
                     subscriber_address,
                     participant_address,
+                    subscriber_status_condition,
+                    subscriber_data_on_readers_listener,
                 )
             }
             (ReliabilityQosPolicyKind::Reliable, Some(writer_proxy)) => {
@@ -1416,6 +1429,8 @@ impl DdsDataReader {
                         data_reader_address,
                         subscriber_address,
                         participant_address,
+                        subscriber_status_condition,
+                        subscriber_data_on_readers_listener,
                     )
                 }
             }
@@ -1430,6 +1445,8 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
+        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_data_on_readers_listener: &Option<ActorAddress<DdsSubscriberListener>>,
     ) {
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
@@ -1502,7 +1519,13 @@ impl DdsDataReader {
                         .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
                 }
 
-                self.on_data_available(data_reader_address, subscriber_address, participant_address)
+                self.on_data_available(
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                    subscriber_status_condition,
+                    subscriber_data_on_readers_listener,
+                )
             }
         }
     }

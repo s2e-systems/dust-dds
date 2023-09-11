@@ -841,20 +841,29 @@ impl DdsDomainParticipant {
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         for user_defined_subscriber in &self.user_defined_subscriber_list {
+            user_defined_subscriber
+                .address()
+                .process_rtps_message(
+                    message.clone(),
+                    self.get_current_time(),
+                    participant_address.clone(),
+                    user_defined_subscriber.address().clone(),
+                )
+                .expect("Should not fail to send command");
             for user_defined_data_reader in user_defined_subscriber
                 .address()
                 .data_reader_list()
                 .unwrap()
             {
-                user_defined_data_reader
-                    .process_rtps_message(
-                        message.clone(),
-                        self.get_current_time(),
-                        user_defined_data_reader.clone(),
-                        user_defined_subscriber.address().clone(),
-                        participant_address.clone(),
-                    )
-                    .unwrap();
+                // user_defined_data_reader
+                //     .process_rtps_message(
+                //         message.clone(),
+                //         self.get_current_time(),
+                //         user_defined_data_reader.clone(),
+                //         user_defined_subscriber.address().clone(),
+                //         participant_address.clone(),
+                //     )
+                //     .unwrap();
                 user_defined_data_reader
                     .send_message(
                         RtpsMessageHeader::new(
