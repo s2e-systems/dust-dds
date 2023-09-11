@@ -106,13 +106,13 @@ pub struct DdsDomainParticipant {
     qos: DomainParticipantQos,
     builtin_subscriber: Actor<DdsSubscriber>,
     builtin_publisher: Actor<DdsPublisher>,
-    user_defined_subscriber_list: Vec<Actor<DdsSubscriber>>,
+    user_defined_subscriber_list: HashMap<InstanceHandle, Actor<DdsSubscriber>>,
     user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: HashMap<InstanceHandle, Actor<DdsPublisher>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    topic_list: Vec<Actor<DdsTopic>>,
+    topic_list: HashMap<InstanceHandle, Actor<DdsTopic>>,
     user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
@@ -426,13 +426,13 @@ impl DdsDomainParticipant {
             qos: domain_participant_qos,
             builtin_subscriber,
             builtin_publisher,
-            user_defined_subscriber_list: Vec::new(),
+            user_defined_subscriber_list: HashMap::new(),
             user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list: HashMap::new(),
             user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
-            topic_list: Vec::new(),
+            topic_list: HashMap::new(),
             user_defined_topic_counter: 0,
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: 0,
@@ -494,7 +494,7 @@ impl DdsDomainParticipant {
             let subscriber_actor = spawn_actor(subscriber);
             let subscriber_address = subscriber_actor.address().clone();
 
-            self.user_defined_subscriber_list.push(subscriber_actor);
+            self.user_defined_subscriber_list.insert(guid.into(), subscriber_actor);
 
             subscriber_address
     }
@@ -516,7 +516,7 @@ impl DdsDomainParticipant {
 
         let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
         let topic_address = topic_actor.address().clone();
-        self.topic_list.push(topic_actor);
+        self.topic_list.insert(guid.into(), topic_actor);
 
         topic_address
     }
@@ -663,18 +663,11 @@ impl DdsDomainParticipant {
     }
 
     pub fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
-        self.user_defined_subscriber_list.iter().map(|a| a.address().clone()).collect()
+        self.user_defined_subscriber_list.values().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
-        self.user_defined_subscriber_list
-            .retain(|p|
-                if let Ok(h) = p.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
+        self.user_defined_subscriber_list.remove(&handle);
     }
 
     pub fn create_unique_topic_id(&mut self) -> u8 {
@@ -684,18 +677,11 @@ impl DdsDomainParticipant {
     }
 
     pub fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
-        self.topic_list.iter().map(|a| a.address().clone()).collect()
+        self.topic_list.values().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_topic(&mut self, handle: InstanceHandle) {
-        self.topic_list
-            .retain(|p|
-                if let Ok(h) = p.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
+        self.topic_list.remove(&handle);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -705,14 +691,7 @@ impl DdsDomainParticipant {
     }
 
     pub fn delete_topic(&mut self, handle: InstanceHandle) {
-        self.topic_list
-            .retain(|t|
-                if let Ok(h) = t.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
+        self.topic_list.remove(&handle);
     }
 
     pub fn get_qos(&self) -> DomainParticipantQos {
@@ -730,7 +709,7 @@ impl DdsDomainParticipant {
                 .delete_contained_entities()?;
         }
 
-        for user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
+        for (_,user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
             user_defined_subscriber
                 .address()
                 .delete_contained_entities()?;
@@ -849,7 +828,7 @@ impl DdsDomainParticipant {
         message: RtpsMessageRead,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
-        for user_defined_subscriber_address in self.user_defined_subscriber_list.iter().map(|a| a.address()) {
+        for user_defined_subscriber_address in self.user_defined_subscriber_list.values().map(|a| a.address()) {
             user_defined_subscriber_address
                 .process_rtps_message(
                     message.clone(),

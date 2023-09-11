@@ -416,7 +416,24 @@ impl DomainParticipant {
     /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.delete_contained_entities()?
+        for publisher in self.0.get_user_defined_publisher_list()? {
+            for data_writer in publisher.data_writer_list()? {
+                publisher.datawriter_delete(data_writer.get_instance_handle()?)?;
+            }
+            self.0
+                .delete_user_defined_publisher(publisher.get_instance_handle()?)?;
+        }
+        for subscriber in self.0.get_user_defined_subscriber_list()? {
+            for data_reader in subscriber.data_reader_list()? {
+                subscriber.data_reader_delete(data_reader.get_instance_handle()?)?;
+            }
+            self.0
+                .delete_user_defined_subscriber(subscriber.get_instance_handle()?)?;
+        }
+        for topic in self.0.get_user_defined_topic_list()? {
+            self.0.delete_topic(topic.get_instance_handle()?)?;
+        }
+        Ok(())
     }
 
     /// This operation manually asserts the liveliness of the [`DomainParticipant`]. This is used in combination
