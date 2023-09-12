@@ -512,7 +512,7 @@ impl DdsDomainParticipant {
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
-        let topic = DdsTopic::new(guid, qos, type_name.to_string(), &topic_name);
+        let topic = DdsTopic::new(guid, qos, type_name, &topic_name);
 
         let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
         let topic_address = topic_actor.address().clone();

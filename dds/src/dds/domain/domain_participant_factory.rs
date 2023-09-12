@@ -810,7 +810,7 @@ fn process_sedp_metatraffic(
     }
 
     builtin_subscriber.process_rtps_message(
-        message.clone(),
+        message,
         participant_address.get_current_time()?,
         participant_address.clone(),
         builtin_subscriber.clone(),
