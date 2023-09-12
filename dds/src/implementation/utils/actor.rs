@@ -214,12 +214,14 @@ macro_rules! mailbox_function {
     // Match a function definition with return type
     ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) -> $ret_type:ty $body:block) => {
         impl $type_name {
+            #[allow(clippy::too_many_arguments)]
             pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) -> $ret_type{
                 $body
             }
         }
 
         impl crate::implementation::utils::actor::ActorAddress<$type_name> {
+            #[allow(clippy::too_many_arguments)]
             pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> crate::infrastructure::error::DdsResult<$ret_type> {
                 #[allow(non_camel_case_types)]
                 struct $fn_name {
@@ -249,12 +251,14 @@ macro_rules! mailbox_function {
     // Match a function definition without return type
     ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $body:block ) => {
         impl $type_name {
+            #[allow(clippy::too_many_arguments)]
             pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)* ) {
                 $body
             }
         }
 
         impl crate::implementation::utils::actor::ActorAddress<$type_name> {
+            #[allow(clippy::too_many_arguments)]
             pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> crate::infrastructure::error::DdsResult<()> {
                 #[allow(non_camel_case_types)]
                 struct $fn_name {

@@ -362,6 +362,7 @@ impl DdsDataReader {
             .ok_or(DdsError::BadParameter)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn process_rtps_message(
         &mut self,
         message: RtpsMessageRead,
@@ -618,6 +619,7 @@ impl DdsDataReader {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn add_matched_writer(
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
@@ -1212,6 +1214,7 @@ impl DdsDataReader {
         };
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn on_sample_rejected(
         &mut self,
         instance_handle: InstanceHandle,
@@ -1441,6 +1444,7 @@ impl DdsDataReader {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn process_received_change(
         &mut self,
         cache_change: RtpsReaderCacheChange,
@@ -1513,6 +1517,7 @@ impl DdsDataReader {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn add_change(
         &mut self,
         change: RtpsReaderCacheChange,
