@@ -6,6 +6,7 @@ use super::{
 };
 use crate::{
     implementation::{
+        dds::dds_domain_participant_listener::DdsDomainParticipantListener,
         rtps::{
             group::RtpsGroup,
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
@@ -162,12 +163,13 @@ impl DdsSubscriber {
         reception_timestamp: Time,
         participant_address: ActorAddress<DdsDomainParticipant>,
         subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
     ) {
-        let subscriber_status_condition = self.status_condition.clone();
-        let subscriber_data_on_readers_listener = match self.listener.as_ref().map(|l| l.address()) {
-            Some(_listener_address) => todo!(),
-            None => None,
-        };
+        let subscriber_mask_listener = (self.listener.as_ref().map(|a| a.address()).cloned(),self.status_kind.clone());
+
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
                 .process_rtps_message(
@@ -176,8 +178,9 @@ impl DdsSubscriber {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
-                    subscriber_status_condition.clone(),
-                    subscriber_data_on_readers_listener.clone(),
+                    self.status_condition.clone(),
+                    subscriber_mask_listener.clone(),
+                    participant_mask_listener.clone(),
                 )
                 .expect("Should not fail to send command");
         }

@@ -631,6 +631,10 @@ impl DdsDataWriter {
         participant_publication_matched_listener: Option<
             ActorAddress<DdsDomainParticipantListener>,
         >,
+        offered_incompatible_qos_publisher_listener: Option<ActorAddress<DdsPublisherListener>>,
+        offered_incompatible_qos_participant_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
@@ -744,6 +748,8 @@ impl DdsDataWriter {
                     data_writer_address,
                     publisher_address,
                     participant_address,
+                    offered_incompatible_qos_publisher_listener,
+                    offered_incompatible_qos_participant_listener,
                 );
             }
         }
@@ -1042,6 +1048,10 @@ impl DdsDataWriter {
         data_writer_address: ActorAddress<DdsDataWriter>,
         publisher_address: ActorAddress<DdsPublisher>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        offered_incompatible_qos_publisher_listener: Option<ActorAddress<DdsPublisherListener>>,
+        offered_incompatible_qos_participant_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
     ) {
         self.status_condition
             .write_lock()
@@ -1058,30 +1068,22 @@ impl DdsDataWriter {
             listener_address
                 .trigger_on_offered_incompatible_qos(writer, status)
                 .expect("Should not fail to send message");
-        } else if publisher_address.get_listener().unwrap().is_some()
-            && publisher_address
-                .status_kind()
-                .unwrap()
-                .contains(&StatusKind::OfferedIncompatibleQos)
+        } else if let Some(offered_incompatible_qos_publisher_listener) =
+            offered_incompatible_qos_publisher_listener
         {
             let status = self.get_offered_incompatible_qos_status();
-            let listener_address = publisher_address.get_listener().unwrap().unwrap();
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
-            listener_address
+            offered_incompatible_qos_publisher_listener
                 .trigger_on_offered_incompatible_qos(writer, status)
                 .expect("Should not fail to send message");
-        } else if participant_address.get_listener().unwrap().is_some()
-            && participant_address
-                .status_kind()
-                .unwrap()
-                .contains(&StatusKind::OfferedIncompatibleQos)
+        } else if let Some(offered_incompatible_qos_participant_listener) =
+            offered_incompatible_qos_participant_listener
         {
             let status = self.get_offered_incompatible_qos_status();
-            let listener_address = participant_address.get_listener().unwrap().unwrap();
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
-            listener_address
+            offered_incompatible_qos_participant_listener
                 .trigger_on_offered_incompatible_qos(writer, status)
                 .expect("Should not fail to send message");
         }

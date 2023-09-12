@@ -828,6 +828,7 @@ impl DdsDomainParticipant {
         message: RtpsMessageRead,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
+        let participant_mask_listener = (self.listener.as_ref().map(|a| a.address()).cloned(), self.status_kind.clone());
         for user_defined_subscriber_address in self.user_defined_subscriber_list.values().map(|a| a.address()) {
             user_defined_subscriber_address
                 .process_rtps_message(
@@ -835,6 +836,7 @@ impl DdsDomainParticipant {
                     self.get_current_time(),
                     participant_address.clone(),
                     user_defined_subscriber_address.clone(),
+                    participant_mask_listener.clone(),
                 )
                 .expect("Should not fail to send command");
 

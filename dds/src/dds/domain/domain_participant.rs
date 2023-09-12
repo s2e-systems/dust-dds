@@ -753,16 +753,23 @@ impl DomainParticipant {
                 loop {
                     let r: DdsResult<()> = tokio::task::block_in_place(|| {
                         let now = domain_participant_address.get_current_time()?;
-
+                        let participant_mask_listener = (
+                            domain_participant_address.get_listener()?,
+                            domain_participant_address.status_kind()?,
+                        );
                         for subscriber in
                             domain_participant_address.get_user_defined_subscriber_list()?
                         {
+                            let subscriber_mask_listener =
+                                (subscriber.get_listener()?, subscriber.status_kind()?);
                             for data_reader in subscriber.data_reader_list()? {
                                 data_reader.update_communication_status(
                                     now,
                                     data_reader.clone(),
                                     subscriber.clone(),
                                     domain_participant_address.clone(),
+                                    subscriber_mask_listener.clone(),
+                                    participant_mask_listener.clone(),
                                 )?;
                             }
                         }
