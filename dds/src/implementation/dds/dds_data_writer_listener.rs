@@ -22,8 +22,8 @@ impl DdsDataWriterListener {
         the_writer: DataWriterNode,
         status: OfferedIncompatibleQosStatus,
     ) {
-        self.listener
-            .trigger_on_offered_incompatible_qos(the_writer, status)
+        tokio::task::block_in_place(|| self.listener
+            .trigger_on_offered_incompatible_qos(the_writer, status));
     }
 
     pub fn trigger_on_publication_matched(
@@ -31,8 +31,8 @@ impl DdsDataWriterListener {
         the_writer: DataWriterNode,
         status: PublicationMatchedStatus,
     ) {
-        self.listener
-            .trigger_on_publication_matched(the_writer, status)
+        tokio::task::block_in_place(|| self.listener
+            .trigger_on_publication_matched(the_writer, status));
     }
 }
 }

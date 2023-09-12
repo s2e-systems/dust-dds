@@ -26,7 +26,7 @@ impl DdsDomainParticipantListener {
         the_reader: DataReaderNode,
         status: SampleRejectedStatus,
     ) {
-        self.listener.on_sample_rejected(&the_reader, status)
+        tokio::task::block_in_place(|| self.listener.on_sample_rejected(&the_reader, status));
     }
 
     pub fn trigger_on_requested_incompatible_qos(
@@ -34,8 +34,8 @@ impl DdsDomainParticipantListener {
         the_reader: DataReaderNode,
         status: RequestedIncompatibleQosStatus,
     ) {
-        self.listener
-            .on_requested_incompatible_qos(&the_reader, status)
+        tokio::task::block_in_place(|| self.listener
+            .on_requested_incompatible_qos(&the_reader, status));
     }
 
     pub fn trigger_on_offered_incompatible_qos(
@@ -43,8 +43,8 @@ impl DdsDomainParticipantListener {
         the_writer: DataWriterNode,
         status: OfferedIncompatibleQosStatus,
     ) {
-        self.listener
-            .on_offered_incompatible_qos(&the_writer, status)
+        tokio::task::block_in_place(|| self.listener
+            .on_offered_incompatible_qos(&the_writer, status));
     }
 
     pub fn trigger_on_requested_deadline_missed(
@@ -52,7 +52,7 @@ impl DdsDomainParticipantListener {
         reader: DataReaderNode,
         status: RequestedDeadlineMissedStatus,
     ) {
-        self.listener.on_requested_deadline_missed(&reader, status)
+        tokio::task::block_in_place(|| self.listener.on_requested_deadline_missed(&reader, status));
     }
 
     pub fn trigger_on_subscription_matched(
@@ -60,7 +60,7 @@ impl DdsDomainParticipantListener {
         reader: DataReaderNode,
         status: SubscriptionMatchedStatus,
     ) {
-        self.listener.on_subscription_matched(&reader, status)
+        tokio::task::block_in_place(|| self.listener.on_subscription_matched(&reader, status));
     }
 
     pub fn trigger_on_publication_matched(
@@ -68,7 +68,7 @@ impl DdsDomainParticipantListener {
         the_writer: DataWriterNode,
         status: PublicationMatchedStatus,
     ) {
-        self.listener.on_publication_matched(&the_writer, status)
+        tokio::task::block_in_place(|| self.listener.on_publication_matched(&the_writer, status));
     }
 }
 }

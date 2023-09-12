@@ -23,10 +23,10 @@ impl DdsSubscriberListener {
 actor_command_interface! {
 impl DdsSubscriberListener {
     pub fn trigger_on_data_on_readers(&mut self, the_subscriber: SubscriberNode) {
-        self.listener
+        tokio::task::block_in_place(|| self.listener
             .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
                 the_subscriber,
-            )));
+            ))));
     }
 
     pub fn trigger_on_sample_rejected(
@@ -34,7 +34,7 @@ impl DdsSubscriberListener {
         the_reader: DataReaderNode,
         status: SampleRejectedStatus,
     ) {
-        self.listener.on_sample_rejected(&the_reader, status)
+        tokio::task::block_in_place(|| self.listener.on_sample_rejected(&the_reader, status));
     }
 
     pub fn trigger_on_requested_incompatible_qos(
@@ -42,8 +42,8 @@ impl DdsSubscriberListener {
         the_reader: DataReaderNode,
         status: RequestedIncompatibleQosStatus,
     ) {
-        self.listener
-            .on_requested_incompatible_qos(&the_reader, status)
+        tokio::task::block_in_place(|| self.listener
+            .on_requested_incompatible_qos(&the_reader, status));
     }
 
     pub fn trigger_on_requested_deadline_missed(
@@ -51,7 +51,7 @@ impl DdsSubscriberListener {
         reader: DataReaderNode,
         status: RequestedDeadlineMissedStatus,
     ) {
-        self.listener.on_requested_deadline_missed(&reader, status)
+        tokio::task::block_in_place(|| self.listener.on_requested_deadline_missed(&reader, status));
     }
 
     pub fn trigger_on_subscription_matched(
@@ -59,7 +59,7 @@ impl DdsSubscriberListener {
         reader: DataReaderNode,
         status: SubscriptionMatchedStatus,
     ) {
-        self.listener.on_subscription_matched(&reader, status)
+        tokio::task::block_in_place(|| self.listener.on_subscription_matched(&reader, status));
     }
 }
 }
