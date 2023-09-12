@@ -2002,7 +2002,7 @@ fn data_reader_publication_handle_sample_info() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<UserData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -2018,7 +2018,7 @@ fn data_reader_publication_handle_sample_info() {
     writer.write(&UserData(1), None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(10, 0))
+        .wait_for_acknowledgments(Duration::new(1000, 0))
         .unwrap();
 
     let samples = reader

@@ -854,7 +854,7 @@ impl DdsDomainParticipant {
 
         for user_defined_publisher_address in self.user_defined_publisher_list.values().map(|a| a.address()) {
             user_defined_publisher_address.process_rtps_message(message.clone()).expect("Should not fail to send command");
-            user_defined_publisher_address .send_message(
+            user_defined_publisher_address.send_message(
                 RtpsMessageHeader::new(
                     self.get_protocol_version(),
                     self.get_vendor_id(),

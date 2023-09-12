@@ -774,6 +774,22 @@ impl DomainParticipant {
                             }
                         }
 
+                        for user_defined_publisher in
+                            domain_participant_address.get_user_defined_publisher_list()?
+                        {
+                            for data_writer in user_defined_publisher.data_writer_list()? {
+                                data_writer.send_message(
+                                    RtpsMessageHeader::new(
+                                        domain_participant_address.get_protocol_version()?,
+                                        domain_participant_address.get_vendor_id()?,
+                                        domain_participant_address.get_guid()?.prefix(),
+                                    ),
+                                    domain_participant_address.get_udp_transport_write()?,
+                                    domain_participant_address.get_current_time()?,
+                                )?;
+                            }
+                        }
+
                         Ok(())
                     });
 
