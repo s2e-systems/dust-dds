@@ -74,7 +74,7 @@ impl<T: SubmessageHeader> RtpsMap for T {}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsMessageRead {
-    pub data: Arc<[u8]>,
+    data: Arc<[u8]>,
 }
 
 impl RtpsMessageRead {
