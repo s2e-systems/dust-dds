@@ -5,9 +5,9 @@ use crate::infrastructure::{
 
 use super::{
     endpoint::RtpsEndpoint,
-    writer_history_cache::RtpsWriterCacheChange,
     messages::submessage_elements::{Data, ParameterList},
     types::{ChangeKind, Guid, Locator, SequenceNumber},
+    writer_history_cache::RtpsWriterCacheChange,
 };
 
 pub struct RtpsWriter {
@@ -80,7 +80,7 @@ impl RtpsWriter {
             self.last_change_sequence_number,
             timestamp,
             data.chunks(self.data_max_size_serialized)
-                .map(|c| Data::new(c.to_vec()))
+                .map(|c| Data::new(c.to_vec().into()))
                 .collect(),
             inline_qos,
         )

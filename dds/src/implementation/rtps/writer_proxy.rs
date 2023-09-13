@@ -119,7 +119,7 @@ impl RtpsWriterProxy {
                 for frag in frag_seq_num_list {
                     data.append(&mut frag.serialized_payload.as_ref().to_vec());
                 }
-                return Some(Data::new(data));
+                return Some(Data::new(data.into()));
             }
         }
         None

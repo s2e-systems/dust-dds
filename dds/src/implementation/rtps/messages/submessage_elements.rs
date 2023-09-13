@@ -9,7 +9,7 @@ use crate::implementation::{
         types::{EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId},
     },
 };
-use std::io::BufRead;
+use std::{io::BufRead, ops::Range, sync::Arc};
 ///
 /// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
@@ -288,10 +288,68 @@ impl WriteBytes for &ParameterList {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Data(Vec<u8>);
+pub struct ArcSlice {
+    data: Arc<[u8]>,
+    range: Range<usize>,
+}
+
+impl ArcSlice {
+    pub fn new(data: Arc<[u8]>, range: Range<usize>) -> Self {
+        Self { data, range }
+    }
+
+    pub fn len(&self) -> usize {
+        self.range.len()
+    }
+}
+
+impl AsRef<[u8]> for ArcSlice {
+    fn as_ref(&self) -> &[u8] {
+        &self.data[self.range]
+    }
+}
+
+impl From<Arc<[u8]>> for ArcSlice {
+    fn from(value: Arc<[u8]>) -> Self {
+        Self {
+            data: value,
+            range: 0..value.len(),
+        }
+    }
+}
+
+impl From<Vec<u8>> for ArcSlice {
+    fn from(value: Vec<u8>) -> Self {
+        Self {
+            data: value.into(),
+            range: 0..value.len(),
+        }
+    }
+}
+
+// impl From<&[u8]> for ArcSlice {
+//     fn from(value: &[u8]) -> Self {
+//         Self {
+//             data: value.into(),
+//             range: 0..value.len(),
+//         }
+//     }
+// }
+
+// impl<const N: usize> From<[u8; N]> for ArcSlice {
+//     fn from(value: [u8; N]) -> Self {
+//         Self {
+//             data: Arc::new(value),
+//             range: 0..N,
+//         }
+//     }
+// }
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Data(ArcSlice);
 
 impl Data {
-    pub fn new(data: Vec<u8>) -> Self {
+    pub fn new(data: ArcSlice) -> Self {
         Self(data)
     }
     pub fn len(&self) -> usize {
@@ -301,22 +359,16 @@ impl Data {
 
 impl AsRef<[u8]> for Data {
     fn as_ref(&self) -> &[u8] {
-        &self.0
+        self.0.as_ref()
     }
 }
 
 impl WriteBytes for &Data {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(&self.0);
+        buf[..self.0.len()].copy_from_slice(self.0.as_ref());
         let length_inclusive_padding = (self.0.len() + 3) & !3;
         buf[self.0.len()..length_inclusive_padding].fill(0);
         length_inclusive_padding
-    }
-}
-
-impl FromBytes for Data {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(v.to_vec())
     }
 }
 

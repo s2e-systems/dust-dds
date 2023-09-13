@@ -418,7 +418,7 @@ mod tests {
         let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23]);
         let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
-        let serialized_payload = &Data::new(vec![]);
+        let serialized_payload = &Data::new(vec![].into());
 
         let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
             inline_qos_flag,

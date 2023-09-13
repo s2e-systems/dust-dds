@@ -213,7 +213,7 @@ mod tests {
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
         let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![]);
+        let serialized_payload = &Data::new(vec![].into());
         let submessage = DataFragSubmessageWrite::new(
             false,
             false,
@@ -246,7 +246,7 @@ mod tests {
     #[test]
     fn serialize_with_inline_qos_with_serialized_payload() {
         let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74])]);
-        let serialized_payload = Data::new(vec![1, 2, 3]);
+        let serialized_payload = Data::new(vec![1, 2, 3].into());
         let submessage = DataFragSubmessageWrite::new(
             true,
             false,
@@ -306,7 +306,7 @@ mod tests {
         let expected_data_size = 4;
         let expected_fragment_size = 5;
         let expected_inline_qos = ParameterList::empty();
-        let expected_serialized_payload = Data::new(vec![]);
+        let expected_serialized_payload = Data::new(vec![].into());
 
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());
         assert_eq!(
@@ -361,7 +361,7 @@ mod tests {
         let expected_data_size = 8;
         let expected_fragment_size = 5;
         let expected_inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74])]);
-        let expected_serialized_payload = Data::new(vec![1, 2, 3, 0]);
+        let expected_serialized_payload = Data::new(vec![1, 2, 3, 0].into());
 
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());
         assert_eq!(

@@ -185,7 +185,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::from(5);
         let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![]);
+        let serialized_payload = &Data::new(vec![].into());
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
@@ -221,7 +221,7 @@ mod tests {
         let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23]);
         let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
-        let serialized_payload = &Data::new(vec![]);
+        let serialized_payload = &Data::new(vec![].into());
 
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
@@ -261,7 +261,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::from(5);
         let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![1, 2, 3, 4]);
+        let serialized_payload = &Data::new(vec![1, 2, 3, 4].into());
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
@@ -296,7 +296,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::from(5);
         let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![1, 2, 3]);
+        let serialized_payload = &Data::new(vec![1, 2, 3].into());
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
@@ -331,7 +331,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::from(5);
         let inline_qos = ParameterList::empty();
-        let serialized_payload = Data::new(vec![]);
+        let serialized_payload = Data::new(vec![].into());
 
         #[rustfmt::skip]
         let data_submessage = DataSubmessageRead::new(&[
@@ -360,7 +360,7 @@ mod tests {
     #[test]
     fn deserialize_no_inline_qos_with_serialized_payload() {
         let inline_qos = ParameterList::empty();
-        let serialized_payload = Data::new(vec![1, 2, 3, 4]);
+        let serialized_payload = Data::new(vec![1, 2, 3, 4].into());
 
         #[rustfmt::skip]
         let data_submessage = DataSubmessageRead::new(&[
@@ -382,7 +382,7 @@ mod tests {
             Parameter::new(6, vec![10, 11, 12, 13]),
             Parameter::new(7, vec![20, 21, 22, 23]),
         ]);
-        let serialized_payload = Data::new(vec![]);
+        let serialized_payload = Data::new(vec![].into());
 
         #[rustfmt::skip]
         let data_submessage = DataSubmessageRead::new(&[
@@ -408,7 +408,7 @@ mod tests {
             Parameter::new(6, vec![10, 11, 12, 13]),
             Parameter::new(7, vec![20, 21, 22, 23]),
         ]);
-        let serialized_payload = Data::new(vec![1, 2, 3, 4]);
+        let serialized_payload = Data::new(vec![1, 2, 3, 4].into());
 
         #[rustfmt::skip]
         let data_submessage = DataSubmessageRead::new(&[

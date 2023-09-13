@@ -255,7 +255,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::from(1),
             TIME_INVALID,
-            vec![Data::new(vec![])],
+            vec![Data::new(vec![].into())],
             ParameterList::empty(),
         );
         hc.add_change(
@@ -277,7 +277,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::from(1),
             TIME_INVALID,
-            vec![Data::new(vec![])],
+            vec![Data::new(vec![].into())],
             ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
@@ -286,7 +286,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::from(2),
             TIME_INVALID,
-            vec![Data::new(vec![])],
+            vec![Data::new(vec![].into())],
             ParameterList::empty(),
         );
         hc.add_change(
@@ -313,7 +313,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::from(1),
             TIME_INVALID,
-            vec![Data::new(vec![])],
+            vec![Data::new(vec![].into())],
             ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
@@ -322,7 +322,7 @@ mod tests {
             HANDLE_NIL,
             SequenceNumber::from(2),
             TIME_INVALID,
-            vec![Data::new(vec![])],
+            vec![Data::new(vec![].into())],
             ParameterList::empty(),
         );
         hc.add_change(
