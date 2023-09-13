@@ -2399,9 +2399,6 @@ fn reader_joining_after_writer_writes_many_samples() {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepAll,
-        },
         ..Default::default()
     };
 
@@ -2422,9 +2419,6 @@ fn reader_joining_after_writer_writes_many_samples() {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepAll,
         },
         ..Default::default()
     };
