@@ -119,7 +119,7 @@ impl InstanceHandleBuilder {
 }
 
 impl SampleLostStatus {
-    fn _increment(&mut self) {
+    fn increment(&mut self) {
         self.total_count += 1;
         self.total_count_change += 1;
     }
@@ -1141,9 +1141,61 @@ impl DdsDataReader {
         }
     }
 
-    fn on_sample_lost(&mut self) {
-        todo!()
-        // self.sample_lost_status.increment();
+    fn on_sample_lost(
+        &mut self,
+        data_reader_address: &ActorAddress<DdsDataReader>,
+        subscriber_address: &ActorAddress<DdsSubscriber>,
+        participant_address: &ActorAddress<DdsDomainParticipant>,
+        (subscriber_listener_address, subscriber_listener_mask): &(
+            Option<ActorAddress<DdsSubscriberListener>>,
+            Vec<StatusKind>,
+        ),
+        (participant_listener_address, participant_listener_mask): &(
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) {
+        self.sample_lost_status.increment();
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SampleLost);
+        match self.listener.as_ref().map(|a| a.address()).cloned() {
+            Some(l) if self.status_kind.contains(&StatusKind::SampleLost) => {
+                let reader = DataReaderNode::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                );
+                let status = self.get_sample_lost_status();
+                l.trigger_on_sample_lost(reader, status)
+                    .expect("Should not fail to send command");
+            }
+            _ => match subscriber_listener_address {
+                Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleLost) => {
+                    let reader = DataReaderNode::new(
+                        data_reader_address.clone(),
+                        subscriber_address.clone(),
+                        participant_address.clone(),
+                    );
+                    let status = self.get_sample_lost_status();
+                    l.trigger_on_sample_lost(reader, status)
+                        .expect("Should not fail to send command");
+                }
+                _ => match participant_listener_address {
+                    Some(l) if participant_listener_mask.contains(&StatusKind::SampleLost) => {
+                        let reader = DataReaderNode::new(
+                            data_reader_address.clone(),
+                            subscriber_address.clone(),
+                            participant_address.clone(),
+                        );
+                        let status = self.get_sample_lost_status();
+                        l.trigger_on_sample_lost(reader, status)
+                            .expect("Should not fail to send command");
+                    }
+                    _ => (),
+                },
+            },
+        }
         // listener_sender
         //     .try_send(ListenerTriggerKind::OnSampleLost(DataReaderNode::new(
         //         self.guid(),
@@ -1471,7 +1523,13 @@ impl DdsDataReader {
                     writer_proxy.received_change_set(sequence_number);
                     if sequence_number > expected_seq_num {
                         writer_proxy.lost_changes_update(sequence_number);
-                        self.on_sample_lost();
+                        self.on_sample_lost(
+                            &data_reader_address,
+                            &subscriber_address,
+                            &participant_address,
+                            &subscriber_mask_listener,
+                            &participant_mask_listener,
+                        );
                     }
                     self.add_change(
                         cache_change,

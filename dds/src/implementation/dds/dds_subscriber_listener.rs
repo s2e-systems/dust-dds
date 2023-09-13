@@ -4,8 +4,8 @@ use crate::{
         utils::actor::actor_command_interface,
     },
     infrastructure::status::{
-        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
-        SubscriptionMatchedStatus,
+        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+        SampleRejectedStatus, SubscriptionMatchedStatus,
     },
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
 };
@@ -60,6 +60,10 @@ impl DdsSubscriberListener {
         status: SubscriptionMatchedStatus,
     ) {
         tokio::task::block_in_place(|| self.listener.on_subscription_matched(&reader, status));
+    }
+
+    pub fn trigger_on_sample_lost(&mut self, reader: DataReaderNode, status: SampleLostStatus) {
+        tokio::task::block_in_place(|| self.listener.on_sample_lost(&reader, status));
     }
 }
 }
