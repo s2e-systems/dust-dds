@@ -4,7 +4,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
         utils::{
-            actor::actor_interface,
+            actor::actor_mailbox_interface,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -54,7 +54,7 @@ impl DdsTopic {
     }
 }
 
-actor_interface! {
+actor_mailbox_interface! {
 impl DdsTopic {
     pub fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
         let status = self.inconsistent_topic_status.read_and_reset();

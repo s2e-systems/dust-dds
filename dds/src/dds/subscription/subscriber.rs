@@ -167,7 +167,7 @@ impl Subscriber {
 
                 let reader_actor = spawn_actor(data_reader);
                 let reader_address = reader_actor.address().clone();
-                s.address().data_reader_add(reader_actor)?;
+                s.address().data_reader_add(guid.into(), reader_actor)?;
 
                 let data_reader =
                     DataReader::new(DataReaderNodeKind::UserDefined(DataReaderNode::new(

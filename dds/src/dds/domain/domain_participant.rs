@@ -5,22 +5,10 @@ use crate::{
     implementation::{
         dds::{
             dds_domain_participant::DdsDomainParticipant,
-            dds_publisher::DdsPublisher,
-            dds_publisher_listener::DdsPublisherListener,
-            dds_subscriber::DdsSubscriber,
-            dds_subscriber_listener::DdsSubscriberListener,
-            dds_topic::DdsTopic,
             nodes::{PublisherNode, SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind},
         },
-        rtps::{
-            group::RtpsGroup,
-            messages::overall_structure::RtpsMessageHeader,
-            types::{
-                EntityId, Guid, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
-                USER_DEFINED_WRITER_GROUP,
-            },
-        },
-        utils::actor::{spawn_actor, ActorAddress, THE_RUNTIME},
+        rtps::messages::overall_structure::RtpsMessageHeader,
+        utils::actor::{ActorAddress, THE_RUNTIME},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -91,21 +79,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher_qos = match qos {
-            QosKind::Default => self.0.default_publisher_qos()?,
-            QosKind::Specific(q) => q,
-        };
-        let publisher_counter = self.0.create_unique_publisher_id()?;
-        let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
-        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
-        let rtps_group = RtpsGroup::new(guid);
-        let listener = a_listener.map(|l| spawn_actor(DdsPublisherListener::new(l)));
-        let status_kind = mask.to_vec();
-        let publisher = DdsPublisher::new(publisher_qos, rtps_group, listener, status_kind);
-
-        let publisher_actor = spawn_actor(publisher);
-        let publisher_address = publisher_actor.address().clone();
-        self.0.add_user_defined_publisher(publisher_actor)?;
+        let publisher_address = self.0.create_publisher(qos, a_listener, mask.to_vec())?;
 
         let publisher = Publisher::new(PublisherNode::new(publisher_address, self.0.clone()));
         if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
@@ -153,25 +127,12 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber_qos = match qos {
-            QosKind::Default => self.0.default_subscriber_qos()?,
-            QosKind::Specific(q) => q,
-        };
-        let subcriber_counter = self.0.create_unique_subscriber_id()?;
-        let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
-        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
-        let rtps_group = RtpsGroup::new(guid);
-        let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
-        let status_kind = mask.to_vec();
+        let subscriber_address = self.0.create_subscriber(qos, a_listener, mask.to_vec())?;
 
-        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
-
-        let subscriber_actor = spawn_actor(subscriber);
         let subscriber = Subscriber::new(SubscriberNodeKind::UserDefined(SubscriberNode::new(
-            subscriber_actor.address().clone(),
+            subscriber_address,
             self.0.clone(),
         )));
-        self.0.add_user_defined_subscriber(subscriber_actor)?;
 
         if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
             subscriber.enable()?;
@@ -220,22 +181,16 @@ impl DomainParticipant {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<Topic> {
-        let qos = match qos {
-            QosKind::Default => self.0.default_topic_qos()?,
-            QosKind::Specific(q) => q,
-        };
-        let topic_counter = self.0.create_unique_topic_id()?;
-        let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
-        let guid = Guid::new(self.0.get_guid()?.prefix(), entity_id);
-
-        let topic = DdsTopic::new(guid, qos, type_name.to_string(), topic_name);
-
-        let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
-        let topic_address = topic_actor.address().clone();
-        self.0.add_user_defined_topic(topic_actor)?;
+        let topic_address = self.0.create_topic(
+            topic_name.to_string(),
+            type_name.to_string(),
+            qos,
+            a_listener,
+            mask.to_vec(),
+        )?;
 
         let topic = Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
             topic_address,
@@ -461,7 +416,24 @@ impl DomainParticipant {
     /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.delete_contained_entities()?
+        for publisher in self.0.get_user_defined_publisher_list()? {
+            for data_writer in publisher.data_writer_list()? {
+                publisher.datawriter_delete(data_writer.get_instance_handle()?)?;
+            }
+            self.0
+                .delete_user_defined_publisher(publisher.get_instance_handle()?)?;
+        }
+        for subscriber in self.0.get_user_defined_subscriber_list()? {
+            for data_reader in subscriber.data_reader_list()? {
+                subscriber.data_reader_delete(data_reader.get_instance_handle()?)?;
+            }
+            self.0
+                .delete_user_defined_subscriber(subscriber.get_instance_handle()?)?;
+        }
+        for topic in self.0.get_user_defined_topic_list()? {
+            self.0.delete_topic(topic.get_instance_handle()?)?;
+        }
+        Ok(())
     }
 
     /// This operation manually asserts the liveliness of the [`DomainParticipant`]. This is used in combination
@@ -781,16 +753,39 @@ impl DomainParticipant {
                 loop {
                     let r: DdsResult<()> = tokio::task::block_in_place(|| {
                         let now = domain_participant_address.get_current_time()?;
-
+                        let participant_mask_listener = (
+                            domain_participant_address.get_listener()?,
+                            domain_participant_address.status_kind()?,
+                        );
                         for subscriber in
                             domain_participant_address.get_user_defined_subscriber_list()?
                         {
+                            let subscriber_mask_listener =
+                                (subscriber.get_listener()?, subscriber.status_kind()?);
                             for data_reader in subscriber.data_reader_list()? {
                                 data_reader.update_communication_status(
                                     now,
                                     data_reader.clone(),
                                     subscriber.clone(),
                                     domain_participant_address.clone(),
+                                    subscriber_mask_listener.clone(),
+                                    participant_mask_listener.clone(),
+                                )?;
+                            }
+                        }
+
+                        for user_defined_publisher in
+                            domain_participant_address.get_user_defined_publisher_list()?
+                        {
+                            for data_writer in user_defined_publisher.data_writer_list()? {
+                                data_writer.send_message(
+                                    RtpsMessageHeader::new(
+                                        domain_participant_address.get_protocol_version()?,
+                                        domain_participant_address.get_vendor_id()?,
+                                        domain_participant_address.get_guid()?.prefix(),
+                                    ),
+                                    domain_participant_address.get_udp_transport_write()?,
+                                    domain_participant_address.get_current_time()?,
                                 )?;
                             }
                         }

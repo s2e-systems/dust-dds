@@ -15,23 +15,29 @@ use crate::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::types::Count,
+            messages::{
+                overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+                types::Count,
+            },
             participant::RtpsParticipant,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
             types::{
                 EntityId, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
                 BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
-                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY,
+                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
             writer::RtpsWriter,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{actor_interface, spawn_actor, Actor, ActorAddress},
+        utils::actor::{
+            actor_command_interface, actor_mailbox_interface, spawn_actor, Actor, ActorAddress,
+        },
     },
     infrastructure::{
         instance::InstanceHandle,
-        qos::{DataReaderQos, DataWriterQos},
+        qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
             ReliabilityQosPolicy, ReliabilityQosPolicyKind,
@@ -39,6 +45,9 @@ use crate::{
         status::StatusKind,
         time::{DurationKind, DURATION_ZERO},
     },
+    publication::publisher_listener::PublisherListener,
+    subscription::subscriber_listener::SubscriberListener,
+    topic_definition::topic_listener::TopicListener,
     {
         builtin_topics::TopicBuiltinTopicData,
         infrastructure::{
@@ -56,7 +65,8 @@ use std::{
 
 use super::{
     dds_data_writer::DdsDataWriter, dds_domain_participant_listener::DdsDomainParticipantListener,
-    dds_publisher::DdsPublisher,
+    dds_publisher::DdsPublisher, dds_publisher_listener::DdsPublisherListener,
+    dds_subscriber_listener::DdsSubscriberListener,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -96,13 +106,13 @@ pub struct DdsDomainParticipant {
     qos: DomainParticipantQos,
     builtin_subscriber: Actor<DdsSubscriber>,
     builtin_publisher: Actor<DdsPublisher>,
-    user_defined_subscriber_list: Vec<Actor<DdsSubscriber>>,
+    user_defined_subscriber_list: HashMap<InstanceHandle, Actor<DdsSubscriber>>,
     user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Vec<Actor<DdsPublisher>>,
+    user_defined_publisher_list: HashMap<InstanceHandle, Actor<DdsPublisher>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    topic_list: Vec<Actor<DdsTopic>>,
+    topic_list: HashMap<InstanceHandle, Actor<DdsTopic>>,
     user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
@@ -185,12 +195,11 @@ impl DdsDomainParticipant {
             },
             ..Default::default()
         };
+        let spdp_builtin_participant_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
         let spdp_builtin_participant_reader =
             spawn_actor(DdsDataReader::new::<SpdpDiscoveredParticipantData>(
-                create_builtin_stateless_reader(Guid::new(
-                    guid_prefix,
-                    ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-                )),
+                create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
                 "SpdpDiscoveredParticipantData".to_string(),
                 String::from(DCPS_PARTICIPANT),
                 spdp_reader_qos,
@@ -212,11 +221,10 @@ impl DdsDomainParticipant {
             ..Default::default()
         };
 
+        let sedp_builtin_topics_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let sedp_builtin_topics_reader = spawn_actor(DdsDataReader::new::<DiscoveredTopicData>(
-            create_builtin_stateful_reader(Guid::new(
-                guid_prefix,
-                ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            )),
+            create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
             sedp_reader_qos.clone(),
@@ -224,12 +232,11 @@ impl DdsDomainParticipant {
             vec![],
         ));
 
+        let sedp_builtin_publications_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let sedp_builtin_publications_reader =
             spawn_actor(DdsDataReader::new::<DiscoveredWriterData>(
-                create_builtin_stateful_reader(Guid::new(
-                    guid_prefix,
-                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-                )),
+                create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
                 "DiscoveredWriterData".to_string(),
                 String::from(DCPS_PUBLICATION),
                 sedp_reader_qos.clone(),
@@ -237,12 +244,11 @@ impl DdsDomainParticipant {
                 vec![],
             ));
 
+        let sedp_builtin_subscriptions_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let sedp_builtin_subscriptions_reader =
             spawn_actor(DdsDataReader::new::<DiscoveredReaderData>(
-                create_builtin_stateful_reader(Guid::new(
-                    guid_prefix,
-                    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-                )),
+                create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
                 "DiscoveredReaderData".to_string(),
                 String::from(DCPS_SUBSCRIPTION),
                 sedp_reader_qos,
@@ -262,19 +268,31 @@ impl DdsDomainParticipant {
 
         builtin_subscriber
             .address()
-            .data_reader_add(spdp_builtin_participant_reader)
+            .data_reader_add(
+                spdp_builtin_participant_reader_guid.into(),
+                spdp_builtin_participant_reader,
+            )
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(sedp_builtin_topics_reader)
+            .data_reader_add(
+                sedp_builtin_topics_reader_guid.into(),
+                sedp_builtin_topics_reader,
+            )
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(sedp_builtin_publications_reader)
+            .data_reader_add(
+                sedp_builtin_publications_reader_guid.into(),
+                sedp_builtin_publications_reader,
+            )
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(sedp_builtin_subscriptions_reader)
+            .data_reader_add(
+                sedp_builtin_subscriptions_reader_guid.into(),
+                sedp_builtin_subscriptions_reader,
+            )
             .unwrap();
 
         // Built-in publisher creation
@@ -291,11 +309,10 @@ impl DdsDomainParticipant {
             },
             ..Default::default()
         };
+        let spdp_builtin_participant_writer_guid =
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
         let spdp_builtin_participant_writer = spawn_actor(DdsDataWriter::new(
-            create_builtin_stateless_writer(Guid::new(
-                guid_prefix,
-                ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-            )),
+            create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
             None,
@@ -326,11 +343,10 @@ impl DdsDomainParticipant {
             },
             ..Default::default()
         };
+        let sedp_builtin_topics_writer_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let sedp_builtin_topics_writer = DdsDataWriter::new(
-            create_builtin_stateful_writer(Guid::new(
-                guid_prefix,
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            )),
+            create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
             None,
@@ -339,11 +355,10 @@ impl DdsDomainParticipant {
         );
         let sedp_builtin_topics_writer_actor = spawn_actor(sedp_builtin_topics_writer);
 
+        let sedp_builtin_publications_writer_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let sedp_builtin_publications_writer = DdsDataWriter::new(
-            create_builtin_stateful_writer(Guid::new(
-                guid_prefix,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            )),
+            create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
             None,
@@ -352,11 +367,10 @@ impl DdsDomainParticipant {
         );
         let sedp_builtin_publications_writer_actor = spawn_actor(sedp_builtin_publications_writer);
 
+        let sedp_builtin_subscriptions_writer_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let sedp_builtin_subscriptions_writer = DdsDataWriter::new(
-            create_builtin_stateful_writer(Guid::new(
-                guid_prefix,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            )),
+            create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
             None,
@@ -378,19 +392,31 @@ impl DdsDomainParticipant {
 
         builtin_publisher
             .address()
-            .datawriter_add(spdp_builtin_participant_writer)
+            .datawriter_add(
+                spdp_builtin_participant_writer_guid.into(),
+                spdp_builtin_participant_writer,
+            )
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(sedp_builtin_topics_writer_actor)
+            .datawriter_add(
+                sedp_builtin_topics_writer_guid.into(),
+                sedp_builtin_topics_writer_actor,
+            )
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(sedp_builtin_publications_writer_actor)
+            .datawriter_add(
+                sedp_builtin_publications_writer_guid.into(),
+                sedp_builtin_publications_writer_actor,
+            )
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(sedp_builtin_subscriptions_writer_actor)
+            .datawriter_add(
+                sedp_builtin_subscriptions_writer_guid.into(),
+                sedp_builtin_subscriptions_writer_actor,
+            )
             .unwrap();
 
         Self {
@@ -400,13 +426,13 @@ impl DdsDomainParticipant {
             qos: domain_participant_qos,
             builtin_subscriber,
             builtin_publisher,
-            user_defined_subscriber_list: Vec::new(),
+            user_defined_subscriber_list: HashMap::new(),
             user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
-            user_defined_publisher_list: Vec::new(),
+            user_defined_publisher_list: HashMap::new(),
             user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
-            topic_list: Vec::new(),
+            topic_list: HashMap::new(),
             user_defined_topic_counter: 0,
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: 0,
@@ -425,18 +451,80 @@ impl DdsDomainParticipant {
     }
 }
 
-actor_interface! {
-// Rtps Entity methods
+actor_mailbox_interface! {
 impl DdsDomainParticipant {
-        pub fn get_guid(&self) -> Guid {
-            self.rtps_participant.guid()
-        }
-}
-}
+    pub fn create_publisher(&mut self,qos: QosKind<PublisherQos>,
+        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        mask: Vec<StatusKind>,) -> ActorAddress<DdsPublisher> {
+        let publisher_qos = match qos {
+            QosKind::Default => self.default_publisher_qos.clone(),
+            QosKind::Specific(q) => q,
+        };
+        let publisher_counter = self.create_unique_publisher_id();
+        let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
+        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroup::new(guid);
+        let listener = a_listener.map(|l| spawn_actor(DdsPublisherListener::new(l)));
+        let status_kind = mask.to_vec();
+        let publisher = DdsPublisher::new(publisher_qos, rtps_group, listener, status_kind);
 
-actor_interface! {
-// Rtps Participant methods
-impl DdsDomainParticipant {
+        let publisher_actor = spawn_actor(publisher);
+        let publisher_address = publisher_actor.address().clone();
+        self.user_defined_publisher_list.insert(guid.into(), publisher_actor);
+
+        publisher_address
+    }
+
+    pub fn create_subscriber(&mut self,qos: QosKind<SubscriberQos>,
+        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        mask: Vec<StatusKind>,) -> ActorAddress<DdsSubscriber> {
+            let subscriber_qos = match qos {
+                QosKind::Default => self.default_subscriber_qos.clone(),
+                QosKind::Specific(q) => q,
+            };
+            let subcriber_counter = self.create_unique_subscriber_id();
+            let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
+            let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+            let rtps_group = RtpsGroup::new(guid);
+            let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
+            let status_kind = mask.to_vec();
+
+            let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
+
+            let subscriber_actor = spawn_actor(subscriber);
+            let subscriber_address = subscriber_actor.address().clone();
+
+            self.user_defined_subscriber_list.insert(guid.into(), subscriber_actor);
+
+            subscriber_address
+    }
+
+    pub fn create_topic(&mut self, topic_name: String,
+        type_name: String,
+        qos: QosKind<TopicQos>,
+        _a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
+        _mask: Vec<StatusKind>,) -> ActorAddress<DdsTopic> {
+        let qos = match qos {
+            QosKind::Default => self.default_topic_qos.clone(),
+            QosKind::Specific(q) => q,
+        };
+        let topic_counter = self.create_unique_topic_id();
+        let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
+        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+
+        let topic = DdsTopic::new(guid, qos, type_name, &topic_name);
+
+        let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
+        let topic_address = topic_actor.address().clone();
+        self.topic_list.insert(guid.into(), topic_actor);
+
+        topic_address
+    }
+
+    pub fn get_guid(&self) -> Guid {
+        self.rtps_participant.guid()
+    }
+
     pub fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_unicast_locator_list()
@@ -456,11 +544,7 @@ impl DdsDomainParticipant {
     pub fn get_vendor_id(&self) -> VendorId {
         self.rtps_participant.vendor_id()
     }
-}
-}
 
-actor_interface! {
-impl DdsDomainParticipant {
     pub fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .metatraffic_unicast_locator_list()
@@ -564,23 +648,12 @@ impl DdsDomainParticipant {
         counter
     }
 
-    pub fn add_user_defined_publisher(&mut self, publisher: Actor<DdsPublisher>) {
-        self.user_defined_publisher_list.push(publisher)
-    }
-
     pub fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
-        self.user_defined_publisher_list.iter().map(|a| a.address().clone()).collect()
+        self.user_defined_publisher_list.values().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
-        self.user_defined_publisher_list
-            .retain(|p|
-                if let Ok(h) = p.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
+        self.user_defined_publisher_list.remove(&handle);
     }
 
     pub fn create_unique_subscriber_id(&mut self) -> u8 {
@@ -589,23 +662,12 @@ impl DdsDomainParticipant {
         counter
     }
 
-    pub fn add_user_defined_subscriber(&mut self, subscriber: Actor<DdsSubscriber>) {
-        self.user_defined_subscriber_list.push(subscriber)
-    }
-
     pub fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
-        self.user_defined_subscriber_list.iter().map(|a| a.address().clone()).collect()
+        self.user_defined_subscriber_list.values().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
-        self.user_defined_subscriber_list
-            .retain(|p|
-                if let Ok(h) = p.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
+        self.user_defined_subscriber_list.remove(&handle);
     }
 
     pub fn create_unique_topic_id(&mut self) -> u8 {
@@ -614,23 +676,12 @@ impl DdsDomainParticipant {
         counter
     }
 
-    pub fn add_user_defined_topic(&mut self, topic: Actor<DdsTopic>) {
-        self.topic_list.push(topic)
-    }
-
     pub fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
-        self.topic_list.iter().map(|a| a.address().clone()).collect()
+        self.topic_list.values().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_topic(&mut self, handle: InstanceHandle) {
-        self.topic_list
-            .retain(|p|
-                if let Ok(h) = p.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
+        self.topic_list.remove(&handle);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -640,14 +691,7 @@ impl DdsDomainParticipant {
     }
 
     pub fn delete_topic(&mut self, handle: InstanceHandle) {
-        self.topic_list
-            .retain(|t|
-                if let Ok(h) = t.address()
-                    .get_instance_handle() {
-                        h != handle
-                    } else {
-                        false
-                    });
+        self.topic_list.remove(&handle);
     }
 
     pub fn get_qos(&self) -> DomainParticipantQos {
@@ -659,13 +703,13 @@ impl DdsDomainParticipant {
     }
 
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
-        for user_defined_publisher in self.user_defined_publisher_list.drain(..) {
+        for (_, user_defined_publisher) in self.user_defined_publisher_list.drain() {
             user_defined_publisher
                 .address()
                 .delete_contained_entities()?;
         }
 
-        for user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
+        for (_,user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
             user_defined_subscriber
                 .address()
                 .delete_contained_entities()?;
@@ -773,6 +817,54 @@ impl DdsDomainParticipant {
 
     pub fn status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
+    }
+}
+}
+
+actor_command_interface! {
+impl DdsDomainParticipant {
+    pub fn process_user_defined_rtps_message(
+        &self,
+        message: RtpsMessageRead,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        let participant_mask_listener = (self.listener.as_ref().map(|a| a.address()).cloned(), self.status_kind.clone());
+        for user_defined_subscriber_address in self.user_defined_subscriber_list.values().map(|a| a.address()) {
+            user_defined_subscriber_address
+                .process_rtps_message(
+                    message.clone(),
+                    self.get_current_time(),
+                    participant_address.clone(),
+                    user_defined_subscriber_address.clone(),
+                    participant_mask_listener.clone(),
+                )
+                .expect("Should not fail to send command");
+
+            user_defined_subscriber_address
+                .send_message(
+                    RtpsMessageHeader::new(
+                        self.get_protocol_version(),
+                        self.get_vendor_id(),
+                        self.get_guid().prefix(),
+                    ),
+                    self.get_udp_transport_write(),
+                )
+                .expect("Should not fail to send command");
+        }
+
+        for user_defined_publisher_address in self.user_defined_publisher_list.values().map(|a| a.address()) {
+            user_defined_publisher_address.process_rtps_message(message.clone()).expect("Should not fail to send command");
+            user_defined_publisher_address.send_message(
+                RtpsMessageHeader::new(
+                    self.get_protocol_version(),
+                    self.get_vendor_id(),
+                    self.get_guid().prefix(),
+                ),
+                self.get_udp_transport_write(),
+                self.get_current_time(),
+            ).expect("Should not fail to send command");
+
+        }
     }
 }
 }

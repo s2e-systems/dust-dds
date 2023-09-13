@@ -9,7 +9,9 @@ use crate::{
         },
         dds::{
             dds_data_reader::DdsDataReader, dds_domain_participant::DdsDomainParticipant,
-            dds_subscriber::DdsSubscriber, status_condition_impl::StatusConditionImpl,
+            dds_domain_participant_listener::DdsDomainParticipantListener,
+            dds_subscriber::DdsSubscriber, dds_subscriber_listener::DdsSubscriberListener,
+            status_condition_impl::StatusConditionImpl,
         },
         rtps::{
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
@@ -18,7 +20,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{ActorAddress, Mail, MailHandler},
+            actor::{ActorAddress, CommandHandler, Mail, MailHandler},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -26,7 +28,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
-        status::SubscriptionMatchedStatus,
+        status::{StatusKind, SubscriptionMatchedStatus},
         time::Time,
     },
     subscription::{
@@ -181,6 +183,7 @@ impl ActorAddress<DdsDataReader> {
 }
 
 impl ActorAddress<DdsDataReader> {
+    #[allow(clippy::too_many_arguments)]
     pub fn add_matched_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
@@ -189,6 +192,12 @@ impl ActorAddress<DdsDataReader> {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_qos: SubscriberQos,
+        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
     ) -> DdsResult<()> {
         struct AddMatchedWriter {
             discovered_writer_data: DiscoveredWriterData,
@@ -197,6 +206,13 @@ impl ActorAddress<DdsDataReader> {
             data_reader_address: ActorAddress<DdsDataReader>,
             subscriber_address: ActorAddress<DdsSubscriber>,
             participant_address: ActorAddress<DdsDomainParticipant>,
+            subscriber_qos: SubscriberQos,
+            subscriber_mask_listener:
+                (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+            participant_mask_listener: (
+                Option<ActorAddress<DdsDomainParticipantListener>>,
+                Vec<StatusKind>,
+            ),
         }
 
         impl Mail for AddMatchedWriter {
@@ -212,6 +228,9 @@ impl ActorAddress<DdsDataReader> {
                     mail.data_reader_address,
                     mail.subscriber_address,
                     mail.participant_address,
+                    mail.subscriber_qos,
+                    mail.subscriber_mask_listener,
+                    mail.participant_mask_listener,
                 )
             }
         }
@@ -223,6 +242,9 @@ impl ActorAddress<DdsDataReader> {
             data_reader_address,
             subscriber_address,
             participant_address,
+            subscriber_qos,
+            subscriber_mask_listener,
+            participant_mask_listener,
         })
     }
 
@@ -232,12 +254,23 @@ impl ActorAddress<DdsDataReader> {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
     ) -> DdsResult<()> {
         struct RemoveMatchedWriter {
             discovered_writer_handle: InstanceHandle,
             data_reader_address: ActorAddress<DdsDataReader>,
             subscriber_address: ActorAddress<DdsSubscriber>,
             participant_address: ActorAddress<DdsDomainParticipant>,
+            subscriber_mask_listener:
+                (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+            participant_mask_listener: (
+                Option<ActorAddress<DdsDomainParticipantListener>>,
+                Vec<StatusKind>,
+            ),
         }
 
         impl Mail for RemoveMatchedWriter {
@@ -254,6 +287,8 @@ impl ActorAddress<DdsDataReader> {
                     mail.data_reader_address,
                     mail.subscriber_address,
                     mail.participant_address,
+                    mail.subscriber_mask_listener,
+                    mail.participant_mask_listener,
                 )
             }
         }
@@ -263,6 +298,8 @@ impl ActorAddress<DdsDataReader> {
             data_reader_address,
             subscriber_address,
             participant_address,
+            subscriber_mask_listener,
+            participant_mask_listener,
         })
     }
 
@@ -310,17 +347,13 @@ impl ActorAddress<DdsDataReader> {
             udp_transport_write: ActorAddress<UdpTransportWrite>,
         }
 
-        impl Mail for SendMessage {
-            type Result = ();
-        }
-
-        impl MailHandler<SendMessage> for DdsDataReader {
-            fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+        impl CommandHandler<SendMessage> for DdsDataReader {
+            fn handle(&mut self, mail: SendMessage) {
                 self.send_message(mail.header, mail.udp_transport_write)
             }
         }
 
-        self.send_blocking(SendMessage {
+        self.send_command(SendMessage {
             header,
             udp_transport_write,
         })
@@ -386,7 +419,7 @@ impl ActorAddress<DdsDataReader> {
 
         impl<Foo> MailHandler<ReadNextInstance<Foo>> for DdsDataReader
         where
-            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
         {
             fn handle(
                 &mut self,
@@ -438,7 +471,7 @@ impl ActorAddress<DdsDataReader> {
 
         impl<Foo> MailHandler<Take<Foo>> for DdsDataReader
         where
-            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
         {
             fn handle(&mut self, mail: Take<Foo>) -> <Take<Foo> as Mail>::Result {
                 self.take(
@@ -487,7 +520,7 @@ impl ActorAddress<DdsDataReader> {
 
         impl<Foo> MailHandler<TakeNextInstance<Foo>> for DdsDataReader
         where
-            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
         {
             fn handle(
                 &mut self,
@@ -578,37 +611,45 @@ impl ActorAddress<DdsDataReader> {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
     ) -> DdsResult<()> {
         struct UpdateCommunicationStatus {
             now: Time,
             data_reader_address: ActorAddress<DdsDataReader>,
             subscriber_address: ActorAddress<DdsSubscriber>,
             participant_address: ActorAddress<DdsDomainParticipant>,
+            subscriber_mask_listener:
+                (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+            participant_mask_listener: (
+                Option<ActorAddress<DdsDomainParticipantListener>>,
+                Vec<StatusKind>,
+            ),
         }
 
-        impl Mail for UpdateCommunicationStatus {
-            type Result = ();
-        }
-
-        impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
-            fn handle(
-                &mut self,
-                mail: UpdateCommunicationStatus,
-            ) -> <UpdateCommunicationStatus as Mail>::Result {
+        impl CommandHandler<UpdateCommunicationStatus> for DdsDataReader {
+            fn handle(&mut self, mail: UpdateCommunicationStatus) {
                 self.update_communication_status(
                     mail.now,
                     mail.data_reader_address,
                     mail.subscriber_address,
                     mail.participant_address,
+                    mail.subscriber_mask_listener,
+                    mail.participant_mask_listener,
                 )
             }
         }
 
-        self.send_blocking(UpdateCommunicationStatus {
+        self.send_command(UpdateCommunicationStatus {
             now,
             data_reader_address,
             subscriber_address,
             participant_address,
+            subscriber_mask_listener,
+            participant_mask_listener,
         })
     }
 }
@@ -640,7 +681,7 @@ impl ActorAddress<DdsDataReader> {
 
         impl<Foo> MailHandler<Read<Foo>> for DdsDataReader
         where
-            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
+            Foo: DdsRepresentation + for<'de> serde::Deserialize<'de> + Send + 'static,
         {
             fn handle(&mut self, mail: Read<Foo>) -> <Read<Foo> as Mail>::Result {
                 self.read(
@@ -663,6 +704,7 @@ impl ActorAddress<DdsDataReader> {
         })?
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn process_rtps_message(
         &self,
         message: RtpsMessageRead,
@@ -670,6 +712,12 @@ impl ActorAddress<DdsDataReader> {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
     ) -> DdsResult<()> {
         struct ProcessRtpsMessage {
             message: RtpsMessageRead,
@@ -677,30 +725,39 @@ impl ActorAddress<DdsDataReader> {
             data_reader_address: ActorAddress<DdsDataReader>,
             subscriber_address: ActorAddress<DdsSubscriber>,
             participant_address: ActorAddress<DdsDomainParticipant>,
+            subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+            subscriber_mask_listener:
+                (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+            participant_mask_listener: (
+                Option<ActorAddress<DdsDomainParticipantListener>>,
+                Vec<StatusKind>,
+            ),
         }
 
-        impl Mail for ProcessRtpsMessage {
-            type Result = ();
-        }
-
-        impl MailHandler<ProcessRtpsMessage> for DdsDataReader {
-            fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
+        impl CommandHandler<ProcessRtpsMessage> for DdsDataReader {
+            fn handle(&mut self, mail: ProcessRtpsMessage) {
                 self.process_rtps_message(
                     mail.message,
                     mail.reception_timestamp,
                     mail.data_reader_address,
                     mail.subscriber_address,
                     mail.participant_address,
+                    mail.subscriber_status_condition,
+                    mail.subscriber_mask_listener,
+                    mail.participant_mask_listener,
                 )
             }
         }
 
-        self.send_blocking(ProcessRtpsMessage {
+        self.send_command(ProcessRtpsMessage {
             message,
             reception_timestamp,
             data_reader_address,
             subscriber_address,
             participant_address,
+            subscriber_status_condition,
+            subscriber_mask_listener,
+            participant_mask_listener,
         })
     }
 }

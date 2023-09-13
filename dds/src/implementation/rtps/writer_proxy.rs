@@ -263,17 +263,14 @@ impl RtpsWriterProxy {
             let info_dst_submessage =
                 InfoDestinationSubmessageWrite::new(self.remote_writer_guid().prefix());
 
-            if let Some(&min) = self.missing_changes().iter().min() {
-                let max = self.missing_changes().iter().max().cloned().unwrap();
-                if !(max - min < SequenceNumber::from(256) && min >= SequenceNumber::from(1)) {
-                    todo!("Use ack_frag")
-                }
-            };
+            let mut missing_changes = self.missing_changes();
+            missing_changes.truncate(256);
+
             let acknack_submessage = AckNackSubmessageWrite::new(
                 true,
                 reader_guid.entity_id(),
                 self.remote_writer_guid().entity_id(),
-                SequenceNumberSet::new(self.available_changes_max() + 1, self.missing_changes()),
+                SequenceNumberSet::new(self.available_changes_max() + 1, missing_changes),
                 self.acknack_count(),
             );
 

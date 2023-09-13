@@ -59,13 +59,13 @@ impl<A> ActorAddress<A> {
         M: Mail + Send + 'static,
         M::Result: Send,
     {
-        let (response_sender, response_receiver) = std::sync::mpsc::channel();
+        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
 
         self.sender
             .send(Box::new(SyncMail::new(mail, response_sender)))
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
-            .recv()
+            .blocking_recv()
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
@@ -81,7 +81,7 @@ impl<A> ActorAddress<A> {
 }
 
 trait GenericHandler<A> {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()>;
+    fn handle(&mut self, actor: &mut A);
 }
 
 struct SyncMail<M>
@@ -92,7 +92,19 @@ where
     // have to be moved out and the struct. Because the struct is passed as a Boxed
     // trait object this is only feasible by using the Option fields.
     mail: Option<M>,
-    sender: Option<std::sync::mpsc::Sender<M::Result>>,
+    sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
+}
+
+impl<M> SyncMail<M>
+where
+    M: Mail,
+{
+    fn new(message: M, sender: tokio::sync::oneshot::Sender<M::Result>) -> Self {
+        Self {
+            mail: Some(message),
+            sender: Some(sender),
+        }
+    }
 }
 
 impl<A, M> GenericHandler<A> for SyncMail<M>
@@ -100,7 +112,7 @@ where
     A: MailHandler<M>,
     M: Mail,
 {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
+    fn handle(&mut self, actor: &mut A) {
         let result = <A as MailHandler<M>>::handle(
             actor,
             self.mail
@@ -111,7 +123,8 @@ where
             .take()
             .expect("Mail should be processed only once")
             .send(result)
-            .map_err(|_| ())
+            .map_err(|_| "Failed to send message on type withou Debug")
+            .expect("Sending should never fail");
     }
 }
 
@@ -129,15 +142,13 @@ impl<A, M> GenericHandler<A> for CommandMail<M>
 where
     A: CommandHandler<M>,
 {
-    fn handle(&mut self, actor: &mut A) -> Result<(), ()> {
+    fn handle(&mut self, actor: &mut A) {
         <A as CommandHandler<M>>::handle(
             actor,
             self.mail
                 .take()
                 .expect("Mail should be processed only once"),
         );
-
-        Ok(())
     }
 }
 
@@ -184,12 +195,9 @@ where
     let join_handle = THE_RUNTIME.spawn(async move {
         while let Some(mut m) = actor_obj.mailbox.recv().await {
             if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                // Handling mail can be synchronous and allowed to call blocking code
-                // (e.g. send mail to other actors). It is not allowed to be an async function
-                // otherwise multiple mails could interrupt each other and modify the object in between.
-                // To allow calling blocking code inside the block_in_place method is used to prevent
-                // the runtime from crashing
-                tokio::task::block_in_place(|| m.handle(&mut actor_obj.value).ok());
+                m.handle(&mut actor_obj.value);
+            } else {
+                break;
             }
         }
     });
@@ -201,29 +209,19 @@ where
     }
 }
 
-impl<M> SyncMail<M>
-where
-    M: Mail,
-{
-    fn new(message: M, sender: std::sync::mpsc::Sender<M::Result>) -> Self {
-        Self {
-            mail: Some(message),
-            sender: Some(sender),
-        }
-    }
-}
-
 // Macro to create both a function for the method and the equivalent wrapper for the actor
-macro_rules! actor_function {
+macro_rules! mailbox_function {
     // Match a function definition with return type
     ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) -> $ret_type:ty $body:block) => {
         impl $type_name {
+            #[allow(clippy::too_many_arguments)]
             pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) -> $ret_type{
                 $body
             }
         }
 
         impl crate::implementation::utils::actor::ActorAddress<$type_name> {
+            #[allow(clippy::too_many_arguments)]
             pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> crate::infrastructure::error::DdsResult<$ret_type> {
                 #[allow(non_camel_case_types)]
                 struct $fn_name {
@@ -253,12 +251,14 @@ macro_rules! actor_function {
     // Match a function definition without return type
     ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $body:block ) => {
         impl $type_name {
+            #[allow(clippy::too_many_arguments)]
             pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)* ) {
                 $body
             }
         }
 
         impl crate::implementation::utils::actor::ActorAddress<$type_name> {
+            #[allow(clippy::too_many_arguments)]
             pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> crate::infrastructure::error::DdsResult<()> {
                 #[allow(non_camel_case_types)]
                 struct $fn_name {
@@ -284,21 +284,66 @@ macro_rules! actor_function {
         }
     };
 }
-pub(crate) use actor_function;
+pub(crate) use mailbox_function;
 
 // This macro should wrap an impl block and create the actor address wrapper methods with exactly the same interface
 // It is kept around the "impl" block because otherwise there is no way to find the type name it refers to ($type_name)
-macro_rules! actor_interface {
+macro_rules! actor_mailbox_interface {
     (impl $type_name:ident {
         $(
         pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $(-> $ret_type:ty)?
             $body:block
         )+
     }) => {
-        $(crate::implementation::utils::actor::actor_function!($type_name, pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) $(-> $ret_type)? $body );)+
+        $(crate::implementation::utils::actor::mailbox_function!($type_name, pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) $(-> $ret_type)? $body );)+
     };
 }
-pub(crate) use actor_interface;
+pub(crate) use actor_mailbox_interface;
+
+macro_rules! command_function {
+    // Commands are only valid for functions without return
+    ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $body:block ) => {
+        impl $type_name {
+            pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)* ) {
+                $body
+            }
+        }
+
+        impl crate::implementation::utils::actor::ActorAddress<$type_name> {
+            pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> crate::infrastructure::error::DdsResult<()> {
+                #[allow(non_camel_case_types)]
+                struct $fn_name {
+                    $($arg_name:$arg_type,)*
+                }
+
+                impl crate::implementation::utils::actor::CommandHandler<$fn_name> for $type_name {
+                    #[allow(unused_variables)]
+                    fn handle(&mut self, mail: $fn_name) {
+                        self.$fn_name($(mail.$arg_name,)*)
+                    }
+                }
+
+                self.send_command($fn_name{
+                    $($arg_name, )*
+                })
+
+            }
+        }
+    };
+}
+pub(crate) use command_function;
+
+macro_rules! actor_command_interface {
+    (impl $type_name:ident {
+        $(
+        pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?)
+            $body:block
+        )+
+    }) => {
+        $(crate::implementation::utils::actor::command_function!($type_name, pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) $body );)+
+    };
+}
+pub(crate) use actor_command_interface;
 
 #[cfg(test)]
 mod tests {
@@ -307,7 +352,7 @@ mod tests {
     pub struct MyData {
         data: u8,
     }
-    actor_interface!(
+    actor_mailbox_interface!(
     impl MyData {
         pub fn increment(&mut self, value: u8) -> u8 {
             self.data += value;
