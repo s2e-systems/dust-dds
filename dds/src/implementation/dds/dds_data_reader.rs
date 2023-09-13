@@ -1517,11 +1517,11 @@ impl DdsDataReader {
                     if sequence_number > expected_seq_num {
                         writer_proxy.lost_changes_update(sequence_number);
                         self.on_sample_lost(
-                            &data_reader_address,
-                            &subscriber_address,
-                            &participant_address,
-                            &subscriber_mask_listener,
-                            &participant_mask_listener,
+                            data_reader_address,
+                            subscriber_address,
+                            participant_address,
+                            subscriber_mask_listener,
+                            participant_mask_listener,
                         );
                     }
                     self.add_change(
