@@ -50,7 +50,7 @@ jobs:
     resource_class: large
     steps:
       - checkout
-      - run: cargo bench
+      - run: cargo bench --package dust_dds
       - store_artifacts:
           path: ./target/criterion
   build:
