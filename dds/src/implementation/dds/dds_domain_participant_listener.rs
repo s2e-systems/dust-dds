@@ -3,7 +3,8 @@ use crate::{
     implementation::utils::actor::actor_command_interface,
     infrastructure::status::{
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
-        RequestedIncompatibleQosStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+        RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
+        SubscriptionMatchedStatus,
     },
 };
 
@@ -69,6 +70,14 @@ impl DdsDomainParticipantListener {
         status: PublicationMatchedStatus,
     ) {
         tokio::task::block_in_place(|| self.listener.on_publication_matched(&the_writer, status));
+    }
+
+    pub fn trigger_on_sample_lost(
+        &mut self,
+        the_reader: DataReaderNode,
+        status: SampleLostStatus,
+    ) {
+        tokio::task::block_in_place(|| self.listener.on_sample_lost(&the_reader, status));
     }
 }
 }
