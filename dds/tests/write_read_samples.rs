@@ -2018,7 +2018,7 @@ fn data_reader_publication_handle_sample_info() {
     writer.write(&UserData(1), None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1000, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader

@@ -393,6 +393,7 @@ impl<Foo> DataWriter<Foo> {
                     if dw.address().are_all_changes_acknowledge()? {
                         return Ok(());
                     }
+                    std::thread::sleep(std::time::Duration::from_millis(25));
                 }
 
                 Err(DdsError::Timeout)
