@@ -152,20 +152,20 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
-    let mut wait_set2 = WaitSet::new();
+    let mut wait_set = WaitSet::new();
     reader_cond
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
-    wait_set2
+    wait_set
         .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
-    wait_set2.wait(Duration::new(20, 0)).unwrap();
+    wait_set.wait(Duration::new(20, 0)).unwrap();
 
-    let mut wait_set = WaitSet::new();
-    wait_set
+    let mut wait_set2 = WaitSet::new();
+    wait_set2
         .attach_condition(Condition::StatusCondition(writer_cond))
         .unwrap();
-    wait_set.wait(Duration::new(20, 0)).unwrap();
+    wait_set2.wait(Duration::new(20, 0)).unwrap();
 
     c.bench_function("best_effort_write_and_receive", |b| {
         b.iter(|| {
@@ -179,8 +179,8 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    // best_effort_write_only,
-    // best_effort_read_only,
+    best_effort_write_only,
+    best_effort_read_only,
     best_effort_write_and_receive
 );
 criterion_main!(benches);
