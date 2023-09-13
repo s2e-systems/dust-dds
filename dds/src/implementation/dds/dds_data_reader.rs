@@ -1196,13 +1196,6 @@ impl DdsDataReader {
                 },
             },
         }
-        // listener_sender
-        //     .try_send(ListenerTriggerKind::OnSampleLost(DataReaderNode::new(
-        //         self.guid(),
-        //         parent_subscriber_guid,
-        //         parent_participant_guid,
-        //     )))
-        //     .ok();
     }
 
     fn on_subscription_matched(
