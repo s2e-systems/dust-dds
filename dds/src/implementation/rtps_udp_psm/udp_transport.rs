@@ -6,7 +6,10 @@ use crate::implementation::{
     utils::actor::actor_command_interface,
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
+use std::{
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs},
+    sync::Arc,
+};
 
 pub struct UdpTransportRead {
     socket: tokio::net::UdpSocket,
@@ -18,10 +21,14 @@ impl UdpTransportRead {
     }
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        let mut buf = Box::new([0u8; 65000]);
-        match self.socket.recv_from(buf.as_mut()).await {
+        let mut buf = Arc::new([0u8; 65000]);
+        match self
+            .socket
+            .recv_from(Arc::make_mut(&mut buf).as_mut())
+            .await
+        {
             Ok((bytes, source_address)) => {
-                let message = RtpsMessageRead::new(&buf[0..bytes]);
+                let message = RtpsMessageRead::new(buf);
 
                 if bytes > 0 {
                     let udp_locator: UdpLocator = source_address.into();

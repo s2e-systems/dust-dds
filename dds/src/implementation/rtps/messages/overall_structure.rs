@@ -74,16 +74,12 @@ impl<T: SubmessageHeader> RtpsMap for T {}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsMessageRead {
-    pub data: Arc<[u8; BUFFER_SIZE]>,
+    pub data: Arc<[u8]>,
 }
 
 impl RtpsMessageRead {
-    pub fn new(data: &[u8]) -> Self {
-        let mut buf = [0u8; BUFFER_SIZE];
-        buf[0..data.len()].copy_from_slice(data);
-        Self {
-            data: Arc::new(buf),
-        }
+    pub fn new(data: Arc<[u8]>) -> Self {
+        Self { data }
     }
 
     pub fn header(&self) -> RtpsMessageHeader {
@@ -467,13 +463,13 @@ mod tests {
         };
 
         #[rustfmt::skip]
-        let data = &[
+        let data = Arc::new([
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
-        ];
+        ]);
         let rtps_message = RtpsMessageRead::new(data);
         assert_eq!(header, rtps_message.header());
     }
@@ -516,7 +512,7 @@ mod tests {
         let expected_submessages = vec![data_submessage, heartbeat_submessage];
 
         #[rustfmt::skip]
-        let data = &[
+        let data = Arc::new([
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -541,7 +537,7 @@ mod tests {
             0, 0, 0, 0, // lastSN: SequenceNumberSet: high
             7, 0, 0, 0, // lastSN: SequenceNumberSet: low
             2, 0, 0, 0, // count: Count: value (long)
-        ];
+        ]);
 
         let rtps_message = RtpsMessageRead::new(data);
         assert_eq!(expected_header, rtps_message.header());
@@ -567,7 +563,7 @@ mod tests {
         let expected_submessages = vec![submessage];
 
         #[rustfmt::skip]
-        let data = &[
+        let data = Arc::new([
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -586,7 +582,7 @@ mod tests {
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 0, 0, // inlineQos: Sentinel
-        ];
+        ]);
 
         let rtps_message = RtpsMessageRead::new(data);
         assert_eq!(expected_submessages, rtps_message.submessages());
