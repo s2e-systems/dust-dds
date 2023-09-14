@@ -472,7 +472,7 @@ impl DdsDataReader {
     #[allow(clippy::too_many_arguments)]
     pub fn on_data_submessage_received(
         &mut self,
-        data_submessage: &DataSubmessageRead<'_>,
+        data_submessage: &DataSubmessageRead,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
@@ -512,7 +512,7 @@ impl DdsDataReader {
     #[allow(clippy::too_many_arguments)]
     pub fn on_data_frag_submessage_received(
         &mut self,
-        data_frag_submessage: &DataFragSubmessageRead<'_>,
+        data_frag_submessage: &DataFragSubmessageRead,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,

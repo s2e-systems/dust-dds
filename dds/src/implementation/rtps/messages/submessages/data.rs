@@ -7,7 +7,7 @@ use crate::implementation::{
             overall_structure::{
                 RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
-            submessage_elements::{Data, ParameterList, SubmessageElement},
+            submessage_elements::{Data, ParameterList, SubmessageElement, ArcSlice},
             types::{SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber},
@@ -15,18 +15,18 @@ use crate::implementation::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct DataSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct DataSubmessageRead {
+    data: ArcSlice,
 }
 
-impl SubmessageHeader for DataSubmessageRead<'_> {
+impl SubmessageHeader for DataSubmessageRead {
     fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
+        SubmessageHeaderRead::new(self.data.as_slice())
     }
 }
 
-impl<'a> DataSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
+impl<'a> DataSubmessageRead {
+    pub fn new(data: ArcSlice) -> Self {
         Self { data }
     }
 
@@ -97,7 +97,7 @@ impl<'a> DataSubmessageRead<'a> {
     }
 
     pub fn serialized_payload(&self) -> Data {
-        self.map(&self.data[8 + self.octets_to_inline_qos() + self.inline_qos_len()..])
+        Data::new(self.data.sub_slice(8 + self.octets_to_inline_qos() + self.inline_qos_len() .. ))
     }
 }
 
@@ -334,14 +334,14 @@ mod tests {
         let serialized_payload = Data::new(vec![].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
+        let data_submessage = DataSubmessageRead::new(vec![
             0x15, 0b_0000_0001, 20, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
             0, 0, 0, 0, // writerSN: high
             5, 0, 0, 0, // writerSN: low
-        ]);
+        ].into());
 
         assert_eq!(inline_qos_flag, data_submessage.inline_qos_flag());
         assert_eq!(data_flag, data_submessage.data_flag());
@@ -363,7 +363,7 @@ mod tests {
         let serialized_payload = Data::new(vec![1, 2, 3, 4].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
+        let data_submessage = DataSubmessageRead::new(vec![
             0x15, 0b_0000_0101, 24, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -371,7 +371,7 @@ mod tests {
             0, 0, 0, 0, // writerSN: high
             5, 0, 0, 0, // writerSN: low
             1, 2, 3, 4, // SerializedPayload
-        ]);
+        ].into());
         assert_eq!(inline_qos, data_submessage.inline_qos());
         assert_eq!(serialized_payload, data_submessage.serialized_payload());
     }
@@ -385,7 +385,7 @@ mod tests {
         let serialized_payload = Data::new(vec![].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
+        let data_submessage = DataSubmessageRead::new(vec![
             0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -397,7 +397,7 @@ mod tests {
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 1, 0, // inlineQos: Sentinel
-        ]);
+        ].into());
         assert_eq!(inline_qos, data_submessage.inline_qos());
         assert_eq!(serialized_payload, data_submessage.serialized_payload());
     }
@@ -411,7 +411,7 @@ mod tests {
         let serialized_payload = Data::new(vec![1, 2, 3, 4].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
+        let data_submessage = DataSubmessageRead::new(vec![
             0x15, 0b_0000_0111, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -424,7 +424,7 @@ mod tests {
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 1, 0, // inlineQos: Sentinel
             1, 2, 3, 4, // SerializedPayload
-        ]);
+        ].into());
         assert_eq!(inline_qos, data_submessage.inline_qos());
         assert_eq!(serialized_payload, data_submessage.serialized_payload());
     }

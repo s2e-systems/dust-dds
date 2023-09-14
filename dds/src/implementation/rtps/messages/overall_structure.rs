@@ -23,7 +23,7 @@ use crate::implementation::rtps::{
         types::{
             ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
             INFO_SRC, INFO_TS, NACK_FRAG, PAD,
-        },
+        }, submessage_elements::ArcSlice,
     },
     types::{GuidPrefix, ProtocolVersion, VendorId},
 };
@@ -101,10 +101,11 @@ impl RtpsMessageRead {
     }
 
     pub fn submessages(&self) -> Vec<RtpsSubmessageReadKind> {
-        let mut buf = &self.data[20..];
+        let mut offset = 20;
         const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
         let mut submessages = vec![];
         for _ in 0..MAX_SUBMESSAGES {
+            let buf = &self.data[offset..];
             if buf.len() < 4 {
                 break;
             }
@@ -118,14 +119,15 @@ impl RtpsMessageRead {
                 + 4;
 
             let submessage_data = &buf[..submessage_length];
+            let submessage_arc_slice = ArcSlice::new(self.data.clone(), offset..offset+submessage_length);
 
             let submessage = match submessage_id {
                 ACKNACK => {
                     RtpsSubmessageReadKind::AckNack(AckNackSubmessageRead::new(submessage_data))
                 }
-                DATA => RtpsSubmessageReadKind::Data(DataSubmessageRead::new(submessage_data)),
+                DATA => RtpsSubmessageReadKind::Data(DataSubmessageRead::new(submessage_arc_slice)),
                 DATA_FRAG => {
-                    RtpsSubmessageReadKind::DataFrag(DataFragSubmessageRead::new(submessage_data))
+                    RtpsSubmessageReadKind::DataFrag(DataFragSubmessageRead::new(submessage_arc_slice))
                 }
                 GAP => RtpsSubmessageReadKind::Gap(GapSubmessageRead::new(submessage_data)),
                 HEARTBEAT => {
@@ -151,12 +153,11 @@ impl RtpsMessageRead {
                 }
                 PAD => RtpsSubmessageReadKind::Pad(PadSubmessageRead::new(submessage_data)),
                 _ => {
-                    buf.consume(submessage_length);
+                    offset += submessage_length;
                     continue;
                 }
             };
-
-            buf.consume(submessage_length);
+            offset += submessage_length;
             submessages.push(submessage);
         }
         submessages
@@ -198,8 +199,8 @@ impl RtpsMessageWrite {
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageReadKind<'a> {
     AckNack(AckNackSubmessageRead<'a>),
-    Data(DataSubmessageRead<'a>),
-    DataFrag(DataFragSubmessageRead<'a>),
+    Data(DataSubmessageRead),
+    DataFrag(DataFragSubmessageRead),
     Gap(GapSubmessageRead<'a>),
     Heartbeat(HeartbeatSubmessageRead<'a>),
     HeartbeatFrag(HeartbeatFragSubmessageRead<'a>),
@@ -485,7 +486,7 @@ mod tests {
 
         #[rustfmt::skip]
         let data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::new(
-            &[0x15, 0b_0000_0011, 40, 0, // Submessage header
+            vec![0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -496,7 +497,7 @@ mod tests {
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 1, 0, // inlineQos: Sentinel
-        ]));
+        ].into()));
         #[rustfmt::skip]
         let heartbeat_submessage = RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::new(&[
             0x07, 0b_0000_0101, 28, 0, // Submessage header
@@ -547,7 +548,7 @@ mod tests {
     #[test]
     fn deserialize_rtps_message_unknown_submessage() {
         #[rustfmt::skip]
-        let submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::new(&[
+        let submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::new(vec![
             0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -559,7 +560,7 @@ mod tests {
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 0, 0, // inlineQos: Sentinel
-        ]));
+        ].into()));
         let expected_submessages = vec![submessage];
 
         #[rustfmt::skip]

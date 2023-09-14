@@ -7,7 +7,7 @@ use crate::implementation::{
             overall_structure::{
                 RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
-            submessage_elements::{Data, ParameterList, SubmessageElement},
+            submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{FragmentNumber, ParameterId, SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber},
@@ -15,18 +15,18 @@ use crate::implementation::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct DataFragSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct DataFragSubmessageRead {
+    data: ArcSlice,
 }
 
-impl SubmessageHeader for DataFragSubmessageRead<'_> {
+impl SubmessageHeader for DataFragSubmessageRead {
     fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
+        SubmessageHeaderRead::new(self.data.as_slice())
     }
 }
 
-impl<'a> DataFragSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
+impl DataFragSubmessageRead {
+    pub fn new(data: ArcSlice) -> Self {
         Self { data }
     }
 
@@ -108,7 +108,10 @@ impl<'a> DataFragSubmessageRead<'a> {
     }
 
     pub fn serialized_payload(&self) -> Data {
-        self.map(&self.data[8 + self.octets_to_inline_qos() as usize + self.inline_qos_len()..])
+        Data::new(
+            self.data
+                .sub_slice(8 + self.octets_to_inline_qos() as usize + self.inline_qos_len()..),
+        )
     }
 }
 
@@ -283,7 +286,7 @@ mod tests {
     #[test]
     fn deserialize_no_inline_qos_no_serialized_payload() {
         #[rustfmt::skip]
-        let submessage = DataFragSubmessageRead::new(&[
+        let submessage = DataFragSubmessageRead::new(vec![
             0x16_u8, 0b_0000_0001, 32, 0, // Submessage header
             0, 0, 28, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -293,7 +296,7 @@ mod tests {
             2, 0, 0, 0, // fragmentStartingNum
             3, 0, 5, 0, // fragmentsInSubmessage | fragmentSize
             4, 0, 0, 0, // sampleSize
-        ]);
+        ].into());
 
         let expected_inline_qos_flag = false;
         let expected_non_standard_payload_flag = false;
@@ -334,7 +337,7 @@ mod tests {
     #[test]
     fn deserialize_with_inline_qos_with_serialized_payload() {
         #[rustfmt::skip]
-        let submessage = DataFragSubmessageRead::new(&[
+        let submessage = DataFragSubmessageRead::new(vec![
             0x16_u8, 0b_0000_0011, 48, 0, // Submessage header
             0, 0, 28, 0, // extraFlags | octetsToInlineQos
             1, 2, 3, 4, // readerId
@@ -348,7 +351,7 @@ mod tests {
             71, 72, 73, 74, // inlineQos: value[length]
             1, 0, 0, 0, // inlineQos: Sentinel
             1, 2, 3, 0, // serializedPayload
-        ]);
+        ].into());
 
         let expected_inline_qos_flag = true;
         let expected_non_standard_payload_flag = false;

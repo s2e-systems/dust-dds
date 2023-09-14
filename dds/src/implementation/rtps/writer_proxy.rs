@@ -29,8 +29,8 @@ pub struct OwningDataFragSubmessage {
     serialized_payload: Data,
 }
 
-impl From<&DataFragSubmessageRead<'_>> for OwningDataFragSubmessage {
-    fn from(x: &DataFragSubmessageRead<'_>) -> Self {
+impl From<&DataFragSubmessageRead> for OwningDataFragSubmessage {
+    fn from(x: &DataFragSubmessageRead) -> Self {
         Self {
             fragment_starting_num: x.fragment_starting_num(),
             data_size: x.data_size(),
