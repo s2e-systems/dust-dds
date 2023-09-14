@@ -11,7 +11,7 @@ use crate::implementation::{
 };
 use std::{
     io::BufRead,
-    ops::{Index, Range, RangeFrom, RangeTo, RangeBounds},
+    ops::{Index, Range, RangeFrom, RangeTo},
     sync::Arc,
 };
 ///
@@ -297,7 +297,6 @@ pub struct ArcSlice {
     range: Range<usize>,
 }
 
-
 impl ArcSlice {
     pub fn new(data: Arc<[u8]>, range: Range<usize>) -> Self {
         Self { data, range }
@@ -312,7 +311,10 @@ impl ArcSlice {
     }
 
     pub fn sub_slice(&self, range: RangeFrom<usize>) -> ArcSlice {
-        ArcSlice { data: self.data.clone(), range: range.start + self.range.start .. self.range.end }
+        ArcSlice {
+            data: self.data.clone(),
+            range: range.start + self.range.start..self.range.end,
+        }
     }
 }
 
@@ -353,7 +355,6 @@ impl Index<usize> for ArcSlice {
     }
 }
 
-
 impl From<Arc<[u8]>> for ArcSlice {
     fn from(data: Arc<[u8]>) -> Self {
         let range = 0..data.len();
@@ -370,7 +371,6 @@ impl From<Vec<u8>> for ArcSlice {
         }
     }
 }
-
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Data(ArcSlice);

@@ -99,7 +99,7 @@ The subscriber side can be implemented as:
             .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
 
         if let Ok(hello_world_samples) = samples {
-            println!("Received: {:?}", hello_world_samples[0].data.as_ref().unwrap());
+            println!("Received: {:?}", hello_world_samples[0].data().unwrap());
         }
     }
 ```

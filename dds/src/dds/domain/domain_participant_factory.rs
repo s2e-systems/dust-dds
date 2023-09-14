@@ -658,7 +658,7 @@ fn process_spdp_metatraffic(
         {
             for spdp_data_sample in spdp_data_sample_list {
                 let discovered_participant_data =
-                    spdp_data_sample.data.expect("Should contain data");
+                    spdp_data_sample.data().expect("Should contain data");
 
                 // Check that the domainId of the discovered participant equals the local one.
                 // If it is not equal then there the local endpoints are not configured to
@@ -674,7 +674,7 @@ fn process_spdp_metatraffic(
                     discovered_participant_data.participant_proxy().domain_tag()
                         == participant_address.get_domain_tag()?;
                 let is_participant_ignored = participant_address.is_participant_ignored(
-                    dds_serialize_key(&discovered_participant_data)?.into(),
+                    dds_serialize_key(discovered_participant_data)?.into(),
                 )?;
 
                 if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
@@ -774,8 +774,8 @@ fn process_spdp_metatraffic(
                     }
 
                     participant_address.discovered_participant_add(
-                        dds_serialize_key(&discovered_participant_data)?.into(),
-                        discovered_participant_data,
+                        dds_serialize_key(discovered_participant_data)?.into(),
+                        discovered_participant_data.clone(),
                     )?;
                 }
             }
@@ -896,9 +896,9 @@ fn discover_matched_writers(
         participant_address.get_listener()?,
         participant_address.status_kind()?,
     );
-    match discovered_writer_sample.sample_info.instance_state {
+    match discovered_writer_sample.sample_info().instance_state {
         InstanceStateKind::Alive => {
-            if let Some(discovered_writer_data) = &discovered_writer_sample.data {
+            if let Some(discovered_writer_data) = discovered_writer_sample.data() {
                 if !participant_address.is_publication_ignored(
                     discovered_writer_data
                         .writer_proxy()
@@ -1011,7 +1011,7 @@ fn discover_matched_writers(
                         (subscriber.get_listener()?, subscriber.status_kind()?);
 
                     data_reader.remove_matched_writer(
-                        discovered_writer_sample.sample_info.instance_handle,
+                        discovered_writer_sample.sample_info().instance_handle,
                         data_reader.clone(),
                         subscriber.clone(),
                         participant_address.clone(),
@@ -1031,9 +1031,9 @@ pub fn discover_matched_readers(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     discovered_reader_sample: &Sample<DiscoveredReaderData>,
 ) -> DdsResult<()> {
-    match discovered_reader_sample.sample_info.instance_state {
+    match discovered_reader_sample.sample_info().instance_state {
         InstanceStateKind::Alive => {
-            if let Some(discovered_reader_data) = &discovered_reader_sample.data {
+            if let Some(discovered_reader_data) = discovered_reader_sample.data() {
                 if !participant_address.is_subscription_ignored(
                     discovered_reader_data
                         .reader_proxy()
@@ -1201,7 +1201,7 @@ pub fn discover_matched_readers(
                             _ => None,
                         };
                     data_writer.remove_matched_reader(
-                        discovered_reader_sample.sample_info.instance_handle,
+                        discovered_reader_sample.sample_info().instance_handle,
                         data_writer.clone(),
                         publisher.clone(),
                         participant_address.clone(),
@@ -1222,9 +1222,9 @@ fn discover_matched_topics(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     discovered_topic_sample: &Sample<DiscoveredTopicData>,
 ) -> DdsResult<()> {
-    match discovered_topic_sample.sample_info.instance_state {
+    match discovered_topic_sample.sample_info().instance_state {
         InstanceStateKind::Alive => {
-            if let Some(topic_data) = discovered_topic_sample.data.as_ref() {
+            if let Some(topic_data) = discovered_topic_sample.data() {
                 for topic in participant_address.get_user_defined_topic_list()? {
                     topic.process_discovered_topic(topic_data.clone())?;
                 }

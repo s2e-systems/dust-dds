@@ -1820,7 +1820,7 @@ impl DdsDataReader {
                 valid_data,
             };
 
-            let sample = Sample { data, sample_info };
+            let sample = Sample::new(data, sample_info);
 
             indexed_samples.push((index, sample))
         }
@@ -1829,25 +1829,26 @@ impl DdsDataReader {
         for handle in instances_in_collection.into_keys() {
             let most_recent_sample_absolute_generation_rank = indexed_samples
                 .iter()
-                .filter(|(_, s)| s.sample_info.instance_handle == handle)
-                .map(|(_, s)| s.sample_info.absolute_generation_rank)
+                .filter(|(_, s)| s.sample_info().instance_handle == handle)
+                .map(|(_, s)| s.sample_info().absolute_generation_rank)
                 .last()
                 .expect("Instance handle must exist on collection");
 
             let mut total_instance_samples_in_collection = indexed_samples
                 .iter()
-                .filter(|(_, s)| s.sample_info.instance_handle == handle)
+                .filter(|(_, s)| s.sample_info().instance_handle == handle)
                 .count();
 
             for (_, sample) in indexed_samples
                 .iter_mut()
-                .filter(|(_, s)| s.sample_info.instance_handle == handle)
+                .filter(|(_, s)| s.sample_info().instance_handle == handle)
             {
-                sample.sample_info.generation_rank = sample.sample_info.absolute_generation_rank
-                    - most_recent_sample_absolute_generation_rank;
+                sample.sample_info().generation_rank =
+                    sample.sample_info().absolute_generation_rank
+                        - most_recent_sample_absolute_generation_rank;
 
                 total_instance_samples_in_collection -= 1;
-                sample.sample_info.sample_rank = total_instance_samples_in_collection as i32;
+                sample.sample_info().sample_rank = total_instance_samples_in_collection as i32;
             }
 
             self.instances

@@ -49,9 +49,25 @@ use super::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sample<Foo> {
     /// Data received by the [`DataReader`]. A sample might contain no valid data in which case this field is [`None`].
-    pub data: Option<Foo>,
+    data: Option<Foo>,
     /// Information of the sample received by the [`DataReader`].
-    pub sample_info: SampleInfo,
+    sample_info: SampleInfo,
+}
+
+impl<Foo> Sample<Foo> {
+    pub(crate) fn new(data: Option<Foo>, sample_info: SampleInfo) -> Self {
+        Self { data, sample_info }
+    }
+}
+
+impl<Foo> Sample<Foo> {
+    pub fn data(&self) -> Option<&Foo> {
+        self.data.as_ref()
+    }
+
+    pub fn sample_info(&self) -> SampleInfo {
+        self.sample_info.clone()
+    }
 }
 
 /// A [`DataReader`] allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the

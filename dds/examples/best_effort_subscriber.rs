@@ -35,7 +35,7 @@ impl DataReaderListener for Listener {
         if let Ok(samples) =
             the_reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         {
-            let sample = samples[0].data.as_ref().unwrap();
+            let sample = samples[0].data().unwrap();
             println!("Read sample: {:?}", sample);
         }
     }
