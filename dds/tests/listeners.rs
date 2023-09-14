@@ -2062,9 +2062,7 @@ fn data_writer_publication_matched_listener() {
     mock! {
         PublicationMatchedListener{}
 
-        impl DataWriterListener for PublicationMatchedListener {
-            type Foo = MyData;
-
+        impl DataWriterListener<MyData> for PublicationMatchedListener {
             fn on_publication_matched(
                 &mut self,
                 _the_reader: &DataWriter<MyData>,
@@ -2164,9 +2162,7 @@ fn data_writer_offered_incompatible_qos_listener() {
     mock! {
         OfferedIncompatibleQosListener{}
 
-        impl DataWriterListener for OfferedIncompatibleQosListener {
-            type Foo = MyData;
-
+        impl DataWriterListener<MyData> for OfferedIncompatibleQosListener {
             fn on_offered_incompatible_qos(
                 &mut self,
                 _the_reader: &DataWriter<MyData>,
