@@ -12,6 +12,7 @@ use super::{
 };
 use crate::implementation::rtps::{
     messages::{
+        submessage_elements::ArcSlice,
         submessages::{
             ack_nack::AckNackSubmessageRead, data::DataSubmessageRead,
             data_frag::DataFragSubmessageRead, gap::GapSubmessageRead,
@@ -23,11 +24,11 @@ use crate::implementation::rtps::{
         types::{
             ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
             INFO_SRC, INFO_TS, NACK_FRAG, PAD,
-        }, submessage_elements::ArcSlice,
+        },
     },
     types::{GuidPrefix, ProtocolVersion, VendorId},
 };
-use std::{io::BufRead, marker::PhantomData, sync::Arc};
+use std::{marker::PhantomData, sync::Arc};
 
 pub(in crate::implementation::rtps) type WriteEndianness = byteorder::LittleEndian;
 const BUFFER_SIZE: usize = 65000;
@@ -119,16 +120,17 @@ impl RtpsMessageRead {
                 + 4;
 
             let submessage_data = &buf[..submessage_length];
-            let submessage_arc_slice = ArcSlice::new(self.data.clone(), offset..offset+submessage_length);
+            let submessage_arc_slice =
+                ArcSlice::new(self.data.clone(), offset..offset + submessage_length);
 
             let submessage = match submessage_id {
                 ACKNACK => {
                     RtpsSubmessageReadKind::AckNack(AckNackSubmessageRead::new(submessage_data))
                 }
                 DATA => RtpsSubmessageReadKind::Data(DataSubmessageRead::new(submessage_arc_slice)),
-                DATA_FRAG => {
-                    RtpsSubmessageReadKind::DataFrag(DataFragSubmessageRead::new(submessage_arc_slice))
-                }
+                DATA_FRAG => RtpsSubmessageReadKind::DataFrag(DataFragSubmessageRead::new(
+                    submessage_arc_slice,
+                )),
                 GAP => RtpsSubmessageReadKind::Gap(GapSubmessageRead::new(submessage_data)),
                 HEARTBEAT => {
                     RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::new(submessage_data))
