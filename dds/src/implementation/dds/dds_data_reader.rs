@@ -38,7 +38,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{Actor, ActorAddress},
+            actor::{actor_command_interface, actor_mailbox_interface, Actor, ActorAddress},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -59,10 +59,7 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    subscription::{
-        data_reader::Sample,
-        sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    },
+    subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::{
         dds_deserialize_from_bytes, dds_serialize_key, DdsGetKey, DdsHasKey, DdsRepresentation,
         DdsSerializedKey,
@@ -81,11 +78,11 @@ struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
 impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
-        Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
+        Foo: for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey,
     {
         fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> DdsResult<DdsSerializedKey>
         where
-            Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
+            Foo: for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey,
         {
             dds_serialize_key(
                 &dds_deserialize_from_bytes::<Foo>(data)
@@ -293,14 +290,6 @@ impl DdsDataReader {
         }
     }
 
-    pub fn get_type_name(&self) -> String {
-        self.type_name.clone()
-    }
-
-    pub fn get_topic_name(&self) -> String {
-        self.topic_name.clone()
-    }
-
     pub fn get_liveliness_changed_status(&mut self) -> LivelinessChangedStatus {
         self.liveliness_changed_status.read_and_reset()
     }
@@ -319,114 +308,6 @@ impl DdsDataReader {
 
     pub fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
         self.sample_rejected_status.read_and_reset()
-    }
-
-    pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SubscriptionMatched);
-        self.subscription_matched_status
-            .read_and_reset(self.matched_publication_list.len() as i32)
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
-    }
-
-    pub fn enable(&mut self) {
-        self.enabled = true;
-    }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
-    }
-
-    pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
-        self.matched_publication_list
-            .iter()
-            .map(|(&key, _)| key)
-            .collect()
-    }
-
-    pub fn get_matched_publication_data(
-        &self,
-        publication_handle: InstanceHandle,
-    ) -> DdsResult<PublicationBuiltinTopicData> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.matched_publication_list
-            .get(&publication_handle)
-            .cloned()
-            .ok_or(DdsError::BadParameter)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn process_rtps_message(
-        &mut self,
-        message: RtpsMessageRead,
-        reception_timestamp: Time,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
-        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
-        participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
-            Vec<StatusKind>,
-        ),
-    ) {
-        let mut message_receiver = MessageReceiver::new(&message);
-        while let Some(submessage) = message_receiver.next() {
-            match submessage {
-                RtpsSubmessageReadKind::Data(data_submessage) => {
-                    self.on_data_submessage_received(
-                        &data_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber_address,
-                        &participant_address,
-                        &subscriber_status_condition,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    );
-                }
-                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                    self.on_data_frag_submessage_received(
-                        &data_frag_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber_address,
-                        &participant_address,
-                        &subscriber_status_condition,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    );
-                }
-                RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    self.on_gap_submessage_received(
-                        &gap_submessage,
-                        message_receiver.source_guid_prefix(),
-                    );
-                }
-                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
-                    .on_heartbeat_submessage_received(
-                        &heartbeat_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
-                    .on_heartbeat_frag_submessage_received(
-                        &heartbeat_frag_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                _ => (),
-            }
-        }
     }
 
     pub fn on_data_available(
@@ -619,108 +500,6 @@ impl DdsDataReader {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn add_matched_writer(
-        &mut self,
-        discovered_writer_data: DiscoveredWriterData,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_qos: SubscriberQos,
-        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
-        participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
-            Vec<StatusKind>,
-        ),
-    ) {
-        let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
-        if publication_builtin_topic_data.topic_name() == self.topic_name
-            && publication_builtin_topic_data.get_type_name() == self.type_name
-        {
-            let instance_handle = dds_serialize_key(&discovered_writer_data).unwrap().into();
-            let incompatible_qos_policy_list = self
-                .get_discovered_writer_incompatible_qos_policy_list(
-                    &discovered_writer_data,
-                    &subscriber_qos,
-                );
-            if incompatible_qos_policy_list.is_empty() {
-                let unicast_locator_list = if discovered_writer_data
-                    .writer_proxy()
-                    .unicast_locator_list()
-                    .is_empty()
-                {
-                    default_unicast_locator_list
-                } else {
-                    discovered_writer_data
-                        .writer_proxy()
-                        .unicast_locator_list()
-                        .to_vec()
-                };
-
-                let multicast_locator_list = if discovered_writer_data
-                    .writer_proxy()
-                    .multicast_locator_list()
-                    .is_empty()
-                {
-                    default_multicast_locator_list
-                } else {
-                    discovered_writer_data
-                        .writer_proxy()
-                        .multicast_locator_list()
-                        .to_vec()
-                };
-
-                let writer_proxy = RtpsWriterProxy::new(
-                    discovered_writer_data.writer_proxy().remote_writer_guid(),
-                    &unicast_locator_list,
-                    &multicast_locator_list,
-                    discovered_writer_data
-                        .writer_proxy()
-                        .data_max_size_serialized(),
-                    discovered_writer_data
-                        .writer_proxy()
-                        .remote_group_entity_id(),
-                );
-
-                self.matched_writer_add(writer_proxy);
-                let insert_matched_publication_result = self
-                    .matched_publication_list
-                    .insert(instance_handle, publication_builtin_topic_data.clone());
-                match insert_matched_publication_result {
-                    Some(value) if &value != publication_builtin_topic_data => self
-                        .on_subscription_matched(
-                            instance_handle,
-                            data_reader_address,
-                            subscriber_address,
-                            participant_address,
-                            &subscriber_mask_listener,
-                            &participant_mask_listener,
-                        ),
-                    None => self.on_subscription_matched(
-                        instance_handle,
-                        data_reader_address,
-                        subscriber_address,
-                        participant_address,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    ),
-                    _ => (),
-                }
-            } else if self.incompatible_writer_list.insert(instance_handle) {
-                self.on_requested_incompatible_qos(
-                    incompatible_qos_policy_list,
-                    &data_reader_address,
-                    &subscriber_address,
-                    &participant_address,
-                    &subscriber_mask_listener,
-                    &participant_mask_listener,
-                );
-            }
-        }
-    }
-
     fn get_discovered_writer_incompatible_qos_policy_list(
         &self,
         discovered_writer_data: &DiscoveredWriterData,
@@ -760,167 +539,6 @@ impl DdsDataReader {
         incompatible_qos_policy_list
     }
 
-    pub fn remove_matched_writer(
-        &mut self,
-        discovered_writer_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
-        participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
-            Vec<StatusKind>,
-        ),
-    ) {
-        let matched_publication = self
-            .matched_publication_list
-            .remove(&discovered_writer_handle);
-        if let Some(w) = matched_publication {
-            self.matched_writer_remove(w.key().value.into());
-
-            self.on_subscription_matched(
-                discovered_writer_handle,
-                data_reader_address,
-                subscriber_address,
-                participant_address,
-                &subscriber_mask_listener,
-                &participant_mask_listener,
-            )
-        }
-    }
-
-    pub fn read<Foo>(
-        &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
-    {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::DataAvailable);
-
-        let indexed_sample_list = self.create_indexed_sample_collection::<Foo>(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )?;
-
-        let change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
-
-        for index in change_index_list {
-            self.changes[index].sample_state = SampleStateKind::Read;
-        }
-
-        Ok(samples)
-    }
-
-    pub fn take<Foo>(
-        &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
-    {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let indexed_sample_list = self.create_indexed_sample_collection::<Foo>(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )?;
-
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::DataAvailable);
-
-        let mut change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
-
-        while let Some(index) = change_index_list.pop() {
-            self.changes.remove(index);
-        }
-
-        Ok(samples)
-    }
-
-    pub fn read_next_instance<Foo>(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
-    {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
-    }
-
-    pub fn take_next_instance<Foo>(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: DdsRepresentation + for<'de> serde::Deserialize<'de>,
-    {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.take(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
-    }
-
     pub fn get_key_value<Foo>(
         &self,
         _key_holder: &mut Foo,
@@ -935,187 +553,6 @@ impl DdsDataReader {
 
     pub fn lookup_instance<Foo>(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         todo!()
-    }
-
-    pub fn is_historical_data_received(&self) -> DdsResult<bool> {
-        if !self.enabled {
-            Err(DdsError::NotEnabled)
-        } else {
-            Ok(())
-        }?;
-
-        match self.qos.durability.kind {
-            DurabilityQosPolicyKind::Volatile => Err(DdsError::IllegalOperation),
-            DurabilityQosPolicyKind::TransientLocal => Ok(()),
-        }?;
-
-        Ok(!self
-            .matched_writers
-            .iter()
-            .any(|p| !p.is_historical_data_received()))
-    }
-
-    pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
-        if self.is_enabled() {
-            self.qos.check_immutability(&qos)?;
-        }
-
-        qos.is_consistent()?;
-        self.qos = qos;
-
-        Ok(())
-    }
-
-    pub fn get_qos(&self) -> DataReaderQos {
-        self.qos.clone()
-    }
-
-    pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_reader.guid().into()
-    }
-
-    pub fn as_discovered_reader_data(
-        &self,
-        topic_qos: TopicQos,
-        subscriber_qos: SubscriberQos,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-    ) -> DiscoveredReaderData {
-        let guid = self.rtps_reader.guid();
-
-        let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
-            default_unicast_locator_list
-        } else {
-            self.rtps_reader.unicast_locator_list().to_vec()
-        };
-
-        let multicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
-            default_multicast_locator_list
-        } else {
-            self.rtps_reader.multicast_locator_list().to_vec()
-        };
-
-        DiscoveredReaderData::new(
-            ReaderProxy::new(
-                guid,
-                guid.entity_id(),
-                unicast_locator_list,
-                multicast_locator_list,
-                false,
-            ),
-            SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey { value: guid.into() },
-                BuiltInTopicKey {
-                    value: GUID_UNKNOWN.into(),
-                },
-                self.topic_name.clone(),
-                self.type_name.to_string(),
-                self.qos.durability.clone(),
-                self.qos.deadline.clone(),
-                self.qos.latency_budget.clone(),
-                self.qos.liveliness.clone(),
-                self.qos.reliability.clone(),
-                self.qos.ownership.clone(),
-                self.qos.destination_order.clone(),
-                self.qos.user_data.clone(),
-                self.qos.time_based_filter.clone(),
-                subscriber_qos.presentation.clone(),
-                subscriber_qos.partition.clone(),
-                topic_qos.topic_data,
-                subscriber_qos.group_data,
-            ),
-        )
-    }
-
-    pub fn send_message(
-        &mut self,
-        header: RtpsMessageHeader,
-        udp_transport_write: ActorAddress<UdpTransportWrite>,
-    ) {
-        for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
-        }
-    }
-
-    pub fn update_communication_status(
-        &mut self,
-        now: Time,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        (subscriber_listener_address, subscriber_listener_mask): (
-            Option<ActorAddress<DdsSubscriberListener>>,
-            Vec<StatusKind>,
-        ),
-        (participant_listener_address, participant_listener_mask): (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
-            Vec<StatusKind>,
-        ),
-    ) {
-        let (missed_deadline_instances, instance_reception_time) = self
-            .instance_reception_time
-            .iter()
-            .partition(|&(_, received_time)| {
-                DurationKind::Finite(now - *received_time) > self.qos.deadline.period
-            });
-
-        self.instance_reception_time = instance_reception_time;
-
-        for (missed_deadline_instance, _) in missed_deadline_instances {
-            self.requested_deadline_missed_status
-                .increment(missed_deadline_instance);
-
-            self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::RequestedDeadlineMissed);
-            match self.listener.as_ref().map(|a| a.address()).cloned() {
-                Some(l)
-                    if self
-                        .status_kind
-                        .contains(&StatusKind::RequestedDeadlineMissed) =>
-                {
-                    let status = self.get_requested_deadline_missed_status();
-                    let reader = DataReaderNode::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                    );
-                    l.trigger_on_requested_deadline_missed(reader, status)
-                        .expect("Should not fail to send message");
-                }
-                _ => match &subscriber_listener_address {
-                    Some(l)
-                        if subscriber_listener_mask
-                            .contains(&StatusKind::RequestedDeadlineMissed) =>
-                    {
-                        let status = self.get_requested_deadline_missed_status();
-                        let reader = DataReaderNode::new(
-                            data_reader_address.clone(),
-                            subscriber_address.clone(),
-                            participant_address.clone(),
-                        );
-                        l.trigger_on_requested_deadline_missed(reader, status)
-                            .expect("Should not fail to send message");
-                    }
-                    _ => match &participant_listener_address {
-                        Some(l)
-                            if participant_listener_mask
-                                .contains(&StatusKind::RequestedDeadlineMissed) =>
-                        {
-                            let status = self.get_requested_deadline_missed_status();
-                            let reader = DataReaderNode::new(
-                                data_reader_address.clone(),
-                                subscriber_address.clone(),
-                                participant_address.clone(),
-                            );
-                            l.trigger_on_requested_deadline_missed(reader, status)
-                                .expect("Should not fail to send message");
-                        }
-                        _ => (),
-                    },
-                },
-            }
-        }
     }
 
     pub fn on_gap_submessage_received(
@@ -1387,21 +824,6 @@ impl DdsDataReader {
                 },
             },
         }
-    }
-
-    pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
-        if !self
-            .matched_writers
-            .iter()
-            .any(|x| x.remote_writer_guid() == a_writer_proxy.remote_writer_guid())
-        {
-            self.matched_writers.push(a_writer_proxy);
-        }
-    }
-
-    pub fn matched_writer_remove(&mut self, a_writer_guid: Guid) {
-        self.matched_writers
-            .retain(|x| x.remote_writer_guid() != a_writer_guid)
     }
 
     pub fn guid(&self) -> Guid {
@@ -1723,17 +1145,14 @@ impl DdsDataReader {
         total_samples_of_instance == self.qos.resource_limits.max_samples_per_instance
     }
 
-    fn create_indexed_sample_collection<Foo>(
+    fn create_indexed_sample_collection(
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
         specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(usize, Sample<Foo>)>>
-    where
-        Foo: for<'de> serde::Deserialize<'de> + DdsRepresentation,
-    {
+    ) -> DdsResult<Vec<(usize, (Option<Data>, SampleInfo))>> {
         if let Some(h) = specific_instance_handle {
             if !self.instances.contains_key(&h) {
                 return Err(DdsError::BadParameter);
@@ -1794,12 +1213,9 @@ impl DdsDataReader {
                         .most_recent_no_writers_generation_count);
 
             let (data, valid_data) = match cache_change.kind {
-                ChangeKind::Alive | ChangeKind::AliveFiltered => (
-                    Some(dds_deserialize_from_bytes::<Foo>(
-                        cache_change.data.as_ref(),
-                    )?),
-                    true,
-                ),
+                ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                    (Some(cache_change.data.clone()), true)
+                }
                 ChangeKind::NotAliveDisposed
                 | ChangeKind::NotAliveUnregistered
                 | ChangeKind::NotAliveDisposedUnregistered => (None, false),
@@ -1820,7 +1236,7 @@ impl DdsDataReader {
                 valid_data,
             };
 
-            let sample = Sample::new(data, sample_info);
+            let sample = (data, sample_info);
 
             indexed_samples.push((index, sample))
         }
@@ -1829,26 +1245,25 @@ impl DdsDataReader {
         for handle in instances_in_collection.into_keys() {
             let most_recent_sample_absolute_generation_rank = indexed_samples
                 .iter()
-                .filter(|(_, s)| s.sample_info().instance_handle == handle)
-                .map(|(_, s)| s.sample_info().absolute_generation_rank)
+                .filter(|(_, (_, sample_info))| sample_info.instance_handle == handle)
+                .map(|(_, (_, sample_info))| sample_info.absolute_generation_rank)
                 .last()
                 .expect("Instance handle must exist on collection");
 
             let mut total_instance_samples_in_collection = indexed_samples
                 .iter()
-                .filter(|(_, s)| s.sample_info().instance_handle == handle)
+                .filter(|(_, (_, sample_info))| sample_info.instance_handle == handle)
                 .count();
 
-            for (_, sample) in indexed_samples
+            for (_, (_, sample_info)) in indexed_samples
                 .iter_mut()
-                .filter(|(_, s)| s.sample_info().instance_handle == handle)
+                .filter(|(_, (_, sample_info))| sample_info.instance_handle == handle)
             {
-                sample.sample_info().generation_rank =
-                    sample.sample_info().absolute_generation_rank
-                        - most_recent_sample_absolute_generation_rank;
+                sample_info.generation_rank = sample_info.absolute_generation_rank
+                    - most_recent_sample_absolute_generation_rank;
 
                 total_instance_samples_in_collection -= 1;
-                sample.sample_info().sample_rank = total_instance_samples_in_collection as i32;
+                sample_info.sample_rank = total_instance_samples_in_collection as i32;
             }
 
             self.instances
@@ -1870,4 +1285,575 @@ impl DdsDataReader {
             None => self.instances.keys().min().cloned(),
         }
     }
+}
+
+actor_mailbox_interface! {
+impl DdsDataReader {
+    pub fn read(
+        &mut self,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::DataAvailable);
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )?;
+
+        let change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
+
+        for index in change_index_list {
+            self.changes[index].sample_state = SampleStateKind::Read;
+        }
+
+        Ok(samples)
+    }
+
+    pub fn take(
+        &mut self,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )?;
+
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::DataAvailable);
+
+        let mut change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
+
+        while let Some(index) = change_index_list.pop() {
+            self.changes.remove(index);
+        }
+
+        Ok(samples)
+    }
+
+    pub fn read_next_instance(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
+    }
+
+    pub fn take_next_instance(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.take(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
+    }
+
+    pub fn is_historical_data_received(&self) -> DdsResult<bool> {
+        if !self.enabled {
+            Err(DdsError::NotEnabled)
+        } else {
+            Ok(())
+        }?;
+
+        match self.qos.durability.kind {
+            DurabilityQosPolicyKind::Volatile => Err(DdsError::IllegalOperation),
+            DurabilityQosPolicyKind::TransientLocal => Ok(()),
+        }?;
+
+        Ok(!self
+            .matched_writers
+            .iter()
+            .any(|p| !p.is_historical_data_received()))
+    }
+
+    pub fn as_discovered_reader_data(
+        &self,
+        topic_qos: TopicQos,
+        subscriber_qos: SubscriberQos,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+    ) -> DiscoveredReaderData {
+        let guid = self.rtps_reader.guid();
+
+        let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
+            default_unicast_locator_list
+        } else {
+            self.rtps_reader.unicast_locator_list().to_vec()
+        };
+
+        let multicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
+            default_multicast_locator_list
+        } else {
+            self.rtps_reader.multicast_locator_list().to_vec()
+        };
+
+        DiscoveredReaderData::new(
+            ReaderProxy::new(
+                guid,
+                guid.entity_id(),
+                unicast_locator_list,
+                multicast_locator_list,
+                false,
+            ),
+            SubscriptionBuiltinTopicData::new(
+                BuiltInTopicKey { value: guid.into() },
+                BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
+                self.topic_name.clone(),
+                self.type_name.to_string(),
+                self.qos.durability.clone(),
+                self.qos.deadline.clone(),
+                self.qos.latency_budget.clone(),
+                self.qos.liveliness.clone(),
+                self.qos.reliability.clone(),
+                self.qos.ownership.clone(),
+                self.qos.destination_order.clone(),
+                self.qos.user_data.clone(),
+                self.qos.time_based_filter.clone(),
+                subscriber_qos.presentation.clone(),
+                subscriber_qos.partition.clone(),
+                topic_qos.topic_data,
+                subscriber_qos.group_data,
+            ),
+        )
+    }
+
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_reader.guid().into()
+    }
+
+    pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
+        if self.is_enabled() {
+            self.qos.check_immutability(&qos)?;
+        }
+
+        qos.is_consistent()?;
+        self.qos = qos;
+
+        Ok(())
+    }
+
+    pub fn get_qos(&self) -> DataReaderQos {
+        self.qos.clone()
+    }
+
+    pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
+        if !self
+            .matched_writers
+            .iter()
+            .any(|x| x.remote_writer_guid() == a_writer_proxy.remote_writer_guid())
+        {
+            self.matched_writers.push(a_writer_proxy);
+        }
+    }
+
+    pub fn matched_writer_remove(&mut self, a_writer_guid: Guid) {
+        self.matched_writers
+            .retain(|x| x.remote_writer_guid() != a_writer_guid)
+    }
+
+    pub fn add_matched_writer(
+        &mut self,
+        discovered_writer_data: DiscoveredWriterData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        data_reader_address: ActorAddress<DdsDataReader>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_qos: SubscriberQos,
+        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) {
+        let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
+        if publication_builtin_topic_data.topic_name() == self.topic_name
+            && publication_builtin_topic_data.get_type_name() == self.type_name
+        {
+            let instance_handle = dds_serialize_key(&discovered_writer_data).unwrap().into();
+            let incompatible_qos_policy_list = self
+                .get_discovered_writer_incompatible_qos_policy_list(
+                    &discovered_writer_data,
+                    &subscriber_qos,
+                );
+            if incompatible_qos_policy_list.is_empty() {
+                let unicast_locator_list = if discovered_writer_data
+                    .writer_proxy()
+                    .unicast_locator_list()
+                    .is_empty()
+                {
+                    default_unicast_locator_list
+                } else {
+                    discovered_writer_data
+                        .writer_proxy()
+                        .unicast_locator_list()
+                        .to_vec()
+                };
+
+                let multicast_locator_list = if discovered_writer_data
+                    .writer_proxy()
+                    .multicast_locator_list()
+                    .is_empty()
+                {
+                    default_multicast_locator_list
+                } else {
+                    discovered_writer_data
+                        .writer_proxy()
+                        .multicast_locator_list()
+                        .to_vec()
+                };
+
+                let writer_proxy = RtpsWriterProxy::new(
+                    discovered_writer_data.writer_proxy().remote_writer_guid(),
+                    &unicast_locator_list,
+                    &multicast_locator_list,
+                    discovered_writer_data
+                        .writer_proxy()
+                        .data_max_size_serialized(),
+                    discovered_writer_data
+                        .writer_proxy()
+                        .remote_group_entity_id(),
+                );
+
+                self.matched_writer_add(writer_proxy);
+                let insert_matched_publication_result = self
+                    .matched_publication_list
+                    .insert(instance_handle, publication_builtin_topic_data.clone());
+                match insert_matched_publication_result {
+                    Some(value) if &value != publication_builtin_topic_data => self
+                        .on_subscription_matched(
+                            instance_handle,
+                            data_reader_address,
+                            subscriber_address,
+                            participant_address,
+                            &subscriber_mask_listener,
+                            &participant_mask_listener,
+                        ),
+                    None => self.on_subscription_matched(
+                        instance_handle,
+                        data_reader_address,
+                        subscriber_address,
+                        participant_address,
+                        &subscriber_mask_listener,
+                        &participant_mask_listener,
+                    ),
+                    _ => (),
+                }
+            } else if self.incompatible_writer_list.insert(instance_handle) {
+                self.on_requested_incompatible_qos(
+                    incompatible_qos_policy_list,
+                    &data_reader_address,
+                    &subscriber_address,
+                    &participant_address,
+                    &subscriber_mask_listener,
+                    &participant_mask_listener,
+                );
+            }
+        }
+    }
+
+    pub fn remove_matched_writer(
+        &mut self,
+        discovered_writer_handle: InstanceHandle,
+        data_reader_address: ActorAddress<DdsDataReader>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) {
+        let matched_publication = self
+            .matched_publication_list
+            .remove(&discovered_writer_handle);
+        if let Some(w) = matched_publication {
+            self.matched_writer_remove(w.key().value.into());
+
+            self.on_subscription_matched(
+                discovered_writer_handle,
+                data_reader_address,
+                subscriber_address,
+                participant_address,
+                &subscriber_mask_listener,
+                &participant_mask_listener,
+            )
+        }
+    }
+
+    pub fn get_matched_publication_data(
+        &self,
+        publication_handle: InstanceHandle,
+    ) -> DdsResult<PublicationBuiltinTopicData> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.matched_publication_list
+            .get(&publication_handle)
+            .cloned()
+            .ok_or(DdsError::BadParameter)
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
+    }
+
+    pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
+        self.matched_publication_list
+            .iter()
+            .map(|(&key, _)| key)
+            .collect()
+    }
+
+    pub fn get_type_name(&self) -> String {
+        self.type_name.clone()
+    }
+
+    pub fn get_topic_name(&self) -> String {
+        self.topic_name.clone()
+    }
+
+    pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::SubscriptionMatched);
+        self.subscription_matched_status
+            .read_and_reset(self.matched_publication_list.len() as i32)
+    }
+}
+}
+
+actor_command_interface! {
+impl DdsDataReader {
+    pub fn send_message(
+        &mut self,
+        header: RtpsMessageHeader,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
+    ) {
+        for writer_proxy in self.matched_writers.iter_mut() {
+            writer_proxy.send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
+        }
+    }
+
+    pub fn update_communication_status(
+        &mut self,
+        now: Time,
+        data_reader_address: ActorAddress<DdsDataReader>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_mask_listener: (
+            Option<ActorAddress<DdsSubscriberListener>>,
+            Vec<StatusKind>,
+        ),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) {
+        let (subscriber_listener_address, subscriber_listener_mask) = &subscriber_mask_listener;
+        let (participant_listener_address, participant_listener_mask) = &participant_mask_listener;
+        let (missed_deadline_instances, instance_reception_time) = self
+            .instance_reception_time
+            .iter()
+            .partition(|&(_, received_time)| {
+                DurationKind::Finite(now - *received_time) > self.qos.deadline.period
+            });
+
+        self.instance_reception_time = instance_reception_time;
+
+        for (missed_deadline_instance, _) in missed_deadline_instances {
+            self.requested_deadline_missed_status
+                .increment(missed_deadline_instance);
+
+            self.status_condition
+                .write_lock()
+                .add_communication_state(StatusKind::RequestedDeadlineMissed);
+            match self.listener.as_ref().map(|a| a.address()).cloned() {
+                Some(l)
+                    if self
+                        .status_kind
+                        .contains(&StatusKind::RequestedDeadlineMissed) =>
+                {
+                    let status = self.get_requested_deadline_missed_status();
+                    let reader = DataReaderNode::new(
+                        data_reader_address.clone(),
+                        subscriber_address.clone(),
+                        participant_address.clone(),
+                    );
+                    l.trigger_on_requested_deadline_missed(reader, status)
+                        .expect("Should not fail to send message");
+                }
+                _ => match &subscriber_listener_address {
+                    Some(l)
+                        if subscriber_listener_mask
+                            .contains(&StatusKind::RequestedDeadlineMissed) =>
+                    {
+                        let status = self.get_requested_deadline_missed_status();
+                        let reader = DataReaderNode::new(
+                            data_reader_address.clone(),
+                            subscriber_address.clone(),
+                            participant_address.clone(),
+                        );
+                        l.trigger_on_requested_deadline_missed(reader, status)
+                            .expect("Should not fail to send message");
+                    }
+                    _ => match &participant_listener_address {
+                        Some(l)
+                            if participant_listener_mask
+                                .contains(&StatusKind::RequestedDeadlineMissed) =>
+                        {
+                            let status = self.get_requested_deadline_missed_status();
+                            let reader = DataReaderNode::new(
+                                data_reader_address.clone(),
+                                subscriber_address.clone(),
+                                participant_address.clone(),
+                            );
+                            l.trigger_on_requested_deadline_missed(reader, status)
+                                .expect("Should not fail to send message");
+                        }
+                        _ => (),
+                    },
+                },
+            }
+        }
+    }
+
+    pub fn process_rtps_message(
+        &mut self,
+        message: RtpsMessageRead,
+        reception_timestamp: Time,
+        data_reader_address: ActorAddress<DdsDataReader>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) {
+        let mut message_receiver = MessageReceiver::new(&message);
+        while let Some(submessage) = message_receiver.next() {
+            match submessage {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    self.on_data_submessage_received(
+                        &data_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                        reception_timestamp,
+                        &data_reader_address,
+                        &subscriber_address,
+                        &participant_address,
+                        &subscriber_status_condition,
+                        &subscriber_mask_listener,
+                        &participant_mask_listener,
+                    );
+                }
+                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                    self.on_data_frag_submessage_received(
+                        &data_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                        reception_timestamp,
+                        &data_reader_address,
+                        &subscriber_address,
+                        &participant_address,
+                        &subscriber_status_condition,
+                        &subscriber_mask_listener,
+                        &participant_mask_listener,
+                    );
+                }
+                RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                    self.on_gap_submessage_received(
+                        &gap_submessage,
+                        message_receiver.source_guid_prefix(),
+                    );
+                }
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
+                    .on_heartbeat_submessage_received(
+                        &heartbeat_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
+                    .on_heartbeat_frag_submessage_received(
+                        &heartbeat_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                _ => (),
+            }
+        }
+    }
+}
 }

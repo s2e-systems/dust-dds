@@ -96,12 +96,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsRepresentation
-            + DdsHasKey
-            + DdsGetKey
-            + for<'de> serde::Deserialize<'de>
-            + Send
-            + 'static,
+        Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey,
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {

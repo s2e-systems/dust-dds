@@ -9,7 +9,7 @@ use crate::{
 use super::data_reader::DataReader;
 
 pub trait DataReaderListener {
-    type Foo: DdsHasKey + for<'de> serde::Deserialize<'de>;
+    type Foo;
 
     fn on_data_available(&mut self, _the_reader: &DataReader<Self::Foo>) {}
     fn on_sample_rejected(

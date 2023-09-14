@@ -5,7 +5,7 @@ use crate::{
             dds_domain_participant::DdsDomainParticipant,
             nodes::{DataReaderNodeKind, TopicNode, TopicNodeKind},
         },
-        rtps::messages::overall_structure::RtpsMessageHeader,
+        rtps::messages::{overall_structure::RtpsMessageHeader, submessage_elements::Data},
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -18,7 +18,10 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{dds_serialize_key, dds_serialize_to_bytes, DdsHasKey, DdsRepresentation},
+        type_support::{
+            dds_deserialize_from_bytes, dds_serialize_key, dds_serialize_to_bytes, DdsHasKey,
+            DdsRepresentation,
+        },
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -49,22 +52,35 @@ use super::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sample<Foo> {
     /// Data received by the [`DataReader`]. A sample might contain no valid data in which case this field is [`None`].
-    data: Option<Foo>,
+    data: Option<Data>,
     /// Information of the sample received by the [`DataReader`].
     sample_info: SampleInfo,
+    phantom: PhantomData<Foo>,
 }
 
 impl<Foo> Sample<Foo> {
-    pub(crate) fn new(data: Option<Foo>, sample_info: SampleInfo) -> Self {
-        Self { data, sample_info }
+    pub(crate) fn new(data: Option<Data>, sample_info: SampleInfo) -> Self {
+        Self {
+            data,
+            sample_info,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'de, Foo> Sample<Foo>
+where
+    Foo: serde::Deserialize<'de> + DdsRepresentation + 'de,
+{
+    pub fn data(&'de self) -> Option<Foo> {
+        match self.data.as_ref() {
+            Some(data) => dds_deserialize_from_bytes::<Foo>(data.as_ref()).ok(),
+            None => None,
+        }
     }
 }
 
 impl<Foo> Sample<Foo> {
-    pub fn data(&self) -> Option<&Foo> {
-        self.data.as_ref()
-    }
-
     pub fn sample_info(&self) -> SampleInfo {
         self.sample_info.clone()
     }
@@ -110,10 +126,7 @@ impl<Foo> DataReader<Foo> {
 //     }
 // }
 
-impl<Foo> DataReader<Foo>
-where
-    Foo: DdsRepresentation + DdsHasKey + for<'de> serde::Deserialize<'de> + Send + 'static,
-{
+impl<Foo> DataReader<Foo> {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The size of the returned collection will
     /// be limited to the specified `max_samples`. The properties of the data values collection and the setting of the
     /// [`PresentationQosPolicy`](crate::infrastructure::qos_policy::PresentationQosPolicy) may impose further limits
@@ -165,13 +178,20 @@ where
             DataReaderNodeKind::_BuiltinStateful(dr)
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr.address().read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                None,
-            ),
+            | DataReaderNodeKind::Listener(dr) => {
+                let samples = dr.address().read(
+                    max_samples,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
+                    None,
+                )??;
+
+                Ok(samples
+                    .into_iter()
+                    .map(|(data, sample_info)| Sample::new(data, sample_info))
+                    .collect())
+            }
         }
     }
 
@@ -190,13 +210,18 @@ where
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                dr.address().take(
+                let samples = dr.address().take(
                     max_samples,
-                    sample_states,
-                    view_states,
-                    instance_states,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
                     None,
-                )
+                )??;
+
+                Ok(samples
+                    .into_iter()
+                    .map(|(data, sample_info)| Sample::new(data, sample_info))
+                    .collect())
             }
         }
     }
@@ -215,13 +240,14 @@ where
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => dr.address().read(
                 1,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
+                vec![SampleStateKind::NotRead],
+                ANY_VIEW_STATE.to_vec(),
+                ANY_INSTANCE_STATE.to_vec(),
                 None,
-            )?,
+            )??,
         };
-        Ok(samples.pop().unwrap())
+        let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
+        Ok(Sample::new(data, sample_info))
     }
 
     /// This operation takes the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -239,12 +265,13 @@ where
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
                 let mut samples = dr.address().take(
                     1,
-                    &[SampleStateKind::NotRead],
-                    ANY_VIEW_STATE,
-                    ANY_INSTANCE_STATE,
+                    vec![SampleStateKind::NotRead],
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
                     None,
-                )?;
-                Ok(samples.pop().unwrap())
+                )??;
+                let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
+                Ok(Sample::new(data, sample_info))
             }
         }
     }
@@ -269,13 +296,19 @@ where
             DataReaderNodeKind::_BuiltinStateful(dr)
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr.address().read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(a_handle),
-            ),
+            | DataReaderNodeKind::Listener(dr) => {
+                let samples = dr.address().read(
+                    max_samples,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
+                    Some(a_handle),
+                )??;
+                Ok(samples
+                    .into_iter()
+                    .map(|(data, sample_info)| Sample::new(data, sample_info))
+                    .collect())
+            }
         }
     }
 
@@ -300,13 +333,17 @@ where
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                dr.address().take(
+                let samples = dr.address().take(
                     max_samples,
-                    sample_states,
-                    view_states,
-                    instance_states,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
                     Some(a_handle),
-                )
+                )??;
+                Ok(samples
+                    .into_iter()
+                    .map(|(data, sample_info)| Sample::new(data, sample_info))
+                    .collect())
             }
         }
     }
@@ -346,13 +383,19 @@ where
             DataReaderNodeKind::_BuiltinStateful(dr)
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr.address().read_next_instance(
-                max_samples,
-                previous_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            ),
+            | DataReaderNodeKind::Listener(dr) => {
+                let samples = dr.address().read_next_instance(
+                    max_samples,
+                    previous_handle,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
+                )??;
+                Ok(samples
+                    .into_iter()
+                    .map(|(data, sample_info)| Sample::new(data, sample_info))
+                    .collect())
+            }
         }
     }
 
@@ -372,13 +415,17 @@ where
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                dr.address().take_next_instance(
+                let samples = dr.address().take_next_instance(
                     max_samples,
                     previous_handle,
                     sample_states.to_vec(),
                     view_states.to_vec(),
                     instance_states.to_vec(),
-                )
+                )??;
+                Ok(samples
+                    .into_iter()
+                    .map(|(data, sample_info)| Sample::new(data, sample_info))
+                    .collect())
             }
         }
     }
@@ -626,7 +673,7 @@ impl<Foo> DataReader<Foo> {
                 let start_time = std::time::Instant::now();
 
                 while start_time.elapsed() < std::time::Duration::from(max_wait) {
-                    if dr.address().is_historical_data_received()? {
+                    if dr.address().is_historical_data_received()?? {
                         return Ok(());
                     }
                 }
@@ -654,7 +701,7 @@ impl<Foo> DataReader<Foo> {
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => dr
                 .address()
-                .get_matched_publication_data(publication_handle),
+                .get_matched_publication_data(publication_handle)?,
         }
     }
 
