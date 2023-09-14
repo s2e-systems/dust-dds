@@ -76,7 +76,7 @@ impl Publisher {
         &self,
         a_topic: &Topic,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
+        a_listener: Option<Box<dyn DataWriterListener<Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
@@ -119,7 +119,7 @@ impl Publisher {
                 .entity_factory
                 .autoenable_created_entities
         {
-                data_writer.enable()?
+            data_writer.enable()?
         }
 
         Ok(data_writer)

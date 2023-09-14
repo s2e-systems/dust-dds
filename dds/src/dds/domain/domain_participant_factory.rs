@@ -49,7 +49,7 @@ use crate::{
             ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::dds_serialize_key,
+    topic_definition::type_support::{dds_deserialize_from_bytes, dds_serialize_key},
 };
 use fnmatch_regex::glob_to_regex;
 use jsonschema::JSONSchema;
@@ -647,18 +647,18 @@ fn process_spdp_metatraffic(
         }
     }) {
         // Read data from each of the readers
-        while let Ok(spdp_data_sample_list) = spdp_data_reader
-            .read::<SpdpDiscoveredParticipantData>(
-                1,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                None,
-            )
-        {
-            for spdp_data_sample in spdp_data_sample_list {
+        while let Ok(spdp_data_sample_list) = spdp_data_reader.read(
+            1,
+            vec![SampleStateKind::NotRead],
+            ANY_VIEW_STATE.to_vec(),
+            ANY_INSTANCE_STATE.to_vec(),
+            None,
+        )? {
+            for (spdp_data_sample, _) in spdp_data_sample_list {
                 let discovered_participant_data =
-                    spdp_data_sample.data.expect("Should contain data");
+                    dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(
+                        spdp_data_sample.expect("Should contain data").as_ref(),
+                    )?;
 
                 // Check that the domainId of the discovered participant equals the local one.
                 // If it is not equal then there the local endpoints are not configured to
@@ -839,44 +839,55 @@ fn process_sedp_discovery(
     for stateful_builtin_reader in builtin_subscriber.data_reader_list()? {
         match stateful_builtin_reader.get_topic_name()?.as_str() {
             DCPS_PUBLICATION => {
-                if let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader
-                    .read::<DiscoveredWriterData>(
+                //::<DiscoveredWriterData>
+                if let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader.read(
                     i32::MAX,
-                    ANY_SAMPLE_STATE,
-                    ANY_VIEW_STATE,
-                    ANY_INSTANCE_STATE,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
                     None,
-                ) {
-                    for discovered_writer_sample in discovered_writer_sample_list.drain(..) {
+                )? {
+                    for (discovered_writer_data, discovered_writer_sample_info) in
+                        discovered_writer_sample_list.drain(..)
+                    {
+                        let discovered_writer_sample =
+                            Sample::new(discovered_writer_data, discovered_writer_sample_info);
                         discover_matched_writers(participant_address, &discovered_writer_sample)?;
                     }
                 }
             }
             DCPS_SUBSCRIPTION => {
-                if let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader
-                    .read::<DiscoveredReaderData>(
+                //::<DiscoveredReaderData>
+                if let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader.read(
                     i32::MAX,
-                    ANY_SAMPLE_STATE,
-                    ANY_VIEW_STATE,
-                    ANY_INSTANCE_STATE,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
                     None,
-                ) {
-                    for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
+                )? {
+                    for (discovered_reader_data, discovered_reader_sample_info) in
+                        discovered_reader_sample_list.drain(..)
+                    {
+                        let discovered_reader_sample =
+                            Sample::new(discovered_reader_data, discovered_reader_sample_info);
                         discover_matched_readers(participant_address, &discovered_reader_sample)?;
                     }
                 }
             }
             DCPS_TOPIC => {
-                if let Ok(discovered_topic_sample_list) = stateful_builtin_reader
-                    .read::<DiscoveredTopicData>(
-                        i32::MAX,
-                        ANY_SAMPLE_STATE,
-                        ANY_VIEW_STATE,
-                        ANY_INSTANCE_STATE,
-                        None,
-                    )
-                {
-                    for discovered_topic_sample in discovered_topic_sample_list {
+                //::<DiscoveredTopicData>
+                if let Ok(discovered_topic_sample_list) = stateful_builtin_reader.read(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                )? {
+                    for (discovered_topic_data, discovered_topic_sample_info) in
+                        discovered_topic_sample_list
+                    {
+                        let discovered_topic_sample =
+                            Sample::new(discovered_topic_data, discovered_topic_sample_info);
                         discover_matched_topics(participant_address, &discovered_topic_sample)?;
                     }
                 }
@@ -896,9 +907,9 @@ fn discover_matched_writers(
         participant_address.get_listener()?,
         participant_address.status_kind()?,
     );
-    match discovered_writer_sample.sample_info.instance_state {
+    match discovered_writer_sample.sample_info().instance_state {
         InstanceStateKind::Alive => {
-            if let Some(discovered_writer_data) = &discovered_writer_sample.data {
+            if let Some(discovered_writer_data) = discovered_writer_sample.data() {
                 if !participant_address.is_publication_ignored(
                     discovered_writer_data
                         .writer_proxy()
@@ -1011,7 +1022,7 @@ fn discover_matched_writers(
                         (subscriber.get_listener()?, subscriber.status_kind()?);
 
                     data_reader.remove_matched_writer(
-                        discovered_writer_sample.sample_info.instance_handle,
+                        discovered_writer_sample.sample_info().instance_handle,
                         data_reader.clone(),
                         subscriber.clone(),
                         participant_address.clone(),
@@ -1031,9 +1042,9 @@ pub fn discover_matched_readers(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     discovered_reader_sample: &Sample<DiscoveredReaderData>,
 ) -> DdsResult<()> {
-    match discovered_reader_sample.sample_info.instance_state {
+    match discovered_reader_sample.sample_info().instance_state {
         InstanceStateKind::Alive => {
-            if let Some(discovered_reader_data) = &discovered_reader_sample.data {
+            if let Some(discovered_reader_data) = discovered_reader_sample.data() {
                 if !participant_address.is_subscription_ignored(
                     discovered_reader_data
                         .reader_proxy()
@@ -1201,7 +1212,7 @@ pub fn discover_matched_readers(
                             _ => None,
                         };
                     data_writer.remove_matched_reader(
-                        discovered_reader_sample.sample_info.instance_handle,
+                        discovered_reader_sample.sample_info().instance_handle,
                         data_writer.clone(),
                         publisher.clone(),
                         participant_address.clone(),
@@ -1222,15 +1233,15 @@ fn discover_matched_topics(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     discovered_topic_sample: &Sample<DiscoveredTopicData>,
 ) -> DdsResult<()> {
-    match discovered_topic_sample.sample_info.instance_state {
+    match discovered_topic_sample.sample_info().instance_state {
         InstanceStateKind::Alive => {
-            if let Some(topic_data) = discovered_topic_sample.data.as_ref() {
+            if let Some(topic_data) = discovered_topic_sample.data() {
                 for topic in participant_address.get_user_defined_topic_list()? {
                     topic.process_discovered_topic(topic_data.clone())?;
                 }
 
                 participant_address.discovered_topic_add(
-                    dds_serialize_key(topic_data)?.into(),
+                    dds_serialize_key(&topic_data)?.into(),
                     topic_data.topic_builtin_topic_data().clone(),
                 )?;
             }

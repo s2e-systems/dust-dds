@@ -9,7 +9,11 @@ use crate::implementation::{
         types::{EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId},
     },
 };
-use std::io::BufRead;
+use std::{
+    io::BufRead,
+    ops::{Index, Range, RangeFrom, RangeTo},
+    sync::Arc,
+};
 ///
 /// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
@@ -287,11 +291,92 @@ impl WriteBytes for &ParameterList {
     }
 }
 
+#[derive(Debug, Eq, Clone)]
+pub struct ArcSlice {
+    data: Arc<[u8]>,
+    range: Range<usize>,
+}
+
+impl ArcSlice {
+    pub fn new(data: Arc<[u8]>, range: Range<usize>) -> Self {
+        Self { data, range }
+    }
+
+    pub fn len(&self) -> usize {
+        self.range.len()
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        &self.data[self.range.clone()]
+    }
+
+    pub fn sub_slice(&self, range: RangeFrom<usize>) -> ArcSlice {
+        ArcSlice {
+            data: self.data.clone(),
+            range: range.start + self.range.start..self.range.end,
+        }
+    }
+}
+
+impl PartialEq for ArcSlice {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl AsRef<[u8]> for ArcSlice {
+    fn as_ref(&self) -> &[u8] {
+        &self.data[self.range.clone()]
+    }
+}
+
+impl Index<Range<usize>> for ArcSlice {
+    type Output = [u8];
+    fn index(&self, index: Range<usize>) -> &Self::Output {
+        &self.data[self.range.clone()][index]
+    }
+}
+impl Index<RangeFrom<usize>> for ArcSlice {
+    type Output = [u8];
+    fn index(&self, index: RangeFrom<usize>) -> &Self::Output {
+        &self.data[self.range.clone()][index]
+    }
+}
+impl Index<RangeTo<usize>> for ArcSlice {
+    type Output = [u8];
+    fn index(&self, index: RangeTo<usize>) -> &Self::Output {
+        &self.data[self.range.clone()][index]
+    }
+}
+impl Index<usize> for ArcSlice {
+    type Output = u8;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[self.range.clone()][index]
+    }
+}
+
+impl From<Arc<[u8]>> for ArcSlice {
+    fn from(data: Arc<[u8]>) -> Self {
+        let range = 0..data.len();
+        Self { data, range }
+    }
+}
+
+impl From<Vec<u8>> for ArcSlice {
+    fn from(value: Vec<u8>) -> Self {
+        let range = 0..value.len();
+        Self {
+            data: value.into(),
+            range,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Data(Vec<u8>);
+pub struct Data(ArcSlice);
 
 impl Data {
-    pub fn new(data: Vec<u8>) -> Self {
+    pub fn new(data: ArcSlice) -> Self {
         Self(data)
     }
     pub fn len(&self) -> usize {
@@ -301,22 +386,16 @@ impl Data {
 
 impl AsRef<[u8]> for Data {
     fn as_ref(&self) -> &[u8] {
-        &self.0
+        self.0.as_slice()
     }
 }
 
 impl WriteBytes for &Data {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(&self.0);
+        buf[..self.0.len()].copy_from_slice(self.0.as_slice());
         let length_inclusive_padding = (self.0.len() + 3) & !3;
         buf[self.0.len()..length_inclusive_padding].fill(0);
         length_inclusive_padding
-    }
-}
-
-impl FromBytes for Data {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(v.to_vec())
     }
 }
 

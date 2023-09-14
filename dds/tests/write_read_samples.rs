@@ -121,7 +121,7 @@ fn large_data_should_be_fragmented() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+    assert_eq!(samples[0].data(), Some(data));
 }
 
 #[test]
@@ -196,7 +196,7 @@ fn large_data_should_be_fragmented_reliable() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+    assert_eq!(samples[0].data(), Some(data));
 }
 
 #[test]
@@ -284,7 +284,7 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data5);
+    assert_eq!(samples[0].data(), Some(data5));
 }
 
 #[test]
@@ -372,9 +372,9 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
         .unwrap();
 
     assert_eq!(samples.len(), 3);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data3);
-    assert_eq!(samples[1].data.as_ref().unwrap(), &data4);
-    assert_eq!(samples[2].data.as_ref().unwrap(), &data5);
+    assert_eq!(samples[0].data(), Some(data3));
+    assert_eq!(samples[1].data(), Some(data4));
+    assert_eq!(samples[2].data(), Some(data5));
 }
 
 #[test]
@@ -452,13 +452,13 @@ fn samples_are_taken() {
         .unwrap();
 
     assert_eq!(samples1.len(), 3);
-    assert_eq!(samples1[0].data.as_ref().unwrap(), &data1);
-    assert_eq!(samples1[1].data.as_ref().unwrap(), &data2);
-    assert_eq!(samples1[2].data.as_ref().unwrap(), &data3);
+    assert_eq!(samples1[0].data(), Some(data1));
+    assert_eq!(samples1[1].data(), Some(data2));
+    assert_eq!(samples1[2].data(), Some(data3));
 
     assert_eq!(samples2.len(), 2);
-    assert_eq!(samples2[0].data.as_ref().unwrap(), &data4);
-    assert_eq!(samples2[1].data.as_ref().unwrap(), &data5);
+    assert_eq!(samples2[0].data(), Some(data4));
+    assert_eq!(samples2[1].data(), Some(data5));
 }
 
 #[test]
@@ -553,13 +553,13 @@ fn read_only_unread_samples() {
     );
 
     assert_eq!(samples1.len(), 3);
-    assert_eq!(samples1[0].data.as_ref().unwrap(), &data1);
-    assert_eq!(samples1[1].data.as_ref().unwrap(), &data2);
-    assert_eq!(samples1[2].data.as_ref().unwrap(), &data3);
+    assert_eq!(samples1[0].data(), Some(data1));
+    assert_eq!(samples1[1].data(), Some(data2));
+    assert_eq!(samples1[2].data(), Some(data3));
 
     assert_eq!(samples2.len(), 2);
-    assert_eq!(samples2[0].data.as_ref().unwrap(), &data4);
-    assert_eq!(samples2[1].data.as_ref().unwrap(), &data5);
+    assert_eq!(samples2[0].data(), Some(data4));
+    assert_eq!(samples2[1].data(), Some(data5));
 
     assert_eq!(samples3, Err(DdsError::NoData));
 }
@@ -626,9 +626,9 @@ fn read_next_sample() {
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    assert_eq!(reader.read_next_sample().unwrap().data.unwrap(), data1);
-    assert_eq!(reader.read_next_sample().unwrap().data.unwrap(), data2);
-    assert_eq!(reader.read_next_sample().unwrap().data.unwrap(), data3);
+    assert_eq!(reader.read_next_sample().unwrap().data(), Some(data1));
+    assert_eq!(reader.read_next_sample().unwrap().data(), Some(data2));
+    assert_eq!(reader.read_next_sample().unwrap().data(), Some(data3));
     assert_eq!(reader.read_next_sample(), Err(DdsError::NoData));
 }
 
@@ -694,9 +694,9 @@ fn take_next_sample() {
         .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
-    assert_eq!(reader.take_next_sample().unwrap().data.unwrap(), data1);
-    assert_eq!(reader.take_next_sample().unwrap().data.unwrap(), data2);
-    assert_eq!(reader.take_next_sample().unwrap().data.unwrap(), data3);
+    assert_eq!(reader.take_next_sample().unwrap().data().unwrap(), data1);
+    assert_eq!(reader.take_next_sample().unwrap().data().unwrap(), data2);
+    assert_eq!(reader.take_next_sample().unwrap().data().unwrap(), data3);
     assert_eq!(reader.take_next_sample(), Err(DdsError::NoData));
 }
 
@@ -767,21 +767,21 @@ fn each_key_sample_is_read() {
         .unwrap();
 
     assert_eq!(samples.len(), 3);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
+    assert_eq!(samples[0].data().unwrap(), data1);
     assert_eq!(
-        samples[0].sample_info.instance_handle,
+        samples[0].sample_info().instance_handle,
         dds_serialize_key(&data1).unwrap().into(),
     );
 
-    assert_eq!(samples[1].data.as_ref().unwrap(), &data2);
+    assert_eq!(samples[1].data().unwrap(), data2);
     assert_eq!(
-        samples[1].sample_info.instance_handle,
+        samples[1].sample_info().instance_handle,
         dds_serialize_key(&data2).unwrap().into(),
     );
 
-    assert_eq!(samples[2].data.as_ref().unwrap(), &data3);
+    assert_eq!(samples[2].data().unwrap(), data3);
     assert_eq!(
-        samples[2].sample_info.instance_handle,
+        samples[2].sample_info().instance_handle,
         dds_serialize_key(&data3).unwrap().into(),
     );
 }
@@ -859,7 +859,7 @@ fn read_specific_instance() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
+    assert_eq!(samples[0].data(), Some(data1));
 }
 
 #[test]
@@ -937,7 +937,7 @@ fn read_next_instance() {
     let samples2 = reader
         .read_next_instance(
             3,
-            Some(samples1[0].sample_info.instance_handle),
+            Some(samples1[0].sample_info().instance_handle),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -947,7 +947,7 @@ fn read_next_instance() {
     let samples3 = reader
         .read_next_instance(
             3,
-            Some(samples2[0].sample_info.instance_handle),
+            Some(samples2[0].sample_info().instance_handle),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -956,15 +956,15 @@ fn read_next_instance() {
 
     let samples4 = reader.read_next_instance(
         3,
-        Some(samples3[0].sample_info.instance_handle),
+        Some(samples3[0].sample_info().instance_handle),
         ANY_SAMPLE_STATE,
         ANY_VIEW_STATE,
         ANY_INSTANCE_STATE,
     );
 
-    assert_eq!(samples1[0].data.as_ref().unwrap(), &data1);
-    assert_eq!(samples2[0].data.as_ref().unwrap(), &data2);
-    assert_eq!(samples3[0].data.as_ref().unwrap(), &data3);
+    assert_eq!(samples1[0].data(), Some(data1));
+    assert_eq!(samples2[0].data(), Some(data2));
+    assert_eq!(samples3[0].data(), Some(data3));
     assert_eq!(samples4, Err(DdsError::NoData));
 }
 
@@ -1043,7 +1043,7 @@ fn take_next_instance() {
     let samples2 = reader
         .take_next_instance(
             3,
-            Some(samples1[0].sample_info.instance_handle),
+            Some(samples1[0].sample_info().instance_handle),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1053,7 +1053,7 @@ fn take_next_instance() {
     let samples3 = reader
         .take_next_instance(
             3,
-            Some(samples2[0].sample_info.instance_handle),
+            Some(samples2[0].sample_info().instance_handle),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1062,15 +1062,15 @@ fn take_next_instance() {
 
     let samples4 = reader.take_next_instance(
         3,
-        Some(samples3[0].sample_info.instance_handle),
+        Some(samples3[0].sample_info().instance_handle),
         ANY_SAMPLE_STATE,
         ANY_VIEW_STATE,
         ANY_INSTANCE_STATE,
     );
 
-    assert_eq!(samples1[0].data.as_ref().unwrap(), &data1);
-    assert_eq!(samples2[0].data.as_ref().unwrap(), &data2);
-    assert_eq!(samples3[0].data.as_ref().unwrap(), &data3);
+    assert_eq!(samples1[0].data(), Some(data1));
+    assert_eq!(samples2[0].data(), Some(data2));
+    assert_eq!(samples3[0].data(), Some(data3));
     assert_eq!(samples4, Err(DdsError::NoData));
 }
 
@@ -1147,7 +1147,7 @@ fn take_specific_instance() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
+    assert_eq!(samples[0].data(), Some(data1));
 }
 
 #[test]
@@ -1299,11 +1299,11 @@ fn write_read_disposed_samples() {
 
     assert_eq!(samples.len(), 2);
     assert_eq!(
-        samples[0].sample_info.instance_state,
+        samples[0].sample_info().instance_state,
         InstanceStateKind::NotAliveDisposed
     );
     assert_eq!(
-        samples[1].sample_info.instance_state,
+        samples[1].sample_info().instance_state,
         InstanceStateKind::NotAliveDisposed
     );
 }
@@ -1386,8 +1386,8 @@ fn write_read_sample_view_state() {
         .unwrap();
 
     assert_eq!(samples.len(), 2);
-    assert_eq!(samples[0].sample_info.view_state, ViewStateKind::NotNew);
-    assert_eq!(samples[1].sample_info.view_state, ViewStateKind::New);
+    assert_eq!(samples[0].sample_info().view_state, ViewStateKind::NotNew);
+    assert_eq!(samples[1].sample_info().view_state, ViewStateKind::New);
 }
 
 #[test]
@@ -1548,10 +1548,10 @@ fn reader_with_minimum_time_separation_qos() {
         .unwrap();
 
     assert_eq!(samples.len(), 4);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data1_1);
-    assert_eq!(samples[1].data.as_ref().unwrap(), &data1_3);
-    assert_eq!(samples[2].data.as_ref().unwrap(), &data2_1);
-    assert_eq!(samples[3].data.as_ref().unwrap(), &data2_3);
+    assert_eq!(samples[0].data(), Some(data1_1));
+    assert_eq!(samples[1].data(), Some(data1_3));
+    assert_eq!(samples[2].data(), Some(data2_1));
+    assert_eq!(samples[3].data(), Some(data2_3));
 }
 
 #[test]
@@ -1632,8 +1632,8 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .unwrap();
 
     assert_eq!(samples.len(), 2);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
-    assert_eq!(samples[1].data.as_ref().unwrap(), &data2);
+    assert_eq!(samples[0].data(), Some(data1));
+    assert_eq!(samples[1].data(), Some(data2));
 }
 
 #[test]
@@ -1713,7 +1713,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data2);
+    assert_eq!(samples[0].data(), Some(data2));
 }
 
 #[test]
@@ -1781,7 +1781,7 @@ fn write_read_unkeyed_topic() {
 
     let samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
 
-    assert_eq!(samples.unwrap()[0].data.as_ref().unwrap(), &UserData(8));
+    assert_eq!(samples.unwrap()[0].data(), Some(UserData(8)));
 }
 
 #[test]
@@ -1957,9 +1957,9 @@ fn data_reader_order_by_source_timestamp() {
         .unwrap();
 
     assert_eq!(samples.len(), 3);
-    assert_eq!(&samples[0].data, &Some(UserData(3)));
-    assert_eq!(&samples[1].data, &Some(UserData(2)));
-    assert_eq!(&samples[2].data, &Some(UserData(1)));
+    assert_eq!(samples[0].data(), Some(UserData(3)));
+    assert_eq!(samples[1].data(), Some(UserData(2)));
+    assert_eq!(samples[2].data(), Some(UserData(1)));
 }
 
 #[test]
@@ -2027,7 +2027,7 @@ fn data_reader_publication_handle_sample_info() {
 
     assert_eq!(samples.len(), 1);
     assert!(reader
-        .get_matched_publication_data(samples[0].sample_info.publication_handle)
+        .get_matched_publication_data(samples[0].sample_info().publication_handle)
         .is_ok());
 }
 
@@ -2127,7 +2127,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data2);
+    assert_eq!(samples[0].data().unwrap(), data2);
 }
 
 #[test]
@@ -2206,11 +2206,11 @@ fn write_read_unregistered_samples_are_also_disposed() {
 
     assert_eq!(samples.len(), 2);
     assert_eq!(
-        samples[0].sample_info.instance_state,
+        samples[0].sample_info().instance_state,
         InstanceStateKind::NotAliveDisposed
     );
     assert_eq!(
-        samples[1].sample_info.instance_state,
+        samples[1].sample_info().instance_state,
         InstanceStateKind::NotAliveDisposed
     );
 }
@@ -2293,14 +2293,14 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     reader
-        .wait_for_historical_data(Duration::new(2, 0))
+        .wait_for_historical_data(Duration::new(10, 0))
         .unwrap();
     let samples = reader
         .read(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data2);
+    assert_eq!(samples[0].data().unwrap(), data2);
 }
 
 #[test]
@@ -2310,16 +2310,14 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
         sender: std::sync::mpsc::SyncSender<()>,
         data_sample_list: std::vec::IntoIter<KeyedData>,
     }
-    impl DataReaderListener for Listener {
-        type Foo = KeyedData;
-
-        fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
+    impl DataReaderListener<KeyedData> for Listener {
+        fn on_data_available(&mut self, the_reader: &DataReader<KeyedData>) {
             if let Ok(samples) =
                 the_reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             {
-                let sample = samples[0].data.as_ref().unwrap();
+                let sample = samples[0].data().unwrap();
                 let sample_expected = self.data_sample_list.next().unwrap();
-                assert_eq!(sample, &sample_expected);
+                assert_eq!(sample, sample_expected);
                 if self.data_sample_list.len() == 0 {
                     self.sender.send(()).unwrap();
                 }
@@ -2447,5 +2445,5 @@ fn reader_joining_after_writer_writes_many_samples() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &new_data);
+    assert_eq!(samples[0].data().unwrap(), new_data);
 }

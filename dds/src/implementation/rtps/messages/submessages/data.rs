@@ -7,7 +7,7 @@ use crate::implementation::{
             overall_structure::{
                 RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
-            submessage_elements::{Data, ParameterList, SubmessageElement},
+            submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber},
@@ -15,18 +15,18 @@ use crate::implementation::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct DataSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct DataSubmessageRead {
+    data: ArcSlice,
 }
 
-impl SubmessageHeader for DataSubmessageRead<'_> {
+impl SubmessageHeader for DataSubmessageRead {
     fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
+        SubmessageHeaderRead::new(self.data.as_slice())
     }
 }
 
-impl<'a> DataSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
+impl DataSubmessageRead {
+    pub fn new(data: ArcSlice) -> Self {
         Self { data }
     }
 
@@ -97,7 +97,10 @@ impl<'a> DataSubmessageRead<'a> {
     }
 
     pub fn serialized_payload(&self) -> Data {
-        self.map(&self.data[8 + self.octets_to_inline_qos() + self.inline_qos_len()..])
+        Data::new(
+            self.data
+                .sub_slice(8 + self.octets_to_inline_qos() + self.inline_qos_len()..),
+        )
     }
 }
 
@@ -185,7 +188,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::from(5);
         let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![]);
+        let serialized_payload = &Data::new(vec![].into());
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
@@ -221,7 +224,7 @@ mod tests {
         let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23]);
         let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
-        let serialized_payload = &Data::new(vec![]);
+        let serialized_payload = &Data::new(vec![].into());
 
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
@@ -261,7 +264,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::from(5);
         let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![1, 2, 3, 4]);
+        let serialized_payload = &Data::new(vec![1, 2, 3, 4].into());
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
@@ -296,7 +299,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::from(5);
         let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![1, 2, 3]);
+        let serialized_payload = &Data::new(vec![1, 2, 3].into());
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
@@ -331,17 +334,17 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::from(5);
         let inline_qos = ParameterList::empty();
-        let serialized_payload = Data::new(vec![]);
+        let serialized_payload = Data::new(vec![].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
+        let data_submessage = DataSubmessageRead::new(vec![
             0x15, 0b_0000_0001, 20, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
             0, 0, 0, 0, // writerSN: high
             5, 0, 0, 0, // writerSN: low
-        ]);
+        ].into());
 
         assert_eq!(inline_qos_flag, data_submessage.inline_qos_flag());
         assert_eq!(data_flag, data_submessage.data_flag());
@@ -360,10 +363,10 @@ mod tests {
     #[test]
     fn deserialize_no_inline_qos_with_serialized_payload() {
         let inline_qos = ParameterList::empty();
-        let serialized_payload = Data::new(vec![1, 2, 3, 4]);
+        let serialized_payload = Data::new(vec![1, 2, 3, 4].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
+        let data_submessage = DataSubmessageRead::new(vec![
             0x15, 0b_0000_0101, 24, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -371,7 +374,7 @@ mod tests {
             0, 0, 0, 0, // writerSN: high
             5, 0, 0, 0, // writerSN: low
             1, 2, 3, 4, // SerializedPayload
-        ]);
+        ].into());
         assert_eq!(inline_qos, data_submessage.inline_qos());
         assert_eq!(serialized_payload, data_submessage.serialized_payload());
     }
@@ -382,10 +385,10 @@ mod tests {
             Parameter::new(6, vec![10, 11, 12, 13]),
             Parameter::new(7, vec![20, 21, 22, 23]),
         ]);
-        let serialized_payload = Data::new(vec![]);
+        let serialized_payload = Data::new(vec![].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
+        let data_submessage = DataSubmessageRead::new(vec![
             0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -397,7 +400,7 @@ mod tests {
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 1, 0, // inlineQos: Sentinel
-        ]);
+        ].into());
         assert_eq!(inline_qos, data_submessage.inline_qos());
         assert_eq!(serialized_payload, data_submessage.serialized_payload());
     }
@@ -408,10 +411,10 @@ mod tests {
             Parameter::new(6, vec![10, 11, 12, 13]),
             Parameter::new(7, vec![20, 21, 22, 23]),
         ]);
-        let serialized_payload = Data::new(vec![1, 2, 3, 4]);
+        let serialized_payload = Data::new(vec![1, 2, 3, 4].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::new(&[
+        let data_submessage = DataSubmessageRead::new(vec![
             0x15, 0b_0000_0111, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -424,7 +427,7 @@ mod tests {
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 1, 0, // inlineQos: Sentinel
             1, 2, 3, 4, // SerializedPayload
-        ]);
+        ].into());
         assert_eq!(inline_qos, data_submessage.inline_qos());
         assert_eq!(serialized_payload, data_submessage.serialized_payload());
     }

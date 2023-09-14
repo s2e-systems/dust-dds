@@ -28,20 +28,18 @@ struct Listener {
     sender: SyncSender<()>,
 }
 
-impl DataReaderListener for Listener {
-    type Foo = BestEffortExampleType;
-
-    fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
+impl DataReaderListener<BestEffortExampleType> for Listener {
+    fn on_data_available(&mut self, the_reader: &DataReader<BestEffortExampleType>) {
         if let Ok(samples) =
             the_reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         {
-            let sample = samples[0].data.as_ref().unwrap();
+            let sample = samples[0].data().unwrap();
             println!("Read sample: {:?}", sample);
         }
     }
     fn on_subscription_matched(
         &mut self,
-        _the_reader: &DataReader<Self::Foo>,
+        _the_reader: &DataReader<BestEffortExampleType>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) {
         if status.current_count == 0 {

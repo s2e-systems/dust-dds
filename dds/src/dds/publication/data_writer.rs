@@ -615,7 +615,7 @@ where
     /// will be removed.
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
+        _a_listener: Option<Box<dyn DataWriterListener<Foo> + Send + Sync>>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()

@@ -92,16 +92,11 @@ impl Subscriber {
         &self,
         a_topic: &Topic,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
+        a_listener: Option<Box<dyn DataReaderListener<Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsRepresentation
-            + DdsHasKey
-            + DdsGetKey
-            + for<'de> serde::Deserialize<'de>
-            + Send
-            + 'static,
+        Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey + 'static,
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {

@@ -72,7 +72,7 @@ fn main() {
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    let big_data = samples[0].data.as_ref().unwrap();
+    let big_data = samples[0].data().unwrap();
     println!("Received total msg length: {:?}", big_data.msg.len());
 
     // Sleep to allow sending acknowledgements

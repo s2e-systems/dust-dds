@@ -29,8 +29,8 @@ pub struct OwningDataFragSubmessage {
     serialized_payload: Data,
 }
 
-impl From<&DataFragSubmessageRead<'_>> for OwningDataFragSubmessage {
-    fn from(x: &DataFragSubmessageRead<'_>) -> Self {
+impl From<&DataFragSubmessageRead> for OwningDataFragSubmessage {
+    fn from(x: &DataFragSubmessageRead) -> Self {
         Self {
             fragment_starting_num: x.fragment_starting_num(),
             data_size: x.data_size(),
@@ -119,7 +119,7 @@ impl RtpsWriterProxy {
                 for frag in frag_seq_num_list {
                     data.append(&mut frag.serialized_payload.as_ref().to_vec());
                 }
-                return Some(Data::new(data));
+                return Some(Data::new(data.into()));
             }
         }
         None

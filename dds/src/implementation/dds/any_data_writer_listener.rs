@@ -4,7 +4,6 @@ use crate::{
         PublicationMatchedStatus,
     },
     publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
-    topic_definition::type_support::DdsHasKey,
 };
 
 use super::nodes::{DataWriterNode, DataWriterNodeKind};
@@ -32,10 +31,7 @@ pub trait AnyDataWriterListener {
     );
 }
 
-impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>
-where
-    Foo: DdsHasKey + serde::Serialize + 'static,
-{
+impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo> + Send + Sync> {
     fn trigger_on_liveliness_lost(
         &mut self,
         the_writer: DataWriterNode,
