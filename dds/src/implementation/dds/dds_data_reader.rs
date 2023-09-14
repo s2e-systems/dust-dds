@@ -225,6 +225,11 @@ impl SubscriptionMatchedStatus {
     }
 }
 
+struct IndexedSample {
+    index: usize,
+    sample: (Option<Data>, SampleInfo),
+}
+
 pub struct DdsDataReader {
     rtps_reader: RtpsReader,
     matched_writers: Vec<RtpsWriterProxy>,
@@ -1152,7 +1157,7 @@ impl DdsDataReader {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
         specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(usize, (Option<Data>, SampleInfo))>> {
+    ) -> DdsResult<Vec<IndexedSample>> {
         if let Some(h) = specific_instance_handle {
             if !self.instances.contains_key(&h) {
                 return Err(DdsError::BadParameter);
@@ -1238,26 +1243,26 @@ impl DdsDataReader {
 
             let sample = (data, sample_info);
 
-            indexed_samples.push((index, sample))
+            indexed_samples.push(IndexedSample{index, sample})
         }
 
         // After the collection is created, update the relative generation rank values and mark the read instances as viewed
         for handle in instances_in_collection.into_keys() {
             let most_recent_sample_absolute_generation_rank = indexed_samples
                 .iter()
-                .filter(|(_, (_, sample_info))| sample_info.instance_handle == handle)
-                .map(|(_, (_, sample_info))| sample_info.absolute_generation_rank)
+                .filter(|IndexedSample{sample:(_, sample_info), ..}| sample_info.instance_handle == handle)
+                .map(|IndexedSample{sample:(_, sample_info), ..}| sample_info.absolute_generation_rank)
                 .last()
                 .expect("Instance handle must exist on collection");
 
             let mut total_instance_samples_in_collection = indexed_samples
                 .iter()
-                .filter(|(_, (_, sample_info))| sample_info.instance_handle == handle)
+                .filter(|IndexedSample{sample:(_, sample_info), ..}| sample_info.instance_handle == handle)
                 .count();
 
-            for (_, (_, sample_info)) in indexed_samples
+            for IndexedSample{sample:(_, sample_info), ..} in indexed_samples
                 .iter_mut()
-                .filter(|(_, (_, sample_info))| sample_info.instance_handle == handle)
+                .filter(|IndexedSample{sample:(_, sample_info), ..}| sample_info.instance_handle == handle)
             {
                 sample_info.generation_rank = sample_info.absolute_generation_rank
                     - most_recent_sample_absolute_generation_rank;
@@ -1316,7 +1321,7 @@ impl DdsDataReader {
         let change_index_list: Vec<usize>;
         let samples;
 
-        (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
+        (change_index_list, samples) = indexed_sample_list.into_iter().map(|IndexedSample{index, sample}| (index, sample)).unzip();
 
         for index in change_index_list {
             self.changes[index].sample_state = SampleStateKind::Read;
@@ -1352,7 +1357,7 @@ impl DdsDataReader {
         let mut change_index_list: Vec<usize>;
         let samples;
 
-        (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
+        (change_index_list, samples) = indexed_sample_list.into_iter().map(|IndexedSample{index, sample}| (index, sample)).unzip();
 
         while let Some(index) = change_index_list.pop() {
             self.changes.remove(index);
