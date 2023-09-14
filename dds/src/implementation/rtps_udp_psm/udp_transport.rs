@@ -22,7 +22,7 @@ impl UdpTransportRead {
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
         fn shrink_buffer_to_length(buf: &mut &mut [u8], length: usize) {
-            let mut value = std::mem::replace(buf, &mut []);
+            let mut value = std::mem::take(buf);
             value = &mut value[..length];
             let _ = std::mem::replace(buf, value);
         }

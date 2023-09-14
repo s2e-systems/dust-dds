@@ -7,7 +7,7 @@ use crate::implementation::{
             overall_structure::{
                 RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
-            submessage_elements::{Data, ParameterList, SubmessageElement, ArcSlice},
+            submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber},
@@ -25,7 +25,7 @@ impl SubmessageHeader for DataSubmessageRead {
     }
 }
 
-impl<'a> DataSubmessageRead {
+impl DataSubmessageRead {
     pub fn new(data: ArcSlice) -> Self {
         Self { data }
     }
@@ -97,7 +97,10 @@ impl<'a> DataSubmessageRead {
     }
 
     pub fn serialized_payload(&self) -> Data {
-        Data::new(self.data.sub_slice(8 + self.octets_to_inline_qos() + self.inline_qos_len() .. ))
+        Data::new(
+            self.data
+                .sub_slice(8 + self.octets_to_inline_qos() + self.inline_qos_len()..),
+        )
     }
 }
 
