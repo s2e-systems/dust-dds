@@ -2447,5 +2447,5 @@ fn reader_joining_after_writer_writes_many_samples() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), &new_data);
+    assert_eq!(samples[0].data().unwrap(), new_data);
 }

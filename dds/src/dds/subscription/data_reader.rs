@@ -747,7 +747,7 @@ impl<Foo> DataReader<Foo> {
                         q
                     }
                 };
-                dr.address().set_qos(q)?;
+                dr.address().set_qos(q)??;
 
                 if dr.address().is_enabled()? {
                     announce_data_reader(

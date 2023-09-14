@@ -1,9 +1,6 @@
-use crate::{
-    infrastructure::status::{
-        LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-        SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
-    },
-    topic_definition::type_support::DdsHasKey,
+use crate::infrastructure::status::{
+    LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+    SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
 };
 
 use super::data_reader::DataReader;

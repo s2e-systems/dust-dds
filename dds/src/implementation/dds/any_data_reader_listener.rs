@@ -4,7 +4,6 @@ use crate::{
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
-    topic_definition::type_support::DdsHasKey,
 };
 
 use super::nodes::{DataReaderNode, DataReaderNodeKind};
@@ -35,10 +34,7 @@ pub trait AnyDataReaderListener {
     fn trigger_on_sample_lost(&mut self, reader: DataReaderNode, status: SampleLostStatus);
 }
 
-impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
-where
-    Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + 'static,
-{
+impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync> {
     fn trigger_on_data_available(&mut self, reader: DataReaderNode) {
         self.on_data_available(&DataReader::new(DataReaderNodeKind::Listener(reader)))
     }
