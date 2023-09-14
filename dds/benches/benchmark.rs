@@ -106,10 +106,8 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl DataReaderListener for Listener {
-        type Foo = KeyedData;
-
-        fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
+    impl DataReaderListener<KeyedData> for Listener {
+        fn on_data_available(&mut self, the_reader: &DataReader<KeyedData>) {
             the_reader
                 .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
                 .ok();

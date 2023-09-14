@@ -685,9 +685,7 @@ fn on_data_available_listener() {
     mock! {
         DataAvailableListener{}
 
-        impl DataReaderListener for DataAvailableListener {
-            type Foo = MyData;
-
+        impl DataReaderListener<MyData> for DataAvailableListener {
             fn on_data_available(
                 &mut self,
                 _the_reader: &DataReader<MyData>,
@@ -891,9 +889,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     mock! {
         DataAvailableListener{}
 
-        impl DataReaderListener for DataAvailableListener {
-            type Foo = MyData;
-
+        impl DataReaderListener<MyData> for DataAvailableListener {
             fn on_data_available(
                 &mut self,
                 _the_reader: &DataReader<MyData>,
@@ -1000,9 +996,7 @@ fn participant_deadline_missed_listener() {
     mock! {
         DeadlineMissedListener{}
 
-        impl DataReaderListener for DeadlineMissedListener {
-            type Foo = MyData;
-
+        impl DataReaderListener<MyData> for DeadlineMissedListener {
             fn on_requested_deadline_missed(
                 &mut self,
                 _the_reader: &DataReader<MyData>,
@@ -1110,9 +1104,7 @@ fn participant_sample_rejected_listener() {
     mock! {
         SampleRejectedListener{}
 
-        impl DataReaderListener for SampleRejectedListener {
-            type Foo = MyData;
-
+        impl DataReaderListener<MyData> for SampleRejectedListener {
             fn on_sample_rejected(
                 &mut self,
                 _the_reader: &DataReader<MyData>,
@@ -1236,9 +1228,7 @@ fn participant_subscription_matched_listener() {
     mock! {
         SubscriptionMatchedListener{}
 
-        impl DataReaderListener for SubscriptionMatchedListener {
-            type Foo = MyData;
-
+        impl DataReaderListener<MyData> for SubscriptionMatchedListener {
             fn on_subscription_matched(
                 &mut self,
                 _the_reader: &DataReader<MyData>,
@@ -1339,9 +1329,7 @@ fn participant_requested_incompatible_qos_listener() {
     mock! {
         RequestedIncompatibleQosListener{}
 
-        impl DataReaderListener for RequestedIncompatibleQosListener {
-            type Foo = MyData;
-
+        impl DataReaderListener<MyData> for RequestedIncompatibleQosListener {
             fn on_requested_incompatible_qos(
                 &mut self,
                 _the_reader: &DataReader<MyData>,

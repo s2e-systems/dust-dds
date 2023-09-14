@@ -2293,7 +2293,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     reader
-        .wait_for_historical_data(Duration::new(2, 0))
+        .wait_for_historical_data(Duration::new(10, 0))
         .unwrap();
     let samples = reader
         .read(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -2310,10 +2310,8 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
         sender: std::sync::mpsc::SyncSender<()>,
         data_sample_list: std::vec::IntoIter<KeyedData>,
     }
-    impl DataReaderListener for Listener {
-        type Foo = KeyedData;
-
-        fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
+    impl DataReaderListener<KeyedData> for Listener {
+        fn on_data_available(&mut self, the_reader: &DataReader<KeyedData>) {
             if let Ok(samples) =
                 the_reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             {

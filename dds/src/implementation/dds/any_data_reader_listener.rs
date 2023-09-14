@@ -34,7 +34,7 @@ pub trait AnyDataReaderListener {
     fn trigger_on_sample_lost(&mut self, reader: DataReaderNode, status: SampleLostStatus);
 }
 
-impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync> {
+impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo> + Send + Sync> {
     fn trigger_on_data_available(&mut self, reader: DataReaderNode) {
         self.on_data_available(&DataReader::new(DataReaderNodeKind::Listener(reader)))
     }
