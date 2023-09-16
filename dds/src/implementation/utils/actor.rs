@@ -19,12 +19,13 @@ pub trait Mail {
     type Result;
 }
 
+#[async_trait::async_trait]
 pub trait MailHandler<M>
 where
     M: Mail,
     Self: Sized,
 {
-    fn handle(&mut self, mail: M) -> M::Result;
+    async fn handle(&mut self, mail: M) -> M::Result;
 }
 
 #[derive(Debug)]
@@ -49,7 +50,24 @@ impl<A> PartialEq for ActorAddress<A> {
 impl<A> Eq for ActorAddress<A> {}
 
 impl<A> ActorAddress<A> {
-    pub fn send_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
+    pub async fn send_and_reply<M>(&self, mail: M) -> DdsResult<M::Result>
+    where
+        A: MailHandler<M> + Send,
+        M: Mail + Send + 'static,
+        M::Result: Send,
+    {
+        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
+
+        self.sender
+            .send(Box::new(SyncMail::new(mail, response_sender)))
+            .await
+            .map_err(|_| DdsError::AlreadyDeleted)?;
+        response_receiver
+            .await
+            .map_err(|_| DdsError::AlreadyDeleted)
+    }
+
+    pub fn send_and_reply_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
@@ -65,7 +83,18 @@ impl<A> ActorAddress<A> {
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
-    pub fn send_command<M>(&self, mail: M) -> DdsResult<()>
+    pub async fn send_only<M>(&self, mail: M) -> DdsResult<()>
+    where
+        A: MailHandler<M> + Send,
+        M: Mail + Send + 'static,
+    {
+        self.sender
+            .send(Box::new(CommandMail::new(mail)))
+            .await
+            .map_err(|_| DdsError::AlreadyDeleted)
+    }
+
+    pub fn send_only_blocking<M>(&self, mail: M) -> DdsResult<()>
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
@@ -117,12 +146,13 @@ where
             self.mail
                 .take()
                 .expect("Mail should be processed only once"),
-        );
+        )
+        .await;
         self.sender
             .take()
             .expect("Mail should be processed only once")
             .send(result)
-            .map_err(|_| "Failed to send message on type withou Debug")
+            .map_err(|_| "Remove need for Debug on message send type")
             .expect("Sending should never fail");
     }
 }
@@ -149,7 +179,8 @@ where
             self.mail
                 .take()
                 .expect("Mail should be processed only once"),
-        );
+        )
+        .await;
     }
 }
 
@@ -233,14 +264,15 @@ macro_rules! mailbox_function {
                     type Result = $ret_type;
                 }
 
+                #[async_trait::async_trait]
                 impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
                     #[allow(unused_variables)]
-                    fn handle(&mut self, mail: $fn_name) -> $ret_type {
+                    async fn handle(&mut self, mail: $fn_name) -> $ret_type {
                         self.$fn_name($(mail.$arg_name,)*)
                     }
                 }
 
-                self.send_blocking($fn_name{
+                self.send_and_reply_blocking($fn_name{
                     $($arg_name, )*
                 })
 
@@ -270,14 +302,15 @@ macro_rules! mailbox_function {
                     type Result = ();
                 }
 
+                #[async_trait::async_trait]
                 impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
                     #[allow(unused_variables)]
-                    fn handle(&mut self, mail: $fn_name) {
+                    async fn handle(&mut self, mail: $fn_name) {
                         self.$fn_name($(mail.$arg_name,)*)
                     }
                 }
 
-                self.send_blocking($fn_name{
+                self.send_and_reply_blocking($fn_name{
                     $($arg_name, )*
                 })
 
@@ -323,14 +356,15 @@ macro_rules! command_function {
                     type Result = ();
                 }
 
+                #[async_trait::async_trait]
                 impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
                     #[allow(unused_variables)]
-                    fn handle(&mut self, mail: $fn_name) {
+                    async fn handle(&mut self, mail: $fn_name) {
                         self.$fn_name($(mail.$arg_name,)*)
                     }
                 }
 
-                self.send_command($fn_name{
+                self.send_only_blocking($fn_name{
                     $($arg_name, )*
                 })
 
