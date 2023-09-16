@@ -1241,14 +1241,16 @@ pub async fn discover_matched_readers(
                             }
                             _ => None,
                         };
-                    data_writer.remove_matched_reader(
-                        discovered_reader_sample.sample_info().instance_handle,
-                        data_writer.clone(),
-                        publisher.clone(),
-                        participant_address.clone(),
-                        publisher_publication_matched_listener,
-                        participant_publication_matched_listener,
-                    )?;
+                    data_writer
+                        .send_and_reply(dds_data_writer::RemoveMatchedReader::new(
+                            discovered_reader_sample.sample_info().instance_handle,
+                            data_writer.clone(),
+                            publisher.clone(),
+                            participant_address.clone(),
+                            publisher_publication_matched_listener,
+                            participant_publication_matched_listener,
+                        ))
+                        .await?;
                 }
             }
         }

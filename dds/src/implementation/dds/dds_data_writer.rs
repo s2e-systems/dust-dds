@@ -618,26 +618,6 @@ impl DdsDataWriter {
             ),
         )
     }
-
-    pub fn remove_matched_reader(
-        &mut self,
-        discovered_reader_handle: InstanceHandle,
-        data_writer_address: ActorAddress<DdsDataWriter>,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
-        participant_publication_matched_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
-        >,
-    ) {
-        if let Some(r) = self.get_matched_subscription_data(discovered_reader_handle) {
-            let handle = r.key().value.into();
-            self.matched_reader_remove(handle);
-            self.remove_matched_subscription(handle.into());
-
-            self.on_publication_matched(data_writer_address, publisher_address, participant_address, publisher_publication_matched_listener, participant_publication_matched_listener)
-        }
-    }
 }
 }
 
@@ -818,6 +798,7 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
                         mail.publisher_publication_matched_listener,
                         mail.participant_publication_matched_listener,
                     )
+                    .await;
                 }
             } else {
                 self.incompatible_subscriptions
@@ -831,6 +812,61 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
                 )
                 .await;
             }
+        }
+    }
+}
+
+pub struct RemoveMatchedReader {
+    discovered_reader_handle: InstanceHandle,
+    data_writer_address: ActorAddress<DdsDataWriter>,
+    publisher_address: ActorAddress<DdsPublisher>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
+    publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
+    participant_publication_matched_listener: Option<ActorAddress<DdsDomainParticipantListener>>,
+}
+
+impl RemoveMatchedReader {
+    pub fn new(
+        discovered_reader_handle: InstanceHandle,
+        data_writer_address: ActorAddress<DdsDataWriter>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
+        participant_publication_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
+    ) -> Self {
+        Self {
+            discovered_reader_handle,
+            data_writer_address,
+            publisher_address,
+            participant_address,
+            publisher_publication_matched_listener,
+            participant_publication_matched_listener,
+        }
+    }
+}
+
+impl Mail for RemoveMatchedReader {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<RemoveMatchedReader> for DdsDataWriter {
+    async fn handle(&mut self, mail: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
+        if let Some(r) = self.get_matched_subscription_data(mail.discovered_reader_handle) {
+            let handle = r.key().value.into();
+            self.matched_reader_remove(handle);
+            self.remove_matched_subscription(handle.into());
+
+            self.on_publication_matched(
+                mail.data_writer_address,
+                mail.publisher_address,
+                mail.participant_address,
+                mail.publisher_publication_matched_listener,
+                mail.participant_publication_matched_listener,
+            )
+            .await;
         }
     }
 }
@@ -1104,7 +1140,7 @@ impl DdsDataWriter {
         }
     }
 
-    fn on_publication_matched(
+    async fn on_publication_matched(
         &mut self,
         data_writer_address: ActorAddress<DdsDataWriter>,
         publisher_address: ActorAddress<DdsPublisher>,
@@ -1123,7 +1159,10 @@ impl DdsDataWriter {
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             let status = self.get_publication_matched_status();
             listener_address
-                .trigger_on_publication_matched(writer, status)
+                .send_only(dds_data_writer_listener::TriggerOnPublicationMatched::new(
+                    writer, status,
+                ))
+                .await
                 .expect("Should not fail to send message");
         } else if let Some(publisher_publication_matched_listener) =
             publisher_publication_matched_listener

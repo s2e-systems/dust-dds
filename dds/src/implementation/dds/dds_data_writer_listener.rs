@@ -1,7 +1,7 @@
 use crate::{
     implementation::{
         dds::nodes::DataWriterNode,
-        utils::actor::{actor_command_interface, Mail, MailHandler},
+        utils::actor::{Mail, MailHandler},
     },
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
@@ -46,16 +46,30 @@ impl MailHandler<TriggerOnOfferedIncompatibleQos> for DdsDataWriterListener {
     }
 }
 
-actor_command_interface! {
-impl DdsDataWriterListener {
+pub struct TriggerOnPublicationMatched {
+    the_writer: DataWriterNode,
+    status: PublicationMatchedStatus,
+}
 
-    pub fn trigger_on_publication_matched(
-        &mut self,
-        the_writer: DataWriterNode,
-        status: PublicationMatchedStatus,
-    ) {
-        tokio::task::block_in_place(|| self.listener
-            .trigger_on_publication_matched(the_writer, status));
+impl TriggerOnPublicationMatched {
+    pub fn new(the_writer: DataWriterNode, status: PublicationMatchedStatus) -> Self {
+        Self { the_writer, status }
     }
 }
+
+impl Mail for TriggerOnPublicationMatched {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<TriggerOnPublicationMatched> for DdsDataWriterListener {
+    async fn handle(
+        &mut self,
+        mail: TriggerOnPublicationMatched,
+    ) -> <TriggerOnPublicationMatched as Mail>::Result {
+        tokio::task::block_in_place(|| {
+            self.listener
+                .trigger_on_publication_matched(mail.the_writer, mail.status)
+        });
+    }
 }
