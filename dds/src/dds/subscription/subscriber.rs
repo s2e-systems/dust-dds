@@ -216,7 +216,9 @@ impl Subscriber {
                                 .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
                                 .expect("Failed to serialize data");
 
-                        let timestamp = dr.parent_participant().get_current_time()?;
+                        let timestamp = dr
+                            .parent_participant()
+                            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
                         if let Some(sedp_reader_announcer) = dr
                             .parent_participant()
@@ -239,7 +241,9 @@ impl Subscriber {
                                         dr.parent_participant().get_guid()?.prefix(),
                                     ),
                                     dr.parent_participant().get_udp_transport_write()?,
-                                    dr.parent_participant().get_current_time()?,
+                                    dr.parent_participant().send_and_reply_blocking(
+                                        dds_domain_participant::GetCurrentTime,
+                                    )?,
                                 ),
                             )?;
                         }

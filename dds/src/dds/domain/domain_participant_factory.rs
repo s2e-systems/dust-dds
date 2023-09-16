@@ -636,7 +636,9 @@ async fn process_spdp_metatraffic(
     builtin_subscriber
         .send_only(dds_subscriber::ProcessRtpsMessage::new(
             message,
-            participant_address.get_current_time()?,
+            participant_address
+                .send_and_reply(dds_domain_participant::GetCurrentTime)
+                .await?,
             participant_address.clone(),
             builtin_subscriber.clone(),
             participant_mask_listener,
@@ -709,7 +711,9 @@ async fn process_spdp_metatraffic(
                                     participant_address.get_guid()?.prefix(),
                                 ),
                                 participant_address.get_udp_transport_write()?,
-                                participant_address.get_current_time()?,
+                                participant_address
+                                    .send_and_reply(dds_domain_participant::GetCurrentTime)
+                                    .await?,
                             ))
                             .await?;
                     }
@@ -740,7 +744,9 @@ async fn process_spdp_metatraffic(
                                     participant_address.get_guid()?.prefix(),
                                 ),
                                 participant_address.get_udp_transport_write()?,
-                                participant_address.get_current_time()?,
+                                participant_address
+                                    .send_and_reply(dds_domain_participant::GetCurrentTime)
+                                    .await?,
                             ))
                             .await?;
                     }
@@ -771,7 +777,9 @@ async fn process_spdp_metatraffic(
                                     participant_address.get_guid()?.prefix(),
                                 ),
                                 participant_address.get_udp_transport_write()?,
-                                participant_address.get_current_time()?,
+                                participant_address
+                                    .send_and_reply(dds_domain_participant::GetCurrentTime)
+                                    .await?,
                             ))
                             .await?;
                     }
@@ -822,7 +830,9 @@ async fn process_sedp_metatraffic(
                     participant_address.get_guid()?.prefix(),
                 ),
                 participant_address.get_udp_transport_write()?,
-                participant_address.get_current_time()?,
+                participant_address
+                    .send_and_reply(dds_domain_participant::GetCurrentTime)
+                    .await?,
             ))
             .await?;
     }
@@ -830,7 +840,9 @@ async fn process_sedp_metatraffic(
     builtin_subscriber
         .send_only(dds_subscriber::ProcessRtpsMessage::new(
             message,
-            participant_address.get_current_time()?,
+            participant_address
+                .send_and_reply(dds_domain_participant::GetCurrentTime)
+                .await?,
             participant_address.clone(),
             builtin_subscriber.clone(),
             participant_mask_listener,
@@ -1210,7 +1222,11 @@ pub async fn discover_matched_readers(
                                                 participant_address.get_guid()?.prefix(),
                                             ),
                                             participant_address.get_udp_transport_write()?,
-                                            participant_address.get_current_time()?,
+                                            participant_address
+                                                .send_and_reply(
+                                                    dds_domain_participant::GetCurrentTime,
+                                                )
+                                                .await?,
                                         ))
                                         .await?;
                                 }

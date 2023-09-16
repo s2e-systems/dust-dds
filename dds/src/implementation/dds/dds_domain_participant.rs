@@ -452,6 +452,14 @@ impl DdsDomainParticipant {
             status_kind,
         }
     }
+
+    fn get_current_time(&self) -> Time {
+        let now_system_time = SystemTime::now();
+        let unix_time = now_system_time
+            .duration_since(UNIX_EPOCH)
+            .expect("Clock time is before Unix epoch start");
+        Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
+    }
 }
 
 actor_mailbox_interface! {
@@ -574,14 +582,6 @@ impl DdsDomainParticipant {
 
     pub fn get_domain_tag(&self) -> String {
         self.domain_tag.clone()
-    }
-
-    pub fn get_current_time(&self) -> Time {
-        let now_system_time = SystemTime::now();
-        let unix_time = now_system_time
-            .duration_since(UNIX_EPOCH)
-            .expect("Clock time is before Unix epoch start");
-        Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
     pub fn enable(&mut self) {
@@ -818,6 +818,23 @@ impl DdsDomainParticipant {
         self.status_kind.clone()
     }
 }
+}
+
+pub struct GetCurrentTime;
+
+impl Mail for GetCurrentTime {
+    type Result = Time;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetCurrentTime> for DdsDomainParticipant {
+    async fn handle(&mut self, _mail: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
+        let now_system_time = SystemTime::now();
+        let unix_time = now_system_time
+            .duration_since(UNIX_EPOCH)
+            .expect("Clock time is before Unix epoch start");
+        Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
+    }
 }
 
 pub struct GetBuiltinPublisher;

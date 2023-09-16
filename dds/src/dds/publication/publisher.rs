@@ -154,7 +154,9 @@ impl Publisher {
                             .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
                             .expect("Failed to serialize data");
 
-                    let timestamp = dw.parent_participant().get_current_time()?;
+                    let timestamp = dw
+                        .parent_participant()
+                        .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
                     if let Some(sedp_writer_announcer) = dw
                         .parent_participant()
@@ -177,7 +179,9 @@ impl Publisher {
                                     dw.parent_participant().get_guid()?.prefix(),
                                 ),
                                 dw.parent_participant().get_udp_transport_write()?,
-                                dw.parent_participant().get_current_time()?,
+                                dw.parent_participant().send_and_reply_blocking(
+                                    dds_domain_participant::GetCurrentTime,
+                                )?,
                             ),
                         )?;
                     }

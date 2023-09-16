@@ -88,9 +88,9 @@ where
     /// and specify no [`InstanceHandle`] to indicate that the *key* should be examined to identify the instance.
     pub fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let timestamp = match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.parent_participant().get_current_time()?
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .parent_participant()
+                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
         };
         self.register_instance_w_timestamp(instance, timestamp)
     }
@@ -144,9 +144,9 @@ where
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
         let timestamp = match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.parent_participant().get_current_time()?
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .parent_participant()
+                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
         };
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
@@ -262,9 +262,9 @@ where
     /// chance of freeing the necessary resources. For example, if the only way to gain the necessary resources would be for the user to unregister an instance.
     pub fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.parent_participant().get_current_time()?
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .parent_participant()
+                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
         };
         self.write_w_timestamp(data, handle, timestamp)
     }
@@ -299,7 +299,8 @@ where
                             dw.parent_participant().get_guid()?.prefix(),
                         ),
                         dw.parent_participant().get_udp_transport_write()?,
-                        dw.parent_participant().get_current_time()?,
+                        dw.parent_participant()
+                            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
                     ))?;
 
                 Ok(())
@@ -321,9 +322,9 @@ where
     /// [`DdsError::OutOfResources`](crate::infrastructure::error::DdsError) under the same circumstances described for [`DataWriter::write`].
     pub fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.parent_participant().get_current_time()?
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .parent_participant()
+                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
         };
         self.dispose_w_timestamp(data, handle, timestamp)
     }
@@ -727,7 +728,8 @@ fn announce_data_writer(
     discovered_writer_data: &DiscoveredWriterData,
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(discovered_writer_data)?;
-    let timestamp = domain_participant.get_current_time()?;
+    let timestamp =
+        domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
     if let Some(sedp_writer_announcer) = domain_participant
         .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
@@ -749,7 +751,7 @@ fn announce_data_writer(
                 domain_participant.get_guid()?.prefix(),
             ),
             domain_participant.get_udp_transport_write()?,
-            domain_participant.get_current_time()?,
+            domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
         ))?;
     }
 

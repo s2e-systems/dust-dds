@@ -908,7 +908,8 @@ fn announce_data_reader(
     discovered_reader_data: DiscoveredReaderData,
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(&discovered_reader_data)?;
-    let timestamp = domain_participant.get_current_time()?;
+    let timestamp =
+        domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
     if let Some(sedp_reader_announcer) = domain_participant
         .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
@@ -930,7 +931,7 @@ fn announce_data_reader(
                 domain_participant.get_guid()?.prefix(),
             ),
             domain_participant.get_udp_transport_write()?,
-            domain_participant.get_current_time()?,
+            domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
         ))?;
     }
 

@@ -581,7 +581,8 @@ impl DomainParticipant {
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        self.0.get_current_time()
+        self.0
+            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)
     }
 }
 
@@ -724,7 +725,9 @@ impl DomainParticipant {
                                 domain_participant_address.as_spdp_discovered_participant_data()?;
                             let serialized_data =
                                 dds_serialize_to_bytes(&spdp_discovered_participant_data)?;
-                            let timestamp = domain_participant_address.get_current_time()?;
+                            let timestamp = domain_participant_address
+                                .send_and_reply(dds_domain_participant::GetCurrentTime)
+                                .await?;
                             participant_announcer.write_w_timestamp(
                                 serialized_data,
                                 dds_serialize_key(&spdp_discovered_participant_data).unwrap(),
@@ -763,7 +766,9 @@ impl DomainParticipant {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(50));
                 loop {
                     let r: DdsResult<()> = async {
-                        let now = domain_participant_address.get_current_time()?;
+                        let now = domain_participant_address
+                            .send_and_reply(dds_domain_participant::GetCurrentTime)
+                            .await?;
                         let participant_mask_listener = (
                             domain_participant_address.get_listener()?,
                             domain_participant_address.status_kind()?,
@@ -799,7 +804,9 @@ impl DomainParticipant {
                                             domain_participant_address.get_guid()?.prefix(),
                                         ),
                                         domain_participant_address.get_udp_transport_write()?,
-                                        domain_participant_address.get_current_time()?,
+                                        domain_participant_address
+                                            .send_and_reply(dds_domain_participant::GetCurrentTime)
+                                            .await?,
                                     ))
                                     .await?;
                             }
