@@ -27,10 +27,6 @@ where
     fn handle(&mut self, mail: M) -> M::Result;
 }
 
-pub trait CommandHandler<M> {
-    fn handle(&mut self, mail: M);
-}
-
 #[derive(Debug)]
 pub struct ActorAddress<A> {
     sender: tokio::sync::mpsc::UnboundedSender<Box<dyn GenericHandler<A> + Send>>,
@@ -69,13 +65,13 @@ impl<A> ActorAddress<A> {
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
-    pub fn send_command<M>(&self, command: M) -> DdsResult<()>
+    pub fn send_command<M>(&self, mail: M) -> DdsResult<()>
     where
-        A: CommandHandler<M> + Send,
-        M: Send + 'static,
+        A: MailHandler<M> + Send,
+        M: Mail + Send + 'static,
     {
         self.sender
-            .send(Box::new(CommandMail::new(command)))
+            .send(Box::new(CommandMail::new(mail)))
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 }
@@ -144,11 +140,11 @@ impl<M> CommandMail<M> {
 #[async_trait::async_trait]
 impl<A, M> GenericHandler<A> for CommandMail<M>
 where
-    A: CommandHandler<M> + Send,
-    M: Send,
+    A: MailHandler<M> + Send,
+    M: Mail + Send,
 {
     async fn handle(&mut self, actor: &mut A) {
-        <A as CommandHandler<M>>::handle(
+        <A as MailHandler<M>>::handle(
             actor,
             self.mail
                 .take()
@@ -323,7 +319,11 @@ macro_rules! command_function {
                     $($arg_name:$arg_type,)*
                 }
 
-                impl crate::implementation::utils::actor::CommandHandler<$fn_name> for $type_name {
+                impl crate::implementation::utils::actor::Mail for $fn_name {
+                    type Result = ();
+                }
+
+                impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
                     #[allow(unused_variables)]
                     fn handle(&mut self, mail: $fn_name) {
                         self.$fn_name($(mail.$arg_name,)*)
