@@ -334,58 +334,6 @@ macro_rules! actor_mailbox_interface {
 }
 pub(crate) use actor_mailbox_interface;
 
-macro_rules! command_function {
-    // Commands are only valid for functions without return
-    ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $body:block ) => {
-        impl $type_name {
-            #[allow(clippy::too_many_arguments)]
-            pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)* ) {
-                $body
-            }
-        }
-
-        impl crate::implementation::utils::actor::ActorAddress<$type_name> {
-            #[allow(clippy::too_many_arguments)]
-            pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> crate::infrastructure::error::DdsResult<()> {
-                #[allow(non_camel_case_types)]
-                struct $fn_name {
-                    $($arg_name:$arg_type,)*
-                }
-
-                impl crate::implementation::utils::actor::Mail for $fn_name {
-                    type Result = ();
-                }
-
-                #[async_trait::async_trait]
-                impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
-                    #[allow(unused_variables)]
-                    async fn handle(&mut self, mail: $fn_name) {
-                        self.$fn_name($(mail.$arg_name,)*)
-                    }
-                }
-
-                self.send_only_blocking($fn_name{
-                    $($arg_name, )*
-                })
-
-            }
-        }
-    };
-}
-pub(crate) use command_function;
-
-macro_rules! actor_command_interface {
-    (impl $type_name:ident {
-        $(
-        pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?)
-            $body:block
-        )+
-    }) => {
-        $(crate::implementation::utils::actor::command_function!($type_name, pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) $body );)+
-    };
-}
-pub(crate) use actor_command_interface;
-
 #[cfg(test)]
 mod tests {
     use super::*;
