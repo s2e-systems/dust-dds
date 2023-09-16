@@ -1184,19 +1184,21 @@ pub async fn discover_matched_readers(
                                             }
                                             _ => None,
                                         };
-                                    data_writer.add_matched_reader(
-                                        discovered_reader_data.clone(),
-                                        default_unicast_locator_list.clone(),
-                                        default_multicast_locator_list.clone(),
-                                        data_writer.clone(),
-                                        user_defined_publisher_address.clone(),
-                                        participant_address.clone(),
-                                        publisher_qos.clone(),
-                                        publisher_publication_matched_listener,
-                                        participant_publication_matched_listener,
-                                        offered_incompatible_qos_publisher_listener,
-                                        offered_incompatible_qos_participant_listener,
-                                    )?;
+                                    data_writer
+                                        .send_and_reply(dds_data_writer::AddMatchedReader::new(
+                                            discovered_reader_data.clone(),
+                                            default_unicast_locator_list.clone(),
+                                            default_multicast_locator_list.clone(),
+                                            data_writer.clone(),
+                                            user_defined_publisher_address.clone(),
+                                            participant_address.clone(),
+                                            publisher_qos.clone(),
+                                            publisher_publication_matched_listener,
+                                            participant_publication_matched_listener,
+                                            offered_incompatible_qos_publisher_listener,
+                                            offered_incompatible_qos_participant_listener,
+                                        ))
+                                        .await?;
                                     data_writer
                                         .send_only(dds_data_writer::SendMessage::new(
                                             RtpsMessageHeader::new(

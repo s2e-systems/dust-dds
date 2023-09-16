@@ -1,8 +1,12 @@
 use super::{
-    dds_data_writer_listener::DdsDataWriterListener, dds_domain_participant::DdsDomainParticipant,
-    dds_domain_participant_listener::DdsDomainParticipantListener, dds_publisher::DdsPublisher,
-    dds_publisher_listener::DdsPublisherListener, message_receiver::MessageReceiver,
-    nodes::DataWriterNode, status_condition_impl::StatusConditionImpl,
+    dds_data_writer_listener::{self, DdsDataWriterListener},
+    dds_domain_participant::DdsDomainParticipant,
+    dds_domain_participant_listener::DdsDomainParticipantListener,
+    dds_publisher::DdsPublisher,
+    dds_publisher_listener::DdsPublisherListener,
+    message_receiver::MessageReceiver,
+    nodes::DataWriterNode,
+    status_condition_impl::StatusConditionImpl,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
@@ -615,143 +619,6 @@ impl DdsDataWriter {
         )
     }
 
-    pub fn add_matched_reader(
-        &mut self,
-        discovered_reader_data: DiscoveredReaderData,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        data_writer_address: ActorAddress<DdsDataWriter>,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        publisher_qos: PublisherQos,
-        publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
-        participant_publication_matched_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
-        >,
-        offered_incompatible_qos_publisher_listener: Option<ActorAddress<DdsPublisherListener>>,
-        offered_incompatible_qos_participant_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
-        >,
-    ) {
-        let is_matched_topic_name = discovered_reader_data
-            .subscription_builtin_topic_data()
-            .topic_name()
-            == self.get_topic_name();
-        let is_matched_type_name = discovered_reader_data
-            .subscription_builtin_topic_data()
-            .get_type_name()
-            == self.get_type_name();
-
-        if is_matched_topic_name && is_matched_type_name {
-            let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
-                &self.qos,
-                discovered_reader_data.subscription_builtin_topic_data(),
-                &publisher_qos,
-            );
-            let instance_handle = dds_serialize_key(&discovered_reader_data).unwrap().into();
-
-            if incompatible_qos_policy_list.is_empty() {
-                let unicast_locator_list = if discovered_reader_data
-                    .reader_proxy()
-                    .unicast_locator_list()
-                    .is_empty()
-                {
-                    default_unicast_locator_list
-                } else {
-                    discovered_reader_data
-                        .reader_proxy()
-                        .unicast_locator_list()
-                        .to_vec()
-                };
-
-                let multicast_locator_list = if discovered_reader_data
-                    .reader_proxy()
-                    .multicast_locator_list()
-                    .is_empty()
-                {
-                    default_multicast_locator_list
-                } else {
-                    discovered_reader_data
-                        .reader_proxy()
-                        .multicast_locator_list()
-                        .to_vec()
-                };
-
-                let proxy_reliability = match discovered_reader_data
-                    .subscription_builtin_topic_data()
-                    .reliability()
-                    .kind
-                {
-                    ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
-                    ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-                };
-
-                let first_relevant_sample_seq_num = match discovered_reader_data
-                    .subscription_builtin_topic_data()
-                    .durability()
-                    .kind
-                {
-                    DurabilityQosPolicyKind::Volatile => self.writer_cache
-                        .change_list()
-                        .map(|cc| cc.sequence_number())
-                        .max()
-                        .unwrap_or_else(|| SequenceNumber::from(0)),
-                    DurabilityQosPolicyKind::TransientLocal => SequenceNumber::from(0)
-                };
-
-                let reader_proxy = RtpsReaderProxy::new(
-                    discovered_reader_data.reader_proxy().remote_reader_guid(),
-                    discovered_reader_data
-                        .reader_proxy()
-                        .remote_group_entity_id(),
-                    &unicast_locator_list,
-                    &multicast_locator_list,
-                    discovered_reader_data.reader_proxy().expects_inline_qos(),
-                    true,
-                    proxy_reliability,
-                    first_relevant_sample_seq_num,
-                );
-
-                self.matched_reader_add(reader_proxy);
-
-                if !self.get_matched_subscriptions().contains(&instance_handle)
-                    || self.get_matched_subscription_data(instance_handle).as_ref()
-                        != Some(discovered_reader_data.subscription_builtin_topic_data())
-                {
-                    self.add_matched_publication(
-                        instance_handle,
-                        discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .clone(),
-                    );
-                    self.matched_subscriptions.add_matched_subscription(
-                        instance_handle,
-                        discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .clone(),
-                    );
-                    self.on_publication_matched(
-                        data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        publisher_publication_matched_listener,
-                        participant_publication_matched_listener,
-                    )
-                }
-            } else {
-                self.incompatible_subscriptions
-                    .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
-                self.on_offered_incompatible_qos(
-                    data_writer_address,
-                    publisher_address,
-                    participant_address,
-                    offered_incompatible_qos_publisher_listener,
-                    offered_incompatible_qos_participant_listener,
-                );
-            }
-        }
-    }
-
     pub fn remove_matched_reader(
         &mut self,
         discovered_reader_handle: InstanceHandle,
@@ -772,6 +639,200 @@ impl DdsDataWriter {
         }
     }
 }
+}
+
+pub struct AddMatchedReader {
+    discovered_reader_data: DiscoveredReaderData,
+    default_unicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
+    data_writer_address: ActorAddress<DdsDataWriter>,
+    publisher_address: ActorAddress<DdsPublisher>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
+    publisher_qos: PublisherQos,
+    publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
+    participant_publication_matched_listener: Option<ActorAddress<DdsDomainParticipantListener>>,
+    offered_incompatible_qos_publisher_listener: Option<ActorAddress<DdsPublisherListener>>,
+    offered_incompatible_qos_participant_listener:
+        Option<ActorAddress<DdsDomainParticipantListener>>,
+}
+
+impl AddMatchedReader {
+    pub fn new(
+        discovered_reader_data: DiscoveredReaderData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        data_writer_address: ActorAddress<DdsDataWriter>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        publisher_qos: PublisherQos,
+        publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
+        participant_publication_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
+        offered_incompatible_qos_publisher_listener: Option<ActorAddress<DdsPublisherListener>>,
+        offered_incompatible_qos_participant_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
+    ) -> Self {
+        Self {
+            discovered_reader_data,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            data_writer_address,
+            publisher_address,
+            participant_address,
+            publisher_qos,
+            publisher_publication_matched_listener,
+            participant_publication_matched_listener,
+            offered_incompatible_qos_publisher_listener,
+            offered_incompatible_qos_participant_listener,
+        }
+    }
+}
+
+impl Mail for AddMatchedReader {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<AddMatchedReader> for DdsDataWriter {
+    async fn handle(&mut self, mail: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
+        let is_matched_topic_name = mail
+            .discovered_reader_data
+            .subscription_builtin_topic_data()
+            .topic_name()
+            == self.get_topic_name();
+        let is_matched_type_name = mail
+            .discovered_reader_data
+            .subscription_builtin_topic_data()
+            .get_type_name()
+            == self.get_type_name();
+
+        if is_matched_topic_name && is_matched_type_name {
+            let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
+                &self.qos,
+                mail.discovered_reader_data
+                    .subscription_builtin_topic_data(),
+                &mail.publisher_qos,
+            );
+            let instance_handle = dds_serialize_key(&mail.discovered_reader_data)
+                .unwrap()
+                .into();
+
+            if incompatible_qos_policy_list.is_empty() {
+                let unicast_locator_list = if mail
+                    .discovered_reader_data
+                    .reader_proxy()
+                    .unicast_locator_list()
+                    .is_empty()
+                {
+                    mail.default_unicast_locator_list
+                } else {
+                    mail.discovered_reader_data
+                        .reader_proxy()
+                        .unicast_locator_list()
+                        .to_vec()
+                };
+
+                let multicast_locator_list = if mail
+                    .discovered_reader_data
+                    .reader_proxy()
+                    .multicast_locator_list()
+                    .is_empty()
+                {
+                    mail.default_multicast_locator_list
+                } else {
+                    mail.discovered_reader_data
+                        .reader_proxy()
+                        .multicast_locator_list()
+                        .to_vec()
+                };
+
+                let proxy_reliability = match mail
+                    .discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .reliability()
+                    .kind
+                {
+                    ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+                    ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                };
+
+                let first_relevant_sample_seq_num = match mail
+                    .discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .durability()
+                    .kind
+                {
+                    DurabilityQosPolicyKind::Volatile => self
+                        .writer_cache
+                        .change_list()
+                        .map(|cc| cc.sequence_number())
+                        .max()
+                        .unwrap_or_else(|| SequenceNumber::from(0)),
+                    DurabilityQosPolicyKind::TransientLocal => SequenceNumber::from(0),
+                };
+
+                let reader_proxy = RtpsReaderProxy::new(
+                    mail.discovered_reader_data
+                        .reader_proxy()
+                        .remote_reader_guid(),
+                    mail.discovered_reader_data
+                        .reader_proxy()
+                        .remote_group_entity_id(),
+                    &unicast_locator_list,
+                    &multicast_locator_list,
+                    mail.discovered_reader_data
+                        .reader_proxy()
+                        .expects_inline_qos(),
+                    true,
+                    proxy_reliability,
+                    first_relevant_sample_seq_num,
+                );
+
+                self.matched_reader_add(reader_proxy);
+
+                if !self.get_matched_subscriptions().contains(&instance_handle)
+                    || self.get_matched_subscription_data(instance_handle).as_ref()
+                        != Some(
+                            mail.discovered_reader_data
+                                .subscription_builtin_topic_data(),
+                        )
+                {
+                    self.add_matched_publication(
+                        instance_handle,
+                        mail.discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .clone(),
+                    );
+                    self.matched_subscriptions.add_matched_subscription(
+                        instance_handle,
+                        mail.discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .clone(),
+                    );
+                    self.on_publication_matched(
+                        mail.data_writer_address,
+                        mail.publisher_address,
+                        mail.participant_address,
+                        mail.publisher_publication_matched_listener,
+                        mail.participant_publication_matched_listener,
+                    )
+                }
+            } else {
+                self.incompatible_subscriptions
+                    .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
+                self.on_offered_incompatible_qos(
+                    mail.data_writer_address,
+                    mail.publisher_address,
+                    mail.participant_address,
+                    mail.offered_incompatible_qos_publisher_listener,
+                    mail.offered_incompatible_qos_participant_listener,
+                )
+                .await;
+            }
+        }
+    }
 }
 
 pub struct ProcessRtpsMessage {
@@ -1085,7 +1146,7 @@ impl DdsDataWriter {
         }
     }
 
-    fn on_offered_incompatible_qos(
+    async fn on_offered_incompatible_qos(
         &mut self,
         data_writer_address: ActorAddress<DdsDataWriter>,
         publisher_address: ActorAddress<DdsPublisher>,
@@ -1108,7 +1169,10 @@ impl DdsDataWriter {
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             listener_address
-                .trigger_on_offered_incompatible_qos(writer, status)
+                .send_only(
+                    dds_data_writer_listener::TriggerOnOfferedIncompatibleQos::new(writer, status),
+                )
+                .await
                 .expect("Should not fail to send message");
         } else if let Some(offered_incompatible_qos_publisher_listener) =
             offered_incompatible_qos_publisher_listener
