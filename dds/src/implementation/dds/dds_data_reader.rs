@@ -595,7 +595,7 @@ impl DdsDataReader {
         }
     }
 
-    fn on_sample_lost(
+    async fn on_sample_lost(
         &mut self,
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
@@ -621,8 +621,11 @@ impl DdsDataReader {
                     participant_address.clone(),
                 );
                 let status = self.get_sample_lost_status();
-                l.trigger_on_sample_lost(reader, status)
-                    .expect("Should not fail to send command");
+                l.send_only(dds_data_reader_listener::TriggerOnSampleLost::new(
+                    reader, status,
+                ))
+                .await
+                .expect("Should not fail to send command");
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleLost) => {
@@ -714,7 +717,7 @@ impl DdsDataReader {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn on_sample_rejected(
+    async fn on_sample_rejected(
         &mut self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
@@ -743,8 +746,11 @@ impl DdsDataReader {
                     subscriber_address.clone(),
                     participant_address.clone(),
                 );
-                l.trigger_on_sample_rejected(reader, status)
-                    .expect("Should not fail to send message");
+                l.send_only(dds_data_reader_listener::TriggerOnSampleRejected::new(
+                    reader, status,
+                ))
+                .await
+                .expect("Should not fail to send message");
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleRejected) => {
@@ -961,7 +967,8 @@ impl DdsDataReader {
                             participant_address,
                             subscriber_mask_listener,
                             participant_mask_listener,
-                        );
+                        )
+                        .await;
                     }
                     self.add_change(
                         cache_change,
@@ -1035,6 +1042,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
+                .await
             } else if self.is_max_instances_limit_reached(&change) {
                 self.on_sample_rejected(
                     change.instance_handle,
@@ -1045,6 +1053,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
+                .await
             } else if self.is_max_samples_per_instance_limit_reached(&change) {
                 self.on_sample_rejected(
                     change.instance_handle,
@@ -1055,6 +1064,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
+                .await
             } else {
                 let num_alive_samples_of_instance = self
                     .changes
