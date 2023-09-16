@@ -869,14 +869,15 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
                 .expect("Should not fail to send command");
 
             user_defined_subscriber_address
-                .send_message(
+                .send_only(dds_subscriber::SendMessage::new(
                     RtpsMessageHeader::new(
                         self.get_protocol_version(),
                         self.get_vendor_id(),
                         self.get_guid().prefix(),
                     ),
                     self.get_udp_transport_write(),
-                )
+                ))
+                .await
                 .expect("Should not fail to send command");
         }
 

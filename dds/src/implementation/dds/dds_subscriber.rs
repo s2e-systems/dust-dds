@@ -16,10 +16,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{
-                actor_command_interface, actor_mailbox_interface, Actor, ActorAddress, Mail,
-                MailHandler,
-            },
+            actor::{actor_mailbox_interface, Actor, ActorAddress, Mail, MailHandler},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -160,21 +157,40 @@ impl DdsSubscriber {
     }
 }}
 
-actor_command_interface! {
-impl DdsSubscriber {
+pub struct SendMessage {
+    header: RtpsMessageHeader,
+    udp_transport_write: ActorAddress<UdpTransportWrite>,
+}
 
-    pub fn send_message(
-        &self,
+impl SendMessage {
+    pub fn new(
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
-    ) {
-        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
-            data_reader_address
-                .send_message(header, udp_transport_write.clone())
-                .expect("Should not fail to send command");
+    ) -> Self {
+        Self {
+            header,
+            udp_transport_write,
         }
     }
 }
+
+impl Mail for SendMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<SendMessage> for DdsSubscriber {
+    async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
+            data_reader_address
+                .send_only(dds_data_reader::SendMessage::new(
+                    mail.header,
+                    mail.udp_transport_write.clone(),
+                ))
+                .await
+                .expect("Should not fail to send command");
+        }
+    }
 }
 
 pub struct ProcessRtpsMessage {

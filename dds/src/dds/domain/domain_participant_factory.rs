@@ -825,14 +825,15 @@ async fn process_sedp_metatraffic(
         .await?;
 
     builtin_subscriber
-        .send_message(
+        .send_only(dds_subscriber::SendMessage::new(
             RtpsMessageHeader::new(
                 participant_address.get_protocol_version()?,
                 participant_address.get_vendor_id()?,
                 participant_address.get_guid()?.prefix(),
             ),
             participant_address.get_udp_transport_write()?,
-        )
+        ))
+        .await
         .expect("Should not fail to send command");
 
     Ok(())
@@ -1010,14 +1011,16 @@ async fn discover_matched_writers(
                                             participant_mask_listener.clone(),
                                         ))
                                         .await?;
-                                    data_reader_address.send_message(
-                                        RtpsMessageHeader::new(
-                                            participant_address.get_protocol_version()?,
-                                            participant_address.get_vendor_id()?,
-                                            participant_address.get_guid()?.prefix(),
-                                        ),
-                                        participant_address.get_udp_transport_write()?,
-                                    )?;
+                                    data_reader_address
+                                        .send_only(dds_data_reader::SendMessage::new(
+                                            RtpsMessageHeader::new(
+                                                participant_address.get_protocol_version()?,
+                                                participant_address.get_vendor_id()?,
+                                                participant_address.get_guid()?.prefix(),
+                                            ),
+                                            participant_address.get_udp_transport_write()?,
+                                        ))
+                                        .await?;
                                 }
                             }
                         }

@@ -38,10 +38,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{
-                actor_command_interface, actor_mailbox_interface, Actor, ActorAddress, Mail,
-                MailHandler,
-            },
+            actor::{actor_mailbox_interface, Actor, ActorAddress, Mail, MailHandler},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -1774,20 +1771,6 @@ impl DdsDataReader {
 }
 }
 
-actor_command_interface! {
-impl DdsDataReader {
-    pub fn send_message(
-        &mut self,
-        header: RtpsMessageHeader,
-        udp_transport_write: ActorAddress<UdpTransportWrite>,
-    ) {
-        for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
-        }
-    }
-}
-}
-
 //////////////////////////////////////////////
 pub struct RemoveMatchedWriter {
     discovered_writer_handle: InstanceHandle,
@@ -2072,6 +2055,40 @@ impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
                     },
                 },
             }
+        }
+    }
+}
+
+pub struct SendMessage {
+    header: RtpsMessageHeader,
+    udp_transport_write: ActorAddress<UdpTransportWrite>,
+}
+
+impl SendMessage {
+    pub fn new(
+        header: RtpsMessageHeader,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
+    ) -> Self {
+        Self {
+            header,
+            udp_transport_write,
+        }
+    }
+}
+
+impl Mail for SendMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<SendMessage> for DdsDataReader {
+    async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+        for writer_proxy in self.matched_writers.iter_mut() {
+            writer_proxy.send_message(
+                &self.rtps_reader.guid(),
+                mail.header,
+                &mail.udp_transport_write,
+            )
         }
     }
 }
