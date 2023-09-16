@@ -162,15 +162,6 @@ impl DdsPublisher {
         self.data_writer_list.remove(&handle);
     }
 
-    pub fn data_writer_list(
-        &self,
-    ) -> Vec<ActorAddress<DdsDataWriter>> {
-        self.data_writer_list
-            .values()
-            .map(|x| x.address().clone())
-            .collect()
-    }
-
     pub fn set_default_datawriter_qos(&mut self, qos: DataWriterQos) {
         self.default_datawriter_qos = qos;
     }
@@ -214,6 +205,22 @@ impl DdsPublisher {
         self.status_kind.clone()
     }
 }
+}
+
+pub struct DataWriterList;
+
+impl Mail for DataWriterList {
+    type Result = Vec<ActorAddress<DdsDataWriter>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<DataWriterList> for DdsPublisher {
+    async fn handle(&mut self, _mail: DataWriterList) -> <DataWriterList as Mail>::Result {
+        self.data_writer_list
+            .values()
+            .map(|x| x.address().clone())
+            .collect()
+    }
 }
 
 pub struct ProcessRtpsMessage {

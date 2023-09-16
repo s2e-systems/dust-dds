@@ -647,10 +647,6 @@ impl DdsDomainParticipant {
         counter
     }
 
-    pub fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
-        self.user_defined_publisher_list.values().map(|a| a.address().clone()).collect()
-    }
-
     pub fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
         self.user_defined_publisher_list.remove(&handle);
     }
@@ -659,10 +655,6 @@ impl DdsDomainParticipant {
         let counter = self.user_defined_subscriber_counter;
         self.user_defined_subscriber_counter += 1;
         counter
-    }
-
-    pub fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
-        self.user_defined_subscriber_list.values().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
@@ -765,7 +757,68 @@ impl DdsDomainParticipant {
         self.discovered_participant_list.keys().cloned().collect()
     }
 
-    pub fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
+    pub fn get_udp_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
+        self.udp_transport_write.address().clone()
+    }
+
+    pub fn discovered_topic_add(&mut self, handle: InstanceHandle, topic_data: TopicBuiltinTopicData) {
+        self.discovered_topic_list.insert(
+                handle, topic_data
+            );
+    }
+}
+}
+
+pub struct GetUserDefinedPublisherList;
+
+impl Mail for GetUserDefinedPublisherList {
+    type Result = Vec<ActorAddress<DdsPublisher>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetUserDefinedPublisherList> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        _mail: GetUserDefinedPublisherList,
+    ) -> <GetUserDefinedPublisherList as Mail>::Result {
+        self.user_defined_publisher_list
+            .values()
+            .map(|a| a.address().clone())
+            .collect()
+    }
+}
+
+pub struct GetUserDefinedSubscriberList;
+
+impl Mail for GetUserDefinedSubscriberList {
+    type Result = Vec<ActorAddress<DdsSubscriber>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetUserDefinedSubscriberList> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        _mail: GetUserDefinedSubscriberList,
+    ) -> <GetUserDefinedSubscriberList as Mail>::Result {
+        self.user_defined_subscriber_list
+            .values()
+            .map(|a| a.address().clone())
+            .collect()
+    }
+}
+
+pub struct AsSpdpDiscoveredParticipantData;
+
+impl Mail for AsSpdpDiscoveredParticipantData {
+    type Result = SpdpDiscoveredParticipantData;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<AsSpdpDiscoveredParticipantData> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        _mail: AsSpdpDiscoveredParticipantData,
+    ) -> <AsSpdpDiscoveredParticipantData as Mail>::Result {
         SpdpDiscoveredParticipantData::new(
             ParticipantBuiltinTopicData::new(
                 BuiltInTopicKey {
@@ -799,25 +852,32 @@ impl DdsDomainParticipant {
             self.lease_duration,
         )
     }
+}
 
-    pub fn get_udp_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
-        self.udp_transport_write.address().clone()
-    }
+pub struct GetListener;
 
-    pub fn discovered_topic_add(&mut self, handle: InstanceHandle, topic_data: TopicBuiltinTopicData) {
-        self.discovered_topic_list.insert(
-                handle, topic_data
-            );
-    }
+impl Mail for GetListener {
+    type Result = Option<ActorAddress<DdsDomainParticipantListener>>;
+}
 
-    pub fn get_listener(&self) -> Option<ActorAddress<DdsDomainParticipantListener>> {
+#[async_trait::async_trait]
+impl MailHandler<GetListener> for DdsDomainParticipant {
+    async fn handle(&mut self, _mail: GetListener) -> <GetListener as Mail>::Result {
         self.listener.as_ref().map(|l| l.address().clone())
     }
+}
 
-    pub fn status_kind(&self) -> Vec<StatusKind> {
+pub struct GetStatusKind;
+
+impl Mail for GetStatusKind {
+    type Result = Vec<StatusKind>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetStatusKind> for DdsDomainParticipant {
+    async fn handle(&mut self, _mail: GetStatusKind) -> <GetStatusKind as Mail>::Result {
         self.status_kind.clone()
     }
-}
 }
 
 pub struct GetCurrentTime;

@@ -98,10 +98,6 @@ impl DdsSubscriber {
         self.data_reader_list.insert(instance_handle, data_reader);
     }
 
-    pub fn data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader>> {
-        self.data_reader_list.values().map(|dr| dr.address().clone()).collect()
-    }
-
     pub fn data_reader_delete(&mut self, handle: InstanceHandle) {
         self.data_reader_list.remove(&handle);
     }
@@ -147,16 +143,49 @@ impl DdsSubscriber {
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }
-
-    pub fn get_listener(&self) -> Option<ActorAddress<DdsSubscriberListener>> {
-        self.listener.as_ref().map(|l| l.address().clone())
-    }
-
-    pub fn status_kind(&self) -> Vec<StatusKind> {
-        self.status_kind.clone()
-    }
 }}
 
+pub struct DataReaderList;
+
+impl Mail for DataReaderList {
+    type Result = Vec<ActorAddress<DdsDataReader>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<DataReaderList> for DdsSubscriber {
+    async fn handle(&mut self, _mail: DataReaderList) -> <DataReaderList as Mail>::Result {
+        self.data_reader_list
+            .values()
+            .map(|dr| dr.address().clone())
+            .collect()
+    }
+}
+
+pub struct GetListener;
+
+impl Mail for GetListener {
+    type Result = Option<ActorAddress<DdsSubscriberListener>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetListener> for DdsSubscriber {
+    async fn handle(&mut self, _mail: GetListener) -> <GetListener as Mail>::Result {
+        self.listener.as_ref().map(|l| l.address().clone())
+    }
+}
+
+pub struct GetStatusKind;
+
+impl Mail for GetStatusKind {
+    type Result = Vec<StatusKind>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetStatusKind> for DdsSubscriber {
+    async fn handle(&mut self, _mail: GetStatusKind) -> <GetStatusKind as Mail>::Result {
+        self.status_kind.clone()
+    }
+}
 pub struct SendMessage {
     header: RtpsMessageHeader,
     udp_transport_write: ActorAddress<UdpTransportWrite>,

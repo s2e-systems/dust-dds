@@ -377,10 +377,6 @@ impl DdsDataWriter {
         self.topic_name.clone()
     }
 
-    pub fn get_type_name(&self) -> String {
-        self.type_name.clone()
-    }
-
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }
@@ -621,6 +617,19 @@ impl DdsDataWriter {
 }
 }
 
+pub struct GetTypeName;
+
+impl Mail for GetTypeName {
+    type Result = String;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetTypeName> for DdsDataWriter {
+    async fn handle(&mut self, _mail: GetTypeName) -> <GetTypeName as Mail>::Result {
+        self.type_name.clone()
+    }
+}
+
 pub struct AddMatchedReader {
     discovered_reader_data: DiscoveredReaderData,
     default_unicast_locator_list: Vec<Locator>,
@@ -686,7 +695,7 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
             .discovered_reader_data
             .subscription_builtin_topic_data()
             .get_type_name()
-            == self.get_type_name();
+            == self.type_name;
 
         if is_matched_topic_name && is_matched_type_name {
             let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(

@@ -4,7 +4,7 @@ use crate::{
         dds::{
             dds_data_writer,
             dds_data_writer_listener::DdsDataWriterListener,
-            dds_domain_participant,
+            dds_domain_participant, dds_publisher,
             nodes::{DataWriterNode, DataWriterNodeKind, PublisherNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
@@ -158,21 +158,22 @@ impl Publisher {
                         .parent_participant()
                         .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
-                    if let Some(sedp_writer_announcer) = dw
+                    let builtin_publisher = dw
                         .parent_participant()
-                        .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
-                        .data_writer_list()?
-                        .iter()
-                        .find(|x| x.get_type_name().unwrap() == "DiscoveredWriterData")
-                    {
-                        sedp_writer_announcer.dispose_w_timestamp(
-                            instance_serialized_key,
-                            writer_handle,
-                            timestamp,
-                        )??;
+                        .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+                    let data_writer_list =
+                        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+                    for data_writer in data_writer_list {
+                        if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                            == Ok("DiscoveredWriterData".to_string())
+                        {
+                            data_writer.dispose_w_timestamp(
+                                instance_serialized_key,
+                                writer_handle,
+                                timestamp,
+                            )??;
 
-                        sedp_writer_announcer.send_only_blocking(
-                            dds_data_writer::SendMessage::new(
+                            data_writer.send_only_blocking(dds_data_writer::SendMessage::new(
                                 RtpsMessageHeader::new(
                                     dw.parent_participant().get_protocol_version()?,
                                     dw.parent_participant().get_vendor_id()?,
@@ -182,26 +183,15 @@ impl Publisher {
                                 dw.parent_participant().send_and_reply_blocking(
                                     dds_domain_participant::GetCurrentTime,
                                 )?,
-                            ),
-                        )?;
+                            ))?;
+                            break;
+                        }
                     }
-                    // let timestamp = domain_participant.get_current_time();
-
-                    // domain_participant
-                    //     .get_builtin_publisher_mut()
-                    //     .stateful_data_writer_list()
-                    //     .iter()
-                    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData)
-                    //     .unwrap()
-                    //     .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
-                    //     .expect("Should not fail to write built-in message");
                 }
 
                 Ok(())
             }
         }
-
-        // Ok(())
     }
 
     /// This operation retrieves a previously created [`DataWriter`] belonging to the [`Publisher`] that is attached to a [`Topic`] with a matching

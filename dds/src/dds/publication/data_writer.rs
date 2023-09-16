@@ -7,6 +7,7 @@ use crate::{
         dds::{
             dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
+            dds_publisher,
             nodes::{DataWriterNodeKind, PublisherNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
@@ -731,28 +732,34 @@ fn announce_data_writer(
     let timestamp =
         domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
-    if let Some(sedp_writer_announcer) = domain_participant
-        .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
-        .data_writer_list()?
-        .iter()
-        .find(|x| x.get_type_name().unwrap() == "DiscoveredWriterData")
-    {
-        sedp_writer_announcer.write_w_timestamp(
-            serialized_data,
-            dds_serialize_key(discovered_writer_data)?,
-            None,
-            timestamp,
-        )??;
+    let builtin_publisher =
+        domain_participant.send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+    let data_writer_list =
+        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
 
-        sedp_writer_announcer.send_only_blocking(dds_data_writer::SendMessage::new(
-            RtpsMessageHeader::new(
-                domain_participant.get_protocol_version()?,
-                domain_participant.get_vendor_id()?,
-                domain_participant.get_guid()?.prefix(),
-            ),
-            domain_participant.get_udp_transport_write()?,
-            domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
-        ))?;
+    for dw in data_writer_list {
+        if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
+            == Ok("DiscoveredWriterData".to_string())
+        {
+            dw.write_w_timestamp(
+                serialized_data,
+                dds_serialize_key(discovered_writer_data)?,
+                None,
+                timestamp,
+            )??;
+
+            dw.send_only_blocking(dds_data_writer::SendMessage::new(
+                RtpsMessageHeader::new(
+                    domain_participant.get_protocol_version()?,
+                    domain_participant.get_vendor_id()?,
+                    domain_participant.get_guid()?.prefix(),
+                ),
+                domain_participant.get_udp_transport_write()?,
+                domain_participant
+                    .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+            ))?;
+            break;
+        }
     }
 
     Ok(())

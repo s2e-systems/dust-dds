@@ -6,6 +6,7 @@ use crate::{
         dds::{
             dds_data_reader, dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
+            dds_publisher, dds_subscriber,
             nodes::{PublisherNode, SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
@@ -104,7 +105,12 @@ impl DomainParticipant {
             ));
         }
 
-        if !a_publisher.node().address().data_writer_list()?.is_empty() {
+        if !a_publisher
+            .node()
+            .address()
+            .send_and_reply_blocking(dds_publisher::DataWriterList)?
+            .is_empty()
+        {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher still contains data writers".to_string(),
             ));
@@ -158,7 +164,11 @@ impl DomainParticipant {
                     ));
                 }
 
-                if !s.address().data_reader_list()?.is_empty() {
+                if !s
+                    .address()
+                    .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+                    .is_empty()
+                {
                     return Err(DdsError::PreconditionNotMet(
                         "Subscriber still contains data readers".to_string(),
                     ));
@@ -219,25 +229,38 @@ impl DomainParticipant {
                     ));
                 }
 
-                for publisher in self.0.get_user_defined_publisher_list()? {
-                    if publisher.data_writer_list()?.iter().any(|w| {
-                        w.get_type_name() == t.address().get_type_name()
-                            && w.get_topic_name() == t.address().get_name()
-                    }) {
-                        return Err(DdsError::PreconditionNotMet(
-                            "Topic still attached to some data writer".to_string(),
-                        ));
+                for publisher in self
+                    .0
+                    .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
+                {
+                    let data_writer_list =
+                        publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+                    for data_writer in data_writer_list {
+                        if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                            == t.address().get_type_name()
+                            && data_writer.get_topic_name() == t.address().get_name()
+                        {
+                            return Err(DdsError::PreconditionNotMet(
+                                "Topic still attached to some data writer".to_string(),
+                            ));
+                        }
                     }
                 }
 
-                for subscriber in self.0.get_user_defined_subscriber_list()? {
-                    if subscriber.data_reader_list()?.iter().any(|r| {
-                        r.get_type_name() == t.address().get_type_name()
-                            && r.get_topic_name() == t.address().get_name()
-                    }) {
-                        return Err(DdsError::PreconditionNotMet(
-                            "Topic still attached to some data reader".to_string(),
-                        ));
+                for subscriber in self
+                    .0
+                    .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
+                {
+                    let data_reader_list =
+                        subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)?;
+                    for data_reader in data_reader_list {
+                        if data_reader.get_type_name() == t.address().get_type_name()
+                            && data_reader.get_topic_name() == t.address().get_name()
+                        {
+                            return Err(DdsError::PreconditionNotMet(
+                                "Topic still attached to some data reader".to_string(),
+                            ));
+                        }
                     }
                 }
 
@@ -417,15 +440,21 @@ impl DomainParticipant {
     /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        for publisher in self.0.get_user_defined_publisher_list()? {
-            for data_writer in publisher.data_writer_list()? {
+        for publisher in self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
+        {
+            for data_writer in publisher.send_and_reply_blocking(dds_publisher::DataWriterList)? {
                 publisher.datawriter_delete(data_writer.get_instance_handle()?)?;
             }
             self.0
                 .delete_user_defined_publisher(publisher.get_instance_handle()?)?;
         }
-        for subscriber in self.0.get_user_defined_subscriber_list()? {
-            for data_reader in subscriber.data_reader_list()? {
+        for subscriber in self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
+        {
+            for data_reader in subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)? {
                 subscriber.data_reader_delete(data_reader.get_instance_handle()?)?;
             }
             self.0
@@ -688,14 +717,18 @@ impl DomainParticipant {
                 .enable()?;
             self.0.get_builtin_subscriber()?.enable()?;
 
-            for builtin_reader in self.0.get_builtin_subscriber()?.data_reader_list()? {
+            for builtin_reader in self
+                .0
+                .get_builtin_subscriber()?
+                .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+            {
                 builtin_reader.enable()?;
             }
 
             for builtin_writer in self
                 .0
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
-                .data_writer_list()?
+                .send_and_reply_blocking(dds_publisher::DataWriterList)?
             {
                 builtin_writer.enable()?;
             }
@@ -712,40 +745,44 @@ impl DomainParticipant {
                         let builtin_publisher = domain_participant_address
                             .send_and_reply(dds_domain_participant::GetBuiltinPublisher)
                             .await?;
-                        if let Some(participant_announcer) =
-                            builtin_publisher.data_writer_list()?.iter().find(|dw| {
-                                if let Ok(name) = dw.get_type_name() {
-                                    name == "SpdpDiscoveredParticipantData"
-                                } else {
-                                    false
-                                }
-                            })
-                        {
-                            let spdp_discovered_participant_data =
-                                domain_participant_address.as_spdp_discovered_participant_data()?;
-                            let serialized_data =
-                                dds_serialize_to_bytes(&spdp_discovered_participant_data)?;
-                            let timestamp = domain_participant_address
-                                .send_and_reply(dds_domain_participant::GetCurrentTime)
-                                .await?;
-                            participant_announcer.write_w_timestamp(
-                                serialized_data,
-                                dds_serialize_key(&spdp_discovered_participant_data).unwrap(),
-                                None,
-                                timestamp,
-                            )??;
-
-                            participant_announcer
-                                .send_only(dds_data_writer::SendMessage::new(
-                                    RtpsMessageHeader::new(
-                                        domain_participant_address.get_protocol_version()?,
-                                        domain_participant_address.get_vendor_id()?,
-                                        domain_participant_address.get_guid()?.prefix(),
-                                    ),
-                                    domain_participant_address.get_udp_transport_write()?,
+                        let data_writer_list = builtin_publisher
+                            .send_and_reply(dds_publisher::DataWriterList)
+                            .await?;
+                        for data_writer in data_writer_list {
+                            if data_writer
+                                .send_and_reply(dds_data_writer::GetTypeName)
+                                .await
+                                == Ok("SpdpDiscoveredParticipantData".to_string())
+                            {
+                                let spdp_discovered_participant_data = domain_participant_address
+                                    .send_and_reply(
+                                        dds_domain_participant::AsSpdpDiscoveredParticipantData,
+                                    )
+                                    .await?;
+                                let serialized_data =
+                                    dds_serialize_to_bytes(&spdp_discovered_participant_data)?;
+                                let timestamp = domain_participant_address
+                                    .send_and_reply(dds_domain_participant::GetCurrentTime)
+                                    .await?;
+                                data_writer.write_w_timestamp(
+                                    serialized_data,
+                                    dds_serialize_key(&spdp_discovered_participant_data).unwrap(),
+                                    None,
                                     timestamp,
-                                ))
-                                .await?;
+                                )??;
+
+                                data_writer
+                                    .send_only(dds_data_writer::SendMessage::new(
+                                        RtpsMessageHeader::new(
+                                            domain_participant_address.get_protocol_version()?,
+                                            domain_participant_address.get_vendor_id()?,
+                                            domain_participant_address.get_guid()?.prefix(),
+                                        ),
+                                        domain_participant_address.get_udp_transport_write()?,
+                                        timestamp,
+                                    ))
+                                    .await?;
+                            }
                         }
 
                         Ok(())
@@ -770,15 +807,29 @@ impl DomainParticipant {
                             .send_and_reply(dds_domain_participant::GetCurrentTime)
                             .await?;
                         let participant_mask_listener = (
-                            domain_participant_address.get_listener()?,
-                            domain_participant_address.status_kind()?,
+                            domain_participant_address
+                                .send_and_reply(dds_domain_participant::GetListener)
+                                .await?,
+                            domain_participant_address
+                                .send_and_reply(dds_domain_participant::GetStatusKind)
+                                .await?,
                         );
-                        for subscriber in
-                            domain_participant_address.get_user_defined_subscriber_list()?
+                        for subscriber in domain_participant_address
+                            .send_and_reply(dds_domain_participant::GetUserDefinedSubscriberList)
+                            .await?
                         {
-                            let subscriber_mask_listener =
-                                (subscriber.get_listener()?, subscriber.status_kind()?);
-                            for data_reader in subscriber.data_reader_list()? {
+                            let subscriber_mask_listener = (
+                                subscriber
+                                    .send_and_reply(dds_subscriber::GetListener)
+                                    .await?,
+                                subscriber
+                                    .send_and_reply(dds_subscriber::GetStatusKind)
+                                    .await?,
+                            );
+                            for data_reader in subscriber
+                                .send_and_reply(dds_subscriber::DataReaderList)
+                                .await?
+                            {
                                 data_reader
                                     .send_only(dds_data_reader::UpdateCommunicationStatus::new(
                                         now,
@@ -792,10 +843,14 @@ impl DomainParticipant {
                             }
                         }
 
-                        for user_defined_publisher in
-                            domain_participant_address.get_user_defined_publisher_list()?
+                        for user_defined_publisher in domain_participant_address
+                            .send_and_reply(dds_domain_participant::GetUserDefinedPublisherList)
+                            .await?
                         {
-                            for data_writer in user_defined_publisher.data_writer_list()? {
+                            for data_writer in user_defined_publisher
+                                .send_and_reply(dds_publisher::DataWriterList)
+                                .await?
+                            {
                                 data_writer
                                     .send_only(dds_data_writer::SendMessage::new(
                                         RtpsMessageHeader::new(
