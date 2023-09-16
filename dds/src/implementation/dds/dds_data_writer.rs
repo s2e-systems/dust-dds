@@ -44,10 +44,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::{self, UdpTransportWrite},
         utils::{
-            actor::{
-                actor_command_interface, actor_mailbox_interface, Actor, ActorAddress, Mail,
-                MailHandler,
-            },
+            actor::{actor_mailbox_interface, Actor, ActorAddress, Mail, MailHandler},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -777,24 +774,37 @@ impl DdsDataWriter {
 }
 }
 
-actor_command_interface! {
-    impl DdsDataWriter {
-        pub fn process_rtps_message(&mut self, message: RtpsMessageRead) {
-            let mut message_receiver = MessageReceiver::new(&message);
-            while let Some(submessage) = message_receiver.next() {
-                match &submessage {
-                    RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
-                        .on_acknack_submessage_received(
-                            acknack_submessage,
-                            message_receiver.source_guid_prefix(),
-                        ),
-                    RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
-                        .on_nack_frag_submessage_received(
-                            nackfrag_submessage,
-                            message_receiver.source_guid_prefix(),
-                        ),
-                    _ => (),
-                }
+pub struct ProcessRtpsMessage {
+    message: RtpsMessageRead,
+}
+
+impl ProcessRtpsMessage {
+    pub fn new(message: RtpsMessageRead) -> Self {
+        Self { message }
+    }
+}
+
+impl Mail for ProcessRtpsMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ProcessRtpsMessage> for DdsDataWriter {
+    async fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
+        let mut message_receiver = MessageReceiver::new(&mail.message);
+        while let Some(submessage) = message_receiver.next() {
+            match &submessage {
+                RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
+                    .on_acknack_submessage_received(
+                        acknack_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
+                    .on_nack_frag_submessage_received(
+                        nackfrag_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                _ => (),
             }
         }
     }
@@ -819,6 +829,7 @@ impl SendMessage {
         }
     }
 }
+
 impl Mail for SendMessage {
     type Result = ();
 }

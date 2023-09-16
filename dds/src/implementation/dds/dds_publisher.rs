@@ -15,8 +15,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{
-            actor_command_interface, actor_mailbox_interface, spawn_actor, Actor, ActorAddress,
-            Mail, MailHandler,
+            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
         },
     },
     infrastructure::{
@@ -217,16 +216,32 @@ impl DdsPublisher {
 }
 }
 
-actor_command_interface! {
-impl DdsPublisher {
-    pub fn process_rtps_message(&self, message: RtpsMessageRead) {
+pub struct ProcessRtpsMessage {
+    message: RtpsMessageRead,
+}
+
+impl ProcessRtpsMessage {
+    pub fn new(message: RtpsMessageRead) -> Self {
+        Self { message }
+    }
+}
+
+impl Mail for ProcessRtpsMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ProcessRtpsMessage> for DdsPublisher {
+    async fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
         for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
             data_writer_address
-                .process_rtps_message(message.clone())
+                .send_only(dds_data_writer::ProcessRtpsMessage::new(
+                    mail.message.clone(),
+                ))
+                .await
                 .expect("Should not fail to send command");
         }
     }
-}
 }
 
 pub struct SendMessage {

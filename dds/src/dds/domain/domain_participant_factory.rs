@@ -808,7 +808,9 @@ async fn process_sedp_metatraffic(
     );
 
     for stateful_builtin_writer in builtin_publisher.data_writer_list()? {
-        stateful_builtin_writer.process_rtps_message(message.clone())?;
+        stateful_builtin_writer
+            .send_only(dds_data_writer::ProcessRtpsMessage::new(message.clone()))
+            .await?;
         stateful_builtin_writer
             .send_only(dds_data_writer::SendMessage::new(
                 RtpsMessageHeader::new(
