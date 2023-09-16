@@ -920,20 +920,25 @@ fn announce_data_reader(
         if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
             == Ok("DiscoveredReaderData".to_string())
         {
-            dw.write_w_timestamp(
+            dw.send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
                 serialized_data,
                 dds_serialize_key(&discovered_reader_data)?,
                 None,
                 timestamp,
-            )??;
+            ))??;
 
             dw.send_only_blocking(dds_data_writer::SendMessage::new(
                 RtpsMessageHeader::new(
-                    domain_participant.get_protocol_version()?,
-                    domain_participant.get_vendor_id()?,
-                    domain_participant.get_guid()?.prefix(),
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                        .prefix(),
                 ),
-                domain_participant.get_udp_transport_write()?,
+                domain_participant
+                    .send_and_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
                 domain_participant
                     .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
             ))?;

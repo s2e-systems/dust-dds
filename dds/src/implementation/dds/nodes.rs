@@ -4,9 +4,12 @@ use crate::{
 };
 
 use super::{
-    dds_data_reader::DdsDataReader, dds_data_writer::DdsDataWriter,
-    dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher,
-    dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
+    dds_data_reader::{self, DdsDataReader},
+    dds_data_writer::DdsDataWriter,
+    dds_domain_participant::DdsDomainParticipant,
+    dds_publisher::DdsPublisher,
+    dds_subscriber::DdsSubscriber,
+    dds_topic::DdsTopic,
 };
 
 #[derive(Clone, PartialEq, Eq)]
@@ -96,7 +99,10 @@ impl DataReaderNode {
             .expect("should never fail")
             .iter()
             .find(|t| {
-                t.get_type_name() == self.this.get_type_name()
+                t.get_type_name()
+                    == self
+                        .this
+                        .send_and_reply_blocking(dds_data_reader::GetTypeName)
                     && t.get_name() == self.this.get_topic_name()
             })
             .expect("should always exist")

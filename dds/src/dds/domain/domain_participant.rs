@@ -99,7 +99,12 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        if self.0.get_guid()?.prefix() != a_publisher.node().address().guid()?.prefix() {
+        if self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+            .prefix()
+            != a_publisher.node().address().guid()?.prefix()
+        {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
             ));
@@ -158,7 +163,12 @@ impl DomainParticipant {
         match a_subscriber.node() {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => Ok(()),
             SubscriberNodeKind::UserDefined(s) => {
-                if self.0.get_guid()?.prefix() != s.address().guid()?.prefix() {
+                if self
+                    .0
+                    .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                    .prefix()
+                    != s.address().guid()?.prefix()
+                {
                     return Err(DdsError::PreconditionNotMet(
                         "Subscriber can only be deleted from its parent participant".to_string(),
                     ));
@@ -223,7 +233,12 @@ impl DomainParticipant {
     pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
         match &a_topic.node() {
             TopicNodeKind::UserDefined(t) => {
-                if self.0.get_guid()?.prefix() != t.address().guid()?.prefix() {
+                if self
+                    .0
+                    .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                    .prefix()
+                    != t.address().guid()?.prefix()
+                {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic can only be deleted from its parent participant".to_string(),
                     ));
@@ -254,7 +269,8 @@ impl DomainParticipant {
                     let data_reader_list =
                         subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)?;
                     for data_reader in data_reader_list {
-                        if data_reader.get_type_name() == t.address().get_type_name()
+                        if data_reader.send_and_reply_blocking(dds_data_reader::GetTypeName)
+                            == t.address().get_type_name()
                             && data_reader.get_topic_name() == t.address().get_name()
                         {
                             return Err(DdsError::PreconditionNotMet(
@@ -358,7 +374,11 @@ impl DomainParticipant {
     /// objects.
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
         Ok(Subscriber::new(SubscriberNodeKind::Builtin(
-            SubscriberNode::new(self.0.get_builtin_subscriber()?, self.0.clone()),
+            SubscriberNode::new(
+                self.0
+                    .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?,
+                self.0.clone(),
+            ),
         )))
     }
 
@@ -715,11 +735,13 @@ impl DomainParticipant {
             self.0
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
                 .enable()?;
-            self.0.get_builtin_subscriber()?.enable()?;
+            self.0
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
+                .enable()?;
 
             for builtin_reader in self
                 .0
-                .get_builtin_subscriber()?
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
                 .send_and_reply_blocking(dds_subscriber::DataReaderList)?
             {
                 builtin_reader.enable()?;
@@ -764,21 +786,37 @@ impl DomainParticipant {
                                 let timestamp = domain_participant_address
                                     .send_and_reply(dds_domain_participant::GetCurrentTime)
                                     .await?;
-                                data_writer.write_w_timestamp(
-                                    serialized_data,
-                                    dds_serialize_key(&spdp_discovered_participant_data).unwrap(),
-                                    None,
-                                    timestamp,
-                                )??;
+                                data_writer
+                                    .send_and_reply(dds_data_writer::WriteWTimestamp::new(
+                                        serialized_data,
+                                        dds_serialize_key(&spdp_discovered_participant_data)
+                                            .unwrap(),
+                                        None,
+                                        timestamp,
+                                    ))
+                                    .await??;
 
                                 data_writer
                                     .send_only(dds_data_writer::SendMessage::new(
                                         RtpsMessageHeader::new(
-                                            domain_participant_address.get_protocol_version()?,
-                                            domain_participant_address.get_vendor_id()?,
-                                            domain_participant_address.get_guid()?.prefix(),
+                                            domain_participant_address
+                                                .send_and_reply(
+                                                    dds_domain_participant::GetProtocolVersion,
+                                                )
+                                                .await?,
+                                            domain_participant_address
+                                                .send_and_reply(dds_domain_participant::GetVendorId)
+                                                .await?,
+                                            domain_participant_address
+                                                .send_and_reply(dds_domain_participant::GetGuid)
+                                                .await?
+                                                .prefix(),
                                         ),
-                                        domain_participant_address.get_udp_transport_write()?,
+                                        domain_participant_address
+                                            .send_and_reply(
+                                                dds_domain_participant::GetUdpTransportWrite,
+                                            )
+                                            .await?,
                                         timestamp,
                                     ))
                                     .await?;
@@ -854,11 +892,24 @@ impl DomainParticipant {
                                 data_writer
                                     .send_only(dds_data_writer::SendMessage::new(
                                         RtpsMessageHeader::new(
-                                            domain_participant_address.get_protocol_version()?,
-                                            domain_participant_address.get_vendor_id()?,
-                                            domain_participant_address.get_guid()?.prefix(),
+                                            domain_participant_address
+                                                .send_and_reply(
+                                                    dds_domain_participant::GetProtocolVersion,
+                                                )
+                                                .await?,
+                                            domain_participant_address
+                                                .send_and_reply(dds_domain_participant::GetVendorId)
+                                                .await?,
+                                            domain_participant_address
+                                                .send_and_reply(dds_domain_participant::GetGuid)
+                                                .await?
+                                                .prefix(),
                                         ),
-                                        domain_participant_address.get_udp_transport_write()?,
+                                        domain_participant_address
+                                            .send_and_reply(
+                                                dds_domain_participant::GetUdpTransportWrite,
+                                            )
+                                            .await?,
                                         domain_participant_address
                                             .send_and_reply(dds_domain_participant::GetCurrentTime)
                                             .await?,

@@ -175,11 +175,19 @@ impl Publisher {
 
                             data_writer.send_only_blocking(dds_data_writer::SendMessage::new(
                                 RtpsMessageHeader::new(
-                                    dw.parent_participant().get_protocol_version()?,
-                                    dw.parent_participant().get_vendor_id()?,
-                                    dw.parent_participant().get_guid()?.prefix(),
+                                    dw.parent_participant().send_and_reply_blocking(
+                                        dds_domain_participant::GetProtocolVersion,
+                                    )?,
+                                    dw.parent_participant().send_and_reply_blocking(
+                                        dds_domain_participant::GetVendorId,
+                                    )?,
+                                    dw.parent_participant()
+                                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                                        .prefix(),
                                 ),
-                                dw.parent_participant().get_udp_transport_write()?,
+                                dw.parent_participant().send_and_reply_blocking(
+                                    dds_domain_participant::GetUdpTransportWrite,
+                                )?,
                                 dw.parent_participant().send_and_reply_blocking(
                                     dds_domain_participant::GetCurrentTime,
                                 )?,

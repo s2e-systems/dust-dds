@@ -237,11 +237,21 @@ impl Subscriber {
 
                                 dw.send_only_blocking(dds_data_writer::SendMessage::new(
                                     RtpsMessageHeader::new(
-                                        dr.parent_participant().get_protocol_version()?,
-                                        dr.parent_participant().get_vendor_id()?,
-                                        dr.parent_participant().get_guid()?.prefix(),
+                                        dr.parent_participant().send_and_reply_blocking(
+                                            dds_domain_participant::GetProtocolVersion,
+                                        )?,
+                                        dr.parent_participant().send_and_reply_blocking(
+                                            dds_domain_participant::GetVendorId,
+                                        )?,
+                                        dr.parent_participant()
+                                            .send_and_reply_blocking(
+                                                dds_domain_participant::GetGuid,
+                                            )?
+                                            .prefix(),
                                     ),
-                                    dr.parent_participant().get_udp_transport_write()?,
+                                    dr.parent_participant().send_and_reply_blocking(
+                                        dds_domain_participant::GetUdpTransportWrite,
+                                    )?,
                                     dr.parent_participant().send_and_reply_blocking(
                                         dds_domain_participant::GetCurrentTime,
                                     )?,

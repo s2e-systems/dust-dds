@@ -625,7 +625,9 @@ async fn process_spdp_metatraffic(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     message: RtpsMessageRead,
 ) -> DdsResult<()> {
-    let builtin_subscriber = participant_address.get_builtin_subscriber()?;
+    let builtin_subscriber = participant_address
+        .send_and_reply(dds_domain_participant::GetBuiltInSubscriber)
+        .await?;
 
     let participant_mask_listener = (
         participant_address
@@ -654,7 +656,11 @@ async fn process_spdp_metatraffic(
         .send_and_reply(dds_subscriber::DataReaderList)
         .await?;
     for data_reader in data_reader_list {
-        if data_reader.get_type_name() == Ok("SpdpDiscoveredParticipantData".to_string()) {
+        if data_reader
+            .send_and_reply(dds_data_reader::GetTypeName)
+            .await
+            == Ok("SpdpDiscoveredParticipantData".to_string())
+        {
             // Read data from each of the readers
             while let Ok(spdp_data_sample_list) = data_reader.read(
                 1,
@@ -694,7 +700,8 @@ async fn process_spdp_metatraffic(
                             .send_and_reply(dds_publisher::DataWriterList)
                             .await?;
                         let builtin_data_reader_list = participant_address
-                            .get_builtin_subscriber()?
+                            .send_and_reply(dds_domain_participant::GetBuiltInSubscriber)
+                            .await?
                             .send_and_reply(dds_subscriber::DataReaderList)
                             .await?;
 
@@ -710,11 +717,24 @@ async fn process_spdp_metatraffic(
                             sedp_publications_announcer
                                 .send_only(dds_data_writer::SendMessage::new(
                                     RtpsMessageHeader::new(
-                                        participant_address.get_protocol_version()?,
-                                        participant_address.get_vendor_id()?,
-                                        participant_address.get_guid()?.prefix(),
+                                        participant_address
+                                            .send_and_reply(
+                                                dds_domain_participant::GetProtocolVersion,
+                                            )
+                                            .await?,
+                                        participant_address
+                                            .send_and_reply(dds_domain_participant::GetVendorId)
+                                            .await?,
+                                        participant_address
+                                            .send_and_reply(dds_domain_participant::GetGuid)
+                                            .await?
+                                            .prefix(),
                                     ),
-                                    participant_address.get_udp_transport_write()?,
+                                    participant_address
+                                        .send_and_reply(
+                                            dds_domain_participant::GetUdpTransportWrite,
+                                        )
+                                        .await?,
                                     participant_address
                                         .send_and_reply(dds_domain_participant::GetCurrentTime)
                                         .await?,
@@ -743,11 +763,24 @@ async fn process_spdp_metatraffic(
                             sedp_subscriptions_announcer
                                 .send_only(dds_data_writer::SendMessage::new(
                                     RtpsMessageHeader::new(
-                                        participant_address.get_protocol_version()?,
-                                        participant_address.get_vendor_id()?,
-                                        participant_address.get_guid()?.prefix(),
+                                        participant_address
+                                            .send_and_reply(
+                                                dds_domain_participant::GetProtocolVersion,
+                                            )
+                                            .await?,
+                                        participant_address
+                                            .send_and_reply(dds_domain_participant::GetVendorId)
+                                            .await?,
+                                        participant_address
+                                            .send_and_reply(dds_domain_participant::GetGuid)
+                                            .await?
+                                            .prefix(),
                                     ),
-                                    participant_address.get_udp_transport_write()?,
+                                    participant_address
+                                        .send_and_reply(
+                                            dds_domain_participant::GetUdpTransportWrite,
+                                        )
+                                        .await?,
                                     participant_address
                                         .send_and_reply(dds_domain_participant::GetCurrentTime)
                                         .await?,
@@ -776,11 +809,24 @@ async fn process_spdp_metatraffic(
                             sedp_topics_announcer
                                 .send_only(dds_data_writer::SendMessage::new(
                                     RtpsMessageHeader::new(
-                                        participant_address.get_protocol_version()?,
-                                        participant_address.get_vendor_id()?,
-                                        participant_address.get_guid()?.prefix(),
+                                        participant_address
+                                            .send_and_reply(
+                                                dds_domain_participant::GetProtocolVersion,
+                                            )
+                                            .await?,
+                                        participant_address
+                                            .send_and_reply(dds_domain_participant::GetVendorId)
+                                            .await?,
+                                        participant_address
+                                            .send_and_reply(dds_domain_participant::GetGuid)
+                                            .await?
+                                            .prefix(),
                                     ),
-                                    participant_address.get_udp_transport_write()?,
+                                    participant_address
+                                        .send_and_reply(
+                                            dds_domain_participant::GetUdpTransportWrite,
+                                        )
+                                        .await?,
                                     participant_address
                                         .send_and_reply(dds_domain_participant::GetCurrentTime)
                                         .await?,
@@ -814,7 +860,9 @@ async fn process_sedp_metatraffic(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     message: RtpsMessageRead,
 ) -> DdsResult<()> {
-    let builtin_subscriber = participant_address.get_builtin_subscriber()?;
+    let builtin_subscriber = participant_address
+        .send_and_reply(dds_domain_participant::GetBuiltInSubscriber)
+        .await?;
     let builtin_publisher = participant_address
         .send_and_reply(dds_domain_participant::GetBuiltinPublisher)
         .await?;
@@ -837,11 +885,20 @@ async fn process_sedp_metatraffic(
         stateful_builtin_writer
             .send_only(dds_data_writer::SendMessage::new(
                 RtpsMessageHeader::new(
-                    participant_address.get_protocol_version()?,
-                    participant_address.get_vendor_id()?,
-                    participant_address.get_guid()?.prefix(),
+                    participant_address
+                        .send_and_reply(dds_domain_participant::GetProtocolVersion)
+                        .await?,
+                    participant_address
+                        .send_and_reply(dds_domain_participant::GetVendorId)
+                        .await?,
+                    participant_address
+                        .send_and_reply(dds_domain_participant::GetGuid)
+                        .await?
+                        .prefix(),
                 ),
-                participant_address.get_udp_transport_write()?,
+                participant_address
+                    .send_and_reply(dds_domain_participant::GetUdpTransportWrite)
+                    .await?,
                 participant_address
                     .send_and_reply(dds_domain_participant::GetCurrentTime)
                     .await?,
@@ -864,11 +921,20 @@ async fn process_sedp_metatraffic(
     builtin_subscriber
         .send_only(dds_subscriber::SendMessage::new(
             RtpsMessageHeader::new(
-                participant_address.get_protocol_version()?,
-                participant_address.get_vendor_id()?,
-                participant_address.get_guid()?.prefix(),
+                participant_address
+                    .send_and_reply(dds_domain_participant::GetProtocolVersion)
+                    .await?,
+                participant_address
+                    .send_and_reply(dds_domain_participant::GetVendorId)
+                    .await?,
+                participant_address
+                    .send_and_reply(dds_domain_participant::GetGuid)
+                    .await?
+                    .prefix(),
             ),
-            participant_address.get_udp_transport_write()?,
+            participant_address
+                .send_and_reply(dds_domain_participant::GetUdpTransportWrite)
+                .await?,
         ))
         .await
         .expect("Should not fail to send command");
@@ -879,7 +945,9 @@ async fn process_sedp_metatraffic(
 async fn process_sedp_discovery(
     participant_address: &ActorAddress<DdsDomainParticipant>,
 ) -> DdsResult<()> {
-    let builtin_subscriber = participant_address.get_builtin_subscriber()?;
+    let builtin_subscriber = participant_address
+        .send_and_reply(dds_domain_participant::GetBuiltInSubscriber)
+        .await?;
 
     for stateful_builtin_reader in builtin_subscriber
         .send_and_reply(dds_subscriber::DataReaderList)
@@ -1065,11 +1133,26 @@ async fn discover_matched_writers(
                                     data_reader_address
                                         .send_only(dds_data_reader::SendMessage::new(
                                             RtpsMessageHeader::new(
-                                                participant_address.get_protocol_version()?,
-                                                participant_address.get_vendor_id()?,
-                                                participant_address.get_guid()?.prefix(),
+                                                participant_address
+                                                    .send_and_reply(
+                                                        dds_domain_participant::GetProtocolVersion,
+                                                    )
+                                                    .await?,
+                                                participant_address
+                                                    .send_and_reply(
+                                                        dds_domain_participant::GetVendorId,
+                                                    )
+                                                    .await?,
+                                                participant_address
+                                                    .send_and_reply(dds_domain_participant::GetGuid)
+                                                    .await?
+                                                    .prefix(),
                                             ),
-                                            participant_address.get_udp_transport_write()?,
+                                            participant_address
+                                                .send_and_reply(
+                                                    dds_domain_participant::GetUdpTransportWrite,
+                                                )
+                                                .await?,
                                         ))
                                         .await?;
                                 }
@@ -1271,11 +1354,26 @@ pub async fn discover_matched_readers(
                                     data_writer
                                         .send_only(dds_data_writer::SendMessage::new(
                                             RtpsMessageHeader::new(
-                                                participant_address.get_protocol_version()?,
-                                                participant_address.get_vendor_id()?,
-                                                participant_address.get_guid()?.prefix(),
+                                                participant_address
+                                                    .send_and_reply(
+                                                        dds_domain_participant::GetProtocolVersion,
+                                                    )
+                                                    .await?,
+                                                participant_address
+                                                    .send_and_reply(
+                                                        dds_domain_participant::GetVendorId,
+                                                    )
+                                                    .await?,
+                                                participant_address
+                                                    .send_and_reply(dds_domain_participant::GetGuid)
+                                                    .await?
+                                                    .prefix(),
                                             ),
-                                            participant_address.get_udp_transport_write()?,
+                                            participant_address
+                                                .send_and_reply(
+                                                    dds_domain_participant::GetUdpTransportWrite,
+                                                )
+                                                .await?,
                                             participant_address
                                                 .send_and_reply(
                                                     dds_domain_participant::GetCurrentTime,

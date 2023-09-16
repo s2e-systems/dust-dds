@@ -532,10 +532,6 @@ impl DdsDomainParticipant {
         topic_address
     }
 
-    pub fn get_guid(&self) -> Guid {
-        self.rtps_participant.guid()
-    }
-
     pub fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_unicast_locator_list()
@@ -548,14 +544,6 @@ impl DdsDomainParticipant {
             .to_vec()
     }
 
-    pub fn get_protocol_version(&self) -> ProtocolVersion {
-        self.rtps_participant.protocol_version()
-    }
-
-    pub fn get_vendor_id(&self) -> VendorId {
-        self.rtps_participant.vendor_id()
-    }
-
     pub fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .metatraffic_unicast_locator_list()
@@ -566,10 +554,6 @@ impl DdsDomainParticipant {
         self.rtps_participant
             .metatraffic_multicast_locator_list()
             .to_vec()
-    }
-
-    pub fn get_builtin_subscriber(&self) -> ActorAddress<DdsSubscriber> {
-        self.builtin_subscriber.address().clone()
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
@@ -757,16 +741,83 @@ impl DdsDomainParticipant {
         self.discovered_participant_list.keys().cloned().collect()
     }
 
-    pub fn get_udp_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
-        self.udp_transport_write.address().clone()
-    }
-
     pub fn discovered_topic_add(&mut self, handle: InstanceHandle, topic_data: TopicBuiltinTopicData) {
         self.discovered_topic_list.insert(
                 handle, topic_data
             );
     }
 }
+}
+
+pub struct GetBuiltInSubscriber;
+
+impl Mail for GetBuiltInSubscriber {
+    type Result = ActorAddress<DdsSubscriber>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetBuiltInSubscriber> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        _mail: GetBuiltInSubscriber,
+    ) -> <GetBuiltInSubscriber as Mail>::Result {
+        self.builtin_subscriber.address().clone()
+    }
+}
+
+pub struct GetUdpTransportWrite;
+
+impl Mail for GetUdpTransportWrite {
+    type Result = ActorAddress<UdpTransportWrite>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetUdpTransportWrite> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        _mail: GetUdpTransportWrite,
+    ) -> <GetUdpTransportWrite as Mail>::Result {
+        self.udp_transport_write.address().clone()
+    }
+}
+
+pub struct GetGuid;
+
+impl Mail for GetGuid {
+    type Result = Guid;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetGuid> for DdsDomainParticipant {
+    async fn handle(&mut self, _mail: GetGuid) -> <GetGuid as Mail>::Result {
+        self.rtps_participant.guid()
+    }
+}
+
+pub struct GetProtocolVersion;
+
+impl Mail for GetProtocolVersion {
+    type Result = ProtocolVersion;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetProtocolVersion> for DdsDomainParticipant {
+    async fn handle(&mut self, _mail: GetProtocolVersion) -> <GetProtocolVersion as Mail>::Result {
+        self.rtps_participant.protocol_version()
+    }
+}
+
+pub struct GetVendorId;
+
+impl Mail for GetVendorId {
+    type Result = VendorId;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetVendorId> for DdsDomainParticipant {
+    async fn handle(&mut self, _mail: GetVendorId) -> <GetVendorId as Mail>::Result {
+        self.rtps_participant.vendor_id()
+    }
 }
 
 pub struct GetUserDefinedPublisherList;
@@ -963,11 +1014,11 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
             user_defined_subscriber_address
                 .send_only(dds_subscriber::SendMessage::new(
                     RtpsMessageHeader::new(
-                        self.get_protocol_version(),
-                        self.get_vendor_id(),
-                        self.get_guid().prefix(),
+                        self.rtps_participant.protocol_version(),
+                        self.rtps_participant.vendor_id(),
+                        self.rtps_participant.guid().prefix(),
                     ),
-                    self.get_udp_transport_write(),
+                    self.udp_transport_write.address().clone(),
                 ))
                 .await
                 .expect("Should not fail to send command");
@@ -985,11 +1036,11 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
             user_defined_publisher_address
                 .send_only(dds_publisher::SendMessage::new(
                     RtpsMessageHeader::new(
-                        self.get_protocol_version(),
-                        self.get_vendor_id(),
-                        self.get_guid().prefix(),
+                        self.rtps_participant.protocol_version(),
+                        self.rtps_participant.vendor_id(),
+                        self.rtps_participant.guid().prefix(),
                     ),
-                    self.get_udp_transport_write(),
+                    self.udp_transport_write.address().clone(),
                     self.get_current_time(),
                 ))
                 .await

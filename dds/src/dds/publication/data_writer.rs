@@ -285,21 +285,29 @@ where
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.address().write_w_timestamp(
-                    serialized_data,
-                    dds_serialize_key(data)?,
-                    handle,
-                    timestamp,
-                )??;
+                dw.address()
+                    .send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
+                        serialized_data,
+                        dds_serialize_key(data)?,
+                        handle,
+                        timestamp,
+                    ))??;
 
                 dw.address()
                     .send_only_blocking(dds_data_writer::SendMessage::new(
                         RtpsMessageHeader::new(
-                            dw.parent_participant().get_protocol_version()?,
-                            dw.parent_participant().get_vendor_id()?,
-                            dw.parent_participant().get_guid()?.prefix(),
+                            dw.parent_participant().send_and_reply_blocking(
+                                dds_domain_participant::GetProtocolVersion,
+                            )?,
+                            dw.parent_participant()
+                                .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                            dw.parent_participant()
+                                .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                                .prefix(),
                         ),
-                        dw.parent_participant().get_udp_transport_write()?,
+                        dw.parent_participant().send_and_reply_blocking(
+                            dds_domain_participant::GetUdpTransportWrite,
+                        )?,
                         dw.parent_participant()
                             .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
                     ))?;
@@ -741,20 +749,25 @@ fn announce_data_writer(
         if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
             == Ok("DiscoveredWriterData".to_string())
         {
-            dw.write_w_timestamp(
+            dw.send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
                 serialized_data,
                 dds_serialize_key(discovered_writer_data)?,
                 None,
                 timestamp,
-            )??;
+            ))??;
 
             dw.send_only_blocking(dds_data_writer::SendMessage::new(
                 RtpsMessageHeader::new(
-                    domain_participant.get_protocol_version()?,
-                    domain_participant.get_vendor_id()?,
-                    domain_participant.get_guid()?.prefix(),
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                        .prefix(),
                 ),
-                domain_participant.get_udp_transport_write()?,
+                domain_participant
+                    .send_and_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
                 domain_participant
                     .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
             ))?;

@@ -498,29 +498,6 @@ impl DdsDataWriter {
         })
     }
 
-    pub fn write_w_timestamp(
-        &mut self,
-        serialized_data: Vec<u8>,
-        instance_serialized_key: DdsSerializedKey,
-        _handle: Option<InstanceHandle>,
-        timestamp: Time,
-    ) -> DdsResult<()> {
-        let handle = self
-            .register_instance_w_timestamp(instance_serialized_key, timestamp)?
-            .unwrap_or(HANDLE_NIL);
-        let change = self.rtps_writer.new_change(
-            ChangeKind::Alive,
-            serialized_data,
-            ParameterList::empty(),
-            handle,
-            timestamp,
-        );
-
-        self.add_change(change);
-
-        Ok(())
-    }
-
     pub fn dispose_w_timestamp(
         &mut self,
         instance_serialized_key: Vec<u8>,
@@ -615,6 +592,53 @@ impl DdsDataWriter {
         )
     }
 }
+}
+
+pub struct WriteWTimestamp {
+    serialized_data: Vec<u8>,
+    instance_serialized_key: DdsSerializedKey,
+    _handle: Option<InstanceHandle>,
+    timestamp: Time,
+}
+
+impl WriteWTimestamp {
+    pub fn new(
+        serialized_data: Vec<u8>,
+        instance_serialized_key: DdsSerializedKey,
+        _handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> Self {
+        Self {
+            serialized_data,
+            instance_serialized_key,
+            _handle,
+            timestamp,
+        }
+    }
+}
+
+impl Mail for WriteWTimestamp {
+    type Result = DdsResult<()>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<WriteWTimestamp> for DdsDataWriter {
+    async fn handle(&mut self, mail: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
+        let handle = self
+            .register_instance_w_timestamp(mail.instance_serialized_key, mail.timestamp)?
+            .unwrap_or(HANDLE_NIL);
+        let change = self.rtps_writer.new_change(
+            ChangeKind::Alive,
+            mail.serialized_data,
+            ParameterList::empty(),
+            handle,
+            mail.timestamp,
+        );
+
+        self.add_change(change);
+
+        Ok(())
+    }
 }
 
 pub struct GetTypeName;

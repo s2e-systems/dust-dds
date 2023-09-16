@@ -247,20 +247,25 @@ fn announce_topic(
         if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
             == Ok("DiscoveredTopicData".to_string())
         {
-            data_writer.write_w_timestamp(
+            data_writer.send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
                 serialized_data,
                 dds_serialize_key_to_bytes(&discovered_topic_data)?,
                 None,
                 timestamp,
-            )??;
+            ))??;
 
             data_writer.send_only_blocking(dds_data_writer::SendMessage::new(
                 RtpsMessageHeader::new(
-                    domain_participant.get_protocol_version()?,
-                    domain_participant.get_vendor_id()?,
-                    domain_participant.get_guid()?.prefix(),
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                        .prefix(),
                 ),
-                domain_participant.get_udp_transport_write()?,
+                domain_participant
+                    .send_and_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
                 domain_participant
                     .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
             ))?;

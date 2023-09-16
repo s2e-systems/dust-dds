@@ -1782,10 +1782,6 @@ impl DdsDataReader {
             .collect()
     }
 
-    pub fn get_type_name(&self) -> String {
-        self.type_name.clone()
-    }
-
     pub fn get_topic_name(&self) -> String {
         self.topic_name.clone()
     }
@@ -1798,6 +1794,19 @@ impl DdsDataReader {
             .read_and_reset(self.matched_publication_list.len() as i32)
     }
 }
+}
+
+pub struct GetTypeName;
+
+impl Mail for GetTypeName {
+    type Result = String;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetTypeName> for DdsDataReader {
+    async fn handle(&mut self, _mail: GetTypeName) -> <GetTypeName as Mail>::Result {
+        self.type_name.to_string()
+    }
 }
 
 //////////////////////////////////////////////
