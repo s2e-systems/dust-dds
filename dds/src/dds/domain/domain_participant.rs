@@ -4,6 +4,7 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         dds::{
+            dds_data_reader,
             dds_domain_participant::DdsDomainParticipant,
             nodes::{PublisherNode, SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind},
         },
@@ -751,7 +752,7 @@ impl DomainParticipant {
             THE_RUNTIME.spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(50));
                 loop {
-                    let r: DdsResult<()> = tokio::task::block_in_place(|| {
+                    let r: DdsResult<()> = async {
                         let now = domain_participant_address.get_current_time()?;
                         let participant_mask_listener = (
                             domain_participant_address.get_listener()?,
@@ -763,14 +764,16 @@ impl DomainParticipant {
                             let subscriber_mask_listener =
                                 (subscriber.get_listener()?, subscriber.status_kind()?);
                             for data_reader in subscriber.data_reader_list()? {
-                                data_reader.update_communication_status(
-                                    now,
-                                    data_reader.clone(),
-                                    subscriber.clone(),
-                                    domain_participant_address.clone(),
-                                    subscriber_mask_listener.clone(),
-                                    participant_mask_listener.clone(),
-                                )?;
+                                data_reader
+                                    .send_only(dds_data_reader::UpdateCommunicationStatus::new(
+                                        now,
+                                        data_reader.clone(),
+                                        subscriber.clone(),
+                                        domain_participant_address.clone(),
+                                        subscriber_mask_listener.clone(),
+                                        participant_mask_listener.clone(),
+                                    ))
+                                    .await?;
                             }
                         }
 
@@ -791,7 +794,8 @@ impl DomainParticipant {
                         }
 
                         Ok(())
-                    });
+                    }
+                    .await;
 
                     if r.is_err() {
                         break;

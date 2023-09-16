@@ -10,7 +10,7 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         dds::{
-            dds_data_reader::DdsDataReader,
+            dds_data_reader::{self, DdsDataReader},
             dds_data_writer::DdsDataWriter,
             dds_domain_participant::{
                 self, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
@@ -243,7 +243,7 @@ impl DomainParticipantFactory {
             while let Some((_locator, message)) = metatraffic_unicast_transport.read().await {
                 let r: DdsResult<()> = async {
                     process_sedp_metatraffic(&participant_address_clone, message).await?;
-                    process_sedp_discovery(&participant_address_clone)?;
+                    process_sedp_discovery(&participant_address_clone).await?;
                     Ok(())
                 }
                 .await;
@@ -838,7 +838,7 @@ async fn process_sedp_metatraffic(
     Ok(())
 }
 
-fn process_sedp_discovery(
+async fn process_sedp_discovery(
     participant_address: &ActorAddress<DdsDomainParticipant>,
 ) -> DdsResult<()> {
     let builtin_subscriber = participant_address.get_builtin_subscriber()?;
@@ -859,7 +859,8 @@ fn process_sedp_discovery(
                     {
                         let discovered_writer_sample =
                             Sample::new(discovered_writer_data, discovered_writer_sample_info);
-                        discover_matched_writers(participant_address, &discovered_writer_sample)?;
+                        discover_matched_writers(participant_address, &discovered_writer_sample)
+                            .await?;
                     }
                 }
             }
@@ -906,7 +907,7 @@ fn process_sedp_discovery(
     Ok(())
 }
 
-fn discover_matched_writers(
+async fn discover_matched_writers(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     discovered_writer_sample: &Sample<DiscoveredWriterData>,
 ) -> DdsResult<()> {
@@ -996,17 +997,19 @@ fn discover_matched_writers(
                                         user_defined_subscriber_address.status_kind()?,
                                     );
 
-                                    data_reader_address.add_matched_writer(
-                                        discovered_writer_data.clone(),
-                                        default_unicast_locator_list.clone(),
-                                        default_multicast_locator_list.clone(),
-                                        data_reader_address.clone(),
-                                        user_defined_subscriber_address.clone(),
-                                        participant_address.clone(),
-                                        user_defined_subscriber_address.get_qos()?,
-                                        subscriber_mask_listener.clone(),
-                                        participant_mask_listener.clone(),
-                                    )?;
+                                    data_reader_address
+                                        .send_and_reply(dds_data_reader::AddMatchedWriter::new(
+                                            discovered_writer_data.clone(),
+                                            default_unicast_locator_list.clone(),
+                                            default_multicast_locator_list.clone(),
+                                            data_reader_address.clone(),
+                                            user_defined_subscriber_address.clone(),
+                                            participant_address.clone(),
+                                            user_defined_subscriber_address.get_qos()?,
+                                            subscriber_mask_listener.clone(),
+                                            participant_mask_listener.clone(),
+                                        ))
+                                        .await?;
                                     data_reader_address.send_message(
                                         RtpsMessageHeader::new(
                                             participant_address.get_protocol_version()?,
@@ -1028,14 +1031,16 @@ fn discover_matched_writers(
                     let subscriber_mask_listener =
                         (subscriber.get_listener()?, subscriber.status_kind()?);
 
-                    data_reader.remove_matched_writer(
-                        discovered_writer_sample.sample_info().instance_handle,
-                        data_reader.clone(),
-                        subscriber.clone(),
-                        participant_address.clone(),
-                        subscriber_mask_listener.clone(),
-                        participant_mask_listener.clone(),
-                    )?;
+                    data_reader
+                        .send_and_reply(dds_data_reader::RemoveMatchedWriter::new(
+                            discovered_writer_sample.sample_info().instance_handle,
+                            data_reader.clone(),
+                            subscriber.clone(),
+                            participant_address.clone(),
+                            subscriber_mask_listener.clone(),
+                            participant_mask_listener.clone(),
+                        ))
+                        .await?;
                 }
             }
         }

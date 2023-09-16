@@ -1,5 +1,5 @@
 use crate::{
-    implementation::utils::actor::{actor_command_interface, Mail, MailHandler},
+    implementation::utils::actor::{Mail, MailHandler},
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,
@@ -18,6 +18,7 @@ impl DdsDataReaderListener {
     }
 }
 
+////////////////////////////////////////////////////////
 pub struct TriggerOnDataAvailable {
     reader: DataReaderNode,
 }
@@ -42,6 +43,7 @@ impl MailHandler<TriggerOnDataAvailable> for DdsDataReaderListener {
     }
 }
 
+////////////////////////////////////////////////////////
 pub struct TriggerOnSampleRejected {
     reader: DataReaderNode,
     status: SampleRejectedStatus,
@@ -70,6 +72,7 @@ impl MailHandler<TriggerOnSampleRejected> for DdsDataReaderListener {
     }
 }
 
+////////////////////////////////////////////////////////
 pub struct TriggerOnSampleLost {
     reader: DataReaderNode,
     status: SampleLostStatus,
@@ -95,33 +98,89 @@ impl MailHandler<TriggerOnSampleLost> for DdsDataReaderListener {
     }
 }
 
-actor_command_interface! {
-impl DdsDataReaderListener {
-    pub fn trigger_on_requested_incompatible_qos(
-        &mut self,
-        reader: DataReaderNode,
-        status: RequestedIncompatibleQosStatus,
-    ) {
-        tokio::task::block_in_place(|| self.listener
-            .trigger_on_requested_incompatible_qos(reader, status));
-    }
+////////////////////////////////////////////////////////
+pub struct TriggerOnRequestedIncompatibleQos {
+    reader: DataReaderNode,
+    status: RequestedIncompatibleQosStatus,
+}
 
-    pub fn trigger_on_subscription_matched(
-        &mut self,
-        reader: DataReaderNode,
-        status: SubscriptionMatchedStatus,
-    ) {
-        tokio::task::block_in_place(|| self.listener
-            .trigger_on_subscription_matched(reader, status));
-    }
-
-    pub fn trigger_on_requested_deadline_missed(
-        &mut self,
-        reader: DataReaderNode,
-        status: RequestedDeadlineMissedStatus,
-    ) {
-        tokio::task::block_in_place(|| self.listener
-            .trigger_on_requested_deadline_missed(reader, status));
+impl TriggerOnRequestedIncompatibleQos {
+    pub fn new(reader: DataReaderNode, status: RequestedIncompatibleQosStatus) -> Self {
+        Self { reader, status }
     }
 }
+
+impl Mail for TriggerOnRequestedIncompatibleQos {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<TriggerOnRequestedIncompatibleQos> for DdsDataReaderListener {
+    async fn handle(
+        &mut self,
+        mail: TriggerOnRequestedIncompatibleQos,
+    ) -> <TriggerOnRequestedIncompatibleQos as Mail>::Result {
+        tokio::task::block_in_place(|| {
+            self.listener
+                .trigger_on_requested_incompatible_qos(mail.reader, mail.status)
+        });
+    }
+}
+
+////////////////////////////////////////////////////////
+pub struct TriggerOnSubscriptionMatched {
+    reader: DataReaderNode,
+    status: SubscriptionMatchedStatus,
+}
+
+impl TriggerOnSubscriptionMatched {
+    pub fn new(reader: DataReaderNode, status: SubscriptionMatchedStatus) -> Self {
+        Self { reader, status }
+    }
+}
+
+impl Mail for TriggerOnSubscriptionMatched {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<TriggerOnSubscriptionMatched> for DdsDataReaderListener {
+    async fn handle(
+        &mut self,
+        mail: TriggerOnSubscriptionMatched,
+    ) -> <TriggerOnSubscriptionMatched as Mail>::Result {
+        tokio::task::block_in_place(|| {
+            self.listener
+                .trigger_on_subscription_matched(mail.reader, mail.status)
+        });
+    }
+}
+
+////////////////////////////////////////////////////////
+pub struct TriggerOnRequestedDeadlineMissed {
+    reader: DataReaderNode,
+    status: RequestedDeadlineMissedStatus,
+}
+
+impl TriggerOnRequestedDeadlineMissed {
+    pub fn new(reader: DataReaderNode, status: RequestedDeadlineMissedStatus) -> Self {
+        Self { reader, status }
+    }
+}
+
+impl Mail for TriggerOnRequestedDeadlineMissed {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<TriggerOnRequestedDeadlineMissed> for DdsDataReaderListener {
+    async fn handle(
+        &mut self,
+        mail: TriggerOnRequestedDeadlineMissed,
+    ) -> <TriggerOnRequestedDeadlineMissed as Mail>::Result {
+        tokio::task::block_in_place(|| {
+            self.listener
+                .trigger_on_requested_deadline_missed(mail.reader, mail.status)
+        });
+    }
 }
