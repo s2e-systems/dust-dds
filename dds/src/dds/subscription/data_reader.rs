@@ -2,7 +2,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         dds::{
-            dds_data_writer,
+            dds_data_reader, dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
             dds_publisher,
             nodes::{DataReaderNodeKind, TopicNode, TopicNodeKind},
@@ -181,13 +181,15 @@ impl<Foo> DataReader<Foo> {
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().read(
-                    max_samples,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                    None,
-                )??;
+                let samples =
+                    dr.address()
+                        .send_and_reply_blocking(dds_data_reader::Read::new(
+                            max_samples,
+                            sample_states.to_vec(),
+                            view_states.to_vec(),
+                            instance_states.to_vec(),
+                            None,
+                        ))??;
 
                 Ok(samples
                     .into_iter()
@@ -240,13 +242,16 @@ impl<Foo> DataReader<Foo> {
             DataReaderNodeKind::_BuiltinStateful(dr)
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr.address().read(
-                1,
-                vec![SampleStateKind::NotRead],
-                ANY_VIEW_STATE.to_vec(),
-                ANY_INSTANCE_STATE.to_vec(),
-                None,
-            )??,
+            | DataReaderNodeKind::Listener(dr) => {
+                dr.address()
+                    .send_and_reply_blocking(dds_data_reader::Read::new(
+                        1,
+                        vec![SampleStateKind::NotRead],
+                        ANY_VIEW_STATE.to_vec(),
+                        ANY_INSTANCE_STATE.to_vec(),
+                        None,
+                    ))??
+            }
         };
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
@@ -299,13 +304,15 @@ impl<Foo> DataReader<Foo> {
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().read(
-                    max_samples,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                    Some(a_handle),
-                )??;
+                let samples =
+                    dr.address()
+                        .send_and_reply_blocking(dds_data_reader::Read::new(
+                            max_samples,
+                            sample_states.to_vec(),
+                            view_states.to_vec(),
+                            instance_states.to_vec(),
+                            Some(a_handle),
+                        ))??;
                 Ok(samples
                     .into_iter()
                     .map(|(data, sample_info)| Sample::new(data, sample_info))

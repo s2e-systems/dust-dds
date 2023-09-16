@@ -333,7 +333,7 @@ impl DomainParticipantFactory {
             .get_participant_list()?
             .iter()
             .find(|&a| {
-                if let Ok(id) = a.get_domain_id() {
+                if let Ok(id) = a.send_and_reply_blocking(dds_domain_participant::GetDomainId) {
                     id == domain_id
                 } else {
                     false
@@ -384,20 +384,21 @@ impl DomainParticipantFactory {
     }
 }
 
-fn lookup_data_writer_by_topic_name(
+async fn lookup_data_writer_by_topic_name(
     writer_list: &[ActorAddress<DdsDataWriter>],
     topic_name: &str,
 ) -> Option<ActorAddress<DdsDataWriter>> {
-    writer_list
-        .iter()
-        .find(|dw| {
-            if let Ok(t) = dw.get_topic_name() {
-                t == topic_name
-            } else {
-                false
+    for data_writer in writer_list {
+        if let Ok(t) = data_writer
+            .send_and_reply(dds_data_writer::GetTopicName)
+            .await
+        {
+            if t == topic_name {
+                return Some(data_writer.clone());
             }
-        })
-        .cloned()
+        }
+    }
+    None
 }
 
 fn lookup_data_reader_by_topic_name(
@@ -662,13 +663,16 @@ async fn process_spdp_metatraffic(
             == Ok("SpdpDiscoveredParticipantData".to_string())
         {
             // Read data from each of the readers
-            while let Ok(spdp_data_sample_list) = data_reader.read(
-                1,
-                vec![SampleStateKind::NotRead],
-                ANY_VIEW_STATE.to_vec(),
-                ANY_INSTANCE_STATE.to_vec(),
-                None,
-            )? {
+            while let Ok(spdp_data_sample_list) = data_reader
+                .send_and_reply(dds_data_reader::Read::new(
+                    1,
+                    vec![SampleStateKind::NotRead],
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                ))
+                .await?
+            {
                 for (spdp_data_sample, _) in spdp_data_sample_list {
                     let discovered_participant_data =
                         dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(
@@ -684,13 +688,19 @@ async fn process_spdp_metatraffic(
                     // communicate with the discovered participant.
                     let is_domain_id_matching =
                         discovered_participant_data.participant_proxy().domain_id()
-                            == participant_address.get_domain_id()?;
+                            == participant_address
+                                .send_and_reply(dds_domain_participant::GetDomainId)
+                                .await?;
                     let is_domain_tag_matching =
                         discovered_participant_data.participant_proxy().domain_tag()
-                            == participant_address.get_domain_tag()?;
-                    let is_participant_ignored = participant_address.is_participant_ignored(
-                        dds_serialize_key(&discovered_participant_data)?.into(),
-                    )?;
+                            == participant_address
+                                .send_and_reply(dds_domain_participant::GetDomainTag)
+                                .await?;
+                    let is_participant_ignored = participant_address
+                        .send_and_reply(dds_domain_participant::IsParticipantIgnored::new(
+                            dds_serialize_key(&discovered_participant_data)?.into(),
+                        ))
+                        .await?;
 
                     if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
                         // Process any new participant discovery (add/remove matched proxies)
@@ -708,7 +718,9 @@ async fn process_spdp_metatraffic(
                         if let Some(sedp_publications_announcer) = lookup_data_writer_by_topic_name(
                             &builtin_data_writer_list,
                             DCPS_PUBLICATION,
-                        ) {
+                        )
+                        .await
+                        {
                             add_matched_publications_detector(
                                 &sedp_publications_announcer,
                                 &discovered_participant_data,
@@ -752,10 +764,13 @@ async fn process_spdp_metatraffic(
                             );
                         }
 
-                        if let Some(sedp_subscriptions_announcer) = lookup_data_writer_by_topic_name(
-                            &builtin_data_writer_list,
-                            DCPS_SUBSCRIPTION,
-                        ) {
+                        if let Some(sedp_subscriptions_announcer) =
+                            lookup_data_writer_by_topic_name(
+                                &builtin_data_writer_list,
+                                DCPS_SUBSCRIPTION,
+                            )
+                            .await
+                        {
                             add_matched_subscriptions_detector(
                                 &sedp_subscriptions_announcer,
                                 &discovered_participant_data,
@@ -800,6 +815,7 @@ async fn process_spdp_metatraffic(
 
                         if let Some(sedp_topics_announcer) =
                             lookup_data_writer_by_topic_name(&builtin_data_writer_list, DCPS_TOPIC)
+                                .await
                         {
                             add_matched_topics_detector(
                                 &sedp_topics_announcer,
@@ -956,13 +972,16 @@ async fn process_sedp_discovery(
         match stateful_builtin_reader.get_topic_name()?.as_str() {
             DCPS_PUBLICATION => {
                 //::<DiscoveredWriterData>
-                if let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader.read(
-                    i32::MAX,
-                    ANY_SAMPLE_STATE.to_vec(),
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )? {
+                if let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader
+                    .send_and_reply(dds_data_reader::Read::new(
+                        i32::MAX,
+                        ANY_SAMPLE_STATE.to_vec(),
+                        ANY_VIEW_STATE.to_vec(),
+                        ANY_INSTANCE_STATE.to_vec(),
+                        None,
+                    ))
+                    .await?
+                {
                     for (discovered_writer_data, discovered_writer_sample_info) in
                         discovered_writer_sample_list.drain(..)
                     {
@@ -975,13 +994,16 @@ async fn process_sedp_discovery(
             }
             DCPS_SUBSCRIPTION => {
                 //::<DiscoveredReaderData>
-                if let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader.read(
-                    i32::MAX,
-                    ANY_SAMPLE_STATE.to_vec(),
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )? {
+                if let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader
+                    .send_and_reply(dds_data_reader::Read::new(
+                        i32::MAX,
+                        ANY_SAMPLE_STATE.to_vec(),
+                        ANY_VIEW_STATE.to_vec(),
+                        ANY_INSTANCE_STATE.to_vec(),
+                        None,
+                    ))
+                    .await?
+                {
                     for (discovered_reader_data, discovered_reader_sample_info) in
                         discovered_reader_sample_list.drain(..)
                     {
@@ -994,13 +1016,16 @@ async fn process_sedp_discovery(
             }
             DCPS_TOPIC => {
                 //::<DiscoveredTopicData>
-                if let Ok(discovered_topic_sample_list) = stateful_builtin_reader.read(
-                    i32::MAX,
-                    ANY_SAMPLE_STATE.to_vec(),
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )? {
+                if let Ok(discovered_topic_sample_list) = stateful_builtin_reader
+                    .send_and_reply(dds_data_reader::Read::new(
+                        i32::MAX,
+                        ANY_SAMPLE_STATE.to_vec(),
+                        ANY_VIEW_STATE.to_vec(),
+                        ANY_INSTANCE_STATE.to_vec(),
+                        None,
+                    ))
+                    .await?
+                {
                     for (discovered_topic_data, discovered_topic_sample_info) in
                         discovered_topic_sample_list
                     {

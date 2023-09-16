@@ -1370,6 +1370,45 @@ impl DdsDataReader {
             None => self.instances.keys().min().cloned(),
         }
     }
+
+    fn read(
+        &mut self,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::DataAvailable);
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )?;
+
+        let change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
+
+        for index in change_index_list {
+            self.changes[index].sample_state = SampleStateKind::Read;
+        }
+
+        Ok(samples)
+    }
 }
 
 pub struct AddMatchedWriter {
@@ -1524,42 +1563,6 @@ impl MailHandler<AddMatchedWriter> for DdsDataReader {
 
 actor_mailbox_interface! {
 impl DdsDataReader {
-    pub fn read(
-        &mut self,
-        max_samples: i32,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::DataAvailable);
-
-        let indexed_sample_list = self.create_indexed_sample_collection(
-            max_samples,
-            &sample_states,
-            &view_states,
-            &instance_states,
-            specific_instance_handle,
-        )?;
-
-        let change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list.into_iter().map(|IndexedSample{index, sample}| (index, sample)).unzip();
-
-        for index in change_index_list {
-            self.changes[index].sample_state = SampleStateKind::Read;
-        }
-
-        Ok(samples)
-    }
-
     pub fn take(
         &mut self,
         max_samples: i32,
@@ -1794,6 +1797,71 @@ impl DdsDataReader {
             .read_and_reset(self.matched_publication_list.len() as i32)
     }
 }
+}
+
+pub struct Read {
+    max_samples: i32,
+    sample_states: Vec<SampleStateKind>,
+    view_states: Vec<ViewStateKind>,
+    instance_states: Vec<InstanceStateKind>,
+    specific_instance_handle: Option<InstanceHandle>,
+}
+
+impl Read {
+    pub fn new(
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> Self {
+        Self {
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        }
+    }
+}
+
+impl Mail for Read {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<Read> for DdsDataReader {
+    async fn handle(&mut self, mail: Read) -> <Read as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            mail.max_samples,
+            &mail.sample_states,
+            &mail.view_states,
+            &mail.instance_states,
+            mail.specific_instance_handle,
+        )?;
+
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::DataAvailable);
+
+        let mut change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
+
+        while let Some(index) = change_index_list.pop() {
+            self.changes.remove(index);
+        }
+
+        Ok(samples)
+    }
 }
 
 pub struct GetTypeName;

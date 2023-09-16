@@ -560,14 +560,6 @@ impl DdsDomainParticipant {
         self.rtps_participant.guid().into()
     }
 
-    pub fn get_domain_id(&self) -> DomainId {
-        self.domain_id
-    }
-
-    pub fn get_domain_tag(&self) -> String {
-        self.domain_tag.clone()
-    }
-
     pub fn enable(&mut self) {
         self.enabled = true;
     }
@@ -578,10 +570,6 @@ impl DdsDomainParticipant {
 
     pub fn ignore_participant(&mut self, handle: InstanceHandle) {
         self.ignored_participants.insert(handle);
-    }
-
-    pub fn is_participant_ignored(&self, handle: InstanceHandle) -> bool {
-        self.ignored_participants.contains(&handle)
     }
 
     pub fn ignore_subscription(&mut self, handle: InstanceHandle) {
@@ -749,6 +737,55 @@ impl DdsDomainParticipant {
 }
 }
 
+pub struct IsParticipantIgnored {
+    handle: InstanceHandle,
+}
+
+impl IsParticipantIgnored {
+    pub fn new(handle: InstanceHandle) -> Self {
+        Self { handle }
+    }
+}
+
+impl Mail for IsParticipantIgnored {
+    type Result = bool;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<IsParticipantIgnored> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        mail: IsParticipantIgnored,
+    ) -> <IsParticipantIgnored as Mail>::Result {
+        self.ignored_participants.contains(&mail.handle)
+    }
+}
+
+pub struct GetDomainId;
+
+impl Mail for GetDomainId {
+    type Result = DomainId;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetDomainId> for DdsDomainParticipant {
+    async fn handle(&mut self, _mail: GetDomainId) -> <GetDomainId as Mail>::Result {
+        self.domain_id
+    }
+}
+
+pub struct GetDomainTag;
+
+impl Mail for GetDomainTag {
+    type Result = String;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetDomainTag> for DdsDomainParticipant {
+    async fn handle(&mut self, _mail: GetDomainTag) -> <GetDomainTag as Mail>::Result {
+        self.domain_tag.clone()
+    }
+}
 pub struct GetBuiltInSubscriber;
 
 impl Mail for GetBuiltInSubscriber {

@@ -373,10 +373,6 @@ impl DdsDataWriter {
         self.enabled
     }
 
-    pub fn get_topic_name(&self) -> String {
-        self.topic_name.clone()
-    }
-
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }
@@ -594,6 +590,19 @@ impl DdsDataWriter {
 }
 }
 
+pub struct GetTopicName;
+
+impl Mail for GetTopicName {
+    type Result = String;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetTopicName> for DdsDataWriter {
+    async fn handle(&mut self, _mail: GetTopicName) -> <GetTopicName as Mail>::Result {
+        self.topic_name.clone()
+    }
+}
+
 pub struct WriteWTimestamp {
     serialized_data: Vec<u8>,
     instance_serialized_key: DdsSerializedKey,
@@ -714,7 +723,7 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
             .discovered_reader_data
             .subscription_builtin_topic_data()
             .topic_name()
-            == self.get_topic_name();
+            == self.topic_name;
         let is_matched_type_name = mail
             .discovered_reader_data
             .subscription_builtin_topic_data()

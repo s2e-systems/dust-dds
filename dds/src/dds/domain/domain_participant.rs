@@ -253,7 +253,8 @@ impl DomainParticipant {
                     for data_writer in data_writer_list {
                         if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
                             == t.address().get_type_name()
-                            && data_writer.get_topic_name() == t.address().get_name()
+                            && data_writer.send_and_reply_blocking(dds_data_writer::GetTopicName)
+                                == t.address().get_name()
                         {
                             return Err(DdsError::PreconditionNotMet(
                                 "Topic still attached to some data writer".to_string(),
@@ -446,7 +447,8 @@ impl DomainParticipant {
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        self.0.get_domain_id()
+        self.0
+            .send_and_reply_blocking(dds_domain_participant::GetDomainId)
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
