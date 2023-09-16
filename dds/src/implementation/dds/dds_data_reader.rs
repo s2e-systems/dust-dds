@@ -71,7 +71,7 @@ use super::{
     dds_domain_participant::DdsDomainParticipant,
     dds_domain_participant_listener::DdsDomainParticipantListener,
     dds_subscriber::DdsSubscriber,
-    dds_subscriber_listener::DdsSubscriberListener,
+    dds_subscriber_listener::{self, DdsSubscriberListener},
     message_receiver::MessageReceiver,
     nodes::SubscriberNode,
     status_condition_impl::StatusConditionImpl,
@@ -338,10 +338,10 @@ impl DdsDataReader {
             .add_communication_state(StatusKind::DataAvailable);
         match subscriber_listener_address {
             Some(l) if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) => {
-                l.trigger_on_data_on_readers(SubscriberNode::new(
-                    subscriber_address.clone(),
-                    participant_address.clone(),
+                l.send_only(dds_subscriber_listener::TriggerOnDataOnReaders::new(
+                    SubscriberNode::new(subscriber_address.clone(), participant_address.clone()),
                 ))
+                .await
                 .expect("Should not fail to send message");
             }
             _ => match self.listener.as_ref().map(|a| a.address()) {
@@ -632,8 +632,11 @@ impl DdsDataReader {
                         participant_address.clone(),
                     );
                     let status = self.get_sample_lost_status();
-                    l.trigger_on_sample_lost(reader, status)
-                        .expect("Should not fail to send command");
+                    l.send_only(dds_subscriber_listener::TriggerOnSampleLost::new(
+                        reader, status,
+                    ))
+                    .await
+                    .expect("Should not fail to send command");
                 }
                 _ => match participant_listener_address {
                     Some(l) if participant_listener_mask.contains(&StatusKind::SampleLost) => {
@@ -694,8 +697,11 @@ impl DdsDataReader {
                         participant_address,
                     );
                     let status = self.get_subscription_matched_status();
-                    l.trigger_on_subscription_matched(reader, status)
-                        .expect("Should not fail to send command");
+                    l.send_only(dds_subscriber_listener::TriggerOnSubscriptionMatched::new(
+                        reader, status,
+                    ))
+                    .await
+                    .expect("Should not fail to send command");
                 }
                 _ => match participant_listener_address {
                     Some(l)
@@ -760,8 +766,11 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.trigger_on_sample_rejected(reader, status)
-                        .expect("Should not fail to send message");
+                    l.send_only(dds_subscriber_listener::TriggerOnSampleRejected::new(
+                        reader, status,
+                    ))
+                    .await
+                    .expect("Should not fail to send message");
                 }
                 _ => match participant_listener_address {
                     Some(l) if participant_listener_mask.contains(&StatusKind::SampleRejected) => {
@@ -831,8 +840,13 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.trigger_on_requested_incompatible_qos(reader, status)
-                        .expect("Should not fail to send message");
+                    l.send_only(
+                        dds_subscriber_listener::TriggerOnRequestedIncompatibleQos::new(
+                            reader, status,
+                        ),
+                    )
+                    .await
+                    .expect("Should not fail to send message");
                 }
                 _ => match participant_listener_address {
                     Some(l)
@@ -2034,8 +2048,13 @@ impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
                             mail.subscriber_address.clone(),
                             mail.participant_address.clone(),
                         );
-                        l.trigger_on_requested_deadline_missed(reader, status)
-                            .expect("Should not fail to send message");
+                        l.send_only(
+                            dds_subscriber_listener::TriggerOnRequestedDeadlineMissed::new(
+                                reader, status,
+                            ),
+                        )
+                        .await
+                        .expect("Should not fail to send message");
                     }
                     _ => match &participant_listener_address {
                         Some(l)
