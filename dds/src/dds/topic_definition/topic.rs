@@ -3,7 +3,9 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         dds::{
-            dds_data_writer, dds_domain_participant::DdsDomainParticipant, nodes::TopicNodeKind,
+            dds_data_writer,
+            dds_domain_participant::{self, DdsDomainParticipant},
+            nodes::TopicNodeKind,
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::ActorAddress,
@@ -237,7 +239,7 @@ fn announce_topic(
     let timestamp = domain_participant.get_current_time()?;
 
     if let Some(sedp_topic_announcer) = domain_participant
-        .get_builtin_publisher()?
+        .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
         .data_writer_list()?
         .iter()
         .find(|x| x.get_type_name().unwrap() == "DiscoveredTopicData")

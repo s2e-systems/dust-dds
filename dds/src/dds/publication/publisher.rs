@@ -4,6 +4,7 @@ use crate::{
         dds::{
             dds_data_writer,
             dds_data_writer_listener::DdsDataWriterListener,
+            dds_domain_participant,
             nodes::{DataWriterNode, DataWriterNodeKind, PublisherNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
@@ -157,7 +158,7 @@ impl Publisher {
 
                     if let Some(sedp_writer_announcer) = dw
                         .parent_participant()
-                        .get_builtin_publisher()?
+                        .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
                         .data_writer_list()?
                         .iter()
                         .find(|x| x.get_type_name().unwrap() == "DiscoveredWriterData")

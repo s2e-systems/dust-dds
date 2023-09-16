@@ -564,10 +564,6 @@ impl DdsDomainParticipant {
         self.builtin_subscriber.address().clone()
     }
 
-    pub fn get_builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
-        self.builtin_publisher.address().clone()
-    }
-
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_participant.guid().into()
     }
@@ -822,6 +818,22 @@ impl DdsDomainParticipant {
         self.status_kind.clone()
     }
 }
+}
+
+pub struct GetBuiltinPublisher;
+
+impl Mail for GetBuiltinPublisher {
+    type Result = ActorAddress<DdsPublisher>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetBuiltinPublisher> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        _mail: GetBuiltinPublisher,
+    ) -> <GetBuiltinPublisher as Mail>::Result {
+        self.builtin_publisher.address().clone()
+    }
 }
 
 pub struct ProcessUserDefinedRtpsMessage {

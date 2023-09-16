@@ -4,7 +4,7 @@ use crate::{
         dds::{
             dds_data_reader::DdsDataReader,
             dds_data_reader_listener::DdsDataReaderListener,
-            dds_data_writer,
+            dds_data_writer, dds_domain_participant,
             nodes::{DataReaderNode, DataReaderNodeKind, SubscriberNodeKind},
         },
         rtps::{
@@ -220,7 +220,7 @@ impl Subscriber {
 
                         if let Some(sedp_reader_announcer) = dr
                             .parent_participant()
-                            .get_builtin_publisher()?
+                            .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
                             .data_writer_list()?
                             .iter()
                             .find(|x| x.get_type_name().unwrap() == "DiscoveredReaderData")

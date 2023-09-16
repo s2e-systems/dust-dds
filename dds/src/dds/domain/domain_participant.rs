@@ -5,7 +5,7 @@ use crate::{
     implementation::{
         dds::{
             dds_data_reader, dds_data_writer,
-            dds_domain_participant::DdsDomainParticipant,
+            dds_domain_participant::{self, DdsDomainParticipant},
             nodes::{PublisherNode, SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
@@ -682,14 +682,20 @@ impl DomainParticipant {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         if !self.0.is_enabled()? {
-            self.0.get_builtin_publisher()?.enable()?;
+            self.0
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
+                .enable()?;
             self.0.get_builtin_subscriber()?.enable()?;
 
             for builtin_reader in self.0.get_builtin_subscriber()?.data_reader_list()? {
                 builtin_reader.enable()?;
             }
 
-            for builtin_writer in self.0.get_builtin_publisher()?.data_writer_list()? {
+            for builtin_writer in self
+                .0
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
+                .data_writer_list()?
+            {
                 builtin_writer.enable()?;
             }
 
@@ -702,8 +708,9 @@ impl DomainParticipant {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
                 loop {
                     let r: DdsResult<()> = async {
-                        let builtin_publisher =
-                            domain_participant_address.get_builtin_publisher()?;
+                        let builtin_publisher = domain_participant_address
+                            .send_and_reply(dds_domain_participant::GetBuiltinPublisher)
+                            .await?;
                         if let Some(participant_announcer) =
                             builtin_publisher.data_writer_list()?.iter().find(|dw| {
                                 if let Ok(name) = dw.get_type_name() {

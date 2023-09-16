@@ -685,7 +685,8 @@ async fn process_spdp_metatraffic(
                 if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
                     // Process any new participant discovery (add/remove matched proxies)
                     let builtin_data_writer_list = participant_address
-                        .get_builtin_publisher()?
+                        .send_and_reply(dds_domain_participant::GetBuiltinPublisher)
+                        .await?
                         .data_writer_list()?;
                     let builtin_data_reader_list = participant_address
                         .get_builtin_subscriber()?
@@ -801,7 +802,9 @@ async fn process_sedp_metatraffic(
     message: RtpsMessageRead,
 ) -> DdsResult<()> {
     let builtin_subscriber = participant_address.get_builtin_subscriber()?;
-    let builtin_publisher = participant_address.get_builtin_publisher()?;
+    let builtin_publisher = participant_address
+        .send_and_reply(dds_domain_participant::GetBuiltinPublisher)
+        .await?;
     let participant_mask_listener = (
         participant_address.get_listener()?,
         participant_address.status_kind()?,

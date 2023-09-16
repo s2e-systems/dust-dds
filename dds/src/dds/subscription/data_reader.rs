@@ -3,7 +3,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         dds::{
             dds_data_writer,
-            dds_domain_participant::DdsDomainParticipant,
+            dds_domain_participant::{self, DdsDomainParticipant},
             nodes::{DataReaderNodeKind, TopicNode, TopicNodeKind},
         },
         rtps::messages::{overall_structure::RtpsMessageHeader, submessage_elements::Data},
@@ -911,7 +911,7 @@ fn announce_data_reader(
     let timestamp = domain_participant.get_current_time()?;
 
     if let Some(sedp_reader_announcer) = domain_participant
-        .get_builtin_publisher()?
+        .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
         .data_writer_list()?
         .iter()
         .find(|x| x.get_type_name().unwrap() == "DiscoveredReaderData")
