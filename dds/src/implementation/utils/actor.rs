@@ -55,7 +55,7 @@ impl<A> Eq for ActorAddress<A> {}
 impl<A> ActorAddress<A> {
     pub fn send_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
     where
-        A: MailHandler<M>,
+        A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
         M::Result: Send,
     {
@@ -71,7 +71,7 @@ impl<A> ActorAddress<A> {
 
     pub fn send_command<M>(&self, command: M) -> DdsResult<()>
     where
-        A: CommandHandler<M>,
+        A: CommandHandler<M> + Send,
         M: Send + 'static,
     {
         self.sender
@@ -80,8 +80,9 @@ impl<A> ActorAddress<A> {
     }
 }
 
+#[async_trait::async_trait]
 trait GenericHandler<A> {
-    fn handle(&mut self, actor: &mut A);
+    async fn handle(&mut self, actor: &mut A);
 }
 
 struct SyncMail<M>
@@ -107,12 +108,14 @@ where
     }
 }
 
+#[async_trait::async_trait]
 impl<A, M> GenericHandler<A> for SyncMail<M>
 where
-    A: MailHandler<M>,
-    M: Mail,
+    A: MailHandler<M> + Send,
+    M: Mail + Send,
+    M::Result: Send,
 {
-    fn handle(&mut self, actor: &mut A) {
+    async fn handle(&mut self, actor: &mut A) {
         let result = <A as MailHandler<M>>::handle(
             actor,
             self.mail
@@ -138,11 +141,13 @@ impl<M> CommandMail<M> {
     }
 }
 
+#[async_trait::async_trait]
 impl<A, M> GenericHandler<A> for CommandMail<M>
 where
-    A: CommandHandler<M>,
+    A: CommandHandler<M> + Send,
+    M: Send,
 {
-    fn handle(&mut self, actor: &mut A) {
+    async fn handle(&mut self, actor: &mut A) {
         <A as CommandHandler<M>>::handle(
             actor,
             self.mail
@@ -195,7 +200,7 @@ where
     let join_handle = THE_RUNTIME.spawn(async move {
         while let Some(mut m) = actor_obj.mailbox.recv().await {
             if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                m.handle(&mut actor_obj.value);
+                m.handle(&mut actor_obj.value).await;
             } else {
                 break;
             }

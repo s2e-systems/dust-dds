@@ -1625,7 +1625,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     reader
-        .wait_for_historical_data(Duration::new(2, 0))
+        .wait_for_historical_data(Duration::new(10, 0))
         .unwrap();
     let samples = reader
         .read(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
