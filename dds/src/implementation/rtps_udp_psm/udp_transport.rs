@@ -3,7 +3,7 @@ use crate::implementation::{
         messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
         types::{Locator, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
     },
-    utils::actor::actor_command_interface,
+    utils::actor::{Mail, MailHandler},
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::{
@@ -62,12 +62,30 @@ impl UdpTransportWrite {
     }
 }
 
-actor_command_interface! {
-impl UdpTransportWrite {
-    pub fn write(&self, message: RtpsMessageWrite, destination_locator_list: Vec<Locator>) {
-        let buf = message.buffer();
+pub struct Write {
+    message: RtpsMessageWrite,
+    destination_locator_list: Vec<Locator>,
+}
 
-        for destination_locator in destination_locator_list {
+impl Write {
+    pub fn new(message: RtpsMessageWrite, destination_locator_list: Vec<Locator>) -> Self {
+        Self {
+            message,
+            destination_locator_list,
+        }
+    }
+}
+
+impl Mail for Write {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<Write> for UdpTransportWrite {
+    async fn handle(&mut self, mail: Write) -> <Write as Mail>::Result {
+        let buf = mail.message.buffer();
+
+        for destination_locator in mail.destination_locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
                 let interface_addresses = NetworkInterface::show();
@@ -95,7 +113,6 @@ impl UdpTransportWrite {
             }
         }
     }
-}
 }
 
 struct UdpLocator(Locator);

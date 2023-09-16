@@ -5,6 +5,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::{
+            dds_data_writer,
             dds_domain_participant::DdsDomainParticipant,
             nodes::{DataWriterNodeKind, PublisherNode},
         },
@@ -290,15 +291,16 @@ where
                     timestamp,
                 )??;
 
-                dw.address().send_message(
-                    RtpsMessageHeader::new(
-                        dw.parent_participant().get_protocol_version()?,
-                        dw.parent_participant().get_vendor_id()?,
-                        dw.parent_participant().get_guid()?.prefix(),
-                    ),
-                    dw.parent_participant().get_udp_transport_write()?,
-                    dw.parent_participant().get_current_time()?,
-                )?;
+                dw.address()
+                    .send_only_blocking(dds_data_writer::SendMessage::new(
+                        RtpsMessageHeader::new(
+                            dw.parent_participant().get_protocol_version()?,
+                            dw.parent_participant().get_vendor_id()?,
+                            dw.parent_participant().get_guid()?.prefix(),
+                        ),
+                        dw.parent_participant().get_udp_transport_write()?,
+                        dw.parent_participant().get_current_time()?,
+                    ))?;
 
                 Ok(())
             }
@@ -740,7 +742,7 @@ fn announce_data_writer(
             timestamp,
         )??;
 
-        sedp_writer_announcer.send_message(
+        sedp_writer_announcer.send_only_blocking(dds_data_writer::SendMessage::new(
             RtpsMessageHeader::new(
                 domain_participant.get_protocol_version()?,
                 domain_participant.get_vendor_id()?,
@@ -748,7 +750,7 @@ fn announce_data_writer(
             ),
             domain_participant.get_udp_transport_write()?,
             domain_participant.get_current_time()?,
-        )?;
+        ))?;
     }
 
     Ok(())

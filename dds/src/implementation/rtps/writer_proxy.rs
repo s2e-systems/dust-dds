@@ -4,7 +4,8 @@ use std::{
 };
 
 use crate::implementation::{
-    rtps_udp_psm::udp_transport::UdpTransportWrite, utils::actor::ActorAddress,
+    rtps_udp_psm::udp_transport::{self, UdpTransportWrite},
+    utils::actor::ActorAddress,
 };
 
 use super::{
@@ -250,7 +251,7 @@ impl RtpsWriterProxy {
         self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 
-    pub fn send_message(
+    pub async fn send_message(
         &mut self,
         reader_guid: &Guid,
         header: RtpsMessageHeader,
@@ -311,10 +312,11 @@ impl RtpsWriterProxy {
             }
 
             udp_transport_write
-                .write(
+                .send_only(udp_transport::Write::new(
                     RtpsMessageWrite::new(header, submessages),
                     self.unicast_locator_list().to_vec(),
-                )
+                ))
+                .await
                 .unwrap();
         }
     }

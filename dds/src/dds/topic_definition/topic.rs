@@ -2,7 +2,9 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        dds::{dds_domain_participant::DdsDomainParticipant, nodes::TopicNodeKind},
+        dds::{
+            dds_data_writer, dds_domain_participant::DdsDomainParticipant, nodes::TopicNodeKind,
+        },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::ActorAddress,
     },
@@ -247,7 +249,7 @@ fn announce_topic(
             timestamp,
         )??;
 
-        sedp_topic_announcer.send_message(
+        sedp_topic_announcer.send_only_blocking(dds_data_writer::SendMessage::new(
             RtpsMessageHeader::new(
                 domain_participant.get_protocol_version()?,
                 domain_participant.get_vendor_id()?,
@@ -255,7 +257,7 @@ fn announce_topic(
             ),
             domain_participant.get_udp_transport_write()?,
             domain_participant.get_current_time()?,
-        )?;
+        ))?;
     }
 
     Ok(())

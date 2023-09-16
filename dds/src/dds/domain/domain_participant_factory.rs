@@ -11,7 +11,7 @@ use crate::{
         },
         dds::{
             dds_data_reader::{self, DdsDataReader},
-            dds_data_writer::DdsDataWriter,
+            dds_data_writer::{self, DdsDataWriter},
             dds_domain_participant::{
                 self, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
@@ -700,15 +700,17 @@ async fn process_spdp_metatraffic(
                             &discovered_participant_data,
                         );
 
-                        sedp_publications_announcer.send_message(
-                            RtpsMessageHeader::new(
-                                participant_address.get_protocol_version()?,
-                                participant_address.get_vendor_id()?,
-                                participant_address.get_guid()?.prefix(),
-                            ),
-                            participant_address.get_udp_transport_write()?,
-                            participant_address.get_current_time()?,
-                        )?;
+                        sedp_publications_announcer
+                            .send_only(dds_data_writer::SendMessage::new(
+                                RtpsMessageHeader::new(
+                                    participant_address.get_protocol_version()?,
+                                    participant_address.get_vendor_id()?,
+                                    participant_address.get_guid()?.prefix(),
+                                ),
+                                participant_address.get_udp_transport_write()?,
+                                participant_address.get_current_time()?,
+                            ))
+                            .await?;
                     }
 
                     if let Some(sedp_publications_detector) = lookup_data_reader_by_topic_name(
@@ -729,15 +731,17 @@ async fn process_spdp_metatraffic(
                             &sedp_subscriptions_announcer,
                             &discovered_participant_data,
                         );
-                        sedp_subscriptions_announcer.send_message(
-                            RtpsMessageHeader::new(
-                                participant_address.get_protocol_version()?,
-                                participant_address.get_vendor_id()?,
-                                participant_address.get_guid()?.prefix(),
-                            ),
-                            participant_address.get_udp_transport_write()?,
-                            participant_address.get_current_time()?,
-                        )?;
+                        sedp_subscriptions_announcer
+                            .send_only(dds_data_writer::SendMessage::new(
+                                RtpsMessageHeader::new(
+                                    participant_address.get_protocol_version()?,
+                                    participant_address.get_vendor_id()?,
+                                    participant_address.get_guid()?.prefix(),
+                                ),
+                                participant_address.get_udp_transport_write()?,
+                                participant_address.get_current_time()?,
+                            ))
+                            .await?;
                     }
 
                     if let Some(sedp_subscriptions_detector) = lookup_data_reader_by_topic_name(
@@ -758,15 +762,17 @@ async fn process_spdp_metatraffic(
                             &discovered_participant_data,
                         );
 
-                        sedp_topics_announcer.send_message(
-                            RtpsMessageHeader::new(
-                                participant_address.get_protocol_version()?,
-                                participant_address.get_vendor_id()?,
-                                participant_address.get_guid()?.prefix(),
-                            ),
-                            participant_address.get_udp_transport_write()?,
-                            participant_address.get_current_time()?,
-                        )?;
+                        sedp_topics_announcer
+                            .send_only(dds_data_writer::SendMessage::new(
+                                RtpsMessageHeader::new(
+                                    participant_address.get_protocol_version()?,
+                                    participant_address.get_vendor_id()?,
+                                    participant_address.get_guid()?.prefix(),
+                                ),
+                                participant_address.get_udp_transport_write()?,
+                                participant_address.get_current_time()?,
+                            ))
+                            .await?;
                     }
 
                     if let Some(sedp_topics_detector) =
@@ -803,15 +809,17 @@ async fn process_sedp_metatraffic(
 
     for stateful_builtin_writer in builtin_publisher.data_writer_list()? {
         stateful_builtin_writer.process_rtps_message(message.clone())?;
-        stateful_builtin_writer.send_message(
-            RtpsMessageHeader::new(
-                participant_address.get_protocol_version()?,
-                participant_address.get_vendor_id()?,
-                participant_address.get_guid()?.prefix(),
-            ),
-            participant_address.get_udp_transport_write()?,
-            participant_address.get_current_time()?,
-        )?;
+        stateful_builtin_writer
+            .send_only(dds_data_writer::SendMessage::new(
+                RtpsMessageHeader::new(
+                    participant_address.get_protocol_version()?,
+                    participant_address.get_vendor_id()?,
+                    participant_address.get_guid()?.prefix(),
+                ),
+                participant_address.get_udp_transport_write()?,
+                participant_address.get_current_time()?,
+            ))
+            .await?;
     }
 
     builtin_subscriber
@@ -879,7 +887,8 @@ async fn process_sedp_discovery(
                     {
                         let discovered_reader_sample =
                             Sample::new(discovered_reader_data, discovered_reader_sample_info);
-                        discover_matched_readers(participant_address, &discovered_reader_sample)?;
+                        discover_matched_readers(participant_address, &discovered_reader_sample)
+                            .await?;
                     }
                 }
             }
@@ -1053,7 +1062,7 @@ async fn discover_matched_writers(
     Ok(())
 }
 
-pub fn discover_matched_readers(
+pub async fn discover_matched_readers(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     discovered_reader_sample: &Sample<DiscoveredReaderData>,
 ) -> DdsResult<()> {
@@ -1186,15 +1195,17 @@ pub fn discover_matched_readers(
                                         offered_incompatible_qos_publisher_listener,
                                         offered_incompatible_qos_participant_listener,
                                     )?;
-                                    data_writer.send_message(
-                                        RtpsMessageHeader::new(
-                                            participant_address.get_protocol_version()?,
-                                            participant_address.get_vendor_id()?,
-                                            participant_address.get_guid()?.prefix(),
-                                        ),
-                                        participant_address.get_udp_transport_write()?,
-                                        participant_address.get_current_time()?,
-                                    )?;
+                                    data_writer
+                                        .send_only(dds_data_writer::SendMessage::new(
+                                            RtpsMessageHeader::new(
+                                                participant_address.get_protocol_version()?,
+                                                participant_address.get_vendor_id()?,
+                                                participant_address.get_guid()?.prefix(),
+                                            ),
+                                            participant_address.get_udp_transport_write()?,
+                                            participant_address.get_current_time()?,
+                                        ))
+                                        .await?;
                                 }
                             }
                         }

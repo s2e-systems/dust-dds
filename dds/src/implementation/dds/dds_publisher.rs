@@ -16,6 +16,7 @@ use crate::{
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{
             actor_command_interface, actor_mailbox_interface, spawn_actor, Actor, ActorAddress,
+            Mail, MailHandler,
         },
     },
     infrastructure::{
@@ -27,7 +28,10 @@ use crate::{
     },
 };
 
-use super::{dds_data_writer::DdsDataWriter, dds_publisher_listener::DdsPublisherListener};
+use super::{
+    dds_data_writer::{self, DdsDataWriter},
+    dds_publisher_listener::DdsPublisherListener,
+};
 
 pub struct DdsPublisher {
     qos: PublisherQos,
@@ -222,18 +226,45 @@ impl DdsPublisher {
                 .expect("Should not fail to send command");
         }
     }
+}
+}
 
-    pub fn send_message(
-        &self,
+pub struct SendMessage {
+    header: RtpsMessageHeader,
+    udp_transport_write: ActorAddress<UdpTransportWrite>,
+    now: Time,
+}
+
+impl SendMessage {
+    pub fn new(
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
         now: Time,
-    ) {
-        for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
-            data_writer_address
-                .send_message(header, udp_transport_write.clone(), now)
-                .expect("Should not fail to send command");
+    ) -> Self {
+        Self {
+            header,
+            udp_transport_write,
+            now,
         }
     }
 }
+
+impl Mail for SendMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<SendMessage> for DdsPublisher {
+    async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+        for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
+            data_writer_address
+                .send_only(dds_data_writer::SendMessage::new(
+                    mail.header,
+                    mail.udp_transport_write.clone(),
+                    mail.now,
+                ))
+                .await
+                .expect("Should not fail to send command");
+        }
+    }
 }

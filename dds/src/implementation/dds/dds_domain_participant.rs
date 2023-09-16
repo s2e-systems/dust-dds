@@ -64,8 +64,11 @@ use std::{
 };
 
 use super::{
-    dds_data_writer::DdsDataWriter, dds_domain_participant_listener::DdsDomainParticipantListener,
-    dds_publisher::DdsPublisher, dds_publisher_listener::DdsPublisherListener, dds_subscriber,
+    dds_data_writer::DdsDataWriter,
+    dds_domain_participant_listener::DdsDomainParticipantListener,
+    dds_publisher::{self, DdsPublisher},
+    dds_publisher_listener::DdsPublisherListener,
+    dds_subscriber,
     dds_subscriber_listener::DdsSubscriberListener,
 };
 
@@ -890,7 +893,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
                 .process_rtps_message(mail.message.clone())
                 .expect("Should not fail to send command");
             user_defined_publisher_address
-                .send_message(
+                .send_only(dds_publisher::SendMessage::new(
                     RtpsMessageHeader::new(
                         self.get_protocol_version(),
                         self.get_vendor_id(),
@@ -898,7 +901,8 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
                     ),
                     self.get_udp_transport_write(),
                     self.get_current_time(),
-                )
+                ))
+                .await
                 .expect("Should not fail to send command");
         }
     }

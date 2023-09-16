@@ -4,7 +4,7 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         dds::{
-            dds_data_reader,
+            dds_data_reader, dds_data_writer,
             dds_domain_participant::DdsDomainParticipant,
             nodes::{PublisherNode, SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind},
         },
@@ -701,7 +701,7 @@ impl DomainParticipant {
             THE_RUNTIME.spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
                 loop {
-                    let r: DdsResult<()> = tokio::task::block_in_place(|| {
+                    let r: DdsResult<()> = async {
                         let builtin_publisher =
                             domain_participant_address.get_builtin_publisher()?;
                         if let Some(participant_announcer) =
@@ -725,19 +725,22 @@ impl DomainParticipant {
                                 timestamp,
                             )??;
 
-                            participant_announcer.send_message(
-                                RtpsMessageHeader::new(
-                                    domain_participant_address.get_protocol_version()?,
-                                    domain_participant_address.get_vendor_id()?,
-                                    domain_participant_address.get_guid()?.prefix(),
-                                ),
-                                domain_participant_address.get_udp_transport_write()?,
-                                timestamp,
-                            )?;
+                            participant_announcer
+                                .send_only(dds_data_writer::SendMessage::new(
+                                    RtpsMessageHeader::new(
+                                        domain_participant_address.get_protocol_version()?,
+                                        domain_participant_address.get_vendor_id()?,
+                                        domain_participant_address.get_guid()?.prefix(),
+                                    ),
+                                    domain_participant_address.get_udp_transport_write()?,
+                                    timestamp,
+                                ))
+                                .await?;
                         }
 
                         Ok(())
-                    });
+                    }
+                    .await;
 
                     if r.is_err() {
                         break;
@@ -781,15 +784,17 @@ impl DomainParticipant {
                             domain_participant_address.get_user_defined_publisher_list()?
                         {
                             for data_writer in user_defined_publisher.data_writer_list()? {
-                                data_writer.send_message(
-                                    RtpsMessageHeader::new(
-                                        domain_participant_address.get_protocol_version()?,
-                                        domain_participant_address.get_vendor_id()?,
-                                        domain_participant_address.get_guid()?.prefix(),
-                                    ),
-                                    domain_participant_address.get_udp_transport_write()?,
-                                    domain_participant_address.get_current_time()?,
-                                )?;
+                                data_writer
+                                    .send_only(dds_data_writer::SendMessage::new(
+                                        RtpsMessageHeader::new(
+                                            domain_participant_address.get_protocol_version()?,
+                                            domain_participant_address.get_vendor_id()?,
+                                            domain_participant_address.get_guid()?.prefix(),
+                                        ),
+                                        domain_participant_address.get_udp_transport_write()?,
+                                        domain_participant_address.get_current_time()?,
+                                    ))
+                                    .await?;
                             }
                         }
 

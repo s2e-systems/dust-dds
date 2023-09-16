@@ -2,6 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         dds::{
+            dds_data_writer,
             dds_data_writer_listener::DdsDataWriterListener,
             nodes::{DataWriterNode, DataWriterNodeKind, PublisherNode},
         },
@@ -167,14 +168,16 @@ impl Publisher {
                             timestamp,
                         )??;
 
-                        sedp_writer_announcer.send_message(
-                            RtpsMessageHeader::new(
-                                dw.parent_participant().get_protocol_version()?,
-                                dw.parent_participant().get_vendor_id()?,
-                                dw.parent_participant().get_guid()?.prefix(),
+                        sedp_writer_announcer.send_only_blocking(
+                            dds_data_writer::SendMessage::new(
+                                RtpsMessageHeader::new(
+                                    dw.parent_participant().get_protocol_version()?,
+                                    dw.parent_participant().get_vendor_id()?,
+                                    dw.parent_participant().get_guid()?.prefix(),
+                                ),
+                                dw.parent_participant().get_udp_transport_write()?,
+                                dw.parent_participant().get_current_time()?,
                             ),
-                            dw.parent_participant().get_udp_transport_write()?,
-                            dw.parent_participant().get_current_time()?,
                         )?;
                     }
                     // let timestamp = domain_participant.get_current_time();

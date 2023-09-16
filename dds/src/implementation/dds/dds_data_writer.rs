@@ -42,7 +42,7 @@ use crate::{
                 DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache,
             },
         },
-        rtps_udp_psm::udp_transport::UdpTransportWrite,
+        rtps_udp_psm::udp_transport::{self, UdpTransportWrite},
         utils::{
             actor::{
                 actor_command_interface, actor_mailbox_interface, Actor, ActorAddress, Mail,
@@ -797,19 +797,42 @@ actor_command_interface! {
                 }
             }
         }
+    }
+}
 
-        pub fn send_message(
-            &mut self,
-            header: RtpsMessageHeader,
-            udp_transport_write: ActorAddress<UdpTransportWrite>,
-            now: Time,
-        ) {
-            // Remove stale changes before sending
-            self.remove_stale_changes(now);
+pub struct SendMessage {
+    header: RtpsMessageHeader,
+    udp_transport_write: ActorAddress<UdpTransportWrite>,
+    now: Time,
+}
 
-            self.send_message_to_reader_locators(header, &udp_transport_write);
-            self.send_message_to_reader_proxies(header, &udp_transport_write);
+impl SendMessage {
+    pub fn new(
+        header: RtpsMessageHeader,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
+        now: Time,
+    ) -> Self {
+        Self {
+            header,
+            udp_transport_write,
+            now,
         }
+    }
+}
+impl Mail for SendMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<SendMessage> for DdsDataWriter {
+    async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+        // Remove stale changes before sending
+        self.remove_stale_changes(mail.now);
+
+        self.send_message_to_reader_locators(mail.header, &mail.udp_transport_write)
+            .await;
+        self.send_message_to_reader_proxies(mail.header, &mail.udp_transport_write)
+            .await;
     }
 }
 
@@ -876,7 +899,7 @@ impl DdsDataWriter {
         }
     }
 
-    fn send_message_to_reader_locators(
+    async fn send_message_to_reader_locators(
         &mut self,
         header: RtpsMessageHeader,
         udp_transport_write: &ActorAddress<UdpTransportWrite>,
@@ -909,13 +932,14 @@ impl DdsDataWriter {
                                 cache_change.as_data_submessage(ENTITYID_UNKNOWN),
                             );
                             udp_transport_write
-                                .write(
+                                .send_only(udp_transport::Write::new(
                                     RtpsMessageWrite::new(
                                         header,
                                         vec![info_ts_submessage, data_submessage],
                                     ),
                                     vec![reader_locator.locator()],
-                                )
+                                ))
+                                .await
                                 .expect("Should not fail cause actor always exists");
                         } else {
                             let gap_submessage =
@@ -926,10 +950,11 @@ impl DdsDataWriter {
                                     SequenceNumberSet::new(unsent_change_seq_num + 1, vec![]),
                                 ));
                             udp_transport_write
-                                .write(
+                                .send_only(udp_transport::Write::new(
                                     RtpsMessageWrite::new(header, vec![gap_submessage]),
                                     vec![reader_locator.locator()],
-                                )
+                                ))
+                                .await
                                 .expect("Should not fail cause actor always exists");
                         }
                         reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
@@ -942,7 +967,7 @@ impl DdsDataWriter {
         }
     }
 
-    fn send_message_to_reader_proxies(
+    async fn send_message_to_reader_proxies(
         &mut self,
         header: RtpsMessageHeader,
         udp_transport_write: &ActorAddress<UdpTransportWrite>,
@@ -958,6 +983,7 @@ impl DdsDataWriter {
                         udp_transport_write,
                         header,
                     )
+                    .await
                 }
                 (ReliabilityQosPolicyKind::Reliable, ReliabilityKind::Reliable) => {
                     send_message_to_reader_proxy_reliable(
@@ -968,6 +994,7 @@ impl DdsDataWriter {
                         udp_transport_write,
                         header,
                     )
+                    .await
                 }
                 (ReliabilityQosPolicyKind::BestEffort, ReliabilityKind::Reliable) => {
                     panic!("Impossible combination. Should not be matched")
@@ -1129,7 +1156,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     incompatible_qos_policy_list
 }
 
-fn send_message_to_reader_proxy_best_effort(
+async fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
@@ -1171,10 +1198,11 @@ fn send_message_to_reader_proxy_best_effort(
                 SequenceNumberSet::new(gap_end_sequence_number + 1, vec![]),
             ));
             udp_transport_write
-                .write(
+                .send_only(udp_transport::Write::new(
                     RtpsMessageWrite::new(header, vec![gap_submessage]),
                     reader_proxy.unicast_locator_list().to_vec(),
-                )
+                ))
+                .await
                 .expect("Should not fail cause actor always exists");
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         } else if let Some(cache_change) = writer_cache
@@ -1206,13 +1234,14 @@ fn send_message_to_reader_proxy_best_effort(
                     let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write
-                        .write(
+                        .send_only(udp_transport::Write::new(
                             RtpsMessageWrite::new(
                                 header,
                                 vec![info_dst, info_timestamp, data_frag],
                             ),
                             reader_proxy.unicast_locator_list().to_vec(),
-                        )
+                        ))
+                        .await
                         .unwrap();
                 }
             } else {
@@ -1233,18 +1262,19 @@ fn send_message_to_reader_proxy_best_effort(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
                 udp_transport_write
-                    .write(
+                    .send_only(udp_transport::Write::new(
                         RtpsMessageWrite::new(
                             header,
                             vec![info_dst, info_timestamp, data_submessage],
                         ),
                         reader_proxy.unicast_locator_list().to_vec(),
-                    )
+                    ))
+                    .await
                     .expect("Should not fail cause actor always exists");
             }
         } else {
             udp_transport_write
-                .write(
+                .send_only(udp_transport::Write::new(
                     RtpsMessageWrite::new(
                         header,
                         vec![RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
@@ -1255,7 +1285,8 @@ fn send_message_to_reader_proxy_best_effort(
                         ))],
                     ),
                     reader_proxy.unicast_locator_list().to_vec(),
-                )
+                ))
+                .await
                 .expect("Should not fail cause actor always exists");
         }
 
@@ -1263,7 +1294,7 @@ fn send_message_to_reader_proxy_best_effort(
     }
 }
 
-fn send_message_to_reader_proxy_reliable(
+async fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
@@ -1297,10 +1328,11 @@ fn send_message_to_reader_proxy_reliable(
                     .heartbeat_machine()
                     .submessage(writer_id, first_sn, last_sn);
                 udp_transport_write
-                    .write(
+                    .send_only(udp_transport::Write::new(
                         RtpsMessageWrite::new(header, vec![gap_submessage, heartbeat_submessage]),
                         reader_proxy.unicast_locator_list().to_vec(),
-                    )
+                    ))
+                    .await
                     .expect("Should not fail cause actor always exists");
             } else {
                 send_change_message_reader_proxy_reliable(
@@ -1310,7 +1342,8 @@ fn send_message_to_reader_proxy_reliable(
                     next_unsent_change_seq_num,
                     udp_transport_write,
                     header,
-                );
+                )
+                .await;
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
@@ -1334,10 +1367,11 @@ fn send_message_to_reader_proxy_reliable(
             .heartbeat_machine()
             .submessage(writer_id, first_sn, last_sn);
         udp_transport_write
-            .write(
+            .send_only(udp_transport::Write::new(
                 RtpsMessageWrite::new(header, vec![heartbeat_submessage]),
                 reader_proxy.unicast_locator_list().to_vec(),
-            )
+            ))
+            .await
             .expect("Should not fail cause actor always exists");
     }
 
@@ -1356,12 +1390,13 @@ fn send_message_to_reader_proxy_reliable(
                 next_requested_change_seq_num,
                 udp_transport_write,
                 header,
-            );
+            )
+            .await;
         }
     }
 }
 
-fn send_change_message_reader_proxy_reliable(
+async fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
@@ -1399,13 +1434,14 @@ fn send_change_message_reader_proxy_reliable(
                     let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write
-                        .write(
+                        .send_only(udp_transport::Write::new(
                             RtpsMessageWrite::new(
                                 header,
                                 vec![info_dst, info_timestamp, data_frag],
                             ),
                             reader_proxy.unicast_locator_list().to_vec(),
-                        )
+                        ))
+                        .await
                         .unwrap();
                 }
             } else {
@@ -1441,13 +1477,14 @@ fn send_change_message_reader_proxy_reliable(
                     .submessage(writer_id, first_sn, last_sn);
 
                 udp_transport_write
-                    .write(
+                    .send_only(udp_transport::Write::new(
                         RtpsMessageWrite::new(
                             header,
                             vec![info_dst, info_timestamp, data_submessage, heartbeat],
                         ),
                         reader_proxy.unicast_locator_list().to_vec(),
-                    )
+                    ))
+                    .await
                     .expect("Should not fail cause actor always exists");
             }
         }
@@ -1464,10 +1501,11 @@ fn send_change_message_reader_proxy_reliable(
             ));
 
             udp_transport_write
-                .write(
+                .send_only(udp_transport::Write::new(
                     RtpsMessageWrite::new(header, vec![info_dst, gap_submessage]),
                     reader_proxy.unicast_locator_list().to_vec(),
-                )
+                ))
+                .await
                 .expect("Should not fail cause actor always exists");
         }
     }

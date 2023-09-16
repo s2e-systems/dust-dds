@@ -2,6 +2,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         dds::{
+            dds_data_writer,
             dds_domain_participant::DdsDomainParticipant,
             nodes::{DataReaderNodeKind, TopicNode, TopicNodeKind},
         },
@@ -922,7 +923,7 @@ fn announce_data_reader(
             timestamp,
         )??;
 
-        sedp_reader_announcer.send_message(
+        sedp_reader_announcer.send_only_blocking(dds_data_writer::SendMessage::new(
             RtpsMessageHeader::new(
                 domain_participant.get_protocol_version()?,
                 domain_participant.get_vendor_id()?,
@@ -930,7 +931,7 @@ fn announce_data_reader(
             ),
             domain_participant.get_udp_transport_write()?,
             domain_participant.get_current_time()?,
-        )?;
+        ))?;
     }
 
     Ok(())

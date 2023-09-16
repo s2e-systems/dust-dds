@@ -2084,11 +2084,13 @@ impl Mail for SendMessage {
 impl MailHandler<SendMessage> for DdsDataReader {
     async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
         for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(
-                &self.rtps_reader.guid(),
-                mail.header,
-                &mail.udp_transport_write,
-            )
+            writer_proxy
+                .send_message(
+                    &self.rtps_reader.guid(),
+                    mail.header,
+                    &mail.udp_transport_write,
+                )
+                .await
         }
     }
 }
