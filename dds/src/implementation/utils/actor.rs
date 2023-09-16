@@ -29,7 +29,7 @@ where
 
 #[derive(Debug)]
 pub struct ActorAddress<A> {
-    sender: tokio::sync::mpsc::UnboundedSender<Box<dyn GenericHandler<A> + Send>>,
+    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
 }
 
 impl<A> Clone for ActorAddress<A> {
@@ -58,7 +58,7 @@ impl<A> ActorAddress<A> {
         let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
 
         self.sender
-            .send(Box::new(SyncMail::new(mail, response_sender)))
+            .blocking_send(Box::new(SyncMail::new(mail, response_sender)))
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
             .blocking_recv()
@@ -71,7 +71,7 @@ impl<A> ActorAddress<A> {
         M: Mail + Send + 'static,
     {
         self.sender
-            .send(Box::new(CommandMail::new(mail)))
+            .blocking_send(Box::new(CommandMail::new(mail)))
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 }
@@ -175,14 +175,14 @@ impl<A> Drop for Actor<A> {
 
 struct SpawnedActor<A> {
     value: A,
-    mailbox: tokio::sync::mpsc::UnboundedReceiver<Box<dyn GenericHandler<A> + Send>>,
+    mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<A> + Send>>,
 }
 
 pub fn spawn_actor<A>(actor: A) -> Actor<A>
 where
     A: Send + 'static,
 {
-    let (sender, mailbox) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mailbox) = tokio::sync::mpsc::channel(16);
 
     let address = ActorAddress { sender };
 
