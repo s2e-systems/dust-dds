@@ -1,5 +1,5 @@
 use crate::{
-    implementation::utils::actor::actor_command_interface,
+    implementation::utils::actor::{actor_command_interface, Mail, MailHandler},
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,
@@ -18,12 +18,32 @@ impl DdsDataReaderListener {
     }
 }
 
+pub struct TriggerOnDataAvailable {
+    reader: DataReaderNode,
+}
+
+impl TriggerOnDataAvailable {
+    pub fn new(reader: DataReaderNode) -> Self {
+        Self { reader }
+    }
+}
+
+impl Mail for TriggerOnDataAvailable {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<TriggerOnDataAvailable> for DdsDataReaderListener {
+    async fn handle(
+        &mut self,
+        mail: TriggerOnDataAvailable,
+    ) -> <TriggerOnDataAvailable as Mail>::Result {
+        tokio::task::block_in_place(|| self.listener.trigger_on_data_available(mail.reader));
+    }
+}
+
 actor_command_interface! {
 impl DdsDataReaderListener {
-    pub fn trigger_on_data_available(&mut self, reader: DataReaderNode) {
-        tokio::task::block_in_place(|| self.listener.trigger_on_data_available(reader));
-    }
-
     pub fn trigger_on_sample_rejected(
         &mut self,
         reader: DataReaderNode,

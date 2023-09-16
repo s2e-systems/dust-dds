@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use super::{
-    dds_data_reader::DdsDataReader, dds_domain_participant::DdsDomainParticipant,
-    dds_subscriber_listener::DdsSubscriberListener, status_condition_impl::StatusConditionImpl,
+    dds_data_reader::{self, DdsDataReader},
+    dds_domain_participant::DdsDomainParticipant,
+    dds_subscriber_listener::DdsSubscriberListener,
+    status_condition_impl::StatusConditionImpl,
 };
 use crate::{
     implementation::{
@@ -14,7 +16,10 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{actor_command_interface, actor_mailbox_interface, Actor, ActorAddress},
+            actor::{
+                actor_command_interface, actor_mailbox_interface, Actor, ActorAddress, Mail,
+                MailHandler,
+            },
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -157,34 +162,6 @@ impl DdsSubscriber {
 
 actor_command_interface! {
 impl DdsSubscriber {
-    pub fn process_rtps_message(
-        &self,
-        message: RtpsMessageRead,
-        reception_timestamp: Time,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
-            Vec<StatusKind>,
-        ),
-    ) {
-        let subscriber_mask_listener = (self.listener.as_ref().map(|a| a.address()).cloned(),self.status_kind.clone());
-
-        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
-            data_reader_address
-                .process_rtps_message(
-                    message.clone(),
-                    reception_timestamp,
-                    data_reader_address.clone(),
-                    subscriber_address.clone(),
-                    participant_address.clone(),
-                    self.status_condition.clone(),
-                    subscriber_mask_listener.clone(),
-                    participant_mask_listener.clone(),
-                )
-                .expect("Should not fail to send command");
-        }
-    }
 
     pub fn send_message(
         &self,
@@ -198,4 +175,66 @@ impl DdsSubscriber {
         }
     }
 }
+}
+
+pub struct ProcessRtpsMessage {
+    message: RtpsMessageRead,
+    reception_timestamp: Time,
+    participant_address: ActorAddress<DdsDomainParticipant>,
+    subscriber_address: ActorAddress<DdsSubscriber>,
+    participant_mask_listener: (
+        Option<ActorAddress<DdsDomainParticipantListener>>,
+        Vec<StatusKind>,
+    ),
+}
+
+impl ProcessRtpsMessage {
+    pub fn new(
+        message: RtpsMessageRead,
+        reception_timestamp: Time,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) -> Self {
+        Self {
+            message,
+            reception_timestamp,
+            participant_address,
+            subscriber_address,
+            participant_mask_listener,
+        }
+    }
+}
+
+impl Mail for ProcessRtpsMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ProcessRtpsMessage> for DdsSubscriber {
+    async fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
+        let subscriber_mask_listener = (
+            self.listener.as_ref().map(|a| a.address()).cloned(),
+            self.status_kind.clone(),
+        );
+
+        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
+            data_reader_address
+                .send_only(dds_data_reader::ProcessRtpsMessage::new(
+                    mail.message.clone(),
+                    mail.reception_timestamp,
+                    data_reader_address.clone(),
+                    mail.subscriber_address.clone(),
+                    mail.participant_address.clone(),
+                    self.status_condition.clone(),
+                    subscriber_mask_listener.clone(),
+                    mail.participant_mask_listener.clone(),
+                ))
+                .await
+                .expect("Should not fail to send command");
+        }
+    }
 }

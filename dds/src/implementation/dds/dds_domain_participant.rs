@@ -32,7 +32,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{
-            actor_command_interface, actor_mailbox_interface, spawn_actor, Actor, ActorAddress,
+            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
         },
     },
     infrastructure::{
@@ -65,7 +65,7 @@ use std::{
 
 use super::{
     dds_data_writer::DdsDataWriter, dds_domain_participant_listener::DdsDomainParticipantListener,
-    dds_publisher::DdsPublisher, dds_publisher_listener::DdsPublisherListener,
+    dds_publisher::DdsPublisher, dds_publisher_listener::DdsPublisherListener, dds_subscriber,
     dds_subscriber_listener::DdsSubscriberListener,
 };
 
@@ -821,23 +821,51 @@ impl DdsDomainParticipant {
 }
 }
 
-actor_command_interface! {
-impl DdsDomainParticipant {
-    pub fn process_user_defined_rtps_message(
-        &self,
+pub struct ProcessUserDefinedRtpsMessage {
+    message: RtpsMessageRead,
+    participant_address: ActorAddress<DdsDomainParticipant>,
+}
+
+impl ProcessUserDefinedRtpsMessage {
+    pub fn new(
         message: RtpsMessageRead,
         participant_address: ActorAddress<DdsDomainParticipant>,
-    ) {
-        let participant_mask_listener = (self.listener.as_ref().map(|a| a.address()).cloned(), self.status_kind.clone());
-        for user_defined_subscriber_address in self.user_defined_subscriber_list.values().map(|a| a.address()) {
+    ) -> Self {
+        Self {
+            message,
+            participant_address,
+        }
+    }
+}
+
+impl Mail for ProcessUserDefinedRtpsMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        mail: ProcessUserDefinedRtpsMessage,
+    ) -> <ProcessUserDefinedRtpsMessage as Mail>::Result {
+        let participant_mask_listener = (
+            self.listener.as_ref().map(|a| a.address()).cloned(),
+            self.status_kind.clone(),
+        );
+        for user_defined_subscriber_address in self
+            .user_defined_subscriber_list
+            .values()
+            .map(|a| a.address())
+        {
             user_defined_subscriber_address
-                .process_rtps_message(
-                    message.clone(),
+                .send_only(dds_subscriber::ProcessRtpsMessage::new(
+                    mail.message.clone(),
                     self.get_current_time(),
-                    participant_address.clone(),
+                    mail.participant_address.clone(),
                     user_defined_subscriber_address.clone(),
                     participant_mask_listener.clone(),
-                )
+                ))
+                .await
                 .expect("Should not fail to send command");
 
             user_defined_subscriber_address
@@ -852,21 +880,27 @@ impl DdsDomainParticipant {
                 .expect("Should not fail to send command");
         }
 
-        for user_defined_publisher_address in self.user_defined_publisher_list.values().map(|a| a.address()) {
-            user_defined_publisher_address.process_rtps_message(message.clone()).expect("Should not fail to send command");
-            user_defined_publisher_address.send_message(
-                RtpsMessageHeader::new(
-                    self.get_protocol_version(),
-                    self.get_vendor_id(),
-                    self.get_guid().prefix(),
-                ),
-                self.get_udp_transport_write(),
-                self.get_current_time(),
-            ).expect("Should not fail to send command");
-
+        for user_defined_publisher_address in self
+            .user_defined_publisher_list
+            .values()
+            .map(|a| a.address())
+        {
+            user_defined_publisher_address
+                .process_rtps_message(mail.message.clone())
+                .expect("Should not fail to send command");
+            user_defined_publisher_address
+                .send_message(
+                    RtpsMessageHeader::new(
+                        self.get_protocol_version(),
+                        self.get_vendor_id(),
+                        self.get_guid().prefix(),
+                    ),
+                    self.get_udp_transport_write(),
+                    self.get_current_time(),
+                )
+                .expect("Should not fail to send command");
         }
     }
-}
 }
 
 fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {

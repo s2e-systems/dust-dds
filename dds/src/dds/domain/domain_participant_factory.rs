@@ -13,7 +13,7 @@ use crate::{
             dds_data_reader::DdsDataReader,
             dds_data_writer::DdsDataWriter,
             dds_domain_participant::{
-                DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                self, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
@@ -21,6 +21,7 @@ use crate::{
             },
             dds_domain_participant_factory::DdsDomainParticipantFactory,
             dds_domain_participant_listener::DdsDomainParticipantListener,
+            dds_subscriber,
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
@@ -224,9 +225,7 @@ impl DomainParticipantFactory {
             );
 
             while let Some((_locator, message)) = metatraffic_multicast_transport.read().await {
-                let r = tokio::task::block_in_place(|| {
-                    process_spdp_metatraffic(&participant_address_clone, message)
-                });
+                let r = process_spdp_metatraffic(&participant_address_clone, message).await;
 
                 if r.is_err() {
                     break;
@@ -242,11 +241,12 @@ impl DomainParticipantFactory {
             );
 
             while let Some((_locator, message)) = metatraffic_unicast_transport.read().await {
-                let r: DdsResult<()> = tokio::task::block_in_place(|| {
-                    process_sedp_metatraffic(&participant_address_clone, message)?;
+                let r: DdsResult<()> = async {
+                    process_sedp_metatraffic(&participant_address_clone, message).await?;
                     process_sedp_discovery(&participant_address_clone)?;
                     Ok(())
-                });
+                }
+                .await;
 
                 if r.is_err() {
                     break;
@@ -263,7 +263,11 @@ impl DomainParticipantFactory {
 
             while let Some((_locator, message)) = default_unicast_transport.read().await {
                 let r = participant_address_clone
-                    .process_user_defined_rtps_message(message, participant_address_clone.clone());
+                    .send_only(dds_domain_participant::ProcessUserDefinedRtpsMessage::new(
+                        message,
+                        participant_address_clone.clone(),
+                    ))
+                    .await;
 
                 if r.is_err() {
                     break;
@@ -617,7 +621,7 @@ fn add_matched_topics_announcer(
     }
 }
 
-fn process_spdp_metatraffic(
+async fn process_spdp_metatraffic(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     message: RtpsMessageRead,
 ) -> DdsResult<()> {
@@ -630,13 +634,14 @@ fn process_spdp_metatraffic(
 
     // Receive the data on the builtin spdp reader
     builtin_subscriber
-        .process_rtps_message(
+        .send_only(dds_subscriber::ProcessRtpsMessage::new(
             message,
             participant_address.get_current_time()?,
             participant_address.clone(),
             builtin_subscriber.clone(),
             participant_mask_listener,
-        )
+        ))
+        .await
         .expect("Should not fail to send command");
 
     if let Some(spdp_data_reader) = builtin_subscriber.data_reader_list()?.iter().find(|dr| {
@@ -785,7 +790,7 @@ fn process_spdp_metatraffic(
     Ok(())
 }
 
-fn process_sedp_metatraffic(
+async fn process_sedp_metatraffic(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     message: RtpsMessageRead,
 ) -> DdsResult<()> {
@@ -809,13 +814,15 @@ fn process_sedp_metatraffic(
         )?;
     }
 
-    builtin_subscriber.process_rtps_message(
-        message,
-        participant_address.get_current_time()?,
-        participant_address.clone(),
-        builtin_subscriber.clone(),
-        participant_mask_listener,
-    )?;
+    builtin_subscriber
+        .send_only(dds_subscriber::ProcessRtpsMessage::new(
+            message,
+            participant_address.get_current_time()?,
+            participant_address.clone(),
+            builtin_subscriber.clone(),
+            participant_mask_listener,
+        ))
+        .await?;
 
     builtin_subscriber
         .send_message(

@@ -38,7 +38,10 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{actor_command_interface, actor_mailbox_interface, Actor, ActorAddress},
+            actor::{
+                actor_command_interface, actor_mailbox_interface, Actor, ActorAddress, Mail,
+                MailHandler,
+            },
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -67,10 +70,14 @@ use crate::{
 };
 
 use super::{
-    dds_data_reader_listener::DdsDataReaderListener, dds_domain_participant::DdsDomainParticipant,
-    dds_domain_participant_listener::DdsDomainParticipantListener, dds_subscriber::DdsSubscriber,
-    dds_subscriber_listener::DdsSubscriberListener, message_receiver::MessageReceiver,
-    nodes::SubscriberNode, status_condition_impl::StatusConditionImpl,
+    dds_data_reader_listener::{self, DdsDataReaderListener},
+    dds_domain_participant::DdsDomainParticipant,
+    dds_domain_participant_listener::DdsDomainParticipantListener,
+    dds_subscriber::DdsSubscriber,
+    dds_subscriber_listener::DdsSubscriberListener,
+    message_receiver::MessageReceiver,
+    nodes::SubscriberNode,
+    status_condition_impl::StatusConditionImpl,
 };
 
 struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
@@ -315,7 +322,7 @@ impl DdsDataReader {
         self.sample_rejected_status.read_and_reset()
     }
 
-    pub fn on_data_available(
+    pub async fn on_data_available(
         &self,
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
@@ -347,8 +354,11 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.trigger_on_data_available(reader)
-                        .expect("Should not fail to send message");
+                    l.send_only(dds_data_reader_listener::TriggerOnDataAvailable::new(
+                        reader,
+                    ))
+                    .await
+                    .expect("Should not fail to send message");
                 }
                 _ => (),
             },
@@ -356,7 +366,7 @@ impl DdsDataReader {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn on_data_submessage_received(
+    pub async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead,
         source_guid_prefix: GuidPrefix,
@@ -391,12 +401,13 @@ impl DdsDataReader {
                 subscriber_status_condition,
                 subscriber_mask_listener,
                 participant_mask_listener,
-            );
+            )
+            .await;
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn on_data_frag_submessage_received(
+    pub async fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessageRead,
         source_guid_prefix: GuidPrefix,
@@ -444,7 +455,8 @@ impl DdsDataReader {
                     subscriber_status_condition,
                     subscriber_mask_listener,
                     participant_mask_listener,
-                );
+                )
+                .await;
             }
         }
     }
@@ -917,7 +929,7 @@ impl DdsDataReader {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn process_received_change(
+    async fn process_received_change(
         &mut self,
         cache_change: RtpsReaderCacheChange,
         message_reader_id: EntityId,
@@ -960,6 +972,7 @@ impl DdsDataReader {
                         subscriber_mask_listener,
                         participant_mask_listener,
                     )
+                    .await
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
@@ -974,6 +987,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
+                .await
             }
             (ReliabilityQosPolicyKind::Reliable, Some(writer_proxy)) => {
                 let expected_seq_num = writer_proxy.available_changes_max() + 1;
@@ -988,6 +1002,7 @@ impl DdsDataReader {
                         subscriber_mask_listener,
                         participant_mask_listener,
                     )
+                    .await
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
@@ -996,7 +1011,7 @@ impl DdsDataReader {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn add_change(
+    async fn add_change(
         &mut self,
         change: RtpsReaderCacheChange,
         data_reader_address: &ActorAddress<DdsDataReader>,
@@ -1093,6 +1108,7 @@ impl DdsDataReader {
                     subscriber_status_condition,
                     subscriber_mask_listener,
                 )
+                .await
             }
         }
     }
@@ -1243,27 +1259,47 @@ impl DdsDataReader {
 
             let sample = (data, sample_info);
 
-            indexed_samples.push(IndexedSample{index, sample})
+            indexed_samples.push(IndexedSample { index, sample })
         }
 
         // After the collection is created, update the relative generation rank values and mark the read instances as viewed
         for handle in instances_in_collection.into_keys() {
             let most_recent_sample_absolute_generation_rank = indexed_samples
                 .iter()
-                .filter(|IndexedSample{sample:(_, sample_info), ..}| sample_info.instance_handle == handle)
-                .map(|IndexedSample{sample:(_, sample_info), ..}| sample_info.absolute_generation_rank)
+                .filter(
+                    |IndexedSample {
+                         sample: (_, sample_info),
+                         ..
+                     }| sample_info.instance_handle == handle,
+                )
+                .map(
+                    |IndexedSample {
+                         sample: (_, sample_info),
+                         ..
+                     }| sample_info.absolute_generation_rank,
+                )
                 .last()
                 .expect("Instance handle must exist on collection");
 
             let mut total_instance_samples_in_collection = indexed_samples
                 .iter()
-                .filter(|IndexedSample{sample:(_, sample_info), ..}| sample_info.instance_handle == handle)
+                .filter(
+                    |IndexedSample {
+                         sample: (_, sample_info),
+                         ..
+                     }| sample_info.instance_handle == handle,
+                )
                 .count();
 
-            for IndexedSample{sample:(_, sample_info), ..} in indexed_samples
-                .iter_mut()
-                .filter(|IndexedSample{sample:(_, sample_info), ..}| sample_info.instance_handle == handle)
-            {
+            for IndexedSample {
+                sample: (_, sample_info),
+                ..
+            } in indexed_samples.iter_mut().filter(
+                |IndexedSample {
+                     sample: (_, sample_info),
+                     ..
+                 }| sample_info.instance_handle == handle,
+            ) {
                 sample_info.generation_rank = sample_info.absolute_generation_rank
                     - most_recent_sample_absolute_generation_rank;
 
@@ -1795,8 +1831,26 @@ impl DdsDataReader {
         }
     }
 
-    pub fn process_rtps_message(
-        &mut self,
+
+}
+}
+
+pub struct ProcessRtpsMessage {
+    message: RtpsMessageRead,
+    reception_timestamp: Time,
+    data_reader_address: ActorAddress<DdsDataReader>,
+    subscriber_address: ActorAddress<DdsSubscriber>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
+    subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+    participant_mask_listener: (
+        Option<ActorAddress<DdsDomainParticipantListener>>,
+        Vec<StatusKind>,
+    ),
+}
+
+impl ProcessRtpsMessage {
+    pub fn new(
         message: RtpsMessageRead,
         reception_timestamp: Time,
         data_reader_address: ActorAddress<DdsDataReader>,
@@ -1808,8 +1862,28 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
-        let mut message_receiver = MessageReceiver::new(&message);
+    ) -> Self {
+        Self {
+            message,
+            reception_timestamp,
+            data_reader_address,
+            subscriber_address,
+            participant_address,
+            subscriber_status_condition,
+            subscriber_mask_listener,
+            participant_mask_listener,
+        }
+    }
+}
+
+impl Mail for ProcessRtpsMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ProcessRtpsMessage> for DdsDataReader {
+    async fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
+        let mut message_receiver = MessageReceiver::new(&mail.message);
         while let Some(submessage) = message_receiver.next() {
             match submessage {
                 RtpsSubmessageReadKind::Data(data_submessage) => {
@@ -1817,28 +1891,30 @@ impl DdsDataReader {
                         &data_submessage,
                         message_receiver.source_guid_prefix(),
                         message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber_address,
-                        &participant_address,
-                        &subscriber_status_condition,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    );
+                        mail.reception_timestamp,
+                        &mail.data_reader_address,
+                        &mail.subscriber_address,
+                        &mail.participant_address,
+                        &mail.subscriber_status_condition,
+                        &mail.subscriber_mask_listener,
+                        &mail.participant_mask_listener,
+                    )
+                    .await;
                 }
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                     self.on_data_frag_submessage_received(
                         &data_frag_submessage,
                         message_receiver.source_guid_prefix(),
                         message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber_address,
-                        &participant_address,
-                        &subscriber_status_condition,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    );
+                        mail.reception_timestamp,
+                        &mail.data_reader_address,
+                        &mail.subscriber_address,
+                        &mail.participant_address,
+                        &mail.subscriber_status_condition,
+                        &mail.subscriber_mask_listener,
+                        &mail.participant_mask_listener,
+                    )
+                    .await;
                 }
                 RtpsSubmessageReadKind::Gap(gap_submessage) => {
                     self.on_gap_submessage_received(
@@ -1860,5 +1936,4 @@ impl DdsDataReader {
             }
         }
     }
-}
 }
