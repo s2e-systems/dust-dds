@@ -69,7 +69,7 @@ use crate::{
 use super::{
     dds_data_reader_listener::{self, DdsDataReaderListener},
     dds_domain_participant::DdsDomainParticipant,
-    dds_domain_participant_listener::DdsDomainParticipantListener,
+    dds_domain_participant_listener::{self, DdsDomainParticipantListener},
     dds_subscriber::DdsSubscriber,
     dds_subscriber_listener::{self, DdsSubscriberListener},
     message_receiver::MessageReceiver,
@@ -646,8 +646,11 @@ impl DdsDataReader {
                             participant_address.clone(),
                         );
                         let status = self.get_sample_lost_status();
-                        l.trigger_on_sample_lost(reader, status)
-                            .expect("Should not fail to send command");
+                        l.send_only(dds_domain_participant_listener::TriggerOnSampleLost::new(
+                            reader, status,
+                        ))
+                        .await
+                        .expect("Should not fail to send command");
                     }
                     _ => (),
                 },
@@ -713,8 +716,13 @@ impl DdsDataReader {
                             participant_address,
                         );
                         let status = self.get_subscription_matched_status();
-                        l.trigger_on_subscription_matched(reader, status)
-                            .expect("Should not fail to send message");
+                        l.send_only(
+                            dds_domain_participant_listener::TriggerOnSubscriptionMatched::new(
+                                reader, status,
+                            ),
+                        )
+                        .await
+                        .expect("Should not fail to send message");
                     }
                     _ => (),
                 },
@@ -780,8 +788,13 @@ impl DdsDataReader {
                             subscriber_address.clone(),
                             participant_address.clone(),
                         );
-                        l.trigger_on_sample_rejected(reader, status)
-                            .expect("Should not fail to send message");
+                        l.send_only(
+                            dds_domain_participant_listener::TriggerOnSampleRejected::new(
+                                reader, status,
+                            ),
+                        )
+                        .await
+                        .expect("Should not fail to send message");
                     }
                     _ => (),
                 },
@@ -848,22 +861,24 @@ impl DdsDataReader {
                     .await
                     .expect("Should not fail to send message");
                 }
-                _ => match participant_listener_address {
-                    Some(l)
-                        if participant_listener_mask
-                            .contains(&StatusKind::RequestedIncompatibleQos) =>
-                    {
-                        let status = self.get_requested_incompatible_qos_status();
-                        let reader = DataReaderNode::new(
-                            data_reader_address.clone(),
-                            subscriber_address.clone(),
-                            participant_address.clone(),
-                        );
-                        l.trigger_on_requested_incompatible_qos(reader, status)
+                _ => {
+                    match participant_listener_address {
+                        Some(l)
+                            if participant_listener_mask
+                                .contains(&StatusKind::RequestedIncompatibleQos) =>
+                        {
+                            let status = self.get_requested_incompatible_qos_status();
+                            let reader = DataReaderNode::new(
+                                data_reader_address.clone(),
+                                subscriber_address.clone(),
+                                participant_address.clone(),
+                            );
+                            l.send_only(dds_domain_participant_listener::TriggerOnRequestedIncompatibleQos::new(reader, status)).await
                             .expect("Should not fail to send message");
+                        }
+                        _ => (),
                     }
-                    _ => (),
-                },
+                }
             },
         }
     }
@@ -2067,7 +2082,7 @@ impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
                                 mail.subscriber_address.clone(),
                                 mail.participant_address.clone(),
                             );
-                            l.trigger_on_requested_deadline_missed(reader, status)
+                            l.send_only(dds_domain_participant_listener::TriggerOnRequestedDeadlineMissed::new(reader, status)).await
                                 .expect("Should not fail to send message");
                         }
                         _ => (),

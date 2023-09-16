@@ -1,9 +1,9 @@
 use super::{
     dds_data_writer_listener::{self, DdsDataWriterListener},
     dds_domain_participant::DdsDomainParticipant,
-    dds_domain_participant_listener::DdsDomainParticipantListener,
+    dds_domain_participant_listener::{self, DdsDomainParticipantListener},
     dds_publisher::DdsPublisher,
-    dds_publisher_listener::DdsPublisherListener,
+    dds_publisher_listener::{self, DdsPublisherListener},
     message_receiver::MessageReceiver,
     nodes::DataWriterNode,
     status_condition_impl::StatusConditionImpl,
@@ -1171,7 +1171,10 @@ impl DdsDataWriter {
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             publisher_publication_matched_listener
-                .trigger_on_publication_matched(writer, status)
+                .send_only(dds_publisher_listener::TriggerOnPublicationMatched::new(
+                    writer, status,
+                ))
+                .await
                 .expect("Should not fail to send message");
         } else if let Some(participant_publication_matched_listener) =
             participant_publication_matched_listener
@@ -1180,7 +1183,12 @@ impl DdsDataWriter {
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             participant_publication_matched_listener
-                .trigger_on_publication_matched(writer, status)
+                .send_only(
+                    dds_domain_participant_listener::TriggerOnPublicationMatched::new(
+                        writer, status,
+                    ),
+                )
+                .await
                 .expect("Should not fail to send message");
         }
     }
@@ -1220,7 +1228,10 @@ impl DdsDataWriter {
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             offered_incompatible_qos_publisher_listener
-                .trigger_on_offered_incompatible_qos(writer, status)
+                .send_only(
+                    dds_publisher_listener::TriggerOnOfferedIncompatibleQos::new(writer, status),
+                )
+                .await
                 .expect("Should not fail to send message");
         } else if let Some(offered_incompatible_qos_participant_listener) =
             offered_incompatible_qos_participant_listener
@@ -1229,7 +1240,12 @@ impl DdsDataWriter {
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             offered_incompatible_qos_participant_listener
-                .trigger_on_offered_incompatible_qos(writer, status)
+                .send_only(
+                    dds_domain_participant_listener::TriggerOnOfferedIncompatibleQos::new(
+                        writer, status,
+                    ),
+                )
+                .await
                 .expect("Should not fail to send message");
         }
     }
