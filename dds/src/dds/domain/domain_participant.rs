@@ -272,7 +272,8 @@ impl DomainParticipant {
                     for data_reader in data_reader_list {
                         if data_reader.send_and_reply_blocking(dds_data_reader::GetTypeName)
                             == t.address().get_type_name()
-                            && data_reader.get_topic_name() == t.address().get_name()
+                            && data_reader.send_and_reply_blocking(dds_data_reader::GetTopicName)
+                                == t.address().get_name()
                         {
                             return Err(DdsError::PreconditionNotMet(
                                 "Topic still attached to some data reader".to_string(),
@@ -301,7 +302,10 @@ impl DomainParticipant {
         let start_time = Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(timeout) {
-            for topic in self.0.get_user_defined_topic_list()? {
+            for topic in self
+                .0
+                .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
+            {
                 if topic.get_name()? == topic_name {
                     return Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
                         topic,
@@ -482,7 +486,10 @@ impl DomainParticipant {
             self.0
                 .delete_user_defined_subscriber(subscriber.get_instance_handle()?)?;
         }
-        for topic in self.0.get_user_defined_topic_list()? {
+        for topic in self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
+        {
             self.0.delete_topic(topic.get_instance_handle()?)?;
         }
         Ok(())

@@ -174,7 +174,7 @@ impl Subscriber {
 
                 if s.address().is_enabled()?
                     && s.address()
-                        .get_qos()?
+                        .send_and_reply_blocking(dds_subscriber::GetQos)?
                         .entity_factory
                         .autoenable_created_entities
                 {
@@ -435,7 +435,9 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
             | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::Listener(s) => s.address().get_qos(),
+            | SubscriberNodeKind::Listener(s) => {
+                s.address().send_and_reply_blocking(dds_subscriber::GetQos)
+            }
         }
     }
 
@@ -518,7 +520,7 @@ impl Subscriber {
                     s.address().enable()?;
 
                     if s.address()
-                        .get_qos()?
+                        .send_and_reply_blocking(dds_subscriber::GetQos)?
                         .entity_factory
                         .autoenable_created_entities
                     {

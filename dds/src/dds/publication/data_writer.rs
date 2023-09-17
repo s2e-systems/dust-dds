@@ -597,7 +597,8 @@ where
                         dw.parent_participant(),
                         &dw.address().as_discovered_writer_data(
                             TopicQos::default(),
-                            dw.parent_publisher().get_qos()?,
+                            dw.parent_publisher()
+                                .send_and_reply_blocking(dds_publisher::GetQos)?,
                             dw.parent_participant().get_default_unicast_locator_list()?,
                             dw.parent_participant()
                                 .get_default_multicast_locator_list()?,
@@ -706,7 +707,8 @@ where
                         w.parent_participant(),
                         &w.address().as_discovered_writer_data(
                             TopicQos::default(),
-                            w.parent_publisher().get_qos()?,
+                            w.parent_publisher()
+                                .send_and_reply_blocking(dds_publisher::GetQos)?,
                             w.parent_participant().get_default_unicast_locator_list()?,
                             w.parent_participant()
                                 .get_default_multicast_locator_list()?,

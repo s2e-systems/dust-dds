@@ -1,5 +1,6 @@
 use crate::{
-    implementation::utils::actor::ActorAddress, publication::data_writer::AnyDataWriter,
+    implementation::{dds::dds_domain_participant, utils::actor::ActorAddress},
+    publication::data_writer::AnyDataWriter,
     subscription::data_reader::AnyDataReader,
 };
 
@@ -94,19 +95,24 @@ impl DataReaderNode {
     }
 
     pub fn topic_address(&self) -> ActorAddress<DdsTopic> {
-        self.parent_participant
-            .get_user_defined_topic_list()
-            .expect("should never fail")
-            .iter()
-            .find(|t| {
-                t.get_type_name()
+        let user_defined_topic_list = self
+            .parent_participant
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)
+            .expect("should never fail");
+        for topic in user_defined_topic_list {
+            if topic.get_type_name()
+                == self
+                    .this
+                    .send_and_reply_blocking(dds_data_reader::GetTypeName)
+                && topic.get_name()
                     == self
                         .this
-                        .send_and_reply_blocking(dds_data_reader::GetTypeName)
-                    && t.get_name() == self.this.get_topic_name()
-            })
-            .expect("should always exist")
-            .clone()
+                        .send_and_reply_blocking(dds_data_reader::GetTopicName)
+            {
+                return topic;
+            }
+        }
+        panic!("Should always exist");
     }
 }
 

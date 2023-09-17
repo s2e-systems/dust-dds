@@ -4,7 +4,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
         utils::{
-            actor::actor_mailbox_interface,
+            actor::{actor_mailbox_interface, Mail, MailHandler},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -120,30 +120,45 @@ impl DdsTopic {
             qos.topic_data.clone(),
         ))
     }
+}
+}
 
-    pub fn process_discovered_topic(
-        &mut self,
-        discovered_topic_data: DiscoveredTopicData,
-    ) {
+pub struct ProcessDiscoveredTopic {
+    discovered_topic_data: DiscoveredTopicData,
+}
 
-        if discovered_topic_data
-            .topic_builtin_topic_data()
-            .get_type_name()
-            == self.get_type_name()
-            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
-            && !is_discovered_topic_consistent(&self.qos, &discovered_topic_data)
-        {
-            self.inconsistent_topic_status.increment();
-            self.status_condition.write_lock().add_communication_state(StatusKind::InconsistentTopic);
-        //     listener_sender
-        //         .try_send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
-        //             self.guid(),
-        //             parent_participant_guid,
-        //         )))
-        //         .ok();
+impl ProcessDiscoveredTopic {
+    pub fn new(discovered_topic_data: DiscoveredTopicData) -> Self {
+        Self {
+            discovered_topic_data,
         }
     }
 }
+
+impl Mail for ProcessDiscoveredTopic {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ProcessDiscoveredTopic> for DdsTopic {
+    async fn handle(
+        &mut self,
+        mail: ProcessDiscoveredTopic,
+    ) -> <ProcessDiscoveredTopic as Mail>::Result {
+        if mail
+            .discovered_topic_data
+            .topic_builtin_topic_data()
+            .get_type_name()
+            == self.get_type_name()
+            && mail.discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
+            && !is_discovered_topic_consistent(&self.qos, &mail.discovered_topic_data)
+        {
+            self.inconsistent_topic_status.increment();
+            self.status_condition
+                .write_lock()
+                .add_communication_state(StatusKind::InconsistentTopic);
+        }
+    }
 }
 
 fn is_discovered_topic_consistent(

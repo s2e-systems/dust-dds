@@ -4,7 +4,7 @@ use crate::{
         dds::{
             dds_data_reader, dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
-            dds_publisher,
+            dds_publisher, dds_subscriber,
             nodes::{DataReaderNodeKind, TopicNode, TopicNodeKind},
         },
         rtps::messages::{overall_structure::RtpsMessageHeader, submessage_elements::Data},
@@ -763,7 +763,8 @@ impl<Foo> DataReader<Foo> {
                         dr.parent_participant(),
                         dr.address().as_discovered_reader_data(
                             TopicQos::default(),
-                            dr.parent_subscriber().get_qos()?,
+                            dr.parent_subscriber()
+                                .send_and_reply_blocking(dds_subscriber::GetQos)?,
                             dr.parent_participant().get_default_unicast_locator_list()?,
                             dr.parent_participant()
                                 .get_default_multicast_locator_list()?,
@@ -854,7 +855,8 @@ impl<Foo> DataReader<Foo> {
                     r.parent_participant(),
                     r.address().as_discovered_reader_data(
                         TopicQos::default(),
-                        r.parent_subscriber().get_qos()?,
+                        r.parent_subscriber()
+                            .send_and_reply_blocking(dds_subscriber::GetQos)?,
                         r.parent_participant().get_default_unicast_locator_list()?,
                         r.parent_participant()
                             .get_default_multicast_locator_list()?,

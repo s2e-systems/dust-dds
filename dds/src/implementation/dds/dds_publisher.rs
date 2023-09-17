@@ -185,10 +185,6 @@ impl DdsPublisher {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> PublisherQos {
-        self.qos.clone()
-    }
-
     pub fn guid(&self) -> Guid {
         self.rtps_group.guid()
     }
@@ -196,15 +192,46 @@ impl DdsPublisher {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
+}
+}
 
-    pub fn get_listener(&self) -> Option<ActorAddress<DdsPublisherListener>> {
-        self.listener.as_ref().map(|l| l.address().clone())
-    }
+pub struct GetStatusKind;
 
-    pub fn status_kind(&self) -> Vec<StatusKind> {
+impl Mail for GetStatusKind {
+    type Result = Vec<StatusKind>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetStatusKind> for DdsPublisher {
+    async fn handle(&mut self, _mail: GetStatusKind) -> <GetStatusKind as Mail>::Result {
         self.status_kind.clone()
     }
 }
+
+pub struct GetListener;
+
+impl Mail for GetListener {
+    type Result = Option<ActorAddress<DdsPublisherListener>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetListener> for DdsPublisher {
+    async fn handle(&mut self, _mail: GetListener) -> <GetListener as Mail>::Result {
+        self.listener.as_ref().map(|l| l.address().clone())
+    }
+}
+
+pub struct GetQos;
+
+impl Mail for GetQos {
+    type Result = PublisherQos;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetQos> for DdsPublisher {
+    async fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
+        self.qos.clone()
+    }
 }
 
 pub struct DataWriterList;

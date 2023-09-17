@@ -389,16 +389,6 @@ impl DdsDataWriter {
         self.rtps_writer.data_max_size_serialized()
     }
 
-    pub fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
-        if !self
-            .matched_readers
-            .iter()
-            .any(|x| x.remote_reader_guid() == a_reader_proxy.remote_reader_guid())
-        {
-            self.matched_readers.push(a_reader_proxy)
-        }
-    }
-
     pub fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
@@ -588,6 +578,33 @@ impl DdsDataWriter {
         )
     }
 }
+}
+
+pub struct MatchedReaderAdd {
+    a_reader_proxy: RtpsReaderProxy,
+}
+
+impl MatchedReaderAdd {
+    pub fn new(a_reader_proxy: RtpsReaderProxy) -> Self {
+        Self { a_reader_proxy }
+    }
+}
+
+impl Mail for MatchedReaderAdd {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<MatchedReaderAdd> for DdsDataWriter {
+    async fn handle(&mut self, mail: MatchedReaderAdd) -> <MatchedReaderAdd as Mail>::Result {
+        if !self
+            .matched_readers
+            .iter()
+            .any(|x| x.remote_reader_guid() == mail.a_reader_proxy.remote_reader_guid())
+        {
+            self.matched_readers.push(mail.a_reader_proxy)
+        }
+    }
 }
 
 pub struct GetTopicName;
@@ -812,7 +829,13 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
                     first_relevant_sample_seq_num,
                 );
 
-                self.matched_reader_add(reader_proxy);
+                if !self
+                    .matched_readers
+                    .iter()
+                    .any(|x| x.remote_reader_guid() == reader_proxy.remote_reader_guid())
+                {
+                    self.matched_readers.push(reader_proxy)
+                }
 
                 if !self.get_matched_subscriptions().contains(&instance_handle)
                     || self.get_matched_subscription_data(instance_handle).as_ref()

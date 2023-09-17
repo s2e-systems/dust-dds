@@ -1411,6 +1411,33 @@ impl DdsDataReader {
     }
 }
 
+pub struct MatchedWriterAdd {
+    a_writer_proxy: RtpsWriterProxy,
+}
+
+impl MatchedWriterAdd {
+    pub fn new(a_writer_proxy: RtpsWriterProxy) -> Self {
+        Self { a_writer_proxy }
+    }
+}
+
+impl Mail for MatchedWriterAdd {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<MatchedWriterAdd> for DdsDataReader {
+    async fn handle(&mut self, mail: MatchedWriterAdd) -> <MatchedWriterAdd as Mail>::Result {
+        if !self
+            .matched_writers
+            .iter()
+            .any(|x| x.remote_writer_guid() == mail.a_writer_proxy.remote_writer_guid())
+        {
+            self.matched_writers.push(mail.a_writer_proxy);
+        }
+    }
+}
+
 pub struct AddMatchedWriter {
     discovered_writer_data: DiscoveredWriterData,
     default_unicast_locator_list: Vec<Locator>,
@@ -1517,7 +1544,14 @@ impl MailHandler<AddMatchedWriter> for DdsDataReader {
                         .remote_group_entity_id(),
                 );
 
-                self.matched_writer_add(writer_proxy);
+                if !self
+                    .matched_writers
+                    .iter()
+                    .any(|x| x.remote_writer_guid() == writer_proxy.remote_writer_guid())
+                {
+                    self.matched_writers.push(writer_proxy);
+                }
+
                 let insert_matched_publication_result = self
                     .matched_publication_list
                     .insert(instance_handle, publication_builtin_topic_data.clone());
@@ -1737,16 +1771,6 @@ impl DdsDataReader {
         self.qos.clone()
     }
 
-    pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
-        if !self
-            .matched_writers
-            .iter()
-            .any(|x| x.remote_writer_guid() == a_writer_proxy.remote_writer_guid())
-        {
-            self.matched_writers.push(a_writer_proxy);
-        }
-    }
-
     pub fn matched_writer_remove(&mut self, a_writer_guid: Guid) {
         self.matched_writers
             .retain(|x| x.remote_writer_guid() != a_writer_guid)
@@ -1785,10 +1809,6 @@ impl DdsDataReader {
             .collect()
     }
 
-    pub fn get_topic_name(&self) -> String {
-        self.topic_name.clone()
-    }
-
     pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
         self.status_condition
             .write_lock()
@@ -1797,6 +1817,19 @@ impl DdsDataReader {
             .read_and_reset(self.matched_publication_list.len() as i32)
     }
 }
+}
+
+pub struct GetTopicName;
+
+impl Mail for GetTopicName {
+    type Result = String;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetTopicName> for DdsDataReader {
+    async fn handle(&mut self, _mail: GetTopicName) -> <GetTopicName as Mail>::Result {
+        self.topic_name.clone()
+    }
 }
 
 pub struct Read {

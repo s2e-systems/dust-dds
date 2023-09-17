@@ -117,7 +117,7 @@ impl Publisher {
             && self
                 .0
                 .address()
-                .get_qos()?
+                .send_and_reply_blocking(dds_publisher::GetQos)?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -355,7 +355,9 @@ impl Publisher {
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        self.0.address().get_qos()
+        self.0
+            .address()
+            .send_and_reply_blocking(dds_publisher::GetQos)
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status

@@ -576,16 +576,8 @@ impl DdsDomainParticipant {
         self.ignored_subcriptions.insert(handle);
     }
 
-    pub fn is_subscription_ignored(&self, handle: InstanceHandle) -> bool {
-        self.ignored_subcriptions.contains(&handle)
-    }
-
     pub fn ignore_publication(&mut self, handle: InstanceHandle) {
         self.ignored_publications.insert(handle);
-    }
-
-    pub fn is_publication_ignored(&self, handle: InstanceHandle) -> bool {
-        self.ignored_publications.contains(&handle)
     }
 
     pub fn ignore_topic(&self, _handle: InstanceHandle) {
@@ -594,19 +586,6 @@ impl DdsDomainParticipant {
 
     pub fn is_topic_ignored(&self, _handle: InstanceHandle) -> bool {
         todo!()
-    }
-
-    pub fn discovered_participant_add(
-        &mut self,
-        handle: InstanceHandle,
-        discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) {
-        self.discovered_participant_list
-            .insert(handle, discovered_participant_data);
-    }
-
-    pub fn discovered_participant_get(&self, handle: InstanceHandle) -> Option<SpdpDiscoveredParticipantData> {
-        self.discovered_participant_list.get(&handle).cloned()
     }
 
     pub fn _discovered_participant_remove(&mut self, handle: InstanceHandle) {
@@ -637,10 +616,6 @@ impl DdsDomainParticipant {
         let counter = self.user_defined_topic_counter;
         self.user_defined_topic_counter += 1;
         counter
-    }
-
-    pub fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
-        self.topic_list.values().map(|a| a.address().clone()).collect()
     }
 
     pub fn delete_user_defined_topic(&mut self, handle: InstanceHandle) {
@@ -728,13 +703,156 @@ impl DdsDomainParticipant {
     pub fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
         self.discovered_participant_list.keys().cloned().collect()
     }
+}
+}
 
-    pub fn discovered_topic_add(&mut self, handle: InstanceHandle, topic_data: TopicBuiltinTopicData) {
-        self.discovered_topic_list.insert(
-                handle, topic_data
-            );
+pub struct DiscoveredParticipantAdd {
+    handle: InstanceHandle,
+    discovered_participant_data: SpdpDiscoveredParticipantData,
+}
+
+impl DiscoveredParticipantAdd {
+    pub fn new(
+        handle: InstanceHandle,
+        discovered_participant_data: SpdpDiscoveredParticipantData,
+    ) -> Self {
+        Self {
+            handle,
+            discovered_participant_data,
+        }
     }
 }
+
+impl Mail for DiscoveredParticipantAdd {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<DiscoveredParticipantAdd> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        mail: DiscoveredParticipantAdd,
+    ) -> <DiscoveredParticipantAdd as Mail>::Result {
+        self.discovered_participant_list
+            .insert(mail.handle, mail.discovered_participant_data);
+    }
+}
+
+pub struct DiscoveredTopicAdd {
+    handle: InstanceHandle,
+    discovered_topic_data: TopicBuiltinTopicData,
+}
+
+impl DiscoveredTopicAdd {
+    pub fn new(handle: InstanceHandle, discovered_topic_data: TopicBuiltinTopicData) -> Self {
+        Self {
+            handle,
+            discovered_topic_data,
+        }
+    }
+}
+
+impl Mail for DiscoveredTopicAdd {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<DiscoveredTopicAdd> for DdsDomainParticipant {
+    async fn handle(&mut self, mail: DiscoveredTopicAdd) -> <DiscoveredTopicAdd as Mail>::Result {
+        self.discovered_topic_list
+            .insert(mail.handle, mail.discovered_topic_data);
+    }
+}
+
+pub struct GetUserDefinedTopicList;
+
+impl Mail for GetUserDefinedTopicList {
+    type Result = Vec<ActorAddress<DdsTopic>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetUserDefinedTopicList> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        _mail: GetUserDefinedTopicList,
+    ) -> <GetUserDefinedTopicList as Mail>::Result {
+        self.topic_list
+            .values()
+            .map(|a| a.address().clone())
+            .collect()
+    }
+}
+
+pub struct DiscoveredParticipantGet {
+    handle: InstanceHandle,
+}
+
+impl DiscoveredParticipantGet {
+    pub fn new(handle: InstanceHandle) -> Self {
+        Self { handle }
+    }
+}
+
+impl Mail for DiscoveredParticipantGet {
+    type Result = Option<SpdpDiscoveredParticipantData>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<DiscoveredParticipantGet> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        mail: DiscoveredParticipantGet,
+    ) -> <DiscoveredParticipantGet as Mail>::Result {
+        self.discovered_participant_list.get(&mail.handle).cloned()
+    }
+}
+
+pub struct IsPublicationIgnored {
+    handle: InstanceHandle,
+}
+
+impl IsPublicationIgnored {
+    pub fn new(handle: InstanceHandle) -> Self {
+        Self { handle }
+    }
+}
+
+impl Mail for IsPublicationIgnored {
+    type Result = bool;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<IsPublicationIgnored> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        mail: IsPublicationIgnored,
+    ) -> <IsPublicationIgnored as Mail>::Result {
+        self.ignored_publications.contains(&mail.handle)
+    }
+}
+
+pub struct IsSubscriptionIgnored {
+    handle: InstanceHandle,
+}
+
+impl IsSubscriptionIgnored {
+    pub fn new(handle: InstanceHandle) -> Self {
+        Self { handle }
+    }
+}
+
+impl Mail for IsSubscriptionIgnored {
+    type Result = bool;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<IsSubscriptionIgnored> for DdsDomainParticipant {
+    async fn handle(
+        &mut self,
+        mail: IsSubscriptionIgnored,
+    ) -> <IsSubscriptionIgnored as Mail>::Result {
+        self.ignored_subcriptions.contains(&mail.handle)
+    }
 }
 
 pub struct IsParticipantIgnored {

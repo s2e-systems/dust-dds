@@ -80,10 +80,6 @@ impl DdsSubscriber {
         self.enabled
     }
 
-    pub fn get_qos(&self) -> SubscriberQos {
-        self.qos.clone()
-    }
-
     pub fn get_unique_reader_id(&mut self) -> u8 {
         let counter = self.user_defined_data_reader_counter;
         self.user_defined_data_reader_counter += 1;
@@ -144,6 +140,19 @@ impl DdsSubscriber {
         self.status_condition.clone()
     }
 }}
+
+pub struct GetQos;
+
+impl Mail for GetQos {
+    type Result = SubscriberQos;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetQos> for DdsSubscriber {
+    async fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
+        self.qos.clone()
+    }
+}
 
 pub struct DataReaderList;
 
