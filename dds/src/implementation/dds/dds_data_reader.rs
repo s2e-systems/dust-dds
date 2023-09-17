@@ -1454,6 +1454,7 @@ pub struct AddMatchedWriter {
 }
 
 impl AddMatchedWriter {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         discovered_writer_data: DiscoveredWriterData,
         default_unicast_locator_list: Vec<Locator>,
@@ -1988,6 +1989,7 @@ pub struct ProcessRtpsMessage {
 }
 
 impl ProcessRtpsMessage {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         message: RtpsMessageRead,
         reception_timestamp: Time,

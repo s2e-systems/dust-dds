@@ -696,6 +696,7 @@ pub struct AddMatchedReader {
 }
 
 impl AddMatchedReader {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         discovered_reader_data: DiscoveredReaderData,
         default_unicast_locator_list: Vec<Locator>,
