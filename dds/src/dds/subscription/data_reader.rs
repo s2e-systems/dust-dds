@@ -214,13 +214,15 @@ impl<Foo> DataReader<Foo> {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().take(
-                    max_samples,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                    None,
-                )??;
+                let samples =
+                    dr.address()
+                        .send_and_reply_blocking(dds_data_reader::Take::new(
+                            max_samples,
+                            sample_states.to_vec(),
+                            view_states.to_vec(),
+                            instance_states.to_vec(),
+                            None,
+                        ))??;
 
                 Ok(samples
                     .into_iter()
@@ -270,13 +272,15 @@ impl<Foo> DataReader<Foo> {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let mut samples = dr.address().take(
-                    1,
-                    vec![SampleStateKind::NotRead],
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )??;
+                let mut samples =
+                    dr.address()
+                        .send_and_reply_blocking(dds_data_reader::Take::new(
+                            1,
+                            vec![SampleStateKind::NotRead],
+                            ANY_VIEW_STATE.to_vec(),
+                            ANY_INSTANCE_STATE.to_vec(),
+                            None,
+                        ))??;
                 let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
                 Ok(Sample::new(data, sample_info))
             }
@@ -342,13 +346,15 @@ impl<Foo> DataReader<Foo> {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().take(
-                    max_samples,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                    Some(a_handle),
-                )??;
+                let samples =
+                    dr.address()
+                        .send_and_reply_blocking(dds_data_reader::Take::new(
+                            max_samples,
+                            sample_states.to_vec(),
+                            view_states.to_vec(),
+                            instance_states.to_vec(),
+                            Some(a_handle),
+                        ))??;
                 Ok(samples
                     .into_iter()
                     .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -393,12 +399,14 @@ impl<Foo> DataReader<Foo> {
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().read_next_instance(
-                    max_samples,
-                    previous_handle,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
+                let samples = dr.address().send_and_reply_blocking(
+                    dds_data_reader::ReadNextInstance::new(
+                        max_samples,
+                        previous_handle,
+                        sample_states.to_vec(),
+                        view_states.to_vec(),
+                        instance_states.to_vec(),
+                    ),
                 )??;
                 Ok(samples
                     .into_iter()
@@ -424,12 +432,14 @@ impl<Foo> DataReader<Foo> {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().take_next_instance(
-                    max_samples,
-                    previous_handle,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
+                let samples = dr.address().send_and_reply_blocking(
+                    dds_data_reader::TakeNextInstance::new(
+                        max_samples,
+                        previous_handle,
+                        sample_states.to_vec(),
+                        view_states.to_vec(),
+                        instance_states.to_vec(),
+                    ),
                 )??;
                 Ok(samples
                     .into_iter()
@@ -625,7 +635,9 @@ impl<Foo> DataReader<Foo> {
             DataReaderNodeKind::_BuiltinStateful(dr)
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr.address().get_subscription_matched_status(),
+            | DataReaderNodeKind::Listener(dr) => dr
+                .address()
+                .send_and_reply_blocking(dds_data_reader::GetSubscriptionMatchedStatus)?,
         }
     }
 

@@ -4,20 +4,21 @@ use super::{
     dds_data_reader::{self, DdsDataReader},
     dds_domain_participant::DdsDomainParticipant,
     dds_subscriber_listener::DdsSubscriberListener,
-    status_condition_impl::StatusConditionImpl,
 };
 use crate::{
     implementation::{
-        dds::dds_domain_participant_listener::DdsDomainParticipantListener,
+        dds::{
+            dds_domain_participant_listener::DdsDomainParticipantListener,
+            dds_status_condition::DdsStatusCondition,
+        },
         rtps::{
             group::RtpsGroup,
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
             types::Guid,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::{
-            actor::{actor_mailbox_interface, Actor, ActorAddress, Mail, MailHandler},
-            shared_object::{DdsRwLock, DdsShared},
+        utils::actor::{
+            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
         },
     },
     infrastructure::{
@@ -36,7 +37,7 @@ pub struct DdsSubscriber {
     enabled: bool,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    status_condition: Actor<DdsStatusCondition>,
     listener: Option<Actor<DdsSubscriberListener>>,
     status_kind: Vec<StatusKind>,
 }
@@ -48,6 +49,7 @@ impl DdsSubscriber {
         listener: Option<Actor<DdsSubscriberListener>>,
         status_kind: Vec<StatusKind>,
     ) -> Self {
+        let status_condition = spawn_actor(DdsStatusCondition::default());
         DdsSubscriber {
             qos,
             rtps_group,
@@ -55,7 +57,7 @@ impl DdsSubscriber {
             enabled: false,
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: Default::default(),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            status_condition,
             listener,
             status_kind,
         }
@@ -136,8 +138,8 @@ impl DdsSubscriber {
         self.rtps_group.guid().into()
     }
 
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
+    pub fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+        self.status_condition.address().clone()
     }
 }}
 
@@ -283,7 +285,7 @@ impl MailHandler<ProcessRtpsMessage> for DdsSubscriber {
                     data_reader_address.clone(),
                     mail.subscriber_address.clone(),
                     mail.participant_address.clone(),
-                    self.status_condition.clone(),
+                    self.status_condition.address().clone(),
                     subscriber_mask_listener.clone(),
                     mail.participant_mask_listener.clone(),
                 ))

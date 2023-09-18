@@ -37,9 +37,8 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::{
-            actor::{actor_mailbox_interface, Actor, ActorAddress, Mail, MailHandler},
-            shared_object::{DdsRwLock, DdsShared},
+        utils::actor::{
+            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
         },
     },
     infrastructure::{
@@ -70,11 +69,11 @@ use super::{
     dds_data_reader_listener::{self, DdsDataReaderListener},
     dds_domain_participant::DdsDomainParticipant,
     dds_domain_participant_listener::{self, DdsDomainParticipantListener},
+    dds_status_condition::{self, DdsStatusCondition},
     dds_subscriber::DdsSubscriber,
     dds_subscriber_listener::{self, DdsSubscriberListener},
     message_receiver::MessageReceiver,
     nodes::SubscriberNode,
-    status_condition_impl::StatusConditionImpl,
 };
 
 struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
@@ -253,7 +252,7 @@ pub struct DdsDataReader {
     instance_reception_time: HashMap<InstanceHandle, Time>,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    status_condition: Actor<DdsStatusCondition>,
     listener: Option<Actor<DdsDataReaderListener>>,
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, Instance>,
@@ -272,6 +271,7 @@ impl DdsDataReader {
         Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
     {
         let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
+        let status_condition = spawn_actor(DdsStatusCondition::default());
 
         DdsDataReader {
             rtps_reader,
@@ -290,7 +290,7 @@ impl DdsDataReader {
             instance_reception_time: HashMap::new(),
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            status_condition,
             status_kind,
             listener,
             qos,
@@ -324,25 +324,29 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
         (subscriber_listener_address, subscriber_listener_mask): &(
             Option<ActorAddress<DdsSubscriberListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         subscriber_status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::DataOnReaders);
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::DataOnReaders,
+            ))
+            .await?;
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::DataAvailable);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::DataAvailable,
+            ))
+            .await?;
         match subscriber_listener_address {
             Some(l) if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) => {
                 l.send_only(dds_subscriber_listener::TriggerOnDataOnReaders::new(
                     SubscriberNode::new(subscriber_address.clone(), participant_address.clone()),
                 ))
-                .await
-                .expect("Should not fail to send message");
+                .await?;
             }
             _ => match self.listener.as_ref().map(|a| a.address()) {
                 Some(l) if self.status_kind.contains(&StatusKind::DataAvailable) => {
@@ -354,12 +358,12 @@ impl DdsDataReader {
                     l.send_only(dds_data_reader_listener::TriggerOnDataAvailable::new(
                         reader,
                     ))
-                    .await
-                    .expect("Should not fail to send message");
+                    .await?;
                 }
                 _ => (),
             },
         }
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -372,13 +376,13 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
         subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
         participant_mask_listener: &(
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         if let Ok(cache_change) = self.convert_received_data_to_cache_change(
             writer_guid,
@@ -399,8 +403,9 @@ impl DdsDataReader {
                 subscriber_mask_listener,
                 participant_mask_listener,
             )
-            .await;
+            .await?;
         }
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -413,13 +418,13 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
         subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
         participant_mask_listener: &(
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
 
@@ -453,9 +458,10 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
-                .await;
+                .await?;
             }
         }
+        Ok(())
     }
 
     pub fn on_heartbeat_submessage_received(
@@ -605,11 +611,14 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         self.sample_lost_status.increment();
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SampleLost);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::SampleLost,
+            ))
+            .await?;
         match self.listener.as_ref().map(|a| a.address()).cloned() {
             Some(l) if self.status_kind.contains(&StatusKind::SampleLost) => {
                 let reader = DataReaderNode::new(
@@ -621,8 +630,7 @@ impl DdsDataReader {
                 l.send_only(dds_data_reader_listener::TriggerOnSampleLost::new(
                     reader, status,
                 ))
-                .await
-                .expect("Should not fail to send command");
+                .await?;
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleLost) => {
@@ -635,8 +643,7 @@ impl DdsDataReader {
                     l.send_only(dds_subscriber_listener::TriggerOnSampleLost::new(
                         reader, status,
                     ))
-                    .await
-                    .expect("Should not fail to send command");
+                    .await?;
                 }
                 _ => match participant_listener_address {
                     Some(l) if participant_listener_mask.contains(&StatusKind::SampleLost) => {
@@ -649,13 +656,13 @@ impl DdsDataReader {
                         l.send_only(dds_domain_participant_listener::TriggerOnSampleLost::new(
                             reader, status,
                         ))
-                        .await
-                        .expect("Should not fail to send command");
+                        .await?;
                     }
                     _ => (),
                 },
             },
         }
+        Ok(())
     }
 
     async fn on_subscription_matched(
@@ -672,11 +679,14 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SubscriptionMatched);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::SubscriptionMatched,
+            ))
+            .await?;
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         match self.listener.as_ref().map(|a| a.address()).cloned() {
             Some(l) if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
@@ -685,12 +695,11 @@ impl DdsDataReader {
                     subscriber_address,
                     participant_address,
                 );
-                let status = self.get_subscription_matched_status();
+                let status = self.get_subscription_matched_status().await?;
                 l.send_only(dds_data_reader_listener::TriggerOnSubscriptionMatched::new(
                     reader, status,
                 ))
-                .await
-                .expect("Should not fail to send command");
+                .await?;
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
@@ -699,12 +708,11 @@ impl DdsDataReader {
                         subscriber_address,
                         participant_address,
                     );
-                    let status = self.get_subscription_matched_status();
+                    let status = self.get_subscription_matched_status().await?;
                     l.send_only(dds_subscriber_listener::TriggerOnSubscriptionMatched::new(
                         reader, status,
                     ))
-                    .await
-                    .expect("Should not fail to send command");
+                    .await?;
                 }
                 _ => match participant_listener_address {
                     Some(l)
@@ -715,19 +723,19 @@ impl DdsDataReader {
                             subscriber_address,
                             participant_address,
                         );
-                        let status = self.get_subscription_matched_status();
+                        let status = self.get_subscription_matched_status().await?;
                         l.send_only(
                             dds_domain_participant_listener::TriggerOnSubscriptionMatched::new(
                                 reader, status,
                             ),
                         )
-                        .await
-                        .expect("Should not fail to send message");
+                        .await?;
                     }
                     _ => (),
                 },
             },
         };
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -746,12 +754,15 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SampleRejected);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::SampleRejected,
+            ))
+            .await?;
         match self.listener.as_ref().map(|a| a.address()).cloned() {
             Some(l) if self.status_kind.contains(&StatusKind::SampleRejected) => {
                 let status = self.get_sample_rejected_status();
@@ -763,8 +774,7 @@ impl DdsDataReader {
                 l.send_only(dds_data_reader_listener::TriggerOnSampleRejected::new(
                     reader, status,
                 ))
-                .await
-                .expect("Should not fail to send message");
+                .await?;
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleRejected) => {
@@ -777,8 +787,7 @@ impl DdsDataReader {
                     l.send_only(dds_subscriber_listener::TriggerOnSampleRejected::new(
                         reader, status,
                     ))
-                    .await
-                    .expect("Should not fail to send message");
+                    .await?;
                 }
                 _ => match participant_listener_address {
                     Some(l) if participant_listener_mask.contains(&StatusKind::SampleRejected) => {
@@ -793,13 +802,13 @@ impl DdsDataReader {
                                 reader, status,
                             ),
                         )
-                        .await
-                        .expect("Should not fail to send message");
+                        .await?;
                     }
                     _ => (),
                 },
             },
         }
+        Ok(())
     }
 
     async fn on_requested_incompatible_qos(
@@ -816,12 +825,15 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::RequestedIncompatibleQos);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::RequestedIncompatibleQos,
+            ))
+            .await?;
 
         match self.listener.as_ref().map(|a| a.address()).cloned() {
             Some(l)
@@ -840,8 +852,7 @@ impl DdsDataReader {
                         reader, status,
                     ),
                 )
-                .await
-                .expect("Should not fail to send message");
+                .await?;
             }
             _ => match subscriber_listener_address {
                 Some(l)
@@ -858,8 +869,7 @@ impl DdsDataReader {
                             reader, status,
                         ),
                     )
-                    .await
-                    .expect("Should not fail to send message");
+                    .await?;
                 }
                 _ => {
                     match participant_listener_address {
@@ -874,13 +884,14 @@ impl DdsDataReader {
                                 participant_address.clone(),
                             );
                             l.send_only(dds_domain_participant_listener::TriggerOnRequestedIncompatibleQos::new(reader, status)).await
-                            .expect("Should not fail to send message");
+                            ?;
                         }
                         _ => (),
                     }
                 }
             },
         }
+        Ok(())
     }
 
     pub fn guid(&self) -> Guid {
@@ -977,13 +988,13 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
         subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
         participant_mask_listener: &(
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         let writer_proxy = self
             .matched_writers
             .iter_mut()
@@ -1002,7 +1013,7 @@ impl DdsDataReader {
                             subscriber_mask_listener,
                             participant_mask_listener,
                         )
-                        .await;
+                        .await?;
                     }
                     self.add_change(
                         cache_change,
@@ -1013,7 +1024,7 @@ impl DdsDataReader {
                         subscriber_mask_listener,
                         participant_mask_listener,
                     )
-                    .await
+                    .await?;
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
@@ -1028,7 +1039,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
-                .await
+                .await?;
             }
             (ReliabilityQosPolicyKind::Reliable, Some(writer_proxy)) => {
                 let expected_seq_num = writer_proxy.available_changes_max() + 1;
@@ -1043,12 +1054,13 @@ impl DdsDataReader {
                         subscriber_mask_listener,
                         participant_mask_listener,
                     )
-                    .await
+                    .await?;
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
             | (ReliabilityQosPolicyKind::Reliable, None) => (), // Do nothing,
         }
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1058,13 +1070,13 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
         subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
         participant_mask_listener: &(
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
                 self.on_sample_rejected(
@@ -1076,7 +1088,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
-                .await
+                .await?;
             } else if self.is_max_instances_limit_reached(&change) {
                 self.on_sample_rejected(
                     change.instance_handle,
@@ -1087,7 +1099,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
-                .await
+                .await?;
             } else if self.is_max_samples_per_instance_limit_reached(&change) {
                 self.on_sample_rejected(
                     change.instance_handle,
@@ -1098,7 +1110,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
-                .await
+                .await?;
             } else {
                 let num_alive_samples_of_instance = self
                     .changes
@@ -1152,9 +1164,10 @@ impl DdsDataReader {
                     subscriber_status_condition,
                     subscriber_mask_listener,
                 )
-                .await
+                .await?;
             }
         }
+        Ok(())
     }
 
     fn is_sample_of_interest_based_on_time(&self, change: &RtpsReaderCacheChange) -> bool {
@@ -1371,7 +1384,7 @@ impl DdsDataReader {
         }
     }
 
-    fn read(
+    async fn read(
         &mut self,
         max_samples: i32,
         sample_states: Vec<SampleStateKind>,
@@ -1384,8 +1397,11 @@ impl DdsDataReader {
         }
 
         self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::DataAvailable);
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::DataAvailable,
+            ))
+            .await?;
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
@@ -1408,6 +1424,61 @@ impl DdsDataReader {
         }
 
         Ok(samples)
+    }
+
+    async fn take(
+        &mut self,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )?;
+
+        self.status_condition
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::DataAvailable,
+            ))
+            .await?;
+
+        let mut change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
+
+        while let Some(index) = change_index_list.pop() {
+            self.changes.remove(index);
+        }
+
+        Ok(samples)
+    }
+
+    async fn get_subscription_matched_status(&mut self) -> DdsResult<SubscriptionMatchedStatus> {
+        self.status_condition
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::SubscriptionMatched,
+            ))
+            .await?;
+
+        Ok(self
+            .subscription_matched_status
+            .read_and_reset(self.matched_publication_list.len() as i32))
     }
 }
 
@@ -1484,7 +1555,7 @@ impl AddMatchedWriter {
 }
 
 impl Mail for AddMatchedWriter {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 
 #[async_trait::async_trait]
@@ -1566,7 +1637,7 @@ impl MailHandler<AddMatchedWriter> for DdsDataReader {
                             &mail.subscriber_mask_listener,
                             &mail.participant_mask_listener,
                         )
-                        .await
+                        .await?;
                     }
                     None => {
                         self.on_subscription_matched(
@@ -1577,7 +1648,7 @@ impl MailHandler<AddMatchedWriter> for DdsDataReader {
                             &mail.subscriber_mask_listener,
                             &mail.participant_mask_listener,
                         )
-                        .await
+                        .await?;
                     }
                     _ => (),
                 }
@@ -1590,98 +1661,15 @@ impl MailHandler<AddMatchedWriter> for DdsDataReader {
                     &mail.subscriber_mask_listener,
                     &mail.participant_mask_listener,
                 )
-                .await;
+                .await?;
             }
         }
+        Ok(())
     }
 }
 
 actor_mailbox_interface! {
 impl DdsDataReader {
-    pub fn take(
-        &mut self,
-        max_samples: i32,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let indexed_sample_list = self.create_indexed_sample_collection(
-            max_samples,
-            &sample_states,
-            &view_states,
-            &instance_states,
-            specific_instance_handle,
-        )?;
-
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::DataAvailable);
-
-        let mut change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list.into_iter().map(|IndexedSample{index, sample}| (index, sample)).unzip();
-
-        while let Some(index) = change_index_list.pop() {
-            self.changes.remove(index);
-        }
-
-        Ok(samples)
-    }
-
-    pub fn read_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
-    }
-
-    pub fn take_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.take(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
-    }
-
     pub fn is_historical_data_received(&self) -> DdsResult<bool> {
         if !self.enabled {
             Err(DdsError::NotEnabled)
@@ -1799,8 +1787,8 @@ impl DdsDataReader {
         self.enabled = true;
     }
 
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
+    pub fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+        self.status_condition.address().clone()
     }
 
     pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
@@ -1809,15 +1797,182 @@ impl DdsDataReader {
             .map(|(&key, _)| key)
             .collect()
     }
+}
+}
 
-    pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SubscriptionMatched);
-        self.subscription_matched_status
-            .read_and_reset(self.matched_publication_list.len() as i32)
+pub struct TakeNextInstance {
+    max_samples: i32,
+    previous_handle: Option<InstanceHandle>,
+    sample_states: Vec<SampleStateKind>,
+    view_states: Vec<ViewStateKind>,
+    instance_states: Vec<InstanceStateKind>,
+}
+
+impl TakeNextInstance {
+    pub fn new(
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> Self {
+        Self {
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        }
     }
 }
+
+impl Mail for TakeNextInstance {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<TakeNextInstance> for DdsDataReader {
+    async fn handle(&mut self, mail: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(mail.previous_handle) {
+            Some(next_handle) => {
+                self.take(
+                    mail.max_samples,
+                    mail.sample_states,
+                    mail.view_states,
+                    mail.instance_states,
+                    Some(next_handle),
+                )
+                .await
+            }
+            None => Err(DdsError::NoData),
+        }
+    }
+}
+
+pub struct GetSubscriptionMatchedStatus;
+
+impl Mail for GetSubscriptionMatchedStatus {
+    type Result = DdsResult<SubscriptionMatchedStatus>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetSubscriptionMatchedStatus> for DdsDataReader {
+    async fn handle(
+        &mut self,
+        _mail: GetSubscriptionMatchedStatus,
+    ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
+        self.status_condition
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::SubscriptionMatched,
+            ))
+            .await?;
+
+        Ok(self
+            .subscription_matched_status
+            .read_and_reset(self.matched_publication_list.len() as i32))
+    }
+}
+
+pub struct ReadNextInstance {
+    max_samples: i32,
+    previous_handle: Option<InstanceHandle>,
+    sample_states: Vec<SampleStateKind>,
+    view_states: Vec<ViewStateKind>,
+    instance_states: Vec<InstanceStateKind>,
+}
+
+impl ReadNextInstance {
+    pub fn new(
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> Self {
+        Self {
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        }
+    }
+}
+
+impl Mail for ReadNextInstance {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ReadNextInstance> for DdsDataReader {
+    async fn handle(&mut self, mail: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(mail.previous_handle) {
+            Some(next_handle) => {
+                self.read(
+                    mail.max_samples,
+                    mail.sample_states,
+                    mail.view_states,
+                    mail.instance_states,
+                    Some(next_handle),
+                )
+                .await
+            }
+            None => Err(DdsError::NoData),
+        }
+    }
+}
+
+pub struct Take {
+    max_samples: i32,
+    sample_states: Vec<SampleStateKind>,
+    view_states: Vec<ViewStateKind>,
+    instance_states: Vec<InstanceStateKind>,
+    specific_instance_handle: Option<InstanceHandle>,
+}
+
+impl Take {
+    pub fn new(
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> Self {
+        Self {
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        }
+    }
+}
+
+impl Mail for Take {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<Take> for DdsDataReader {
+    async fn handle(&mut self, mail: Take) -> <Take as Mail>::Result {
+        self.take(
+            mail.max_samples,
+            mail.sample_states,
+            mail.view_states,
+            mail.instance_states,
+            mail.specific_instance_handle,
+        )
+        .await
+    }
 }
 
 pub struct GetTopicName;
@@ -1879,8 +2034,11 @@ impl MailHandler<Read> for DdsDataReader {
         )?;
 
         self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::DataAvailable);
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::DataAvailable,
+            ))
+            .await?;
 
         let mut change_index_list: Vec<usize>;
         let samples;
@@ -1948,7 +2106,7 @@ impl RemoveMatchedWriter {
 }
 
 impl Mail for RemoveMatchedWriter {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 
 #[async_trait::async_trait]
@@ -1968,8 +2126,9 @@ impl MailHandler<RemoveMatchedWriter> for DdsDataReader {
                 &mail.subscriber_mask_listener,
                 &mail.participant_mask_listener,
             )
-            .await
+            .await?;
         }
+        Ok(())
     }
 }
 
@@ -1980,7 +2139,7 @@ pub struct ProcessRtpsMessage {
     data_reader_address: ActorAddress<DdsDataReader>,
     subscriber_address: ActorAddress<DdsSubscriber>,
     participant_address: ActorAddress<DdsDomainParticipant>,
-    subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    subscriber_status_condition: ActorAddress<DdsStatusCondition>,
     subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
     participant_mask_listener: (
         Option<ActorAddress<DdsDomainParticipantListener>>,
@@ -1996,7 +2155,7 @@ impl ProcessRtpsMessage {
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: ActorAddress<DdsStatusCondition>,
         subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
         participant_mask_listener: (
             Option<ActorAddress<DdsDomainParticipantListener>>,
@@ -2017,7 +2176,7 @@ impl ProcessRtpsMessage {
 }
 
 impl Mail for ProcessRtpsMessage {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 
 #[async_trait::async_trait]
@@ -2039,7 +2198,7 @@ impl MailHandler<ProcessRtpsMessage> for DdsDataReader {
                         &mail.subscriber_mask_listener,
                         &mail.participant_mask_listener,
                     )
-                    .await;
+                    .await?;
                 }
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                     self.on_data_frag_submessage_received(
@@ -2054,7 +2213,7 @@ impl MailHandler<ProcessRtpsMessage> for DdsDataReader {
                         &mail.subscriber_mask_listener,
                         &mail.participant_mask_listener,
                     )
-                    .await;
+                    .await?;
                 }
                 RtpsSubmessageReadKind::Gap(gap_submessage) => {
                     self.on_gap_submessage_received(
@@ -2075,6 +2234,7 @@ impl MailHandler<ProcessRtpsMessage> for DdsDataReader {
                 _ => (),
             }
         }
+        Ok(())
     }
 }
 
@@ -2115,7 +2275,7 @@ impl UpdateCommunicationStatus {
 }
 
 impl Mail for UpdateCommunicationStatus {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 
 #[async_trait::async_trait]
@@ -2142,8 +2302,11 @@ impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
                 .increment(missed_deadline_instance);
 
             self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::RequestedDeadlineMissed);
+                .address()
+                .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                    StatusKind::RequestedDeadlineMissed,
+                ))
+                .await?;
             match self.listener.as_ref().map(|a| a.address()).cloned() {
                 Some(l)
                     if self
@@ -2161,8 +2324,7 @@ impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
                             reader, status,
                         ),
                     )
-                    .await
-                    .expect("Should not fail to send message");
+                    .await?;
                 }
                 _ => match &subscriber_listener_address {
                     Some(l)
@@ -2180,8 +2342,7 @@ impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
                                 reader, status,
                             ),
                         )
-                        .await
-                        .expect("Should not fail to send message");
+                        .await?;
                     }
                     _ => match &participant_listener_address {
                         Some(l)
@@ -2195,13 +2356,15 @@ impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
                                 mail.participant_address.clone(),
                             );
                             l.send_only(dds_domain_participant_listener::TriggerOnRequestedDeadlineMissed::new(reader, status)).await
-                                .expect("Should not fail to send message");
+                                ?;
                         }
                         _ => (),
                     },
                 },
             }
         }
+
+        Ok(())
     }
 }
 

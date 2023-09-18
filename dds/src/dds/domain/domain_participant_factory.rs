@@ -1208,7 +1208,7 @@ async fn discover_matched_writers(
                                             subscriber_mask_listener.clone(),
                                             participant_mask_listener.clone(),
                                         ))
-                                        .await?;
+                                        .await??;
                                     data_reader_address
                                         .send_only(dds_data_reader::SendMessage::new(
                                             RtpsMessageHeader::new(
@@ -1268,7 +1268,7 @@ async fn discover_matched_writers(
                             subscriber_mask_listener.clone(),
                             participant_mask_listener.clone(),
                         ))
-                        .await?;
+                        .await??;
                 }
             }
         }
@@ -1443,7 +1443,7 @@ pub async fn discover_matched_readers(
                                             offered_incompatible_qos_publisher_listener,
                                             offered_incompatible_qos_participant_listener,
                                         ))
-                                        .await?;
+                                        .await??;
                                     data_writer
                                         .send_only(dds_data_writer::SendMessage::new(
                                             RtpsMessageHeader::new(
@@ -1525,7 +1525,7 @@ pub async fn discover_matched_readers(
                             publisher_publication_matched_listener,
                             participant_publication_matched_listener,
                         ))
-                        .await?;
+                        .await??;
                 }
             }
         }
@@ -1549,7 +1549,7 @@ async fn discover_matched_topics(
                 {
                     topic
                         .send_and_reply(dds_topic::ProcessDiscoveredTopic::new(topic_data.clone()))
-                        .await?;
+                        .await??;
                 }
 
                 participant_address

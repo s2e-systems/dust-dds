@@ -4,9 +4,9 @@ use super::{
     dds_domain_participant_listener::{self, DdsDomainParticipantListener},
     dds_publisher::DdsPublisher,
     dds_publisher_listener::{self, DdsPublisherListener},
+    dds_status_condition::{self, DdsStatusCondition},
     message_receiver::MessageReceiver,
     nodes::DataWriterNode,
-    status_condition_impl::StatusConditionImpl,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
@@ -47,9 +47,8 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::{self, UdpTransportWrite},
-        utils::{
-            actor::{actor_mailbox_interface, Actor, ActorAddress, Mail, MailHandler},
-            shared_object::{DdsRwLock, DdsShared},
+        utils::actor::{
+            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
         },
     },
     infrastructure::{
@@ -222,7 +221,7 @@ pub struct DdsDataWriter {
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    status_condition: Actor<DdsStatusCondition>,
     listener: Option<Actor<DdsDataWriterListener>>,
     status_kind: Vec<StatusKind>,
     writer_cache: WriterHistoryCache,
@@ -239,6 +238,7 @@ impl DdsDataWriter {
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
+        let status_condition = spawn_actor(DdsStatusCondition::default());
         DdsDataWriter {
             rtps_writer,
             reader_locators: Vec::new(),
@@ -248,7 +248,7 @@ impl DdsDataWriter {
             matched_subscriptions: MatchedSubscriptions::new(),
             incompatible_subscriptions: IncompatibleSubscriptions::new(),
             enabled: false,
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            status_condition,
             listener,
             status_kind,
             writer_cache: WriterHistoryCache::new(),
@@ -296,19 +296,22 @@ impl DdsDataWriter {
     fn add_change(&mut self, change: RtpsWriterCacheChange) {
         self.writer_cache.add_change(change, &self.qos.history)
     }
+
+    async fn get_publication_matched_status(&mut self) -> DdsResult<PublicationMatchedStatus> {
+        self.status_condition
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::PublicationMatched,
+            ))
+            .await?;
+        Ok(self.matched_subscriptions.get_publication_matched_status())
+    }
 }
 
 actor_mailbox_interface! {
 impl DdsDataWriter {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_writer.guid().into()
-    }
-
-    pub fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::PublicationMatched);
-        self.matched_subscriptions.get_publication_matched_status()
     }
 
     pub fn add_matched_publication(
@@ -373,8 +376,8 @@ impl DdsDataWriter {
         self.enabled
     }
 
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
+    pub fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+        self.status_condition.address().clone()
     }
 
     pub fn guid(&self) -> Guid {
@@ -580,6 +583,22 @@ impl DdsDataWriter {
 }
 }
 
+pub struct GetPublicationMatchedStatus;
+
+impl Mail for GetPublicationMatchedStatus {
+    type Result = DdsResult<PublicationMatchedStatus>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetPublicationMatchedStatus> for DdsDataWriter {
+    async fn handle(
+        &mut self,
+        _mail: GetPublicationMatchedStatus,
+    ) -> <GetPublicationMatchedStatus as Mail>::Result {
+        self.get_publication_matched_status().await
+    }
+}
+
 pub struct MatchedReaderAdd {
     a_reader_proxy: RtpsReaderProxy,
 }
@@ -731,7 +750,7 @@ impl AddMatchedReader {
 }
 
 impl Mail for AddMatchedReader {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 
 #[async_trait::async_trait]
@@ -864,7 +883,7 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
                         mail.publisher_publication_matched_listener,
                         mail.participant_publication_matched_listener,
                     )
-                    .await;
+                    .await?;
                 }
             } else {
                 self.incompatible_subscriptions
@@ -876,9 +895,10 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
                     mail.offered_incompatible_qos_publisher_listener,
                     mail.offered_incompatible_qos_participant_listener,
                 )
-                .await;
+                .await?;
             }
         }
+        Ok(())
     }
 }
 
@@ -914,7 +934,7 @@ impl RemoveMatchedReader {
 }
 
 impl Mail for RemoveMatchedReader {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 
 #[async_trait::async_trait]
@@ -932,8 +952,9 @@ impl MailHandler<RemoveMatchedReader> for DdsDataWriter {
                 mail.publisher_publication_matched_listener,
                 mail.participant_publication_matched_listener,
             )
-            .await;
+            .await?;
         }
+        Ok(())
     }
 }
 
@@ -1215,37 +1236,38 @@ impl DdsDataWriter {
         participant_publication_matched_listener: Option<
             ActorAddress<DdsDomainParticipantListener>,
         >,
-    ) {
+    ) -> DdsResult<()> {
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::PublicationMatched);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::PublicationMatched,
+            ))
+            .await?;
         if self.listener.is_some() && self.status_kind.contains(&StatusKind::PublicationMatched) {
             let listener_address = self.listener.as_ref().unwrap().address().clone();
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
-            let status = self.get_publication_matched_status();
+            let status = self.get_publication_matched_status().await?;
             listener_address
                 .send_only(dds_data_writer_listener::TriggerOnPublicationMatched::new(
                     writer, status,
                 ))
-                .await
-                .expect("Should not fail to send message");
+                .await?
         } else if let Some(publisher_publication_matched_listener) =
             publisher_publication_matched_listener
         {
-            let status = self.get_publication_matched_status();
+            let status = self.get_publication_matched_status().await?;
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             publisher_publication_matched_listener
                 .send_only(dds_publisher_listener::TriggerOnPublicationMatched::new(
                     writer, status,
                 ))
-                .await
-                .expect("Should not fail to send message");
+                .await?;
         } else if let Some(participant_publication_matched_listener) =
             participant_publication_matched_listener
         {
-            let status = self.get_publication_matched_status();
+            let status = self.get_publication_matched_status().await?;
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             participant_publication_matched_listener
@@ -1254,9 +1276,9 @@ impl DdsDataWriter {
                         writer, status,
                     ),
                 )
-                .await
-                .expect("Should not fail to send message");
+                .await?;
         }
+        Ok(())
     }
 
     async fn on_offered_incompatible_qos(
@@ -1268,10 +1290,13 @@ impl DdsDataWriter {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DdsDomainParticipantListener>,
         >,
-    ) {
+    ) -> DdsResult<()> {
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::OfferedIncompatibleQos);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::OfferedIncompatibleQos,
+            ))
+            .await?;
         if self.listener.is_some()
             && self
                 .status_kind
@@ -1285,8 +1310,7 @@ impl DdsDataWriter {
                 .send_only(
                     dds_data_writer_listener::TriggerOnOfferedIncompatibleQos::new(writer, status),
                 )
-                .await
-                .expect("Should not fail to send message");
+                .await?;
         } else if let Some(offered_incompatible_qos_publisher_listener) =
             offered_incompatible_qos_publisher_listener
         {
@@ -1297,8 +1321,7 @@ impl DdsDataWriter {
                 .send_only(
                     dds_publisher_listener::TriggerOnOfferedIncompatibleQos::new(writer, status),
                 )
-                .await
-                .expect("Should not fail to send message");
+                .await?;
         } else if let Some(offered_incompatible_qos_participant_listener) =
             offered_incompatible_qos_participant_listener
         {
@@ -1311,9 +1334,9 @@ impl DdsDataWriter {
                         writer, status,
                     ),
                 )
-                .await
-                .expect("Should not fail to send message");
+                .await?;
         }
+        Ok(())
     }
 }
 

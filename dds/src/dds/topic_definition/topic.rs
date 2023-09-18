@@ -5,7 +5,7 @@ use crate::{
         dds::{
             dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
-            dds_publisher,
+            dds_publisher, dds_topic,
             nodes::TopicNodeKind,
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
@@ -66,7 +66,9 @@ impl Topic {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.address().get_inconsistent_topic_status(),
+            TopicNodeKind::UserDefined(t) => t
+                .address()
+                .send_and_reply_blocking(dds_topic::GetInconsistentTopicStatus)?,
         }
     }
 }

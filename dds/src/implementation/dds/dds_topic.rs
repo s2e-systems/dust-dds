@@ -3,19 +3,19 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
-        utils::{
-            actor::{actor_mailbox_interface, Mail, MailHandler},
-            shared_object::{DdsRwLock, DdsShared},
+        utils::actor::{
+            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
         },
     },
     infrastructure::{
+        error::DdsResult,
         instance::InstanceHandle,
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
     },
 };
 
-use super::status_condition_impl::StatusConditionImpl;
+use super::dds_status_condition::{self, DdsStatusCondition};
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -37,11 +37,12 @@ pub struct DdsTopic {
     topic_name: String,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    status_condition: Actor<DdsStatusCondition>,
 }
 
 impl DdsTopic {
     pub fn new(guid: Guid, qos: TopicQos, type_name: String, topic_name: &str) -> Self {
+        let status_condition = spawn_actor(DdsStatusCondition::default());
         Self {
             guid,
             qos,
@@ -49,19 +50,24 @@ impl DdsTopic {
             topic_name: topic_name.to_string(),
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            status_condition,
         }
+    }
+
+    async fn get_inconsistent_topic_status(&mut self) -> DdsResult<InconsistentTopicStatus> {
+        let status = self.inconsistent_topic_status.read_and_reset();
+        self.status_condition
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::InconsistentTopic,
+            ))
+            .await?;
+        Ok(status)
     }
 }
 
 actor_mailbox_interface! {
 impl DdsTopic {
-    pub fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
-        let status = self.inconsistent_topic_status.read_and_reset();
-        self.status_condition.write_lock().remove_communication_state(StatusKind::InconsistentTopic);
-        status
-    }
-
     pub fn get_type_name(&self) -> String {
         self.type_name.clone()
     }
@@ -94,8 +100,8 @@ impl DdsTopic {
         self.guid.into()
     }
 
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
+    pub fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+        self.status_condition.address().clone()
     }
 
     pub fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
@@ -123,6 +129,22 @@ impl DdsTopic {
 }
 }
 
+pub struct GetInconsistentTopicStatus;
+
+impl Mail for GetInconsistentTopicStatus {
+    type Result = DdsResult<InconsistentTopicStatus>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetInconsistentTopicStatus> for DdsTopic {
+    async fn handle(
+        &mut self,
+        _mail: GetInconsistentTopicStatus,
+    ) -> <GetInconsistentTopicStatus as Mail>::Result {
+        self.get_inconsistent_topic_status().await
+    }
+}
+
 pub struct ProcessDiscoveredTopic {
     discovered_topic_data: DiscoveredTopicData,
 }
@@ -136,7 +158,7 @@ impl ProcessDiscoveredTopic {
 }
 
 impl Mail for ProcessDiscoveredTopic {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 
 #[async_trait::async_trait]
@@ -155,9 +177,13 @@ impl MailHandler<ProcessDiscoveredTopic> for DdsTopic {
         {
             self.inconsistent_topic_status.increment();
             self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::InconsistentTopic);
+                .address()
+                .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                    StatusKind::InconsistentTopic,
+                ))
+                .await?;
         }
+        Ok(())
     }
 }
 

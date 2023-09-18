@@ -489,9 +489,9 @@ impl<Foo> DataWriter<Foo> {
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.address().get_publication_matched_status()
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .address()
+                .send_and_reply_blocking(dds_data_writer::GetPublicationMatchedStatus)?,
         }
     }
 
