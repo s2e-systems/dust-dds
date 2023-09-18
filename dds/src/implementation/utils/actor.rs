@@ -213,7 +213,7 @@ pub fn spawn_actor<A>(actor: A) -> Actor<A>
 where
     A: Send + 'static,
 {
-    let (sender, mailbox) = tokio::sync::mpsc::channel(16);
+    let (sender, mailbox) = tokio::sync::mpsc::channel(5);
 
     let address = ActorAddress { sender };
 
