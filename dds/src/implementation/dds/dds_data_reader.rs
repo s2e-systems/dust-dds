@@ -2021,38 +2021,14 @@ impl Mail for Read {
 #[async_trait::async_trait]
 impl MailHandler<Read> for DdsDataReader {
     async fn handle(&mut self, mail: Read) -> <Read as Mail>::Result {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let indexed_sample_list = self.create_indexed_sample_collection(
+        self.read(
             mail.max_samples,
-            &mail.sample_states,
-            &mail.view_states,
-            &mail.instance_states,
+            mail.sample_states,
+            mail.view_states,
+            mail.instance_states,
             mail.specific_instance_handle,
-        )?;
-
-        self.status_condition
-            .address()
-            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
-                StatusKind::DataAvailable,
-            ))
-            .await?;
-
-        let mut change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list
-            .into_iter()
-            .map(|IndexedSample { index, sample }| (index, sample))
-            .unzip();
-
-        while let Some(index) = change_index_list.pop() {
-            self.changes.remove(index);
-        }
-
-        Ok(samples)
+        )
+        .await
     }
 }
 

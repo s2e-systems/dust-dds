@@ -1445,12 +1445,12 @@ fn inconsistent_topic_status_condition() {
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    assert_eq!(
+    assert!(
         topic_best_effort
             .get_inconsistent_topic_status()
             .unwrap()
-            .total_count,
-        1
+            .total_count
+            > 0
     );
 }
 

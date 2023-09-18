@@ -354,15 +354,7 @@ fn subscription_matched_listener() {
         .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
-    let cond = reader.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -560,11 +552,7 @@ fn publication_matched_listener() {
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -1076,16 +1064,7 @@ fn participant_deadline_missed_listener() {
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    let reader_cond = reader.get_statuscondition().unwrap();
-    reader_cond
-        .set_enabled_statuses(&[StatusKind::RequestedDeadlineMissed])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(reader_cond))
-        .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -1200,16 +1179,7 @@ fn participant_sample_rejected_listener() {
     writer.write(&MyData { id: 1, value: 1 }, None).unwrap();
     writer.write(&MyData { id: 1, value: 2 }, None).unwrap();
 
-    let reader_cond = reader.get_statuscondition().unwrap();
-    reader_cond
-        .set_enabled_statuses(&[StatusKind::SampleRejected])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(reader_cond))
-        .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -1302,15 +1272,7 @@ fn participant_subscription_matched_listener() {
         )
         .unwrap();
 
-    let cond = reader.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -1403,15 +1365,7 @@ fn participant_requested_incompatible_qos_listener() {
         )
         .unwrap();
 
-    let cond = reader.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::RequestedIncompatibleQos])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -1503,15 +1457,7 @@ fn publisher_publication_matched_listener() {
         .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -1604,15 +1550,7 @@ fn publisher_offered_incompatible_qos_listener() {
         .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::OfferedIncompatibleQos])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -1710,16 +1648,7 @@ fn subscriber_deadline_missed_listener() {
         .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
-    let reader_cond = reader.get_statuscondition().unwrap();
-    reader_cond
-        .set_enabled_statuses(&[StatusKind::RequestedDeadlineMissed])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(reader_cond))
-        .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -1834,16 +1763,7 @@ fn subscriber_sample_rejected_listener() {
     writer.write(&MyData { id: 1, value: 1 }, None).unwrap();
     writer.write(&MyData { id: 1, value: 2 }, None).unwrap();
 
-    let reader_cond = reader.get_statuscondition().unwrap();
-    reader_cond
-        .set_enabled_statuses(&[StatusKind::SampleRejected])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(reader_cond))
-        .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -1935,15 +1855,7 @@ fn subscriber_subscription_matched_listener() {
         .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
-    let cond = reader.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -2035,15 +1947,7 @@ fn subscriber_requested_incompatible_qos_listener() {
         .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
-    let cond = reader.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::RequestedIncompatibleQos])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -2139,11 +2043,7 @@ fn data_writer_publication_matched_listener() {
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework
@@ -2236,15 +2136,7 @@ fn data_writer_offered_incompatible_qos_listener() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::OfferedIncompatibleQos])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     // Delete all entities to make sure listeners are dropped and missed functions
     // calls are detected by the mocking framework

@@ -266,7 +266,7 @@ impl ProcessRtpsMessage {
 }
 
 impl Mail for ProcessRtpsMessage {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 
 #[async_trait::async_trait]
@@ -279,7 +279,7 @@ impl MailHandler<ProcessRtpsMessage> for DdsSubscriber {
 
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
-                .send_only(dds_data_reader::ProcessRtpsMessage::new(
+                .send_and_reply(dds_data_reader::ProcessRtpsMessage::new(
                     mail.message.clone(),
                     mail.reception_timestamp,
                     data_reader_address.clone(),
@@ -289,8 +289,8 @@ impl MailHandler<ProcessRtpsMessage> for DdsSubscriber {
                     subscriber_mask_listener.clone(),
                     mail.participant_mask_listener.clone(),
                 ))
-                .await
-                .expect("Should not fail to send command");
+                .await??;
         }
+        Ok(())
     }
 }

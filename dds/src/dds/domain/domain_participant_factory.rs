@@ -927,10 +927,10 @@ async fn process_sedp_metatraffic(
         .await?
     {
         stateful_builtin_writer
-            .send_only(dds_data_writer::ProcessRtpsMessage::new(message.clone()))
+            .send_and_reply(dds_data_writer::ProcessRtpsMessage::new(message.clone()))
             .await?;
         stateful_builtin_writer
-            .send_only(dds_data_writer::SendMessage::new(
+            .send_and_reply(dds_data_writer::SendMessage::new(
                 RtpsMessageHeader::new(
                     participant_address
                         .send_and_reply(dds_domain_participant::GetProtocolVersion)
@@ -954,7 +954,7 @@ async fn process_sedp_metatraffic(
     }
 
     builtin_subscriber
-        .send_only(dds_subscriber::ProcessRtpsMessage::new(
+        .send_and_reply(dds_subscriber::ProcessRtpsMessage::new(
             message,
             participant_address
                 .send_and_reply(dds_domain_participant::GetCurrentTime)
@@ -963,10 +963,10 @@ async fn process_sedp_metatraffic(
             builtin_subscriber.clone(),
             participant_mask_listener,
         ))
-        .await?;
+        .await??;
 
     builtin_subscriber
-        .send_only(dds_subscriber::SendMessage::new(
+        .send_and_reply(dds_subscriber::SendMessage::new(
             RtpsMessageHeader::new(
                 participant_address
                     .send_and_reply(dds_domain_participant::GetProtocolVersion)

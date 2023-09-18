@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crate::infrastructure::{error::DdsResult, time::Duration};
 
-use super::condition::StatusCondition;
+use super::{condition::StatusCondition, error::DdsError};
 
 /// Enumeration of the different Condition objects that can be associated with a [`WaitSet`].
 #[derive(Clone)]
@@ -21,14 +21,9 @@ impl Condition {
 /// [`true`] or else until the timeout expires. It is created by calling the [`WaitSet::new`] operation and is not necessarily
 /// associated with a single [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) and could be used to
 /// wait on [`Condition`] objects associated with different [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) objects.
+#[derive(Default)]
 pub struct WaitSet {
     conditions: Vec<Condition>,
-}
-
-impl Default for WaitSet {
-    fn default() -> Self {
-        Self { conditions: vec![] }
-    }
 }
 
 impl WaitSet {
@@ -50,22 +45,20 @@ impl WaitSet {
 
         while start_time.elapsed() < std::time::Duration::from(timeout) {
             for condition in &self.conditions {
-                if let Ok(v) = condition.get_trigger_value() {
-                    if v {
-                        break;
-                    }
+                if condition.get_trigger_value()? {
+                    return Ok(self
+                        .conditions
+                        .iter()
+                        .filter(|x| x.get_trigger_value().unwrap())
+                        .cloned()
+                        .collect());
                 }
             }
 
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
-        Ok(self
-            .conditions
-            .iter()
-            .filter(|x| x.get_trigger_value().unwrap())
-            .cloned()
-            .collect())
+        Err(DdsError::Timeout)
     }
 
     /// Attaches a [`Condition`] to the [`WaitSet`].
