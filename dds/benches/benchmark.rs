@@ -135,7 +135,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
             &topic,
             QosKind::Default,
             Some(listener),
-            &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
+            &[StatusKind::DataAvailable],
         )
         .unwrap();
     let reader_cond = reader.get_statuscondition().unwrap();
