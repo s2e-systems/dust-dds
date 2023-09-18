@@ -11,6 +11,7 @@ lazy_static! {
     pub static ref THE_RUNTIME: tokio::runtime::Runtime =
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
+            .thread_stack_size(4 * 1024 * 1024)
             .build()
             .expect("Failed to create Tokio runtime");
 }
@@ -213,7 +214,7 @@ pub fn spawn_actor<A>(actor: A) -> Actor<A>
 where
     A: Send + 'static,
 {
-    let (sender, mailbox) = tokio::sync::mpsc::channel(5);
+    let (sender, mailbox) = tokio::sync::mpsc::channel(16);
 
     let address = ActorAddress { sender };
 
