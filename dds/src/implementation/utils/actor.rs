@@ -64,9 +64,9 @@ impl<A> ActorAddress<A> {
         self.sender
             .send(Box::new(SyncMail::new(mail, response_sender)))
             .map_err(|_| DdsError::AlreadyDeleted)?;
-        response_receiver
-            .blocking_recv()
-            .map_err(|_| DdsError::AlreadyDeleted)
+
+        tokio::task::block_in_place(|| response_receiver
+            .blocking_recv().map_err(|_| DdsError::AlreadyDeleted))
     }
 
     pub fn send_command<M>(&self, command: M) -> DdsResult<()>
