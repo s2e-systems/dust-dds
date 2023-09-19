@@ -632,7 +632,7 @@ fn on_data_available_listener() {
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
     let reader_listener = DataAvailableListener { sender };
 
-    let reader = subscriber
+    let _reader = subscriber
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
@@ -650,15 +650,6 @@ fn on_data_available_listener() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    let reader_cond = reader.get_statuscondition().unwrap();
-    reader_cond
-        .set_enabled_statuses(&[StatusKind::DataAvailable])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(reader_cond))
-        .unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();

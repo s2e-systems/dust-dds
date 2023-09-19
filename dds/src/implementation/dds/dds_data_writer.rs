@@ -864,12 +864,6 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
                                 .subscription_builtin_topic_data(),
                         )
                 {
-                    self.add_matched_publication(
-                        instance_handle,
-                        mail.discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .clone(),
-                    );
                     self.matched_subscriptions.add_matched_subscription(
                         instance_handle,
                         mail.discovered_reader_data
