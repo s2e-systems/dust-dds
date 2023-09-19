@@ -45,26 +45,26 @@ struct MyData {
 
 #[test]
 fn deadline_missed_listener() {
-    mock! {
-        DeadlineMissedListener{}
-
-        impl DomainParticipantListener for DeadlineMissedListener {
-            fn on_requested_deadline_missed(
-                &mut self,
-                _the_reader: &dyn AnyDataReader,
-                _status: RequestedDeadlineMissedStatus,
-            );
-        }
-
+    struct DeadlineMissedListener {
+        sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
+
+    impl DomainParticipantListener for DeadlineMissedListener {
+        fn on_requested_deadline_missed(
+            &mut self,
+            _the_reader: &dyn AnyDataReader,
+            status: RequestedDeadlineMissedStatus,
+        ) {
+            self.sender.send(status).unwrap();
+        }
+    }
+
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let mut participant_listener = MockDeadlineMissedListener::new();
-    participant_listener
-        .expect_on_requested_deadline_missed()
-        .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
-        .return_const(());
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+
+    let participant_listener = DeadlineMissedListener { sender };
+
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(
             domain_id,
@@ -106,7 +106,7 @@ fn deadline_missed_listener() {
         ..Default::default()
     };
 
-    let reader = subscriber
+    let _reader = subscriber
         .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -127,57 +127,35 @@ fn deadline_missed_listener() {
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    let reader_cond = reader.get_statuscondition().unwrap();
-    reader_cond
-        .set_enabled_statuses(&[StatusKind::RequestedDeadlineMissed])
+    let status = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(reader_cond))
-        .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    // Delete all entities to make sure listeners are dropped and missed functions
-    // calls are detected by the mocking framework
-    subscriber.delete_datareader(&reader).unwrap();
-    publisher.delete_datawriter(&writer).unwrap();
-    participant.delete_publisher(&publisher).unwrap();
-    participant.delete_subscriber(&subscriber).unwrap();
-    participant.delete_topic(&topic).unwrap();
-    THE_PARTICIPANT_FACTORY
-        .delete_participant(&participant)
-        .unwrap();
+    assert_eq!(status.total_count, 1);
+    assert_eq!(status.total_count_change, 1);
 }
 
 #[test]
 fn sample_rejected_listener() {
-    mock! {
-        SampleRejectedListener{}
+    struct SampleRejectedListener {
+        sender: std::sync::mpsc::SyncSender<SampleRejectedStatus>,
+    }
 
-        impl DomainParticipantListener for SampleRejectedListener {
-
-            fn on_sample_rejected(
-                &mut self,
-                _the_reader: &dyn AnyDataReader,
-                _status: SampleRejectedStatus,
-            );
+    impl DomainParticipantListener for SampleRejectedListener {
+        fn on_sample_rejected(
+            &mut self,
+            _the_reader: &dyn AnyDataReader,
+            status: SampleRejectedStatus,
+        ) {
+            self.sender.send(status).unwrap();
         }
-
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let mut participant_listener = MockSampleRejectedListener::new();
-    participant_listener
-        .expect_on_sample_rejected()
-        .times(1..)
-        .withf(|_, status| {
-            status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
-                    && status.last_reason == SampleRejectedStatusKind::RejectedBySamplesLimit
-        })
-        .return_const(());
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let participant_listener = SampleRejectedListener { sender };
+
     let participant = participant_factory
         .create_participant(
             domain_id,
@@ -234,7 +212,7 @@ fn sample_rejected_listener() {
         ..Default::default()
     };
 
-    let reader = subscriber
+    let _reader = subscriber
         .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -252,52 +230,39 @@ fn sample_rejected_listener() {
     writer.write(&MyData { id: 1, value: 1 }, None).unwrap();
     writer.write(&MyData { id: 1, value: 2 }, None).unwrap();
 
-    let reader_cond = reader.get_statuscondition().unwrap();
-    reader_cond
-        .set_enabled_statuses(&[StatusKind::SampleRejected])
+    let status = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(reader_cond))
-        .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    // Delete all entities to make sure listeners are dropped and missed functions
-    // calls are detected by the mocking framework
-    subscriber.delete_datareader(&reader).unwrap();
-    publisher.delete_datawriter(&writer).unwrap();
-    participant.delete_publisher(&publisher).unwrap();
-    participant.delete_subscriber(&subscriber).unwrap();
-    participant.delete_topic(&topic).unwrap();
-    THE_PARTICIPANT_FACTORY
-        .delete_participant(&participant)
-        .unwrap();
+    assert_eq!(status.total_count, 1);
+    assert_eq!(status.total_count_change, 1);
+    assert_eq!(
+        status.last_reason,
+        SampleRejectedStatusKind::RejectedBySamplesLimit
+    );
 }
 
 #[test]
 fn subscription_matched_listener() {
-    mock! {
-        SubscriptionMatchedListener{}
+    struct SubscriptionMatchedListener {
+        sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
+    }
 
-        impl DomainParticipantListener for SubscriptionMatchedListener {
-            fn on_subscription_matched(
-                &mut self,
-                _the_reader: &dyn AnyDataReader,
-                _status: SubscriptionMatchedStatus,
-            );
+    impl DomainParticipantListener for SubscriptionMatchedListener {
+        fn on_subscription_matched(
+            &mut self,
+            _the_reader: &dyn AnyDataReader,
+            status: SubscriptionMatchedStatus,
+        ) {
+            self.sender.send(status).unwrap();
         }
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let mut participant_listener = MockSubscriptionMatchedListener::new();
-    participant_listener
-        .expect_on_subscription_matched()
-        .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
-        .return_const(());
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let participant_listener = SubscriptionMatchedListener { sender };
+
     let participant = participant_factory
         .create_participant(
             domain_id,
@@ -330,7 +295,7 @@ fn subscription_matched_listener() {
         },
         ..Default::default()
     };
-    let writer = publisher
+    let _writer = publisher
         .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
@@ -350,47 +315,39 @@ fn subscription_matched_listener() {
         ..Default::default()
     };
 
-    let reader = subscriber
+    let _reader = subscriber
         .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(1));
-
-    // Delete all entities to make sure listeners are dropped and missed functions
-    // calls are detected by the mocking framework
-    subscriber.delete_datareader(&reader).unwrap();
-    publisher.delete_datawriter(&writer).unwrap();
-    participant.delete_publisher(&publisher).unwrap();
-    participant.delete_subscriber(&subscriber).unwrap();
-    participant.delete_topic(&topic).unwrap();
-    THE_PARTICIPANT_FACTORY
-        .delete_participant(&participant)
+    let status = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
+    assert_eq!(status.total_count, 1);
+    assert_eq!(status.total_count_change, 1);
 }
 
 #[test]
 fn requested_incompatible_qos_listener() {
-    mock! {
-        RequestedIncompatibleQosListener{}
+    struct RequestedIncompatibleQosListener {
+        sender: std::sync::mpsc::SyncSender<RequestedIncompatibleQosStatus>,
+    }
 
-        impl DomainParticipantListener for RequestedIncompatibleQosListener {
-            fn on_requested_incompatible_qos(
-                &mut self,
-                _the_reader: &dyn AnyDataReader,
-                _status: RequestedIncompatibleQosStatus,
-            );
+    impl DomainParticipantListener for RequestedIncompatibleQosListener {
+        fn on_requested_incompatible_qos(
+            &mut self,
+            _the_reader: &dyn AnyDataReader,
+            status: RequestedIncompatibleQosStatus,
+        ) {
+            self.sender.send(status).unwrap();
         }
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let mut participant_listener = MockRequestedIncompatibleQosListener::new();
-    participant_listener
-        .expect_on_requested_incompatible_qos()
-        .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
-        .return_const(());
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let participant_listener = RequestedIncompatibleQosListener { sender };
+
     let participant = participant_factory
         .create_participant(
             domain_id,
@@ -423,7 +380,7 @@ fn requested_incompatible_qos_listener() {
         },
         ..Default::default()
     };
-    let writer = publisher
+    let _writer = publisher
         .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
@@ -443,54 +400,39 @@ fn requested_incompatible_qos_listener() {
         ..Default::default()
     };
 
-    let reader = subscriber
+    let _reader = subscriber
         .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
-    let cond = reader.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::RequestedIncompatibleQos])
+    let status = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    // Delete all entities to make sure listeners are dropped and missed functions
-    // calls are detected by the mocking framework
-    subscriber.delete_datareader(&reader).unwrap();
-    publisher.delete_datawriter(&writer).unwrap();
-    participant.delete_publisher(&publisher).unwrap();
-    participant.delete_subscriber(&subscriber).unwrap();
-    participant.delete_topic(&topic).unwrap();
-    THE_PARTICIPANT_FACTORY
-        .delete_participant(&participant)
-        .unwrap();
+    assert_eq!(status.total_count, 1);
+    assert_eq!(status.total_count_change, 1);
 }
 
 #[test]
 fn publication_matched_listener() {
-    mock! {
-        PublicationMatchedListener{}
+    struct PublicationMatchedListener {
+        sender: std::sync::mpsc::SyncSender<PublicationMatchedStatus>,
+    }
 
-        impl DomainParticipantListener for PublicationMatchedListener {
-            fn on_publication_matched(
-                &mut self,
-                _the_reader: &dyn AnyDataWriter,
-                _status: PublicationMatchedStatus,
-            );
+    impl DomainParticipantListener for PublicationMatchedListener {
+        fn on_publication_matched(
+            &mut self,
+            _the_reader: &dyn AnyDataWriter,
+            status: PublicationMatchedStatus,
+        ) {
+            self.sender.send(status).unwrap();
         }
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let mut participant_listener = MockPublicationMatchedListener::new();
-    participant_listener
-        .expect_on_publication_matched()
-        .once()
-        .return_const(());
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let participant_listener = PublicationMatchedListener { sender };
+
     let participant = participant_factory
         .create_participant(
             domain_id,
@@ -525,7 +467,7 @@ fn publication_matched_listener() {
         ..Default::default()
     };
 
-    let reader = subscriber
+    let _reader = subscriber
         .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -544,51 +486,39 @@ fn publication_matched_listener() {
         ..Default::default()
     };
 
-    let writer = publisher
+    let _writer = publisher
         .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    let status = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
-
-    std::thread::sleep(std::time::Duration::from_secs(1));
-
-    // Delete all entities to make sure listeners are dropped and missed functions
-    // calls are detected by the mocking framework
-    subscriber.delete_datareader(&reader).unwrap();
-    publisher.delete_datawriter(&writer).unwrap();
-    participant.delete_publisher(&publisher).unwrap();
-    participant.delete_subscriber(&subscriber).unwrap();
-    participant.delete_topic(&topic).unwrap();
-    THE_PARTICIPANT_FACTORY
-        .delete_participant(&participant)
-        .unwrap();
+    assert_eq!(status.total_count, 1);
+    assert_eq!(status.total_count_change, 1);
 }
 
 #[test]
 fn offered_incompatible_qos_listener() {
-    mock! {
-        OfferedIncompatibleQosListener{}
+    struct OfferedIncompatibleQosListener {
+        sender: std::sync::mpsc::SyncSender<OfferedIncompatibleQosStatus>,
+    }
 
-        impl DomainParticipantListener for OfferedIncompatibleQosListener {
-            fn on_offered_incompatible_qos(
-                &mut self,
-                _the_reader: &dyn AnyDataWriter,
-                _status: OfferedIncompatibleQosStatus,
-            );
+    impl DomainParticipantListener for OfferedIncompatibleQosListener {
+        fn on_offered_incompatible_qos(
+            &mut self,
+            _the_reader: &dyn AnyDataWriter,
+            status: OfferedIncompatibleQosStatus,
+        ) {
+            self.sender.send(status).unwrap();
         }
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let mut participant_listener = MockOfferedIncompatibleQosListener::new();
-    participant_listener
-        .expect_on_offered_incompatible_qos()
-        .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
-        .return_const(());
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let participant_listener = OfferedIncompatibleQosListener { sender };
+
     let participant = participant_factory
         .create_participant(
             domain_id,
@@ -623,7 +553,7 @@ fn offered_incompatible_qos_listener() {
         ..Default::default()
     };
 
-    let reader = subscriber
+    let _reader = subscriber
         .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -642,42 +572,26 @@ fn offered_incompatible_qos_listener() {
         ..Default::default()
     };
 
-    let writer = publisher
+    let _writer = publisher
         .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::OfferedIncompatibleQos])
+    let status = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    // Delete all entities to make sure listeners are dropped and missed functions
-    // calls are detected by the mocking framework
-    subscriber.delete_datareader(&reader).unwrap();
-    publisher.delete_datawriter(&writer).unwrap();
-    participant.delete_publisher(&publisher).unwrap();
-    participant.delete_subscriber(&subscriber).unwrap();
-    participant.delete_topic(&topic).unwrap();
-    THE_PARTICIPANT_FACTORY
-        .delete_participant(&participant)
-        .unwrap();
+    assert_eq!(status.total_count, 1);
+    assert_eq!(status.total_count_change, 1);
 }
 
 #[test]
 fn on_data_available_listener() {
-    mock! {
-        DataAvailableListener{}
+    struct DataAvailableListener {
+        sender: std::sync::mpsc::SyncSender<()>,
+    }
 
-        impl DataReaderListener<MyData> for DataAvailableListener {
-            fn on_data_available(
-                &mut self,
-                _the_reader: &DataReader<MyData>,
-            );
+    impl DataReaderListener<MyData> for DataAvailableListener {
+        fn on_data_available(&mut self, _the_reader: &DataReader<MyData>) {
+            self.sender.send(()).unwrap();
         }
     }
 
@@ -717,11 +631,8 @@ fn on_data_available_listener() {
         },
         ..Default::default()
     };
-    let mut reader_listener = MockDataAvailableListener::new();
-    reader_listener
-        .expect_on_data_available()
-        .times(1..)
-        .return_const(());
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let reader_listener = DataAvailableListener { sender };
 
     let reader = subscriber
         .create_datareader(
@@ -754,29 +665,21 @@ fn on_data_available_listener() {
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();
 
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    // Delete all entities to make sure listeners are dropped and missed functions
-    // calls are detected by the mocking framework
-    subscriber.delete_datareader(&reader).unwrap();
-    publisher.delete_datawriter(&writer).unwrap();
-    participant.delete_publisher(&publisher).unwrap();
-    participant.delete_subscriber(&subscriber).unwrap();
-    participant.delete_topic(&topic).unwrap();
-    THE_PARTICIPANT_FACTORY
-        .delete_participant(&participant)
-        .unwrap();
+    assert!(receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .is_ok());
 }
 
 #[test]
 fn data_on_readers_listener() {
-    mock! {
-        DataOnReadersListener{}
+    struct DataOnReadersListener {
+        sender: std::sync::mpsc::SyncSender<()>,
+    }
 
-        impl SubscriberListener for DataOnReadersListener {
-            fn on_data_on_readers(&mut self, _the_subscriber: &Subscriber);
+    impl SubscriberListener for DataOnReadersListener {
+        fn on_data_on_readers(&mut self, _the_subscriber: &Subscriber) {
+            self.sender.send(()).unwrap();
         }
-
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -805,11 +708,9 @@ fn data_on_readers_listener() {
         .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let mut subscriber_listener = MockDataOnReadersListener::new();
-    subscriber_listener
-        .expect_on_data_on_readers()
-        .times(1..)
-        .return_const(());
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let subscriber_listener = DataOnReadersListener { sender };
+
     let subscriber = participant
         .create_subscriber(
             QosKind::Default,
@@ -825,7 +726,7 @@ fn data_on_readers_listener() {
         ..Default::default()
     };
 
-    let reader = subscriber
+    let _reader = subscriber
         .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
@@ -839,49 +740,33 @@ fn data_on_readers_listener() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let subscriber_cond = subscriber.get_statuscondition().unwrap();
-    subscriber_cond
-        .set_enabled_statuses(&[StatusKind::DataOnReaders])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(subscriber_cond))
-        .unwrap();
-
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();
 
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    // Delete all entities to make sure listeners are dropped and missed functions
-    // calls are detected by the mocking framework
-    subscriber.delete_datareader(&reader).unwrap();
-    publisher.delete_datawriter(&writer).unwrap();
-    participant.delete_publisher(&publisher).unwrap();
-    participant.delete_subscriber(&subscriber).unwrap();
-    participant.delete_topic(&topic).unwrap();
-    THE_PARTICIPANT_FACTORY
-        .delete_participant(&participant)
-        .unwrap();
+    assert!(receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .is_ok());
 }
 
 #[test]
 fn data_available_listener_not_called_when_data_on_readers_listener() {
-    mock! {
-        DataOnReadersListener{}
+    struct DataOnReadersListener {
+        sender: std::sync::mpsc::SyncSender<()>,
+    }
 
-        impl SubscriberListener for DataOnReadersListener {
-            fn on_data_on_readers(&mut self, _the_subscriber: &Subscriber);
+    impl SubscriberListener for DataOnReadersListener {
+        fn on_data_on_readers(&mut self, _the_subscriber: &Subscriber) {
+            self.sender.send(()).unwrap();
         }
     }
-    mock! {
-        DataAvailableListener{}
 
-        impl DataReaderListener<MyData> for DataAvailableListener {
-            fn on_data_available(
-                &mut self,
-                _the_reader: &DataReader<MyData>,
-            );
+    struct DataAvailableListener {
+        sender: std::sync::mpsc::SyncSender<()>,
+    }
+
+    impl DataReaderListener<MyData> for DataAvailableListener {
+        fn on_data_available(&mut self, _the_reader: &DataReader<MyData>) {
+            self.sender.send(()).unwrap();
         }
     }
 
@@ -911,11 +796,9 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let mut subscriber_listener = MockDataOnReadersListener::new();
-    subscriber_listener
-        .expect_on_data_on_readers()
-        .times(1..)
-        .return_const(());
+    let (sender, data_on_readers_receiver) = std::sync::mpsc::sync_channel(1);
+    let subscriber_listener = DataOnReadersListener { sender };
+
     let subscriber = participant
         .create_subscriber(
             QosKind::Default,
@@ -931,10 +814,10 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         ..Default::default()
     };
 
-    let mut reader_listener = MockDataAvailableListener::new();
-    reader_listener.expect_on_data_available().never();
+    let (sender, data_available_receiver) = std::sync::mpsc::sync_channel(1);
+    let reader_listener = DataAvailableListener { sender };
 
-    let reader = subscriber
+    let _reader = subscriber
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
@@ -953,30 +836,13 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let subscriber_cond = subscriber.get_statuscondition().unwrap();
-    subscriber_cond
-        .set_enabled_statuses(&[StatusKind::DataOnReaders])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(subscriber_cond))
-        .unwrap();
-
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();
 
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    // Delete all entities to make sure listeners are dropped and missed functions
-    // calls are detected by the mocking framework
-    subscriber.delete_datareader(&reader).unwrap();
-    publisher.delete_datawriter(&writer).unwrap();
-    participant.delete_publisher(&publisher).unwrap();
-    participant.delete_subscriber(&subscriber).unwrap();
-    participant.delete_topic(&topic).unwrap();
-    THE_PARTICIPANT_FACTORY
-        .delete_participant(&participant)
-        .unwrap();
+    assert!(data_on_readers_receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .is_ok());
+    assert!(data_available_receiver.try_recv().is_err());
 }
 
 #[test]
