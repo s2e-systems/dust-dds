@@ -677,7 +677,7 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(1600, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data_writer2 = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
@@ -691,7 +691,7 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
         .attach_condition(Condition::StatusCondition(dw2_cond))
         .unwrap();
 
-    assert!(wait_set2.wait(Duration::new(500, 0)).is_ok());
+    assert!(wait_set2.wait(Duration::new(5, 0)).is_ok());
 }
 
 #[test]
