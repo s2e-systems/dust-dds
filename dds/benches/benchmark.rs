@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
@@ -19,7 +21,7 @@ use dust_dds::{
 struct KeyedData {
     #[key]
     id: u8,
-    value: u8,
+    value: u64,
 }
 
 pub fn best_effort_write_only(c: &mut Criterion) {
@@ -60,7 +62,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
     });
 }
 
-pub fn best_effort_read_only(c: &mut Criterion) {
+pub fn best_effort_read_only_with_single_write(c: &mut Criterion) {
     let domain_id = 201;
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -175,10 +177,70 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     });
 }
 
+pub fn best_effort_read_only_with_continuous_write(c: &mut Criterion) {
+    const WRITING_LOOP_RATE: std::time::Duration = std::time::Duration::from_micros(20);
+    let domain_id = 203;
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut value = 1;
+    let cancel_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let cancel_flag_clone = cancel_flag.clone();
+    let write_thread = std::thread::spawn(move || {
+        while cancel_flag_clone.load(std::sync::atomic::Ordering::Relaxed) == false {
+            let start_time = std::time::Instant::now();
+            writer.write(&KeyedData { id: 1, value }, None).unwrap();
+            value = value.wrapping_add(1);
+            let elapsed_time = start_time.elapsed();
+            std::thread::sleep(WRITING_LOOP_RATE - elapsed_time);
+        }
+    });
+
+    c.bench_function("best_effort_read_only_with_continuous_write", |b| {
+        b.iter(|| {
+            reader
+                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                .ok();
+        })
+    });
+
+    cancel_flag.store(true, std::sync::atomic::Ordering::Relaxed);
+    write_thread
+        .join()
+        .expect("Failed to join thread. Couldn't keep up with writing rate.")
+}
+
 criterion_group!(
     benches,
     best_effort_write_only,
-    best_effort_read_only,
+    best_effort_read_only_with_single_write,
+    best_effort_read_only_with_continuous_write,
     best_effort_write_and_receive
 );
 criterion_main!(benches);
