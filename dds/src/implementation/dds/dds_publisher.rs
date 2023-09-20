@@ -15,7 +15,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{
-            actor_command_interface, actor_mailbox_interface, spawn_actor, Actor, ActorAddress,
+            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
         },
     },
     infrastructure::{
@@ -27,7 +27,10 @@ use crate::{
     },
 };
 
-use super::{dds_data_writer::DdsDataWriter, dds_publisher_listener::DdsPublisherListener};
+use super::{
+    dds_data_writer::{self, DdsDataWriter},
+    dds_publisher_listener::DdsPublisherListener,
+};
 
 pub struct DdsPublisher {
     qos: PublisherQos,
@@ -159,15 +162,6 @@ impl DdsPublisher {
         self.data_writer_list.remove(&handle);
     }
 
-    pub fn data_writer_list(
-        &self,
-    ) -> Vec<ActorAddress<DdsDataWriter>> {
-        self.data_writer_list
-            .values()
-            .map(|x| x.address().clone())
-            .collect()
-    }
-
     pub fn set_default_datawriter_qos(&mut self, qos: DataWriterQos) {
         self.default_datawriter_qos = qos;
     }
@@ -191,10 +185,6 @@ impl DdsPublisher {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> PublisherQos {
-        self.qos.clone()
-    }
-
     pub fn guid(&self) -> Guid {
         self.rtps_group.guid()
     }
@@ -202,38 +192,128 @@ impl DdsPublisher {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
+}
+}
 
-    pub fn get_listener(&self) -> Option<ActorAddress<DdsPublisherListener>> {
-        self.listener.as_ref().map(|l| l.address().clone())
-    }
+pub struct GetStatusKind;
 
-    pub fn status_kind(&self) -> Vec<StatusKind> {
+impl Mail for GetStatusKind {
+    type Result = Vec<StatusKind>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetStatusKind> for DdsPublisher {
+    async fn handle(&mut self, _mail: GetStatusKind) -> <GetStatusKind as Mail>::Result {
         self.status_kind.clone()
     }
 }
+
+pub struct GetListener;
+
+impl Mail for GetListener {
+    type Result = Option<ActorAddress<DdsPublisherListener>>;
 }
 
-actor_command_interface! {
-impl DdsPublisher {
-    pub fn process_rtps_message(&self, message: RtpsMessageRead) {
+#[async_trait::async_trait]
+impl MailHandler<GetListener> for DdsPublisher {
+    async fn handle(&mut self, _mail: GetListener) -> <GetListener as Mail>::Result {
+        self.listener.as_ref().map(|l| l.address().clone())
+    }
+}
+
+pub struct GetQos;
+
+impl Mail for GetQos {
+    type Result = PublisherQos;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetQos> for DdsPublisher {
+    async fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
+        self.qos.clone()
+    }
+}
+
+pub struct DataWriterList;
+
+impl Mail for DataWriterList {
+    type Result = Vec<ActorAddress<DdsDataWriter>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<DataWriterList> for DdsPublisher {
+    async fn handle(&mut self, _mail: DataWriterList) -> <DataWriterList as Mail>::Result {
+        self.data_writer_list
+            .values()
+            .map(|x| x.address().clone())
+            .collect()
+    }
+}
+
+pub struct ProcessRtpsMessage {
+    message: RtpsMessageRead,
+}
+
+impl ProcessRtpsMessage {
+    pub fn new(message: RtpsMessageRead) -> Self {
+        Self { message }
+    }
+}
+
+impl Mail for ProcessRtpsMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ProcessRtpsMessage> for DdsPublisher {
+    async fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
         for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
             data_writer_address
-                .process_rtps_message(message.clone())
+                .send_only(dds_data_writer::ProcessRtpsMessage::new(
+                    mail.message.clone(),
+                ))
+                .await
                 .expect("Should not fail to send command");
         }
     }
+}
 
-    pub fn send_message(
-        &self,
+pub struct SendMessage {
+    header: RtpsMessageHeader,
+    udp_transport_write: ActorAddress<UdpTransportWrite>,
+    now: Time,
+}
+
+impl SendMessage {
+    pub fn new(
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
         now: Time,
-    ) {
-        for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
-            data_writer_address
-                .send_message(header, udp_transport_write.clone(), now)
-                .expect("Should not fail to send command");
+    ) -> Self {
+        Self {
+            header,
+            udp_transport_write,
+            now,
         }
     }
 }
+
+impl Mail for SendMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<SendMessage> for DdsPublisher {
+    async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+        for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
+            data_writer_address
+                .send_only(dds_data_writer::SendMessage::new(
+                    mail.header,
+                    mail.udp_transport_write.clone(),
+                    mail.now,
+                ))
+                .await
+                .expect("Should not fail to send command");
+        }
+    }
 }

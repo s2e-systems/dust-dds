@@ -2,7 +2,12 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        dds::{dds_domain_participant::DdsDomainParticipant, nodes::TopicNodeKind},
+        dds::{
+            dds_data_writer,
+            dds_domain_participant::{self, DdsDomainParticipant},
+            dds_publisher, dds_topic,
+            nodes::TopicNodeKind,
+        },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::ActorAddress,
     },
@@ -61,7 +66,9 @@ impl Topic {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         match &self.node {
-            TopicNodeKind::UserDefined(t) => t.address().get_inconsistent_topic_status(),
+            TopicNodeKind::UserDefined(t) => t
+                .address()
+                .send_and_reply_blocking(dds_topic::GetInconsistentTopicStatus)?,
         }
     }
 }
@@ -232,30 +239,40 @@ fn announce_topic(
     discovered_topic_data: DiscoveredTopicData,
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(&discovered_topic_data)?;
-    let timestamp = domain_participant.get_current_time()?;
+    let timestamp =
+        domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+    let builtin_publisher =
+        domain_participant.send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+    let data_writer_list =
+        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+    for data_writer in data_writer_list {
+        if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+            == Ok("DiscoveredTopicData".to_string())
+        {
+            data_writer.send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
+                serialized_data,
+                dds_serialize_key_to_bytes(&discovered_topic_data)?,
+                None,
+                timestamp,
+            ))??;
 
-    if let Some(sedp_topic_announcer) = domain_participant
-        .get_builtin_publisher()?
-        .data_writer_list()?
-        .iter()
-        .find(|x| x.get_type_name().unwrap() == "DiscoveredTopicData")
-    {
-        sedp_topic_announcer.write_w_timestamp(
-            serialized_data,
-            dds_serialize_key_to_bytes(&discovered_topic_data)?,
-            None,
-            timestamp,
-        )??;
-
-        sedp_topic_announcer.send_message(
-            RtpsMessageHeader::new(
-                domain_participant.get_protocol_version()?,
-                domain_participant.get_vendor_id()?,
-                domain_participant.get_guid()?.prefix(),
-            ),
-            domain_participant.get_udp_transport_write()?,
-            domain_participant.get_current_time()?,
-        )?;
+            data_writer.send_only_blocking(dds_data_writer::SendMessage::new(
+                RtpsMessageHeader::new(
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                        .prefix(),
+                ),
+                domain_participant
+                    .send_and_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
+                domain_participant
+                    .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+            ))?;
+            break;
+        }
     }
 
     Ok(())

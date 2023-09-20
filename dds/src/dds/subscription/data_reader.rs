@@ -2,7 +2,9 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         dds::{
-            dds_domain_participant::DdsDomainParticipant,
+            dds_data_reader, dds_data_writer,
+            dds_domain_participant::{self, DdsDomainParticipant},
+            dds_publisher, dds_subscriber,
             nodes::{DataReaderNodeKind, TopicNode, TopicNodeKind},
         },
         rtps::messages::{overall_structure::RtpsMessageHeader, submessage_elements::Data},
@@ -179,13 +181,15 @@ impl<Foo> DataReader<Foo> {
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().read(
-                    max_samples,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                    None,
-                )??;
+                let samples =
+                    dr.address()
+                        .send_and_reply_blocking(dds_data_reader::Read::new(
+                            max_samples,
+                            sample_states.to_vec(),
+                            view_states.to_vec(),
+                            instance_states.to_vec(),
+                            None,
+                        ))??;
 
                 Ok(samples
                     .into_iter()
@@ -210,13 +214,15 @@ impl<Foo> DataReader<Foo> {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().take(
-                    max_samples,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                    None,
-                )??;
+                let samples =
+                    dr.address()
+                        .send_and_reply_blocking(dds_data_reader::Take::new(
+                            max_samples,
+                            sample_states.to_vec(),
+                            view_states.to_vec(),
+                            instance_states.to_vec(),
+                            None,
+                        ))??;
 
                 Ok(samples
                     .into_iter()
@@ -238,13 +244,16 @@ impl<Foo> DataReader<Foo> {
             DataReaderNodeKind::_BuiltinStateful(dr)
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr.address().read(
-                1,
-                vec![SampleStateKind::NotRead],
-                ANY_VIEW_STATE.to_vec(),
-                ANY_INSTANCE_STATE.to_vec(),
-                None,
-            )??,
+            | DataReaderNodeKind::Listener(dr) => {
+                dr.address()
+                    .send_and_reply_blocking(dds_data_reader::Read::new(
+                        1,
+                        vec![SampleStateKind::NotRead],
+                        ANY_VIEW_STATE.to_vec(),
+                        ANY_INSTANCE_STATE.to_vec(),
+                        None,
+                    ))??
+            }
         };
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
@@ -263,13 +272,15 @@ impl<Foo> DataReader<Foo> {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let mut samples = dr.address().take(
-                    1,
-                    vec![SampleStateKind::NotRead],
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )??;
+                let mut samples =
+                    dr.address()
+                        .send_and_reply_blocking(dds_data_reader::Take::new(
+                            1,
+                            vec![SampleStateKind::NotRead],
+                            ANY_VIEW_STATE.to_vec(),
+                            ANY_INSTANCE_STATE.to_vec(),
+                            None,
+                        ))??;
                 let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
                 Ok(Sample::new(data, sample_info))
             }
@@ -297,13 +308,15 @@ impl<Foo> DataReader<Foo> {
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().read(
-                    max_samples,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                    Some(a_handle),
-                )??;
+                let samples =
+                    dr.address()
+                        .send_and_reply_blocking(dds_data_reader::Read::new(
+                            max_samples,
+                            sample_states.to_vec(),
+                            view_states.to_vec(),
+                            instance_states.to_vec(),
+                            Some(a_handle),
+                        ))??;
                 Ok(samples
                     .into_iter()
                     .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -333,13 +346,15 @@ impl<Foo> DataReader<Foo> {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().take(
-                    max_samples,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                    Some(a_handle),
-                )??;
+                let samples =
+                    dr.address()
+                        .send_and_reply_blocking(dds_data_reader::Take::new(
+                            max_samples,
+                            sample_states.to_vec(),
+                            view_states.to_vec(),
+                            instance_states.to_vec(),
+                            Some(a_handle),
+                        ))??;
                 Ok(samples
                     .into_iter()
                     .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -384,12 +399,14 @@ impl<Foo> DataReader<Foo> {
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
             | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().read_next_instance(
-                    max_samples,
-                    previous_handle,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
+                let samples = dr.address().send_and_reply_blocking(
+                    dds_data_reader::ReadNextInstance::new(
+                        max_samples,
+                        previous_handle,
+                        sample_states.to_vec(),
+                        view_states.to_vec(),
+                        instance_states.to_vec(),
+                    ),
                 )??;
                 Ok(samples
                     .into_iter()
@@ -415,12 +432,14 @@ impl<Foo> DataReader<Foo> {
                 Err(DdsError::IllegalOperation)
             }
             DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().take_next_instance(
-                    max_samples,
-                    previous_handle,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
+                let samples = dr.address().send_and_reply_blocking(
+                    dds_data_reader::TakeNextInstance::new(
+                        max_samples,
+                        previous_handle,
+                        sample_states.to_vec(),
+                        view_states.to_vec(),
+                        instance_states.to_vec(),
+                    ),
                 )??;
                 Ok(samples
                     .into_iter()
@@ -616,7 +635,9 @@ impl<Foo> DataReader<Foo> {
             DataReaderNodeKind::_BuiltinStateful(dr)
             | DataReaderNodeKind::_BuiltinStateless(dr)
             | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr.address().get_subscription_matched_status(),
+            | DataReaderNodeKind::Listener(dr) => dr
+                .address()
+                .send_and_reply_blocking(dds_data_reader::GetSubscriptionMatchedStatus)?,
         }
     }
 
@@ -754,7 +775,8 @@ impl<Foo> DataReader<Foo> {
                         dr.parent_participant(),
                         dr.address().as_discovered_reader_data(
                             TopicQos::default(),
-                            dr.parent_subscriber().get_qos()?,
+                            dr.parent_subscriber()
+                                .send_and_reply_blocking(dds_subscriber::GetQos)?,
                             dr.parent_participant().get_default_unicast_locator_list()?,
                             dr.parent_participant()
                                 .get_default_multicast_locator_list()?,
@@ -845,7 +867,8 @@ impl<Foo> DataReader<Foo> {
                     r.parent_participant(),
                     r.address().as_discovered_reader_data(
                         TopicQos::default(),
-                        r.parent_subscriber().get_qos()?,
+                        r.parent_subscriber()
+                            .send_and_reply_blocking(dds_subscriber::GetQos)?,
                         r.parent_participant().get_default_unicast_locator_list()?,
                         r.parent_participant()
                             .get_default_multicast_locator_list()?,
@@ -907,30 +930,41 @@ fn announce_data_reader(
     discovered_reader_data: DiscoveredReaderData,
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(&discovered_reader_data)?;
-    let timestamp = domain_participant.get_current_time()?;
+    let timestamp =
+        domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
-    if let Some(sedp_reader_announcer) = domain_participant
-        .get_builtin_publisher()?
-        .data_writer_list()?
-        .iter()
-        .find(|x| x.get_type_name().unwrap() == "DiscoveredReaderData")
-    {
-        sedp_reader_announcer.write_w_timestamp(
-            serialized_data,
-            dds_serialize_key(&discovered_reader_data)?,
-            None,
-            timestamp,
-        )??;
+    let builtin_publisher =
+        domain_participant.send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+    let data_writer_list =
+        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+    for dw in data_writer_list {
+        if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
+            == Ok("DiscoveredReaderData".to_string())
+        {
+            dw.send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
+                serialized_data,
+                dds_serialize_key(&discovered_reader_data)?,
+                None,
+                timestamp,
+            ))??;
 
-        sedp_reader_announcer.send_message(
-            RtpsMessageHeader::new(
-                domain_participant.get_protocol_version()?,
-                domain_participant.get_vendor_id()?,
-                domain_participant.get_guid()?.prefix(),
-            ),
-            domain_participant.get_udp_transport_write()?,
-            domain_participant.get_current_time()?,
-        )?;
+            dw.send_only_blocking(dds_data_writer::SendMessage::new(
+                RtpsMessageHeader::new(
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                        .prefix(),
+                ),
+                domain_participant
+                    .send_and_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
+                domain_participant
+                    .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+            ))?;
+            break;
+        }
     }
 
     Ok(())

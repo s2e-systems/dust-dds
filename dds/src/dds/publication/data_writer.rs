@@ -5,7 +5,9 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::{
-            dds_domain_participant::DdsDomainParticipant,
+            dds_data_writer,
+            dds_domain_participant::{self, DdsDomainParticipant},
+            dds_publisher,
             nodes::{DataWriterNodeKind, PublisherNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
@@ -87,9 +89,9 @@ where
     /// and specify no [`InstanceHandle`] to indicate that the *key* should be examined to identify the instance.
     pub fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let timestamp = match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.parent_participant().get_current_time()?
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .parent_participant()
+                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
         };
         self.register_instance_w_timestamp(instance, timestamp)
     }
@@ -143,9 +145,9 @@ where
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
         let timestamp = match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.parent_participant().get_current_time()?
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .parent_participant()
+                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
         };
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
@@ -261,9 +263,9 @@ where
     /// chance of freeing the necessary resources. For example, if the only way to gain the necessary resources would be for the user to unregister an instance.
     pub fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.parent_participant().get_current_time()?
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .parent_participant()
+                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
         };
         self.write_w_timestamp(data, handle, timestamp)
     }
@@ -283,22 +285,32 @@ where
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.address().write_w_timestamp(
-                    serialized_data,
-                    dds_serialize_key(data)?,
-                    handle,
-                    timestamp,
-                )??;
+                dw.address()
+                    .send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
+                        serialized_data,
+                        dds_serialize_key(data)?,
+                        handle,
+                        timestamp,
+                    ))??;
 
-                dw.address().send_message(
-                    RtpsMessageHeader::new(
-                        dw.parent_participant().get_protocol_version()?,
-                        dw.parent_participant().get_vendor_id()?,
-                        dw.parent_participant().get_guid()?.prefix(),
-                    ),
-                    dw.parent_participant().get_udp_transport_write()?,
-                    dw.parent_participant().get_current_time()?,
-                )?;
+                dw.address()
+                    .send_only_blocking(dds_data_writer::SendMessage::new(
+                        RtpsMessageHeader::new(
+                            dw.parent_participant().send_and_reply_blocking(
+                                dds_domain_participant::GetProtocolVersion,
+                            )?,
+                            dw.parent_participant()
+                                .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                            dw.parent_participant()
+                                .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                                .prefix(),
+                        ),
+                        dw.parent_participant().send_and_reply_blocking(
+                            dds_domain_participant::GetUdpTransportWrite,
+                        )?,
+                        dw.parent_participant()
+                            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+                    ))?;
 
                 Ok(())
             }
@@ -319,9 +331,9 @@ where
     /// [`DdsError::OutOfResources`](crate::infrastructure::error::DdsError) under the same circumstances described for [`DataWriter::write`].
     pub fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.parent_participant().get_current_time()?
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .parent_participant()
+                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
         };
         self.dispose_w_timestamp(data, handle, timestamp)
     }
@@ -477,9 +489,9 @@ impl<Foo> DataWriter<Foo> {
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => {
-                dw.address().get_publication_matched_status()
-            }
+            DataWriterNodeKind::UserDefined(dw) | DataWriterNodeKind::Listener(dw) => dw
+                .address()
+                .send_and_reply_blocking(dds_data_writer::GetPublicationMatchedStatus)?,
         }
     }
 
@@ -585,7 +597,8 @@ where
                         dw.parent_participant(),
                         &dw.address().as_discovered_writer_data(
                             TopicQos::default(),
-                            dw.parent_publisher().get_qos()?,
+                            dw.parent_publisher()
+                                .send_and_reply_blocking(dds_publisher::GetQos)?,
                             dw.parent_participant().get_default_unicast_locator_list()?,
                             dw.parent_participant()
                                 .get_default_multicast_locator_list()?,
@@ -694,7 +707,8 @@ where
                         w.parent_participant(),
                         &w.address().as_discovered_writer_data(
                             TopicQos::default(),
-                            w.parent_publisher().get_qos()?,
+                            w.parent_publisher()
+                                .send_and_reply_blocking(dds_publisher::GetQos)?,
                             w.parent_participant().get_default_unicast_locator_list()?,
                             w.parent_participant()
                                 .get_default_multicast_locator_list()?,
@@ -725,30 +739,42 @@ fn announce_data_writer(
     discovered_writer_data: &DiscoveredWriterData,
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(discovered_writer_data)?;
-    let timestamp = domain_participant.get_current_time()?;
+    let timestamp =
+        domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
-    if let Some(sedp_writer_announcer) = domain_participant
-        .get_builtin_publisher()?
-        .data_writer_list()?
-        .iter()
-        .find(|x| x.get_type_name().unwrap() == "DiscoveredWriterData")
-    {
-        sedp_writer_announcer.write_w_timestamp(
-            serialized_data,
-            dds_serialize_key(discovered_writer_data)?,
-            None,
-            timestamp,
-        )??;
+    let builtin_publisher =
+        domain_participant.send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+    let data_writer_list =
+        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
 
-        sedp_writer_announcer.send_message(
-            RtpsMessageHeader::new(
-                domain_participant.get_protocol_version()?,
-                domain_participant.get_vendor_id()?,
-                domain_participant.get_guid()?.prefix(),
-            ),
-            domain_participant.get_udp_transport_write()?,
-            domain_participant.get_current_time()?,
-        )?;
+    for dw in data_writer_list {
+        if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
+            == Ok("DiscoveredWriterData".to_string())
+        {
+            dw.send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
+                serialized_data,
+                dds_serialize_key(discovered_writer_data)?,
+                None,
+                timestamp,
+            ))??;
+
+            dw.send_only_blocking(dds_data_writer::SendMessage::new(
+                RtpsMessageHeader::new(
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                    domain_participant
+                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                        .prefix(),
+                ),
+                domain_participant
+                    .send_and_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
+                domain_participant
+                    .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+            ))?;
+            break;
+        }
     }
 
     Ok(())

@@ -4,6 +4,7 @@ use crate::{
         dds::{
             dds_data_reader::DdsDataReader,
             dds_data_reader_listener::DdsDataReaderListener,
+            dds_data_writer, dds_domain_participant, dds_publisher, dds_subscriber,
             nodes::{DataReaderNode, DataReaderNodeKind, SubscriberNodeKind},
         },
         rtps::{
@@ -173,7 +174,7 @@ impl Subscriber {
 
                 if s.address().is_enabled()?
                     && s.address()
-                        .get_qos()?
+                        .send_and_reply_blocking(dds_subscriber::GetQos)?
                         .entity_factory
                         .autoenable_created_entities
                 {
@@ -215,30 +216,48 @@ impl Subscriber {
                                 .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
                                 .expect("Failed to serialize data");
 
-                        let timestamp = dr.parent_participant().get_current_time()?;
-
-                        if let Some(sedp_reader_announcer) = dr
+                        let timestamp = dr
                             .parent_participant()
-                            .get_builtin_publisher()?
-                            .data_writer_list()?
-                            .iter()
-                            .find(|x| x.get_type_name().unwrap() == "DiscoveredReaderData")
-                        {
-                            sedp_reader_announcer.dispose_w_timestamp(
-                                instance_serialized_key,
-                                reader_handle,
-                                timestamp,
-                            )??;
+                            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
-                            sedp_reader_announcer.send_message(
-                                RtpsMessageHeader::new(
-                                    dr.parent_participant().get_protocol_version()?,
-                                    dr.parent_participant().get_vendor_id()?,
-                                    dr.parent_participant().get_guid()?.prefix(),
-                                ),
-                                dr.parent_participant().get_udp_transport_write()?,
-                                dr.parent_participant().get_current_time()?,
-                            )?;
+                        let builtin_publisher = dr
+                            .parent_participant()
+                            .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+                        let data_writer_list = builtin_publisher
+                            .send_and_reply_blocking(dds_publisher::DataWriterList)?;
+                        for dw in data_writer_list {
+                            if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                                == Ok("DiscoveredReaderData".to_string())
+                            {
+                                dw.dispose_w_timestamp(
+                                    instance_serialized_key,
+                                    reader_handle,
+                                    timestamp,
+                                )??;
+
+                                dw.send_only_blocking(dds_data_writer::SendMessage::new(
+                                    RtpsMessageHeader::new(
+                                        dr.parent_participant().send_and_reply_blocking(
+                                            dds_domain_participant::GetProtocolVersion,
+                                        )?,
+                                        dr.parent_participant().send_and_reply_blocking(
+                                            dds_domain_participant::GetVendorId,
+                                        )?,
+                                        dr.parent_participant()
+                                            .send_and_reply_blocking(
+                                                dds_domain_participant::GetGuid,
+                                            )?
+                                            .prefix(),
+                                    ),
+                                    dr.parent_participant().send_and_reply_blocking(
+                                        dds_domain_participant::GetUdpTransportWrite,
+                                    )?,
+                                    dr.parent_participant().send_and_reply_blocking(
+                                        dds_domain_participant::GetCurrentTime,
+                                    )?,
+                                ))?;
+                                break;
+                            }
                         }
                     }
 
@@ -416,7 +435,9 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
             | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::Listener(s) => s.address().get_qos(),
+            | SubscriberNodeKind::Listener(s) => {
+                s.address().send_and_reply_blocking(dds_subscriber::GetQos)
+            }
         }
     }
 
@@ -499,11 +520,14 @@ impl Subscriber {
                     s.address().enable()?;
 
                     if s.address()
-                        .get_qos()?
+                        .send_and_reply_blocking(dds_subscriber::GetQos)?
                         .entity_factory
                         .autoenable_created_entities
                     {
-                        for data_reader in s.address().data_reader_list()? {
+                        for data_reader in s
+                            .address()
+                            .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+                        {
                             data_reader.enable()?;
                         }
                     }

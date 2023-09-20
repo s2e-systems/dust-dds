@@ -3,19 +3,19 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
-        utils::{
-            actor::actor_mailbox_interface,
-            shared_object::{DdsRwLock, DdsShared},
+        utils::actor::{
+            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
         },
     },
     infrastructure::{
+        error::DdsResult,
         instance::InstanceHandle,
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
     },
 };
 
-use super::status_condition_impl::StatusConditionImpl;
+use super::dds_status_condition::{self, DdsStatusCondition};
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -37,11 +37,12 @@ pub struct DdsTopic {
     topic_name: String,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    status_condition: Actor<DdsStatusCondition>,
 }
 
 impl DdsTopic {
     pub fn new(guid: Guid, qos: TopicQos, type_name: String, topic_name: &str) -> Self {
+        let status_condition = spawn_actor(DdsStatusCondition::default());
         Self {
             guid,
             qos,
@@ -49,19 +50,24 @@ impl DdsTopic {
             topic_name: topic_name.to_string(),
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            status_condition,
         }
+    }
+
+    async fn get_inconsistent_topic_status(&mut self) -> DdsResult<InconsistentTopicStatus> {
+        let status = self.inconsistent_topic_status.read_and_reset();
+        self.status_condition
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::InconsistentTopic,
+            ))
+            .await?;
+        Ok(status)
     }
 }
 
 actor_mailbox_interface! {
 impl DdsTopic {
-    pub fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
-        let status = self.inconsistent_topic_status.read_and_reset();
-        self.status_condition.write_lock().remove_communication_state(StatusKind::InconsistentTopic);
-        status
-    }
-
     pub fn get_type_name(&self) -> String {
         self.type_name.clone()
     }
@@ -94,8 +100,8 @@ impl DdsTopic {
         self.guid.into()
     }
 
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
+    pub fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+        self.status_condition.address().clone()
     }
 
     pub fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
@@ -120,30 +126,65 @@ impl DdsTopic {
             qos.topic_data.clone(),
         ))
     }
+}
+}
 
-    pub fn process_discovered_topic(
+pub struct GetInconsistentTopicStatus;
+
+impl Mail for GetInconsistentTopicStatus {
+    type Result = DdsResult<InconsistentTopicStatus>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetInconsistentTopicStatus> for DdsTopic {
+    async fn handle(
         &mut self,
-        discovered_topic_data: DiscoveredTopicData,
-    ) {
+        _mail: GetInconsistentTopicStatus,
+    ) -> <GetInconsistentTopicStatus as Mail>::Result {
+        self.get_inconsistent_topic_status().await
+    }
+}
 
-        if discovered_topic_data
-            .topic_builtin_topic_data()
-            .get_type_name()
-            == self.get_type_name()
-            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
-            && !is_discovered_topic_consistent(&self.qos, &discovered_topic_data)
-        {
-            self.inconsistent_topic_status.increment();
-            self.status_condition.write_lock().add_communication_state(StatusKind::InconsistentTopic);
-        //     listener_sender
-        //         .try_send(ListenerTriggerKind::InconsistentTopic(TopicNode::new(
-        //             self.guid(),
-        //             parent_participant_guid,
-        //         )))
-        //         .ok();
+pub struct ProcessDiscoveredTopic {
+    discovered_topic_data: DiscoveredTopicData,
+}
+
+impl ProcessDiscoveredTopic {
+    pub fn new(discovered_topic_data: DiscoveredTopicData) -> Self {
+        Self {
+            discovered_topic_data,
         }
     }
 }
+
+impl Mail for ProcessDiscoveredTopic {
+    type Result = DdsResult<()>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ProcessDiscoveredTopic> for DdsTopic {
+    async fn handle(
+        &mut self,
+        mail: ProcessDiscoveredTopic,
+    ) -> <ProcessDiscoveredTopic as Mail>::Result {
+        if mail
+            .discovered_topic_data
+            .topic_builtin_topic_data()
+            .get_type_name()
+            == self.get_type_name()
+            && mail.discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
+            && !is_discovered_topic_consistent(&self.qos, &mail.discovered_topic_data)
+        {
+            self.inconsistent_topic_status.increment();
+            self.status_condition
+                .address()
+                .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                    StatusKind::InconsistentTopic,
+                ))
+                .await?;
+        }
+        Ok(())
+    }
 }
 
 fn is_discovered_topic_consistent(

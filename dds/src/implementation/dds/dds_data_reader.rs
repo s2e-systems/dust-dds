@@ -37,9 +37,8 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::{
-            actor::{actor_command_interface, actor_mailbox_interface, Actor, ActorAddress},
-            shared_object::{DdsRwLock, DdsShared},
+        utils::actor::{
+            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
         },
     },
     infrastructure::{
@@ -67,10 +66,14 @@ use crate::{
 };
 
 use super::{
-    dds_data_reader_listener::DdsDataReaderListener, dds_domain_participant::DdsDomainParticipant,
-    dds_domain_participant_listener::DdsDomainParticipantListener, dds_subscriber::DdsSubscriber,
-    dds_subscriber_listener::DdsSubscriberListener, message_receiver::MessageReceiver,
-    nodes::SubscriberNode, status_condition_impl::StatusConditionImpl,
+    dds_data_reader_listener::{self, DdsDataReaderListener},
+    dds_domain_participant::DdsDomainParticipant,
+    dds_domain_participant_listener::{self, DdsDomainParticipantListener},
+    dds_status_condition::{self, DdsStatusCondition},
+    dds_subscriber::DdsSubscriber,
+    dds_subscriber_listener::{self, DdsSubscriberListener},
+    message_receiver::MessageReceiver,
+    nodes::SubscriberNode,
 };
 
 struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
@@ -249,7 +252,7 @@ pub struct DdsDataReader {
     instance_reception_time: HashMap<InstanceHandle, Time>,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    status_condition: Actor<DdsStatusCondition>,
     listener: Option<Actor<DdsDataReaderListener>>,
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, Instance>,
@@ -268,6 +271,7 @@ impl DdsDataReader {
         Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
     {
         let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
+        let status_condition = spawn_actor(DdsStatusCondition::default());
 
         DdsDataReader {
             rtps_reader,
@@ -286,7 +290,7 @@ impl DdsDataReader {
             instance_reception_time: HashMap::new(),
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            status_condition,
             status_kind,
             listener,
             qos,
@@ -315,30 +319,34 @@ impl DdsDataReader {
         self.sample_rejected_status.read_and_reset()
     }
 
-    pub fn on_data_available(
+    pub async fn on_data_available(
         &self,
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
         (subscriber_listener_address, subscriber_listener_mask): &(
             Option<ActorAddress<DdsSubscriberListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         subscriber_status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::DataOnReaders);
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::DataOnReaders,
+            ))
+            .await?;
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::DataAvailable);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::DataAvailable,
+            ))
+            .await?;
         match subscriber_listener_address {
             Some(l) if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) => {
-                l.trigger_on_data_on_readers(SubscriberNode::new(
-                    subscriber_address.clone(),
-                    participant_address.clone(),
+                l.send_only(dds_subscriber_listener::TriggerOnDataOnReaders::new(
+                    SubscriberNode::new(subscriber_address.clone(), participant_address.clone()),
                 ))
-                .expect("Should not fail to send message");
+                .await?;
             }
             _ => match self.listener.as_ref().map(|a| a.address()) {
                 Some(l) if self.status_kind.contains(&StatusKind::DataAvailable) => {
@@ -347,16 +355,19 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.trigger_on_data_available(reader)
-                        .expect("Should not fail to send message");
+                    l.send_only(dds_data_reader_listener::TriggerOnDataAvailable::new(
+                        reader,
+                    ))
+                    .await?;
                 }
                 _ => (),
             },
         }
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn on_data_submessage_received(
+    pub async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead,
         source_guid_prefix: GuidPrefix,
@@ -365,13 +376,13 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
         subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
         participant_mask_listener: &(
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         if let Ok(cache_change) = self.convert_received_data_to_cache_change(
             writer_guid,
@@ -391,12 +402,14 @@ impl DdsDataReader {
                 subscriber_status_condition,
                 subscriber_mask_listener,
                 participant_mask_listener,
-            );
+            )
+            .await?;
         }
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn on_data_frag_submessage_received(
+    pub async fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessageRead,
         source_guid_prefix: GuidPrefix,
@@ -405,13 +418,13 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
         subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
         participant_mask_listener: &(
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
 
@@ -444,9 +457,11 @@ impl DdsDataReader {
                     subscriber_status_condition,
                     subscriber_mask_listener,
                     participant_mask_listener,
-                );
+                )
+                .await?;
             }
         }
+        Ok(())
     }
 
     pub fn on_heartbeat_submessage_received(
@@ -583,7 +598,7 @@ impl DdsDataReader {
         }
     }
 
-    fn on_sample_lost(
+    async fn on_sample_lost(
         &mut self,
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
@@ -596,11 +611,14 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         self.sample_lost_status.increment();
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SampleLost);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::SampleLost,
+            ))
+            .await?;
         match self.listener.as_ref().map(|a| a.address()).cloned() {
             Some(l) if self.status_kind.contains(&StatusKind::SampleLost) => {
                 let reader = DataReaderNode::new(
@@ -609,8 +627,10 @@ impl DdsDataReader {
                     participant_address.clone(),
                 );
                 let status = self.get_sample_lost_status();
-                l.trigger_on_sample_lost(reader, status)
-                    .expect("Should not fail to send command");
+                l.send_only(dds_data_reader_listener::TriggerOnSampleLost::new(
+                    reader, status,
+                ))
+                .await?;
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleLost) => {
@@ -620,8 +640,10 @@ impl DdsDataReader {
                         participant_address.clone(),
                     );
                     let status = self.get_sample_lost_status();
-                    l.trigger_on_sample_lost(reader, status)
-                        .expect("Should not fail to send command");
+                    l.send_only(dds_subscriber_listener::TriggerOnSampleLost::new(
+                        reader, status,
+                    ))
+                    .await?;
                 }
                 _ => match participant_listener_address {
                     Some(l) if participant_listener_mask.contains(&StatusKind::SampleLost) => {
@@ -631,16 +653,19 @@ impl DdsDataReader {
                             participant_address.clone(),
                         );
                         let status = self.get_sample_lost_status();
-                        l.trigger_on_sample_lost(reader, status)
-                            .expect("Should not fail to send command");
+                        l.send_only(dds_domain_participant_listener::TriggerOnSampleLost::new(
+                            reader, status,
+                        ))
+                        .await?;
                     }
                     _ => (),
                 },
             },
         }
+        Ok(())
     }
 
-    fn on_subscription_matched(
+    async fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
         data_reader_address: ActorAddress<DdsDataReader>,
@@ -654,11 +679,14 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SubscriptionMatched);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::SubscriptionMatched,
+            ))
+            .await?;
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         match self.listener.as_ref().map(|a| a.address()).cloned() {
             Some(l) if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
@@ -667,9 +695,11 @@ impl DdsDataReader {
                     subscriber_address,
                     participant_address,
                 );
-                let status = self.get_subscription_matched_status();
-                l.trigger_on_subscription_matched(reader, status)
-                    .expect("Should not fail to send command");
+                let status = self.get_subscription_matched_status().await?;
+                l.send_only(dds_data_reader_listener::TriggerOnSubscriptionMatched::new(
+                    reader, status,
+                ))
+                .await?;
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
@@ -678,9 +708,11 @@ impl DdsDataReader {
                         subscriber_address,
                         participant_address,
                     );
-                    let status = self.get_subscription_matched_status();
-                    l.trigger_on_subscription_matched(reader, status)
-                        .expect("Should not fail to send command");
+                    let status = self.get_subscription_matched_status().await?;
+                    l.send_only(dds_subscriber_listener::TriggerOnSubscriptionMatched::new(
+                        reader, status,
+                    ))
+                    .await?;
                 }
                 _ => match participant_listener_address {
                     Some(l)
@@ -691,18 +723,23 @@ impl DdsDataReader {
                             subscriber_address,
                             participant_address,
                         );
-                        let status = self.get_subscription_matched_status();
-                        l.trigger_on_subscription_matched(reader, status)
-                            .expect("Should not fail to send message");
+                        let status = self.get_subscription_matched_status().await?;
+                        l.send_only(
+                            dds_domain_participant_listener::TriggerOnSubscriptionMatched::new(
+                                reader, status,
+                            ),
+                        )
+                        .await?;
                     }
                     _ => (),
                 },
             },
         };
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn on_sample_rejected(
+    async fn on_sample_rejected(
         &mut self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
@@ -717,12 +754,15 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SampleRejected);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::SampleRejected,
+            ))
+            .await?;
         match self.listener.as_ref().map(|a| a.address()).cloned() {
             Some(l) if self.status_kind.contains(&StatusKind::SampleRejected) => {
                 let status = self.get_sample_rejected_status();
@@ -731,8 +771,10 @@ impl DdsDataReader {
                     subscriber_address.clone(),
                     participant_address.clone(),
                 );
-                l.trigger_on_sample_rejected(reader, status)
-                    .expect("Should not fail to send message");
+                l.send_only(dds_data_reader_listener::TriggerOnSampleRejected::new(
+                    reader, status,
+                ))
+                .await?;
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleRejected) => {
@@ -742,8 +784,10 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.trigger_on_sample_rejected(reader, status)
-                        .expect("Should not fail to send message");
+                    l.send_only(dds_subscriber_listener::TriggerOnSampleRejected::new(
+                        reader, status,
+                    ))
+                    .await?;
                 }
                 _ => match participant_listener_address {
                     Some(l) if participant_listener_mask.contains(&StatusKind::SampleRejected) => {
@@ -753,16 +797,21 @@ impl DdsDataReader {
                             subscriber_address.clone(),
                             participant_address.clone(),
                         );
-                        l.trigger_on_sample_rejected(reader, status)
-                            .expect("Should not fail to send message");
+                        l.send_only(
+                            dds_domain_participant_listener::TriggerOnSampleRejected::new(
+                                reader, status,
+                            ),
+                        )
+                        .await?;
                     }
                     _ => (),
                 },
             },
         }
+        Ok(())
     }
 
-    fn on_requested_incompatible_qos(
+    async fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
         data_reader_address: &ActorAddress<DdsDataReader>,
@@ -776,12 +825,15 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
         self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::RequestedIncompatibleQos);
+            .address()
+            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                StatusKind::RequestedIncompatibleQos,
+            ))
+            .await?;
 
         match self.listener.as_ref().map(|a| a.address()).cloned() {
             Some(l)
@@ -795,8 +847,12 @@ impl DdsDataReader {
                     subscriber_address.clone(),
                     participant_address.clone(),
                 );
-                l.trigger_on_requested_incompatible_qos(reader, status)
-                    .expect("Should not fail to send message");
+                l.send_only(
+                    dds_data_reader_listener::TriggerOnRequestedIncompatibleQos::new(
+                        reader, status,
+                    ),
+                )
+                .await?;
             }
             _ => match subscriber_listener_address {
                 Some(l)
@@ -808,27 +864,34 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.trigger_on_requested_incompatible_qos(reader, status)
-                        .expect("Should not fail to send message");
+                    l.send_only(
+                        dds_subscriber_listener::TriggerOnRequestedIncompatibleQos::new(
+                            reader, status,
+                        ),
+                    )
+                    .await?;
                 }
-                _ => match participant_listener_address {
-                    Some(l)
-                        if participant_listener_mask
-                            .contains(&StatusKind::RequestedIncompatibleQos) =>
-                    {
-                        let status = self.get_requested_incompatible_qos_status();
-                        let reader = DataReaderNode::new(
-                            data_reader_address.clone(),
-                            subscriber_address.clone(),
-                            participant_address.clone(),
-                        );
-                        l.trigger_on_requested_incompatible_qos(reader, status)
-                            .expect("Should not fail to send message");
+                _ => {
+                    match participant_listener_address {
+                        Some(l)
+                            if participant_listener_mask
+                                .contains(&StatusKind::RequestedIncompatibleQos) =>
+                        {
+                            let status = self.get_requested_incompatible_qos_status();
+                            let reader = DataReaderNode::new(
+                                data_reader_address.clone(),
+                                subscriber_address.clone(),
+                                participant_address.clone(),
+                            );
+                            l.send_only(dds_domain_participant_listener::TriggerOnRequestedIncompatibleQos::new(reader, status)).await
+                            ?;
+                        }
+                        _ => (),
                     }
-                    _ => (),
-                },
+                }
             },
         }
+        Ok(())
     }
 
     pub fn guid(&self) -> Guid {
@@ -917,7 +980,7 @@ impl DdsDataReader {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn process_received_change(
+    async fn process_received_change(
         &mut self,
         cache_change: RtpsReaderCacheChange,
         message_reader_id: EntityId,
@@ -925,13 +988,13 @@ impl DdsDataReader {
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
         subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
         participant_mask_listener: &(
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         let writer_proxy = self
             .matched_writers
             .iter_mut()
@@ -949,7 +1012,8 @@ impl DdsDataReader {
                             participant_address,
                             subscriber_mask_listener,
                             participant_mask_listener,
-                        );
+                        )
+                        .await?;
                     }
                     self.add_change(
                         cache_change,
@@ -960,6 +1024,7 @@ impl DdsDataReader {
                         subscriber_mask_listener,
                         participant_mask_listener,
                     )
+                    .await?;
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
@@ -974,6 +1039,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
+                .await?;
             }
             (ReliabilityQosPolicyKind::Reliable, Some(writer_proxy)) => {
                 let expected_seq_num = writer_proxy.available_changes_max() + 1;
@@ -988,27 +1054,29 @@ impl DdsDataReader {
                         subscriber_mask_listener,
                         participant_mask_listener,
                     )
+                    .await?;
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
             | (ReliabilityQosPolicyKind::Reliable, None) => (), // Do nothing,
         }
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn add_change(
+    async fn add_change(
         &mut self,
         change: RtpsReaderCacheChange,
         data_reader_address: &ActorAddress<DdsDataReader>,
         subscriber_address: &ActorAddress<DdsSubscriber>,
         participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &DdsShared<DdsRwLock<StatusConditionImpl>>,
+        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
         subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
         participant_mask_listener: &(
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
                 self.on_sample_rejected(
@@ -1020,6 +1088,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
+                .await?;
             } else if self.is_max_instances_limit_reached(&change) {
                 self.on_sample_rejected(
                     change.instance_handle,
@@ -1030,6 +1099,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
+                .await?;
             } else if self.is_max_samples_per_instance_limit_reached(&change) {
                 self.on_sample_rejected(
                     change.instance_handle,
@@ -1040,6 +1110,7 @@ impl DdsDataReader {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
+                .await?;
             } else {
                 let num_alive_samples_of_instance = self
                     .changes
@@ -1093,8 +1164,10 @@ impl DdsDataReader {
                     subscriber_status_condition,
                     subscriber_mask_listener,
                 )
+                .await?;
             }
         }
+        Ok(())
     }
 
     fn is_sample_of_interest_based_on_time(&self, change: &RtpsReaderCacheChange) -> bool {
@@ -1243,27 +1316,47 @@ impl DdsDataReader {
 
             let sample = (data, sample_info);
 
-            indexed_samples.push(IndexedSample{index, sample})
+            indexed_samples.push(IndexedSample { index, sample })
         }
 
         // After the collection is created, update the relative generation rank values and mark the read instances as viewed
         for handle in instances_in_collection.into_keys() {
             let most_recent_sample_absolute_generation_rank = indexed_samples
                 .iter()
-                .filter(|IndexedSample{sample:(_, sample_info), ..}| sample_info.instance_handle == handle)
-                .map(|IndexedSample{sample:(_, sample_info), ..}| sample_info.absolute_generation_rank)
+                .filter(
+                    |IndexedSample {
+                         sample: (_, sample_info),
+                         ..
+                     }| sample_info.instance_handle == handle,
+                )
+                .map(
+                    |IndexedSample {
+                         sample: (_, sample_info),
+                         ..
+                     }| sample_info.absolute_generation_rank,
+                )
                 .last()
                 .expect("Instance handle must exist on collection");
 
             let mut total_instance_samples_in_collection = indexed_samples
                 .iter()
-                .filter(|IndexedSample{sample:(_, sample_info), ..}| sample_info.instance_handle == handle)
+                .filter(
+                    |IndexedSample {
+                         sample: (_, sample_info),
+                         ..
+                     }| sample_info.instance_handle == handle,
+                )
                 .count();
 
-            for IndexedSample{sample:(_, sample_info), ..} in indexed_samples
-                .iter_mut()
-                .filter(|IndexedSample{sample:(_, sample_info), ..}| sample_info.instance_handle == handle)
-            {
+            for IndexedSample {
+                sample: (_, sample_info),
+                ..
+            } in indexed_samples.iter_mut().filter(
+                |IndexedSample {
+                     sample: (_, sample_info),
+                     ..
+                 }| sample_info.instance_handle == handle,
+            ) {
                 sample_info.generation_rank = sample_info.absolute_generation_rank
                     - most_recent_sample_absolute_generation_rank;
 
@@ -1290,11 +1383,8 @@ impl DdsDataReader {
             None => self.instances.keys().min().cloned(),
         }
     }
-}
 
-actor_mailbox_interface! {
-impl DdsDataReader {
-    pub fn read(
+    async fn read(
         &mut self,
         max_samples: i32,
         sample_states: Vec<SampleStateKind>,
@@ -1307,8 +1397,11 @@ impl DdsDataReader {
         }
 
         self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::DataAvailable);
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::DataAvailable,
+            ))
+            .await?;
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
@@ -1321,7 +1414,10 @@ impl DdsDataReader {
         let change_index_list: Vec<usize>;
         let samples;
 
-        (change_index_list, samples) = indexed_sample_list.into_iter().map(|IndexedSample{index, sample}| (index, sample)).unzip();
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
 
         for index in change_index_list {
             self.changes[index].sample_state = SampleStateKind::Read;
@@ -1330,7 +1426,7 @@ impl DdsDataReader {
         Ok(samples)
     }
 
-    pub fn take(
+    async fn take(
         &mut self,
         max_samples: i32,
         sample_states: Vec<SampleStateKind>,
@@ -1351,13 +1447,19 @@ impl DdsDataReader {
         )?;
 
         self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::DataAvailable);
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::DataAvailable,
+            ))
+            .await?;
 
         let mut change_index_list: Vec<usize>;
         let samples;
 
-        (change_index_list, samples) = indexed_sample_list.into_iter().map(|IndexedSample{index, sample}| (index, sample)).unzip();
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
 
         while let Some(index) = change_index_list.pop() {
             self.changes.remove(index);
@@ -1366,54 +1468,208 @@ impl DdsDataReader {
         Ok(samples)
     }
 
-    pub fn read_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
+    async fn get_subscription_matched_status(&mut self) -> DdsResult<SubscriptionMatchedStatus> {
+        self.status_condition
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::SubscriptionMatched,
+            ))
+            .await?;
 
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
+        Ok(self
+            .subscription_matched_status
+            .read_and_reset(self.matched_publication_list.len() as i32))
+    }
+}
+
+pub struct MatchedWriterAdd {
+    a_writer_proxy: RtpsWriterProxy,
+}
+
+impl MatchedWriterAdd {
+    pub fn new(a_writer_proxy: RtpsWriterProxy) -> Self {
+        Self { a_writer_proxy }
+    }
+}
+
+impl Mail for MatchedWriterAdd {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<MatchedWriterAdd> for DdsDataReader {
+    async fn handle(&mut self, mail: MatchedWriterAdd) -> <MatchedWriterAdd as Mail>::Result {
+        if !self
+            .matched_writers
+            .iter()
+            .any(|x| x.remote_writer_guid() == mail.a_writer_proxy.remote_writer_guid())
+        {
+            self.matched_writers.push(mail.a_writer_proxy);
         }
     }
+}
 
-    pub fn take_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
+pub struct AddMatchedWriter {
+    discovered_writer_data: DiscoveredWriterData,
+    default_unicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
+    data_reader_address: ActorAddress<DdsDataReader>,
+    subscriber_address: ActorAddress<DdsSubscriber>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
+    subscriber_qos: SubscriberQos,
+    subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+    participant_mask_listener: (
+        Option<ActorAddress<DdsDomainParticipantListener>>,
+        Vec<StatusKind>,
+    ),
+}
 
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.take(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
+impl AddMatchedWriter {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        discovered_writer_data: DiscoveredWriterData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        data_reader_address: ActorAddress<DdsDataReader>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_qos: SubscriberQos,
+        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) -> Self {
+        Self {
+            discovered_writer_data,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            data_reader_address,
+            subscriber_address,
+            participant_address,
+            subscriber_qos,
+            subscriber_mask_listener,
+            participant_mask_listener,
         }
     }
+}
 
+impl Mail for AddMatchedWriter {
+    type Result = DdsResult<()>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<AddMatchedWriter> for DdsDataReader {
+    async fn handle(&mut self, mail: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
+        let publication_builtin_topic_data = mail.discovered_writer_data.dds_publication_data();
+        if publication_builtin_topic_data.topic_name() == self.topic_name
+            && publication_builtin_topic_data.get_type_name() == self.type_name
+        {
+            let instance_handle = dds_serialize_key(&mail.discovered_writer_data)
+                .unwrap()
+                .into();
+            let incompatible_qos_policy_list = self
+                .get_discovered_writer_incompatible_qos_policy_list(
+                    &mail.discovered_writer_data,
+                    &mail.subscriber_qos,
+                );
+            if incompatible_qos_policy_list.is_empty() {
+                let unicast_locator_list = if mail
+                    .discovered_writer_data
+                    .writer_proxy()
+                    .unicast_locator_list()
+                    .is_empty()
+                {
+                    mail.default_unicast_locator_list
+                } else {
+                    mail.discovered_writer_data
+                        .writer_proxy()
+                        .unicast_locator_list()
+                        .to_vec()
+                };
+
+                let multicast_locator_list = if mail
+                    .discovered_writer_data
+                    .writer_proxy()
+                    .multicast_locator_list()
+                    .is_empty()
+                {
+                    mail.default_multicast_locator_list
+                } else {
+                    mail.discovered_writer_data
+                        .writer_proxy()
+                        .multicast_locator_list()
+                        .to_vec()
+                };
+
+                let writer_proxy = RtpsWriterProxy::new(
+                    mail.discovered_writer_data
+                        .writer_proxy()
+                        .remote_writer_guid(),
+                    &unicast_locator_list,
+                    &multicast_locator_list,
+                    mail.discovered_writer_data
+                        .writer_proxy()
+                        .data_max_size_serialized(),
+                    mail.discovered_writer_data
+                        .writer_proxy()
+                        .remote_group_entity_id(),
+                );
+
+                if !self
+                    .matched_writers
+                    .iter()
+                    .any(|x| x.remote_writer_guid() == writer_proxy.remote_writer_guid())
+                {
+                    self.matched_writers.push(writer_proxy);
+                }
+
+                let insert_matched_publication_result = self
+                    .matched_publication_list
+                    .insert(instance_handle, publication_builtin_topic_data.clone());
+                match insert_matched_publication_result {
+                    Some(value) if &value != publication_builtin_topic_data => {
+                        self.on_subscription_matched(
+                            instance_handle,
+                            mail.data_reader_address,
+                            mail.subscriber_address,
+                            mail.participant_address,
+                            &mail.subscriber_mask_listener,
+                            &mail.participant_mask_listener,
+                        )
+                        .await?;
+                    }
+                    None => {
+                        self.on_subscription_matched(
+                            instance_handle,
+                            mail.data_reader_address,
+                            mail.subscriber_address,
+                            mail.participant_address,
+                            &mail.subscriber_mask_listener,
+                            &mail.participant_mask_listener,
+                        )
+                        .await?;
+                    }
+                    _ => (),
+                }
+            } else if self.incompatible_writer_list.insert(instance_handle) {
+                self.on_requested_incompatible_qos(
+                    incompatible_qos_policy_list,
+                    &mail.data_reader_address,
+                    &mail.subscriber_address,
+                    &mail.participant_address,
+                    &mail.subscriber_mask_listener,
+                    &mail.participant_mask_listener,
+                )
+                .await?;
+            }
+        }
+        Ok(())
+    }
+}
+
+actor_mailbox_interface! {
+impl DdsDataReader {
     pub fn is_historical_data_received(&self) -> DdsResult<bool> {
         if !self.enabled {
             Err(DdsError::NotEnabled)
@@ -1504,149 +1760,9 @@ impl DdsDataReader {
         self.qos.clone()
     }
 
-    pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
-        if !self
-            .matched_writers
-            .iter()
-            .any(|x| x.remote_writer_guid() == a_writer_proxy.remote_writer_guid())
-        {
-            self.matched_writers.push(a_writer_proxy);
-        }
-    }
-
     pub fn matched_writer_remove(&mut self, a_writer_guid: Guid) {
         self.matched_writers
             .retain(|x| x.remote_writer_guid() != a_writer_guid)
-    }
-
-    pub fn add_matched_writer(
-        &mut self,
-        discovered_writer_data: DiscoveredWriterData,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_qos: SubscriberQos,
-        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
-        participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
-            Vec<StatusKind>,
-        ),
-    ) {
-        let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
-        if publication_builtin_topic_data.topic_name() == self.topic_name
-            && publication_builtin_topic_data.get_type_name() == self.type_name
-        {
-            let instance_handle = dds_serialize_key(&discovered_writer_data).unwrap().into();
-            let incompatible_qos_policy_list = self
-                .get_discovered_writer_incompatible_qos_policy_list(
-                    &discovered_writer_data,
-                    &subscriber_qos,
-                );
-            if incompatible_qos_policy_list.is_empty() {
-                let unicast_locator_list = if discovered_writer_data
-                    .writer_proxy()
-                    .unicast_locator_list()
-                    .is_empty()
-                {
-                    default_unicast_locator_list
-                } else {
-                    discovered_writer_data
-                        .writer_proxy()
-                        .unicast_locator_list()
-                        .to_vec()
-                };
-
-                let multicast_locator_list = if discovered_writer_data
-                    .writer_proxy()
-                    .multicast_locator_list()
-                    .is_empty()
-                {
-                    default_multicast_locator_list
-                } else {
-                    discovered_writer_data
-                        .writer_proxy()
-                        .multicast_locator_list()
-                        .to_vec()
-                };
-
-                let writer_proxy = RtpsWriterProxy::new(
-                    discovered_writer_data.writer_proxy().remote_writer_guid(),
-                    &unicast_locator_list,
-                    &multicast_locator_list,
-                    discovered_writer_data
-                        .writer_proxy()
-                        .data_max_size_serialized(),
-                    discovered_writer_data
-                        .writer_proxy()
-                        .remote_group_entity_id(),
-                );
-
-                self.matched_writer_add(writer_proxy);
-                let insert_matched_publication_result = self
-                    .matched_publication_list
-                    .insert(instance_handle, publication_builtin_topic_data.clone());
-                match insert_matched_publication_result {
-                    Some(value) if &value != publication_builtin_topic_data => self
-                        .on_subscription_matched(
-                            instance_handle,
-                            data_reader_address,
-                            subscriber_address,
-                            participant_address,
-                            &subscriber_mask_listener,
-                            &participant_mask_listener,
-                        ),
-                    None => self.on_subscription_matched(
-                        instance_handle,
-                        data_reader_address,
-                        subscriber_address,
-                        participant_address,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    ),
-                    _ => (),
-                }
-            } else if self.incompatible_writer_list.insert(instance_handle) {
-                self.on_requested_incompatible_qos(
-                    incompatible_qos_policy_list,
-                    &data_reader_address,
-                    &subscriber_address,
-                    &participant_address,
-                    &subscriber_mask_listener,
-                    &participant_mask_listener,
-                );
-            }
-        }
-    }
-
-    pub fn remove_matched_writer(
-        &mut self,
-        discovered_writer_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
-        participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
-            Vec<StatusKind>,
-        ),
-    ) {
-        let matched_publication = self
-            .matched_publication_list
-            .remove(&discovered_writer_handle);
-        if let Some(w) = matched_publication {
-            self.matched_writer_remove(w.key().value.into());
-
-            self.on_subscription_matched(
-                discovered_writer_handle,
-                data_reader_address,
-                subscriber_address,
-                participant_address,
-                &subscriber_mask_listener,
-                &participant_mask_listener,
-            )
-        }
     }
 
     pub fn get_matched_publication_data(
@@ -1671,8 +1787,8 @@ impl DdsDataReader {
         self.enabled = true;
     }
 
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
+    pub fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+        self.status_condition.address().clone()
     }
 
     pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
@@ -1681,135 +1797,368 @@ impl DdsDataReader {
             .map(|(&key, _)| key)
             .collect()
     }
+}
+}
 
-    pub fn get_type_name(&self) -> String {
-        self.type_name.clone()
+pub struct TakeNextInstance {
+    max_samples: i32,
+    previous_handle: Option<InstanceHandle>,
+    sample_states: Vec<SampleStateKind>,
+    view_states: Vec<ViewStateKind>,
+    instance_states: Vec<InstanceStateKind>,
+}
+
+impl TakeNextInstance {
+    pub fn new(
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> Self {
+        Self {
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        }
     }
+}
 
-    pub fn get_topic_name(&self) -> String {
+impl Mail for TakeNextInstance {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<TakeNextInstance> for DdsDataReader {
+    async fn handle(&mut self, mail: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(mail.previous_handle) {
+            Some(next_handle) => {
+                self.take(
+                    mail.max_samples,
+                    mail.sample_states,
+                    mail.view_states,
+                    mail.instance_states,
+                    Some(next_handle),
+                )
+                .await
+            }
+            None => Err(DdsError::NoData),
+        }
+    }
+}
+
+pub struct GetSubscriptionMatchedStatus;
+
+impl Mail for GetSubscriptionMatchedStatus {
+    type Result = DdsResult<SubscriptionMatchedStatus>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetSubscriptionMatchedStatus> for DdsDataReader {
+    async fn handle(
+        &mut self,
+        _mail: GetSubscriptionMatchedStatus,
+    ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
+        self.status_condition
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::SubscriptionMatched,
+            ))
+            .await?;
+
+        Ok(self
+            .subscription_matched_status
+            .read_and_reset(self.matched_publication_list.len() as i32))
+    }
+}
+
+pub struct ReadNextInstance {
+    max_samples: i32,
+    previous_handle: Option<InstanceHandle>,
+    sample_states: Vec<SampleStateKind>,
+    view_states: Vec<ViewStateKind>,
+    instance_states: Vec<InstanceStateKind>,
+}
+
+impl ReadNextInstance {
+    pub fn new(
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> Self {
+        Self {
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        }
+    }
+}
+
+impl Mail for ReadNextInstance {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ReadNextInstance> for DdsDataReader {
+    async fn handle(&mut self, mail: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(mail.previous_handle) {
+            Some(next_handle) => {
+                self.read(
+                    mail.max_samples,
+                    mail.sample_states,
+                    mail.view_states,
+                    mail.instance_states,
+                    Some(next_handle),
+                )
+                .await
+            }
+            None => Err(DdsError::NoData),
+        }
+    }
+}
+
+pub struct Take {
+    max_samples: i32,
+    sample_states: Vec<SampleStateKind>,
+    view_states: Vec<ViewStateKind>,
+    instance_states: Vec<InstanceStateKind>,
+    specific_instance_handle: Option<InstanceHandle>,
+}
+
+impl Take {
+    pub fn new(
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> Self {
+        Self {
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        }
+    }
+}
+
+impl Mail for Take {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<Take> for DdsDataReader {
+    async fn handle(&mut self, mail: Take) -> <Take as Mail>::Result {
+        self.take(
+            mail.max_samples,
+            mail.sample_states,
+            mail.view_states,
+            mail.instance_states,
+            mail.specific_instance_handle,
+        )
+        .await
+    }
+}
+
+pub struct GetTopicName;
+
+impl Mail for GetTopicName {
+    type Result = String;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetTopicName> for DdsDataReader {
+    async fn handle(&mut self, _mail: GetTopicName) -> <GetTopicName as Mail>::Result {
         self.topic_name.clone()
     }
-
-    pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SubscriptionMatched);
-        self.subscription_matched_status
-            .read_and_reset(self.matched_publication_list.len() as i32)
-    }
-}
 }
 
-actor_command_interface! {
-impl DdsDataReader {
-    pub fn send_message(
-        &mut self,
-        header: RtpsMessageHeader,
-        udp_transport_write: ActorAddress<UdpTransportWrite>,
-    ) {
-        for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
+pub struct Read {
+    max_samples: i32,
+    sample_states: Vec<SampleStateKind>,
+    view_states: Vec<ViewStateKind>,
+    instance_states: Vec<InstanceStateKind>,
+    specific_instance_handle: Option<InstanceHandle>,
+}
+
+impl Read {
+    pub fn new(
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> Self {
+        Self {
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
         }
     }
+}
 
-    pub fn update_communication_status(
-        &mut self,
-        now: Time,
+impl Mail for Read {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<Read> for DdsDataReader {
+    async fn handle(&mut self, mail: Read) -> <Read as Mail>::Result {
+        self.read(
+            mail.max_samples,
+            mail.sample_states,
+            mail.view_states,
+            mail.instance_states,
+            mail.specific_instance_handle,
+        )
+        .await
+    }
+}
+
+pub struct GetTypeName;
+
+impl Mail for GetTypeName {
+    type Result = String;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<GetTypeName> for DdsDataReader {
+    async fn handle(&mut self, _mail: GetTypeName) -> <GetTypeName as Mail>::Result {
+        self.type_name.to_string()
+    }
+}
+
+//////////////////////////////////////////////
+pub struct RemoveMatchedWriter {
+    discovered_writer_handle: InstanceHandle,
+    data_reader_address: ActorAddress<DdsDataReader>,
+    subscriber_address: ActorAddress<DdsSubscriber>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
+    subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+    participant_mask_listener: (
+        Option<ActorAddress<DdsDomainParticipantListener>>,
+        Vec<StatusKind>,
+    ),
+}
+
+impl RemoveMatchedWriter {
+    pub fn new(
+        discovered_writer_handle: InstanceHandle,
         data_reader_address: ActorAddress<DdsDataReader>,
         subscriber_address: ActorAddress<DdsSubscriber>,
         participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_mask_listener: (
-            Option<ActorAddress<DdsSubscriberListener>>,
-            Vec<StatusKind>,
-        ),
-        participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
-            Vec<StatusKind>,
-        ),
-    ) {
-        let (subscriber_listener_address, subscriber_listener_mask) = &subscriber_mask_listener;
-        let (participant_listener_address, participant_listener_mask) = &participant_mask_listener;
-        let (missed_deadline_instances, instance_reception_time) = self
-            .instance_reception_time
-            .iter()
-            .partition(|&(_, received_time)| {
-                DurationKind::Finite(now - *received_time) > self.qos.deadline.period
-            });
-
-        self.instance_reception_time = instance_reception_time;
-
-        for (missed_deadline_instance, _) in missed_deadline_instances {
-            self.requested_deadline_missed_status
-                .increment(missed_deadline_instance);
-
-            self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::RequestedDeadlineMissed);
-            match self.listener.as_ref().map(|a| a.address()).cloned() {
-                Some(l)
-                    if self
-                        .status_kind
-                        .contains(&StatusKind::RequestedDeadlineMissed) =>
-                {
-                    let status = self.get_requested_deadline_missed_status();
-                    let reader = DataReaderNode::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                    );
-                    l.trigger_on_requested_deadline_missed(reader, status)
-                        .expect("Should not fail to send message");
-                }
-                _ => match &subscriber_listener_address {
-                    Some(l)
-                        if subscriber_listener_mask
-                            .contains(&StatusKind::RequestedDeadlineMissed) =>
-                    {
-                        let status = self.get_requested_deadline_missed_status();
-                        let reader = DataReaderNode::new(
-                            data_reader_address.clone(),
-                            subscriber_address.clone(),
-                            participant_address.clone(),
-                        );
-                        l.trigger_on_requested_deadline_missed(reader, status)
-                            .expect("Should not fail to send message");
-                    }
-                    _ => match &participant_listener_address {
-                        Some(l)
-                            if participant_listener_mask
-                                .contains(&StatusKind::RequestedDeadlineMissed) =>
-                        {
-                            let status = self.get_requested_deadline_missed_status();
-                            let reader = DataReaderNode::new(
-                                data_reader_address.clone(),
-                                subscriber_address.clone(),
-                                participant_address.clone(),
-                            );
-                            l.trigger_on_requested_deadline_missed(reader, status)
-                                .expect("Should not fail to send message");
-                        }
-                        _ => (),
-                    },
-                },
-            }
-        }
-    }
-
-    pub fn process_rtps_message(
-        &mut self,
-        message: RtpsMessageRead,
-        reception_timestamp: Time,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
         subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
         participant_mask_listener: (
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) {
-        let mut message_receiver = MessageReceiver::new(&message);
+    ) -> Self {
+        Self {
+            discovered_writer_handle,
+            data_reader_address,
+            subscriber_address,
+            participant_address,
+            subscriber_mask_listener,
+            participant_mask_listener,
+        }
+    }
+}
+
+impl Mail for RemoveMatchedWriter {
+    type Result = DdsResult<()>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<RemoveMatchedWriter> for DdsDataReader {
+    async fn handle(&mut self, mail: RemoveMatchedWriter) -> <RemoveMatchedWriter as Mail>::Result {
+        let matched_publication = self
+            .matched_publication_list
+            .remove(&mail.discovered_writer_handle);
+        if let Some(w) = matched_publication {
+            self.matched_writer_remove(w.key().value.into());
+
+            self.on_subscription_matched(
+                mail.discovered_writer_handle,
+                mail.data_reader_address,
+                mail.subscriber_address,
+                mail.participant_address,
+                &mail.subscriber_mask_listener,
+                &mail.participant_mask_listener,
+            )
+            .await?;
+        }
+        Ok(())
+    }
+}
+
+//////////////////////////////////////////////
+pub struct ProcessRtpsMessage {
+    message: RtpsMessageRead,
+    reception_timestamp: Time,
+    data_reader_address: ActorAddress<DdsDataReader>,
+    subscriber_address: ActorAddress<DdsSubscriber>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
+    subscriber_status_condition: ActorAddress<DdsStatusCondition>,
+    subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+    participant_mask_listener: (
+        Option<ActorAddress<DdsDomainParticipantListener>>,
+        Vec<StatusKind>,
+    ),
+}
+
+impl ProcessRtpsMessage {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        message: RtpsMessageRead,
+        reception_timestamp: Time,
+        data_reader_address: ActorAddress<DdsDataReader>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_status_condition: ActorAddress<DdsStatusCondition>,
+        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) -> Self {
+        Self {
+            message,
+            reception_timestamp,
+            data_reader_address,
+            subscriber_address,
+            participant_address,
+            subscriber_status_condition,
+            subscriber_mask_listener,
+            participant_mask_listener,
+        }
+    }
+}
+
+impl Mail for ProcessRtpsMessage {
+    type Result = DdsResult<()>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<ProcessRtpsMessage> for DdsDataReader {
+    async fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
+        let mut message_receiver = MessageReceiver::new(&mail.message);
         while let Some(submessage) = message_receiver.next() {
             match submessage {
                 RtpsSubmessageReadKind::Data(data_submessage) => {
@@ -1817,28 +2166,30 @@ impl DdsDataReader {
                         &data_submessage,
                         message_receiver.source_guid_prefix(),
                         message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber_address,
-                        &participant_address,
-                        &subscriber_status_condition,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    );
+                        mail.reception_timestamp,
+                        &mail.data_reader_address,
+                        &mail.subscriber_address,
+                        &mail.participant_address,
+                        &mail.subscriber_status_condition,
+                        &mail.subscriber_mask_listener,
+                        &mail.participant_mask_listener,
+                    )
+                    .await?;
                 }
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                     self.on_data_frag_submessage_received(
                         &data_frag_submessage,
                         message_receiver.source_guid_prefix(),
                         message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber_address,
-                        &participant_address,
-                        &subscriber_status_condition,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    );
+                        mail.reception_timestamp,
+                        &mail.data_reader_address,
+                        &mail.subscriber_address,
+                        &mail.participant_address,
+                        &mail.subscriber_status_condition,
+                        &mail.subscriber_mask_listener,
+                        &mail.participant_mask_listener,
+                    )
+                    .await?;
                 }
                 RtpsSubmessageReadKind::Gap(gap_submessage) => {
                     self.on_gap_submessage_received(
@@ -1859,6 +2210,172 @@ impl DdsDataReader {
                 _ => (),
             }
         }
+        Ok(())
     }
 }
+
+///////////////////////////////////////
+pub struct UpdateCommunicationStatus {
+    now: Time,
+    data_reader_address: ActorAddress<DdsDataReader>,
+    subscriber_address: ActorAddress<DdsSubscriber>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
+    subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+    participant_mask_listener: (
+        Option<ActorAddress<DdsDomainParticipantListener>>,
+        Vec<StatusKind>,
+    ),
+}
+
+impl UpdateCommunicationStatus {
+    pub fn new(
+        now: Time,
+        data_reader_address: ActorAddress<DdsDataReader>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) -> Self {
+        Self {
+            now,
+            data_reader_address,
+            subscriber_address,
+            participant_address,
+            subscriber_mask_listener,
+            participant_mask_listener,
+        }
+    }
+}
+
+impl Mail for UpdateCommunicationStatus {
+    type Result = DdsResult<()>;
+}
+
+#[async_trait::async_trait]
+impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
+    async fn handle(
+        &mut self,
+        mail: UpdateCommunicationStatus,
+    ) -> <UpdateCommunicationStatus as Mail>::Result {
+        let (subscriber_listener_address, subscriber_listener_mask) =
+            &mail.subscriber_mask_listener;
+        let (participant_listener_address, participant_listener_mask) =
+            &mail.participant_mask_listener;
+        let (missed_deadline_instances, instance_reception_time) = self
+            .instance_reception_time
+            .iter()
+            .partition(|&(_, received_time)| {
+                DurationKind::Finite(mail.now - *received_time) > self.qos.deadline.period
+            });
+
+        self.instance_reception_time = instance_reception_time;
+
+        for (missed_deadline_instance, _) in missed_deadline_instances {
+            self.requested_deadline_missed_status
+                .increment(missed_deadline_instance);
+
+            self.status_condition
+                .address()
+                .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                    StatusKind::RequestedDeadlineMissed,
+                ))
+                .await?;
+            match self.listener.as_ref().map(|a| a.address()).cloned() {
+                Some(l)
+                    if self
+                        .status_kind
+                        .contains(&StatusKind::RequestedDeadlineMissed) =>
+                {
+                    let status = self.get_requested_deadline_missed_status();
+                    let reader = DataReaderNode::new(
+                        mail.data_reader_address.clone(),
+                        mail.subscriber_address.clone(),
+                        mail.participant_address.clone(),
+                    );
+                    l.send_only(
+                        dds_data_reader_listener::TriggerOnRequestedDeadlineMissed::new(
+                            reader, status,
+                        ),
+                    )
+                    .await?;
+                }
+                _ => match &subscriber_listener_address {
+                    Some(l)
+                        if subscriber_listener_mask
+                            .contains(&StatusKind::RequestedDeadlineMissed) =>
+                    {
+                        let status = self.get_requested_deadline_missed_status();
+                        let reader = DataReaderNode::new(
+                            mail.data_reader_address.clone(),
+                            mail.subscriber_address.clone(),
+                            mail.participant_address.clone(),
+                        );
+                        l.send_only(
+                            dds_subscriber_listener::TriggerOnRequestedDeadlineMissed::new(
+                                reader, status,
+                            ),
+                        )
+                        .await?;
+                    }
+                    _ => match &participant_listener_address {
+                        Some(l)
+                            if participant_listener_mask
+                                .contains(&StatusKind::RequestedDeadlineMissed) =>
+                        {
+                            let status = self.get_requested_deadline_missed_status();
+                            let reader = DataReaderNode::new(
+                                mail.data_reader_address.clone(),
+                                mail.subscriber_address.clone(),
+                                mail.participant_address.clone(),
+                            );
+                            l.send_only(dds_domain_participant_listener::TriggerOnRequestedDeadlineMissed::new(reader, status)).await
+                                ?;
+                        }
+                        _ => (),
+                    },
+                },
+            }
+        }
+
+        Ok(())
+    }
+}
+
+pub struct SendMessage {
+    header: RtpsMessageHeader,
+    udp_transport_write: ActorAddress<UdpTransportWrite>,
+}
+
+impl SendMessage {
+    pub fn new(
+        header: RtpsMessageHeader,
+        udp_transport_write: ActorAddress<UdpTransportWrite>,
+    ) -> Self {
+        Self {
+            header,
+            udp_transport_write,
+        }
+    }
+}
+
+impl Mail for SendMessage {
+    type Result = ();
+}
+
+#[async_trait::async_trait]
+impl MailHandler<SendMessage> for DdsDataReader {
+    async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+        for writer_proxy in self.matched_writers.iter_mut() {
+            writer_proxy
+                .send_message(
+                    &self.rtps_reader.guid(),
+                    mail.header,
+                    &mail.udp_transport_write,
+                )
+                .await
+        }
+    }
 }

@@ -1,11 +1,8 @@
-use std::sync::{Arc, Condvar, Mutex};
+use std::time::Instant;
 
-use crate::infrastructure::{
-    error::{DdsError, DdsResult},
-    time::Duration,
-};
+use crate::infrastructure::{error::DdsResult, time::Duration};
 
-use super::condition::StatusCondition;
+use super::{condition::StatusCondition, error::DdsError};
 
 /// Enumeration of the different Condition objects that can be associated with a [`WaitSet`].
 #[derive(Clone)]
@@ -13,7 +10,7 @@ pub enum Condition {
     StatusCondition(StatusCondition),
 }
 impl Condition {
-    pub fn get_trigger_value(&self) -> bool {
+    pub fn get_trigger_value(&self) -> DdsResult<bool> {
         match self {
             Condition::StatusCondition(c) => c.get_trigger_value(),
         }
@@ -24,18 +21,9 @@ impl Condition {
 /// [`true`] or else until the timeout expires. It is created by calling the [`WaitSet::new`] operation and is not necessarily
 /// associated with a single [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) and could be used to
 /// wait on [`Condition`] objects associated with different [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) objects.
+#[derive(Default)]
 pub struct WaitSet {
     conditions: Vec<Condition>,
-    cvar: Arc<Condvar>,
-}
-
-impl Default for WaitSet {
-    fn default() -> Self {
-        Self {
-            conditions: vec![],
-            cvar: Arc::new(Condvar::new()),
-        }
-    }
 }
 
 impl WaitSet {
@@ -53,25 +41,24 @@ impl WaitSet {
     /// It is not allowed for more than one application thread to be waiting on the same [`WaitSet`]. If the wait operation is invoked on a
     /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`].
     pub fn wait(&self, timeout: Duration) -> DdsResult<Vec<Condition>> {
-        // Wait only if the condition is not yet triggered
-        if !self.conditions.iter().any(|x| x.get_trigger_value()) {
-            let enabled = Mutex::new(());
-            let result = self
-                .cvar
-                .wait_timeout(enabled.lock().unwrap(), timeout.into())
-                .unwrap();
+        let start_time = Instant::now();
 
-            if result.1.timed_out() {
-                return Err(DdsError::Timeout);
+        while start_time.elapsed() < std::time::Duration::from(timeout) {
+            for condition in &self.conditions {
+                if condition.get_trigger_value()? {
+                    return Ok(self
+                        .conditions
+                        .iter()
+                        .filter(|x| x.get_trigger_value().unwrap())
+                        .cloned()
+                        .collect());
+                }
             }
+
+            std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
-        Ok(self
-            .conditions
-            .iter()
-            .filter(|x| x.get_trigger_value())
-            .cloned()
-            .collect())
+        Err(DdsError::Timeout)
     }
 
     /// Attaches a [`Condition`] to the [`WaitSet`].
@@ -79,9 +66,6 @@ impl WaitSet {
     /// [`Condition`] has a `trigger_value` of [`true`], then attaching the condition will unblock the [`WaitSet`].
     /// Adding a [`Condition`] that is already attached to the [`WaitSet`] has no effect.
     pub fn attach_condition(&mut self, cond: Condition) -> DdsResult<()> {
-        match &cond {
-            Condition::StatusCondition(c) => c.push_cvar(self.cvar.clone()),
-        }
         self.conditions.push(cond);
         Ok(())
     }

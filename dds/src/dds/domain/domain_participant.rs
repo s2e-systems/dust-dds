@@ -4,7 +4,9 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         dds::{
-            dds_domain_participant::DdsDomainParticipant,
+            dds_data_reader, dds_data_writer,
+            dds_domain_participant::{self, DdsDomainParticipant},
+            dds_publisher, dds_subscriber,
             nodes::{PublisherNode, SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
@@ -97,13 +99,23 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        if self.0.get_guid()?.prefix() != a_publisher.node().address().guid()?.prefix() {
+        if self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+            .prefix()
+            != a_publisher.node().address().guid()?.prefix()
+        {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
             ));
         }
 
-        if !a_publisher.node().address().data_writer_list()?.is_empty() {
+        if !a_publisher
+            .node()
+            .address()
+            .send_and_reply_blocking(dds_publisher::DataWriterList)?
+            .is_empty()
+        {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher still contains data writers".to_string(),
             ));
@@ -151,13 +163,22 @@ impl DomainParticipant {
         match a_subscriber.node() {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => Ok(()),
             SubscriberNodeKind::UserDefined(s) => {
-                if self.0.get_guid()?.prefix() != s.address().guid()?.prefix() {
+                if self
+                    .0
+                    .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                    .prefix()
+                    != s.address().guid()?.prefix()
+                {
                     return Err(DdsError::PreconditionNotMet(
                         "Subscriber can only be deleted from its parent participant".to_string(),
                     ));
                 }
 
-                if !s.address().data_reader_list()?.is_empty() {
+                if !s
+                    .address()
+                    .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+                    .is_empty()
+                {
                     return Err(DdsError::PreconditionNotMet(
                         "Subscriber still contains data readers".to_string(),
                     ));
@@ -212,31 +233,52 @@ impl DomainParticipant {
     pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
         match &a_topic.node() {
             TopicNodeKind::UserDefined(t) => {
-                if self.0.get_guid()?.prefix() != t.address().guid()?.prefix() {
+                if self
+                    .0
+                    .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                    .prefix()
+                    != t.address().guid()?.prefix()
+                {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic can only be deleted from its parent participant".to_string(),
                     ));
                 }
 
-                for publisher in self.0.get_user_defined_publisher_list()? {
-                    if publisher.data_writer_list()?.iter().any(|w| {
-                        w.get_type_name() == t.address().get_type_name()
-                            && w.get_topic_name() == t.address().get_name()
-                    }) {
-                        return Err(DdsError::PreconditionNotMet(
-                            "Topic still attached to some data writer".to_string(),
-                        ));
+                for publisher in self
+                    .0
+                    .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
+                {
+                    let data_writer_list =
+                        publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+                    for data_writer in data_writer_list {
+                        if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                            == t.address().get_type_name()
+                            && data_writer.send_and_reply_blocking(dds_data_writer::GetTopicName)
+                                == t.address().get_name()
+                        {
+                            return Err(DdsError::PreconditionNotMet(
+                                "Topic still attached to some data writer".to_string(),
+                            ));
+                        }
                     }
                 }
 
-                for subscriber in self.0.get_user_defined_subscriber_list()? {
-                    if subscriber.data_reader_list()?.iter().any(|r| {
-                        r.get_type_name() == t.address().get_type_name()
-                            && r.get_topic_name() == t.address().get_name()
-                    }) {
-                        return Err(DdsError::PreconditionNotMet(
-                            "Topic still attached to some data reader".to_string(),
-                        ));
+                for subscriber in self
+                    .0
+                    .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
+                {
+                    let data_reader_list =
+                        subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)?;
+                    for data_reader in data_reader_list {
+                        if data_reader.send_and_reply_blocking(dds_data_reader::GetTypeName)
+                            == t.address().get_type_name()
+                            && data_reader.send_and_reply_blocking(dds_data_reader::GetTopicName)
+                                == t.address().get_name()
+                        {
+                            return Err(DdsError::PreconditionNotMet(
+                                "Topic still attached to some data reader".to_string(),
+                            ));
+                        }
                     }
                 }
 
@@ -260,7 +302,10 @@ impl DomainParticipant {
         let start_time = Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(timeout) {
-            for topic in self.0.get_user_defined_topic_list()? {
+            for topic in self
+                .0
+                .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
+            {
                 if topic.get_name()? == topic_name {
                     return Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
                         topic,
@@ -334,7 +379,11 @@ impl DomainParticipant {
     /// objects.
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
         Ok(Subscriber::new(SubscriberNodeKind::Builtin(
-            SubscriberNode::new(self.0.get_builtin_subscriber()?, self.0.clone()),
+            SubscriberNode::new(
+                self.0
+                    .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?,
+                self.0.clone(),
+            ),
         )))
     }
 
@@ -402,7 +451,8 @@ impl DomainParticipant {
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        self.0.get_domain_id()
+        self.0
+            .send_and_reply_blocking(dds_domain_participant::GetDomainId)
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -416,21 +466,30 @@ impl DomainParticipant {
     /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        for publisher in self.0.get_user_defined_publisher_list()? {
-            for data_writer in publisher.data_writer_list()? {
+        for publisher in self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
+        {
+            for data_writer in publisher.send_and_reply_blocking(dds_publisher::DataWriterList)? {
                 publisher.datawriter_delete(data_writer.get_instance_handle()?)?;
             }
             self.0
                 .delete_user_defined_publisher(publisher.get_instance_handle()?)?;
         }
-        for subscriber in self.0.get_user_defined_subscriber_list()? {
-            for data_reader in subscriber.data_reader_list()? {
+        for subscriber in self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
+        {
+            for data_reader in subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)? {
                 subscriber.data_reader_delete(data_reader.get_instance_handle()?)?;
             }
             self.0
                 .delete_user_defined_subscriber(subscriber.get_instance_handle()?)?;
         }
-        for topic in self.0.get_user_defined_topic_list()? {
+        for topic in self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
+        {
             self.0.delete_topic(topic.get_instance_handle()?)?;
         }
         Ok(())
@@ -580,7 +639,8 @@ impl DomainParticipant {
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        self.0.get_current_time()
+        self.0
+            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)
     }
 }
 
@@ -681,14 +741,26 @@ impl DomainParticipant {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         if !self.0.is_enabled()? {
-            self.0.get_builtin_publisher()?.enable()?;
-            self.0.get_builtin_subscriber()?.enable()?;
+            self.0
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
+                .enable()?;
+            self.0
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
+                .enable()?;
 
-            for builtin_reader in self.0.get_builtin_subscriber()?.data_reader_list()? {
+            for builtin_reader in self
+                .0
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
+                .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+            {
                 builtin_reader.enable()?;
             }
 
-            for builtin_writer in self.0.get_builtin_publisher()?.data_writer_list()? {
+            for builtin_writer in self
+                .0
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
+                .send_and_reply_blocking(dds_publisher::DataWriterList)?
+            {
                 builtin_writer.enable()?;
             }
 
@@ -700,43 +772,69 @@ impl DomainParticipant {
             THE_RUNTIME.spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
                 loop {
-                    let r: DdsResult<()> = tokio::task::block_in_place(|| {
-                        let builtin_publisher =
-                            domain_participant_address.get_builtin_publisher()?;
-                        if let Some(participant_announcer) =
-                            builtin_publisher.data_writer_list()?.iter().find(|dw| {
-                                if let Ok(name) = dw.get_type_name() {
-                                    name == "SpdpDiscoveredParticipantData"
-                                } else {
-                                    false
-                                }
-                            })
-                        {
-                            let spdp_discovered_participant_data =
-                                domain_participant_address.as_spdp_discovered_participant_data()?;
-                            let serialized_data =
-                                dds_serialize_to_bytes(&spdp_discovered_participant_data)?;
-                            let timestamp = domain_participant_address.get_current_time()?;
-                            participant_announcer.write_w_timestamp(
-                                serialized_data,
-                                dds_serialize_key(&spdp_discovered_participant_data).unwrap(),
-                                None,
-                                timestamp,
-                            )??;
+                    let r: DdsResult<()> = async {
+                        let builtin_publisher = domain_participant_address
+                            .send_and_reply(dds_domain_participant::GetBuiltinPublisher)
+                            .await?;
+                        let data_writer_list = builtin_publisher
+                            .send_and_reply(dds_publisher::DataWriterList)
+                            .await?;
+                        for data_writer in data_writer_list {
+                            if data_writer
+                                .send_and_reply(dds_data_writer::GetTypeName)
+                                .await
+                                == Ok("SpdpDiscoveredParticipantData".to_string())
+                            {
+                                let spdp_discovered_participant_data = domain_participant_address
+                                    .send_and_reply(
+                                        dds_domain_participant::AsSpdpDiscoveredParticipantData,
+                                    )
+                                    .await?;
+                                let serialized_data =
+                                    dds_serialize_to_bytes(&spdp_discovered_participant_data)?;
+                                let timestamp = domain_participant_address
+                                    .send_and_reply(dds_domain_participant::GetCurrentTime)
+                                    .await?;
+                                data_writer
+                                    .send_and_reply(dds_data_writer::WriteWTimestamp::new(
+                                        serialized_data,
+                                        dds_serialize_key(&spdp_discovered_participant_data)
+                                            .unwrap(),
+                                        None,
+                                        timestamp,
+                                    ))
+                                    .await??;
 
-                            participant_announcer.send_message(
-                                RtpsMessageHeader::new(
-                                    domain_participant_address.get_protocol_version()?,
-                                    domain_participant_address.get_vendor_id()?,
-                                    domain_participant_address.get_guid()?.prefix(),
-                                ),
-                                domain_participant_address.get_udp_transport_write()?,
-                                timestamp,
-                            )?;
+                                data_writer
+                                    .send_only(dds_data_writer::SendMessage::new(
+                                        RtpsMessageHeader::new(
+                                            domain_participant_address
+                                                .send_and_reply(
+                                                    dds_domain_participant::GetProtocolVersion,
+                                                )
+                                                .await?,
+                                            domain_participant_address
+                                                .send_and_reply(dds_domain_participant::GetVendorId)
+                                                .await?,
+                                            domain_participant_address
+                                                .send_and_reply(dds_domain_participant::GetGuid)
+                                                .await?
+                                                .prefix(),
+                                        ),
+                                        domain_participant_address
+                                            .send_and_reply(
+                                                dds_domain_participant::GetUdpTransportWrite,
+                                            )
+                                            .await?,
+                                        timestamp,
+                                    ))
+                                    .await?;
+                            }
                         }
 
                         Ok(())
-                    });
+                    }
+                    .await;
 
                     if r.is_err() {
                         break;
@@ -751,47 +849,87 @@ impl DomainParticipant {
             THE_RUNTIME.spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(50));
                 loop {
-                    let r: DdsResult<()> = tokio::task::block_in_place(|| {
-                        let now = domain_participant_address.get_current_time()?;
+                    let r: DdsResult<()> = async {
+                        let now = domain_participant_address
+                            .send_and_reply(dds_domain_participant::GetCurrentTime)
+                            .await?;
                         let participant_mask_listener = (
-                            domain_participant_address.get_listener()?,
-                            domain_participant_address.status_kind()?,
+                            domain_participant_address
+                                .send_and_reply(dds_domain_participant::GetListener)
+                                .await?,
+                            domain_participant_address
+                                .send_and_reply(dds_domain_participant::GetStatusKind)
+                                .await?,
                         );
-                        for subscriber in
-                            domain_participant_address.get_user_defined_subscriber_list()?
+                        for subscriber in domain_participant_address
+                            .send_and_reply(dds_domain_participant::GetUserDefinedSubscriberList)
+                            .await?
                         {
-                            let subscriber_mask_listener =
-                                (subscriber.get_listener()?, subscriber.status_kind()?);
-                            for data_reader in subscriber.data_reader_list()? {
-                                data_reader.update_communication_status(
-                                    now,
-                                    data_reader.clone(),
-                                    subscriber.clone(),
-                                    domain_participant_address.clone(),
-                                    subscriber_mask_listener.clone(),
-                                    participant_mask_listener.clone(),
-                                )?;
+                            let subscriber_mask_listener = (
+                                subscriber
+                                    .send_and_reply(dds_subscriber::GetListener)
+                                    .await?,
+                                subscriber
+                                    .send_and_reply(dds_subscriber::GetStatusKind)
+                                    .await?,
+                            );
+                            for data_reader in subscriber
+                                .send_and_reply(dds_subscriber::DataReaderList)
+                                .await?
+                            {
+                                data_reader
+                                    .send_only(dds_data_reader::UpdateCommunicationStatus::new(
+                                        now,
+                                        data_reader.clone(),
+                                        subscriber.clone(),
+                                        domain_participant_address.clone(),
+                                        subscriber_mask_listener.clone(),
+                                        participant_mask_listener.clone(),
+                                    ))
+                                    .await?;
                             }
                         }
 
-                        for user_defined_publisher in
-                            domain_participant_address.get_user_defined_publisher_list()?
+                        for user_defined_publisher in domain_participant_address
+                            .send_and_reply(dds_domain_participant::GetUserDefinedPublisherList)
+                            .await?
                         {
-                            for data_writer in user_defined_publisher.data_writer_list()? {
-                                data_writer.send_message(
-                                    RtpsMessageHeader::new(
-                                        domain_participant_address.get_protocol_version()?,
-                                        domain_participant_address.get_vendor_id()?,
-                                        domain_participant_address.get_guid()?.prefix(),
-                                    ),
-                                    domain_participant_address.get_udp_transport_write()?,
-                                    domain_participant_address.get_current_time()?,
-                                )?;
+                            for data_writer in user_defined_publisher
+                                .send_and_reply(dds_publisher::DataWriterList)
+                                .await?
+                            {
+                                data_writer
+                                    .send_only(dds_data_writer::SendMessage::new(
+                                        RtpsMessageHeader::new(
+                                            domain_participant_address
+                                                .send_and_reply(
+                                                    dds_domain_participant::GetProtocolVersion,
+                                                )
+                                                .await?,
+                                            domain_participant_address
+                                                .send_and_reply(dds_domain_participant::GetVendorId)
+                                                .await?,
+                                            domain_participant_address
+                                                .send_and_reply(dds_domain_participant::GetGuid)
+                                                .await?
+                                                .prefix(),
+                                        ),
+                                        domain_participant_address
+                                            .send_and_reply(
+                                                dds_domain_participant::GetUdpTransportWrite,
+                                            )
+                                            .await?,
+                                        domain_participant_address
+                                            .send_and_reply(dds_domain_participant::GetCurrentTime)
+                                            .await?,
+                                    ))
+                                    .await?;
                             }
                         }
 
                         Ok(())
-                    });
+                    }
+                    .await;
 
                     if r.is_err() {
                         break;

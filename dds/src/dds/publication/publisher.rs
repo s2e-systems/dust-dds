@@ -2,7 +2,9 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         dds::{
+            dds_data_writer,
             dds_data_writer_listener::DdsDataWriterListener,
+            dds_domain_participant, dds_publisher,
             nodes::{DataWriterNode, DataWriterNodeKind, PublisherNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
@@ -115,7 +117,7 @@ impl Publisher {
             && self
                 .0
                 .address()
-                .get_qos()?
+                .send_and_reply_blocking(dds_publisher::GetQos)?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -152,48 +154,52 @@ impl Publisher {
                             .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
                             .expect("Failed to serialize data");
 
-                    let timestamp = dw.parent_participant().get_current_time()?;
-
-                    if let Some(sedp_writer_announcer) = dw
+                    let timestamp = dw
                         .parent_participant()
-                        .get_builtin_publisher()?
-                        .data_writer_list()?
-                        .iter()
-                        .find(|x| x.get_type_name().unwrap() == "DiscoveredWriterData")
-                    {
-                        sedp_writer_announcer.dispose_w_timestamp(
-                            instance_serialized_key,
-                            writer_handle,
-                            timestamp,
-                        )??;
+                        .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
-                        sedp_writer_announcer.send_message(
-                            RtpsMessageHeader::new(
-                                dw.parent_participant().get_protocol_version()?,
-                                dw.parent_participant().get_vendor_id()?,
-                                dw.parent_participant().get_guid()?.prefix(),
-                            ),
-                            dw.parent_participant().get_udp_transport_write()?,
-                            dw.parent_participant().get_current_time()?,
-                        )?;
+                    let builtin_publisher = dw
+                        .parent_participant()
+                        .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+                    let data_writer_list =
+                        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+                    for data_writer in data_writer_list {
+                        if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                            == Ok("DiscoveredWriterData".to_string())
+                        {
+                            data_writer.dispose_w_timestamp(
+                                instance_serialized_key,
+                                writer_handle,
+                                timestamp,
+                            )??;
+
+                            data_writer.send_only_blocking(dds_data_writer::SendMessage::new(
+                                RtpsMessageHeader::new(
+                                    dw.parent_participant().send_and_reply_blocking(
+                                        dds_domain_participant::GetProtocolVersion,
+                                    )?,
+                                    dw.parent_participant().send_and_reply_blocking(
+                                        dds_domain_participant::GetVendorId,
+                                    )?,
+                                    dw.parent_participant()
+                                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                                        .prefix(),
+                                ),
+                                dw.parent_participant().send_and_reply_blocking(
+                                    dds_domain_participant::GetUdpTransportWrite,
+                                )?,
+                                dw.parent_participant().send_and_reply_blocking(
+                                    dds_domain_participant::GetCurrentTime,
+                                )?,
+                            ))?;
+                            break;
+                        }
                     }
-                    // let timestamp = domain_participant.get_current_time();
-
-                    // domain_participant
-                    //     .get_builtin_publisher_mut()
-                    //     .stateful_data_writer_list()
-                    //     .iter()
-                    //     .find(|x| x.get_type_name().unwrap() == DiscoveredWriterData)
-                    //     .unwrap()
-                    //     .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
-                    //     .expect("Should not fail to write built-in message");
                 }
 
                 Ok(())
             }
         }
-
-        // Ok(())
     }
 
     /// This operation retrieves a previously created [`DataWriter`] belonging to the [`Publisher`] that is attached to a [`Topic`] with a matching
@@ -349,7 +355,9 @@ impl Publisher {
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        self.0.address().get_qos()
+        self.0
+            .address()
+            .send_and_reply_blocking(dds_publisher::GetQos)
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status

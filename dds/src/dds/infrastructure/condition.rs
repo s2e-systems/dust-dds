@@ -1,9 +1,7 @@
-use std::sync::{Arc, Condvar};
-
 use crate::{
     implementation::{
-        dds::status_condition_impl::StatusConditionImpl,
-        utils::shared_object::{DdsRwLock, DdsShared},
+        dds::dds_status_condition::{self, DdsStatusCondition},
+        utils::actor::ActorAddress,
     },
     infrastructure::error::DdsResult,
 };
@@ -14,14 +12,15 @@ use super::status::StatusKind;
 /// The *trigger_value* of the [`StatusCondition`] depends on the communication status of that entity (e.g., arrival of data, loss of
 /// information, etc.), ‘filtered’ by the set of *enabled_statuses* on the [`StatusCondition`].
 #[derive(Clone)]
-pub struct StatusCondition(DdsShared<DdsRwLock<StatusConditionImpl>>);
+pub struct StatusCondition(ActorAddress<DdsStatusCondition>);
 
 impl StatusCondition {
     /// This operation retrieves the list of communication statuses that are taken into account to determine the *trigger_value* of the
     /// [`StatusCondition`]. This operation returns the statuses that were explicitly set on the last call to [`StatusCondition::set_enabled_statuses`] or, if
     /// it was never called, the default list of enabled statuses which includes all the statuses.
-    pub fn get_enabled_statuses(&self) -> Vec<StatusKind> {
-        self.0.read_lock().get_enabled_statuses()
+    pub fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
+        self.0
+            .send_and_reply_blocking(dds_status_condition::GetEnabledStatuses)
     }
 
     /// This operation defines the list of communication statuses that are taken into account to determine the *trigger_value* of the
@@ -30,7 +29,8 @@ impl StatusCondition {
     /// attached conditions. Therefore, any [`WaitSet`](crate::infrastructure::wait_set::WaitSet) to which the [`StatusCondition`] is attached is potentially affected by this operation.
     /// If this function is not invoked, the default list of enabled statuses includes all the statuses.
     pub fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
-        self.0.write_lock().set_enabled_statuses(mask)
+        self.0
+            .send_and_reply_blocking(dds_status_condition::SetEnabledStatuses::new(mask.to_vec()))
     }
 
     /// This operation returns the Entity associated with the [`StatusCondition`]. Note that there is exactly one Entity associated with
@@ -43,17 +43,14 @@ impl StatusCondition {
 /// This implementation block contains the Condition operations for the [`StatusCondition`].
 impl StatusCondition {
     /// This operation retrieves the *trigger_value* of the [`StatusCondition`].
-    pub fn get_trigger_value(&self) -> bool {
-        self.0.read_lock().get_trigger_value()
+    pub fn get_trigger_value(&self) -> DdsResult<bool> {
+        self.0
+            .send_and_reply_blocking(dds_status_condition::GetTriggerValue)
     }
 }
 
 impl StatusCondition {
-    pub(crate) fn new(status_condition_impl: DdsShared<DdsRwLock<StatusConditionImpl>>) -> Self {
-        Self(status_condition_impl)
-    }
-
-    pub(crate) fn push_cvar(&self, cvar: Arc<Condvar>) {
-        self.0.write_lock().push_cvar(cvar)
+    pub(crate) fn new(dds_status_condition: ActorAddress<DdsStatusCondition>) -> Self {
+        Self(dds_status_condition)
     }
 }
