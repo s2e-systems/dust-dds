@@ -10,6 +10,8 @@ use dust_dds::{
 };
 
 use serde::{Deserialize, Serialize};
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 #[derive(Deserialize, Serialize, DdsType, Debug)]
 struct BestEffortExampleType {
@@ -17,6 +19,15 @@ struct BestEffortExampleType {
 }
 
 fn main() {
+    let subscriber = FmtSubscriber::builder()
+        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
+        // will be written to stdout.
+        .with_max_level(Level::DEBUG)
+        // completes the builder.
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
     let domain_id = 1;
     let participant_factory = DomainParticipantFactory::get_instance();
 

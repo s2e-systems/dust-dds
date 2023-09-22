@@ -58,6 +58,7 @@ use lazy_static::lazy_static;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use schemars::schema_for;
 use socket2::Socket;
+use tracing::info;
 use std::{
     net::{Ipv4Addr, SocketAddr},
     str::FromStr,
@@ -127,6 +128,8 @@ impl DomainParticipantFactory {
             app_id[0], app_id[1], app_id[2], app_id[3], // App ID
             instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
         ];
+
+        info!("Generated guid prefix {:?}", guid_prefix);
 
         let interface_address_list =
             get_interface_address_list(THE_DDS_CONFIGURATION.interface_name.as_ref());
