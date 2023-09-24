@@ -200,7 +200,7 @@ impl DomainParticipant {
     /// set in the factory. The use of this value is equivalent to the application obtaining the default Topic QoS by means of the
     /// operation [`DomainParticipant::get_default_topic_qos`] and using the resulting QoS to create the [`Topic`].
     /// The created [`Topic`] belongs to the [`DomainParticipant`] that is its factory.
-    /// In case of failure, the operation will return an error and no [`Topic`] will be created
+    /// In case of failure, the operation will return an error and no [`Topic`] will be created.
     #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
     pub fn create_topic(
         &self,
