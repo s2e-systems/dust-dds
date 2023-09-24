@@ -23,6 +23,7 @@ pub struct DomainParticipantFactoryQos {
 }
 
 /// Enumeration representing the kind of Qos to be used
+#[derive(Debug)]
 pub enum QosKind<T> {
     Default,
     Specific(T),
