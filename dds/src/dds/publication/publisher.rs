@@ -5,7 +5,7 @@ use crate::{
             dds_data_writer,
             dds_data_writer_listener::DdsDataWriterListener,
             dds_domain_participant, dds_publisher,
-            nodes::{DataWriterNode, DataWriterNodeKind, PublisherNode},
+            nodes::{DataWriterNode, PublisherNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::spawn_actor,
@@ -107,11 +107,11 @@ impl Publisher {
             default_multicast_locator_list,
         )??;
 
-        let data_writer = DataWriter::new(DataWriterNodeKind::UserDefined(DataWriterNode::new(
+        let data_writer = DataWriter::new(DataWriterNode::new(
             data_writer_address,
             self.0.address().clone(),
             self.0.parent_participant().clone(),
-        )));
+        ));
 
         if self.0.address().is_enabled()?
             && self
@@ -135,72 +135,79 @@ impl Publisher {
     /// [`DataWriter`].
     #[tracing::instrument(skip(self, a_datawriter))]
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
-        match a_datawriter.node() {
-            DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-            DataWriterNodeKind::UserDefined(dw) => {
-                let writer_handle = dw.address().get_instance_handle()?;
-                if self.0.address().guid()? != dw.parent_publisher().guid()? {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Data writer can only be deleted from its parent publisher".to_string(),
-                    ));
-                }
+        let writer_handle = a_datawriter.node().address().get_instance_handle()?;
+        if self.0.address().guid()? != a_datawriter.node().parent_publisher().guid()? {
+            return Err(DdsError::PreconditionNotMet(
+                "Data writer can only be deleted from its parent publisher".to_string(),
+            ));
+        }
 
-                let writer_is_enabled = dw.address().is_enabled()?;
-                self.0.address().datawriter_delete(writer_handle)?;
+        let writer_is_enabled = a_datawriter.node().address().is_enabled()?;
+        self.0.address().datawriter_delete(writer_handle)?;
 
-                // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
-                if writer_is_enabled {
-                    let instance_serialized_key =
-                        cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
-                            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-                            .expect("Failed to serialize data");
+        // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
+        if writer_is_enabled {
+            let instance_serialized_key =
+                cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+                    .expect("Failed to serialize data");
 
-                    let timestamp = dw
-                        .parent_participant()
-                        .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+            let timestamp = a_datawriter
+                .node()
+                .parent_participant()
+                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
-                    let builtin_publisher = dw
-                        .parent_participant()
-                        .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
-                    let data_writer_list =
-                        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
-                    for data_writer in data_writer_list {
-                        if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
-                            == Ok("DiscoveredWriterData".to_string())
-                        {
-                            data_writer.dispose_w_timestamp(
-                                instance_serialized_key,
-                                writer_handle,
-                                timestamp,
-                            )??;
+            let builtin_publisher = a_datawriter
+                .node()
+                .parent_participant()
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+            let data_writer_list =
+                builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+            for data_writer in data_writer_list {
+                if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                    == Ok("DiscoveredWriterData".to_string())
+                {
+                    data_writer.dispose_w_timestamp(
+                        instance_serialized_key,
+                        writer_handle,
+                        timestamp,
+                    )??;
 
-                            data_writer.send_only_blocking(dds_data_writer::SendMessage::new(
-                                RtpsMessageHeader::new(
-                                    dw.parent_participant().send_and_reply_blocking(
-                                        dds_domain_participant::GetProtocolVersion,
-                                    )?,
-                                    dw.parent_participant().send_and_reply_blocking(
-                                        dds_domain_participant::GetVendorId,
-                                    )?,
-                                    dw.parent_participant()
-                                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
-                                        .prefix(),
-                                ),
-                                dw.parent_participant().send_and_reply_blocking(
-                                    dds_domain_participant::GetUdpTransportWrite,
+                    data_writer.send_only_blocking(dds_data_writer::SendMessage::new(
+                        RtpsMessageHeader::new(
+                            a_datawriter
+                                .node()
+                                .parent_participant()
+                                .send_and_reply_blocking(
+                                    dds_domain_participant::GetProtocolVersion,
                                 )?,
-                                dw.parent_participant().send_and_reply_blocking(
-                                    dds_domain_participant::GetCurrentTime,
-                                )?,
-                            ))?;
-                            break;
-                        }
-                    }
+                            a_datawriter
+                                .node()
+                                .parent_participant()
+                                .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                            a_datawriter
+                                .node()
+                                .parent_participant()
+                                .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                                .prefix(),
+                        ),
+                        a_datawriter
+                            .node()
+                            .parent_participant()
+                            .send_and_reply_blocking(
+                                dds_domain_participant::GetUdpTransportWrite,
+                            )?,
+                        a_datawriter
+                            .node()
+                            .parent_participant()
+                            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+                    ))?;
+                    break;
                 }
-
-                Ok(())
             }
         }
+
+        Ok(())
     }
 
     /// This operation retrieves a previously created [`DataWriter`] belonging to the [`Publisher`] that is attached to a [`Topic`] with a matching

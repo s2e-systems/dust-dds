@@ -14,12 +14,6 @@ use super::{
 };
 
 #[derive(Clone, PartialEq, Eq)]
-pub enum DataWriterNodeKind {
-    UserDefined(DataWriterNode),
-    Listener(DataWriterNode),
-}
-
-#[derive(Clone, PartialEq, Eq)]
 pub struct SubscriberNode {
     this: ActorAddress<DdsSubscriber>,
     parent: ActorAddress<DdsDomainParticipant>,
