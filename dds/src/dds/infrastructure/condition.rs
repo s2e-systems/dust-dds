@@ -18,6 +18,7 @@ impl StatusCondition {
     /// This operation retrieves the list of communication statuses that are taken into account to determine the *trigger_value* of the
     /// [`StatusCondition`]. This operation returns the statuses that were explicitly set on the last call to [`StatusCondition::set_enabled_statuses`] or, if
     /// it was never called, the default list of enabled statuses which includes all the statuses.
+    #[tracing::instrument(skip(self))]
     pub fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
         self.0
             .send_and_reply_blocking(dds_status_condition::GetEnabledStatuses)
@@ -28,6 +29,7 @@ impl StatusCondition {
     /// [`WaitSet`](crate::infrastructure::wait_set::WaitSet) objects behavior depend on the changes of the *trigger_value* of their
     /// attached conditions. Therefore, any [`WaitSet`](crate::infrastructure::wait_set::WaitSet) to which the [`StatusCondition`] is attached is potentially affected by this operation.
     /// If this function is not invoked, the default list of enabled statuses includes all the statuses.
+    #[tracing::instrument(skip(self))]
     pub fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
         self.0
             .send_and_reply_blocking(dds_status_condition::SetEnabledStatuses::new(mask.to_vec()))
@@ -35,6 +37,7 @@ impl StatusCondition {
 
     /// This operation returns the Entity associated with the [`StatusCondition`]. Note that there is exactly one Entity associated with
     /// each [`StatusCondition`].
+    #[tracing::instrument(skip(self))]
     pub fn get_entity(&self) {
         todo!()
     }
@@ -43,6 +46,7 @@ impl StatusCondition {
 /// This implementation block contains the Condition operations for the [`StatusCondition`].
 impl StatusCondition {
     /// This operation retrieves the *trigger_value* of the [`StatusCondition`].
+    #[tracing::instrument(skip(self))]
     pub fn get_trigger_value(&self) -> DdsResult<bool> {
         self.0
             .send_and_reply_blocking(dds_status_condition::GetTriggerValue)
