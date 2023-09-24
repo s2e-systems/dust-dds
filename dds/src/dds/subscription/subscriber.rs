@@ -89,6 +89,7 @@ impl Subscriber {
     /// 2. Retrieve the default [`DataReaderQos`] qos by means of the [`Subscriber::get_default_datareader_qos`] operation.
     /// 3. Combine those two qos policies using the [`Subscriber::copy_from_topic_qos`] and selectively modify policies as desired and
     /// use the resulting [`DataReaderQos`] to construct the [`DataReader`].
+    #[tracing::instrument(skip(self, a_topic, a_listener), fields(with_listener = a_listener.is_some()))]
     pub fn create_datareader<Foo>(
         &self,
         a_topic: &Topic,
@@ -189,6 +190,7 @@ impl Subscriber {
     /// This operation deletes a [`DataReader`] that belongs to the [`Subscriber`]. This operation must be called on the
     /// same [`Subscriber`] object used to create the [`DataReader`]. If [`Subscriber::delete_datareader`] is called on a
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
+    #[tracing::instrument(skip(self, a_datareader))]
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
@@ -272,6 +274,7 @@ impl Subscriber {
     /// If multiple [`DataReader`] attached to the [`Subscriber`] satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in [`Subscriber`] allows access to the built-in [`DataReader`] entities for the built-in topics.
+    #[tracing::instrument(skip(self))]
     pub fn lookup_datareader<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataReader<Foo>>>
     where
         Foo: DdsHasKey + for<'de> serde::Deserialize<'de>,
@@ -317,6 +320,7 @@ impl Subscriber {
     /// entities with a [`StatusKind::DataAvailable`] that is considered changed.
     /// This operation is typically invoked from the [`SubscriberListener::on_data_on_readers`] operation. That way the
     /// [`SubscriberListener`] can delegate to the [`DataReaderListener`] objects the handling of the data.
+    #[tracing::instrument(skip(self))]
     pub fn notify_datareaders(&self) -> DdsResult<()> {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
@@ -326,6 +330,7 @@ impl Subscriber {
     }
 
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
+    #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
@@ -337,6 +342,7 @@ impl Subscriber {
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
+    #[tracing::instrument(skip(self))]
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
@@ -351,6 +357,7 @@ impl Subscriber {
     /// contained entities is in a state where it cannot be deleted.
     /// Once this operation returns successfully, the application may delete the [`Subscriber`] knowing that it has no
     /// contained [`DataReader`] objects.
+    #[tracing::instrument(skip(self))]
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         todo!()
         // match &self.0 {
@@ -369,6 +376,7 @@ impl Subscriber {
     /// return [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataReaderQos`].
+    #[tracing::instrument(skip(self))]
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
@@ -381,6 +389,7 @@ impl Subscriber {
     /// created [`DataReader`] entities in the case where the qos policies are defaulted in the [`Subscriber::create_datareader`] operation.
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Subscriber::get_default_datareader_qos`], or else, if the call was never made, the default values of [`DataReaderQos`].
+    #[tracing::instrument(skip(self))]
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
@@ -395,6 +404,7 @@ impl Subscriber {
     /// corresponding ones on the [`Topic`]. The resulting qos can then be used to create a new [`DataReader`], or set its qos.
     /// This operation does not check the resulting `a_datareader_qos` for consistency. This is because the merged `a_datareader_qos`
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the [`DataReader`].
+    #[tracing::instrument]
     pub fn copy_from_topic_qos(
         _a_datareader_qos: &mut DataReaderQos,
         _a_topic_qos: &TopicQos,
@@ -414,6 +424,7 @@ impl Subscriber {
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
+    #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, _qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         todo!()
         // match &self.0 {
@@ -431,6 +442,7 @@ impl Subscriber {
     }
 
     /// This operation allows access to the existing set of [`SubscriberQos`] policies.
+    #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
@@ -447,6 +459,7 @@ impl Subscriber {
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
+    #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
     pub fn set_listener(
         &self,
         _a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
@@ -462,6 +475,7 @@ impl Subscriber {
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
+    #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
@@ -478,6 +492,7 @@ impl Subscriber {
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
+    #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
         // match &self.0 {
@@ -510,6 +525,7 @@ impl Subscriber {
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
@@ -539,6 +555,7 @@ impl Subscriber {
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
+    #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
             SubscriberNodeKind::Builtin(s)
