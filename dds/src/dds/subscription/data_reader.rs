@@ -74,7 +74,6 @@ impl<'de, Foo> Sample<Foo>
 where
     Foo: serde::Deserialize<'de> + DdsRepresentation + 'de,
 {
-    #[tracing::instrument(skip(self))]
     pub fn data(&'de self) -> Option<Foo> {
         match self.data.as_ref() {
             Some(data) => dds_deserialize_from_bytes::<Foo>(data.as_ref()).ok(),
@@ -84,7 +83,6 @@ where
 }
 
 impl<Foo> Sample<Foo> {
-    #[tracing::instrument(skip(self))]
     pub fn sample_info(&self) -> SampleInfo {
         self.sample_info.clone()
     }
