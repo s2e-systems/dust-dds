@@ -5,7 +5,7 @@ use crate::{
             dds_data_reader, dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
             dds_publisher, dds_subscriber,
-            nodes::{DataReaderNodeKind, TopicNode, TopicNodeKind},
+            nodes::{DataReaderNode, TopicNode, TopicNodeKind},
         },
         rtps::messages::{overall_structure::RtpsMessageHeader, submessage_elements::Data},
         utils::actor::ActorAddress,
@@ -93,14 +93,14 @@ impl<Foo> Sample<Foo> {
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<Foo>(DataReaderNodeKind, PhantomData<Foo>);
+pub struct DataReader<Foo>(DataReaderNode, PhantomData<Foo>);
 
 impl<Foo> DataReader<Foo> {
-    pub(crate) fn new(data_reader: DataReaderNodeKind) -> Self {
+    pub(crate) fn new(data_reader: DataReaderNode) -> Self {
         Self(data_reader, PhantomData)
     }
 
-    pub(crate) fn node(&self) -> &DataReaderNodeKind {
+    pub(crate) fn node(&self) -> &DataReaderNode {
         &self.0
     }
 }
@@ -177,27 +177,21 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => {
-                let samples =
-                    dr.address()
-                        .send_and_reply_blocking(dds_data_reader::Read::new(
-                            max_samples,
-                            sample_states.to_vec(),
-                            view_states.to_vec(),
-                            instance_states.to_vec(),
-                            None,
-                        ))??;
+        let samples = self
+            .0
+            .address()
+            .send_and_reply_blocking(dds_data_reader::Read::new(
+                max_samples,
+                sample_states.to_vec(),
+                view_states.to_vec(),
+                instance_states.to_vec(),
+                None,
+            ))??;
 
-                Ok(samples
-                    .into_iter()
-                    .map(|(data, sample_info)| Sample::new(data, sample_info))
-                    .collect())
-            }
-        }
+        Ok(samples
+            .into_iter()
+            .map(|(data, sample_info)| Sample::new(data, sample_info))
+            .collect())
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. This operation uses the same
@@ -211,27 +205,21 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
-                Err(DdsError::IllegalOperation)
-            }
-            DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let samples =
-                    dr.address()
-                        .send_and_reply_blocking(dds_data_reader::Take::new(
-                            max_samples,
-                            sample_states.to_vec(),
-                            view_states.to_vec(),
-                            instance_states.to_vec(),
-                            None,
-                        ))??;
+        let samples = self
+            .0
+            .address()
+            .send_and_reply_blocking(dds_data_reader::Take::new(
+                max_samples,
+                sample_states.to_vec(),
+                view_states.to_vec(),
+                instance_states.to_vec(),
+                None,
+            ))??;
 
-                Ok(samples
-                    .into_iter()
-                    .map(|(data, sample_info)| Sample::new(data, sample_info))
-                    .collect())
-            }
-        }
+        Ok(samples
+            .into_iter()
+            .map(|(data, sample_info)| Sample::new(data, sample_info))
+            .collect())
     }
 
     /// This operation reads the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -243,20 +231,16 @@ impl<Foo> DataReader<Foo> {
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        let mut samples = match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => {
-                dr.address()
-                    .send_and_reply_blocking(dds_data_reader::Read::new(
-                        1,
-                        vec![SampleStateKind::NotRead],
-                        ANY_VIEW_STATE.to_vec(),
-                        ANY_INSTANCE_STATE.to_vec(),
-                        None,
-                    ))??
-            }
+        let mut samples = {
+            self.0
+                .address()
+                .send_and_reply_blocking(dds_data_reader::Read::new(
+                    1,
+                    vec![SampleStateKind::NotRead],
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                ))??
         };
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
@@ -271,24 +255,18 @@ impl<Foo> DataReader<Foo> {
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
-                Err(DdsError::IllegalOperation)
-            }
-            DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let mut samples =
-                    dr.address()
-                        .send_and_reply_blocking(dds_data_reader::Take::new(
-                            1,
-                            vec![SampleStateKind::NotRead],
-                            ANY_VIEW_STATE.to_vec(),
-                            ANY_INSTANCE_STATE.to_vec(),
-                            None,
-                        ))??;
-                let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
-                Ok(Sample::new(data, sample_info))
-            }
-        }
+        let mut samples =
+            self.0
+                .address()
+                .send_and_reply_blocking(dds_data_reader::Take::new(
+                    1,
+                    vec![SampleStateKind::NotRead],
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                ))??;
+        let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
+        Ok(Sample::new(data, sample_info))
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The
@@ -308,26 +286,20 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => {
-                let samples =
-                    dr.address()
-                        .send_and_reply_blocking(dds_data_reader::Read::new(
-                            max_samples,
-                            sample_states.to_vec(),
-                            view_states.to_vec(),
-                            instance_states.to_vec(),
-                            Some(a_handle),
-                        ))??;
-                Ok(samples
-                    .into_iter()
-                    .map(|(data, sample_info)| Sample::new(data, sample_info))
-                    .collect())
-            }
-        }
+        let samples = self
+            .0
+            .address()
+            .send_and_reply_blocking(dds_data_reader::Read::new(
+                max_samples,
+                sample_states.to_vec(),
+                view_states.to_vec(),
+                instance_states.to_vec(),
+                Some(a_handle),
+            ))??;
+        Ok(samples
+            .into_iter()
+            .map(|(data, sample_info)| Sample::new(data, sample_info))
+            .collect())
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The
@@ -347,26 +319,20 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
-                Err(DdsError::IllegalOperation)
-            }
-            DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let samples =
-                    dr.address()
-                        .send_and_reply_blocking(dds_data_reader::Take::new(
-                            max_samples,
-                            sample_states.to_vec(),
-                            view_states.to_vec(),
-                            instance_states.to_vec(),
-                            Some(a_handle),
-                        ))??;
-                Ok(samples
-                    .into_iter()
-                    .map(|(data, sample_info)| Sample::new(data, sample_info))
-                    .collect())
-            }
-        }
+        let samples = self
+            .0
+            .address()
+            .send_and_reply_blocking(dds_data_reader::Take::new(
+                max_samples,
+                sample_states.to_vec(),
+                view_states.to_vec(),
+                instance_states.to_vec(),
+                Some(a_handle),
+            ))??;
+        Ok(samples
+            .into_iter()
+            .map(|(data, sample_info)| Sample::new(data, sample_info))
+            .collect())
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`] where all the samples belong to a single instance.
@@ -401,26 +367,20 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().send_and_reply_blocking(
-                    dds_data_reader::ReadNextInstance::new(
-                        max_samples,
-                        previous_handle,
-                        sample_states.to_vec(),
-                        view_states.to_vec(),
-                        instance_states.to_vec(),
-                    ),
-                )??;
-                Ok(samples
-                    .into_iter()
-                    .map(|(data, sample_info)| Sample::new(data, sample_info))
-                    .collect())
-            }
-        }
+        let samples =
+            self.0
+                .address()
+                .send_and_reply_blocking(dds_data_reader::ReadNextInstance::new(
+                    max_samples,
+                    previous_handle,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
+                ))??;
+        Ok(samples
+            .into_iter()
+            .map(|(data, sample_info)| Sample::new(data, sample_info))
+            .collect())
     }
 
     /// This operation accesses a collection of [`Sample`] values from the [`DataReader`] and removes them from the [`DataReader`].
@@ -435,26 +395,20 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
-                Err(DdsError::IllegalOperation)
-            }
-            DataReaderNodeKind::UserDefined(dr) | DataReaderNodeKind::Listener(dr) => {
-                let samples = dr.address().send_and_reply_blocking(
-                    dds_data_reader::TakeNextInstance::new(
-                        max_samples,
-                        previous_handle,
-                        sample_states.to_vec(),
-                        view_states.to_vec(),
-                        instance_states.to_vec(),
-                    ),
-                )??;
-                Ok(samples
-                    .into_iter()
-                    .map(|(data, sample_info)| Sample::new(data, sample_info))
-                    .collect())
-            }
-        }
+        let samples =
+            self.0
+                .address()
+                .send_and_reply_blocking(dds_data_reader::TakeNextInstance::new(
+                    max_samples,
+                    previous_handle,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
+                ))??;
+        Ok(samples
+            .into_iter()
+            .map(|(data, sample_info)| Sample::new(data, sample_info))
+            .collect())
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an `handle`.
@@ -464,21 +418,6 @@ impl<Foo> DataReader<Foo> {
     #[tracing::instrument(skip(self, _key_holder))]
     pub fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
         todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_reader::get_key_value(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //                 r.parent_subscriber(),
-        //                 key_holder,
-        //                 handle,
-        //             )
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation takes as a parameter an instance and returns an [`InstanceHandle`] handle
@@ -490,20 +429,6 @@ impl<Foo> DataReader<Foo> {
     #[tracing::instrument(skip(self, _instance))]
     pub fn lookup_instance(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&r.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_data_reader::lookup_instance(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 r.guid(),
-        //                 r.parent_subscriber(),
-        //                 instance,
-        //             )
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
     }
 }
 
@@ -512,54 +437,12 @@ impl<Foo> DataReader<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
         todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => {
-        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //             .get_participant_mut(&r.guid().prefix(), |dp| {
-        //                 crate::implementation::behavior::user_defined_data_reader::get_liveliness_changed_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-        //                 r.parent_subscriber(),)
-        //             })?;
-
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-        //             l.ok_or(DdsError::AlreadyDeleted)?
-        //                 .remove_communication_state(StatusKind::LivelinessChanged);
-        //             Ok(())
-        //         })?;
-
-        //         Ok(status)
-        //     }
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation allows access to the [`RequestedDeadlineMissedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
         todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => {
-        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-        //             &r.guid().prefix(),
-        //             |dp| {
-        //                 crate::implementation::behavior::user_defined_data_reader::get_requested_deadline_missed_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-        //                 r.parent_subscriber(),)
-        //             },
-        //         )?;
-
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-        //             l.ok_or(DdsError::AlreadyDeleted)?
-        //                 .remove_communication_state(StatusKind::RequestedDeadlineMissed);
-        //             Ok(())
-        //         })?;
-
-        //         Ok(status)
-        //     }
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation allows access to the [`RequestedIncompatibleQosStatus`].
@@ -568,127 +451,42 @@ impl<Foo> DataReader<Foo> {
         &self,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
         todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => {
-        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-        //             &r.guid().prefix(),
-        //             |dp| {
-        //                 crate::implementation::behavior::user_defined_data_reader::get_requested_incompatible_qos_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-        //                 r.parent_subscriber(),)
-        //             },
-        //         )?;
-
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-        //             l.ok_or(DdsError::AlreadyDeleted)?
-        //                 .remove_communication_state(StatusKind::RequestedIncompatibleQos);
-        //             Ok(())
-        //         })?;
-
-        //         Ok(status)
-        //     }
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
         todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => {
-        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //             .get_participant_mut(&r.guid().prefix(), |dp| {
-        //                 crate::implementation::behavior::user_defined_data_reader::get_sample_lost_status(dp.ok_or(DdsError::AlreadyDeleted)?,r.guid(),
-        //                 r.parent_subscriber(),)
-        //             })?;
-
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-        //             l.ok_or(DdsError::AlreadyDeleted)?
-        //                 .remove_communication_state(StatusKind::SampleLost);
-        //             Ok(())
-        //         })?;
-
-        //         Ok(status)
-        //     }
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation allows access to the [`SampleRejectedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
         todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => {
-        //         let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //             .get_participant_mut(&r.guid().prefix(), |dp| {
-        //                 crate::implementation::behavior::user_defined_data_reader::get_sample_rejected_status(dp.ok_or(DdsError::AlreadyDeleted)?, r.guid(),
-        //                 r.parent_subscriber(),)
-        //             })?;
-
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(&r.guid(), |l| {
-        //             l.ok_or(DdsError::AlreadyDeleted)?
-        //                 .remove_communication_state(StatusKind::SampleRejected);
-        //             Ok(())
-        //         })?;
-
-        //         Ok(status)
-        //     }
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr
-                .address()
-                .send_and_reply_blocking(dds_data_reader::GetSubscriptionMatchedStatus)?,
-        }
+        self.0
+            .address()
+            .send_and_reply_blocking(dds_data_reader::GetSubscriptionMatchedStatus)?
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
     pub fn get_topicdescription(&self) -> DdsResult<Topic> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => Ok(Topic::new(TopicNodeKind::UserDefined(
-                TopicNode::new(dr.topic_address(), dr.parent_participant().clone()),
-            ))),
-        }
+        Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
+            self.0.topic_address(),
+            self.0.parent_participant().clone(),
+        ))))
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
         todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-        //     DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&r.guid().prefix(), |dp| {
-        //             Ok(Subscriber::new(SubscriberNodeKind::UserDefined(
-        //                 crate::implementation::behavior::user_defined_data_reader::get_subscriber(
-        //                     dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                     r.parent_subscriber(),
-        //                 ),
-        //             )))
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
     }
 
     /// This operation blocks the calling thread until either all “historical” data is received, or else the
@@ -705,23 +503,15 @@ impl<Foo> DataReader<Foo> {
     /// data is received.
     #[tracing::instrument(skip(self))]
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
-                todo!()
-            }
-            DataReaderNodeKind::UserDefined(dr) => {
-                let start_time = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
 
-                while start_time.elapsed() < std::time::Duration::from(max_wait) {
-                    if dr.address().is_historical_data_received()?? {
-                        return Ok(());
-                    }
-                }
-
-                Err(DdsError::Timeout)
+        while start_time.elapsed() < std::time::Duration::from(max_wait) {
+            if self.0.address().is_historical_data_received()?? {
+                return Ok(());
             }
-            DataReaderNodeKind::Listener(_) => todo!(),
         }
+
+        Err(DdsError::Timeout)
     }
 
     /// This operation retrieves information on a publication that is currently “associated” with the [`DataReader`];
@@ -736,14 +526,9 @@ impl<Foo> DataReader<Foo> {
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr
-                .address()
-                .get_matched_publication_data(publication_handle)?,
-        }
+        self.0
+            .address()
+            .get_matched_publication_data(publication_handle)?
     }
 
     /// This operation retrieves the list of publications currently “associated” with the [`DataReader`]; that is, publications that have a
@@ -754,12 +539,7 @@ impl<Foo> DataReader<Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr.address().get_matched_publications(),
-        }
+        self.0.address().get_matched_publications()
     }
 }
 
@@ -778,48 +558,40 @@ impl<Foo> DataReader<Foo> {
     /// modified to match the current default for the Entity’s factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => {
-                let q = match qos {
-                    QosKind::Default => dr.parent_subscriber().get_default_datareader_qos()?,
-                    QosKind::Specific(q) => {
-                        q.is_consistent()?;
-                        q
-                    }
-                };
-                dr.address().set_qos(q)??;
-
-                if dr.address().is_enabled()? {
-                    announce_data_reader(
-                        dr.parent_participant(),
-                        dr.address().as_discovered_reader_data(
-                            TopicQos::default(),
-                            dr.parent_subscriber()
-                                .send_and_reply_blocking(dds_subscriber::GetQos)?,
-                            dr.parent_participant().get_default_unicast_locator_list()?,
-                            dr.parent_participant()
-                                .get_default_multicast_locator_list()?,
-                        )?,
-                    )?;
-                }
-
-                Ok(())
+        let q = match qos {
+            QosKind::Default => self.0.parent_subscriber().get_default_datareader_qos()?,
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
             }
+        };
+        self.0.address().set_qos(q)??;
+
+        if self.0.address().is_enabled()? {
+            announce_data_reader(
+                self.0.parent_participant(),
+                self.0.address().as_discovered_reader_data(
+                    TopicQos::default(),
+                    self.0
+                        .parent_subscriber()
+                        .send_and_reply_blocking(dds_subscriber::GetQos)?,
+                    self.0
+                        .parent_participant()
+                        .get_default_unicast_locator_list()?,
+                    self.0
+                        .parent_participant()
+                        .get_default_multicast_locator_list()?,
+                )?,
+            )?;
         }
+
+        Ok(())
     }
 
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr)
-            | DataReaderNodeKind::Listener(dr) => dr.address().get_qos(),
-        }
+        self.0.address().get_qos()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -827,14 +599,10 @@ impl<Foo> DataReader<Foo> {
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateful(dr)
-            | DataReaderNodeKind::_BuiltinStateless(dr)
-            | DataReaderNodeKind::UserDefined(dr) => {
-                dr.address().get_statuscondition().map(StatusCondition::new)
-            }
-            DataReaderNodeKind::Listener(_) => todo!(),
-        }
+        self.0
+            .address()
+            .get_statuscondition()
+            .map(StatusCondition::new)
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -846,15 +614,6 @@ impl<Foo> DataReader<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_data_reader_listener(&r.guid(), |l| {
-        //             Ok(l.ok_or(DdsError::AlreadyDeleted)?.get_status_changes())
-        //         }),
-        //     DataReaderNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -879,42 +638,33 @@ impl<Foo> DataReader<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateless(_)
-            | DataReaderNodeKind::_BuiltinStateful(_)
-            | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-
-            DataReaderNodeKind::UserDefined(r) => {
-                if !r.address().is_enabled()? {
-                    r.address().enable()?;
-                }
-
-                announce_data_reader(
-                    r.parent_participant(),
-                    r.address().as_discovered_reader_data(
-                        TopicQos::default(),
-                        r.parent_subscriber()
-                            .send_and_reply_blocking(dds_subscriber::GetQos)?,
-                        r.parent_participant().get_default_unicast_locator_list()?,
-                        r.parent_participant()
-                            .get_default_multicast_locator_list()?,
-                    )?,
-                )?;
-
-                Ok(())
-            }
+        if !self.0.address().is_enabled()? {
+            self.0.address().enable()?;
         }
+
+        announce_data_reader(
+            self.0.parent_participant(),
+            self.0.address().as_discovered_reader_data(
+                TopicQos::default(),
+                self.0
+                    .parent_subscriber()
+                    .send_and_reply_blocking(dds_subscriber::GetQos)?,
+                self.0
+                    .parent_participant()
+                    .get_default_unicast_locator_list()?,
+                self.0
+                    .parent_participant()
+                    .get_default_multicast_locator_list()?,
+            )?,
+        )?;
+
+        Ok(())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        match &self.0 {
-            DataReaderNodeKind::_BuiltinStateless(r)
-            | DataReaderNodeKind::_BuiltinStateful(r)
-            | DataReaderNodeKind::UserDefined(r)
-            | DataReaderNodeKind::Listener(r) => r.address().get_instance_handle(),
-        }
+        self.0.address().get_instance_handle()
     }
 }
 
@@ -935,20 +685,6 @@ where
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
-        // match &self.0 {
-        //     DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-        //     DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-        //     DataReaderNodeKind::UserDefined(_r) => {
-        //         todo!()
-        //         // #[allow(clippy::redundant_closure)]
-        //         // r.set_listener(
-        //         //     a_listener
-        //         //         .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|l| Box::new(l)),
-        //         //     mask,
-        //         // )
-        //     }
-        //     DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
     }
 }
 pub trait AnyDataReader {}

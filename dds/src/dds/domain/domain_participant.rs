@@ -7,7 +7,7 @@ use crate::{
             dds_data_reader, dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
             dds_publisher, dds_subscriber,
-            nodes::{PublisherNode, SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind},
+            nodes::{PublisherNode, SubscriberNode, TopicNode, TopicNodeKind},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::{ActorAddress, THE_RUNTIME},
@@ -144,10 +144,7 @@ impl DomainParticipant {
     ) -> DdsResult<Subscriber> {
         let subscriber_address = self.0.create_subscriber(qos, a_listener, mask.to_vec())?;
 
-        let subscriber = Subscriber::new(SubscriberNodeKind::UserDefined(SubscriberNode::new(
-            subscriber_address,
-            self.0.clone(),
-        )));
+        let subscriber = Subscriber::new(SubscriberNode::new(subscriber_address, self.0.clone()));
 
         if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
             subscriber.enable()?;
@@ -164,34 +161,30 @@ impl DomainParticipant {
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_subscriber))]
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        match a_subscriber.node() {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => Ok(()),
-            SubscriberNodeKind::UserDefined(s) => {
-                if self
-                    .0
-                    .send_and_reply_blocking(dds_domain_participant::GetGuid)?
-                    .prefix()
-                    != s.address().guid()?.prefix()
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Subscriber can only be deleted from its parent participant".to_string(),
-                    ));
-                }
-
-                if !s
-                    .address()
-                    .send_and_reply_blocking(dds_subscriber::DataReaderList)?
-                    .is_empty()
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Subscriber still contains data readers".to_string(),
-                    ));
-                }
-
-                self.0
-                    .delete_user_defined_subscriber(s.address().get_instance_handle()?)
-            }
+        if self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+            .prefix()
+            != a_subscriber.node().address().guid()?.prefix()
+        {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant".to_string(),
+            ));
         }
+
+        if !a_subscriber
+            .node()
+            .address()
+            .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+            .is_empty()
+        {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber still contains data readers".to_string(),
+            ));
+        }
+
+        self.0
+            .delete_user_defined_subscriber(a_subscriber.node().address().get_instance_handle()?)
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
@@ -387,12 +380,10 @@ impl DomainParticipant {
     /// objects.
     #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        Ok(Subscriber::new(SubscriberNodeKind::Builtin(
-            SubscriberNode::new(
-                self.0
-                    .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?,
-                self.0.clone(),
-            ),
+        Ok(Subscriber::new(SubscriberNode::new(
+            self.0
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?,
+            self.0.clone(),
         )))
     }
 

@@ -14,24 +14,9 @@ use super::{
 };
 
 #[derive(Clone, PartialEq, Eq)]
-pub enum SubscriberNodeKind {
-    Builtin(SubscriberNode),
-    UserDefined(SubscriberNode),
-    Listener(SubscriberNode),
-}
-
-#[derive(Clone, PartialEq, Eq)]
 pub enum DataWriterNodeKind {
     UserDefined(DataWriterNode),
     Listener(DataWriterNode),
-}
-
-#[derive(Clone, PartialEq, Eq)]
-pub enum DataReaderNodeKind {
-    _BuiltinStateful(DataReaderNode),
-    _BuiltinStateless(DataReaderNode),
-    UserDefined(DataReaderNode),
-    Listener(DataReaderNode),
 }
 
 #[derive(Clone, PartialEq, Eq)]
