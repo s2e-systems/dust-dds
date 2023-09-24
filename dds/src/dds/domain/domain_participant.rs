@@ -7,7 +7,7 @@ use crate::{
             dds_data_reader, dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
             dds_publisher, dds_subscriber,
-            nodes::{PublisherNode, SubscriberNode, TopicNode, TopicNodeKind},
+            nodes::{PublisherNode, SubscriberNode, TopicNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::{ActorAddress, THE_RUNTIME},
@@ -211,10 +211,7 @@ impl DomainParticipant {
             mask.to_vec(),
         )?;
 
-        let topic = Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
-            topic_address,
-            self.0.clone(),
-        )));
+        let topic = Topic::new(TopicNode::new(topic_address, self.0.clone()));
         if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
             topic.enable()?;
         }
@@ -230,60 +227,57 @@ impl DomainParticipant {
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_topic))]
     pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
-        match &a_topic.node() {
-            TopicNodeKind::UserDefined(t) => {
-                if self
-                    .0
-                    .send_and_reply_blocking(dds_domain_participant::GetGuid)?
-                    .prefix()
-                    != t.address().guid()?.prefix()
+        if self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+            .prefix()
+            != a_topic.node().address().guid()?.prefix()
+        {
+            return Err(DdsError::PreconditionNotMet(
+                "Topic can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
+        for publisher in self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
+        {
+            let data_writer_list =
+                publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+            for data_writer in data_writer_list {
+                if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                    == a_topic.node().address().get_type_name()
+                    && data_writer.send_and_reply_blocking(dds_data_writer::GetTopicName)
+                        == a_topic.node().address().get_name()
                 {
                     return Err(DdsError::PreconditionNotMet(
-                        "Topic can only be deleted from its parent participant".to_string(),
+                        "Topic still attached to some data writer".to_string(),
                     ));
                 }
-
-                for publisher in self
-                    .0
-                    .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
-                {
-                    let data_writer_list =
-                        publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
-                    for data_writer in data_writer_list {
-                        if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
-                            == t.address().get_type_name()
-                            && data_writer.send_and_reply_blocking(dds_data_writer::GetTopicName)
-                                == t.address().get_name()
-                        {
-                            return Err(DdsError::PreconditionNotMet(
-                                "Topic still attached to some data writer".to_string(),
-                            ));
-                        }
-                    }
-                }
-
-                for subscriber in self
-                    .0
-                    .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
-                {
-                    let data_reader_list =
-                        subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)?;
-                    for data_reader in data_reader_list {
-                        if data_reader.send_and_reply_blocking(dds_data_reader::GetTypeName)
-                            == t.address().get_type_name()
-                            && data_reader.send_and_reply_blocking(dds_data_reader::GetTopicName)
-                                == t.address().get_name()
-                        {
-                            return Err(DdsError::PreconditionNotMet(
-                                "Topic still attached to some data reader".to_string(),
-                            ));
-                        }
-                    }
-                }
-
-                self.0.delete_topic(t.address().get_instance_handle()?)
             }
         }
+
+        for subscriber in self
+            .0
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
+        {
+            let data_reader_list =
+                subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)?;
+            for data_reader in data_reader_list {
+                if data_reader.send_and_reply_blocking(dds_data_reader::GetTypeName)
+                    == a_topic.node().address().get_type_name()
+                    && data_reader.send_and_reply_blocking(dds_data_reader::GetTopicName)
+                        == a_topic.node().address().get_name()
+                {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data reader".to_string(),
+                    ));
+                }
+            }
+        }
+
+        self.0
+            .delete_topic(a_topic.node().address().get_instance_handle()?)
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
@@ -307,10 +301,7 @@ impl DomainParticipant {
                 .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
             {
                 if topic.get_name()? == topic_name {
-                    return Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
-                        topic,
-                        self.0.clone(),
-                    ))));
+                    return Ok(Topic::new(TopicNode::new(topic, self.0.clone())));
                 }
             }
 

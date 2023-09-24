@@ -5,7 +5,7 @@ use crate::{
             dds_data_reader, dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
             dds_publisher, dds_subscriber,
-            nodes::{DataReaderNode, TopicNode, TopicNodeKind},
+            nodes::{DataReaderNode, TopicNode},
         },
         rtps::messages::{overall_structure::RtpsMessageHeader, submessage_elements::Data},
         utils::actor::ActorAddress,
@@ -477,10 +477,10 @@ impl<Foo> DataReader<Foo> {
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
     pub fn get_topicdescription(&self) -> DdsResult<Topic> {
-        Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
+        Ok(Topic::new(TopicNode::new(
             self.0.topic_address(),
             self.0.parent_participant().clone(),
-        ))))
+        )))
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.

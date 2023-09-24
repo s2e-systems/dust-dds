@@ -20,11 +20,6 @@ pub enum DataWriterNodeKind {
 }
 
 #[derive(Clone, PartialEq, Eq)]
-pub enum TopicNodeKind {
-    UserDefined(TopicNode),
-}
-
-#[derive(Clone, PartialEq, Eq)]
 pub struct SubscriberNode {
     this: ActorAddress<DdsSubscriber>,
     parent: ActorAddress<DdsDomainParticipant>,
