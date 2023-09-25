@@ -91,7 +91,7 @@ where
     pub fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let timestamp = {
             self.0
-                .parent_participant()
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?
         };
         self.register_instance_w_timestamp(instance, timestamp)
@@ -146,7 +146,7 @@ where
     ) -> DdsResult<()> {
         let timestamp = {
             self.0
-                .parent_participant()
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?
         };
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
@@ -192,7 +192,7 @@ where
 
             let instance_serialized_key = dds_serialize_key_to_bytes(instance)?;
 
-            self.0.address().unregister_instance_w_timestamp(
+            self.0.writer_address().unregister_instance_w_timestamp(
                 instance_serialized_key.as_ref().to_vec(),
                 instance_handle,
                 timestamp,
@@ -219,7 +219,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.0
-            .address()
+            .writer_address()
             .lookup_instance(dds_serialize_key(instance)?)?
     }
 
@@ -259,7 +259,7 @@ where
     pub fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = {
             self.0
-                .parent_participant()
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?
         };
         self.write_w_timestamp(data, handle, timestamp)
@@ -280,7 +280,7 @@ where
         let serialized_data = dds_serialize_to_bytes(data)?;
 
         self.0
-            .address()
+            .writer_address()
             .send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
                 serialized_data,
                 dds_serialize_key(data)?,
@@ -289,25 +289,25 @@ where
             ))??;
 
         self.0
-            .address()
+            .writer_address()
             .send_only_blocking(dds_data_writer::SendMessage::new(
                 RtpsMessageHeader::new(
                     self.0
-                        .parent_participant()
+                        .participant_address()
                         .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
                     self.0
-                        .parent_participant()
+                        .participant_address()
                         .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
                     self.0
-                        .parent_participant()
+                        .participant_address()
                         .send_and_reply_blocking(dds_domain_participant::GetGuid)?
                         .prefix(),
                 ),
                 self.0
-                    .parent_participant()
+                    .participant_address()
                     .send_and_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
                 self.0
-                    .parent_participant()
+                    .participant_address()
                     .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
             ))?;
 
@@ -330,7 +330,7 @@ where
     pub fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = {
             self.0
-                .parent_participant()
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?
         };
         self.dispose_w_timestamp(data, handle, timestamp)
@@ -375,7 +375,7 @@ where
 
         let instance_serialized_key = dds_serialize_key_to_bytes(data)?;
 
-        self.0.address().dispose_w_timestamp(
+        self.0.writer_address().dispose_w_timestamp(
             instance_serialized_key.as_ref().to_vec(),
             instance_handle,
             timestamp,
@@ -396,7 +396,7 @@ impl<Foo> DataWriter<Foo> {
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         let start_time = Instant::now();
         while start_time.elapsed() < std::time::Duration::from(max_wait) {
-            if self.0.address().are_all_changes_acknowledge()? {
+            if self.0.writer_address().are_all_changes_acknowledge()? {
                 return Ok(());
             }
             std::thread::sleep(std::time::Duration::from_millis(25));
@@ -427,7 +427,7 @@ impl<Foo> DataWriter<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         self.0
-            .address()
+            .writer_address()
             .send_and_reply_blocking(dds_data_writer::GetPublicationMatchedStatus)?
     }
 
@@ -441,8 +441,8 @@ impl<Foo> DataWriter<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
         Ok(Publisher::new(PublisherNode::new(
-            self.0.parent_publisher().clone(),
-            self.0.parent_participant().clone(),
+            self.0.publisher_address().clone(),
+            self.0.participant_address().clone(),
         )))
     }
 
@@ -471,7 +471,7 @@ impl<Foo> DataWriter<Foo> {
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         self.0
-            .address()
+            .writer_address()
             .get_matched_subscription_data(subscription_handle)?
             .ok_or(DdsError::BadParameter)
     }
@@ -484,7 +484,7 @@ impl<Foo> DataWriter<Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the “DCPSSubscriptions” builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.address().get_matched_subscriptions()
+        self.0.writer_address().get_matched_subscriptions()
     }
 }
 
@@ -508,27 +508,27 @@ where
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let q = match qos {
-            QosKind::Default => self.0.parent_publisher().get_default_datawriter_qos()?,
+            QosKind::Default => self.0.publisher_address().get_default_datawriter_qos()?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
             }
         };
-        self.0.address().set_qos(q)?;
+        self.0.writer_address().set_qos(q)?;
 
-        if self.0.address().is_enabled()? {
+        if self.0.writer_address().is_enabled()? {
             announce_data_writer(
-                self.0.parent_participant(),
-                &self.0.address().as_discovered_writer_data(
+                self.0.participant_address(),
+                &self.0.writer_address().as_discovered_writer_data(
                     TopicQos::default(),
                     self.0
-                        .parent_publisher()
+                        .publisher_address()
                         .send_and_reply_blocking(dds_publisher::GetQos)?,
                     self.0
-                        .parent_participant()
+                        .participant_address()
                         .get_default_unicast_locator_list()?,
                     self.0
-                        .parent_participant()
+                        .participant_address()
                         .get_default_multicast_locator_list()?,
                 )?,
             )?;
@@ -540,7 +540,7 @@ where
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        self.0.address().get_qos()
+        self.0.writer_address().get_qos()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -564,7 +564,7 @@ where
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
-            .address()
+            .writer_address()
             .get_statuscondition()
             .map(StatusCondition::new)
     }
@@ -602,21 +602,21 @@ where
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.address().is_enabled()? {
-            self.0.address().enable()?;
+        if !self.0.writer_address().is_enabled()? {
+            self.0.writer_address().enable()?;
 
             announce_data_writer(
-                self.0.parent_participant(),
-                &self.0.address().as_discovered_writer_data(
+                self.0.participant_address(),
+                &self.0.writer_address().as_discovered_writer_data(
                     TopicQos::default(),
                     self.0
-                        .parent_publisher()
+                        .publisher_address()
                         .send_and_reply_blocking(dds_publisher::GetQos)?,
                     self.0
-                        .parent_participant()
+                        .participant_address()
                         .get_default_unicast_locator_list()?,
                     self.0
-                        .parent_participant()
+                        .participant_address()
                         .get_default_multicast_locator_list()?,
                 )?,
             )?;
@@ -627,7 +627,7 @@ where
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.address().get_instance_handle()
+        self.0.writer_address().get_instance_handle()
     }
 }
 

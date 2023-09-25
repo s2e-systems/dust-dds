@@ -5,7 +5,7 @@ use crate::{
             dds_data_writer,
             dds_data_writer_listener::DdsDataWriterListener,
             dds_domain_participant, dds_publisher,
-            nodes::{DataWriterNode, PublisherNode},
+            nodes::{DataWriterNode, DomainParticipantNode, PublisherNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::spawn_actor,
@@ -86,16 +86,16 @@ impl Publisher {
     {
         let default_unicast_locator_list = self
             .0
-            .parent_participant()
+            .participant_address()
             .get_default_unicast_locator_list()?;
         let default_multicast_locator_list = self
             .0
-            .parent_participant()
+            .participant_address()
             .get_default_multicast_locator_list()?;
-        let data_max_size_serialized = self.0.parent_participant().data_max_size_serialized()?;
+        let data_max_size_serialized = self.0.participant_address().data_max_size_serialized()?;
 
         let listener = a_listener.map(|l| spawn_actor(DdsDataWriterListener::new(Box::new(l))));
-        let data_writer_address = self.0.address().create_datawriter(
+        let data_writer_address = self.0.publisher_address().create_datawriter(
             a_topic.get_type_name()?,
             a_topic.get_name()?,
             Foo::HAS_KEY,
@@ -109,14 +109,14 @@ impl Publisher {
 
         let data_writer = DataWriter::new(DataWriterNode::new(
             data_writer_address,
-            self.0.address().clone(),
-            self.0.parent_participant().clone(),
+            self.0.publisher_address().clone(),
+            self.0.participant_address().clone(),
         ));
 
-        if self.0.address().is_enabled()?
+        if self.0.publisher_address().is_enabled()?
             && self
                 .0
-                .address()
+                .publisher_address()
                 .send_and_reply_blocking(dds_publisher::GetQos)?
                 .entity_factory
                 .autoenable_created_entities
@@ -135,15 +135,15 @@ impl Publisher {
     /// [`DataWriter`].
     #[tracing::instrument(skip(self, a_datawriter))]
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
-        let writer_handle = a_datawriter.node().address().get_instance_handle()?;
-        if self.0.address().guid()? != a_datawriter.node().parent_publisher().guid()? {
+        let writer_handle = a_datawriter.node().writer_address().get_instance_handle()?;
+        if self.0.publisher_address().guid()? != a_datawriter.node().publisher_address().guid()? {
             return Err(DdsError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
             ));
         }
 
-        let writer_is_enabled = a_datawriter.node().address().is_enabled()?;
-        self.0.address().datawriter_delete(writer_handle)?;
+        let writer_is_enabled = a_datawriter.node().writer_address().is_enabled()?;
+        self.0.publisher_address().datawriter_delete(writer_handle)?;
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if writer_is_enabled {
@@ -154,12 +154,12 @@ impl Publisher {
 
             let timestamp = a_datawriter
                 .node()
-                .parent_participant()
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
             let builtin_publisher = a_datawriter
                 .node()
-                .parent_participant()
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
             let data_writer_list =
                 builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
@@ -177,29 +177,29 @@ impl Publisher {
                         RtpsMessageHeader::new(
                             a_datawriter
                                 .node()
-                                .parent_participant()
+                                .participant_address()
                                 .send_and_reply_blocking(
                                     dds_domain_participant::GetProtocolVersion,
                                 )?,
                             a_datawriter
                                 .node()
-                                .parent_participant()
+                                .participant_address()
                                 .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
                             a_datawriter
                                 .node()
-                                .parent_participant()
+                                .participant_address()
                                 .send_and_reply_blocking(dds_domain_participant::GetGuid)?
                                 .prefix(),
                         ),
                         a_datawriter
                             .node()
-                            .parent_participant()
+                            .participant_address()
                             .send_and_reply_blocking(
                                 dds_domain_participant::GetUdpTransportWrite,
                             )?,
                         a_datawriter
                             .node()
-                            .parent_participant()
+                            .participant_address()
                             .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
                     ))?;
                     break;
@@ -295,7 +295,9 @@ impl Publisher {
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(self.0.parent_participant().clone()))
+        Ok(DomainParticipant::new(DomainParticipantNode::new(
+            self.0.participant_address().clone(),
+        )))
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.
@@ -307,7 +309,6 @@ impl Publisher {
     #[tracing::instrument(skip(self))]
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         todo!()
-        // crate::implementation::behavior::user_defined_publisher::delete_contained_entities()
     }
 
     /// This operation sets the default value of the [`DataWriterQos`] which will be used for newly created [`DataWriter`] entities in
@@ -319,14 +320,14 @@ impl Publisher {
     #[tracing::instrument(skip(self))]
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => self.0.address().get_default_datawriter_qos()?,
+            QosKind::Default => self.0.publisher_address().get_default_datawriter_qos()?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
             }
         };
 
-        self.0.address().set_default_datawriter_qos(qos)
+        self.0.publisher_address().set_default_datawriter_qos(qos)
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created
@@ -335,7 +336,7 @@ impl Publisher {
     /// [`Publisher::set_default_datawriter_qos`], or else, if the call was never made, the default values of [`DataWriterQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        self.0.address().get_default_datawriter_qos()
+        self.0.publisher_address().get_default_datawriter_qos()
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datawriter_qos`.
@@ -377,7 +378,7 @@ impl Publisher {
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
         self.0
-            .address()
+            .publisher_address()
             .send_and_reply_blocking(dds_publisher::GetQos)
     }
 
@@ -437,12 +438,12 @@ impl Publisher {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        self.0.address().enable()
+        self.0.publisher_address().enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.address().get_instance_handle()
+        self.0.publisher_address().get_instance_handle()
     }
 }

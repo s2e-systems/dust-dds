@@ -6,7 +6,7 @@ use crate::{
             dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
             dds_publisher, dds_topic,
-            nodes::TopicNode,
+            nodes::{DomainParticipantNode, TopicNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::ActorAddress,
@@ -65,7 +65,7 @@ impl Topic {
     #[tracing::instrument(skip(self))]
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         self.0
-            .address()
+            .topic_address()
             .send_and_reply_blocking(dds_topic::GetInconsistentTopicStatus)?
     }
 }
@@ -75,19 +75,21 @@ impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(self.0.parent_participant().clone()))
+        Ok(DomainParticipant::new(DomainParticipantNode::new(
+            self.0.participant_address().clone(),
+        )))
     }
 
     /// The name of the type used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
     pub fn get_type_name(&self) -> DdsResult<String> {
-        self.0.address().get_type_name()
+        self.0.topic_address().get_type_name()
     }
 
     /// The name used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
     pub fn get_name(&self) -> DdsResult<String> {
-        self.0.address().get_name()
+        self.0.topic_address().get_name()
     }
 }
 
@@ -108,24 +110,24 @@ impl Topic {
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => self.0.parent_participant().default_topic_qos()?,
+            QosKind::Default => self.0.participant_address().default_topic_qos()?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
             }
         };
 
-        if self.0.address().is_enabled()? {
-            self.0.address().get_qos()?.check_immutability(&qos)?
+        if self.0.topic_address().is_enabled()? {
+            self.0.topic_address().get_qos()?.check_immutability(&qos)?
         }
 
-        self.0.address().set_qos(qos)
+        self.0.topic_address().set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        self.0.address().get_qos()
+        self.0.topic_address().get_qos()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -134,7 +136,7 @@ impl Topic {
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
-            .address()
+            .topic_address()
             .get_statuscondition()
             .map(StatusCondition::new)
     }
@@ -172,12 +174,12 @@ impl Topic {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.address().is_enabled()? {
-            self.0.address().enable()?;
+        if !self.0.topic_address().is_enabled()? {
+            self.0.topic_address().enable()?;
 
             announce_topic(
-                self.0.parent_participant(),
-                self.0.address().as_discovered_topic_data()?,
+                self.0.participant_address(),
+                self.0.topic_address().as_discovered_topic_data()?,
             )?;
         }
 
@@ -187,7 +189,7 @@ impl Topic {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.address().get_instance_handle()
+        self.0.topic_address().get_instance_handle()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status

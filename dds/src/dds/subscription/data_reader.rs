@@ -179,7 +179,7 @@ impl<Foo> DataReader<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .0
-            .address()
+            .reader_address()
             .send_and_reply_blocking(dds_data_reader::Read::new(
                 max_samples,
                 sample_states.to_vec(),
@@ -207,7 +207,7 @@ impl<Foo> DataReader<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .0
-            .address()
+            .reader_address()
             .send_and_reply_blocking(dds_data_reader::Take::new(
                 max_samples,
                 sample_states.to_vec(),
@@ -233,7 +233,7 @@ impl<Foo> DataReader<Foo> {
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let mut samples = {
             self.0
-                .address()
+                .reader_address()
                 .send_and_reply_blocking(dds_data_reader::Read::new(
                     1,
                     vec![SampleStateKind::NotRead],
@@ -257,7 +257,7 @@ impl<Foo> DataReader<Foo> {
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let mut samples =
             self.0
-                .address()
+                .reader_address()
                 .send_and_reply_blocking(dds_data_reader::Take::new(
                     1,
                     vec![SampleStateKind::NotRead],
@@ -288,7 +288,7 @@ impl<Foo> DataReader<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .0
-            .address()
+            .reader_address()
             .send_and_reply_blocking(dds_data_reader::Read::new(
                 max_samples,
                 sample_states.to_vec(),
@@ -321,7 +321,7 @@ impl<Foo> DataReader<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .0
-            .address()
+            .reader_address()
             .send_and_reply_blocking(dds_data_reader::Take::new(
                 max_samples,
                 sample_states.to_vec(),
@@ -369,7 +369,7 @@ impl<Foo> DataReader<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples =
             self.0
-                .address()
+                .reader_address()
                 .send_and_reply_blocking(dds_data_reader::ReadNextInstance::new(
                     max_samples,
                     previous_handle,
@@ -397,7 +397,7 @@ impl<Foo> DataReader<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples =
             self.0
-                .address()
+                .reader_address()
                 .send_and_reply_blocking(dds_data_reader::TakeNextInstance::new(
                     max_samples,
                     previous_handle,
@@ -469,7 +469,7 @@ impl<Foo> DataReader<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
         self.0
-            .address()
+            .reader_address()
             .send_and_reply_blocking(dds_data_reader::GetSubscriptionMatchedStatus)?
     }
 
@@ -479,7 +479,7 @@ impl<Foo> DataReader<Foo> {
     pub fn get_topicdescription(&self) -> DdsResult<Topic> {
         Ok(Topic::new(TopicNode::new(
             self.0.topic_address(),
-            self.0.parent_participant().clone(),
+            self.0.participant_address().clone(),
         )))
     }
 
@@ -506,7 +506,7 @@ impl<Foo> DataReader<Foo> {
         let start_time = std::time::Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(max_wait) {
-            if self.0.address().is_historical_data_received()?? {
+            if self.0.reader_address().is_historical_data_received()?? {
                 return Ok(());
             }
         }
@@ -527,7 +527,7 @@ impl<Foo> DataReader<Foo> {
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
         self.0
-            .address()
+            .reader_address()
             .get_matched_publication_data(publication_handle)?
     }
 
@@ -539,7 +539,7 @@ impl<Foo> DataReader<Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.address().get_matched_publications()
+        self.0.reader_address().get_matched_publications()
     }
 }
 
@@ -559,27 +559,27 @@ impl<Foo> DataReader<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let q = match qos {
-            QosKind::Default => self.0.parent_subscriber().get_default_datareader_qos()?,
+            QosKind::Default => self.0.subscriber_address().get_default_datareader_qos()?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
             }
         };
-        self.0.address().set_qos(q)??;
+        self.0.reader_address().set_qos(q)??;
 
-        if self.0.address().is_enabled()? {
+        if self.0.reader_address().is_enabled()? {
             announce_data_reader(
-                self.0.parent_participant(),
-                self.0.address().as_discovered_reader_data(
+                self.0.participant_address(),
+                self.0.reader_address().as_discovered_reader_data(
                     TopicQos::default(),
                     self.0
-                        .parent_subscriber()
+                        .subscriber_address()
                         .send_and_reply_blocking(dds_subscriber::GetQos)?,
                     self.0
-                        .parent_participant()
+                        .participant_address()
                         .get_default_unicast_locator_list()?,
                     self.0
-                        .parent_participant()
+                        .participant_address()
                         .get_default_multicast_locator_list()?,
                 )?,
             )?;
@@ -591,7 +591,7 @@ impl<Foo> DataReader<Foo> {
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        self.0.address().get_qos()
+        self.0.reader_address().get_qos()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -600,7 +600,7 @@ impl<Foo> DataReader<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
-            .address()
+            .reader_address()
             .get_statuscondition()
             .map(StatusCondition::new)
     }
@@ -638,22 +638,22 @@ impl<Foo> DataReader<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.address().is_enabled()? {
-            self.0.address().enable()?;
+        if !self.0.reader_address().is_enabled()? {
+            self.0.reader_address().enable()?;
         }
 
         announce_data_reader(
-            self.0.parent_participant(),
-            self.0.address().as_discovered_reader_data(
+            self.0.participant_address(),
+            self.0.reader_address().as_discovered_reader_data(
                 TopicQos::default(),
                 self.0
-                    .parent_subscriber()
+                    .subscriber_address()
                     .send_and_reply_blocking(dds_subscriber::GetQos)?,
                 self.0
-                    .parent_participant()
+                    .participant_address()
                     .get_default_unicast_locator_list()?,
                 self.0
-                    .parent_participant()
+                    .participant_address()
                     .get_default_multicast_locator_list()?,
             )?,
         )?;
@@ -664,7 +664,7 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.address().get_instance_handle()
+        self.0.reader_address().get_instance_handle()
     }
 }
 

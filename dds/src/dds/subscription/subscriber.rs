@@ -5,7 +5,7 @@ use crate::{
             dds_data_reader::DdsDataReader,
             dds_data_reader_listener::DdsDataReaderListener,
             dds_data_writer, dds_domain_participant, dds_publisher, dds_subscriber,
-            nodes::{DataReaderNode, SubscriberNode},
+            nodes::{DataReaderNode, DomainParticipantNode, SubscriberNode},
         },
         rtps::{
             endpoint::RtpsEndpoint,
@@ -102,15 +102,15 @@ impl Subscriber {
     {
         let default_unicast_locator_list = self
             .0
-            .parent_participant()
+            .participant_address()
             .get_default_unicast_locator_list()?;
         let default_multicast_locator_list = self
             .0
-            .parent_participant()
+            .participant_address()
             .get_default_unicast_locator_list()?;
 
         let qos = match qos {
-            QosKind::Default => self.0.address().get_default_datareader_qos()?,
+            QosKind::Default => self.0.subscriber_address().get_default_datareader_qos()?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
@@ -121,11 +121,11 @@ impl Subscriber {
             true => USER_DEFINED_READER_WITH_KEY,
             false => USER_DEFINED_READER_NO_KEY,
         };
-        let subscriber_guid = self.0.address().guid()?;
+        let subscriber_guid = self.0.subscriber_address().guid()?;
 
         let entity_key: [u8; 3] = [
             subscriber_guid.entity_id().entity_key()[0],
-            self.0.address().get_unique_reader_id()?,
+            self.0.subscriber_address().get_unique_reader_id()?,
             0,
         ];
 
@@ -163,19 +163,19 @@ impl Subscriber {
         let reader_actor = spawn_actor(data_reader);
         let reader_address = reader_actor.address().clone();
         self.0
-            .address()
+            .subscriber_address()
             .data_reader_add(guid.into(), reader_actor)?;
 
         let data_reader = DataReader::new(DataReaderNode::new(
             reader_address,
-            self.0.address().clone(),
-            self.0.parent_participant().clone(),
+            self.0.subscriber_address().clone(),
+            self.0.participant_address().clone(),
         ));
 
-        if self.0.address().is_enabled()?
+        if self.0.subscriber_address().is_enabled()?
             && self
                 .0
-                .address()
+                .subscriber_address()
                 .send_and_reply_blocking(dds_subscriber::GetQos)?
                 .entity_factory
                 .autoenable_created_entities
@@ -191,15 +191,15 @@ impl Subscriber {
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_datareader))]
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
-        let reader_handle = a_datareader.node().address().get_instance_handle()?;
-        if self.0.address().guid()? != a_datareader.node().parent_subscriber().guid()? {
+        let reader_handle = a_datareader.node().reader_address().get_instance_handle()?;
+        if self.0.subscriber_address().guid()? != a_datareader.node().subscriber_address().guid()? {
             return Err(DdsError::PreconditionNotMet(
                 "Data reader can only be deleted from its parent subscriber".to_string(),
             ));
         }
 
-        let reader_is_enabled = a_datareader.node().address().is_enabled()?;
-        self.0.address().data_reader_delete(reader_handle)?;
+        let reader_is_enabled = a_datareader.node().reader_address().is_enabled()?;
+        self.0.subscriber_address().data_reader_delete(reader_handle)?;
 
         if reader_is_enabled {
             let instance_serialized_key =
@@ -209,12 +209,12 @@ impl Subscriber {
 
             let timestamp = a_datareader
                 .node()
-                .parent_participant()
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
             let builtin_publisher = a_datareader
                 .node()
-                .parent_participant()
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
             let data_writer_list =
                 builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
@@ -228,29 +228,29 @@ impl Subscriber {
                         RtpsMessageHeader::new(
                             a_datareader
                                 .node()
-                                .parent_participant()
+                                .participant_address()
                                 .send_and_reply_blocking(
                                     dds_domain_participant::GetProtocolVersion,
                                 )?,
                             a_datareader
                                 .node()
-                                .parent_participant()
+                                .participant_address()
                                 .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
                             a_datareader
                                 .node()
-                                .parent_participant()
+                                .participant_address()
                                 .send_and_reply_blocking(dds_domain_participant::GetGuid)?
                                 .prefix(),
                         ),
                         a_datareader
                             .node()
-                            .parent_participant()
+                            .participant_address()
                             .send_and_reply_blocking(
                                 dds_domain_participant::GetUdpTransportWrite,
                             )?,
                         a_datareader
                             .node()
-                            .parent_participant()
+                            .participant_address()
                             .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
                     ))?;
                     break;
@@ -285,7 +285,9 @@ impl Subscriber {
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(self.0.parent_participant().clone()))
+        Ok(DomainParticipant::new(DomainParticipantNode::new(
+            self.0.participant_address().clone(),
+        )))
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
@@ -313,7 +315,7 @@ impl Subscriber {
     /// reset back to the initial values the factory would use, that is the default value of [`DataReaderQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        self.0.address().set_default_datareader_qos(qos)?
+        self.0.subscriber_address().set_default_datareader_qos(qos)?
     }
 
     /// This operation retrieves the default value of the [`DataReaderQos`], that is, the qos policies which will be used for newly
@@ -322,7 +324,7 @@ impl Subscriber {
     /// [`Subscriber::get_default_datareader_qos`], or else, if the call was never made, the default values of [`DataReaderQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        self.0.address().get_default_datareader_qos()
+        self.0.subscriber_address().get_default_datareader_qos()
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datareader_qos`.
@@ -360,7 +362,7 @@ impl Subscriber {
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         self.0
-            .address()
+            .subscriber_address()
             .send_and_reply_blocking(dds_subscriber::GetQos)
     }
 
@@ -385,7 +387,7 @@ impl Subscriber {
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
-            .address()
+            .subscriber_address()
             .get_statuscondition()
             .map(StatusCondition::new)
     }
@@ -423,19 +425,19 @@ impl Subscriber {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.address().is_enabled()? {
-            self.0.address().enable()?;
+        if !self.0.subscriber_address().is_enabled()? {
+            self.0.subscriber_address().enable()?;
 
             if self
                 .0
-                .address()
+                .subscriber_address()
                 .send_and_reply_blocking(dds_subscriber::GetQos)?
                 .entity_factory
                 .autoenable_created_entities
             {
                 for data_reader in self
                     .0
-                    .address()
+                    .subscriber_address()
                     .send_and_reply_blocking(dds_subscriber::DataReaderList)?
                 {
                     data_reader.enable()?;
@@ -449,6 +451,6 @@ impl Subscriber {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.address().get_instance_handle()
+        self.0.subscriber_address().get_instance_handle()
     }
 }
