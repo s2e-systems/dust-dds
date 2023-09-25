@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        dds::nodes::{DataReaderNode, SubscriberNode, SubscriberNodeKind},
+        dds::nodes::{DataReaderNode, SubscriberNode},
         utils::actor::{Mail, MailHandler},
     },
     infrastructure::status::{
@@ -42,9 +42,7 @@ impl MailHandler<TriggerOnDataOnReaders> for DdsSubscriberListener {
     ) -> <TriggerOnDataOnReaders as Mail>::Result {
         tokio::task::block_in_place(|| {
             self.listener
-                .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
-                    mail.the_subscriber,
-                )))
+                .on_data_on_readers(&Subscriber::new(mail.the_subscriber))
         });
     }
 }

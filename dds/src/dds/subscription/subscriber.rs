@@ -5,7 +5,7 @@ use crate::{
             dds_data_reader::DdsDataReader,
             dds_data_reader_listener::DdsDataReaderListener,
             dds_data_writer, dds_domain_participant, dds_publisher, dds_subscriber,
-            nodes::{DataReaderNode, DataReaderNodeKind, SubscriberNodeKind},
+            nodes::{DataReaderNode, DomainParticipantNode, SubscriberNode},
         },
         rtps::{
             endpoint::RtpsEndpoint,
@@ -41,14 +41,14 @@ use super::{
 /// A [`Subscriber`] acts on the behalf of one or several [`DataReader`] objects that are related to it. When it receives data (from the
 /// other parts of the system), it builds the list of concerned [`DataReader`] objects, and then indicates to the application that data is
 /// available, through its listener or by enabling related conditions.
-pub struct Subscriber(SubscriberNodeKind);
+pub struct Subscriber(SubscriberNode);
 
 impl Subscriber {
-    pub(crate) fn new(subscriber: SubscriberNodeKind) -> Self {
+    pub(crate) fn new(subscriber: SubscriberNode) -> Self {
         Self(subscriber)
     }
 
-    pub(crate) fn node(&self) -> &SubscriberNodeKind {
+    pub(crate) fn node(&self) -> &SubscriberNode {
         &self.0
     }
 }
@@ -89,6 +89,7 @@ impl Subscriber {
     /// 2. Retrieve the default [`DataReaderQos`] qos by means of the [`Subscriber::get_default_datareader_qos`] operation.
     /// 3. Combine those two qos policies using the [`Subscriber::copy_from_topic_qos`] and selectively modify policies as desired and
     /// use the resulting [`DataReaderQos`] to construct the [`DataReader`].
+    #[tracing::instrument(skip(self, a_topic, a_listener), fields(with_listener = a_listener.is_some()))]
     pub fn create_datareader<Foo>(
         &self,
         a_topic: &Topic,
@@ -99,172 +100,164 @@ impl Subscriber {
     where
         Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey + 'static,
     {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
-                Err(DdsError::IllegalOperation)
+        let default_unicast_locator_list = self
+            .0
+            .participant_address()
+            .get_default_unicast_locator_list()?;
+        let default_multicast_locator_list = self
+            .0
+            .participant_address()
+            .get_default_unicast_locator_list()?;
+
+        let qos = match qos {
+            QosKind::Default => self.0.subscriber_address().get_default_datareader_qos()?,
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
             }
-            SubscriberNodeKind::UserDefined(s) => {
-                let default_unicast_locator_list =
-                    s.parent_participant().get_default_unicast_locator_list()?;
-                let default_multicast_locator_list =
-                    s.parent_participant().get_default_unicast_locator_list()?;
+        };
 
-                let qos = match qos {
-                    QosKind::Default => s.address().get_default_datareader_qos()?,
-                    QosKind::Specific(q) => {
-                        q.is_consistent()?;
-                        q
-                    }
-                };
+        let entity_kind = match Foo::HAS_KEY {
+            true => USER_DEFINED_READER_WITH_KEY,
+            false => USER_DEFINED_READER_NO_KEY,
+        };
+        let subscriber_guid = self.0.subscriber_address().guid()?;
 
-                let entity_kind = match Foo::HAS_KEY {
-                    true => USER_DEFINED_READER_WITH_KEY,
-                    false => USER_DEFINED_READER_NO_KEY,
-                };
-                let subscriber_guid = s.address().guid()?;
+        let entity_key: [u8; 3] = [
+            subscriber_guid.entity_id().entity_key()[0],
+            self.0.subscriber_address().get_unique_reader_id()?,
+            0,
+        ];
 
-                let entity_key: [u8; 3] = [
-                    subscriber_guid.entity_id().entity_key()[0],
-                    s.address().get_unique_reader_id()?,
-                    0,
-                ];
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let guid = Guid::new(subscriber_guid.prefix(), entity_id);
 
-                let entity_id = EntityId::new(entity_key, entity_kind);
-                let guid = Guid::new(subscriber_guid.prefix(), entity_id);
+        let topic_kind = match Foo::HAS_KEY {
+            true => TopicKind::WithKey,
+            false => TopicKind::NoKey,
+        };
 
-                let topic_kind = match Foo::HAS_KEY {
-                    true => TopicKind::WithKey,
-                    false => TopicKind::NoKey,
-                };
+        let rtps_reader = RtpsReader::new(
+            RtpsEndpoint::new(
+                guid,
+                topic_kind,
+                &default_unicast_locator_list,
+                &default_multicast_locator_list,
+            ),
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
+        );
 
-                let rtps_reader = RtpsReader::new(
-                    RtpsEndpoint::new(
-                        guid,
-                        topic_kind,
-                        &default_unicast_locator_list,
-                        &default_multicast_locator_list,
-                    ),
-                    DURATION_ZERO,
-                    DURATION_ZERO,
-                    false,
-                );
+        let listener = a_listener.map(|l| spawn_actor(DdsDataReaderListener::new(Box::new(l))));
+        let status_kind = mask.to_vec();
+        let data_reader = DdsDataReader::new::<Foo>(
+            rtps_reader,
+            a_topic.get_type_name()?,
+            a_topic.get_name()?,
+            qos,
+            listener,
+            status_kind,
+        );
 
-                let listener =
-                    a_listener.map(|l| spawn_actor(DdsDataReaderListener::new(Box::new(l))));
-                let status_kind = mask.to_vec();
-                let data_reader = DdsDataReader::new::<Foo>(
-                    rtps_reader,
-                    a_topic.get_type_name()?,
-                    a_topic.get_name()?,
-                    qos,
-                    listener,
-                    status_kind,
-                );
+        let reader_actor = spawn_actor(data_reader);
+        let reader_address = reader_actor.address().clone();
+        self.0
+            .subscriber_address()
+            .data_reader_add(guid.into(), reader_actor)?;
 
-                let reader_actor = spawn_actor(data_reader);
-                let reader_address = reader_actor.address().clone();
-                s.address().data_reader_add(guid.into(), reader_actor)?;
+        let data_reader = DataReader::new(DataReaderNode::new(
+            reader_address,
+            self.0.subscriber_address().clone(),
+            self.0.participant_address().clone(),
+        ));
 
-                let data_reader =
-                    DataReader::new(DataReaderNodeKind::UserDefined(DataReaderNode::new(
-                        reader_address,
-                        s.address().clone(),
-                        s.parent_participant().clone(),
-                    )));
-
-                if s.address().is_enabled()?
-                    && s.address()
-                        .send_and_reply_blocking(dds_subscriber::GetQos)?
-                        .entity_factory
-                        .autoenable_created_entities
-                {
-                    data_reader.enable()?;
-                }
-
-                Ok(data_reader)
-            }
+        if self.0.subscriber_address().is_enabled()?
+            && self
+                .0
+                .subscriber_address()
+                .send_and_reply_blocking(dds_subscriber::GetQos)?
+                .entity_factory
+                .autoenable_created_entities
+        {
+            data_reader.enable()?;
         }
+
+        Ok(data_reader)
     }
 
     /// This operation deletes a [`DataReader`] that belongs to the [`Subscriber`]. This operation must be called on the
     /// same [`Subscriber`] object used to create the [`DataReader`]. If [`Subscriber::delete_datareader`] is called on a
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
+    #[tracing::instrument(skip(self, a_datareader))]
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
-                Err(DdsError::IllegalOperation)
-            }
-            SubscriberNodeKind::UserDefined(s) => match a_datareader.node() {
-                DataReaderNodeKind::_BuiltinStateful(_)
-                | DataReaderNodeKind::_BuiltinStateless(_)
-                | DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-                DataReaderNodeKind::UserDefined(dr) => {
-                    let reader_handle = dr.address().get_instance_handle()?;
-                    if s.address().guid()? != dr.parent_subscriber().guid()? {
-                        return Err(DdsError::PreconditionNotMet(
-                            "Data reader can only be deleted from its parent subscriber"
-                                .to_string(),
-                        ));
-                    }
-
-                    let reader_is_enabled = dr.address().is_enabled()?;
-                    s.address().data_reader_delete(reader_handle)?;
-
-                    if reader_is_enabled {
-                        let instance_serialized_key =
-                            cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
-                                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-                                .expect("Failed to serialize data");
-
-                        let timestamp = dr
-                            .parent_participant()
-                            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
-
-                        let builtin_publisher = dr
-                            .parent_participant()
-                            .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
-                        let data_writer_list = builtin_publisher
-                            .send_and_reply_blocking(dds_publisher::DataWriterList)?;
-                        for dw in data_writer_list {
-                            if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
-                                == Ok("DiscoveredReaderData".to_string())
-                            {
-                                dw.dispose_w_timestamp(
-                                    instance_serialized_key,
-                                    reader_handle,
-                                    timestamp,
-                                )??;
-
-                                dw.send_only_blocking(dds_data_writer::SendMessage::new(
-                                    RtpsMessageHeader::new(
-                                        dr.parent_participant().send_and_reply_blocking(
-                                            dds_domain_participant::GetProtocolVersion,
-                                        )?,
-                                        dr.parent_participant().send_and_reply_blocking(
-                                            dds_domain_participant::GetVendorId,
-                                        )?,
-                                        dr.parent_participant()
-                                            .send_and_reply_blocking(
-                                                dds_domain_participant::GetGuid,
-                                            )?
-                                            .prefix(),
-                                    ),
-                                    dr.parent_participant().send_and_reply_blocking(
-                                        dds_domain_participant::GetUdpTransportWrite,
-                                    )?,
-                                    dr.parent_participant().send_and_reply_blocking(
-                                        dds_domain_participant::GetCurrentTime,
-                                    )?,
-                                ))?;
-                                break;
-                            }
-                        }
-                    }
-
-                    Ok(())
-                }
-            },
+        let reader_handle = a_datareader.node().reader_address().get_instance_handle()?;
+        if self.0.subscriber_address().guid()? != a_datareader.node().subscriber_address().guid()? {
+            return Err(DdsError::PreconditionNotMet(
+                "Data reader can only be deleted from its parent subscriber".to_string(),
+            ));
         }
+
+        let reader_is_enabled = a_datareader.node().reader_address().is_enabled()?;
+        self.0.subscriber_address().data_reader_delete(reader_handle)?;
+
+        if reader_is_enabled {
+            let instance_serialized_key =
+                cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+                    .expect("Failed to serialize data");
+
+            let timestamp = a_datareader
+                .node()
+                .participant_address()
+                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+
+            let builtin_publisher = a_datareader
+                .node()
+                .participant_address()
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+            let data_writer_list =
+                builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+            for dw in data_writer_list {
+                if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                    == Ok("DiscoveredReaderData".to_string())
+                {
+                    dw.dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)??;
+
+                    dw.send_only_blocking(dds_data_writer::SendMessage::new(
+                        RtpsMessageHeader::new(
+                            a_datareader
+                                .node()
+                                .participant_address()
+                                .send_and_reply_blocking(
+                                    dds_domain_participant::GetProtocolVersion,
+                                )?,
+                            a_datareader
+                                .node()
+                                .participant_address()
+                                .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                            a_datareader
+                                .node()
+                                .participant_address()
+                                .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                                .prefix(),
+                        ),
+                        a_datareader
+                            .node()
+                            .participant_address()
+                            .send_and_reply_blocking(
+                                dds_domain_participant::GetUdpTransportWrite,
+                            )?,
+                        a_datareader
+                            .node()
+                            .participant_address()
+                            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+                    ))?;
+                    break;
+                }
+            }
+        }
+        Ok(())
     }
 
     /// This operation retrieves a previously created [`DataReader`] belonging to the [`Subscriber`] that is attached to a [`Topic`].
@@ -272,77 +265,35 @@ impl Subscriber {
     /// If multiple [`DataReader`] attached to the [`Subscriber`] satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in [`Subscriber`] allows access to the built-in [`DataReader`] entities for the built-in topics.
+    #[tracing::instrument(skip(self))]
     pub fn lookup_datareader<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataReader<Foo>>>
     where
         Foo: DdsHasKey + for<'de> serde::Deserialize<'de>,
     {
         todo!()
-        // Ok(self
-        //     .stateful_data_reader_list
-        //     .iter()
-        //     .find(|data_reader| {
-        //         data_reader.get_topic_name() == topic_name
-        //             && data_reader.get_type_name() == type_name
-        //     })
-        //     .map(|x| DataReaderNode::new(x.guid(), subscriber_guid, domain_participant.guid())))
-
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(s) => {
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid().prefix(), |dp| {
-        //             Ok(
-        //                 crate::implementation::behavior::builtin_subscriber::lookup_datareader::<
-        //                     Foo,
-        //                 >(
-        //                     dp.ok_or(DdsError::AlreadyDeleted)?, s.guid(), topic_name
-        //                 )?
-        //                 .map(|x| DataReader::new(x)),
-        //             )
-        //         })
-        //     }
-        //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant(&s.guid().prefix(), |dp| {
-        //             Ok(crate::implementation::behavior::user_defined_subscriber::lookup_datareader(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 s.guid(),
-        //                 Foo,
-        //                 topic_name,
-        //             )?
-        //             .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x))))
-        //         }),
-        //     SubscriberNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation invokes the operation [`DataReaderListener::on_data_available`] on the listener objects attached to contained [`DataReader`]
     /// entities with a [`StatusKind::DataAvailable`] that is considered changed.
     /// This operation is typically invoked from the [`SubscriberListener::on_data_on_readers`] operation. That way the
     /// [`SubscriberListener`] can delegate to the [`DataReaderListener`] objects the handling of the data.
+    #[tracing::instrument(skip(self))]
     pub fn notify_datareaders(&self) -> DdsResult<()> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(_) => todo!(),
-            SubscriberNodeKind::Listener(_) => todo!(),
-        }
+        todo!()
     }
 
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
+    #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(s)
-            | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::Listener(s) => {
-                Ok(DomainParticipant::new(s.parent_participant().clone()))
-            }
-        }
+        Ok(DomainParticipant::new(DomainParticipantNode::new(
+            self.0.participant_address().clone(),
+        )))
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
+    #[tracing::instrument(skip(self))]
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(_) => todo!(),
-            SubscriberNodeKind::Listener(_) => todo!(),
-        }
+        todo!()
     }
 
     /// This operation deletes all the entities that were created by means of the [`Subscriber::create_datareader`] operations.
@@ -351,16 +302,9 @@ impl Subscriber {
     /// contained entities is in a state where it cannot be deleted.
     /// Once this operation returns successfully, the application may delete the [`Subscriber`] knowing that it has no
     /// contained [`DataReader`] objects.
+    #[tracing::instrument(skip(self))]
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-        //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&s.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_subscriber::delete_contained_entities(dp.ok_or(DdsError::AlreadyDeleted)?, s.guid())
-        //         }),
-        //     SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
     }
 
     /// This operation sets a default value of the [`DataReaderQos`] which will be used for newly created [`DataReader`] entities in
@@ -369,24 +313,18 @@ impl Subscriber {
     /// return [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataReaderQos`].
+    #[tracing::instrument(skip(self))]
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(s)
-            | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::Listener(s) => s.address().set_default_datareader_qos(qos)?,
-        }
+        self.0.subscriber_address().set_default_datareader_qos(qos)?
     }
 
     /// This operation retrieves the default value of the [`DataReaderQos`], that is, the qos policies which will be used for newly
     /// created [`DataReader`] entities in the case where the qos policies are defaulted in the [`Subscriber::create_datareader`] operation.
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Subscriber::get_default_datareader_qos`], or else, if the call was never made, the default values of [`DataReaderQos`].
+    #[tracing::instrument(skip(self))]
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(s)
-            | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::Listener(s) => s.address().get_default_datareader_qos(),
-        }
+        self.0.subscriber_address().get_default_datareader_qos()
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datareader_qos`.
@@ -395,6 +333,7 @@ impl Subscriber {
     /// corresponding ones on the [`Topic`]. The resulting qos can then be used to create a new [`DataReader`], or set its qos.
     /// This operation does not check the resulting `a_datareader_qos` for consistency. This is because the merged `a_datareader_qos`
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the [`DataReader`].
+    #[tracing::instrument]
     pub fn copy_from_topic_qos(
         _a_datareader_qos: &mut DataReaderQos,
         _a_topic_qos: &TopicQos,
@@ -414,31 +353,17 @@ impl Subscriber {
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
+    #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, _qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-        //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_participant_mut(&s.guid().prefix(), |dp| {
-        //             crate::implementation::behavior::user_defined_subscriber::set_qos(
-        //                 dp.ok_or(DdsError::AlreadyDeleted)?,
-        //                 s.guid(),
-        //                 qos,
-        //             )
-        //         }),
-        //     SubscriberNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation allows access to the existing set of [`SubscriberQos`] policies.
+    #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(s)
-            | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::Listener(s) => {
-                s.address().send_and_reply_blocking(dds_subscriber::GetQos)
-            }
-        }
+        self.0
+            .subscriber_address()
+            .send_and_reply_blocking(dds_subscriber::GetQos)
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -447,29 +372,24 @@ impl Subscriber {
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
+    #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
     pub fn set_listener(
         &self,
         _a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(_) => todo!(),
-            SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        }
+        todo!()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
+    #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(s)
-            | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::Listener(s) => {
-                s.address().get_statuscondition().map(StatusCondition::new)
-            }
-        }
+        self.0
+            .subscriber_address()
+            .get_statuscondition()
+            .map(StatusCondition::new)
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -478,16 +398,9 @@ impl Subscriber {
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
+    #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
-        // match &self.0 {
-        //     SubscriberNodeKind::Builtin(_) => todo!(),
-        //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //         .get_subscriber_listener(&s.guid(), |s| {
-        //             Ok(s.ok_or(DdsError::AlreadyDeleted)?.get_status_changes())
-        //         }),
-        //     SubscriberNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -510,40 +423,34 @@ impl Subscriber {
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => {
-                Err(DdsError::IllegalOperation)
-            }
-            SubscriberNodeKind::UserDefined(s) => {
-                if !s.address().is_enabled()? {
-                    s.address().enable()?;
+        if !self.0.subscriber_address().is_enabled()? {
+            self.0.subscriber_address().enable()?;
 
-                    if s.address()
-                        .send_and_reply_blocking(dds_subscriber::GetQos)?
-                        .entity_factory
-                        .autoenable_created_entities
-                    {
-                        for data_reader in s
-                            .address()
-                            .send_and_reply_blocking(dds_subscriber::DataReaderList)?
-                        {
-                            data_reader.enable()?;
-                        }
-                    }
+            if self
+                .0
+                .subscriber_address()
+                .send_and_reply_blocking(dds_subscriber::GetQos)?
+                .entity_factory
+                .autoenable_created_entities
+            {
+                for data_reader in self
+                    .0
+                    .subscriber_address()
+                    .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+                {
+                    data_reader.enable()?;
                 }
-
-                Ok(())
             }
         }
+
+        Ok(())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
+    #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        match &self.0 {
-            SubscriberNodeKind::Builtin(s)
-            | SubscriberNodeKind::UserDefined(s)
-            | SubscriberNodeKind::Listener(s) => s.address().get_instance_handle(),
-        }
+        self.0.subscriber_address().get_instance_handle()
     }
 }
