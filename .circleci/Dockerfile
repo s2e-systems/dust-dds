@@ -26,11 +26,13 @@ RUN cd Fast-DDS-Gen && ./gradlew assemble
 
 
 FROM cimg/rust:1.65.0
+COPY --from=CycloneDdsBuilder /home/circleci/project/cyclonedds-install /usr/local/
+COPY --from=FastDdsBuilder /home/circleci/project/Fast-DDS-install /usr/local/
+COPY --from=FastDdsGenBuilder /home/circleci/project/Fast-DDS-Gen/share /usr/local/share
 USER root
 RUN apt-get update \
     && apt-get install -y libtinyxml2-9 openjdk-11-jre-headless \
     && rm -rf /var/lib/apt/lists/* \
-    && ln -s /usr/lib/x86_64-linux-gnu/libtinyxml2.so.9 /usr/lib/x86_64-linux-gnu/libtinyxml2.so
-COPY --from=CycloneDdsBuilder /home/circleci/project/cyclonedds-install /usr/local/
-COPY --from=FastDdsBuilder /home/circleci/project/Fast-DDS-install /usr/local/
-COPY --from=FastDdsGenBuilder /home/circleci/project/Fast-DDS-Gen/share /usr/local/share
+    && ln -s /usr/lib/x86_64-linux-gnu/libtinyxml2.so.9 /usr/lib/x86_64-linux-gnu/libtinyxml2.so \
+    && ldconfig
+USER circleci
