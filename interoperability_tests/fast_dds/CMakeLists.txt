@@ -5,6 +5,18 @@ find_package(fastcdr REQUIRED)
 find_package(fastrtps REQUIRED)
 set (CMAKE_CXX_STANDARD 11)
 
+add_executable(FastDdsPublisher
+  fast_dds_publisher.cpp
+  build/idl/HelloWorld.cxx
+  build/idl/HelloWorldPubSubTypes.cxx
+)
+target_link_libraries(FastDdsPublisher PRIVATE
+  fastrtps
+  fastcdr
+)
+target_include_directories(FastDdsPublisher PRIVATE build/idl)
+
+
 add_executable(FastDdsSubscriber
   fast_dds_subscriber.cpp
   build/idl/HelloWorld.cxx
@@ -14,5 +26,4 @@ target_link_libraries(FastDdsSubscriber PRIVATE
   fastrtps
   fastcdr
 )
-
 target_include_directories(FastDdsSubscriber PRIVATE build/idl)
