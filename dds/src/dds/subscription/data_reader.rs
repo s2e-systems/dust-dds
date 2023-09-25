@@ -169,6 +169,7 @@ impl<Foo> DataReader<Foo> {
     ///
     /// If the DataReader has no samples that meet the constraints, the return value will be
     /// [`DdsError::NoData`](crate::infrastructure::error::DdsError).
+    #[tracing::instrument(skip(self))]
     pub fn read(
         &self,
         max_samples: i32,
@@ -202,6 +203,7 @@ impl<Foo> DataReader<Foo> {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. This operation uses the same
     /// logic as the [`DataReader::read`]. The only difference with read is that the
     /// sampled returned by [`DataReader::take`] will no longer be accessible to successive calls to read or take.
+    #[tracing::instrument(skip(self))]
     pub fn take(
         &self,
         max_samples: i32,
@@ -239,6 +241,7 @@ impl<Foo> DataReader<Foo> {
     /// `instance_states=ANY_INSTANCE_STATE`.
     /// This operation provides a simplified API to ‘read’ samples avoiding the need for the application to manage
     /// sequences and specify states.
+    #[tracing::instrument(skip(self))]
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let mut samples = match &self.0 {
             DataReaderNodeKind::_BuiltinStateful(dr)
@@ -266,6 +269,7 @@ impl<Foo> DataReader<Foo> {
     /// `instance_states=ANY_INSTANCE_STATE`.
     /// This operation provides a simplified API to ‘take’ samples avoiding the need for the application to manage
     /// sequences and specify states.
+    #[tracing::instrument(skip(self))]
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
@@ -295,6 +299,7 @@ impl<Foo> DataReader<Foo> {
     /// This operation return [`DdsError::BadParameter`](crate::infrastructure::error::DdsError)
     /// if the [`InstanceHandle`] `a_handle` does not correspond to an existing
     /// data object known to the [`DataReader`].
+    #[tracing::instrument(skip(self))]
     pub fn read_instance(
         &self,
         max_samples: i32,
@@ -333,6 +338,7 @@ impl<Foo> DataReader<Foo> {
     /// This operation return [`DdsError::BadParameter`](crate::infrastructure::error::DdsError)
     /// if the [`InstanceHandle`] `a_handle` does not correspond to an existing
     /// data object known to the [`DataReader`].
+    #[tracing::instrument(skip(self))]
     pub fn take_instance(
         &self,
         max_samples: i32,
@@ -386,6 +392,7 @@ impl<Foo> DataReader<Foo> {
     /// instance information may be removed, and thus the handle becomes invalid) and tries to read the next instance.
     /// The behavior of this operation generally follows the same rules as the [`DataReader::read`] operation regarding the pre-conditions
     /// and post-conditions and returned values.
+    #[tracing::instrument(skip(self))]
     pub fn read_next_instance(
         &self,
         max_samples: i32,
@@ -419,6 +426,7 @@ impl<Foo> DataReader<Foo> {
     /// This operation accesses a collection of [`Sample`] values from the [`DataReader`] and removes them from the [`DataReader`].
     /// This operation has the same behavior as [`DataReader::read_next_instance`] except that the samples are ‘taken’ from the [`DataReader`] such
     /// that they are no longer accessible via subsequent ‘read’ or ‘take’ operations.
+    #[tracing::instrument(skip(self))]
     pub fn take_next_instance(
         &self,
         max_samples: i32,
@@ -453,6 +461,7 @@ impl<Foo> DataReader<Foo> {
     /// The operation will only fill the fields that form the key inside the `key_holder` instance.
     /// This operation may return [`DdsError::BadParameter`](crate::infrastructure::error::DdsError)
     /// if the [`InstanceHandle`] `handle` does not correspond to an existing data object known to the [`DataReader`].
+    #[tracing::instrument(skip(self, _key_holder))]
     pub fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
         todo!()
         // match &self.0 {
@@ -478,6 +487,7 @@ impl<Foo> DataReader<Foo> {
     /// key. This operation does not register the instance in question. If the instance has not
     /// been previously registered, or if for any other reason the Service is unable to provide
     /// an instance handle, the operation will succeed and return [`None`].
+    #[tracing::instrument(skip(self, _instance))]
     pub fn lookup_instance(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         todo!()
         // match &self.0 {
@@ -499,6 +509,7 @@ impl<Foo> DataReader<Foo> {
 
 impl<Foo> DataReader<Foo> {
     /// This operation allows access to the [`LivelinessChangedStatus`].
+    #[tracing::instrument(skip(self))]
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
         todo!()
         // match &self.0 {
@@ -524,6 +535,7 @@ impl<Foo> DataReader<Foo> {
     }
 
     /// This operation allows access to the [`RequestedDeadlineMissedStatus`].
+    #[tracing::instrument(skip(self))]
     pub fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
         todo!()
         // match &self.0 {
@@ -551,6 +563,7 @@ impl<Foo> DataReader<Foo> {
     }
 
     /// This operation allows access to the [`RequestedIncompatibleQosStatus`].
+    #[tracing::instrument(skip(self))]
     pub fn get_requested_incompatible_qos_status(
         &self,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
@@ -580,6 +593,7 @@ impl<Foo> DataReader<Foo> {
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
+    #[tracing::instrument(skip(self))]
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
         todo!()
         // match &self.0 {
@@ -605,6 +619,7 @@ impl<Foo> DataReader<Foo> {
     }
 
     /// This operation allows access to the [`SampleRejectedStatus`].
+    #[tracing::instrument(skip(self))]
     pub fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
         todo!()
         // match &self.0 {
@@ -630,6 +645,7 @@ impl<Foo> DataReader<Foo> {
     }
 
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
+    #[tracing::instrument(skip(self))]
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateful(dr)
@@ -643,6 +659,7 @@ impl<Foo> DataReader<Foo> {
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
+    #[tracing::instrument(skip(self))]
     pub fn get_topicdescription(&self) -> DdsResult<Topic> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateful(dr)
@@ -655,6 +672,7 @@ impl<Foo> DataReader<Foo> {
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
+    #[tracing::instrument(skip(self))]
     pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
         todo!()
         // match &self.0 {
@@ -685,6 +703,7 @@ impl<Foo> DataReader<Foo> {
     /// domain, as well as any new data written by the [`DataWriter`](crate::publication::data_writer::DataWriter) entities.
     /// There are situations where the application logic may require the application to wait until all “historical”
     /// data is received.
+    #[tracing::instrument(skip(self))]
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateless(_) | DataReaderNodeKind::_BuiltinStateful(_) => {
@@ -712,6 +731,7 @@ impl<Foo> DataReader<Foo> {
     /// will fail and return [`DdsError::BadParameter`](crate::infrastructure::error::DdsError).
     /// The operation [`DataReader::get_matched_publications`] can be used to find the publications that are
     /// currently matched with the [`DataReader`].
+    #[tracing::instrument(skip(self))]
     pub fn get_matched_publication_data(
         &self,
         publication_handle: InstanceHandle,
@@ -732,6 +752,7 @@ impl<Foo> DataReader<Foo> {
     /// The handles returned are the ones that are used by the DDS implementation to locally identify
     /// the corresponding matched [`DataWriter`](crate::publication::data_writer::DataWriter) entities. These handles match the ones that appear in the
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
+    #[tracing::instrument(skip(self))]
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateful(dr)
@@ -755,6 +776,7 @@ impl<Foo> DataReader<Foo> {
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
+    #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateful(dr)
@@ -790,6 +812,7 @@ impl<Foo> DataReader<Foo> {
     }
 
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
+    #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateful(dr)
@@ -802,6 +825,7 @@ impl<Foo> DataReader<Foo> {
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
+    #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateful(dr)
@@ -819,6 +843,7 @@ impl<Foo> DataReader<Foo> {
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
+    #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
         // match &self.0 {
@@ -852,6 +877,7 @@ impl<Foo> DataReader<Foo> {
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateless(_)
@@ -881,6 +907,7 @@ impl<Foo> DataReader<Foo> {
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
+    #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
             DataReaderNodeKind::_BuiltinStateless(r)
@@ -901,6 +928,7 @@ where
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
+    #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
     pub fn set_listener(
         &self,
         _a_listener: Option<Box<dyn DataReaderListener<Foo> + Send + Sync>>,

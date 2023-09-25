@@ -75,6 +75,7 @@ impl DomainParticipant {
     /// means of the operation [`DomainParticipant::get_default_publisher_qos()`] and using the resulting QoS to create the [`Publisher`].
     /// The created [`Publisher`] belongs to the [`DomainParticipant`] that is its factory.
     /// In case of failure, the operation will return an error and no [`Publisher`] will be created.
+    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
@@ -98,6 +99,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::delete_publisher()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Publisher`].
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
+    #[tracing::instrument(skip(self, a_publisher))]
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
         if self
             .0
@@ -133,6 +135,7 @@ impl DomainParticipant {
     /// [`Subscriber`].
     /// The created [`Subscriber`] belongs to the [`DomainParticipant`] that is its factory.
     /// In case of failure, the operation will return an error and no [`Subscriber`] will be created.
+    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
@@ -159,6 +162,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::delete_subscriber()`] operation must be called on the same [`DomainParticipant`] object used to create the Subscriber. If
     /// it is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
+    #[tracing::instrument(skip(self, a_subscriber))]
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
         match a_subscriber.node() {
             SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => Ok(()),
@@ -197,6 +201,7 @@ impl DomainParticipant {
     /// operation [`DomainParticipant::get_default_topic_qos`] and using the resulting QoS to create the [`Topic`].
     /// The created [`Topic`] belongs to the [`DomainParticipant`] that is its factory.
     /// In case of failure, the operation will return an error and no [`Topic`] will be created.
+    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
     pub fn create_topic(
         &self,
         topic_name: &str,
@@ -230,6 +235,7 @@ impl DomainParticipant {
     /// it, it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
+    #[tracing::instrument(skip(self, a_topic))]
     pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
         match &a_topic.node() {
             TopicNodeKind::UserDefined(t) => {
@@ -298,6 +304,7 @@ impl DomainParticipant {
     /// of times using [`DomainParticipant::delete_topic()`].
     /// Regardless of whether the middleware chooses to propagate topics, the [`DomainParticipant::delete_topic()`] operation deletes only the local proxy.
     /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
+    #[tracing::instrument(skip(self))]
     pub fn find_topic(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic> {
         let start_time = Instant::now();
 
@@ -359,6 +366,7 @@ impl DomainParticipant {
     /// deletion. It is still possible to delete the [`Topic`] returned by [`DomainParticipant::lookup_topicdescription()`], provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a [`Topic`], the operation succeeds and a [`None`] value is returned.
+    #[tracing::instrument(skip(self))]
     pub fn lookup_topicdescription(&self, _topic_name: &str) -> DdsResult<Option<Topic>> {
         todo!()
         // self.call_participant_method(|dp| {
@@ -377,6 +385,7 @@ impl DomainParticipant {
     /// well as corresponding [`DataReader`](crate::subscription::data_reader::DataReader) objects to access them. All these [`DataReader`](crate::subscription::data_reader::DataReader) objects belong to a single built-in [`Subscriber`].
     /// The built-in topics are used to communicate information about other [`DomainParticipant`], [`Topic`], [`DataReader`](crate::subscription::data_reader::DataReader), and [`DataWriter`](crate::publication::data_writer::DataWriter)
     /// objects.
+    #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
         Ok(Subscriber::new(SubscriberNodeKind::Builtin(
             SubscriberNode::new(
@@ -398,6 +407,7 @@ impl DomainParticipant {
     /// retrieved when reading the data-samples available for the built-in DataReader to the “DCPSParticipant” topic. The built-in
     /// [`DataReader`](crate::subscription::data_reader::DataReader) is read with the same read/take operations used for any DataReader.
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
+    #[tracing::instrument(skip(self))]
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
         if self.0.is_enabled()? {
             self.0.ignore_participant(handle)
@@ -413,6 +423,7 @@ impl DomainParticipant {
     /// The Topic to ignore is identified by the handle argument. This handle is the one that appears in the [`SampleInfo`](crate::subscription::sample_info::SampleInfo) retrieved when
     /// reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSTopic” topic.
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
+    #[tracing::instrument(skip(self))]
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
         if self.0.is_enabled()? {
             self.0.ignore_topic(handle)
@@ -426,6 +437,7 @@ impl DomainParticipant {
     /// The DataWriter to ignore is identified by the handle argument. This handle is the one that appears in the [`SampleInfo`](crate::subscription::sample_info::SampleInfo) retrieved
     /// when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSPublication” topic.
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
+    #[tracing::instrument(skip(self))]
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
         if self.0.is_enabled()? {
             self.0.ignore_publication(handle)
@@ -440,6 +452,7 @@ impl DomainParticipant {
     /// The DataReader to ignore is identified by the handle argument. This handle is the one that appears in the [`SampleInfo`](crate::subscription::sample_info::SampleInfo)
     /// retrieved when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSSubscription” topic.
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
+    #[tracing::instrument(skip(self))]
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
         if self.0.is_enabled()? {
             self.0.ignore_subscription(handle)
@@ -450,6 +463,7 @@ impl DomainParticipant {
 
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
+    #[tracing::instrument(skip(self))]
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
         self.0
             .send_and_reply_blocking(dds_domain_participant::GetDomainId)
@@ -465,6 +479,7 @@ impl DomainParticipant {
     /// deleted.
     /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
+    #[tracing::instrument(skip(self))]
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         for publisher in self
             .0
@@ -502,6 +517,7 @@ impl DomainParticipant {
     /// MANUAL_BY_PARTICIPANT and it only affects the liveliness of those  [`DataWriter`](crate::publication::data_writer::DataWriter) entities. Otherwise, it has no effect.
     /// NOTE: Writing data via the write operation on a  [`DataWriter`](crate::publication::data_writer::DataWriter) asserts liveliness on the DataWriter itself and its
     /// [`DomainParticipant`]. Consequently the use of this operation is only needed if the application is not writing data regularly.
+    #[tracing::instrument(skip(self))]
     pub fn assert_liveliness(&self) -> DdsResult<()> {
         todo!()
         // self.call_participant_method(|dp| {
@@ -515,6 +531,7 @@ impl DomainParticipant {
     /// return [`DdsError::InconsistenPolicy`](crate::infrastructure::error::DdsError).
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values the default values of [`PublisherQos`].
+    #[tracing::instrument(skip(self))]
     pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => PublisherQos::default(),
@@ -527,6 +544,7 @@ impl DomainParticipant {
     /// [`Publisher`] entities in the case where the QoS policies are defaulted in the [`DomainParticipant::create_publisher()`] operation.
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
+    #[tracing::instrument(skip(self))]
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
         self.0.default_publisher_qos()
     }
@@ -537,6 +555,7 @@ impl DomainParticipant {
     /// return [`DdsError::InconsistenPolicy`](crate::infrastructure::error::DdsError).
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the default values of [`SubscriberQos`].
+    #[tracing::instrument(skip(self))]
     pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => SubscriberQos::default(),
@@ -550,6 +569,7 @@ impl DomainParticipant {
     /// [`Subscriber`] entities in the case where the QoS policies are defaulted in the [`DomainParticipant::create_subscriber()`] operation.
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_subscriber_qos()`], or else, if the call was never made, the default values of [`SubscriberQos`].
+    #[tracing::instrument(skip(self))]
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
         self.0.default_subscriber_qos()
     }
@@ -560,6 +580,7 @@ impl DomainParticipant {
     /// return [`DdsError::InconsistenPolicy`](crate::infrastructure::error::DdsError).
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
+    #[tracing::instrument(skip(self))]
     pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => TopicQos::default(),
@@ -575,12 +596,14 @@ impl DomainParticipant {
     /// entities in the case where the QoS policies are defaulted in the [`DomainParticipant::create_topic()`] operation.
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
+    #[tracing::instrument(skip(self))]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
         self.0.default_topic_qos()
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the [`DomainParticipant::ignore_participant()`] operation.
+    #[tracing::instrument(skip(self))]
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.0.get_discovered_participants()
     }
@@ -591,6 +614,7 @@ impl DomainParticipant {
     /// The participant_handle must correspond to such a DomainParticipant. Otherwise, the operation will fail and return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// Use the operation [`DomainParticipant::get_discovered_participants()`] to find the DomainParticipants that are currently discovered.
+    #[tracing::instrument(skip(self))]
     pub fn get_discovered_participant_data(
         &self,
         _participant_handle: InstanceHandle,
@@ -606,6 +630,7 @@ impl DomainParticipant {
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
     /// should be “ignored” by means of the [`DomainParticipant::ignore_topic()`] operation.
+    #[tracing::instrument(skip(self))]
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.0.discovered_topic_list()
     }
@@ -616,6 +641,7 @@ impl DomainParticipant {
     /// The `topic_handle` must correspond to such a topic. Otherwise, the operation will fail and return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// Use the operation [`DomainParticipant::get_discovered_topics()`] to find the topics that are currently discovered.
+    #[tracing::instrument(skip(self))]
     pub fn get_discovered_topic_data(
         &self,
         topic_handle: InstanceHandle,
@@ -629,6 +655,7 @@ impl DomainParticipant {
     /// so forth.
     /// The instance handle for an Entity may be obtained from built-in topic data, from various statuses, or from the Entity operation
     /// `get_instance_handle`.
+    #[tracing::instrument(skip(self))]
     pub fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
         todo!()
         // self.call_participant_method(|dp| {
@@ -638,6 +665,7 @@ impl DomainParticipant {
 
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
+    #[tracing::instrument(skip(self))]
     pub fn get_current_time(&self) -> DdsResult<Time> {
         self.0
             .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)
@@ -658,6 +686,7 @@ impl DomainParticipant {
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
+    #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => THE_PARTICIPANT_FACTORY.get_default_participant_qos()?,
@@ -668,6 +697,7 @@ impl DomainParticipant {
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
+    #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
         self.0.get_qos()
     }
@@ -678,6 +708,7 @@ impl DomainParticipant {
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
+    #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
     pub fn set_listener(
         &self,
         _a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
@@ -689,6 +720,7 @@ impl DomainParticipant {
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
+    #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         todo!()
         // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
@@ -707,6 +739,7 @@ impl DomainParticipant {
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
+    #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
         // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
@@ -739,6 +772,7 @@ impl DomainParticipant {
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         if !self.0.is_enabled()? {
             self.0
@@ -943,6 +977,7 @@ impl DomainParticipant {
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
+    #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.0.get_instance_handle()
     }

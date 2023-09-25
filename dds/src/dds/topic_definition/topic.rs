@@ -64,6 +64,7 @@ impl Topic {
 
 impl Topic {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
+    #[tracing::instrument(skip(self))]
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => t
@@ -76,6 +77,7 @@ impl Topic {
 /// This implementation block represents the TopicDescription operations for the [`Topic`].
 impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
+    #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => {
@@ -85,6 +87,7 @@ impl Topic {
     }
 
     /// The name of the type used to create the [`Topic`]
+    #[tracing::instrument(skip(self))]
     pub fn get_type_name(&self) -> DdsResult<String> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => t.address().get_type_name(),
@@ -92,6 +95,7 @@ impl Topic {
     }
 
     /// The name used to create the [`Topic`]
+    #[tracing::instrument(skip(self))]
     pub fn get_name(&self) -> DdsResult<String> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => t.address().get_name(),
@@ -113,6 +117,7 @@ impl Topic {
     /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
+    #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => {
@@ -134,6 +139,7 @@ impl Topic {
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
+    #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => t.address().get_qos(),
@@ -143,6 +149,7 @@ impl Topic {
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
+    #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => {
@@ -157,6 +164,7 @@ impl Topic {
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
+    #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
         // match &self.node {
@@ -191,6 +199,7 @@ impl Topic {
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => {
@@ -209,6 +218,7 @@ impl Topic {
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
+    #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.node {
             TopicNodeKind::UserDefined(t) => t.address().get_instance_handle(),
@@ -221,6 +231,7 @@ impl Topic {
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
+    #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
     pub fn set_listener(
         &self,
         _a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
