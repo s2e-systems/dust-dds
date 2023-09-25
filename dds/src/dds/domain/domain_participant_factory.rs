@@ -22,6 +22,7 @@ use crate::{
             dds_domain_participant_factory::DdsDomainParticipantFactory,
             dds_domain_participant_listener::DdsDomainParticipantListener,
             dds_publisher, dds_subscriber, dds_topic,
+            nodes::DomainParticipantNode,
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
@@ -213,7 +214,8 @@ impl DomainParticipantFactory {
         self.0
             .address()
             .add_participant(participant_guid.into(), participant_actor)?;
-        let domain_participant = DomainParticipant::new(participant_address.clone());
+        let domain_participant =
+            DomainParticipant::new(DomainParticipantNode::new(participant_address.clone()));
 
         let participant_address_clone = participant_address.clone();
         THE_RUNTIME.spawn(async move {
@@ -343,7 +345,7 @@ impl DomainParticipantFactory {
                     false
                 }
             })
-            .map(|dp| DomainParticipant::new(dp.clone())))
+            .map(|dp| DomainParticipant::new(DomainParticipantNode::new(dp.clone()))))
     }
 
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created

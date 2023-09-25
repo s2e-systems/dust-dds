@@ -6,7 +6,7 @@ use crate::{
     publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
 };
 
-use super::nodes::{DataWriterNode, DataWriterNodeKind};
+use super::nodes::DataWriterNode;
 
 pub trait AnyDataWriterListener {
     fn trigger_on_liveliness_lost(
@@ -37,10 +37,7 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo> + Send + Syn
         the_writer: DataWriterNode,
         status: LivelinessLostStatus,
     ) {
-        self.on_liveliness_lost(
-            &DataWriter::new(DataWriterNodeKind::Listener(the_writer)),
-            status,
-        );
+        self.on_liveliness_lost(&DataWriter::new(the_writer), status);
     }
 
     fn trigger_on_offered_deadline_missed(
@@ -48,10 +45,7 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo> + Send + Syn
         the_writer: DataWriterNode,
         status: OfferedDeadlineMissedStatus,
     ) {
-        self.on_offered_deadline_missed(
-            &DataWriter::new(DataWriterNodeKind::Listener(the_writer)),
-            status,
-        );
+        self.on_offered_deadline_missed(&DataWriter::new(the_writer), status);
     }
 
     fn trigger_on_offered_incompatible_qos(
@@ -59,10 +53,7 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo> + Send + Syn
         the_writer: DataWriterNode,
         status: OfferedIncompatibleQosStatus,
     ) {
-        self.on_offered_incompatible_qos(
-            &DataWriter::new(DataWriterNodeKind::Listener(the_writer)),
-            status,
-        );
+        self.on_offered_incompatible_qos(&DataWriter::new(the_writer), status);
     }
 
     fn trigger_on_publication_matched(
@@ -70,9 +61,6 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo> + Send + Syn
         the_writer: DataWriterNode,
         status: PublicationMatchedStatus,
     ) {
-        self.on_publication_matched(
-            &DataWriter::new(DataWriterNodeKind::Listener(the_writer)),
-            status,
-        )
+        self.on_publication_matched(&DataWriter::new(the_writer), status)
     }
 }

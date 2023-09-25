@@ -5,12 +5,12 @@ use crate::{
     implementation::{
         dds::{
             dds_data_reader, dds_data_writer,
-            dds_domain_participant::{self, DdsDomainParticipant},
+            dds_domain_participant::{self},
             dds_publisher, dds_subscriber,
-            nodes::{PublisherNode, SubscriberNode, SubscriberNodeKind, TopicNode, TopicNodeKind},
+            nodes::{DomainParticipantNode, PublisherNode, SubscriberNode, TopicNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
-        utils::actor::{ActorAddress, THE_RUNTIME},
+        utils::actor::THE_RUNTIME,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -53,11 +53,11 @@ use super::{
 /// [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
 
-pub struct DomainParticipant(ActorAddress<DdsDomainParticipant>);
+pub struct DomainParticipant(DomainParticipantNode);
 
 impl DomainParticipant {
-    pub(crate) fn new(address: ActorAddress<DdsDomainParticipant>) -> Self {
-        Self(address)
+    pub(crate) fn new(node: DomainParticipantNode) -> Self {
+        Self(node)
     }
 }
 
@@ -82,10 +82,23 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher_address = self.0.create_publisher(qos, a_listener, mask.to_vec())?;
+        let publisher_address =
+            self.0
+                .participant_address()
+                .create_publisher(qos, a_listener, mask.to_vec())?;
 
-        let publisher = Publisher::new(PublisherNode::new(publisher_address, self.0.clone()));
-        if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
+        let publisher = Publisher::new(PublisherNode::new(
+            publisher_address,
+            self.0.participant_address().clone(),
+        ));
+        if self.0.participant_address().is_enabled()?
+            && self
+                .0
+                .participant_address()
+                .get_qos()?
+                .entity_factory
+                .autoenable_created_entities
+        {
             publisher.enable()?;
         }
 
@@ -103,9 +116,10 @@ impl DomainParticipant {
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
         if self
             .0
+            .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetGuid)?
             .prefix()
-            != a_publisher.node().address().guid()?.prefix()
+            != a_publisher.node().publisher_address().guid()?.prefix()
         {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
@@ -114,7 +128,7 @@ impl DomainParticipant {
 
         if !a_publisher
             .node()
-            .address()
+            .publisher_address()
             .send_and_reply_blocking(dds_publisher::DataWriterList)?
             .is_empty()
         {
@@ -124,6 +138,7 @@ impl DomainParticipant {
         }
 
         self.0
+            .participant_address()
             .delete_user_defined_publisher(a_publisher.get_instance_handle()?)
     }
 
@@ -142,14 +157,24 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber_address = self.0.create_subscriber(qos, a_listener, mask.to_vec())?;
+        let subscriber_address =
+            self.0
+                .participant_address()
+                .create_subscriber(qos, a_listener, mask.to_vec())?;
 
-        let subscriber = Subscriber::new(SubscriberNodeKind::UserDefined(SubscriberNode::new(
+        let subscriber = Subscriber::new(SubscriberNode::new(
             subscriber_address,
-            self.0.clone(),
-        )));
+            self.0.participant_address().clone(),
+        ));
 
-        if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
+        if self.0.participant_address().is_enabled()?
+            && self
+                .0
+                .participant_address()
+                .get_qos()?
+                .entity_factory
+                .autoenable_created_entities
+        {
             subscriber.enable()?;
         }
 
@@ -164,34 +189,32 @@ impl DomainParticipant {
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_subscriber))]
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        match a_subscriber.node() {
-            SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => Ok(()),
-            SubscriberNodeKind::UserDefined(s) => {
-                if self
-                    .0
-                    .send_and_reply_blocking(dds_domain_participant::GetGuid)?
-                    .prefix()
-                    != s.address().guid()?.prefix()
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Subscriber can only be deleted from its parent participant".to_string(),
-                    ));
-                }
-
-                if !s
-                    .address()
-                    .send_and_reply_blocking(dds_subscriber::DataReaderList)?
-                    .is_empty()
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Subscriber still contains data readers".to_string(),
-                    ));
-                }
-
-                self.0
-                    .delete_user_defined_subscriber(s.address().get_instance_handle()?)
-            }
+        if self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+            .prefix()
+            != a_subscriber.node().subscriber_address().guid()?.prefix()
+        {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant".to_string(),
+            ));
         }
+
+        if !a_subscriber
+            .node()
+            .subscriber_address()
+            .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+            .is_empty()
+        {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber still contains data readers".to_string(),
+            ));
+        }
+
+        self.0
+            .participant_address()
+            .delete_user_defined_subscriber(a_subscriber.node().subscriber_address().get_instance_handle()?)
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
@@ -210,7 +233,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Topic> {
-        let topic_address = self.0.create_topic(
+        let topic_address = self.0.participant_address().create_topic(
             topic_name.to_string(),
             type_name.to_string(),
             qos,
@@ -218,11 +241,18 @@ impl DomainParticipant {
             mask.to_vec(),
         )?;
 
-        let topic = Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
+        let topic = Topic::new(TopicNode::new(
             topic_address,
-            self.0.clone(),
-        )));
-        if self.0.is_enabled()? && self.0.get_qos()?.entity_factory.autoenable_created_entities {
+            self.0.participant_address().clone(),
+        ));
+        if self.0.participant_address().is_enabled()?
+            && self
+                .0
+                .participant_address()
+                .get_qos()?
+                .entity_factory
+                .autoenable_created_entities
+        {
             topic.enable()?;
         }
 
@@ -237,60 +267,61 @@ impl DomainParticipant {
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_topic))]
     pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
-        match &a_topic.node() {
-            TopicNodeKind::UserDefined(t) => {
-                if self
-                    .0
-                    .send_and_reply_blocking(dds_domain_participant::GetGuid)?
-                    .prefix()
-                    != t.address().guid()?.prefix()
+        if self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+            .prefix()
+            != a_topic.node().topic_address().guid()?.prefix()
+        {
+            return Err(DdsError::PreconditionNotMet(
+                "Topic can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
+        for publisher in self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
+        {
+            let data_writer_list =
+                publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+            for data_writer in data_writer_list {
+                if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                    == a_topic.node().topic_address().get_type_name()
+                    && data_writer.send_and_reply_blocking(dds_data_writer::GetTopicName)
+                        == a_topic.node().topic_address().get_name()
                 {
                     return Err(DdsError::PreconditionNotMet(
-                        "Topic can only be deleted from its parent participant".to_string(),
+                        "Topic still attached to some data writer".to_string(),
                     ));
                 }
-
-                for publisher in self
-                    .0
-                    .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
-                {
-                    let data_writer_list =
-                        publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
-                    for data_writer in data_writer_list {
-                        if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
-                            == t.address().get_type_name()
-                            && data_writer.send_and_reply_blocking(dds_data_writer::GetTopicName)
-                                == t.address().get_name()
-                        {
-                            return Err(DdsError::PreconditionNotMet(
-                                "Topic still attached to some data writer".to_string(),
-                            ));
-                        }
-                    }
-                }
-
-                for subscriber in self
-                    .0
-                    .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
-                {
-                    let data_reader_list =
-                        subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)?;
-                    for data_reader in data_reader_list {
-                        if data_reader.send_and_reply_blocking(dds_data_reader::GetTypeName)
-                            == t.address().get_type_name()
-                            && data_reader.send_and_reply_blocking(dds_data_reader::GetTopicName)
-                                == t.address().get_name()
-                        {
-                            return Err(DdsError::PreconditionNotMet(
-                                "Topic still attached to some data reader".to_string(),
-                            ));
-                        }
-                    }
-                }
-
-                self.0.delete_topic(t.address().get_instance_handle()?)
             }
         }
+
+        for subscriber in self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
+        {
+            let data_reader_list =
+                subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)?;
+            for data_reader in data_reader_list {
+                if data_reader.send_and_reply_blocking(dds_data_reader::GetTypeName)
+                    == a_topic.node().topic_address().get_type_name()
+                    && data_reader.send_and_reply_blocking(dds_data_reader::GetTopicName)
+                        == a_topic.node().topic_address().get_name()
+                {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data reader".to_string(),
+                    ));
+                }
+            }
+        }
+
+        self.0
+            .participant_address()
+            .delete_topic(a_topic.node().topic_address().get_instance_handle()?)
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
@@ -311,19 +342,22 @@ impl DomainParticipant {
         while start_time.elapsed() < std::time::Duration::from(timeout) {
             for topic in self
                 .0
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
             {
                 if topic.get_name()? == topic_name {
-                    return Ok(Topic::new(TopicNodeKind::UserDefined(TopicNode::new(
+                    return Ok(Topic::new(TopicNode::new(
                         topic,
-                        self.0.clone(),
-                    ))));
+                        self.0.participant_address().clone(),
+                    )));
                 }
             }
 
-            for discovered_topic_handle in self.0.discovered_topic_list()? {
-                if let Ok(discovered_topic_data) =
-                    self.0.discovered_topic_data(discovered_topic_handle)?
+            for discovered_topic_handle in self.0.participant_address().discovered_topic_list()? {
+                if let Ok(discovered_topic_data) = self
+                    .0
+                    .participant_address()
+                    .discovered_topic_data(discovered_topic_handle)?
                 {
                     if discovered_topic_data.name() == topic_name {
                         let qos = TopicQos {
@@ -387,12 +421,11 @@ impl DomainParticipant {
     /// objects.
     #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        Ok(Subscriber::new(SubscriberNodeKind::Builtin(
-            SubscriberNode::new(
-                self.0
-                    .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?,
-                self.0.clone(),
-            ),
+        Ok(Subscriber::new(SubscriberNode::new(
+            self.0
+                .participant_address()
+                .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?,
+            self.0.participant_address().clone(),
         )))
     }
 
@@ -409,8 +442,8 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.0.is_enabled()? {
-            self.0.ignore_participant(handle)
+        if self.0.participant_address().is_enabled()? {
+            self.0.participant_address().ignore_participant(handle)
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -425,8 +458,8 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.0.is_enabled()? {
-            self.0.ignore_topic(handle)
+        if self.0.participant_address().is_enabled()? {
+            self.0.participant_address().ignore_topic(handle)
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -439,8 +472,8 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.0.is_enabled()? {
-            self.0.ignore_publication(handle)
+        if self.0.participant_address().is_enabled()? {
+            self.0.participant_address().ignore_publication(handle)
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -454,8 +487,8 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.0.is_enabled()? {
-            self.0.ignore_subscription(handle)
+        if self.0.participant_address().is_enabled()? {
+            self.0.participant_address().ignore_subscription(handle)
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -466,6 +499,7 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
         self.0
+            .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetDomainId)
     }
 
@@ -483,29 +517,36 @@ impl DomainParticipant {
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         for publisher in self
             .0
+            .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
         {
             for data_writer in publisher.send_and_reply_blocking(dds_publisher::DataWriterList)? {
                 publisher.datawriter_delete(data_writer.get_instance_handle()?)?;
             }
             self.0
+                .participant_address()
                 .delete_user_defined_publisher(publisher.get_instance_handle()?)?;
         }
         for subscriber in self
             .0
+            .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
         {
             for data_reader in subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)? {
                 subscriber.data_reader_delete(data_reader.get_instance_handle()?)?;
             }
             self.0
+                .participant_address()
                 .delete_user_defined_subscriber(subscriber.get_instance_handle()?)?;
         }
         for topic in self
             .0
+            .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
         {
-            self.0.delete_topic(topic.get_instance_handle()?)?;
+            self.0
+                .participant_address()
+                .delete_topic(topic.get_instance_handle()?)?;
         }
         Ok(())
     }
@@ -537,7 +578,7 @@ impl DomainParticipant {
             QosKind::Default => PublisherQos::default(),
             QosKind::Specific(q) => q,
         };
-        self.0.set_default_publisher_qos(qos)
+        self.0.participant_address().set_default_publisher_qos(qos)
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -546,7 +587,7 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        self.0.default_publisher_qos()
+        self.0.participant_address().default_publisher_qos()
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created [`Subscriber`] entities in the
@@ -562,7 +603,7 @@ impl DomainParticipant {
             QosKind::Specific(q) => q,
         };
 
-        self.0.set_default_subscriber_qos(qos)
+        self.0.participant_address().set_default_subscriber_qos(qos)
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -571,7 +612,7 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_subscriber_qos()`], or else, if the call was never made, the default values of [`SubscriberQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        self.0.default_subscriber_qos()
+        self.0.participant_address().default_subscriber_qos()
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created [`Topic`] entities in the case
@@ -589,7 +630,7 @@ impl DomainParticipant {
                 q
             }
         };
-        self.0.set_default_topic_qos(qos)
+        self.0.participant_address().set_default_topic_qos(qos)
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created [`Topic`]
@@ -598,14 +639,14 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
     #[tracing::instrument(skip(self))]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        self.0.default_topic_qos()
+        self.0.participant_address().default_topic_qos()
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the [`DomainParticipant::ignore_participant()`] operation.
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.get_discovered_participants()
+        self.0.participant_address().get_discovered_participants()
     }
 
     /// This operation retrieves information on a [`DomainParticipant`] that has been discovered on the network. The participant must
@@ -632,7 +673,7 @@ impl DomainParticipant {
     /// should be “ignored” by means of the [`DomainParticipant::ignore_topic()`] operation.
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.discovered_topic_list()
+        self.0.participant_address().discovered_topic_list()
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -646,7 +687,9 @@ impl DomainParticipant {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        self.0.discovered_topic_data(topic_handle)?
+        self.0
+            .participant_address()
+            .discovered_topic_data(topic_handle)?
     }
 
     /// This operation checks whether or not the given `a_handle` represents an Entity that was created from the [`DomainParticipant`].
@@ -668,6 +711,7 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_current_time(&self) -> DdsResult<Time> {
         self.0
+            .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)
     }
 }
@@ -693,13 +737,13 @@ impl DomainParticipant {
             QosKind::Specific(q) => q,
         };
 
-        self.0.set_qos(qos)
+        self.0.participant_address().set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.0.get_qos()
+        self.0.participant_address().get_qos()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -723,14 +767,6 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         todo!()
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-        //     &self.0.guid(),
-        //     |domain_participant_listener| {
-        //         Ok(domain_participant_listener
-        //             .ok_or(DdsError::AlreadyDeleted)?
-        //             .get_status_condition())
-        //     },
-        // )
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -742,14 +778,6 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-        //     &self.0.guid(),
-        //     |domain_participant_listener| {
-        //         Ok(domain_participant_listener
-        //             .ok_or(DdsError::AlreadyDeleted)?
-        //             .get_status_changes())
-        //     },
-        // )
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -774,16 +802,19 @@ impl DomainParticipant {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.is_enabled()? {
+        if !self.0.participant_address().is_enabled()? {
             self.0
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
                 .enable()?;
             self.0
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
                 .enable()?;
 
             for builtin_reader in self
                 .0
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
                 .send_and_reply_blocking(dds_subscriber::DataReaderList)?
             {
@@ -792,15 +823,16 @@ impl DomainParticipant {
 
             for builtin_writer in self
                 .0
+                .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
                 .send_and_reply_blocking(dds_publisher::DataWriterList)?
             {
                 builtin_writer.enable()?;
             }
 
-            self.0.enable()?;
+            self.0.participant_address().enable()?;
 
-            let domain_participant_address = self.0.clone();
+            let domain_participant_address = self.0.participant_address().clone();
 
             // Spawn the task that regularly announces the domain participant
             THE_RUNTIME.spawn(async move {
@@ -879,7 +911,7 @@ impl DomainParticipant {
             });
 
             // Spawn the task that regularly checks for deadline missed
-            let domain_participant_address = self.0.clone();
+            let domain_participant_address = self.0.participant_address().clone();
             THE_RUNTIME.spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(50));
                 loop {
@@ -979,6 +1011,6 @@ impl DomainParticipant {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.get_instance_handle()
+        self.0.participant_address().get_instance_handle()
     }
 }

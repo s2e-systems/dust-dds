@@ -14,99 +14,93 @@ use super::{
 };
 
 #[derive(Clone, PartialEq, Eq)]
-pub enum SubscriberNodeKind {
-    Builtin(SubscriberNode),
-    UserDefined(SubscriberNode),
-    Listener(SubscriberNode),
+pub struct DomainParticipantNode {
+    participant_address: ActorAddress<DdsDomainParticipant>,
 }
 
-#[derive(Clone, PartialEq, Eq)]
-pub enum DataWriterNodeKind {
-    UserDefined(DataWriterNode),
-    Listener(DataWriterNode),
-}
+impl DomainParticipantNode {
+    pub fn new(participant_address: ActorAddress<DdsDomainParticipant>) -> Self {
+        Self {
+            participant_address,
+        }
+    }
 
-#[derive(Clone, PartialEq, Eq)]
-pub enum DataReaderNodeKind {
-    _BuiltinStateful(DataReaderNode),
-    _BuiltinStateless(DataReaderNode),
-    UserDefined(DataReaderNode),
-    Listener(DataReaderNode),
-}
-
-#[derive(Clone, PartialEq, Eq)]
-pub enum TopicNodeKind {
-    UserDefined(TopicNode),
+    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+        &self.participant_address
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct SubscriberNode {
-    this: ActorAddress<DdsSubscriber>,
-    parent: ActorAddress<DdsDomainParticipant>,
+    subscriber_address: ActorAddress<DdsSubscriber>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
 }
 
 impl SubscriberNode {
     pub fn new(
-        this: ActorAddress<DdsSubscriber>,
-        parent: ActorAddress<DdsDomainParticipant>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> Self {
-        Self { this, parent }
+        Self {
+            subscriber_address,
+            participant_address,
+        }
     }
 
-    pub fn address(&self) -> &ActorAddress<DdsSubscriber> {
-        &self.this
+    pub fn subscriber_address(&self) -> &ActorAddress<DdsSubscriber> {
+        &self.subscriber_address
     }
 
-    pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {
-        &self.parent
+    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+        &self.participant_address
     }
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DataReaderNode {
-    this: ActorAddress<DdsDataReader>,
-    parent_subscriber: ActorAddress<DdsSubscriber>,
-    parent_participant: ActorAddress<DdsDomainParticipant>,
+    reader_address: ActorAddress<DdsDataReader>,
+    subscriber_address: ActorAddress<DdsSubscriber>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
 }
 
 impl DataReaderNode {
     pub fn new(
-        this: ActorAddress<DdsDataReader>,
-        parent_subscriber: ActorAddress<DdsSubscriber>,
-        parent_participant: ActorAddress<DdsDomainParticipant>,
+        reader_address: ActorAddress<DdsDataReader>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> Self {
         Self {
-            this,
-            parent_subscriber,
-            parent_participant,
+            reader_address,
+            subscriber_address,
+            participant_address,
         }
     }
 
-    pub fn address(&self) -> &ActorAddress<DdsDataReader> {
-        &self.this
+    pub fn reader_address(&self) -> &ActorAddress<DdsDataReader> {
+        &self.reader_address
     }
 
-    pub fn parent_subscriber(&self) -> &ActorAddress<DdsSubscriber> {
-        &self.parent_subscriber
+    pub fn subscriber_address(&self) -> &ActorAddress<DdsSubscriber> {
+        &self.subscriber_address
     }
 
-    pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {
-        &self.parent_participant
+    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+        &self.participant_address
     }
 
     pub fn topic_address(&self) -> ActorAddress<DdsTopic> {
         let user_defined_topic_list = self
-            .parent_participant
+            .participant_address
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)
             .expect("should never fail");
         for topic in user_defined_topic_list {
             if topic.get_type_name()
                 == self
-                    .this
+                    .reader_address
                     .send_and_reply_blocking(dds_data_reader::GetTypeName)
                 && topic.get_name()
                     == self
-                        .this
+                        .reader_address
                         .send_and_reply_blocking(dds_data_reader::GetTopicName)
             {
                 return topic;
@@ -120,54 +114,60 @@ impl AnyDataReader for DataReaderNode {}
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct TopicNode {
-    this: ActorAddress<DdsTopic>,
-    parent: ActorAddress<DdsDomainParticipant>,
+    topic_address: ActorAddress<DdsTopic>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
 }
 
 impl TopicNode {
-    pub fn new(this: ActorAddress<DdsTopic>, parent: ActorAddress<DdsDomainParticipant>) -> Self {
-        Self { this, parent }
+    pub fn new(
+        topic_address: ActorAddress<DdsTopic>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) -> Self {
+        Self {
+            topic_address,
+            participant_address,
+        }
     }
 
-    pub fn address(&self) -> &ActorAddress<DdsTopic> {
-        &self.this
+    pub fn topic_address(&self) -> &ActorAddress<DdsTopic> {
+        &self.topic_address
     }
 
-    pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {
-        &self.parent
+    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+        &self.participant_address
     }
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DataWriterNode {
-    this: ActorAddress<DdsDataWriter>,
-    parent_publisher: ActorAddress<DdsPublisher>,
-    parent_participant: ActorAddress<DdsDomainParticipant>,
+    writer_address: ActorAddress<DdsDataWriter>,
+    publisher_address: ActorAddress<DdsPublisher>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
 }
 
 impl DataWriterNode {
     pub fn new(
-        this: ActorAddress<DdsDataWriter>,
-        parent_publisher: ActorAddress<DdsPublisher>,
-        parent_participant: ActorAddress<DdsDomainParticipant>,
+        writer_address: ActorAddress<DdsDataWriter>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> Self {
         Self {
-            this,
-            parent_publisher,
-            parent_participant,
+            writer_address,
+            publisher_address,
+            participant_address,
         }
     }
 
-    pub fn address(&self) -> &ActorAddress<DdsDataWriter> {
-        &self.this
+    pub fn writer_address(&self) -> &ActorAddress<DdsDataWriter> {
+        &self.writer_address
     }
 
-    pub fn parent_publisher(&self) -> &ActorAddress<DdsPublisher> {
-        &self.parent_publisher
+    pub fn publisher_address(&self) -> &ActorAddress<DdsPublisher> {
+        &self.publisher_address
     }
 
-    pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {
-        &self.parent_participant
+    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+        &self.participant_address
     }
 }
 
@@ -175,23 +175,26 @@ impl AnyDataWriter for DataWriterNode {}
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct PublisherNode {
-    this: ActorAddress<DdsPublisher>,
-    parent: ActorAddress<DdsDomainParticipant>,
+    publisher_address: ActorAddress<DdsPublisher>,
+    participant_address: ActorAddress<DdsDomainParticipant>,
 }
 
 impl PublisherNode {
     pub fn new(
-        this: ActorAddress<DdsPublisher>,
-        parent: ActorAddress<DdsDomainParticipant>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
     ) -> Self {
-        Self { this, parent }
+        Self {
+            publisher_address,
+            participant_address,
+        }
     }
 
-    pub fn address(&self) -> &ActorAddress<DdsPublisher> {
-        &self.this
+    pub fn publisher_address(&self) -> &ActorAddress<DdsPublisher> {
+        &self.publisher_address
     }
 
-    pub fn parent_participant(&self) -> &ActorAddress<DdsDomainParticipant> {
-        &self.parent
+    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+        &self.participant_address
     }
 }

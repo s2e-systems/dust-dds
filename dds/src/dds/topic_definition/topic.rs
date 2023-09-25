@@ -6,7 +6,7 @@ use crate::{
             dds_data_writer,
             dds_domain_participant::{self, DdsDomainParticipant},
             dds_publisher, dds_topic,
-            nodes::TopicNodeKind,
+            nodes::{DomainParticipantNode, TopicNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::ActorAddress,
@@ -29,17 +29,15 @@ use super::{
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
 #[derive(PartialEq, Eq)]
-pub struct Topic {
-    node: TopicNodeKind,
-}
+pub struct Topic(TopicNode);
 
 impl Topic {
-    pub(crate) fn new(node: TopicNodeKind) -> Self {
-        Self { node }
+    pub(crate) fn new(node: TopicNode) -> Self {
+        Self(node)
     }
 
-    pub(crate) fn node(&self) -> &TopicNodeKind {
-        &self.node
+    pub(crate) fn node(&self) -> &TopicNode {
+        &self.0
     }
 }
 
@@ -66,11 +64,9 @@ impl Topic {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     #[tracing::instrument(skip(self))]
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => t
-                .address()
-                .send_and_reply_blocking(dds_topic::GetInconsistentTopicStatus)?,
-        }
+        self.0
+            .topic_address()
+            .send_and_reply_blocking(dds_topic::GetInconsistentTopicStatus)?
     }
 }
 
@@ -79,27 +75,21 @@ impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                Ok(DomainParticipant::new(t.parent_participant().clone()))
-            }
-        }
+        Ok(DomainParticipant::new(DomainParticipantNode::new(
+            self.0.participant_address().clone(),
+        )))
     }
 
     /// The name of the type used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
     pub fn get_type_name(&self) -> DdsResult<String> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => t.address().get_type_name(),
-        }
+        self.0.topic_address().get_type_name()
     }
 
     /// The name used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
     pub fn get_name(&self) -> DdsResult<String> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => t.address().get_name(),
-        }
+        self.0.topic_address().get_name()
     }
 }
 
@@ -119,31 +109,25 @@ impl Topic {
     /// modified to match the current default for the Entity’s factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                let qos = match qos {
-                    QosKind::Default => t.parent_participant().default_topic_qos()?,
-                    QosKind::Specific(q) => {
-                        q.is_consistent()?;
-                        q
-                    }
-                };
-
-                if t.address().is_enabled()? {
-                    t.address().get_qos()?.check_immutability(&qos)?
-                }
-
-                t.address().set_qos(qos)
+        let qos = match qos {
+            QosKind::Default => self.0.participant_address().default_topic_qos()?,
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
             }
+        };
+
+        if self.0.topic_address().is_enabled()? {
+            self.0.topic_address().get_qos()?.check_immutability(&qos)?
         }
+
+        self.0.topic_address().set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => t.address().get_qos(),
-        }
+        self.0.topic_address().get_qos()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -151,11 +135,10 @@ impl Topic {
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                t.address().get_statuscondition().map(StatusCondition::new)
-            }
-        }
+        self.0
+            .topic_address()
+            .get_statuscondition()
+            .map(StatusCondition::new)
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -167,16 +150,6 @@ impl Topic {
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(t) => {
-        //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&t.guid(), |topic_listener| {
-        //             Ok(topic_listener
-        //                 .ok_or(DdsError::AlreadyDeleted)?
-        //                 .get_status_changes())
-        //         })
-        //     }
-        //     TopicNodeKind::Listener(_) => todo!(),
-        // }
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -201,28 +174,22 @@ impl Topic {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => {
-                if !t.address().is_enabled()? {
-                    t.address().enable()?;
+        if !self.0.topic_address().is_enabled()? {
+            self.0.topic_address().enable()?;
 
-                    announce_topic(
-                        t.parent_participant(),
-                        t.address().as_discovered_topic_data()?,
-                    )?;
-                }
-
-                Ok(())
-            }
+            announce_topic(
+                self.0.participant_address(),
+                self.0.topic_address().as_discovered_topic_data()?,
+            )?;
         }
+
+        Ok(())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        match &self.node {
-            TopicNodeKind::UserDefined(t) => t.address().get_instance_handle(),
-        }
+        self.0.topic_address().get_instance_handle()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -238,10 +205,6 @@ impl Topic {
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
-        // match &self.node {
-        //     TopicNodeKind::UserDefined(_) => todo!(),
-        //     TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
-        // }
     }
 }
 
