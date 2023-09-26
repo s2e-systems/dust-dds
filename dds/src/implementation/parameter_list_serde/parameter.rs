@@ -1,6 +1,6 @@
-use std::{self, marker::PhantomData};
 use serde::de::{self, Error};
 use serde::ser::SerializeTuple;
+use std::{self, marker::PhantomData};
 
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
 use crate::implementation::rtps::messages::types::ParameterId;
@@ -135,15 +135,14 @@ where
             where
                 A: de::MapAccess<'de>,
             {
-                loop {
-                    while let Some(key) = map.next_key::<ParameterId>()? {
-                        if key == PID {
-                            return Ok(Parameter(map.next_value()?));
-                        } else if key == PID_SENTINEL {
-                            return Err(A::Error::custom(format!("PID {} not found", PID)));
-                        }
+                while let Some(key) = map.next_key::<ParameterId>()? {
+                    if key == PID {
+                        return Ok(Parameter(map.next_value()?));
+                    } else if key == PID_SENTINEL {
+                        break;
                     }
                 }
+                Err(A::Error::custom(format!("PID {} not found", PID)))
             }
         }
         deserializer.deserialize_newtype_struct(
