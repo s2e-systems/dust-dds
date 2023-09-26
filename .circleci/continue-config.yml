@@ -102,13 +102,11 @@ jobs:
       - run:
           name: Build FastDDS Interoperability tests
           command: |
-            mkdir build/fast_dds
             cmake -S interoperability_tests/fast_dds -B build/fast_dds
             cmake --build build/fast_dds
       - run:
           name: Build CycloneDDS Interoperability tests
           command: |
-            mkdir build/cyclone_dds
             cmake -S interoperability_tests/cyclone_dds -B build/cyclone_dds
             cmake --build build/cyclone_dds
       - run:
