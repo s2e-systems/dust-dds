@@ -12,23 +12,12 @@ use dust_dds::{
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
 };
-use tracing::Level;
-use tracing_subscriber::FmtSubscriber;
 
 mod hello_world {
     include!("target/idl/hello_world.rs");
 }
 
 fn main() {
-    let subscriber = FmtSubscriber::builder()
-        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
-        // will be written to stdout.
-        .with_max_level(Level::WARN)
-        // completes the builder.
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
