@@ -103,6 +103,8 @@ jobs:
           name: Build FastDDS Interoperability tests
           command: |
             cmake -S interoperability_tests/fast_dds -B build/fast_dds
+            mkdir build/fast_dds/idl
+            java -jar /usr/local/share/fastddsgen/java/fastddsgen.jar -d build/fast_dds/idl interoperability_tests/HelloWorld.idl
             cmake --build build/fast_dds
       - run:
           name: Build CycloneDDS Interoperability tests
