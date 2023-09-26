@@ -7,7 +7,7 @@ pub enum DurationKind {
 }
 
 const DURATION_INFINITE_SEC: i32 = 0x7fffffff;
-const DURATION_INFINITE_NSEC: u32 = 0x7fffffff;
+const DURATION_INFINITE_NSEC: u32 = 0xffffffff;
 
 impl serde::Serialize for DurationKind {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
