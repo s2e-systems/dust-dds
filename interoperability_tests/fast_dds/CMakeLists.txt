@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14.0)
-project(Interoperability)
+project(FastDdsInteroperability)
 
 find_package(fastcdr REQUIRED)
 find_package(fastrtps REQUIRED)
@@ -14,7 +14,7 @@ target_link_libraries(FastDdsPublisher PRIVATE
   fastrtps
   fastcdr
 )
-target_include_directories(FastDdsPublisher PRIVATE build/idl)
+target_include_directories(FastDdsPublisher PRIVATE ${CMAKE_BINARY_DIR}/idl)
 
 
 add_executable(FastDdsSubscriber
@@ -26,4 +26,4 @@ target_link_libraries(FastDdsSubscriber PRIVATE
   fastrtps
   fastcdr
 )
-target_include_directories(FastDdsSubscriber PRIVATE build/idl)
+target_include_directories(FastDdsSubscriber PRIVATE ${CMAKE_BINARY_DIR}/idl)
