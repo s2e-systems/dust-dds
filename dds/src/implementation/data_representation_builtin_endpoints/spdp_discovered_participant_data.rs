@@ -95,6 +95,8 @@ impl<'de> serde::Deserialize<'de> for DomainIdParameter {
     where
         D: serde::Deserializer<'de>,
     {
+        // None should not happen since this is only deserialized if the
+        // corresponding PID is found
         Ok(Self(Some(serde::Deserialize::deserialize(deserializer)?)))
     }
 }
