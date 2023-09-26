@@ -438,7 +438,7 @@ fn publisher_and_subscriber_different_partition_not_matched() {
         .unwrap();
     let publisher_qos = PublisherQos {
         partition: PartitionQosPolicy {
-            name: "A".to_string(),
+            name: vec!["A".to_string()],
         },
         ..Default::default()
     };
@@ -451,7 +451,7 @@ fn publisher_and_subscriber_different_partition_not_matched() {
 
     let subscriber_qos = SubscriberQos {
         partition: PartitionQosPolicy {
-            name: "B".to_string(),
+            name: vec!["B".to_string()],
         },
         ..Default::default()
     };
@@ -485,7 +485,7 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
         .unwrap();
     let publisher_qos = PublisherQos {
         partition: PartitionQosPolicy {
-            name: "ABC".to_string(),
+            name: vec!["ABC".to_string()],
         },
         ..Default::default()
     };
@@ -502,7 +502,7 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
 
     let subscriber_qos = SubscriberQos {
         partition: PartitionQosPolicy {
-            name: "A[B-C]+".to_string(),
+            name: vec!["A[B-C]+".to_string()],
         },
         ..Default::default()
     };
@@ -543,7 +543,7 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
         .unwrap();
     let publisher_qos = PublisherQos {
         partition: PartitionQosPolicy {
-            name: "A[1-2]+".to_string(),
+            name: vec!["A[1-2]+".to_string()],
         },
         ..Default::default()
     };
@@ -560,7 +560,7 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
 
     let subscriber_qos = SubscriberQos {
         partition: PartitionQosPolicy {
-            name: "A12".to_string(),
+            name: vec!["A12".to_string()],
         },
         ..Default::default()
     };
@@ -601,7 +601,7 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
         .unwrap();
     let publisher_qos = PublisherQos {
         partition: PartitionQosPolicy {
-            name: "A[1-2]+".to_string(),
+            name: vec!["A[1-2]+".to_string()],
         },
         ..Default::default()
     };
@@ -618,7 +618,7 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
 
     let subscriber_qos = SubscriberQos {
         partition: PartitionQosPolicy {
-            name: "A[1-2]+".to_string(),
+            name: vec!["A[1-2]+".to_string()],
         },
         ..Default::default()
     };
