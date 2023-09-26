@@ -1287,7 +1287,8 @@ pub fn is_partition_matched(lhs: &PartitionQosPolicy, rhs: &PartitionQosPolicy) 
         false
     }
 
-    compare_regex_with_partition(lhs, rhs)
+    (lhs.name.is_empty() && rhs.name.is_empty())
+        || compare_regex_with_partition(lhs, rhs)
         || compare_regex_with_partition(rhs, lhs)
         || compare_partition_names(lhs, rhs)
 }
