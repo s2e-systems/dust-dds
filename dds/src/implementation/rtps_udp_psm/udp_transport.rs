@@ -21,9 +21,12 @@ impl UdpTransportRead {
     }
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        let mut buf = Vec::with_capacity(65000);
-        match self.socket.recv_from(buf.as_mut()).await {
+        let mut buf = vec![0; 65000];
+
+        match self.socket.recv_from(&mut buf).await {
             Ok((bytes, source_address)) => {
+                buf.truncate(bytes);
+
                 let message = RtpsMessageRead::new(Arc::from(buf.into_boxed_slice()));
 
                 if bytes > 0 {
