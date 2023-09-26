@@ -13,7 +13,7 @@ use dust_dds::{
     },
 };
 mod big_data {
-    include!("build/idl/big_data.rs");
+    include!("target/idl/big_data.rs");
 }
 
 fn main() {
