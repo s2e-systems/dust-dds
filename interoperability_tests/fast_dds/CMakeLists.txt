@@ -5,10 +5,13 @@ find_package(fastcdr REQUIRED)
 find_package(fastrtps REQUIRED)
 set (CMAKE_CXX_STANDARD 11)
 
+set_source_files_properties(${CMAKE_BINARY_DIR}/idl/HelloWorld.cxx PROPERTIES GENERATED)
+set_source_files_properties(${CMAKE_BINARY_DIR}/idl/HelloWorldPubSubTypes.cxx PROPERTIES GENERATED)
+
 add_executable(FastDdsPublisher
   fast_dds_publisher.cpp
-  build/idl/HelloWorld.cxx
-  build/idl/HelloWorldPubSubTypes.cxx
+  ${CMAKE_BINARY_DIR}/idl/HelloWorld.cxx
+  ${CMAKE_BINARY_DIR}/idl/HelloWorldPubSubTypes.cxx
 )
 target_link_libraries(FastDdsPublisher PRIVATE
   fastrtps
@@ -19,8 +22,8 @@ target_include_directories(FastDdsPublisher PRIVATE ${CMAKE_BINARY_DIR}/idl)
 
 add_executable(FastDdsSubscriber
   fast_dds_subscriber.cpp
-  build/idl/HelloWorld.cxx
-  build/idl/HelloWorldPubSubTypes.cxx
+  ${CMAKE_BINARY_DIR}/idl/HelloWorld.cxx
+  ${CMAKE_BINARY_DIR}/idl/HelloWorldPubSubTypes.cxx
 )
 target_link_libraries(FastDdsSubscriber PRIVATE
   fastrtps
