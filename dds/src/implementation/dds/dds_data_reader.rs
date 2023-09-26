@@ -408,9 +408,10 @@ impl DdsDataReader {
                 .await?
             }
             Err(e) => debug!(
-                "Received invalid data on reader with GUID {:?}. Error: {:?}",
+                "Received invalid data on reader with GUID {:?}. Error: {:?}. Data submessage payload: {:?}",
                 self.rtps_reader.guid(),
-                e
+                e,
+                data_submessage.serialized_payload(),
             ),
         }
 

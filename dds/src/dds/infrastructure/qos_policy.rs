@@ -583,7 +583,7 @@ impl Default for TimeBasedFilterQosPolicy {
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PartitionQosPolicy {
-    pub name: String,
+    pub name: Vec<String>,
 }
 
 impl QosPolicy for PartitionQosPolicy {
@@ -594,9 +594,7 @@ impl QosPolicy for PartitionQosPolicy {
 
 impl Default for PartitionQosPolicy {
     fn default() -> Self {
-        Self {
-            name: "".to_string(),
-        }
+        Self { name: Vec::new() }
     }
 }
 

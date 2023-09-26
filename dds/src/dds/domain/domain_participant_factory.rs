@@ -1144,44 +1144,46 @@ async fn discover_matched_writers(
                             .send_and_reply(dds_domain_participant::GetUserDefinedSubscriberList)
                             .await?
                         {
-                            let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) =
-                                glob_to_regex(
-                                    discovered_writer_data
-                                        .clone()
-                                        .dds_publication_data()
-                                        .partition()
-                                        .name
-                                        .as_str(),
-                                ) {
-                                d.is_match(
-                                    &user_defined_subscriber_address
-                                        .send_and_reply(dds_subscriber::GetQos)
-                                        .await?
-                                        .partition
-                                        .name,
-                                )
-                            } else {
-                                false
-                            };
+                            let is_discovered_writer_regex_matched_to_subscriber = true;
+                            // if let Ok(d) =
+                            //     glob_to_regex(
+                            //         discovered_writer_data
+                            //             .clone()
+                            //             .dds_publication_data()
+                            //             .partition()
+                            //             .name
+                            //             .as_str(),
+                            //     ) {
+                            //     d.is_match(
+                            //         &user_defined_subscriber_address
+                            //             .send_and_reply(dds_subscriber::GetQos)
+                            //             .await?
+                            //             .partition
+                            //             .name,
+                            //     )
+                            // } else {
+                            //     false
+                            // };
 
-                            let is_subscriber_regex_matched_to_discovered_writer = if let Ok(d) =
-                                glob_to_regex(
-                                    &user_defined_subscriber_address
-                                        .send_and_reply(dds_subscriber::GetQos)
-                                        .await?
-                                        .partition
-                                        .name,
-                                ) {
-                                d.is_match(
-                                    &discovered_writer_data
-                                        .clone()
-                                        .dds_publication_data()
-                                        .partition()
-                                        .name,
-                                )
-                            } else {
-                                false
-                            };
+                            let is_subscriber_regex_matched_to_discovered_writer = true;
+                            //  if let Ok(d) =
+                            //     glob_to_regex(
+                            //         &user_defined_subscriber_address
+                            //             .send_and_reply(dds_subscriber::GetQos)
+                            //             .await?
+                            //             .partition
+                            //             .name,
+                            //     ) {
+                            //     d.is_match(
+                            //         &discovered_writer_data
+                            //             .clone()
+                            //             .dds_publication_data()
+                            //             .partition()
+                            //             .name,
+                            //     )
+                            // } else {
+                            //     false
+                            // };
 
                             let is_partition_string_matched = discovered_writer_data
                                 .clone()
@@ -1339,29 +1341,30 @@ pub async fn discover_matched_readers(
                             let publisher_qos = user_defined_publisher_address
                                 .send_and_reply(dds_publisher::GetQos)
                                 .await?;
-                            let is_discovered_reader_regex_matched_to_publisher = if let Ok(d) =
-                                glob_to_regex(
-                                    &discovered_reader_data
-                                        .subscription_builtin_topic_data()
-                                        .partition()
-                                        .name,
-                                ) {
-                                d.is_match(&publisher_qos.partition.name)
-                            } else {
-                                false
-                            };
+                            let is_discovered_reader_regex_matched_to_publisher = true;
+                            //  if let Ok(d) =
+                            //     glob_to_regex(
+                            //         &discovered_reader_data
+                            //             .subscription_builtin_topic_data()
+                            //             .partition()
+                            //             .name,
+                            //     ) {
+                            //     d.is_match(&publisher_qos.partition.name)
+                            // } else {
+                            //     false
+                            // };
 
-                            let is_publisher_regex_matched_to_discovered_reader =
-                                if let Ok(d) = glob_to_regex(&publisher_qos.partition.name) {
-                                    d.is_match(
-                                        &discovered_reader_data
-                                            .subscription_builtin_topic_data()
-                                            .partition()
-                                            .name,
-                                    )
-                                } else {
-                                    false
-                                };
+                            let is_publisher_regex_matched_to_discovered_reader = true;
+                            // if let Ok(d) = glob_to_regex(&publisher_qos.partition.name) {
+                            //     d.is_match(
+                            //         &discovered_reader_data
+                            //             .subscription_builtin_topic_data()
+                            //             .partition()
+                            //             .name,
+                            //     )
+                            // } else {
+                            //     false
+                            // };
 
                             let is_partition_string_matched = discovered_reader_data
                                 .subscription_builtin_topic_data()

@@ -23,7 +23,7 @@ fn main() {
     let subscriber = FmtSubscriber::builder()
         // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
         // will be written to stdout.
-        .with_max_level(Level::DEBUG)
+        .with_max_level(Level::WARN)
         // completes the builder.
         .finish();
 
