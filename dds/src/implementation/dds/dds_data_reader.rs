@@ -1037,7 +1037,8 @@ impl DdsDataReader {
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
-                if message_reader_id == ENTITYID_UNKNOWN =>
+                if message_reader_id == ENTITYID_UNKNOWN
+                    || message_reader_id == self.rtps_reader.guid().entity_id() =>
             {
                 self.add_change(
                     cache_change,
@@ -1067,7 +1068,9 @@ impl DdsDataReader {
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
-            | (ReliabilityQosPolicyKind::Reliable, None) => (), // Do nothing,
+            | (ReliabilityQosPolicyKind::Reliable, None) => {
+                debug!("Ignored valid cache change on reader with GUID {:?}. No matching writer or entity_id", self.rtps_reader.guid());
+            }
         }
         Ok(())
     }
