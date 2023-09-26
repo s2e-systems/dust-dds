@@ -73,13 +73,8 @@ impl Default for LeaseDuration {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef)]
 struct DomainIdParameter(Option<DomainId>);
-impl Default for DomainIdParameter {
-    fn default() -> Self {
-        Self(None)
-    }
-}
 impl serde::Serialize for DomainIdParameter {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
