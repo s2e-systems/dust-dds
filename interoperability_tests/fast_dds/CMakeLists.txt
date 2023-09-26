@@ -5,8 +5,8 @@ find_package(fastcdr REQUIRED)
 find_package(fastrtps REQUIRED)
 set (CMAKE_CXX_STANDARD 11)
 
-set_source_files_properties(${CMAKE_BINARY_DIR}/idl/HelloWorld.cxx PROPERTIES GENERATED)
-set_source_files_properties(${CMAKE_BINARY_DIR}/idl/HelloWorldPubSubTypes.cxx PROPERTIES GENERATED)
+set_property(SOURCE ${CMAKE_BINARY_DIR}/idl/HelloWorld.cxx APPEND PROPERTY GENERATED)
+set_property(SOURCE ${CMAKE_BINARY_DIR}/idl/HelloWorldPubSubTypes.cxx APPEND PROPERTY GENERATED)
 
 add_executable(FastDdsPublisher
   fast_dds_publisher.cpp
