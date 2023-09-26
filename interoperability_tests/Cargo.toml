@@ -18,7 +18,6 @@ categories = ["api-bindings", "network-programming"]
 dust_dds = { path = "../dds" }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-cdr = "=0.2.4"
 
 [build-dependencies]
 dust_dds_gen = { path="../dds_gen" }

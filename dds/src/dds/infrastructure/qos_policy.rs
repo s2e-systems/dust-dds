@@ -581,22 +581,14 @@ impl Default for TimeBasedFilterQosPolicy {
 /// Entity can be in multiple partitions. Finally, as far as the DDS Service is concerned, each unique data instance is identified by
 /// the tuple (domainId, Topic, key). Therefore two Entity objects in different domains cannot refer to the same data instance. On
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct PartitionQosPolicy {
-    pub name: String,
+    pub name: Vec<String>,
 }
 
 impl QosPolicy for PartitionQosPolicy {
     fn name(&self) -> &str {
         PARTITION_QOS_POLICY_NAME
-    }
-}
-
-impl Default for PartitionQosPolicy {
-    fn default() -> Self {
-        Self {
-            name: "".to_string(),
-        }
     }
 }
 

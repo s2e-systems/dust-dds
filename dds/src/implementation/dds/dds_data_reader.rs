@@ -3,6 +3,8 @@ use std::{
     convert::TryInto,
 };
 
+use tracing::debug;
+
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     implementation::{
@@ -87,11 +89,10 @@ impl InstanceHandleBuilder {
         where
             Foo: for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey,
         {
-            dds_serialize_key(
-                &dds_deserialize_from_bytes::<Foo>(data)
-                    .map_err(|_| DdsError::Error("Failed to deserialize data".to_string()))?,
-            )
-            .map_err(|_| DdsError::Error("Failed to serialize key".to_string()))
+            dds_serialize_key(&dds_deserialize_from_bytes::<Foo>(data).map_err(|e| {
+                DdsError::Error(format!("Failed to deserialize data with error {:?}", e))
+            })?)
+            .map_err(|e| DdsError::Error(format!("Failed to serialize key with error {:?}", e)))
         }
 
         Self(deserialize_data_to_key::<Foo>)
@@ -384,7 +385,7 @@ impl DdsDataReader {
         ),
     ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
-        if let Ok(cache_change) = self.convert_received_data_to_cache_change(
+        match self.convert_received_data_to_cache_change(
             writer_guid,
             data_submessage.key_flag(),
             data_submessage.inline_qos(),
@@ -392,19 +393,28 @@ impl DdsDataReader {
             source_timestamp,
             reception_timestamp,
         ) {
-            self.process_received_change(
-                cache_change,
-                data_submessage.reader_id(),
-                data_submessage.writer_sn(),
-                data_reader_address,
-                subscriber_address,
-                participant_address,
-                subscriber_status_condition,
-                subscriber_mask_listener,
-                participant_mask_listener,
-            )
-            .await?;
+            Ok(cache_change) => {
+                self.process_received_change(
+                    cache_change,
+                    data_submessage.reader_id(),
+                    data_submessage.writer_sn(),
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                    subscriber_status_condition,
+                    subscriber_mask_listener,
+                    participant_mask_listener,
+                )
+                .await?
+            }
+            Err(e) => debug!(
+                "Received invalid data on reader with GUID {:?}. Error: {:?}. Data submessage payload: {:?}",
+                self.rtps_reader.guid(),
+                e,
+                data_submessage.serialized_payload(),
+            ),
         }
+
         Ok(())
     }
 
@@ -1028,7 +1038,8 @@ impl DdsDataReader {
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
-                if message_reader_id == ENTITYID_UNKNOWN =>
+                if message_reader_id == ENTITYID_UNKNOWN
+                    || message_reader_id == self.rtps_reader.guid().entity_id() =>
             {
                 self.add_change(
                     cache_change,
@@ -1058,7 +1069,9 @@ impl DdsDataReader {
                 }
             }
             (ReliabilityQosPolicyKind::BestEffort, None)
-            | (ReliabilityQosPolicyKind::Reliable, None) => (), // Do nothing,
+            | (ReliabilityQosPolicyKind::Reliable, None) => {
+                debug!("Ignored valid cache change on reader with GUID {:?}. No matching writer or entity_id", self.rtps_reader.guid());
+            }
         }
         Ok(())
     }

@@ -21,7 +21,7 @@ pub struct WriterProxy {
     remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
     unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
     multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
-    data_max_size_serialized: ParameterWithDefault<PID_DATA_MAX_SIZE_SERIALIZED, Option<i32>>,
+    data_max_size_serialized: ParameterWithDefault<PID_DATA_MAX_SIZE_SERIALIZED, i32>,
 }
 
 impl WriterProxy {
@@ -37,7 +37,7 @@ impl WriterProxy {
             remote_group_entity_id: remote_group_entity_id.into(),
             unicast_locator_list: unicast_locator_list.into(),
             multicast_locator_list: multicast_locator_list.into(),
-            data_max_size_serialized: data_max_size_serialized.into(),
+            data_max_size_serialized: data_max_size_serialized.unwrap_or_default().into(),
         }
     }
 
@@ -58,7 +58,7 @@ impl WriterProxy {
     }
 
     pub fn data_max_size_serialized(&self) -> Option<i32> {
-        *self.data_max_size_serialized.as_ref()
+        Some(*self.data_max_size_serialized.as_ref())
     }
 }
 

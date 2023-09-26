@@ -1033,7 +1033,7 @@ impl MailHandler<AsSpdpDiscoveredParticipantData> for DdsDomainParticipant {
                 self.qos.user_data.clone(),
             ),
             ParticipantProxy::new(
-                self.domain_id,
+                Some(self.domain_id),
                 self.domain_tag.clone(),
                 self.rtps_participant.protocol_version(),
                 self.rtps_participant.guid().prefix(),

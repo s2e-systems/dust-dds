@@ -100,41 +100,60 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Build FastDDS Interoperability tests
+          command: |
+            cmake -S interoperability_tests/fast_dds -B build/fast_dds
+            mkdir build/fast_dds/idl
+            java -jar /usr/local/share/fastddsgen/java/fastddsgen.jar -d build/fast_dds/idl interoperability_tests/HelloWorld.idl
+            cmake --build build/fast_dds
+      - run:
           name: Build CycloneDDS Interoperability tests
           command: |
-            mkdir build
-            cd build
-            cmake ../interoperability_tests
-            cmake --build .
+            cmake -S interoperability_tests/cyclone_dds -B build/cyclone_dds
+            cmake --build build/cyclone_dds
       - run:
           name: Build dust binaries
           command: |
             cargo build --package dust_dds_interoperability
       - run:
-          name: Hello world subscriber interoperability test
+          name: FastDDS publisher interoperability test
           command: |
             cargo run --bin dust_dds_subscriber &
             pid=$!
-            build/CycloneDdsPublisher
+            build/fast_dds/FastDdsPublisher
             wait $pid
       - run:
-          name: Hello world publisher interoperability test
+          name: FastDDS subscriber interoperability test
           command: |
-            build/CycloneDdsSubscriber &
+            build/fast_dds/FastDdsSubscriber &
+            pid=$!
+            cargo run --bin dust_dds_publisher
+            wait $pid
+      - run:
+          name: Cyclone publisher interoperability test
+          command: |
+            cargo run --bin dust_dds_subscriber &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisher
+            wait $pid
+      - run:
+          name: Cyclone subscriber interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriber &
             pid=$!
             cargo run --bin dust_dds_publisher
             wait $pid
       - run:
           name: Big data publisher interoperability test
           command: |
-            build/CycloneDdsBigDataSubscriber &
+            build/cyclone_dds/CycloneDdsBigDataSubscriber &
             pid=$!
             cargo run --bin dust_dds_big_data_publisher
             wait $pid
       - run:
           name: Big data subscriber interoperability test
           command: |
-            build/CycloneDdsBigDataPublisher &
+            build/cyclone_dds/CycloneDdsBigDataPublisher &
             pid=$!
             cargo run --bin dust_dds_big_data_subscriber
             wait $pid
@@ -171,6 +190,7 @@ workflows:
     jobs:
       - build_and_push_docker_image
       - build
+      - benchmark
       - clippy
       - interoperability_tests:
           requires:

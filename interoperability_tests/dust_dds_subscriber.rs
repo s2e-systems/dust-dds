@@ -14,7 +14,7 @@ use dust_dds::{
 };
 
 mod hello_world {
-    include!("build/idl/hello_world.rs");
+    include!("target/idl/hello_world.rs");
 }
 
 fn main() {

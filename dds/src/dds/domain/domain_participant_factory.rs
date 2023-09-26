@@ -42,6 +42,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
+        qos_policy::PartitionQosPolicy,
         status::StatusKind,
     },
     subscription::{
@@ -63,6 +64,7 @@ use std::{
     net::{Ipv4Addr, SocketAddr},
     str::FromStr,
 };
+use tracing::warn;
 
 pub type DomainId = i32;
 
@@ -714,11 +716,18 @@ async fn process_spdp_metatraffic(
                     // Check that the domainTag of the discovered participant equals the local one.
                     // If it is not equal then there the local endpoints are not configured to
                     // communicate with the discovered participant.
-                    let is_domain_id_matching =
+                    // IN CASE no domain id was transmitted the a local domain id is assumed
+                    // (as specified in Table 9.19 - ParameterId mapping and default values)
+                    let is_domain_id_matching = if let Some(domain_id) =
                         discovered_participant_data.participant_proxy().domain_id()
+                    {
+                        domain_id
                             == participant_address
                                 .send_and_reply(dds_domain_participant::GetDomainId)
-                                .await?;
+                                .await?
+                    } else {
+                        true
+                    };
                     let is_domain_tag_matching =
                         discovered_participant_data.participant_proxy().domain_tag()
                             == participant_address
@@ -1137,60 +1146,14 @@ async fn discover_matched_writers(
                             .send_and_reply(dds_domain_participant::GetUserDefinedSubscriberList)
                             .await?
                         {
-                            let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) =
-                                glob_to_regex(
-                                    discovered_writer_data
-                                        .clone()
-                                        .dds_publication_data()
-                                        .partition()
-                                        .name
-                                        .as_str(),
-                                ) {
-                                d.is_match(
-                                    &user_defined_subscriber_address
-                                        .send_and_reply(dds_subscriber::GetQos)
-                                        .await?
-                                        .partition
-                                        .name,
-                                )
-                            } else {
-                                false
-                            };
+                            let subscriber_qos = user_defined_subscriber_address
+                                .send_and_reply(dds_subscriber::GetQos)
+                                .await?;
 
-                            let is_subscriber_regex_matched_to_discovered_writer = if let Ok(d) =
-                                glob_to_regex(
-                                    &user_defined_subscriber_address
-                                        .send_and_reply(dds_subscriber::GetQos)
-                                        .await?
-                                        .partition
-                                        .name,
-                                ) {
-                                d.is_match(
-                                    &discovered_writer_data
-                                        .clone()
-                                        .dds_publication_data()
-                                        .partition()
-                                        .name,
-                                )
-                            } else {
-                                false
-                            };
-
-                            let is_partition_string_matched = discovered_writer_data
-                                .clone()
-                                .dds_publication_data()
-                                .partition()
-                                .name
-                                == user_defined_subscriber_address
-                                    .send_and_reply(dds_subscriber::GetQos)
-                                    .await?
-                                    .partition
-                                    .name;
-
-                            if is_discovered_writer_regex_matched_to_subscriber
-                                || is_subscriber_regex_matched_to_discovered_writer
-                                || is_partition_string_matched
-                            {
+                            if is_partition_matched(
+                                discovered_writer_data.dds_publication_data().partition(),
+                                &subscriber_qos.partition,
+                            ) {
                                 for data_reader_address in user_defined_subscriber_address
                                     .send_and_reply(dds_subscriber::DataReaderList)
                                     .await?
@@ -1288,6 +1251,48 @@ async fn discover_matched_writers(
     Ok(())
 }
 
+pub fn is_partition_matched(lhs: &PartitionQosPolicy, rhs: &PartitionQosPolicy) -> bool {
+    fn compare_regex_with_partition(
+        regex: &PartitionQosPolicy,
+        partition: &PartitionQosPolicy,
+    ) -> bool {
+        for partition_regex in regex.name.iter() {
+            match glob_to_regex(partition_regex) {
+                Ok(d) => {
+                    let is_any_partition_matched = partition.name.iter().any(|p| d.is_match(p));
+                    if is_any_partition_matched {
+                        return true;
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Received invalid partition regex name {:?}. Error {:?}",
+                        partition_regex, e
+                    );
+                }
+            }
+        }
+
+        false
+    }
+
+    fn compare_partition_names(lhs: &PartitionQosPolicy, rhs: &PartitionQosPolicy) -> bool {
+        for partition_name in lhs.name.iter() {
+            let is_any_partition_matched = rhs.name.contains(partition_name);
+            if is_any_partition_matched {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    (lhs.name.is_empty() && rhs.name.is_empty())
+        || compare_regex_with_partition(lhs, rhs)
+        || compare_regex_with_partition(rhs, lhs)
+        || compare_partition_names(lhs, rhs)
+}
+
 pub async fn discover_matched_readers(
     participant_address: &ActorAddress<DdsDomainParticipant>,
     discovered_reader_sample: &Sample<DiscoveredReaderData>,
@@ -1332,40 +1337,13 @@ pub async fn discover_matched_readers(
                             let publisher_qos = user_defined_publisher_address
                                 .send_and_reply(dds_publisher::GetQos)
                                 .await?;
-                            let is_discovered_reader_regex_matched_to_publisher = if let Ok(d) =
-                                glob_to_regex(
-                                    &discovered_reader_data
-                                        .subscription_builtin_topic_data()
-                                        .partition()
-                                        .name,
-                                ) {
-                                d.is_match(&publisher_qos.partition.name)
-                            } else {
-                                false
-                            };
 
-                            let is_publisher_regex_matched_to_discovered_reader =
-                                if let Ok(d) = glob_to_regex(&publisher_qos.partition.name) {
-                                    d.is_match(
-                                        &discovered_reader_data
-                                            .subscription_builtin_topic_data()
-                                            .partition()
-                                            .name,
-                                    )
-                                } else {
-                                    false
-                                };
-
-                            let is_partition_string_matched = discovered_reader_data
-                                .subscription_builtin_topic_data()
-                                .partition()
-                                .name
-                                == publisher_qos.partition.name;
-
-                            if is_discovered_reader_regex_matched_to_publisher
-                                || is_publisher_regex_matched_to_discovered_reader
-                                || is_partition_string_matched
-                            {
+                            if is_partition_matched(
+                                discovered_reader_data
+                                    .subscription_builtin_topic_data()
+                                    .partition(),
+                                &publisher_qos.partition,
+                            ) {
                                 for data_writer in user_defined_publisher_address
                                     .send_and_reply(dds_publisher::DataWriterList)
                                     .await?

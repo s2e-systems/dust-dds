@@ -21,24 +21,13 @@ impl UdpTransportRead {
     }
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        fn shrink_buffer_to_length(buf: &mut &mut [u8], length: usize) {
-            let mut value = std::mem::take(buf);
-            value = &mut value[..length];
-            let _ = std::mem::replace(buf, value);
-        }
+        let mut buf = vec![0; 65000];
 
-        let mut buf = Arc::new([0u8; 65000]);
-        match self
-            .socket
-            .recv_from(Arc::make_mut(&mut buf).as_mut())
-            .await
-        {
+        match self.socket.recv_from(&mut buf).await {
             Ok((bytes, source_address)) => {
-                let mut full_size_buffer = Arc::make_mut(&mut buf).as_mut();
+                buf.truncate(bytes);
 
-                shrink_buffer_to_length(&mut full_size_buffer, bytes);
-
-                let message = RtpsMessageRead::new(buf);
+                let message = RtpsMessageRead::new(Arc::from(buf.into_boxed_slice()));
 
                 if bytes > 0 {
                     let udp_locator: UdpLocator = source_address.into();

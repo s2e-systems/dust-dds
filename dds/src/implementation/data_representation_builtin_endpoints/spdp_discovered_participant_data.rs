@@ -73,11 +73,34 @@ impl Default for LeaseDuration {
     }
 }
 
+#[derive(Default, Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef)]
+struct DomainIdParameter(Option<DomainId>);
+impl serde::Serialize for DomainIdParameter {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0
+            .expect("Default DomainId not supposed to be serialized")
+            .serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for DomainIdParameter {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // None should not happen since this is only deserialized if the
+        // corresponding PID is found
+        Ok(Self(Some(serde::Deserialize::deserialize(deserializer)?)))
+    }
+}
+
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantProxy {
-    domain_id: Parameter<PID_DOMAIN_ID, DomainId>,
+    domain_id: ParameterWithDefault<PID_DOMAIN_ID, DomainIdParameter>,
     domain_tag: ParameterWithDefault<PID_DOMAIN_TAG, DomainTag>,
     protocol_version: Parameter<PID_PROTOCOL_VERSION, ProtocolVersion>,
     // guid_prefix omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
@@ -99,7 +122,7 @@ pub struct ParticipantProxy {
 impl ParticipantProxy {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        domain_id: DomainId,
+        domain_id: Option<DomainId>,
         domain_tag: String,
         protocol_version: ProtocolVersion,
         guid_prefix: GuidPrefix,
@@ -114,7 +137,7 @@ impl ParticipantProxy {
         builtin_endpoint_qos: BuiltinEndpointQos,
     ) -> Self {
         Self {
-            domain_id: domain_id.into(),
+            domain_id: DomainIdParameter::from(domain_id).into(),
             domain_tag: DomainTag::from(domain_tag).into(),
             protocol_version: protocol_version.into(),
             guid_prefix: guid_prefix.into(),
@@ -130,8 +153,8 @@ impl ParticipantProxy {
         }
     }
 
-    pub fn domain_id(&self) -> i32 {
-        *self.domain_id.as_ref()
+    pub fn domain_id(&self) -> Option<DomainId> {
+        *self.domain_id.as_ref().as_ref()
     }
 
     pub fn domain_tag(&self) -> &str {
@@ -280,7 +303,7 @@ mod tests {
                 UserDataQosPolicy { value: vec![] },
             ),
             ParticipantProxy::new(
-                domain_id,
+                Some(domain_id),
                 domain_tag,
                 protocol_version,
                 guid_prefix,
@@ -370,7 +393,7 @@ mod tests {
         let locator1 = Locator::new(11, 12, [1; 16]);
         let locator2 = Locator::new(21, 22, [2; 16]);
 
-        let domain_id = 1;
+        let domain_id = Some(1);
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = [8; 12];
