@@ -714,11 +714,18 @@ async fn process_spdp_metatraffic(
                     // Check that the domainTag of the discovered participant equals the local one.
                     // If it is not equal then there the local endpoints are not configured to
                     // communicate with the discovered participant.
-                    let is_domain_id_matching =
+                    // IN CASE no domain id was transmitted the a local domain id is assumed
+                    // (as specified in Table 9.19 - ParameterId mapping and default values)
+                    let is_domain_id_matching = if let Some(domain_id) =
                         discovered_participant_data.participant_proxy().domain_id()
+                    {
+                        domain_id
                             == participant_address
                                 .send_and_reply(dds_domain_participant::GetDomainId)
-                                .await?;
+                                .await?
+                    } else {
+                        true
+                    };
                     let is_domain_tag_matching =
                         discovered_participant_data.participant_proxy().domain_tag()
                             == participant_address
