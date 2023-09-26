@@ -1,6 +1,5 @@
 use std::{self, marker::PhantomData};
-
-use serde::de::{self};
+use serde::de::{self, Error};
 use serde::ser::SerializeTuple;
 
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
@@ -137,9 +136,11 @@ where
                 A: de::MapAccess<'de>,
             {
                 loop {
-                    if let Some(key) = map.next_key::<ParameterId>()? {
+                    while let Some(key) = map.next_key::<ParameterId>()? {
                         if key == PID {
                             return Ok(Parameter(map.next_value()?));
+                        } else if key == PID_SENTINEL {
+                            return Err(A::Error::custom(format!("PID {} not found", PID)));
                         }
                     }
                 }
