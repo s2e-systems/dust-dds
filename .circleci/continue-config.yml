@@ -146,14 +146,14 @@ jobs:
       - run:
           name: Big data publisher interoperability test
           command: |
-            build/CycloneDdsBigDataSubscriber &
+            build/cyclone_dds/CycloneDdsBigDataSubscriber &
             pid=$!
             cargo run --bin dust_dds_big_data_publisher
             wait $pid
       - run:
           name: Big data subscriber interoperability test
           command: |
-            build/CycloneDdsBigDataPublisher &
+            build/cyclone_dds/CycloneDdsBigDataPublisher &
             pid=$!
             cargo run --bin dust_dds_big_data_subscriber
             wait $pid
