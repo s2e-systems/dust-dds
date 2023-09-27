@@ -110,7 +110,10 @@ impl Subscriber {
             .get_default_unicast_locator_list()?;
 
         let qos = match qos {
-            QosKind::Default => self.0.subscriber_address().get_default_datareader_qos()?,
+            QosKind::Default => self
+                .0
+                .subscriber_address()
+                .send_and_reply_blocking(dds_subscriber::get_default_datareader_qos::new())?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
@@ -121,11 +124,16 @@ impl Subscriber {
             true => USER_DEFINED_READER_WITH_KEY,
             false => USER_DEFINED_READER_NO_KEY,
         };
-        let subscriber_guid = self.0.subscriber_address().guid()?;
+        let subscriber_guid = self
+            .0
+            .subscriber_address()
+            .send_and_reply_blocking(dds_subscriber::guid::new())?;
 
         let entity_key: [u8; 3] = [
             subscriber_guid.entity_id().entity_key()[0],
-            self.0.subscriber_address().get_unique_reader_id()?,
+            self.0
+                .subscriber_address()
+                .send_and_reply_blocking(dds_subscriber::get_unique_reader_id::new())?,
             0,
         ];
 
@@ -162,9 +170,9 @@ impl Subscriber {
 
         let reader_actor = spawn_actor(data_reader);
         let reader_address = reader_actor.address().clone();
-        self.0
-            .subscriber_address()
-            .data_reader_add(guid.into(), reader_actor)?;
+        self.0.subscriber_address().send_and_reply_blocking(
+            dds_subscriber::data_reader_add::new(guid.into(), reader_actor),
+        )?;
 
         let data_reader = DataReader::new(DataReaderNode::new(
             reader_address,
@@ -172,7 +180,10 @@ impl Subscriber {
             self.0.participant_address().clone(),
         ));
 
-        if self.0.subscriber_address().is_enabled()?
+        if self
+            .0
+            .subscriber_address()
+            .send_and_reply_blocking(dds_subscriber::is_enabled::new())?
             && self
                 .0
                 .subscriber_address()
@@ -192,7 +203,15 @@ impl Subscriber {
     #[tracing::instrument(skip(self, a_datareader))]
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
         let reader_handle = a_datareader.node().reader_address().get_instance_handle()?;
-        if self.0.subscriber_address().guid()? != a_datareader.node().subscriber_address().guid()? {
+        if self
+            .0
+            .subscriber_address()
+            .send_and_reply_blocking(dds_subscriber::guid::new())?
+            != a_datareader
+                .node()
+                .subscriber_address()
+                .send_and_reply_blocking(dds_subscriber::guid::new())?
+        {
             return Err(DdsError::PreconditionNotMet(
                 "Data reader can only be deleted from its parent subscriber".to_string(),
             ));
@@ -201,7 +220,7 @@ impl Subscriber {
         let reader_is_enabled = a_datareader.node().reader_address().is_enabled()?;
         self.0
             .subscriber_address()
-            .data_reader_delete(reader_handle)?;
+            .send_and_reply_blocking(dds_subscriber::data_reader_delete::new(reader_handle))?;
 
         if reader_is_enabled {
             let instance_serialized_key =
@@ -319,7 +338,7 @@ impl Subscriber {
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         self.0
             .subscriber_address()
-            .set_default_datareader_qos(qos)?
+            .send_and_reply_blocking(dds_subscriber::set_default_datareader_qos::new(qos))?
     }
 
     /// This operation retrieves the default value of the [`DataReaderQos`], that is, the qos policies which will be used for newly
@@ -328,7 +347,9 @@ impl Subscriber {
     /// [`Subscriber::get_default_datareader_qos`], or else, if the call was never made, the default values of [`DataReaderQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        self.0.subscriber_address().get_default_datareader_qos()
+        self.0
+            .subscriber_address()
+            .send_and_reply_blocking(dds_subscriber::get_default_datareader_qos::new())
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datareader_qos`.
@@ -392,7 +413,7 @@ impl Subscriber {
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
             .subscriber_address()
-            .get_statuscondition()
+            .send_and_reply_blocking(dds_subscriber::get_statuscondition::new())
             .map(StatusCondition::new)
     }
 
@@ -429,8 +450,14 @@ impl Subscriber {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.subscriber_address().is_enabled()? {
-            self.0.subscriber_address().enable()?;
+        if !self
+            .0
+            .subscriber_address()
+            .send_and_reply_blocking(dds_subscriber::is_enabled::new())?
+        {
+            self.0
+                .subscriber_address()
+                .send_and_reply_blocking(dds_subscriber::enable::new())?;
 
             if self
                 .0
@@ -455,6 +482,8 @@ impl Subscriber {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.subscriber_address().get_instance_handle()
+        self.0
+            .subscriber_address()
+            .send_and_reply_blocking(dds_subscriber::get_instance_handle::new())
     }
 }

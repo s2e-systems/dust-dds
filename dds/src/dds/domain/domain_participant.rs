@@ -198,7 +198,11 @@ impl DomainParticipant {
             .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetGuid)?
             .prefix()
-            != a_subscriber.node().subscriber_address().guid()?.prefix()
+            != a_subscriber
+                .node()
+                .subscriber_address()
+                .send_and_reply_blocking(dds_subscriber::guid::new())?
+                .prefix()
         {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
@@ -220,7 +224,7 @@ impl DomainParticipant {
             a_subscriber
                 .node()
                 .subscriber_address()
-                .get_instance_handle()?,
+                .send_and_reply_blocking(dds_subscriber::get_instance_handle::new())?,
         )
     }
 
@@ -563,11 +567,16 @@ impl DomainParticipant {
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
         {
             for data_reader in subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)? {
-                subscriber.data_reader_delete(data_reader.get_instance_handle()?)?;
+                subscriber.send_and_reply_blocking(dds_subscriber::data_reader_delete::new(
+                    data_reader.get_instance_handle()?,
+                ))?;
             }
             self.0
                 .participant_address()
-                .delete_user_defined_subscriber(subscriber.get_instance_handle()?)?;
+                .delete_user_defined_subscriber(
+                    subscriber
+                        .send_and_reply_blocking(dds_subscriber::get_instance_handle::new())?,
+                )?;
         }
         for topic in self
             .0
@@ -840,7 +849,7 @@ impl DomainParticipant {
             self.0
                 .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
-                .enable()?;
+                .send_and_reply_blocking(dds_subscriber::enable::new())?;
 
             for builtin_reader in self
                 .0

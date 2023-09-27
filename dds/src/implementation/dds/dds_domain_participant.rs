@@ -271,31 +271,31 @@ impl DdsDomainParticipant {
 
         builtin_subscriber
             .address()
-            .data_reader_add(
+            .send_and_reply_blocking(dds_subscriber::data_reader_add::new(
                 spdp_builtin_participant_reader_guid.into(),
                 spdp_builtin_participant_reader,
-            )
+            ))
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(
+            .send_and_reply_blocking(dds_subscriber::data_reader_add::new(
                 sedp_builtin_topics_reader_guid.into(),
                 sedp_builtin_topics_reader,
-            )
+            ))
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(
+            .send_and_reply_blocking(dds_subscriber::data_reader_add::new(
                 sedp_builtin_publications_reader_guid.into(),
                 sedp_builtin_publications_reader,
-            )
+            ))
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(
+            .send_and_reply_blocking(dds_subscriber::data_reader_add::new(
                 sedp_builtin_subscriptions_reader_guid.into(),
                 sedp_builtin_subscriptions_reader,
-            )
+            ))
             .unwrap();
 
         // Built-in publisher creation
@@ -649,8 +649,7 @@ impl DdsDomainParticipant {
 
         for (_,user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
             user_defined_subscriber
-                .address()
-                .delete_contained_entities()?;
+                .address().send_and_reply_blocking(dds_subscriber::delete_contained_entities::new())?;
         }
 
         self.topic_list.clear();

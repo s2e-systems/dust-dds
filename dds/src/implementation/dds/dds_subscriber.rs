@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use dust_dds_derive::actor_interface;
+
 use super::{
     dds_data_reader::{self, DdsDataReader},
     dds_domain_participant::DdsDomainParticipant,
@@ -17,9 +19,7 @@ use crate::{
             types::Guid,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{
-            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
-        },
+        utils::actor::{spawn_actor, Actor, ActorAddress, Mail, MailHandler},
     },
     infrastructure::{
         error::DdsResult,
@@ -64,31 +64,29 @@ impl DdsSubscriber {
     }
 }
 
-actor_mailbox_interface! {
+#[actor_interface]
 impl DdsSubscriber {
-    pub fn delete_contained_entities(&mut self) {
+    async fn delete_contained_entities(&mut self) {}
 
-    }
-
-    pub fn guid(&self) -> Guid {
+    async fn guid(&self) -> Guid {
         self.rtps_group.guid()
     }
 
-    pub fn is_empty(&self) -> bool {
+    async fn is_empty(&self) -> bool {
         self.data_reader_list.is_empty()
     }
 
-    pub fn is_enabled(&self) -> bool {
+    async fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    pub fn get_unique_reader_id(&mut self) -> u8 {
+    async fn get_unique_reader_id(&mut self) -> u8 {
         let counter = self.user_defined_data_reader_counter;
         self.user_defined_data_reader_counter += 1;
         counter
     }
 
-    pub fn data_reader_add(
+    async fn data_reader_add(
         &mut self,
         instance_handle: InstanceHandle,
         data_reader: Actor<DdsDataReader>,
@@ -96,11 +94,11 @@ impl DdsSubscriber {
         self.data_reader_list.insert(instance_handle, data_reader);
     }
 
-    pub fn data_reader_delete(&mut self, handle: InstanceHandle) {
+    async fn data_reader_delete(&mut self, handle: InstanceHandle) {
         self.data_reader_list.remove(&handle);
     }
 
-    pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+    async fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match qos {
             QosKind::Default => self.default_data_reader_qos = DataReaderQos::default(),
             QosKind::Specific(q) => {
@@ -111,11 +109,11 @@ impl DdsSubscriber {
         Ok(())
     }
 
-    pub fn get_default_datareader_qos(&self) -> DataReaderQos {
+    async fn get_default_datareader_qos(&self) -> DataReaderQos {
         self.default_data_reader_qos.clone()
     }
 
-    pub fn set_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
+    async fn set_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
@@ -130,18 +128,18 @@ impl DdsSubscriber {
         Ok(())
     }
 
-    pub fn enable(&mut self) {
+    async fn enable(&mut self) {
         self.enabled = true;
     }
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
+    async fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
 
-    pub fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+    async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
         self.status_condition.address().clone()
     }
-}}
+}
 
 pub struct GetQos;
 

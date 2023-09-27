@@ -557,7 +557,10 @@ impl<Foo> DataReader<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let q = match qos {
-            QosKind::Default => self.0.subscriber_address().get_default_datareader_qos()?,
+            QosKind::Default => self
+                .0
+                .subscriber_address()
+                .send_and_reply_blocking(dds_subscriber::get_default_datareader_qos::new())?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
