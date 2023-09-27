@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
-use quote::{quote, quote_spanned};
-use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Field};
+use quote::{quote, quote_spanned, ToTokens};
+use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Field, FnArg, ItemImpl};
 
 #[proc_macro_derive(DdsHasKey, attributes(key))]
 pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
@@ -184,4 +184,110 @@ fn field_has_key_attribute(field: &Field) -> bool {
             .map(|ident| ident == "key")
             .unwrap_or(false)
     })
+}
+
+/// Attribute macro to generate the actor interface from
+#[proc_macro_attribute]
+pub fn actor_interface(
+    _attribute_token_stream: TokenStream,
+    item_token_stream: TokenStream,
+) -> TokenStream {
+    fn get_actor_interface_token_stream(input: &ItemImpl) -> proc_macro2::TokenStream {
+        let actor_type = match input.self_ty.as_ref() {
+            syn::Type::Path(p) => p,
+            _ => panic!("Expect impl block with type"),
+        };
+
+        let mut actor_structs = proc_macro2::TokenStream::new();
+
+        for method in input.items.iter().filter_map(|i| match i {
+            syn::ImplItem::Method(m) => Some(m),
+            _ => None,
+        }) {
+            let method_ident = &method.sig.ident;
+
+            let mut argument_ident_type_token_stream = proc_macro2::TokenStream::new();
+            for argument in method.sig.inputs.iter().filter_map(|a| match a {
+                FnArg::Receiver(_) => None,
+                FnArg::Typed(t) => Some(t),
+            }) {
+                argument_ident_type_token_stream.extend(quote! { #argument, })
+            }
+
+            let mut argument_ident_token_stream = proc_macro2::TokenStream::new();
+            for argument_ident in method
+                .sig
+                .inputs
+                .iter()
+                .filter_map(|a| match a {
+                    FnArg::Receiver(_) => None,
+                    FnArg::Typed(t) => Some(t),
+                })
+                .map(|a| &a.pat)
+            {
+                argument_ident_token_stream.extend(quote! { #argument_ident, })
+            }
+
+            let mut mail_fields_token_stream = proc_macro2::TokenStream::new();
+            for argument_ident in method
+                .sig
+                .inputs
+                .iter()
+                .filter_map(|a| match a {
+                    FnArg::Receiver(_) => None,
+                    FnArg::Typed(t) => Some(t),
+                })
+                .map(|a| &a.pat)
+            {
+                mail_fields_token_stream.extend(quote! { mail.#argument_ident, })
+            }
+
+            let method_output_type = match &method.sig.output {
+                syn::ReturnType::Default => quote! {()},
+                syn::ReturnType::Type(_, t) => t.to_token_stream(),
+            };
+
+            let actor_method_struct = quote! {
+                #[allow(non_camel_case_types)]
+                struct #method_ident {
+                    #argument_ident_type_token_stream
+                }
+
+                impl #method_ident {
+                    pub fn new(#argument_ident_type_token_stream) -> Self {
+                        Self {
+                            #argument_ident_token_stream
+                        }
+                    }
+                }
+
+                impl crate::implementation::utils::actor::Mail for #method_ident {
+                    type Result = #method_output_type;
+                }
+
+                #[async_trait::async_trait]
+                impl crate::implementation::utils::actor::MailHandle<#method_ident> for #actor_type {
+                    async fn handle(&mut self, mail: #method_ident) -> <#method_ident as crate::implementation::utils::actor::Mail>::Result {
+                        self.#method_ident(
+                            #mail_fields_token_stream
+                        )
+                    }
+                }
+            };
+
+            actor_structs.extend(actor_method_struct);
+        }
+
+        actor_structs
+    }
+
+    let input = parse_macro_input!(item_token_stream as ItemImpl);
+    let actor_interface_token_stream = get_actor_interface_token_stream(&input);
+
+    quote! {
+        #input
+
+        #actor_interface_token_stream
+    }
+    .into()
 }
