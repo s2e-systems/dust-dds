@@ -83,13 +83,17 @@ impl Topic {
     /// The name of the type used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
     pub fn get_type_name(&self) -> DdsResult<String> {
-        self.0.topic_address().get_type_name()
+        self.0
+            .topic_address()
+            .send_and_reply_blocking(dds_topic::get_type_name::new())
     }
 
     /// The name used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
     pub fn get_name(&self) -> DdsResult<String> {
-        self.0.topic_address().get_name()
+        self.0
+            .topic_address()
+            .send_and_reply_blocking(dds_topic::get_name::new())
     }
 }
 
@@ -117,17 +121,28 @@ impl Topic {
             }
         };
 
-        if self.0.topic_address().is_enabled()? {
-            self.0.topic_address().get_qos()?.check_immutability(&qos)?
+        if self
+            .0
+            .topic_address()
+            .send_and_reply_blocking(dds_topic::is_enabled::new())?
+        {
+            self.0
+                .topic_address()
+                .send_and_reply_blocking(dds_topic::get_qos::new())?
+                .check_immutability(&qos)?
         }
 
-        self.0.topic_address().set_qos(qos)
+        self.0
+            .topic_address()
+            .send_and_reply_blocking(dds_topic::set_qos::new(qos))
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        self.0.topic_address().get_qos()
+        self.0
+            .topic_address()
+            .send_and_reply_blocking(dds_topic::get_qos::new())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -137,7 +152,7 @@ impl Topic {
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
             .topic_address()
-            .get_statuscondition()
+            .send_and_reply_blocking(dds_topic::get_statuscondition::new())
             .map(StatusCondition::new)
     }
 
@@ -174,12 +189,20 @@ impl Topic {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.topic_address().is_enabled()? {
-            self.0.topic_address().enable()?;
+        if !self
+            .0
+            .topic_address()
+            .send_and_reply_blocking(dds_topic::is_enabled::new())?
+        {
+            self.0
+                .topic_address()
+                .send_and_reply_blocking(dds_topic::enable::new())?;
 
             announce_topic(
                 self.0.participant_address(),
-                self.0.topic_address().as_discovered_topic_data()?,
+                self.0
+                    .topic_address()
+                    .send_and_reply_blocking(dds_topic::as_discovered_topic_data::new())?,
             )?;
         }
 
@@ -189,7 +212,9 @@ impl Topic {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.topic_address().get_instance_handle()
+        self.0
+            .topic_address()
+            .send_and_reply_blocking(dds_topic::get_instance_handle::new())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status

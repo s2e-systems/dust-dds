@@ -6,7 +6,7 @@ use crate::{
         dds::{
             dds_data_reader, dds_data_writer,
             dds_domain_participant::{self},
-            dds_publisher, dds_subscriber,
+            dds_publisher, dds_subscriber, dds_topic,
             nodes::{DomainParticipantNode, PublisherNode, SubscriberNode, TopicNode},
         },
         rtps::messages::overall_structure::RtpsMessageHeader,
@@ -279,7 +279,11 @@ impl DomainParticipant {
             .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetGuid)?
             .prefix()
-            != a_topic.node().topic_address().guid()?.prefix()
+            != a_topic
+                .node()
+                .topic_address()
+                .send_and_reply_blocking(dds_topic::guid::new())?
+                .prefix()
         {
             return Err(DdsError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant".to_string(),
@@ -295,9 +299,15 @@ impl DomainParticipant {
                 publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
             for data_writer in data_writer_list {
                 if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
-                    == a_topic.node().topic_address().get_type_name()
+                    == a_topic
+                        .node()
+                        .topic_address()
+                        .send_and_reply_blocking(dds_topic::get_type_name::new())
                     && data_writer.send_and_reply_blocking(dds_data_writer::GetTopicName)
-                        == a_topic.node().topic_address().get_name()
+                        == a_topic
+                            .node()
+                            .topic_address()
+                            .send_and_reply_blocking(dds_topic::get_name::new())
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer".to_string(),
@@ -315,9 +325,15 @@ impl DomainParticipant {
                 subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)?;
             for data_reader in data_reader_list {
                 if data_reader.send_and_reply_blocking(dds_data_reader::GetTypeName)
-                    == a_topic.node().topic_address().get_type_name()
+                    == a_topic
+                        .node()
+                        .topic_address()
+                        .send_and_reply_blocking(dds_topic::get_type_name::new())
                     && data_reader.send_and_reply_blocking(dds_data_reader::GetTopicName)
-                        == a_topic.node().topic_address().get_name()
+                        == a_topic
+                            .node()
+                            .topic_address()
+                            .send_and_reply_blocking(dds_topic::get_name::new())
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data reader".to_string(),
@@ -326,9 +342,12 @@ impl DomainParticipant {
             }
         }
 
-        self.0
-            .participant_address()
-            .delete_topic(a_topic.node().topic_address().get_instance_handle()?)
+        self.0.participant_address().delete_topic(
+            a_topic
+                .node()
+                .topic_address()
+                .send_and_reply_blocking(dds_topic::get_instance_handle::new())?,
+        )
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
@@ -352,7 +371,7 @@ impl DomainParticipant {
                 .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
             {
-                if topic.get_name()? == topic_name {
+                if topic.send_and_reply_blocking(dds_topic::get_name::new())? == topic_name {
                     return Ok(Topic::new(TopicNode::new(
                         topic,
                         self.0.participant_address().clone(),
@@ -555,9 +574,9 @@ impl DomainParticipant {
             .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
         {
-            self.0
-                .participant_address()
-                .delete_topic(topic.get_instance_handle()?)?;
+            self.0.participant_address().delete_topic(
+                topic.send_and_reply_blocking(dds_topic::get_instance_handle::new())?,
+            )?;
         }
         Ok(())
     }
