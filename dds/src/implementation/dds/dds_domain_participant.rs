@@ -1155,7 +1155,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
             .map(|a| a.address())
         {
             user_defined_subscriber_address
-                .send_only(dds_subscriber::ProcessRtpsMessage::new(
+                .send_only(dds_subscriber::process_rtps_message::new(
                     mail.message.clone(),
                     self.get_current_time(),
                     mail.participant_address.clone(),

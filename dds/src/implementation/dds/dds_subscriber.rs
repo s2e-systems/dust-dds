@@ -19,7 +19,7 @@ use crate::{
             types::Guid,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{spawn_actor, Actor, ActorAddress, Mail, MailHandler},
+        utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -174,21 +174,9 @@ impl DdsSubscriber {
                 .expect("Should not fail to send command");
         }
     }
-}
 
-pub struct ProcessRtpsMessage {
-    message: RtpsMessageRead,
-    reception_timestamp: Time,
-    participant_address: ActorAddress<DdsDomainParticipant>,
-    subscriber_address: ActorAddress<DdsSubscriber>,
-    participant_mask_listener: (
-        Option<ActorAddress<DdsDomainParticipantListener>>,
-        Vec<StatusKind>,
-    ),
-}
-
-impl ProcessRtpsMessage {
-    pub fn new(
+    async fn process_rtps_message(
+        &self,
         message: RtpsMessageRead,
         reception_timestamp: Time,
         participant_address: ActorAddress<DdsDomainParticipant>,
@@ -197,24 +185,7 @@ impl ProcessRtpsMessage {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) -> Self {
-        Self {
-            message,
-            reception_timestamp,
-            participant_address,
-            subscriber_address,
-            participant_mask_listener,
-        }
-    }
-}
-
-impl Mail for ProcessRtpsMessage {
-    type Result = DdsResult<()>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<ProcessRtpsMessage> for DdsSubscriber {
-    async fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
+    ) -> DdsResult<()> {
         let subscriber_mask_listener = (
             self.listener.as_ref().map(|a| a.address()).cloned(),
             self.status_kind.clone(),
@@ -223,14 +194,14 @@ impl MailHandler<ProcessRtpsMessage> for DdsSubscriber {
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
                 .send_and_reply(dds_data_reader::ProcessRtpsMessage::new(
-                    mail.message.clone(),
-                    mail.reception_timestamp,
+                    message.clone(),
+                    reception_timestamp,
                     data_reader_address.clone(),
-                    mail.subscriber_address.clone(),
-                    mail.participant_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
                     self.status_condition.address().clone(),
                     subscriber_mask_listener.clone(),
-                    mail.participant_mask_listener.clone(),
+                    participant_mask_listener.clone(),
                 ))
                 .await??;
         }

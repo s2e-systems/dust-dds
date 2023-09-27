@@ -671,7 +671,7 @@ async fn process_spdp_metatraffic(
 
     // Receive the data on the builtin spdp reader
     builtin_subscriber
-        .send_only(dds_subscriber::ProcessRtpsMessage::new(
+        .send_only(dds_subscriber::process_rtps_message::new(
             message,
             participant_address
                 .send_and_reply(dds_domain_participant::GetCurrentTime)
@@ -973,7 +973,7 @@ async fn process_sedp_metatraffic(
     }
 
     builtin_subscriber
-        .send_and_reply(dds_subscriber::ProcessRtpsMessage::new(
+        .send_and_reply(dds_subscriber::process_rtps_message::new(
             message,
             participant_address
                 .send_and_reply(dds_domain_participant::GetCurrentTime)
