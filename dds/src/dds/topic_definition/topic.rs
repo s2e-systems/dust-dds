@@ -66,7 +66,7 @@ impl Topic {
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         self.0
             .topic_address()
-            .send_and_reply_blocking(dds_topic::GetInconsistentTopicStatus)?
+            .send_and_reply_blocking(dds_topic::get_inconsistent_topic_status::new())?
     }
 }
 

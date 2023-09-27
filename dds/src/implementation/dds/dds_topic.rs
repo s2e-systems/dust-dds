@@ -5,7 +5,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
-        utils::actor::{spawn_actor, Actor, ActorAddress, Mail, MailHandler},
+        utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -52,17 +52,6 @@ impl DdsTopic {
             inconsistent_topic_status: InconsistentTopicStatus::default(),
             status_condition,
         }
-    }
-
-    async fn get_inconsistent_topic_status(&mut self) -> DdsResult<InconsistentTopicStatus> {
-        let status = self.inconsistent_topic_status.read_and_reset();
-        self.status_condition
-            .address()
-            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
-                StatusKind::InconsistentTopic,
-            ))
-            .await?;
-        Ok(status)
     }
 }
 
@@ -126,53 +115,28 @@ impl DdsTopic {
             qos.topic_data.clone(),
         ))
     }
-}
 
-pub struct GetInconsistentTopicStatus;
-
-impl Mail for GetInconsistentTopicStatus {
-    type Result = DdsResult<InconsistentTopicStatus>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetInconsistentTopicStatus> for DdsTopic {
-    async fn handle(
-        &mut self,
-        _mail: GetInconsistentTopicStatus,
-    ) -> <GetInconsistentTopicStatus as Mail>::Result {
-        self.get_inconsistent_topic_status().await
+    async fn get_inconsistent_topic_status(&mut self) -> DdsResult<InconsistentTopicStatus> {
+        let status = self.inconsistent_topic_status.read_and_reset();
+        self.status_condition
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::InconsistentTopic,
+            ))
+            .await?;
+        Ok(status)
     }
-}
 
-pub struct ProcessDiscoveredTopic {
-    discovered_topic_data: DiscoveredTopicData,
-}
-
-impl ProcessDiscoveredTopic {
-    pub fn new(discovered_topic_data: DiscoveredTopicData) -> Self {
-        Self {
-            discovered_topic_data,
-        }
-    }
-}
-
-impl Mail for ProcessDiscoveredTopic {
-    type Result = DdsResult<()>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<ProcessDiscoveredTopic> for DdsTopic {
-    async fn handle(
+    async fn process_discovered_topic(
         &mut self,
-        mail: ProcessDiscoveredTopic,
-    ) -> <ProcessDiscoveredTopic as Mail>::Result {
-        if mail
-            .discovered_topic_data
+        discovered_topic_data: DiscoveredTopicData,
+    ) -> DdsResult<()> {
+        if discovered_topic_data
             .topic_builtin_topic_data()
             .get_type_name()
             == self.get_type_name().await
-            && mail.discovered_topic_data.topic_builtin_topic_data().name() == self.get_name().await
-            && !is_discovered_topic_consistent(&self.qos, &mail.discovered_topic_data)
+            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name().await
+            && !is_discovered_topic_consistent(&self.qos, &discovered_topic_data)
         {
             self.inconsistent_topic_status.increment();
             self.status_condition

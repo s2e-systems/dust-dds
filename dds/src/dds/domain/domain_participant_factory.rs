@@ -1542,7 +1542,9 @@ async fn discover_matched_topics(
                     .await?
                 {
                     topic
-                        .send_and_reply(dds_topic::ProcessDiscoveredTopic::new(topic_data.clone()))
+                        .send_and_reply(dds_topic::process_discovered_topic::new(
+                            topic_data.clone(),
+                        ))
                         .await??;
                 }
 
