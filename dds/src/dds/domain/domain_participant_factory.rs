@@ -744,7 +744,7 @@ async fn process_spdp_metatraffic(
                         let builtin_data_writer_list = participant_address
                             .send_and_reply(dds_domain_participant::GetBuiltinPublisher)
                             .await?
-                            .send_and_reply(dds_publisher::DataWriterList)
+                            .send_and_reply(dds_publisher::data_writer_list::new())
                             .await?;
                         let builtin_data_reader_list = participant_address
                             .send_and_reply(dds_domain_participant::GetBuiltInSubscriber)
@@ -942,7 +942,7 @@ async fn process_sedp_metatraffic(
     );
 
     for stateful_builtin_writer in builtin_publisher
-        .send_and_reply(dds_publisher::DataWriterList)
+        .send_and_reply(dds_publisher::data_writer_list::new())
         .await?
     {
         stateful_builtin_writer
@@ -1335,7 +1335,7 @@ pub async fn discover_matched_readers(
                             .await?
                         {
                             let publisher_qos = user_defined_publisher_address
-                                .send_and_reply(dds_publisher::GetQos)
+                                .send_and_reply(dds_publisher::get_qos::new())
                                 .await?;
 
                             if is_partition_matched(
@@ -1345,17 +1345,19 @@ pub async fn discover_matched_readers(
                                 &publisher_qos.partition,
                             ) {
                                 for data_writer in user_defined_publisher_address
-                                    .send_and_reply(dds_publisher::DataWriterList)
+                                    .send_and_reply(dds_publisher::data_writer_list::new())
                                     .await?
                                 {
                                     let publisher_publication_matched_listener =
                                         match user_defined_publisher_address
-                                            .send_and_reply(dds_publisher::GetListener)
+                                            .send_and_reply(dds_publisher::get_listener::new())
                                             .await?
                                         {
                                             Some(l)
                                                 if user_defined_publisher_address
-                                                    .send_and_reply(dds_publisher::GetStatusKind)
+                                                    .send_and_reply(
+                                                        dds_publisher::get_status_kind::new(),
+                                                    )
                                                     .await?
                                                     .contains(&StatusKind::PublicationMatched) =>
                                             {
@@ -1383,12 +1385,14 @@ pub async fn discover_matched_readers(
                                         };
                                     let offered_incompatible_qos_publisher_listener =
                                         match user_defined_publisher_address
-                                            .send_and_reply(dds_publisher::GetListener)
+                                            .send_and_reply(dds_publisher::get_listener::new())
                                             .await?
                                         {
                                             Some(l)
                                                 if user_defined_publisher_address
-                                                    .send_and_reply(dds_publisher::GetStatusKind)
+                                                    .send_and_reply(
+                                                        dds_publisher::get_status_kind::new(),
+                                                    )
                                                     .await?
                                                     .contains(
                                                         &StatusKind::OfferedIncompatibleQos,
@@ -1475,21 +1479,23 @@ pub async fn discover_matched_readers(
                 .await?
             {
                 for data_writer in publisher
-                    .send_and_reply(dds_publisher::DataWriterList)
+                    .send_and_reply(dds_publisher::data_writer_list::new())
                     .await?
                 {
-                    let publisher_publication_matched_listener =
-                        match publisher.send_and_reply(dds_publisher::GetListener).await? {
+                    let publisher_publication_matched_listener = match publisher
+                        .send_and_reply(dds_publisher::get_listener::new())
+                        .await?
+                    {
+                        Some(l)
+                            if publisher
+                                .send_and_reply(dds_publisher::get_status_kind::new())
+                                .await?
+                                .contains(&StatusKind::PublicationMatched) =>
+                        {
                             Some(l)
-                                if publisher
-                                    .send_and_reply(dds_publisher::GetStatusKind)
-                                    .await?
-                                    .contains(&StatusKind::PublicationMatched) =>
-                            {
-                                Some(l)
-                            }
-                            _ => None,
-                        };
+                        }
+                        _ => None,
+                    };
                     let participant_publication_matched_listener = match participant_address
                         .send_and_reply(dds_domain_participant::GetListener)
                         .await?

@@ -526,7 +526,7 @@ where
                     TopicQos::default(),
                     self.0
                         .publisher_address()
-                        .send_and_reply_blocking(dds_publisher::GetQos)?,
+                        .send_and_reply_blocking(dds_publisher::get_qos::new())?,
                     self.0
                         .participant_address()
                         .get_default_unicast_locator_list()?,
@@ -614,7 +614,7 @@ where
                     TopicQos::default(),
                     self.0
                         .publisher_address()
-                        .send_and_reply_blocking(dds_publisher::GetQos)?,
+                        .send_and_reply_blocking(dds_publisher::get_qos::new())?,
                     self.0
                         .participant_address()
                         .get_default_unicast_locator_list()?,
@@ -647,7 +647,7 @@ fn announce_data_writer(
     let builtin_publisher =
         domain_participant.send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
     let data_writer_list =
-        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+        builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
 
     for dw in data_writer_list {
         if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)

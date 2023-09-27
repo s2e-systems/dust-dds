@@ -205,6 +205,10 @@ pub fn actor_interface(
             _ => None,
         }) {
             let method_ident = &method.sig.ident;
+            assert!(
+                method.sig.asyncness.is_some(),
+                "Actor methods mmust be async"
+            );
 
             let mut argument_ident_type_token_stream = proc_macro2::TokenStream::new();
             for argument in method.sig.inputs.iter().filter_map(|a| match a {
@@ -270,7 +274,7 @@ pub fn actor_interface(
                     async fn handle(&mut self, mail: #method_ident) -> <#method_ident as crate::implementation::utils::actor::Mail>::Result {
                         self.#method_ident(
                             #mail_fields_token_stream
-                        )
+                        ).await
                     }
                 }
             };

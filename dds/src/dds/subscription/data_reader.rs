@@ -177,16 +177,16 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples = self
-            .0
-            .reader_address()
-            .send_and_reply_blocking(dds_data_reader::Read::new(
-                max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                None,
-            ))??;
+        let samples =
+            self.0
+                .reader_address()
+                .send_and_reply_blocking(dds_data_reader::Read::new(
+                    max_samples,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
+                    None,
+                ))??;
 
         Ok(samples
             .into_iter()
@@ -205,16 +205,16 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples = self
-            .0
-            .reader_address()
-            .send_and_reply_blocking(dds_data_reader::Take::new(
-                max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                None,
-            ))??;
+        let samples =
+            self.0
+                .reader_address()
+                .send_and_reply_blocking(dds_data_reader::Take::new(
+                    max_samples,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
+                    None,
+                ))??;
 
         Ok(samples
             .into_iter()
@@ -286,16 +286,16 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples = self
-            .0
-            .reader_address()
-            .send_and_reply_blocking(dds_data_reader::Read::new(
-                max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                Some(a_handle),
-            ))??;
+        let samples =
+            self.0
+                .reader_address()
+                .send_and_reply_blocking(dds_data_reader::Read::new(
+                    max_samples,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
+                    Some(a_handle),
+                ))??;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -319,16 +319,16 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples = self
-            .0
-            .reader_address()
-            .send_and_reply_blocking(dds_data_reader::Take::new(
-                max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                Some(a_handle),
-            ))??;
+        let samples =
+            self.0
+                .reader_address()
+                .send_and_reply_blocking(dds_data_reader::Take::new(
+                    max_samples,
+                    sample_states.to_vec(),
+                    view_states.to_vec(),
+                    instance_states.to_vec(),
+                    Some(a_handle),
+                ))??;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -367,16 +367,15 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples =
-            self.0
-                .reader_address()
-                .send_and_reply_blocking(dds_data_reader::ReadNextInstance::new(
-                    max_samples,
-                    previous_handle,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                ))??;
+        let samples = self.0.reader_address().send_and_reply_blocking(
+            dds_data_reader::ReadNextInstance::new(
+                max_samples,
+                previous_handle,
+                sample_states.to_vec(),
+                view_states.to_vec(),
+                instance_states.to_vec(),
+            ),
+        )??;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -395,16 +394,15 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples =
-            self.0
-                .reader_address()
-                .send_and_reply_blocking(dds_data_reader::TakeNextInstance::new(
-                    max_samples,
-                    previous_handle,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                ))??;
+        let samples = self.0.reader_address().send_and_reply_blocking(
+            dds_data_reader::TakeNextInstance::new(
+                max_samples,
+                previous_handle,
+                sample_states.to_vec(),
+                view_states.to_vec(),
+                instance_states.to_vec(),
+            ),
+        )??;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -700,7 +698,7 @@ fn announce_data_reader(
     let builtin_publisher =
         domain_participant.send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
     let data_writer_list =
-        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+        builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
     for dw in data_writer_list {
         if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
             == Ok("DiscoveredReaderData".to_string())

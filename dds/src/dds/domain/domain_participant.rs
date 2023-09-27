@@ -133,7 +133,7 @@ impl DomainParticipant {
         if !a_publisher
             .node()
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::DataWriterList)?
+            .send_and_reply_blocking(dds_publisher::data_writer_list::new())?
             .is_empty()
         {
             return Err(DdsError::PreconditionNotMet(
@@ -292,7 +292,7 @@ impl DomainParticipant {
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
         {
             let data_writer_list =
-                publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+                publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
             for data_writer in data_writer_list {
                 if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
                     == a_topic.node().topic_address().get_type_name()
@@ -527,7 +527,9 @@ impl DomainParticipant {
             .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
         {
-            for data_writer in publisher.send_and_reply_blocking(dds_publisher::DataWriterList)? {
+            for data_writer in
+                publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?
+            {
                 publisher.send_and_reply_blocking(dds_publisher::datawriter_delete::new(
                     data_writer.get_instance_handle()?,
                 ))?;
@@ -834,7 +836,7 @@ impl DomainParticipant {
                 .0
                 .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
-                .send_and_reply_blocking(dds_publisher::DataWriterList)?
+                .send_and_reply_blocking(dds_publisher::data_writer_list::new())?
             {
                 builtin_writer.enable()?;
             }
@@ -852,7 +854,7 @@ impl DomainParticipant {
                             .send_and_reply(dds_domain_participant::GetBuiltinPublisher)
                             .await?;
                         let data_writer_list = builtin_publisher
-                            .send_and_reply(dds_publisher::DataWriterList)
+                            .send_and_reply(dds_publisher::data_writer_list::new())
                             .await?;
                         for data_writer in data_writer_list {
                             if data_writer
@@ -970,7 +972,7 @@ impl DomainParticipant {
                             .await?
                         {
                             for data_writer in user_defined_publisher
-                                .send_and_reply(dds_publisher::DataWriterList)
+                                .send_and_reply(dds_publisher::data_writer_list::new())
                                 .await?
                             {
                                 data_writer

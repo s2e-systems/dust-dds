@@ -218,7 +218,7 @@ fn announce_topic(
     let builtin_publisher =
         domain_participant.send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
     let data_writer_list =
-        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+        builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
     for data_writer in data_writer_list {
         if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
             == Ok("DiscoveredTopicData".to_string())

@@ -122,7 +122,7 @@ impl Publisher {
             && self
                 .0
                 .publisher_address()
-                .send_and_reply_blocking(dds_publisher::GetQos)?
+                .send_and_reply_blocking(dds_publisher::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -177,7 +177,7 @@ impl Publisher {
                 .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
             let data_writer_list =
-                builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+                builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
             for data_writer in data_writer_list {
                 if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
                     == Ok("DiscoveredWriterData".to_string())
@@ -401,7 +401,7 @@ impl Publisher {
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
         self.0
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::GetQos)
+            .send_and_reply_blocking(dds_publisher::get_qos::new())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status

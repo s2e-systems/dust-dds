@@ -1185,11 +1185,13 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
             .map(|a| a.address())
         {
             user_defined_publisher_address
-                .send_only(dds_publisher::ProcessRtpsMessage::new(mail.message.clone()))
+                .send_only(dds_publisher::process_rtps_message::new(
+                    mail.message.clone(),
+                ))
                 .await
                 .expect("Should not fail to send command");
             user_defined_publisher_address
-                .send_only(dds_publisher::SendMessage::new(
+                .send_only(dds_publisher::send_message::new(
                     RtpsMessageHeader::new(
                         self.rtps_participant.protocol_version(),
                         self.rtps_participant.vendor_id(),

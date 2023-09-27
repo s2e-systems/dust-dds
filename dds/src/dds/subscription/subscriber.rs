@@ -199,7 +199,9 @@ impl Subscriber {
         }
 
         let reader_is_enabled = a_datareader.node().reader_address().is_enabled()?;
-        self.0.subscriber_address().data_reader_delete(reader_handle)?;
+        self.0
+            .subscriber_address()
+            .data_reader_delete(reader_handle)?;
 
         if reader_is_enabled {
             let instance_serialized_key =
@@ -217,7 +219,7 @@ impl Subscriber {
                 .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
             let data_writer_list =
-                builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+                builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
             for dw in data_writer_list {
                 if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
                     == Ok("DiscoveredReaderData".to_string())
@@ -315,7 +317,9 @@ impl Subscriber {
     /// reset back to the initial values the factory would use, that is the default value of [`DataReaderQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        self.0.subscriber_address().set_default_datareader_qos(qos)?
+        self.0
+            .subscriber_address()
+            .set_default_datareader_qos(qos)?
     }
 
     /// This operation retrieves the default value of the [`DataReaderQos`], that is, the qos policies which will be used for newly
