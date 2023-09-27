@@ -245,17 +245,17 @@ fn announce_topic(
     let data_writer_list =
         builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
     for data_writer in data_writer_list {
-        if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+        if data_writer.send_and_reply_blocking(dds_data_writer::get_type_name::new())
             == Ok("DiscoveredTopicData".to_string())
         {
-            data_writer.send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
+            data_writer.send_and_reply_blocking(dds_data_writer::write_w_timestamp::new(
                 serialized_data,
                 dds_serialize_key_to_bytes(&discovered_topic_data)?,
                 None,
                 timestamp,
             ))??;
 
-            data_writer.send_only_blocking(dds_data_writer::SendMessage::new(
+            data_writer.send_only_blocking(dds_data_writer::send_message::new(
                 RtpsMessageHeader::new(
                     domain_participant
                         .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,

@@ -207,7 +207,7 @@ pub fn actor_interface(
             let method_ident = &method.sig.ident;
             assert!(
                 method.sig.asyncness.is_some(),
-                "Actor methods mmust be async"
+                "Actor methods must be async"
             );
 
             let mut argument_ident_type_token_stream = proc_macro2::TokenStream::new();

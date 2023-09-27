@@ -302,12 +302,12 @@ impl DomainParticipant {
             let data_writer_list =
                 publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
             for data_writer in data_writer_list {
-                if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                if data_writer.send_and_reply_blocking(dds_data_writer::get_type_name::new())
                     == a_topic
                         .node()
                         .topic_address()
                         .send_and_reply_blocking(dds_topic::get_type_name::new())
-                    && data_writer.send_and_reply_blocking(dds_data_writer::GetTopicName)
+                    && data_writer.send_and_reply_blocking(dds_data_writer::get_topic_name::new())
                         == a_topic
                             .node()
                             .topic_address()
@@ -554,7 +554,8 @@ impl DomainParticipant {
                 publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?
             {
                 publisher.send_and_reply_blocking(dds_publisher::datawriter_delete::new(
-                    data_writer.get_instance_handle()?,
+                    data_writer
+                        .send_and_reply_blocking(dds_data_writer::get_instance_handle::new())?,
                 ))?;
             }
             self.0.participant_address().delete_user_defined_publisher(
@@ -868,7 +869,7 @@ impl DomainParticipant {
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
                 .send_and_reply_blocking(dds_publisher::data_writer_list::new())?
             {
-                builtin_writer.enable()?;
+                builtin_writer.send_and_reply_blocking(dds_data_writer::enable::new())?;
             }
 
             self.0.participant_address().enable()?;
@@ -888,7 +889,7 @@ impl DomainParticipant {
                             .await?;
                         for data_writer in data_writer_list {
                             if data_writer
-                                .send_and_reply(dds_data_writer::GetTypeName)
+                                .send_and_reply(dds_data_writer::get_type_name::new())
                                 .await
                                 == Ok("SpdpDiscoveredParticipantData".to_string())
                             {
@@ -903,7 +904,7 @@ impl DomainParticipant {
                                     .send_and_reply(dds_domain_participant::GetCurrentTime)
                                     .await?;
                                 data_writer
-                                    .send_and_reply(dds_data_writer::WriteWTimestamp::new(
+                                    .send_and_reply(dds_data_writer::write_w_timestamp::new(
                                         serialized_data,
                                         dds_serialize_key(&spdp_discovered_participant_data)
                                             .unwrap(),
@@ -913,7 +914,7 @@ impl DomainParticipant {
                                     .await??;
 
                                 data_writer
-                                    .send_only(dds_data_writer::SendMessage::new(
+                                    .send_only(dds_data_writer::send_message::new(
                                         RtpsMessageHeader::new(
                                             domain_participant_address
                                                 .send_and_reply(
@@ -1006,7 +1007,7 @@ impl DomainParticipant {
                                 .await?
                             {
                                 data_writer
-                                    .send_only(dds_data_writer::SendMessage::new(
+                                    .send_only(dds_data_writer::send_message::new(
                                         RtpsMessageHeader::new(
                                             domain_participant_address
                                                 .send_and_reply(

@@ -47,9 +47,7 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::{self, UdpTransportWrite},
-        utils::actor::{
-            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
-        },
+        utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -79,6 +77,7 @@ use crate::{
         },
     },
 };
+use dust_dds_derive::actor_interface;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
@@ -280,41 +279,18 @@ impl DdsDataWriter {
         &self.matched_readers
     }
 
-    pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocator) {
-        if let Some(highest_available_change_sn) = self
-            .writer_cache
-            .change_list()
-            .map(|cc| cc.sequence_number())
-            .max()
-        {
-            a_locator.set_highest_sent_change_sn(highest_available_change_sn)
-        }
-
-        self.reader_locators.push(a_locator);
-    }
-
     fn add_change(&mut self, change: RtpsWriterCacheChange) {
         self.writer_cache.add_change(change, &self.qos.history)
     }
-
-    async fn get_publication_matched_status(&mut self) -> DdsResult<PublicationMatchedStatus> {
-        self.status_condition
-            .address()
-            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
-                StatusKind::PublicationMatched,
-            ))
-            .await?;
-        Ok(self.matched_subscriptions.get_publication_matched_status())
-    }
 }
 
-actor_mailbox_interface! {
+#[actor_interface]
 impl DdsDataWriter {
-    pub fn get_instance_handle(&self) -> InstanceHandle {
+    async fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_writer.guid().into()
     }
 
-    pub fn add_matched_publication(
+    async fn add_matched_publication(
         &mut self,
         handle: InstanceHandle,
         subscription_data: SubscriptionBuiltinTopicData,
@@ -323,16 +299,16 @@ impl DdsDataWriter {
             .add_matched_subscription(handle, subscription_data)
     }
 
-    pub fn remove_matched_subscription(&mut self, handle: InstanceHandle) {
+    async fn remove_matched_subscription(&mut self, handle: InstanceHandle) {
         self.matched_subscriptions
             .remove_matched_subscription(handle)
     }
 
-    pub fn get_matched_subscriptions(&self) -> Vec<InstanceHandle> {
+    async fn get_matched_subscriptions(&self) -> Vec<InstanceHandle> {
         self.matched_subscriptions.get_matched_subscriptions()
     }
 
-    pub fn get_matched_subscription_data(
+    async fn get_matched_subscription_data(
         &self,
         handle: InstanceHandle,
     ) -> Option<SubscriptionBuiltinTopicData> {
@@ -341,7 +317,7 @@ impl DdsDataWriter {
             .cloned()
     }
 
-    pub fn add_offered_incompatible_qos(
+    async fn add_offered_incompatible_qos(
         &mut self,
         handle: InstanceHandle,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
@@ -350,63 +326,62 @@ impl DdsDataWriter {
             .add_offered_incompatible_qos(handle, incompatible_qos_policy_list)
     }
 
-    pub fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
+    async fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
         self.incompatible_subscriptions
             .get_offered_incompatible_qos_status()
     }
 
-    pub fn get_offered_deadline_missed_status(&self) -> OfferedDeadlineMissedStatus {
+    async fn get_offered_deadline_missed_status(&self) -> OfferedDeadlineMissedStatus {
         todo!()
     }
 
-    pub fn get_liveliness_lost_status(&self) -> LivelinessLostStatus {
+    async fn get_liveliness_lost_status(&self) -> LivelinessLostStatus {
         todo!()
     }
 
-    pub fn get_incompatible_subscriptions(&self) -> Vec<InstanceHandle> {
+    async fn get_incompatible_subscriptions(&self) -> Vec<InstanceHandle> {
         self.incompatible_subscriptions
             .get_incompatible_subscriptions()
     }
 
-    pub fn enable(&mut self) {
+    async fn enable(&mut self) {
         self.enabled = true;
     }
 
-    pub fn is_enabled(&self) -> bool {
+    async fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    pub fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+    async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
         self.status_condition.address().clone()
     }
 
-    pub fn guid(&self) -> Guid {
+    async fn guid(&self) -> Guid {
         self.rtps_writer.guid()
     }
 
-    pub fn heartbeat_period(&self) -> Duration {
+    async fn heartbeat_period(&self) -> Duration {
         self.rtps_writer.heartbeat_period()
     }
 
-    pub fn data_max_size_serialized(&self) -> usize {
+    async fn data_max_size_serialized(&self) -> usize {
         self.rtps_writer.data_max_size_serialized()
     }
 
-    pub fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
+    async fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
     }
 
-    pub fn get_qos(&self) -> DataWriterQos {
+    async fn get_qos(&self) -> DataWriterQos {
         self.qos.clone()
     }
 
-    pub fn set_qos(&mut self, qos: DataWriterQos) {
+    async fn set_qos(&mut self, qos: DataWriterQos) {
         self.qos = qos;
     }
 
-
-    pub fn register_instance_w_timestamp(
+    async fn register_instance_w_timestamp(
         &mut self,
         instance_serialized_key: DdsSerializedKey,
         _timestamp: Time,
@@ -428,7 +403,7 @@ impl DdsDataWriter {
         Ok(Some(instance_handle))
     }
 
-    pub fn unregister_instance_w_timestamp(
+    async fn unregister_instance_w_timestamp(
         &mut self,
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
@@ -470,7 +445,7 @@ impl DdsDataWriter {
         Ok(())
     }
 
-    pub fn lookup_instance(
+    async fn lookup_instance(
         &self,
         instance_serialized_key: DdsSerializedKey,
     ) -> DdsResult<Option<InstanceHandle>> {
@@ -480,14 +455,15 @@ impl DdsDataWriter {
         let instance_handle = instance_serialized_key.into();
 
         Ok(
-        if self.registered_instance_list.contains_key(&instance_handle) {
-            Some(instance_handle)
-        } else {
-            None
-        })
+            if self.registered_instance_list.contains_key(&instance_handle) {
+                Some(instance_handle)
+            } else {
+                None
+            },
+        )
     }
 
-    pub fn dispose_w_timestamp(
+    async fn dispose_w_timestamp(
         &mut self,
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
@@ -520,21 +496,21 @@ impl DdsDataWriter {
         Ok(())
     }
 
-    pub fn are_all_changes_acknowledge(&mut self) -> bool {
+    async fn are_all_changes_acknowledge(&mut self) -> bool {
         !self
             .matched_readers
             .iter()
             .any(|rp| rp.unacked_changes(&self.writer_cache))
     }
 
-    pub fn as_discovered_writer_data(
+    async fn as_discovered_writer_data(
         &self,
         topic_qos: TopicQos,
         publisher_qos: PublisherQos,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
     ) -> DiscoveredWriterData {
-        let writer_qos = self.get_qos();
+        let writer_qos = &self.qos;
         let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
             default_unicast_locator_list
         } else {
@@ -565,7 +541,7 @@ impl DdsDataWriter {
                 writer_qos.lifespan.clone(),
                 writer_qos.user_data.clone(),
                 writer_qos.ownership.clone(),
-                writer_qos.destination_order,
+                writer_qos.destination_order.clone(),
                 publisher_qos.presentation.clone(),
                 publisher_qos.partition.clone(),
                 topic_qos.topic_data,
@@ -580,143 +556,61 @@ impl DdsDataWriter {
             ),
         )
     }
-}
-}
 
-pub struct GetPublicationMatchedStatus;
-
-impl Mail for GetPublicationMatchedStatus {
-    type Result = DdsResult<PublicationMatchedStatus>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetPublicationMatchedStatus> for DdsDataWriter {
-    async fn handle(
-        &mut self,
-        _mail: GetPublicationMatchedStatus,
-    ) -> <GetPublicationMatchedStatus as Mail>::Result {
-        self.get_publication_matched_status().await
+    async fn get_publication_matched_status(&mut self) -> DdsResult<PublicationMatchedStatus> {
+        self.status_condition
+            .address()
+            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+                StatusKind::PublicationMatched,
+            ))
+            .await?;
+        Ok(self.matched_subscriptions.get_publication_matched_status())
     }
-}
 
-pub struct MatchedReaderAdd {
-    a_reader_proxy: RtpsReaderProxy,
-}
-
-impl MatchedReaderAdd {
-    pub fn new(a_reader_proxy: RtpsReaderProxy) -> Self {
-        Self { a_reader_proxy }
-    }
-}
-
-impl Mail for MatchedReaderAdd {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<MatchedReaderAdd> for DdsDataWriter {
-    async fn handle(&mut self, mail: MatchedReaderAdd) -> <MatchedReaderAdd as Mail>::Result {
+    async fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
         if !self
             .matched_readers
             .iter()
-            .any(|x| x.remote_reader_guid() == mail.a_reader_proxy.remote_reader_guid())
+            .any(|x| x.remote_reader_guid() == a_reader_proxy.remote_reader_guid())
         {
-            self.matched_readers.push(mail.a_reader_proxy)
+            self.matched_readers.push(a_reader_proxy)
         }
     }
-}
 
-pub struct GetTopicName;
-
-impl Mail for GetTopicName {
-    type Result = String;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetTopicName> for DdsDataWriter {
-    async fn handle(&mut self, _mail: GetTopicName) -> <GetTopicName as Mail>::Result {
+    async fn get_topic_name(&self) -> String {
         self.topic_name.clone()
     }
-}
 
-pub struct WriteWTimestamp {
-    serialized_data: Vec<u8>,
-    instance_serialized_key: DdsSerializedKey,
-    _handle: Option<InstanceHandle>,
-    timestamp: Time,
-}
-
-impl WriteWTimestamp {
-    pub fn new(
+    async fn write_w_timestamp(
+        &mut self,
         serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
         _handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> Self {
-        Self {
-            serialized_data,
-            instance_serialized_key,
-            _handle,
-            timestamp,
-        }
-    }
-}
-
-impl Mail for WriteWTimestamp {
-    type Result = DdsResult<()>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<WriteWTimestamp> for DdsDataWriter {
-    async fn handle(&mut self, mail: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
+    ) -> DdsResult<()> {
         let handle = self
-            .register_instance_w_timestamp(mail.instance_serialized_key, mail.timestamp)?
+            .register_instance_w_timestamp(instance_serialized_key, timestamp)
+            .await?
             .unwrap_or(HANDLE_NIL);
         let change = self.rtps_writer.new_change(
             ChangeKind::Alive,
-            mail.serialized_data,
+            serialized_data,
             ParameterList::empty(),
             handle,
-            mail.timestamp,
+            timestamp,
         );
 
         self.add_change(change);
 
         Ok(())
     }
-}
 
-pub struct GetTypeName;
-
-impl Mail for GetTypeName {
-    type Result = String;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetTypeName> for DdsDataWriter {
-    async fn handle(&mut self, _mail: GetTypeName) -> <GetTypeName as Mail>::Result {
+    async fn get_type_name(&self) -> String {
         self.type_name.clone()
     }
-}
 
-pub struct AddMatchedReader {
-    discovered_reader_data: DiscoveredReaderData,
-    default_unicast_locator_list: Vec<Locator>,
-    default_multicast_locator_list: Vec<Locator>,
-    data_writer_address: ActorAddress<DdsDataWriter>,
-    publisher_address: ActorAddress<DdsPublisher>,
-    participant_address: ActorAddress<DdsDomainParticipant>,
-    publisher_qos: PublisherQos,
-    publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
-    participant_publication_matched_listener: Option<ActorAddress<DdsDomainParticipantListener>>,
-    offered_incompatible_qos_publisher_listener: Option<ActorAddress<DdsPublisherListener>>,
-    offered_incompatible_qos_participant_listener:
-        Option<ActorAddress<DdsDomainParticipantListener>>,
-}
-
-impl AddMatchedReader {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    async fn add_matched_reader(
+        &mut self,
         discovered_reader_data: DiscoveredReaderData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
@@ -732,37 +626,12 @@ impl AddMatchedReader {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DdsDomainParticipantListener>,
         >,
-    ) -> Self {
-        Self {
-            discovered_reader_data,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            data_writer_address,
-            publisher_address,
-            participant_address,
-            publisher_qos,
-            publisher_publication_matched_listener,
-            participant_publication_matched_listener,
-            offered_incompatible_qos_publisher_listener,
-            offered_incompatible_qos_participant_listener,
-        }
-    }
-}
-
-impl Mail for AddMatchedReader {
-    type Result = DdsResult<()>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<AddMatchedReader> for DdsDataWriter {
-    async fn handle(&mut self, mail: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
-        let is_matched_topic_name = mail
-            .discovered_reader_data
+    ) -> DdsResult<()> {
+        let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
             .topic_name()
             == self.topic_name;
-        let is_matched_type_name = mail
-            .discovered_reader_data
+        let is_matched_type_name = discovered_reader_data
             .subscription_builtin_topic_data()
             .get_type_name()
             == self.type_name;
@@ -770,45 +639,39 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
         if is_matched_topic_name && is_matched_type_name {
             let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
                 &self.qos,
-                mail.discovered_reader_data
-                    .subscription_builtin_topic_data(),
-                &mail.publisher_qos,
+                discovered_reader_data.subscription_builtin_topic_data(),
+                &publisher_qos,
             );
-            let instance_handle = dds_serialize_key(&mail.discovered_reader_data)
-                .unwrap()
-                .into();
+            let instance_handle = dds_serialize_key(&discovered_reader_data).unwrap().into();
 
             if incompatible_qos_policy_list.is_empty() {
-                let unicast_locator_list = if mail
-                    .discovered_reader_data
+                let unicast_locator_list = if discovered_reader_data
                     .reader_proxy()
                     .unicast_locator_list()
                     .is_empty()
                 {
-                    mail.default_unicast_locator_list
+                    default_unicast_locator_list
                 } else {
-                    mail.discovered_reader_data
+                    discovered_reader_data
                         .reader_proxy()
                         .unicast_locator_list()
                         .to_vec()
                 };
 
-                let multicast_locator_list = if mail
-                    .discovered_reader_data
+                let multicast_locator_list = if discovered_reader_data
                     .reader_proxy()
                     .multicast_locator_list()
                     .is_empty()
                 {
-                    mail.default_multicast_locator_list
+                    default_multicast_locator_list
                 } else {
-                    mail.discovered_reader_data
+                    discovered_reader_data
                         .reader_proxy()
                         .multicast_locator_list()
                         .to_vec()
                 };
 
-                let proxy_reliability = match mail
-                    .discovered_reader_data
+                let proxy_reliability = match discovered_reader_data
                     .subscription_builtin_topic_data()
                     .reliability()
                     .kind
@@ -817,8 +680,7 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
                     ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
                 };
 
-                let first_relevant_sample_seq_num = match mail
-                    .discovered_reader_data
+                let first_relevant_sample_seq_num = match discovered_reader_data
                     .subscription_builtin_topic_data()
                     .durability()
                     .kind
@@ -833,17 +695,13 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
                 };
 
                 let reader_proxy = RtpsReaderProxy::new(
-                    mail.discovered_reader_data
-                        .reader_proxy()
-                        .remote_reader_guid(),
-                    mail.discovered_reader_data
+                    discovered_reader_data.reader_proxy().remote_reader_guid(),
+                    discovered_reader_data
                         .reader_proxy()
                         .remote_group_entity_id(),
                     &unicast_locator_list,
                     &multicast_locator_list,
-                    mail.discovered_reader_data
-                        .reader_proxy()
-                        .expects_inline_qos(),
+                    discovered_reader_data.reader_proxy().expects_inline_qos(),
                     true,
                     proxy_reliability,
                     first_relevant_sample_seq_num,
@@ -857,25 +715,28 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
                     self.matched_readers.push(reader_proxy)
                 }
 
-                if !self.get_matched_subscriptions().contains(&instance_handle)
-                    || self.get_matched_subscription_data(instance_handle).as_ref()
-                        != Some(
-                            mail.discovered_reader_data
-                                .subscription_builtin_topic_data(),
-                        )
+                if !self
+                    .get_matched_subscriptions()
+                    .await
+                    .contains(&instance_handle)
+                    || self
+                        .get_matched_subscription_data(instance_handle)
+                        .await
+                        .as_ref()
+                        != Some(discovered_reader_data.subscription_builtin_topic_data())
                 {
                     self.matched_subscriptions.add_matched_subscription(
                         instance_handle,
-                        mail.discovered_reader_data
+                        discovered_reader_data
                             .subscription_builtin_topic_data()
                             .clone(),
                     );
                     self.on_publication_matched(
-                        mail.data_writer_address,
-                        mail.publisher_address,
-                        mail.participant_address,
-                        mail.publisher_publication_matched_listener,
-                        mail.participant_publication_matched_listener,
+                        data_writer_address,
+                        publisher_address,
+                        participant_address,
+                        publisher_publication_matched_listener,
+                        participant_publication_matched_listener,
                     )
                     .await?;
                 }
@@ -883,30 +744,20 @@ impl MailHandler<AddMatchedReader> for DdsDataWriter {
                 self.incompatible_subscriptions
                     .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
                 self.on_offered_incompatible_qos(
-                    mail.data_writer_address,
-                    mail.publisher_address,
-                    mail.participant_address,
-                    mail.offered_incompatible_qos_publisher_listener,
-                    mail.offered_incompatible_qos_participant_listener,
+                    data_writer_address,
+                    publisher_address,
+                    participant_address,
+                    offered_incompatible_qos_publisher_listener,
+                    offered_incompatible_qos_participant_listener,
                 )
                 .await?;
             }
         }
         Ok(())
     }
-}
 
-pub struct RemoveMatchedReader {
-    discovered_reader_handle: InstanceHandle,
-    data_writer_address: ActorAddress<DdsDataWriter>,
-    publisher_address: ActorAddress<DdsPublisher>,
-    participant_address: ActorAddress<DdsDomainParticipant>,
-    publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
-    participant_publication_matched_listener: Option<ActorAddress<DdsDomainParticipantListener>>,
-}
-
-impl RemoveMatchedReader {
-    pub fn new(
+    async fn remove_matched_reader(
+        &mut self,
         discovered_reader_handle: InstanceHandle,
         data_writer_address: ActorAddress<DdsDataWriter>,
         publisher_address: ActorAddress<DdsPublisher>,
@@ -915,61 +766,29 @@ impl RemoveMatchedReader {
         participant_publication_matched_listener: Option<
             ActorAddress<DdsDomainParticipantListener>,
         >,
-    ) -> Self {
-        Self {
-            discovered_reader_handle,
-            data_writer_address,
-            publisher_address,
-            participant_address,
-            publisher_publication_matched_listener,
-            participant_publication_matched_listener,
-        }
-    }
-}
-
-impl Mail for RemoveMatchedReader {
-    type Result = DdsResult<()>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<RemoveMatchedReader> for DdsDataWriter {
-    async fn handle(&mut self, mail: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
-        if let Some(r) = self.get_matched_subscription_data(mail.discovered_reader_handle) {
+    ) -> DdsResult<()> {
+        if let Some(r) = self
+            .get_matched_subscription_data(discovered_reader_handle)
+            .await
+        {
             let handle = r.key().value.into();
-            self.matched_reader_remove(handle);
-            self.remove_matched_subscription(handle.into());
+            self.matched_reader_remove(handle).await;
+            self.remove_matched_subscription(handle.into()).await;
 
             self.on_publication_matched(
-                mail.data_writer_address,
-                mail.publisher_address,
-                mail.participant_address,
-                mail.publisher_publication_matched_listener,
-                mail.participant_publication_matched_listener,
+                data_writer_address,
+                publisher_address,
+                participant_address,
+                publisher_publication_matched_listener,
+                participant_publication_matched_listener,
             )
             .await?;
         }
         Ok(())
     }
-}
 
-pub struct ProcessRtpsMessage {
-    message: RtpsMessageRead,
-}
-
-impl ProcessRtpsMessage {
-    pub fn new(message: RtpsMessageRead) -> Self {
-        Self { message }
-    }
-}
-
-impl Mail for ProcessRtpsMessage {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<ProcessRtpsMessage> for DdsDataWriter {
-    async fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
-        let mut message_receiver = MessageReceiver::new(&mail.message);
+    async fn process_rtps_message(&mut self, message: RtpsMessageRead) {
+        let mut message_receiver = MessageReceiver::new(&message);
         while let Some(submessage) = message_receiver.next() {
             match &submessage {
                 RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
@@ -986,66 +805,34 @@ impl MailHandler<ProcessRtpsMessage> for DdsDataWriter {
             }
         }
     }
-}
 
-pub struct SendMessage {
-    header: RtpsMessageHeader,
-    udp_transport_write: ActorAddress<UdpTransportWrite>,
-    now: Time,
-}
-
-impl SendMessage {
-    pub fn new(
+    async fn send_message(
+        &mut self,
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
         now: Time,
-    ) -> Self {
-        Self {
-            header,
-            udp_transport_write,
-            now,
-        }
-    }
-}
-
-impl Mail for SendMessage {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<SendMessage> for DdsDataWriter {
-    async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+    ) {
         // Remove stale changes before sending
-        self.remove_stale_changes(mail.now);
+        self.remove_stale_changes(now);
 
-        self.send_message_to_reader_locators(mail.header, &mail.udp_transport_write)
+        self.send_message_to_reader_locators(header, &udp_transport_write)
             .await;
-        self.send_message_to_reader_proxies(mail.header, &mail.udp_transport_write)
+        self.send_message_to_reader_proxies(header, &udp_transport_write)
             .await;
     }
-}
 
-impl ActorAddress<DdsDataWriter> {
-    pub fn reader_locator_add(&self, a_locator: RtpsReaderLocator) -> DdsResult<()> {
-        struct ReaderLocatorAdd {
-            a_locator: RtpsReaderLocator,
+    async fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
+        let mut locator = a_locator;
+        if let Some(highest_available_change_sn) = self
+            .writer_cache
+            .change_list()
+            .map(|cc| cc.sequence_number())
+            .max()
+        {
+            locator.set_highest_sent_change_sn(highest_available_change_sn)
         }
 
-        impl Mail for ReaderLocatorAdd {
-            type Result = ();
-        }
-
-        #[async_trait::async_trait]
-        impl MailHandler<ReaderLocatorAdd> for DdsDataWriter {
-            async fn handle(
-                &mut self,
-                mail: ReaderLocatorAdd,
-            ) -> <ReaderLocatorAdd as Mail>::Result {
-                self.reader_locator_add(mail.a_locator)
-            }
-        }
-
-        self.send_and_reply_blocking(ReaderLocatorAdd { a_locator })
+        self.reader_locators.push(locator);
     }
 }
 
@@ -1296,7 +1083,7 @@ impl DdsDataWriter {
                 .status_kind
                 .contains(&StatusKind::OfferedIncompatibleQos)
         {
-            let status = self.get_offered_incompatible_qos_status();
+            let status = self.get_offered_incompatible_qos_status().await;
             let listener_address = self.listener.as_ref().unwrap().address();
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
@@ -1308,7 +1095,7 @@ impl DdsDataWriter {
         } else if let Some(offered_incompatible_qos_publisher_listener) =
             offered_incompatible_qos_publisher_listener
         {
-            let status = self.get_offered_incompatible_qos_status();
+            let status = self.get_offered_incompatible_qos_status().await;
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             offered_incompatible_qos_publisher_listener
@@ -1319,7 +1106,7 @@ impl DdsDataWriter {
         } else if let Some(offered_incompatible_qos_participant_listener) =
             offered_incompatible_qos_participant_listener
         {
-            let status = self.get_offered_incompatible_qos_status();
+            let status = self.get_offered_incompatible_qos_status().await;
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             offered_incompatible_qos_participant_listener

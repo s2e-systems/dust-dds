@@ -703,17 +703,17 @@ fn announce_data_reader(
     let data_writer_list =
         builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
     for dw in data_writer_list {
-        if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
+        if dw.send_and_reply_blocking(dds_data_writer::get_type_name::new())
             == Ok("DiscoveredReaderData".to_string())
         {
-            dw.send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
+            dw.send_and_reply_blocking(dds_data_writer::write_w_timestamp::new(
                 serialized_data,
                 dds_serialize_key(&discovered_reader_data)?,
                 None,
                 timestamp,
             ))??;
 
-            dw.send_only_blocking(dds_data_writer::SendMessage::new(
+            dw.send_only_blocking(dds_data_writer::send_message::new(
                 RtpsMessageHeader::new(
                     domain_participant
                         .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,

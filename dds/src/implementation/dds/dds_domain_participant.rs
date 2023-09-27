@@ -64,7 +64,7 @@ use std::{
 };
 
 use super::{
-    dds_data_writer::DdsDataWriter,
+    dds_data_writer::{self, DdsDataWriter},
     dds_domain_participant_listener::DdsDomainParticipantListener,
     dds_publisher::{self, DdsPublisher},
     dds_publisher_listener::DdsPublisherListener,
@@ -329,7 +329,7 @@ impl DdsDomainParticipant {
         {
             spdp_builtin_participant_writer
                 .address()
-                .reader_locator_add(reader_locator)
+                .send_and_reply_blocking(dds_data_writer::reader_locator_add::new(reader_locator))
                 .unwrap();
         }
 

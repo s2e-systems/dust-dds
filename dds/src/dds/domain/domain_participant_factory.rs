@@ -402,7 +402,7 @@ async fn lookup_data_writer_by_topic_name(
 ) -> Option<ActorAddress<DdsDataWriter>> {
     for data_writer in writer_list {
         if let Ok(t) = data_writer
-            .send_and_reply(dds_data_writer::GetTopicName)
+            .send_and_reply(dds_data_writer::get_topic_name::new())
             .await
         {
             if t == topic_name {
@@ -461,7 +461,7 @@ async fn add_matched_publications_detector(
             SequenceNumber::from(0),
         );
         writer
-            .send_and_reply(dds_data_writer::MatchedReaderAdd::new(proxy))
+            .send_and_reply(dds_data_writer::matched_reader_add::new(proxy))
             .await
             .unwrap();
     }
@@ -536,7 +536,7 @@ async fn add_matched_subscriptions_detector(
             SequenceNumber::from(0),
         );
         writer
-            .send_and_reply(dds_data_writer::MatchedReaderAdd::new(proxy))
+            .send_and_reply(dds_data_writer::matched_reader_add::new(proxy))
             .await
             .unwrap();
     }
@@ -610,7 +610,7 @@ async fn add_matched_topics_detector(
             SequenceNumber::from(0),
         );
         writer
-            .send_and_reply(dds_data_writer::MatchedReaderAdd::new(proxy))
+            .send_and_reply(dds_data_writer::matched_reader_add::new(proxy))
             .await
             .unwrap();
     }
@@ -765,7 +765,7 @@ async fn process_spdp_metatraffic(
                             .await;
 
                             sedp_publications_announcer
-                                .send_only(dds_data_writer::SendMessage::new(
+                                .send_only(dds_data_writer::send_message::new(
                                     RtpsMessageHeader::new(
                                         participant_address
                                             .send_and_reply(
@@ -818,7 +818,7 @@ async fn process_spdp_metatraffic(
                             )
                             .await;
                             sedp_subscriptions_announcer
-                                .send_only(dds_data_writer::SendMessage::new(
+                                .send_only(dds_data_writer::send_message::new(
                                     RtpsMessageHeader::new(
                                         participant_address
                                             .send_and_reply(
@@ -869,7 +869,7 @@ async fn process_spdp_metatraffic(
                             .await;
 
                             sedp_topics_announcer
-                                .send_only(dds_data_writer::SendMessage::new(
+                                .send_only(dds_data_writer::send_message::new(
                                     RtpsMessageHeader::new(
                                         participant_address
                                             .send_and_reply(
@@ -946,10 +946,10 @@ async fn process_sedp_metatraffic(
         .await?
     {
         stateful_builtin_writer
-            .send_and_reply(dds_data_writer::ProcessRtpsMessage::new(message.clone()))
+            .send_and_reply(dds_data_writer::process_rtps_message::new(message.clone()))
             .await?;
         stateful_builtin_writer
-            .send_and_reply(dds_data_writer::SendMessage::new(
+            .send_and_reply(dds_data_writer::send_message::new(
                 RtpsMessageHeader::new(
                     participant_address
                         .send_and_reply(dds_domain_participant::GetProtocolVersion)
@@ -1422,7 +1422,7 @@ pub async fn discover_matched_readers(
                                             _ => None,
                                         };
                                     data_writer
-                                        .send_and_reply(dds_data_writer::AddMatchedReader::new(
+                                        .send_and_reply(dds_data_writer::add_matched_reader::new(
                                             discovered_reader_data.clone(),
                                             default_unicast_locator_list.clone(),
                                             default_multicast_locator_list.clone(),
@@ -1437,7 +1437,7 @@ pub async fn discover_matched_readers(
                                         ))
                                         .await??;
                                     data_writer
-                                        .send_only(dds_data_writer::SendMessage::new(
+                                        .send_only(dds_data_writer::send_message::new(
                                             RtpsMessageHeader::new(
                                                 participant_address
                                                     .send_and_reply(
@@ -1511,7 +1511,7 @@ pub async fn discover_matched_readers(
                         _ => None,
                     };
                     data_writer
-                        .send_and_reply(dds_data_writer::RemoveMatchedReader::new(
+                        .send_and_reply(dds_data_writer::remove_matched_reader::new(
                             discovered_reader_sample.sample_info().instance_handle,
                             data_writer.clone(),
                             publisher.clone(),

@@ -240,12 +240,16 @@ impl Subscriber {
             let data_writer_list =
                 builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
             for dw in data_writer_list {
-                if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                if dw.send_and_reply_blocking(dds_data_writer::get_type_name::new())
                     == Ok("DiscoveredReaderData".to_string())
                 {
-                    dw.dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)??;
+                    dw.send_and_reply_blocking(dds_data_writer::dispose_w_timestamp::new(
+                        instance_serialized_key,
+                        reader_handle,
+                        timestamp,
+                    ))??;
 
-                    dw.send_only_blocking(dds_data_writer::SendMessage::new(
+                    dw.send_only_blocking(dds_data_writer::send_message::new(
                         RtpsMessageHeader::new(
                             a_datareader
                                 .node()

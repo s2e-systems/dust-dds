@@ -140,7 +140,10 @@ impl Publisher {
     /// [`DataWriter`].
     #[tracing::instrument(skip(self, a_datawriter))]
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
-        let writer_handle = a_datawriter.node().writer_address().get_instance_handle()?;
+        let writer_handle = a_datawriter
+            .node()
+            .writer_address()
+            .send_and_reply_blocking(dds_data_writer::get_instance_handle::new())?;
         if self
             .0
             .publisher_address()
@@ -155,7 +158,10 @@ impl Publisher {
             ));
         }
 
-        let writer_is_enabled = a_datawriter.node().writer_address().is_enabled()?;
+        let writer_is_enabled = a_datawriter
+            .node()
+            .writer_address()
+            .send_and_reply_blocking(dds_data_writer::is_enabled::new())?;
         self.0
             .publisher_address()
             .send_and_reply_blocking(dds_publisher::datawriter_delete::new(writer_handle))?;
@@ -179,16 +185,18 @@ impl Publisher {
             let data_writer_list =
                 builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
             for data_writer in data_writer_list {
-                if data_writer.send_and_reply_blocking(dds_data_writer::GetTypeName)
+                if data_writer.send_and_reply_blocking(dds_data_writer::get_type_name::new())
                     == Ok("DiscoveredWriterData".to_string())
                 {
-                    data_writer.dispose_w_timestamp(
-                        instance_serialized_key,
-                        writer_handle,
-                        timestamp,
+                    data_writer.send_and_reply_blocking(
+                        dds_data_writer::dispose_w_timestamp::new(
+                            instance_serialized_key,
+                            writer_handle,
+                            timestamp,
+                        ),
                     )??;
 
-                    data_writer.send_only_blocking(dds_data_writer::SendMessage::new(
+                    data_writer.send_only_blocking(dds_data_writer::send_message::new(
                         RtpsMessageHeader::new(
                             a_datawriter
                                 .node()
