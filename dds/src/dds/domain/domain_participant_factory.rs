@@ -684,7 +684,7 @@ async fn process_spdp_metatraffic(
         .expect("Should not fail to send command");
 
     let data_reader_list = builtin_subscriber
-        .send_and_reply(dds_subscriber::DataReaderList)
+        .send_and_reply(dds_subscriber::data_reader_list::new())
         .await?;
     for data_reader in data_reader_list {
         if data_reader
@@ -749,7 +749,7 @@ async fn process_spdp_metatraffic(
                         let builtin_data_reader_list = participant_address
                             .send_and_reply(dds_domain_participant::GetBuiltInSubscriber)
                             .await?
-                            .send_and_reply(dds_subscriber::DataReaderList)
+                            .send_and_reply(dds_subscriber::data_reader_list::new())
                             .await?;
 
                         if let Some(sedp_publications_announcer) = lookup_data_writer_by_topic_name(
@@ -985,7 +985,7 @@ async fn process_sedp_metatraffic(
         .await??;
 
     builtin_subscriber
-        .send_and_reply(dds_subscriber::SendMessage::new(
+        .send_and_reply(dds_subscriber::send_message::new(
             RtpsMessageHeader::new(
                 participant_address
                     .send_and_reply(dds_domain_participant::GetProtocolVersion)
@@ -1016,7 +1016,7 @@ async fn process_sedp_discovery(
         .await?;
 
     for stateful_builtin_reader in builtin_subscriber
-        .send_and_reply(dds_subscriber::DataReaderList)
+        .send_and_reply(dds_subscriber::data_reader_list::new())
         .await?
     {
         match stateful_builtin_reader
@@ -1147,7 +1147,7 @@ async fn discover_matched_writers(
                             .await?
                         {
                             let subscriber_qos = user_defined_subscriber_address
-                                .send_and_reply(dds_subscriber::GetQos)
+                                .send_and_reply(dds_subscriber::get_qos::new())
                                 .await?;
 
                             if is_partition_matched(
@@ -1155,15 +1155,15 @@ async fn discover_matched_writers(
                                 &subscriber_qos.partition,
                             ) {
                                 for data_reader_address in user_defined_subscriber_address
-                                    .send_and_reply(dds_subscriber::DataReaderList)
+                                    .send_and_reply(dds_subscriber::data_reader_list::new())
                                     .await?
                                 {
                                     let subscriber_mask_listener = (
                                         user_defined_subscriber_address
-                                            .send_and_reply(dds_subscriber::GetListener)
+                                            .send_and_reply(dds_subscriber::get_listener::new())
                                             .await?,
                                         user_defined_subscriber_address
-                                            .send_and_reply(dds_subscriber::GetStatusKind)
+                                            .send_and_reply(dds_subscriber::get_status_kind::new())
                                             .await?,
                                     );
 
@@ -1176,7 +1176,7 @@ async fn discover_matched_writers(
                                             user_defined_subscriber_address.clone(),
                                             participant_address.clone(),
                                             user_defined_subscriber_address
-                                                .send_and_reply(dds_subscriber::GetQos)
+                                                .send_and_reply(dds_subscriber::get_qos::new())
                                                 .await?,
                                             subscriber_mask_listener.clone(),
                                             participant_mask_listener.clone(),
@@ -1220,15 +1220,15 @@ async fn discover_matched_writers(
                 .await?
             {
                 for data_reader in subscriber
-                    .send_and_reply(dds_subscriber::DataReaderList)
+                    .send_and_reply(dds_subscriber::data_reader_list::new())
                     .await?
                 {
                     let subscriber_mask_listener = (
                         subscriber
-                            .send_and_reply(dds_subscriber::GetListener)
+                            .send_and_reply(dds_subscriber::get_listener::new())
                             .await?,
                         subscriber
-                            .send_and_reply(dds_subscriber::GetStatusKind)
+                            .send_and_reply(dds_subscriber::get_status_kind::new())
                             .await?,
                     );
 

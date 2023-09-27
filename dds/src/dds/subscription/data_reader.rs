@@ -575,7 +575,7 @@ impl<Foo> DataReader<Foo> {
                     TopicQos::default(),
                     self.0
                         .subscriber_address()
-                        .send_and_reply_blocking(dds_subscriber::GetQos)?,
+                        .send_and_reply_blocking(dds_subscriber::get_qos::new())?,
                     self.0
                         .participant_address()
                         .get_default_unicast_locator_list()?,
@@ -649,7 +649,7 @@ impl<Foo> DataReader<Foo> {
                 TopicQos::default(),
                 self.0
                     .subscriber_address()
-                    .send_and_reply_blocking(dds_subscriber::GetQos)?,
+                    .send_and_reply_blocking(dds_subscriber::get_qos::new())?,
                 self.0
                     .participant_address()
                     .get_default_unicast_locator_list()?,

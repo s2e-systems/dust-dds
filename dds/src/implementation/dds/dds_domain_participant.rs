@@ -1166,7 +1166,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
                 .expect("Should not fail to send command");
 
             user_defined_subscriber_address
-                .send_only(dds_subscriber::SendMessage::new(
+                .send_only(dds_subscriber::send_message::new(
                     RtpsMessageHeader::new(
                         self.rtps_participant.protocol_version(),
                         self.rtps_participant.vendor_id(),

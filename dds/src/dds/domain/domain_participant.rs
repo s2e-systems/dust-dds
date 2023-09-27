@@ -212,7 +212,7 @@ impl DomainParticipant {
         if !a_subscriber
             .node()
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+            .send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
             .is_empty()
         {
             return Err(DdsError::PreconditionNotMet(
@@ -326,7 +326,7 @@ impl DomainParticipant {
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
         {
             let data_reader_list =
-                subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)?;
+                subscriber.send_and_reply_blocking(dds_subscriber::data_reader_list::new())?;
             for data_reader in data_reader_list {
                 if data_reader.send_and_reply_blocking(dds_data_reader::GetTypeName)
                     == a_topic
@@ -566,7 +566,9 @@ impl DomainParticipant {
             .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
         {
-            for data_reader in subscriber.send_and_reply_blocking(dds_subscriber::DataReaderList)? {
+            for data_reader in
+                subscriber.send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
+            {
                 subscriber.send_and_reply_blocking(dds_subscriber::data_reader_delete::new(
                     data_reader.get_instance_handle()?,
                 ))?;
@@ -855,7 +857,7 @@ impl DomainParticipant {
                 .0
                 .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
-                .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+                .send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
             {
                 builtin_reader.enable()?;
             }
@@ -972,14 +974,14 @@ impl DomainParticipant {
                         {
                             let subscriber_mask_listener = (
                                 subscriber
-                                    .send_and_reply(dds_subscriber::GetListener)
+                                    .send_and_reply(dds_subscriber::get_listener::new())
                                     .await?,
                                 subscriber
-                                    .send_and_reply(dds_subscriber::GetStatusKind)
+                                    .send_and_reply(dds_subscriber::get_status_kind::new())
                                     .await?,
                             );
                             for data_reader in subscriber
-                                .send_and_reply(dds_subscriber::DataReaderList)
+                                .send_and_reply(dds_subscriber::data_reader_list::new())
                                 .await?
                             {
                                 data_reader

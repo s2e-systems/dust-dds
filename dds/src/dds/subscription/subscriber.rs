@@ -187,7 +187,7 @@ impl Subscriber {
             && self
                 .0
                 .subscriber_address()
-                .send_and_reply_blocking(dds_subscriber::GetQos)?
+                .send_and_reply_blocking(dds_subscriber::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -388,7 +388,7 @@ impl Subscriber {
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         self.0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::GetQos)
+            .send_and_reply_blocking(dds_subscriber::get_qos::new())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -462,14 +462,14 @@ impl Subscriber {
             if self
                 .0
                 .subscriber_address()
-                .send_and_reply_blocking(dds_subscriber::GetQos)?
+                .send_and_reply_blocking(dds_subscriber::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
             {
                 for data_reader in self
                     .0
                     .subscriber_address()
-                    .send_and_reply_blocking(dds_subscriber::DataReaderList)?
+                    .send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
                 {
                     data_reader.enable()?;
                 }

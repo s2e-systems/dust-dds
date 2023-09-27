@@ -139,91 +139,36 @@ impl DdsSubscriber {
     async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
         self.status_condition.address().clone()
     }
-}
 
-pub struct GetQos;
-
-impl Mail for GetQos {
-    type Result = SubscriberQos;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetQos> for DdsSubscriber {
-    async fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
+    async fn get_qos(&self) -> SubscriberQos {
         self.qos.clone()
     }
-}
 
-pub struct DataReaderList;
-
-impl Mail for DataReaderList {
-    type Result = Vec<ActorAddress<DdsDataReader>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<DataReaderList> for DdsSubscriber {
-    async fn handle(&mut self, _mail: DataReaderList) -> <DataReaderList as Mail>::Result {
+    async fn data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader>> {
         self.data_reader_list
             .values()
             .map(|dr| dr.address().clone())
             .collect()
     }
-}
 
-pub struct GetListener;
-
-impl Mail for GetListener {
-    type Result = Option<ActorAddress<DdsSubscriberListener>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetListener> for DdsSubscriber {
-    async fn handle(&mut self, _mail: GetListener) -> <GetListener as Mail>::Result {
+    async fn get_listener(&self) -> Option<ActorAddress<DdsSubscriberListener>> {
         self.listener.as_ref().map(|l| l.address().clone())
     }
-}
 
-pub struct GetStatusKind;
-
-impl Mail for GetStatusKind {
-    type Result = Vec<StatusKind>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetStatusKind> for DdsSubscriber {
-    async fn handle(&mut self, _mail: GetStatusKind) -> <GetStatusKind as Mail>::Result {
+    async fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
-}
-pub struct SendMessage {
-    header: RtpsMessageHeader,
-    udp_transport_write: ActorAddress<UdpTransportWrite>,
-}
 
-impl SendMessage {
-    pub fn new(
+    async fn send_message(
+        &self,
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
-    ) -> Self {
-        Self {
-            header,
-            udp_transport_write,
-        }
-    }
-}
-
-impl Mail for SendMessage {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<SendMessage> for DdsSubscriber {
-    async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+    ) {
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
                 .send_only(dds_data_reader::SendMessage::new(
-                    mail.header,
-                    mail.udp_transport_write.clone(),
+                    header,
+                    udp_transport_write.clone(),
                 ))
                 .await
                 .expect("Should not fail to send command");
