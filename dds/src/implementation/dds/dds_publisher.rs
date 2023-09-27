@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use dust_dds_derive::actor_interface;
+
 use crate::{
     implementation::{
         dds::dds_data_writer_listener::DdsDataWriterListener,
@@ -14,9 +16,7 @@ use crate::{
             writer::RtpsWriter,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{
-            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
-        },
+        utils::actor::{spawn_actor, Actor, ActorAddress, Mail, MailHandler},
     },
     infrastructure::{
         error::DdsResult,
@@ -63,7 +63,7 @@ impl DdsPublisher {
     }
 }
 
-actor_mailbox_interface! {
+#[actor_interface]
 impl DdsPublisher {
     pub fn create_datawriter(
         &mut self,
@@ -87,7 +87,7 @@ impl DdsPublisher {
 
         let guid_prefix = self.rtps_group.guid().prefix();
         let (entity_kind, topic_kind) = match has_key {
-            true => (USER_DEFINED_WRITER_WITH_KEY,TopicKind::WithKey),
+            true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
             false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
         };
         let entity_key = [
@@ -97,7 +97,6 @@ impl DdsPublisher {
         ];
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = Guid::new(guid_prefix, entity_id);
-
 
         let rtps_writer_impl = RtpsWriter::new(
             RtpsEndpoint::new(
@@ -192,7 +191,6 @@ impl DdsPublisher {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
-}
 }
 
 pub struct GetStatusKind;

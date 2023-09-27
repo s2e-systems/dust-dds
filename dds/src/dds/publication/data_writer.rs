@@ -279,14 +279,14 @@ where
     ) -> DdsResult<()> {
         let serialized_data = dds_serialize_to_bytes(data)?;
 
-        self.0
-            .writer_address()
-            .send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
+        self.0.writer_address().send_and_reply_blocking(
+            dds_data_writer::WriteWTimestamp::new(
                 serialized_data,
                 dds_serialize_key(data)?,
                 handle,
                 timestamp,
-            ))??;
+            ),
+        )??;
 
         self.0
             .writer_address()
@@ -508,7 +508,10 @@ where
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let q = match qos {
-            QosKind::Default => self.0.publisher_address().get_default_datawriter_qos()?,
+            QosKind::Default => self
+                .0
+                .publisher_address()
+                .send_and_reply_blocking(dds_publisher::get_default_datawriter_qos::new())?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q

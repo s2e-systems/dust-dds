@@ -249,7 +249,7 @@ pub fn actor_interface(
 
             let actor_method_struct = quote! {
                 #[allow(non_camel_case_types)]
-                struct #method_ident {
+                pub struct #method_ident {
                     #argument_ident_type_token_stream
                 }
 
@@ -266,7 +266,7 @@ pub fn actor_interface(
                 }
 
                 #[async_trait::async_trait]
-                impl crate::implementation::utils::actor::MailHandle<#method_ident> for #actor_type {
+                impl crate::implementation::utils::actor::MailHandler<#method_ident> for #actor_type {
                     async fn handle(&mut self, mail: #method_ident) -> <#method_ident as crate::implementation::utils::actor::Mail>::Result {
                         self.#method_ident(
                             #mail_fields_token_stream

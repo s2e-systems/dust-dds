@@ -119,7 +119,11 @@ impl DomainParticipant {
             .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetGuid)?
             .prefix()
-            != a_publisher.node().publisher_address().guid()?.prefix()
+            != a_publisher
+                .node()
+                .publisher_address()
+                .send_and_reply_blocking(dds_publisher::guid::new())?
+                .prefix()
         {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
@@ -212,9 +216,12 @@ impl DomainParticipant {
             ));
         }
 
-        self.0
-            .participant_address()
-            .delete_user_defined_subscriber(a_subscriber.node().subscriber_address().get_instance_handle()?)
+        self.0.participant_address().delete_user_defined_subscriber(
+            a_subscriber
+                .node()
+                .subscriber_address()
+                .get_instance_handle()?,
+        )
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
@@ -521,11 +528,13 @@ impl DomainParticipant {
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
         {
             for data_writer in publisher.send_and_reply_blocking(dds_publisher::DataWriterList)? {
-                publisher.datawriter_delete(data_writer.get_instance_handle()?)?;
+                publisher.send_and_reply_blocking(dds_publisher::datawriter_delete::new(
+                    data_writer.get_instance_handle()?,
+                ))?;
             }
-            self.0
-                .participant_address()
-                .delete_user_defined_publisher(publisher.get_instance_handle()?)?;
+            self.0.participant_address().delete_user_defined_publisher(
+                publisher.send_and_reply_blocking(dds_publisher::get_instance_handle::new())?,
+            )?;
         }
         for subscriber in self
             .0
@@ -806,7 +815,7 @@ impl DomainParticipant {
             self.0
                 .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
-                .enable()?;
+                .send_and_reply_blocking(dds_publisher::enable::new())?;
             self.0
                 .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?

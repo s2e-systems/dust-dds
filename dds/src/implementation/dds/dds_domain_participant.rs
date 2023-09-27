@@ -395,31 +395,31 @@ impl DdsDomainParticipant {
 
         builtin_publisher
             .address()
-            .datawriter_add(
+            .send_and_reply_blocking(dds_publisher::datawriter_add::new(
                 spdp_builtin_participant_writer_guid.into(),
                 spdp_builtin_participant_writer,
-            )
+            ))
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(
+            .send_and_reply_blocking(dds_publisher::datawriter_add::new(
                 sedp_builtin_topics_writer_guid.into(),
                 sedp_builtin_topics_writer_actor,
-            )
+            ))
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(
+            .send_and_reply_blocking(dds_publisher::datawriter_add::new(
                 sedp_builtin_publications_writer_guid.into(),
                 sedp_builtin_publications_writer_actor,
-            )
+            ))
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(
+            .send_and_reply_blocking(dds_publisher::datawriter_add::new(
                 sedp_builtin_subscriptions_writer_guid.into(),
                 sedp_builtin_subscriptions_writer_actor,
-            )
+            ))
             .unwrap();
 
         Self {
@@ -643,8 +643,8 @@ impl DdsDomainParticipant {
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
         for (_, user_defined_publisher) in self.user_defined_publisher_list.drain() {
             user_defined_publisher
-                .address()
-                .delete_contained_entities()?;
+                .address().send_and_reply_blocking(dds_publisher::delete_contained_entities::new())
+                ?;
         }
 
         for (_,user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
