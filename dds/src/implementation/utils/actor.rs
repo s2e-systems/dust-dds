@@ -328,129 +328,30 @@ where
     }
 }
 
-// Macro to create both a function for the method and the equivalent wrapper for the actor
-macro_rules! mailbox_function {
-    // Match a function definition with return type
-    ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) -> $ret_type:ty $body:block) => {
-        impl $type_name {
-            #[allow(clippy::too_many_arguments)]
-            pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) -> $ret_type{
-                $body
-            }
-        }
-
-        impl crate::implementation::utils::actor::ActorAddress<$type_name> {
-            #[allow(clippy::too_many_arguments)]
-            pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> crate::infrastructure::error::DdsResult<$ret_type> {
-                #[allow(non_camel_case_types)]
-                struct $fn_name {
-                    $($arg_name:$arg_type,)*
-                }
-
-                impl crate::implementation::utils::actor::Mail for $fn_name {
-                    type Result = $ret_type;
-                }
-
-                #[async_trait::async_trait]
-                impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
-                    #[allow(unused_variables)]
-                    async fn handle(&mut self, mail: $fn_name) -> $ret_type {
-                        self.$fn_name($(mail.$arg_name,)*)
-                    }
-                }
-
-                self.send_and_reply_blocking($fn_name{
-                    $($arg_name, )*
-                })
-
-            }
-        }
-
-    };
-
-    // Match a function definition without return type
-    ($type_name:ident, pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $body:block ) => {
-        impl $type_name {
-            #[allow(clippy::too_many_arguments)]
-            pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)* ) {
-                $body
-            }
-        }
-
-        impl crate::implementation::utils::actor::ActorAddress<$type_name> {
-            #[allow(clippy::too_many_arguments)]
-            pub fn $fn_name(&self $(, $arg_name:$arg_type)*) -> crate::infrastructure::error::DdsResult<()> {
-                #[allow(non_camel_case_types)]
-                struct $fn_name {
-                    $($arg_name:$arg_type,)*
-                }
-
-                impl crate::implementation::utils::actor::Mail for $fn_name {
-                    type Result = ();
-                }
-
-                #[async_trait::async_trait]
-                impl crate::implementation::utils::actor::MailHandler<$fn_name> for $type_name {
-                    #[allow(unused_variables)]
-                    async fn handle(&mut self, mail: $fn_name) {
-                        self.$fn_name($(mail.$arg_name,)*)
-                    }
-                }
-
-                self.send_and_reply_blocking($fn_name{
-                    $($arg_name, )*
-                })
-
-            }
-        }
-    };
-}
-pub(crate) use mailbox_function;
-
-// This macro should wrap an impl block and create the actor address wrapper methods with exactly the same interface
-// It is kept around the "impl" block because otherwise there is no way to find the type name it refers to ($type_name)
-macro_rules! actor_mailbox_interface {
-    (impl $type_name:ident {
-        $(
-        pub fn $fn_name:ident(&$($self_:ident)+ $(, $arg_name:ident:$arg_type:ty)* $(,)?) $(-> $ret_type:ty)?
-            $body:block
-        )+
-    }) => {
-        $(crate::implementation::utils::actor::mailbox_function!($type_name, pub fn $fn_name(&$($self_)+ $(, $arg_name:$arg_type)*) $(-> $ret_type)? $body );)+
-    };
-}
-pub(crate) use actor_mailbox_interface;
-
 #[cfg(test)]
 mod tests {
+    use dust_dds_derive::actor_interface;
+
     use super::*;
 
     pub struct MyData {
         data: u8,
     }
-    actor_mailbox_interface!(
+
+    #[actor_interface]
     impl MyData {
-        pub fn increment(&mut self, value: u8) -> u8 {
+        async fn increment(&mut self, value: u8) -> u8 {
             self.data += value;
             self.data
         }
 
-        pub fn decrement(&mut self) {
+        async fn decrement(&mut self) {
             self.data -= 1;
         }
 
-        pub fn try_increment(&mut self) -> DdsResult<()> {
+        async fn try_increment(&mut self) -> DdsResult<()> {
             self.data -= 1;
             Ok(())
-        }
-    }
-    );
-
-    pub struct DataInterface(ActorAddress<MyData>);
-
-    impl DataInterface {
-        pub fn increment(&self, value: u8) -> DdsResult<u8> {
-            self.0.increment(value)
         }
     }
 
@@ -458,17 +359,25 @@ mod tests {
     fn actor_increment() {
         let my_data = MyData { data: 0 };
         let actor = spawn_actor(my_data);
-        let data_interface = DataInterface(actor.address().clone());
-        assert_eq!(data_interface.increment(10).unwrap(), 10)
+
+        assert_eq!(
+            actor
+                .address()
+                .send_and_reply_blocking(increment::new(10))
+                .unwrap(),
+            10
+        )
     }
 
     #[test]
     fn actor_already_deleted() {
         let my_data = MyData { data: 0 };
         let actor = spawn_actor(my_data);
-        let data_interface = DataInterface(actor.address().clone());
+        let actor_address = actor.address().clone();
         std::mem::drop(actor);
-        std::thread::sleep(std::time::Duration::from_millis(100));
-        assert_eq!(data_interface.increment(10), Err(DdsError::AlreadyDeleted));
+        assert_eq!(
+            actor_address.send_and_reply_blocking(increment::new(10)),
+            Err(DdsError::AlreadyDeleted)
+        );
     }
 }
