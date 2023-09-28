@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use dust_dds_derive::actor_interface;
+
 use super::{
     dds_data_reader::{self, DdsDataReader},
     dds_domain_participant::DdsDomainParticipant,
@@ -17,9 +19,7 @@ use crate::{
             types::Guid,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{
-            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
-        },
+        utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -64,31 +64,29 @@ impl DdsSubscriber {
     }
 }
 
-actor_mailbox_interface! {
+#[actor_interface]
 impl DdsSubscriber {
-    pub fn delete_contained_entities(&mut self) {
+    async fn delete_contained_entities(&mut self) {}
 
-    }
-
-    pub fn guid(&self) -> Guid {
+    async fn guid(&self) -> Guid {
         self.rtps_group.guid()
     }
 
-    pub fn is_empty(&self) -> bool {
+    async fn is_empty(&self) -> bool {
         self.data_reader_list.is_empty()
     }
 
-    pub fn is_enabled(&self) -> bool {
+    async fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    pub fn get_unique_reader_id(&mut self) -> u8 {
+    async fn get_unique_reader_id(&mut self) -> u8 {
         let counter = self.user_defined_data_reader_counter;
         self.user_defined_data_reader_counter += 1;
         counter
     }
 
-    pub fn data_reader_add(
+    async fn data_reader_add(
         &mut self,
         instance_handle: InstanceHandle,
         data_reader: Actor<DdsDataReader>,
@@ -96,11 +94,11 @@ impl DdsSubscriber {
         self.data_reader_list.insert(instance_handle, data_reader);
     }
 
-    pub fn data_reader_delete(&mut self, handle: InstanceHandle) {
+    async fn data_reader_delete(&mut self, handle: InstanceHandle) {
         self.data_reader_list.remove(&handle);
     }
 
-    pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+    async fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match qos {
             QosKind::Default => self.default_data_reader_qos = DataReaderQos::default(),
             QosKind::Specific(q) => {
@@ -111,11 +109,11 @@ impl DdsSubscriber {
         Ok(())
     }
 
-    pub fn get_default_datareader_qos(&self) -> DataReaderQos {
+    async fn get_default_datareader_qos(&self) -> DataReaderQos {
         self.default_data_reader_qos.clone()
     }
 
-    pub fn set_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
+    async fn set_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
@@ -130,122 +128,55 @@ impl DdsSubscriber {
         Ok(())
     }
 
-    pub fn enable(&mut self) {
+    async fn enable(&mut self) {
         self.enabled = true;
     }
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
+    async fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
 
-    pub fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+    async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
         self.status_condition.address().clone()
     }
-}}
 
-pub struct GetQos;
-
-impl Mail for GetQos {
-    type Result = SubscriberQos;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetQos> for DdsSubscriber {
-    async fn handle(&mut self, _mail: GetQos) -> <GetQos as Mail>::Result {
+    async fn get_qos(&self) -> SubscriberQos {
         self.qos.clone()
     }
-}
 
-pub struct DataReaderList;
-
-impl Mail for DataReaderList {
-    type Result = Vec<ActorAddress<DdsDataReader>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<DataReaderList> for DdsSubscriber {
-    async fn handle(&mut self, _mail: DataReaderList) -> <DataReaderList as Mail>::Result {
+    async fn data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader>> {
         self.data_reader_list
             .values()
             .map(|dr| dr.address().clone())
             .collect()
     }
-}
 
-pub struct GetListener;
-
-impl Mail for GetListener {
-    type Result = Option<ActorAddress<DdsSubscriberListener>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetListener> for DdsSubscriber {
-    async fn handle(&mut self, _mail: GetListener) -> <GetListener as Mail>::Result {
+    async fn get_listener(&self) -> Option<ActorAddress<DdsSubscriberListener>> {
         self.listener.as_ref().map(|l| l.address().clone())
     }
-}
 
-pub struct GetStatusKind;
-
-impl Mail for GetStatusKind {
-    type Result = Vec<StatusKind>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetStatusKind> for DdsSubscriber {
-    async fn handle(&mut self, _mail: GetStatusKind) -> <GetStatusKind as Mail>::Result {
+    async fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
-}
-pub struct SendMessage {
-    header: RtpsMessageHeader,
-    udp_transport_write: ActorAddress<UdpTransportWrite>,
-}
 
-impl SendMessage {
-    pub fn new(
+    async fn send_message(
+        &self,
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
-    ) -> Self {
-        Self {
-            header,
-            udp_transport_write,
-        }
-    }
-}
-
-impl Mail for SendMessage {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<SendMessage> for DdsSubscriber {
-    async fn handle(&mut self, mail: SendMessage) -> <SendMessage as Mail>::Result {
+    ) {
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
-                .send_only(dds_data_reader::SendMessage::new(
-                    mail.header,
-                    mail.udp_transport_write.clone(),
+                .send_mail(dds_data_reader::send_message::new(
+                    header,
+                    udp_transport_write.clone(),
                 ))
                 .await
                 .expect("Should not fail to send command");
         }
     }
-}
 
-pub struct ProcessRtpsMessage {
-    message: RtpsMessageRead,
-    reception_timestamp: Time,
-    participant_address: ActorAddress<DdsDomainParticipant>,
-    subscriber_address: ActorAddress<DdsSubscriber>,
-    participant_mask_listener: (
-        Option<ActorAddress<DdsDomainParticipantListener>>,
-        Vec<StatusKind>,
-    ),
-}
-
-impl ProcessRtpsMessage {
-    pub fn new(
+    async fn process_rtps_message(
+        &self,
         message: RtpsMessageRead,
         reception_timestamp: Time,
         participant_address: ActorAddress<DdsDomainParticipant>,
@@ -254,24 +185,7 @@ impl ProcessRtpsMessage {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) -> Self {
-        Self {
-            message,
-            reception_timestamp,
-            participant_address,
-            subscriber_address,
-            participant_mask_listener,
-        }
-    }
-}
-
-impl Mail for ProcessRtpsMessage {
-    type Result = DdsResult<()>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<ProcessRtpsMessage> for DdsSubscriber {
-    async fn handle(&mut self, mail: ProcessRtpsMessage) -> <ProcessRtpsMessage as Mail>::Result {
+    ) -> DdsResult<()> {
         let subscriber_mask_listener = (
             self.listener.as_ref().map(|a| a.address()).cloned(),
             self.status_kind.clone(),
@@ -279,15 +193,15 @@ impl MailHandler<ProcessRtpsMessage> for DdsSubscriber {
 
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
-                .send_and_reply(dds_data_reader::ProcessRtpsMessage::new(
-                    mail.message.clone(),
-                    mail.reception_timestamp,
+                .send_mail_and_await_reply(dds_data_reader::process_rtps_message::new(
+                    message.clone(),
+                    reception_timestamp,
                     data_reader_address.clone(),
-                    mail.subscriber_address.clone(),
-                    mail.participant_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
                     self.status_condition.address().clone(),
                     subscriber_mask_listener.clone(),
-                    mail.participant_mask_listener.clone(),
+                    participant_mask_listener.clone(),
                 ))
                 .await??;
         }

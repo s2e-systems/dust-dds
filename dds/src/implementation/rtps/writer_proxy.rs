@@ -312,7 +312,7 @@ impl RtpsWriterProxy {
             }
 
             udp_transport_write
-                .send_only(udp_transport::Write::new(
+                .send_mail(udp_transport::write::new(
                     RtpsMessageWrite::new(header, submessages),
                     self.unicast_locator_list().to_vec(),
                 ))

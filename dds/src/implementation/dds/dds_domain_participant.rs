@@ -1,3 +1,5 @@
+use dust_dds_derive::actor_interface;
+
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
@@ -31,9 +33,7 @@ use crate::{
             writer::RtpsWriter,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{
-            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
-        },
+        utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -64,7 +64,7 @@ use std::{
 };
 
 use super::{
-    dds_data_writer::DdsDataWriter,
+    dds_data_writer::{self, DdsDataWriter},
     dds_domain_participant_listener::DdsDomainParticipantListener,
     dds_publisher::{self, DdsPublisher},
     dds_publisher_listener::DdsPublisherListener,
@@ -271,31 +271,31 @@ impl DdsDomainParticipant {
 
         builtin_subscriber
             .address()
-            .data_reader_add(
+            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
                 spdp_builtin_participant_reader_guid.into(),
                 spdp_builtin_participant_reader,
-            )
+            ))
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(
+            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
                 sedp_builtin_topics_reader_guid.into(),
                 sedp_builtin_topics_reader,
-            )
+            ))
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(
+            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
                 sedp_builtin_publications_reader_guid.into(),
                 sedp_builtin_publications_reader,
-            )
+            ))
             .unwrap();
         builtin_subscriber
             .address()
-            .data_reader_add(
+            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
                 sedp_builtin_subscriptions_reader_guid.into(),
                 sedp_builtin_subscriptions_reader,
-            )
+            ))
             .unwrap();
 
         // Built-in publisher creation
@@ -329,7 +329,9 @@ impl DdsDomainParticipant {
         {
             spdp_builtin_participant_writer
                 .address()
-                .reader_locator_add(reader_locator)
+                .send_mail_and_await_reply_blocking(dds_data_writer::reader_locator_add::new(
+                    reader_locator,
+                ))
                 .unwrap();
         }
 
@@ -395,31 +397,31 @@ impl DdsDomainParticipant {
 
         builtin_publisher
             .address()
-            .datawriter_add(
+            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
                 spdp_builtin_participant_writer_guid.into(),
                 spdp_builtin_participant_writer,
-            )
+            ))
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(
+            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
                 sedp_builtin_topics_writer_guid.into(),
                 sedp_builtin_topics_writer_actor,
-            )
+            ))
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(
+            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
                 sedp_builtin_publications_writer_guid.into(),
                 sedp_builtin_publications_writer_actor,
-            )
+            ))
             .unwrap();
         builtin_publisher
             .address()
-            .datawriter_add(
+            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
                 sedp_builtin_subscriptions_writer_guid.into(),
                 sedp_builtin_subscriptions_writer_actor,
-            )
+            ))
             .unwrap();
 
         Self {
@@ -452,26 +454,21 @@ impl DdsDomainParticipant {
             status_kind,
         }
     }
-
-    fn get_current_time(&self) -> Time {
-        let now_system_time = SystemTime::now();
-        let unix_time = now_system_time
-            .duration_since(UNIX_EPOCH)
-            .expect("Clock time is before Unix epoch start");
-        Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
-    }
 }
 
-actor_mailbox_interface! {
+#[actor_interface]
 impl DdsDomainParticipant {
-    pub fn create_publisher(&mut self,qos: QosKind<PublisherQos>,
+    async fn create_publisher(
+        &mut self,
+        qos: QosKind<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: Vec<StatusKind>,) -> ActorAddress<DdsPublisher> {
+        mask: Vec<StatusKind>,
+    ) -> ActorAddress<DdsPublisher> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let publisher_counter = self.create_unique_publisher_id();
+        let publisher_counter = self.create_unique_publisher_id().await;
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
@@ -481,45 +478,53 @@ impl DdsDomainParticipant {
 
         let publisher_actor = spawn_actor(publisher);
         let publisher_address = publisher_actor.address().clone();
-        self.user_defined_publisher_list.insert(guid.into(), publisher_actor);
+        self.user_defined_publisher_list
+            .insert(guid.into(), publisher_actor);
 
         publisher_address
     }
 
-    pub fn create_subscriber(&mut self,qos: QosKind<SubscriberQos>,
+    async fn create_subscriber(
+        &mut self,
+        qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: Vec<StatusKind>,) -> ActorAddress<DdsSubscriber> {
-            let subscriber_qos = match qos {
-                QosKind::Default => self.default_subscriber_qos.clone(),
-                QosKind::Specific(q) => q,
-            };
-            let subcriber_counter = self.create_unique_subscriber_id();
-            let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
-            let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-            let rtps_group = RtpsGroup::new(guid);
-            let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
-            let status_kind = mask.to_vec();
+        mask: Vec<StatusKind>,
+    ) -> ActorAddress<DdsSubscriber> {
+        let subscriber_qos = match qos {
+            QosKind::Default => self.default_subscriber_qos.clone(),
+            QosKind::Specific(q) => q,
+        };
+        let subcriber_counter = self.create_unique_subscriber_id().await;
+        let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
+        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroup::new(guid);
+        let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
+        let status_kind = mask.to_vec();
 
-            let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
+        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
 
-            let subscriber_actor = spawn_actor(subscriber);
-            let subscriber_address = subscriber_actor.address().clone();
+        let subscriber_actor = spawn_actor(subscriber);
+        let subscriber_address = subscriber_actor.address().clone();
 
-            self.user_defined_subscriber_list.insert(guid.into(), subscriber_actor);
+        self.user_defined_subscriber_list
+            .insert(guid.into(), subscriber_actor);
 
-            subscriber_address
+        subscriber_address
     }
 
-    pub fn create_topic(&mut self, topic_name: String,
+    async fn create_topic(
+        &mut self,
+        topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
         _a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
-        _mask: Vec<StatusKind>,) -> ActorAddress<DdsTopic> {
+        _mask: Vec<StatusKind>,
+    ) -> ActorAddress<DdsTopic> {
         let qos = match qos {
             QosKind::Default => self.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let topic_counter = self.create_unique_topic_id();
+        let topic_counter = self.create_unique_topic_id().await;
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
@@ -532,125 +537,129 @@ impl DdsDomainParticipant {
         topic_address
     }
 
-    pub fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
+    async fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_unicast_locator_list()
             .to_vec()
     }
 
-    pub fn get_default_multicast_locator_list(&self) -> Vec<Locator> {
+    async fn get_default_multicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_multicast_locator_list()
             .to_vec()
     }
 
-    pub fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
+    async fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .metatraffic_unicast_locator_list()
             .to_vec()
     }
 
-    pub fn get_metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
+    async fn get_metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .metatraffic_multicast_locator_list()
             .to_vec()
     }
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
+    async fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_participant.guid().into()
     }
 
-    pub fn enable(&mut self) {
+    async fn enable(&mut self) {
         self.enabled = true;
     }
 
-    pub fn is_enabled(&self) -> bool {
+    async fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    pub fn ignore_participant(&mut self, handle: InstanceHandle) {
+    async fn ignore_participant(&mut self, handle: InstanceHandle) {
         self.ignored_participants.insert(handle);
     }
 
-    pub fn ignore_subscription(&mut self, handle: InstanceHandle) {
+    async fn ignore_subscription(&mut self, handle: InstanceHandle) {
         self.ignored_subcriptions.insert(handle);
     }
 
-    pub fn ignore_publication(&mut self, handle: InstanceHandle) {
+    async fn ignore_publication(&mut self, handle: InstanceHandle) {
         self.ignored_publications.insert(handle);
     }
 
-    pub fn ignore_topic(&self, _handle: InstanceHandle) {
+    async fn ignore_topic(&self, _handle: InstanceHandle) {
         todo!()
     }
 
-    pub fn is_topic_ignored(&self, _handle: InstanceHandle) -> bool {
+    async fn is_topic_ignored(&self, _handle: InstanceHandle) -> bool {
         todo!()
     }
 
-    pub fn _discovered_participant_remove(&mut self, handle: InstanceHandle) {
+    async fn _discovered_participant_remove(&mut self, handle: InstanceHandle) {
         self.discovered_participant_list.remove(&handle);
     }
 
-    pub fn create_unique_publisher_id(&mut self) -> u8 {
+    async fn create_unique_publisher_id(&mut self) -> u8 {
         let counter = self.user_defined_publisher_counter;
         self.user_defined_publisher_counter += 1;
         counter
     }
 
-    pub fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
         self.user_defined_publisher_list.remove(&handle);
     }
 
-    pub fn create_unique_subscriber_id(&mut self) -> u8 {
+    async fn create_unique_subscriber_id(&mut self) -> u8 {
         let counter = self.user_defined_subscriber_counter;
         self.user_defined_subscriber_counter += 1;
         counter
     }
 
-    pub fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
         self.user_defined_subscriber_list.remove(&handle);
     }
 
-    pub fn create_unique_topic_id(&mut self) -> u8 {
+    async fn create_unique_topic_id(&mut self) -> u8 {
         let counter = self.user_defined_topic_counter;
         self.user_defined_topic_counter += 1;
         counter
     }
 
-    pub fn delete_user_defined_topic(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_topic(&mut self, handle: InstanceHandle) {
         self.topic_list.remove(&handle);
     }
 
-    pub fn is_empty(&self) -> bool {
+    async fn is_empty(&self) -> bool {
         self.user_defined_publisher_list.len() == 0
             && self.user_defined_subscriber_list.len() == 0
             && self.topic_list.len() == 0
     }
 
-    pub fn delete_topic(&mut self, handle: InstanceHandle) {
+    async fn delete_topic(&mut self, handle: InstanceHandle) {
         self.topic_list.remove(&handle);
     }
 
-    pub fn get_qos(&self) -> DomainParticipantQos {
+    async fn get_qos(&self) -> DomainParticipantQos {
         self.qos.clone()
     }
 
-    pub fn data_max_size_serialized(&self) -> usize {
+    async fn data_max_size_serialized(&self) -> usize {
         self.data_max_size_serialized
     }
 
-    pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
+    async fn delete_contained_entities(&mut self) -> DdsResult<()> {
         for (_, user_defined_publisher) in self.user_defined_publisher_list.drain() {
             user_defined_publisher
                 .address()
-                .delete_contained_entities()?;
+                .send_mail_and_await_reply_blocking(
+                    dds_publisher::delete_contained_entities::new(),
+                )?;
         }
 
-        for (_,user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
+        for (_, user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
             user_defined_subscriber
                 .address()
-                .delete_contained_entities()?;
+                .send_mail_and_await_reply_blocking(
+                    dds_subscriber::delete_contained_entities::new(),
+                )?;
         }
 
         self.topic_list.clear();
@@ -658,35 +667,35 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn set_default_publisher_qos(&mut self, qos: PublisherQos){
+    async fn set_default_publisher_qos(&mut self, qos: PublisherQos) {
         self.default_publisher_qos = qos;
     }
 
-    pub fn default_publisher_qos(&self) -> PublisherQos {
+    async fn default_publisher_qos(&self) -> PublisherQos {
         self.default_publisher_qos.clone()
     }
 
-    pub fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) {
+    async fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) {
         self.default_subscriber_qos = qos;
     }
 
-    pub fn default_subscriber_qos(&self) -> SubscriberQos {
+    async fn default_subscriber_qos(&self) -> SubscriberQos {
         self.default_subscriber_qos.clone()
     }
 
-    pub fn set_default_topic_qos(&mut self, qos: TopicQos) {
+    async fn set_default_topic_qos(&mut self, qos: TopicQos) {
         self.default_topic_qos = qos;
     }
 
-    pub fn default_topic_qos(&self) -> TopicQos {
+    async fn default_topic_qos(&self) -> TopicQos {
         self.default_topic_qos.clone()
     }
 
-    pub fn discovered_topic_list(&self) -> Vec<InstanceHandle> {
+    async fn discovered_topic_list(&self) -> Vec<InstanceHandle> {
         self.discovered_topic_list.keys().cloned().collect()
     }
 
-    pub fn discovered_topic_data(
+    async fn discovered_topic_data(
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
@@ -696,335 +705,101 @@ impl DdsDomainParticipant {
             .ok_or(DdsError::BadParameter)
     }
 
-    pub fn set_qos(&mut self, qos: DomainParticipantQos) {
+    async fn set_qos(&mut self, qos: DomainParticipantQos) {
         self.qos = qos;
     }
 
-    pub fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
+    async fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
         self.discovered_participant_list.keys().cloned().collect()
     }
-}
-}
 
-pub struct DiscoveredParticipantAdd {
-    handle: InstanceHandle,
-    discovered_participant_data: SpdpDiscoveredParticipantData,
-}
-
-impl DiscoveredParticipantAdd {
-    pub fn new(
+    async fn discovered_participant_add(
+        &mut self,
         handle: InstanceHandle,
         discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) -> Self {
-        Self {
-            handle,
-            discovered_participant_data,
-        }
-    }
-}
-
-impl Mail for DiscoveredParticipantAdd {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<DiscoveredParticipantAdd> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: DiscoveredParticipantAdd,
-    ) -> <DiscoveredParticipantAdd as Mail>::Result {
+    ) {
         self.discovered_participant_list
-            .insert(mail.handle, mail.discovered_participant_data);
+            .insert(handle, discovered_participant_data);
     }
-}
 
-pub struct DiscoveredTopicAdd {
-    handle: InstanceHandle,
-    discovered_topic_data: TopicBuiltinTopicData,
-}
-
-impl DiscoveredTopicAdd {
-    pub fn new(handle: InstanceHandle, discovered_topic_data: TopicBuiltinTopicData) -> Self {
-        Self {
-            handle,
-            discovered_topic_data,
-        }
-    }
-}
-
-impl Mail for DiscoveredTopicAdd {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<DiscoveredTopicAdd> for DdsDomainParticipant {
-    async fn handle(&mut self, mail: DiscoveredTopicAdd) -> <DiscoveredTopicAdd as Mail>::Result {
-        self.discovered_topic_list
-            .insert(mail.handle, mail.discovered_topic_data);
-    }
-}
-
-pub struct GetUserDefinedTopicList;
-
-impl Mail for GetUserDefinedTopicList {
-    type Result = Vec<ActorAddress<DdsTopic>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetUserDefinedTopicList> for DdsDomainParticipant {
-    async fn handle(
+    async fn discovered_topic_add(
         &mut self,
-        _mail: GetUserDefinedTopicList,
-    ) -> <GetUserDefinedTopicList as Mail>::Result {
+        handle: InstanceHandle,
+        discovered_topic_data: TopicBuiltinTopicData,
+    ) {
+        self.discovered_topic_list
+            .insert(handle, discovered_topic_data);
+    }
+
+    async fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
         self.topic_list
             .values()
             .map(|a| a.address().clone())
             .collect()
     }
-}
 
-pub struct DiscoveredParticipantGet {
-    handle: InstanceHandle,
-}
-
-impl DiscoveredParticipantGet {
-    pub fn new(handle: InstanceHandle) -> Self {
-        Self { handle }
+    async fn discovered_participant_get(
+        &self,
+        handle: InstanceHandle,
+    ) -> Option<SpdpDiscoveredParticipantData> {
+        self.discovered_participant_list.get(&handle).cloned()
     }
-}
 
-impl Mail for DiscoveredParticipantGet {
-    type Result = Option<SpdpDiscoveredParticipantData>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<DiscoveredParticipantGet> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: DiscoveredParticipantGet,
-    ) -> <DiscoveredParticipantGet as Mail>::Result {
-        self.discovered_participant_list.get(&mail.handle).cloned()
+    async fn is_publication_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_publications.contains(&handle)
     }
-}
 
-pub struct IsPublicationIgnored {
-    handle: InstanceHandle,
-}
-
-impl IsPublicationIgnored {
-    pub fn new(handle: InstanceHandle) -> Self {
-        Self { handle }
+    async fn is_subscription_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_subcriptions.contains(&handle)
     }
-}
 
-impl Mail for IsPublicationIgnored {
-    type Result = bool;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<IsPublicationIgnored> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: IsPublicationIgnored,
-    ) -> <IsPublicationIgnored as Mail>::Result {
-        self.ignored_publications.contains(&mail.handle)
+    async fn is_participant_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_participants.contains(&handle)
     }
-}
 
-pub struct IsSubscriptionIgnored {
-    handle: InstanceHandle,
-}
-
-impl IsSubscriptionIgnored {
-    pub fn new(handle: InstanceHandle) -> Self {
-        Self { handle }
-    }
-}
-
-impl Mail for IsSubscriptionIgnored {
-    type Result = bool;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<IsSubscriptionIgnored> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: IsSubscriptionIgnored,
-    ) -> <IsSubscriptionIgnored as Mail>::Result {
-        self.ignored_subcriptions.contains(&mail.handle)
-    }
-}
-
-pub struct IsParticipantIgnored {
-    handle: InstanceHandle,
-}
-
-impl IsParticipantIgnored {
-    pub fn new(handle: InstanceHandle) -> Self {
-        Self { handle }
-    }
-}
-
-impl Mail for IsParticipantIgnored {
-    type Result = bool;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<IsParticipantIgnored> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: IsParticipantIgnored,
-    ) -> <IsParticipantIgnored as Mail>::Result {
-        self.ignored_participants.contains(&mail.handle)
-    }
-}
-
-pub struct GetDomainId;
-
-impl Mail for GetDomainId {
-    type Result = DomainId;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetDomainId> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetDomainId) -> <GetDomainId as Mail>::Result {
+    async fn get_domain_id(&self) -> DomainId {
         self.domain_id
     }
-}
 
-pub struct GetDomainTag;
-
-impl Mail for GetDomainTag {
-    type Result = String;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetDomainTag> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetDomainTag) -> <GetDomainTag as Mail>::Result {
+    async fn get_domain_tag(&self) -> String {
         self.domain_tag.clone()
     }
-}
-pub struct GetBuiltInSubscriber;
 
-impl Mail for GetBuiltInSubscriber {
-    type Result = ActorAddress<DdsSubscriber>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetBuiltInSubscriber> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: GetBuiltInSubscriber,
-    ) -> <GetBuiltInSubscriber as Mail>::Result {
+    async fn get_built_in_subscriber(&self) -> ActorAddress<DdsSubscriber> {
         self.builtin_subscriber.address().clone()
     }
-}
 
-pub struct GetUdpTransportWrite;
-
-impl Mail for GetUdpTransportWrite {
-    type Result = ActorAddress<UdpTransportWrite>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetUdpTransportWrite> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: GetUdpTransportWrite,
-    ) -> <GetUdpTransportWrite as Mail>::Result {
+    async fn get_upd_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
         self.udp_transport_write.address().clone()
     }
-}
 
-pub struct GetGuid;
-
-impl Mail for GetGuid {
-    type Result = Guid;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetGuid> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetGuid) -> <GetGuid as Mail>::Result {
+    async fn get_guid(&self) -> Guid {
         self.rtps_participant.guid()
     }
-}
 
-pub struct GetProtocolVersion;
-
-impl Mail for GetProtocolVersion {
-    type Result = ProtocolVersion;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetProtocolVersion> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetProtocolVersion) -> <GetProtocolVersion as Mail>::Result {
+    async fn get_protocol_version(&self) -> ProtocolVersion {
         self.rtps_participant.protocol_version()
     }
-}
 
-pub struct GetVendorId;
-
-impl Mail for GetVendorId {
-    type Result = VendorId;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetVendorId> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetVendorId) -> <GetVendorId as Mail>::Result {
+    async fn get_vendor_id(&self) -> VendorId {
         self.rtps_participant.vendor_id()
     }
-}
 
-pub struct GetUserDefinedPublisherList;
-
-impl Mail for GetUserDefinedPublisherList {
-    type Result = Vec<ActorAddress<DdsPublisher>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetUserDefinedPublisherList> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: GetUserDefinedPublisherList,
-    ) -> <GetUserDefinedPublisherList as Mail>::Result {
+    async fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
         self.user_defined_publisher_list
             .values()
             .map(|a| a.address().clone())
             .collect()
     }
-}
 
-pub struct GetUserDefinedSubscriberList;
-
-impl Mail for GetUserDefinedSubscriberList {
-    type Result = Vec<ActorAddress<DdsSubscriber>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetUserDefinedSubscriberList> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: GetUserDefinedSubscriberList,
-    ) -> <GetUserDefinedSubscriberList as Mail>::Result {
+    async fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
         self.user_defined_subscriber_list
             .values()
             .map(|a| a.address().clone())
             .collect()
     }
-}
 
-pub struct AsSpdpDiscoveredParticipantData;
-
-impl Mail for AsSpdpDiscoveredParticipantData {
-    type Result = SpdpDiscoveredParticipantData;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<AsSpdpDiscoveredParticipantData> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: AsSpdpDiscoveredParticipantData,
-    ) -> <AsSpdpDiscoveredParticipantData as Mail>::Result {
+    async fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
         SpdpDiscoveredParticipantData::new(
             ParticipantBuiltinTopicData::new(
                 BuiltInTopicKey {
@@ -1058,94 +833,32 @@ impl MailHandler<AsSpdpDiscoveredParticipantData> for DdsDomainParticipant {
             self.lease_duration,
         )
     }
-}
 
-pub struct GetListener;
-
-impl Mail for GetListener {
-    type Result = Option<ActorAddress<DdsDomainParticipantListener>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetListener> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetListener) -> <GetListener as Mail>::Result {
+    async fn get_listener(&self) -> Option<ActorAddress<DdsDomainParticipantListener>> {
         self.listener.as_ref().map(|l| l.address().clone())
     }
-}
 
-pub struct GetStatusKind;
-
-impl Mail for GetStatusKind {
-    type Result = Vec<StatusKind>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetStatusKind> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetStatusKind) -> <GetStatusKind as Mail>::Result {
+    async fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
-}
 
-pub struct GetCurrentTime;
-
-impl Mail for GetCurrentTime {
-    type Result = Time;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetCurrentTime> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
+    async fn get_current_time(&self) -> Time {
         let now_system_time = SystemTime::now();
         let unix_time = now_system_time
             .duration_since(UNIX_EPOCH)
             .expect("Clock time is before Unix epoch start");
         Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
-}
 
-pub struct GetBuiltinPublisher;
-
-impl Mail for GetBuiltinPublisher {
-    type Result = ActorAddress<DdsPublisher>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetBuiltinPublisher> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: GetBuiltinPublisher,
-    ) -> <GetBuiltinPublisher as Mail>::Result {
+    async fn get_builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
         self.builtin_publisher.address().clone()
     }
-}
 
-pub struct ProcessUserDefinedRtpsMessage {
-    message: RtpsMessageRead,
-    participant_address: ActorAddress<DdsDomainParticipant>,
-}
-
-impl ProcessUserDefinedRtpsMessage {
-    pub fn new(
+    async fn process_user_defined_rtps_message(
+        &self,
         message: RtpsMessageRead,
         participant_address: ActorAddress<DdsDomainParticipant>,
-    ) -> Self {
-        Self {
-            message,
-            participant_address,
-        }
-    }
-}
-
-impl Mail for ProcessUserDefinedRtpsMessage {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: ProcessUserDefinedRtpsMessage,
-    ) -> <ProcessUserDefinedRtpsMessage as Mail>::Result {
+    ) {
         let participant_mask_listener = (
             self.listener.as_ref().map(|a| a.address()).cloned(),
             self.status_kind.clone(),
@@ -1156,10 +869,10 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
             .map(|a| a.address())
         {
             user_defined_subscriber_address
-                .send_only(dds_subscriber::ProcessRtpsMessage::new(
-                    mail.message.clone(),
-                    self.get_current_time(),
-                    mail.participant_address.clone(),
+                .send_mail(dds_subscriber::process_rtps_message::new(
+                    message.clone(),
+                    self.get_current_time().await,
+                    participant_address.clone(),
                     user_defined_subscriber_address.clone(),
                     participant_mask_listener.clone(),
                 ))
@@ -1167,7 +880,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
                 .expect("Should not fail to send command");
 
             user_defined_subscriber_address
-                .send_only(dds_subscriber::SendMessage::new(
+                .send_mail(dds_subscriber::send_message::new(
                     RtpsMessageHeader::new(
                         self.rtps_participant.protocol_version(),
                         self.rtps_participant.vendor_id(),
@@ -1185,18 +898,18 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
             .map(|a| a.address())
         {
             user_defined_publisher_address
-                .send_only(dds_publisher::ProcessRtpsMessage::new(mail.message.clone()))
+                .send_mail(dds_publisher::process_rtps_message::new(message.clone()))
                 .await
                 .expect("Should not fail to send command");
             user_defined_publisher_address
-                .send_only(dds_publisher::SendMessage::new(
+                .send_mail(dds_publisher::send_message::new(
                     RtpsMessageHeader::new(
                         self.rtps_participant.protocol_version(),
                         self.rtps_participant.vendor_id(),
                         self.rtps_participant.guid().prefix(),
                     ),
                     self.udp_transport_write.address().clone(),
-                    self.get_current_time(),
+                    self.get_current_time().await,
                 ))
                 .await
                 .expect("Should not fail to send command");

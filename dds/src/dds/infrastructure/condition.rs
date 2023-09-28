@@ -20,7 +20,7 @@ impl StatusCondition {
     /// it was never called, the default list of enabled statuses which includes all the statuses.
     pub fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
         self.0
-            .send_and_reply_blocking(dds_status_condition::GetEnabledStatuses)
+            .send_mail_and_await_reply_blocking(dds_status_condition::get_enabled_statuses::new())
     }
 
     /// This operation defines the list of communication statuses that are taken into account to determine the *trigger_value* of the
@@ -30,7 +30,9 @@ impl StatusCondition {
     /// If this function is not invoked, the default list of enabled statuses includes all the statuses.
     pub fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
         self.0
-            .send_and_reply_blocking(dds_status_condition::SetEnabledStatuses::new(mask.to_vec()))
+            .send_mail_and_await_reply_blocking(dds_status_condition::set_enabled_statuses::new(
+                mask.to_vec(),
+            ))
     }
 
     /// This operation returns the Entity associated with the [`StatusCondition`]. Note that there is exactly one Entity associated with
@@ -45,7 +47,7 @@ impl StatusCondition {
     /// This operation retrieves the *trigger_value* of the [`StatusCondition`].
     pub fn get_trigger_value(&self) -> DdsResult<bool> {
         self.0
-            .send_and_reply_blocking(dds_status_condition::GetTriggerValue)
+            .send_mail_and_await_reply_blocking(dds_status_condition::get_trigger_value::new())
     }
 }
 

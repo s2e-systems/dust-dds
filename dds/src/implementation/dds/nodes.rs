@@ -1,5 +1,8 @@
 use crate::{
-    implementation::{dds::dds_domain_participant, utils::actor::ActorAddress},
+    implementation::{
+        dds::{dds_domain_participant, dds_topic},
+        utils::actor::ActorAddress,
+    },
     publication::data_writer::AnyDataWriter,
     subscription::data_reader::AnyDataReader,
 };
@@ -91,17 +94,19 @@ impl DataReaderNode {
     pub fn topic_address(&self) -> ActorAddress<DdsTopic> {
         let user_defined_topic_list = self
             .participant_address
-            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)
+            .send_mail_and_await_reply_blocking(
+                dds_domain_participant::get_user_defined_topic_list::new(),
+            )
             .expect("should never fail");
         for topic in user_defined_topic_list {
-            if topic.get_type_name()
+            if topic.send_mail_and_await_reply_blocking(dds_topic::get_type_name::new())
                 == self
                     .reader_address
-                    .send_and_reply_blocking(dds_data_reader::GetTypeName)
-                && topic.get_name()
+                    .send_mail_and_await_reply_blocking(dds_data_reader::get_type_name::new())
+                && topic.send_mail_and_await_reply_blocking(dds_topic::get_name::new())
                     == self
                         .reader_address
-                        .send_and_reply_blocking(dds_data_reader::GetTopicName)
+                        .send_mail_and_await_reply_blocking(dds_data_reader::get_topic_name::new())
             {
                 return topic;
             }

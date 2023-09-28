@@ -180,7 +180,7 @@ impl<Foo> DataReader<Foo> {
         let samples = self
             .0
             .reader_address()
-            .send_and_reply_blocking(dds_data_reader::Read::new(
+            .send_mail_and_await_reply_blocking(dds_data_reader::read::new(
                 max_samples,
                 sample_states.to_vec(),
                 view_states.to_vec(),
@@ -208,7 +208,7 @@ impl<Foo> DataReader<Foo> {
         let samples = self
             .0
             .reader_address()
-            .send_and_reply_blocking(dds_data_reader::Take::new(
+            .send_mail_and_await_reply_blocking(dds_data_reader::take::new(
                 max_samples,
                 sample_states.to_vec(),
                 view_states.to_vec(),
@@ -234,7 +234,7 @@ impl<Foo> DataReader<Foo> {
         let mut samples = {
             self.0
                 .reader_address()
-                .send_and_reply_blocking(dds_data_reader::Read::new(
+                .send_mail_and_await_reply_blocking(dds_data_reader::read::new(
                     1,
                     vec![SampleStateKind::NotRead],
                     ANY_VIEW_STATE.to_vec(),
@@ -255,16 +255,16 @@ impl<Foo> DataReader<Foo> {
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        let mut samples =
-            self.0
-                .reader_address()
-                .send_and_reply_blocking(dds_data_reader::Take::new(
-                    1,
-                    vec![SampleStateKind::NotRead],
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                ))??;
+        let mut samples = self
+            .0
+            .reader_address()
+            .send_mail_and_await_reply_blocking(dds_data_reader::take::new(
+                1,
+                vec![SampleStateKind::NotRead],
+                ANY_VIEW_STATE.to_vec(),
+                ANY_INSTANCE_STATE.to_vec(),
+                None,
+            ))??;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
     }
@@ -289,7 +289,7 @@ impl<Foo> DataReader<Foo> {
         let samples = self
             .0
             .reader_address()
-            .send_and_reply_blocking(dds_data_reader::Read::new(
+            .send_mail_and_await_reply_blocking(dds_data_reader::read::new(
                 max_samples,
                 sample_states.to_vec(),
                 view_states.to_vec(),
@@ -322,7 +322,7 @@ impl<Foo> DataReader<Foo> {
         let samples = self
             .0
             .reader_address()
-            .send_and_reply_blocking(dds_data_reader::Take::new(
+            .send_mail_and_await_reply_blocking(dds_data_reader::take::new(
                 max_samples,
                 sample_states.to_vec(),
                 view_states.to_vec(),
@@ -367,16 +367,16 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples =
-            self.0
-                .reader_address()
-                .send_and_reply_blocking(dds_data_reader::ReadNextInstance::new(
-                    max_samples,
-                    previous_handle,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                ))??;
+        let samples = self
+            .0
+            .reader_address()
+            .send_mail_and_await_reply_blocking(dds_data_reader::read_next_instance::new(
+                max_samples,
+                previous_handle,
+                sample_states.to_vec(),
+                view_states.to_vec(),
+                instance_states.to_vec(),
+            ))??;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -395,16 +395,16 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples =
-            self.0
-                .reader_address()
-                .send_and_reply_blocking(dds_data_reader::TakeNextInstance::new(
-                    max_samples,
-                    previous_handle,
-                    sample_states.to_vec(),
-                    view_states.to_vec(),
-                    instance_states.to_vec(),
-                ))??;
+        let samples = self
+            .0
+            .reader_address()
+            .send_mail_and_await_reply_blocking(dds_data_reader::take_next_instance::new(
+                max_samples,
+                previous_handle,
+                sample_states.to_vec(),
+                view_states.to_vec(),
+                instance_states.to_vec(),
+            ))??;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -468,9 +468,9 @@ impl<Foo> DataReader<Foo> {
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        self.0
-            .reader_address()
-            .send_and_reply_blocking(dds_data_reader::GetSubscriptionMatchedStatus)?
+        self.0.reader_address().send_mail_and_await_reply_blocking(
+            dds_data_reader::get_subscription_matched_status::new(),
+        )?
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
@@ -506,7 +506,13 @@ impl<Foo> DataReader<Foo> {
         let start_time = std::time::Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(max_wait) {
-            if self.0.reader_address().is_historical_data_received()?? {
+            if self
+                .0
+                .reader_address()
+                .send_mail_and_await_reply_blocking(
+                    dds_data_reader::is_historical_data_received::new(),
+                )??
+            {
                 return Ok(());
             }
         }
@@ -526,9 +532,9 @@ impl<Foo> DataReader<Foo> {
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        self.0
-            .reader_address()
-            .get_matched_publication_data(publication_handle)?
+        self.0.reader_address().send_mail_and_await_reply_blocking(
+            dds_data_reader::get_matched_publication_data::new(publication_handle),
+        )?
     }
 
     /// This operation retrieves the list of publications currently “associated” with the [`DataReader`]; that is, publications that have a
@@ -539,7 +545,9 @@ impl<Foo> DataReader<Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.reader_address().get_matched_publications()
+        self.0
+            .reader_address()
+            .send_mail_and_await_reply_blocking(dds_data_reader::get_matched_publications::new())
     }
 }
 
@@ -559,28 +567,45 @@ impl<Foo> DataReader<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let q = match qos {
-            QosKind::Default => self.0.subscriber_address().get_default_datareader_qos()?,
+            QosKind::Default => self
+                .0
+                .subscriber_address()
+                .send_mail_and_await_reply_blocking(
+                    dds_subscriber::get_default_datareader_qos::new(),
+                )?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
             }
         };
-        self.0.reader_address().set_qos(q)??;
+        self.0
+            .reader_address()
+            .send_mail_and_await_reply_blocking(dds_data_reader::set_qos::new(q))??;
 
-        if self.0.reader_address().is_enabled()? {
+        if self
+            .0
+            .reader_address()
+            .send_mail_and_await_reply_blocking(dds_data_reader::is_enabled::new())?
+        {
             announce_data_reader(
                 self.0.participant_address(),
-                self.0.reader_address().as_discovered_reader_data(
-                    TopicQos::default(),
-                    self.0
-                        .subscriber_address()
-                        .send_and_reply_blocking(dds_subscriber::GetQos)?,
-                    self.0
-                        .participant_address()
-                        .get_default_unicast_locator_list()?,
-                    self.0
-                        .participant_address()
-                        .get_default_multicast_locator_list()?,
+                self.0.reader_address().send_mail_and_await_reply_blocking(
+                    dds_data_reader::as_discovered_reader_data::new(
+                        TopicQos::default(),
+                        self.0
+                            .subscriber_address()
+                            .send_mail_and_await_reply_blocking(dds_subscriber::get_qos::new())?,
+                        self.0
+                            .participant_address()
+                            .send_mail_and_await_reply_blocking(
+                                dds_domain_participant::get_default_unicast_locator_list::new(),
+                            )?,
+                        self.0
+                            .participant_address()
+                            .send_mail_and_await_reply_blocking(
+                                dds_domain_participant::get_default_multicast_locator_list::new(),
+                            )?,
+                    ),
                 )?,
             )?;
         }
@@ -591,7 +616,9 @@ impl<Foo> DataReader<Foo> {
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        self.0.reader_address().get_qos()
+        self.0
+            .reader_address()
+            .send_mail_and_await_reply_blocking(dds_data_reader::get_qos::new())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -601,7 +628,7 @@ impl<Foo> DataReader<Foo> {
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
             .reader_address()
-            .get_statuscondition()
+            .send_mail_and_await_reply_blocking(dds_data_reader::get_statuscondition::new())
             .map(StatusCondition::new)
     }
 
@@ -638,23 +665,35 @@ impl<Foo> DataReader<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.reader_address().is_enabled()? {
-            self.0.reader_address().enable()?;
+        if !self
+            .0
+            .reader_address()
+            .send_mail_and_await_reply_blocking(dds_data_reader::is_enabled::new())?
+        {
+            self.0
+                .reader_address()
+                .send_mail_and_await_reply_blocking(dds_data_reader::enable::new())?;
         }
 
         announce_data_reader(
             self.0.participant_address(),
-            self.0.reader_address().as_discovered_reader_data(
-                TopicQos::default(),
-                self.0
-                    .subscriber_address()
-                    .send_and_reply_blocking(dds_subscriber::GetQos)?,
-                self.0
-                    .participant_address()
-                    .get_default_unicast_locator_list()?,
-                self.0
-                    .participant_address()
-                    .get_default_multicast_locator_list()?,
+            self.0.reader_address().send_mail_and_await_reply_blocking(
+                dds_data_reader::as_discovered_reader_data::new(
+                    TopicQos::default(),
+                    self.0
+                        .subscriber_address()
+                        .send_mail_and_await_reply_blocking(dds_subscriber::get_qos::new())?,
+                    self.0
+                        .participant_address()
+                        .send_mail_and_await_reply_blocking(
+                            dds_domain_participant::get_default_unicast_locator_list::new(),
+                        )?,
+                    self.0
+                        .participant_address()
+                        .send_mail_and_await_reply_blocking(
+                            dds_domain_participant::get_default_multicast_locator_list::new(),
+                        )?,
+                ),
             )?,
         )?;
 
@@ -664,7 +703,9 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.reader_address().get_instance_handle()
+        self.0
+            .reader_address()
+            .send_mail_and_await_reply_blocking(dds_data_reader::get_instance_handle::new())
     }
 }
 
@@ -694,39 +735,47 @@ fn announce_data_reader(
     discovered_reader_data: DiscoveredReaderData,
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(&discovered_reader_data)?;
-    let timestamp =
-        domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+    let timestamp = domain_participant
+        .send_mail_and_await_reply_blocking(dds_domain_participant::get_current_time::new())?;
 
-    let builtin_publisher =
-        domain_participant.send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
-    let data_writer_list =
-        builtin_publisher.send_and_reply_blocking(dds_publisher::DataWriterList)?;
+    let builtin_publisher = domain_participant
+        .send_mail_and_await_reply_blocking(dds_domain_participant::get_builtin_publisher::new())?;
+    let data_writer_list = builtin_publisher
+        .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
     for dw in data_writer_list {
-        if dw.send_and_reply_blocking(dds_data_writer::GetTypeName)
+        if dw.send_mail_and_await_reply_blocking(dds_data_writer::get_type_name::new())
             == Ok("DiscoveredReaderData".to_string())
         {
-            dw.send_and_reply_blocking(dds_data_writer::WriteWTimestamp::new(
+            dw.send_mail_and_await_reply_blocking(dds_data_writer::write_w_timestamp::new(
                 serialized_data,
                 dds_serialize_key(&discovered_reader_data)?,
                 None,
                 timestamp,
             ))??;
 
-            dw.send_only_blocking(dds_data_writer::SendMessage::new(
-                RtpsMessageHeader::new(
-                    domain_participant
-                        .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
-                    domain_participant
-                        .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
-                    domain_participant
-                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
-                        .prefix(),
+            dw.send_mail_blocking(
+                dds_data_writer::send_message::new(
+                    RtpsMessageHeader::new(
+                        domain_participant.send_mail_and_await_reply_blocking(
+                            dds_domain_participant::get_protocol_version::new(),
+                        )?,
+                        domain_participant.send_mail_and_await_reply_blocking(
+                            dds_domain_participant::get_vendor_id::new(),
+                        )?,
+                        domain_participant
+                            .send_mail_and_await_reply_blocking(
+                                dds_domain_participant::get_guid::new(),
+                            )?
+                            .prefix(),
+                    ),
+                    domain_participant.send_mail_and_await_reply_blocking(
+                        dds_domain_participant::get_upd_transport_write::new(),
+                    )?,
+                    domain_participant.send_mail_and_await_reply_blocking(
+                        dds_domain_participant::get_current_time::new(),
+                    )?,
                 ),
-                domain_participant
-                    .send_and_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
-                domain_participant
-                    .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
-            ))?;
+            )?;
             break;
         }
     }
