@@ -114,7 +114,10 @@ impl Topic {
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => self.0.participant_address().default_topic_qos()?,
+            QosKind::Default => self
+                .0
+                .participant_address()
+                .send_and_reply_blocking(dds_domain_participant::default_topic_qos::new())?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q

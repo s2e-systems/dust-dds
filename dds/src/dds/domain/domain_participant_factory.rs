@@ -317,7 +317,9 @@ impl DomainParticipantFactory {
         let participant = participant_list
             .iter()
             .find(|x| {
-                if let Ok(h) = x.get_instance_handle() {
+                if let Ok(h) =
+                    x.send_and_reply_blocking(dds_domain_participant::get_instance_handle::new())
+                {
                     h == handle
                 } else {
                     false
@@ -325,7 +327,7 @@ impl DomainParticipantFactory {
             })
             .ok_or(DdsError::BadParameter)?;
 
-        if participant.is_empty()? {
+        if participant.send_and_reply_blocking(dds_domain_participant::is_empty::new())? {
             self.0.address().send_and_reply_blocking(
                 dds_domain_participant_factory::delete_participant::new(handle),
             )?;

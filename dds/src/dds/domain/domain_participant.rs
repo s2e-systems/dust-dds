@@ -82,20 +82,22 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher_address =
-            self.0
-                .participant_address()
-                .create_publisher(qos, a_listener, mask.to_vec())?;
+        let publisher_address = self.0.participant_address().send_and_reply_blocking(
+            dds_domain_participant::create_publisher::new(qos, a_listener, mask.to_vec()),
+        )?;
 
         let publisher = Publisher::new(PublisherNode::new(
             publisher_address,
             self.0.participant_address().clone(),
         ));
-        if self.0.participant_address().is_enabled()?
+        if self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
             && self
                 .0
                 .participant_address()
-                .get_qos()?
+                .send_and_reply_blocking(dds_domain_participant::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -141,9 +143,11 @@ impl DomainParticipant {
             ));
         }
 
-        self.0
-            .participant_address()
-            .delete_user_defined_publisher(a_publisher.get_instance_handle()?)
+        self.0.participant_address().send_and_reply_blocking(
+            dds_domain_participant::delete_user_defined_publisher::new(
+                a_publisher.get_instance_handle()?,
+            ),
+        )
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
@@ -161,21 +165,23 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber_address =
-            self.0
-                .participant_address()
-                .create_subscriber(qos, a_listener, mask.to_vec())?;
+        let subscriber_address = self.0.participant_address().send_and_reply_blocking(
+            dds_domain_participant::create_subscriber::new(qos, a_listener, mask.to_vec()),
+        )?;
 
         let subscriber = Subscriber::new(SubscriberNode::new(
             subscriber_address,
             self.0.participant_address().clone(),
         ));
 
-        if self.0.participant_address().is_enabled()?
+        if self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
             && self
                 .0
                 .participant_address()
-                .get_qos()?
+                .send_and_reply_blocking(dds_domain_participant::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -220,11 +226,13 @@ impl DomainParticipant {
             ));
         }
 
-        self.0.participant_address().delete_user_defined_subscriber(
-            a_subscriber
-                .node()
-                .subscriber_address()
-                .send_and_reply_blocking(dds_subscriber::get_instance_handle::new())?,
+        self.0.participant_address().send_and_reply_blocking(
+            dds_domain_participant::delete_user_defined_subscriber::new(
+                a_subscriber
+                    .node()
+                    .subscriber_address()
+                    .send_and_reply_blocking(dds_subscriber::get_instance_handle::new())?,
+            ),
         )
     }
 
@@ -244,23 +252,28 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Topic> {
-        let topic_address = self.0.participant_address().create_topic(
-            topic_name.to_string(),
-            type_name.to_string(),
-            qos,
-            a_listener,
-            mask.to_vec(),
+        let topic_address = self.0.participant_address().send_and_reply_blocking(
+            dds_domain_participant::create_topic::new(
+                topic_name.to_string(),
+                type_name.to_string(),
+                qos,
+                a_listener,
+                mask.to_vec(),
+            ),
         )?;
 
         let topic = Topic::new(TopicNode::new(
             topic_address,
             self.0.participant_address().clone(),
         ));
-        if self.0.participant_address().is_enabled()?
+        if self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
             && self
                 .0
                 .participant_address()
-                .get_qos()?
+                .send_and_reply_blocking(dds_domain_participant::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -346,11 +359,13 @@ impl DomainParticipant {
             }
         }
 
-        self.0.participant_address().delete_topic(
-            a_topic
-                .node()
-                .topic_address()
-                .send_and_reply_blocking(dds_topic::get_instance_handle::new())?,
+        self.0.participant_address().send_and_reply_blocking(
+            dds_domain_participant::delete_topic::new(
+                a_topic
+                    .node()
+                    .topic_address()
+                    .send_and_reply_blocking(dds_topic::get_instance_handle::new())?,
+            ),
         )
     }
 
@@ -383,11 +398,15 @@ impl DomainParticipant {
                 }
             }
 
-            for discovered_topic_handle in self.0.participant_address().discovered_topic_list()? {
-                if let Ok(discovered_topic_data) = self
-                    .0
-                    .participant_address()
-                    .discovered_topic_data(discovered_topic_handle)?
+            for discovered_topic_handle in self
+                .0
+                .participant_address()
+                .send_and_reply_blocking(dds_domain_participant::discovered_topic_list::new())?
+            {
+                if let Ok(discovered_topic_data) =
+                    self.0.participant_address().send_and_reply_blocking(
+                        dds_domain_participant::discovered_topic_data::new(discovered_topic_handle),
+                    )?
                 {
                     if discovered_topic_data.name() == topic_name {
                         let qos = TopicQos {
@@ -472,8 +491,14 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.0.participant_address().is_enabled()? {
-            self.0.participant_address().ignore_participant(handle)
+        if self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+        {
+            self.0
+                .participant_address()
+                .send_and_reply_blocking(dds_domain_participant::ignore_participant::new(handle))
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -488,8 +513,14 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.0.participant_address().is_enabled()? {
-            self.0.participant_address().ignore_topic(handle)
+        if self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+        {
+            self.0
+                .participant_address()
+                .send_and_reply_blocking(dds_domain_participant::ignore_topic::new(handle))
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -502,8 +533,14 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.0.participant_address().is_enabled()? {
-            self.0.participant_address().ignore_publication(handle)
+        if self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+        {
+            self.0
+                .participant_address()
+                .send_and_reply_blocking(dds_domain_participant::ignore_publication::new(handle))
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -517,8 +554,14 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.0.participant_address().is_enabled()? {
-            self.0.participant_address().ignore_subscription(handle)
+        if self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+        {
+            self.0
+                .participant_address()
+                .send_and_reply_blocking(dds_domain_participant::ignore_subscription::new(handle))
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -558,8 +601,10 @@ impl DomainParticipant {
                         .send_and_reply_blocking(dds_data_writer::get_instance_handle::new())?,
                 ))?;
             }
-            self.0.participant_address().delete_user_defined_publisher(
-                publisher.send_and_reply_blocking(dds_publisher::get_instance_handle::new())?,
+            self.0.participant_address().send_and_reply_blocking(
+                dds_domain_participant::delete_user_defined_publisher::new(
+                    publisher.send_and_reply_blocking(dds_publisher::get_instance_handle::new())?,
+                ),
             )?;
         }
         for subscriber in self
@@ -575,20 +620,22 @@ impl DomainParticipant {
                         .send_and_reply_blocking(dds_data_reader::get_instance_handle::new())?,
                 ))?;
             }
-            self.0
-                .participant_address()
-                .delete_user_defined_subscriber(
+            self.0.participant_address().send_and_reply_blocking(
+                dds_domain_participant::delete_user_defined_subscriber::new(
                     subscriber
                         .send_and_reply_blocking(dds_subscriber::get_instance_handle::new())?,
-                )?;
+                ),
+            )?;
         }
         for topic in self
             .0
             .participant_address()
             .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
         {
-            self.0.participant_address().delete_topic(
-                topic.send_and_reply_blocking(dds_topic::get_instance_handle::new())?,
+            self.0.participant_address().send_and_reply_blocking(
+                dds_domain_participant::delete_topic::new(
+                    topic.send_and_reply_blocking(dds_topic::get_instance_handle::new())?,
+                ),
             )?;
         }
         Ok(())
@@ -621,7 +668,9 @@ impl DomainParticipant {
             QosKind::Default => PublisherQos::default(),
             QosKind::Specific(q) => q,
         };
-        self.0.participant_address().set_default_publisher_qos(qos)
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::set_default_publisher_qos::new(qos))
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -630,7 +679,9 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        self.0.participant_address().default_publisher_qos()
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::default_publisher_qos::new())
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created [`Subscriber`] entities in the
@@ -646,7 +697,9 @@ impl DomainParticipant {
             QosKind::Specific(q) => q,
         };
 
-        self.0.participant_address().set_default_subscriber_qos(qos)
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::set_default_subscriber_qos::new(qos))
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -655,7 +708,9 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_subscriber_qos()`], or else, if the call was never made, the default values of [`SubscriberQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        self.0.participant_address().default_subscriber_qos()
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::default_subscriber_qos::new())
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created [`Topic`] entities in the case
@@ -673,7 +728,9 @@ impl DomainParticipant {
                 q
             }
         };
-        self.0.participant_address().set_default_topic_qos(qos)
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::set_default_topic_qos::new(qos))
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created [`Topic`]
@@ -682,14 +739,18 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
     #[tracing::instrument(skip(self))]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        self.0.participant_address().default_topic_qos()
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::default_topic_qos::new())
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the [`DomainParticipant::ignore_participant()`] operation.
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.participant_address().get_discovered_participants()
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::get_discovered_participants::new())
     }
 
     /// This operation retrieves information on a [`DomainParticipant`] that has been discovered on the network. The participant must
@@ -704,19 +765,15 @@ impl DomainParticipant {
         _participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
         todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::get_discovered_participant_data(
-        //         dp,
-        //         participant_handle,
-        //     )
-        // })
     }
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
     /// should be “ignored” by means of the [`DomainParticipant::ignore_topic()`] operation.
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.participant_address().discovered_topic_list()
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::discovered_topic_list::new())
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -730,9 +787,9 @@ impl DomainParticipant {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        self.0
-            .participant_address()
-            .discovered_topic_data(topic_handle)?
+        self.0.participant_address().send_and_reply_blocking(
+            dds_domain_participant::discovered_topic_data::new(topic_handle),
+        )?
     }
 
     /// This operation checks whether or not the given `a_handle` represents an Entity that was created from the [`DomainParticipant`].
@@ -780,13 +837,17 @@ impl DomainParticipant {
             QosKind::Specific(q) => q,
         };
 
-        self.0.participant_address().set_qos(qos)
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::set_qos::new(qos))
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.0.participant_address().get_qos()
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::get_qos::new())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -845,7 +906,11 @@ impl DomainParticipant {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.participant_address().is_enabled()? {
+        if !self
+            .0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+        {
             self.0
                 .participant_address()
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
@@ -873,7 +938,9 @@ impl DomainParticipant {
                 builtin_writer.send_and_reply_blocking(dds_data_writer::enable::new())?;
             }
 
-            self.0.participant_address().enable()?;
+            self.0
+                .participant_address()
+                .send_and_reply_blocking(dds_domain_participant::enable::new())?;
 
             let domain_participant_address = self.0.participant_address().clone();
 
@@ -1054,6 +1121,8 @@ impl DomainParticipant {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.participant_address().get_instance_handle()
+        self.0
+            .participant_address()
+            .send_and_reply_blocking(dds_domain_participant::get_instance_handle::new())
     }
 }

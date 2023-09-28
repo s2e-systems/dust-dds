@@ -100,14 +100,12 @@ impl Subscriber {
     where
         Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey + 'static,
     {
-        let default_unicast_locator_list = self
-            .0
-            .participant_address()
-            .get_default_unicast_locator_list()?;
-        let default_multicast_locator_list = self
-            .0
-            .participant_address()
-            .get_default_unicast_locator_list()?;
+        let default_unicast_locator_list = self.0.participant_address().send_and_reply_blocking(
+            dds_domain_participant::get_default_unicast_locator_list::new(),
+        )?;
+        let default_multicast_locator_list = self.0.participant_address().send_and_reply_blocking(
+            dds_domain_participant::get_default_unicast_locator_list::new(),
+        )?;
 
         let qos = match qos {
             QosKind::Default => self

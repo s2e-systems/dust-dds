@@ -589,12 +589,12 @@ impl<Foo> DataReader<Foo> {
                         self.0
                             .subscriber_address()
                             .send_and_reply_blocking(dds_subscriber::get_qos::new())?,
-                        self.0
-                            .participant_address()
-                            .get_default_unicast_locator_list()?,
-                        self.0
-                            .participant_address()
-                            .get_default_multicast_locator_list()?,
+                        self.0.participant_address().send_and_reply_blocking(
+                            dds_domain_participant::get_default_unicast_locator_list::new(),
+                        )?,
+                        self.0.participant_address().send_and_reply_blocking(
+                            dds_domain_participant::get_default_multicast_locator_list::new(),
+                        )?,
                     ),
                 )?,
             )?;
@@ -673,12 +673,12 @@ impl<Foo> DataReader<Foo> {
                     self.0
                         .subscriber_address()
                         .send_and_reply_blocking(dds_subscriber::get_qos::new())?,
-                    self.0
-                        .participant_address()
-                        .get_default_unicast_locator_list()?,
-                    self.0
-                        .participant_address()
-                        .get_default_multicast_locator_list()?,
+                    self.0.participant_address().send_and_reply_blocking(
+                        dds_domain_participant::get_default_unicast_locator_list::new(),
+                    )?,
+                    self.0.participant_address().send_and_reply_blocking(
+                        dds_domain_participant::get_default_multicast_locator_list::new(),
+                    )?,
                 ),
             )?,
         )?;

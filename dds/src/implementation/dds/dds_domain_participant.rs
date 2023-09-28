@@ -1,3 +1,5 @@
+use dust_dds_derive::actor_interface;
+
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
@@ -31,9 +33,7 @@ use crate::{
             writer::RtpsWriter,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{
-            actor_mailbox_interface, spawn_actor, Actor, ActorAddress, Mail, MailHandler,
-        },
+        utils::actor::{spawn_actor, Actor, ActorAddress, Mail, MailHandler},
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -462,16 +462,19 @@ impl DdsDomainParticipant {
     }
 }
 
-actor_mailbox_interface! {
+#[actor_interface]
 impl DdsDomainParticipant {
-    pub fn create_publisher(&mut self,qos: QosKind<PublisherQos>,
+    async fn create_publisher(
+        &mut self,
+        qos: QosKind<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: Vec<StatusKind>,) -> ActorAddress<DdsPublisher> {
+        mask: Vec<StatusKind>,
+    ) -> ActorAddress<DdsPublisher> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let publisher_counter = self.create_unique_publisher_id();
+        let publisher_counter = self.create_unique_publisher_id().await;
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
@@ -481,45 +484,53 @@ impl DdsDomainParticipant {
 
         let publisher_actor = spawn_actor(publisher);
         let publisher_address = publisher_actor.address().clone();
-        self.user_defined_publisher_list.insert(guid.into(), publisher_actor);
+        self.user_defined_publisher_list
+            .insert(guid.into(), publisher_actor);
 
         publisher_address
     }
 
-    pub fn create_subscriber(&mut self,qos: QosKind<SubscriberQos>,
+    async fn create_subscriber(
+        &mut self,
+        qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: Vec<StatusKind>,) -> ActorAddress<DdsSubscriber> {
-            let subscriber_qos = match qos {
-                QosKind::Default => self.default_subscriber_qos.clone(),
-                QosKind::Specific(q) => q,
-            };
-            let subcriber_counter = self.create_unique_subscriber_id();
-            let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
-            let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-            let rtps_group = RtpsGroup::new(guid);
-            let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
-            let status_kind = mask.to_vec();
+        mask: Vec<StatusKind>,
+    ) -> ActorAddress<DdsSubscriber> {
+        let subscriber_qos = match qos {
+            QosKind::Default => self.default_subscriber_qos.clone(),
+            QosKind::Specific(q) => q,
+        };
+        let subcriber_counter = self.create_unique_subscriber_id().await;
+        let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
+        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroup::new(guid);
+        let listener = a_listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
+        let status_kind = mask.to_vec();
 
-            let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
+        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
 
-            let subscriber_actor = spawn_actor(subscriber);
-            let subscriber_address = subscriber_actor.address().clone();
+        let subscriber_actor = spawn_actor(subscriber);
+        let subscriber_address = subscriber_actor.address().clone();
 
-            self.user_defined_subscriber_list.insert(guid.into(), subscriber_actor);
+        self.user_defined_subscriber_list
+            .insert(guid.into(), subscriber_actor);
 
-            subscriber_address
+        subscriber_address
     }
 
-    pub fn create_topic(&mut self, topic_name: String,
+    async fn create_topic(
+        &mut self,
+        topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
         _a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
-        _mask: Vec<StatusKind>,) -> ActorAddress<DdsTopic> {
+        _mask: Vec<StatusKind>,
+    ) -> ActorAddress<DdsTopic> {
         let qos = match qos {
             QosKind::Default => self.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let topic_counter = self.create_unique_topic_id();
+        let topic_counter = self.create_unique_topic_id().await;
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
@@ -532,124 +543,125 @@ impl DdsDomainParticipant {
         topic_address
     }
 
-    pub fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
+    async fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_unicast_locator_list()
             .to_vec()
     }
 
-    pub fn get_default_multicast_locator_list(&self) -> Vec<Locator> {
+    async fn get_default_multicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_multicast_locator_list()
             .to_vec()
     }
 
-    pub fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
+    async fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .metatraffic_unicast_locator_list()
             .to_vec()
     }
 
-    pub fn get_metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
+    async fn get_metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .metatraffic_multicast_locator_list()
             .to_vec()
     }
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
+    async fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_participant.guid().into()
     }
 
-    pub fn enable(&mut self) {
+    async fn enable(&mut self) {
         self.enabled = true;
     }
 
-    pub fn is_enabled(&self) -> bool {
+    async fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    pub fn ignore_participant(&mut self, handle: InstanceHandle) {
+    async fn ignore_participant(&mut self, handle: InstanceHandle) {
         self.ignored_participants.insert(handle);
     }
 
-    pub fn ignore_subscription(&mut self, handle: InstanceHandle) {
+    async fn ignore_subscription(&mut self, handle: InstanceHandle) {
         self.ignored_subcriptions.insert(handle);
     }
 
-    pub fn ignore_publication(&mut self, handle: InstanceHandle) {
+    async fn ignore_publication(&mut self, handle: InstanceHandle) {
         self.ignored_publications.insert(handle);
     }
 
-    pub fn ignore_topic(&self, _handle: InstanceHandle) {
+    async fn ignore_topic(&self, _handle: InstanceHandle) {
         todo!()
     }
 
-    pub fn is_topic_ignored(&self, _handle: InstanceHandle) -> bool {
+    async fn is_topic_ignored(&self, _handle: InstanceHandle) -> bool {
         todo!()
     }
 
-    pub fn _discovered_participant_remove(&mut self, handle: InstanceHandle) {
+    async fn _discovered_participant_remove(&mut self, handle: InstanceHandle) {
         self.discovered_participant_list.remove(&handle);
     }
 
-    pub fn create_unique_publisher_id(&mut self) -> u8 {
+    async fn create_unique_publisher_id(&mut self) -> u8 {
         let counter = self.user_defined_publisher_counter;
         self.user_defined_publisher_counter += 1;
         counter
     }
 
-    pub fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
         self.user_defined_publisher_list.remove(&handle);
     }
 
-    pub fn create_unique_subscriber_id(&mut self) -> u8 {
+    async fn create_unique_subscriber_id(&mut self) -> u8 {
         let counter = self.user_defined_subscriber_counter;
         self.user_defined_subscriber_counter += 1;
         counter
     }
 
-    pub fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
         self.user_defined_subscriber_list.remove(&handle);
     }
 
-    pub fn create_unique_topic_id(&mut self) -> u8 {
+    async fn create_unique_topic_id(&mut self) -> u8 {
         let counter = self.user_defined_topic_counter;
         self.user_defined_topic_counter += 1;
         counter
     }
 
-    pub fn delete_user_defined_topic(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_topic(&mut self, handle: InstanceHandle) {
         self.topic_list.remove(&handle);
     }
 
-    pub fn is_empty(&self) -> bool {
+    async fn is_empty(&self) -> bool {
         self.user_defined_publisher_list.len() == 0
             && self.user_defined_subscriber_list.len() == 0
             && self.topic_list.len() == 0
     }
 
-    pub fn delete_topic(&mut self, handle: InstanceHandle) {
+    async fn delete_topic(&mut self, handle: InstanceHandle) {
         self.topic_list.remove(&handle);
     }
 
-    pub fn get_qos(&self) -> DomainParticipantQos {
+    async fn get_qos(&self) -> DomainParticipantQos {
         self.qos.clone()
     }
 
-    pub fn data_max_size_serialized(&self) -> usize {
+    async fn data_max_size_serialized(&self) -> usize {
         self.data_max_size_serialized
     }
 
-    pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
+    async fn delete_contained_entities(&mut self) -> DdsResult<()> {
         for (_, user_defined_publisher) in self.user_defined_publisher_list.drain() {
             user_defined_publisher
-                .address().send_and_reply_blocking(dds_publisher::delete_contained_entities::new())
-                ?;
+                .address()
+                .send_and_reply_blocking(dds_publisher::delete_contained_entities::new())?;
         }
 
-        for (_,user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
+        for (_, user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
             user_defined_subscriber
-                .address().send_and_reply_blocking(dds_subscriber::delete_contained_entities::new())?;
+                .address()
+                .send_and_reply_blocking(dds_subscriber::delete_contained_entities::new())?;
         }
 
         self.topic_list.clear();
@@ -657,35 +669,35 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn set_default_publisher_qos(&mut self, qos: PublisherQos){
+    async fn set_default_publisher_qos(&mut self, qos: PublisherQos) {
         self.default_publisher_qos = qos;
     }
 
-    pub fn default_publisher_qos(&self) -> PublisherQos {
+    async fn default_publisher_qos(&self) -> PublisherQos {
         self.default_publisher_qos.clone()
     }
 
-    pub fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) {
+    async fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) {
         self.default_subscriber_qos = qos;
     }
 
-    pub fn default_subscriber_qos(&self) -> SubscriberQos {
+    async fn default_subscriber_qos(&self) -> SubscriberQos {
         self.default_subscriber_qos.clone()
     }
 
-    pub fn set_default_topic_qos(&mut self, qos: TopicQos) {
+    async fn set_default_topic_qos(&mut self, qos: TopicQos) {
         self.default_topic_qos = qos;
     }
 
-    pub fn default_topic_qos(&self) -> TopicQos {
+    async fn default_topic_qos(&self) -> TopicQos {
         self.default_topic_qos.clone()
     }
 
-    pub fn discovered_topic_list(&self) -> Vec<InstanceHandle> {
+    async fn discovered_topic_list(&self) -> Vec<InstanceHandle> {
         self.discovered_topic_list.keys().cloned().collect()
     }
 
-    pub fn discovered_topic_data(
+    async fn discovered_topic_data(
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
@@ -695,14 +707,13 @@ impl DdsDomainParticipant {
             .ok_or(DdsError::BadParameter)
     }
 
-    pub fn set_qos(&mut self, qos: DomainParticipantQos) {
+    async fn set_qos(&mut self, qos: DomainParticipantQos) {
         self.qos = qos;
     }
 
-    pub fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
+    async fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
         self.discovered_participant_list.keys().cloned().collect()
     }
-}
 }
 
 pub struct DiscoveredParticipantAdd {
