@@ -1688,6 +1688,7 @@ impl DdsDataReader {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn add_matched_writer(
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
@@ -1842,6 +1843,7 @@ impl DdsDataReader {
         self.type_name.to_string()
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn process_rtps_message(
         &mut self,
         message: RtpsMessageRead,
