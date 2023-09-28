@@ -419,7 +419,7 @@ async fn lookup_data_reader_by_topic_name(
 ) -> Option<ActorAddress<DdsDataReader>> {
     for data_reader in stateful_reader_list {
         if data_reader
-            .send_and_reply(dds_data_reader::GetTopicName)
+            .send_and_reply(dds_data_reader::get_topic_name::new())
             .await
             == Ok(topic_name.to_string())
         {
@@ -498,7 +498,7 @@ async fn add_matched_publications_announcer(
         );
 
         reader
-            .send_and_reply(dds_data_reader::MatchedWriterAdd::new(proxy))
+            .send_and_reply(dds_data_reader::matched_writer_add::new(proxy))
             .await
             .unwrap();
     }
@@ -572,7 +572,7 @@ async fn add_matched_subscriptions_announcer(
             remote_group_entity_id,
         );
         reader
-            .send_and_reply(dds_data_reader::MatchedWriterAdd::new(proxy))
+            .send_and_reply(dds_data_reader::matched_writer_add::new(proxy))
             .await
             .unwrap();
     }
@@ -646,7 +646,7 @@ async fn add_matched_topics_announcer(
             remote_group_entity_id,
         );
         reader
-            .send_and_reply(dds_data_reader::MatchedWriterAdd::new(proxy))
+            .send_and_reply(dds_data_reader::matched_writer_add::new(proxy))
             .await
             .unwrap();
     }
@@ -688,13 +688,13 @@ async fn process_spdp_metatraffic(
         .await?;
     for data_reader in data_reader_list {
         if data_reader
-            .send_and_reply(dds_data_reader::GetTypeName)
+            .send_and_reply(dds_data_reader::get_type_name::new())
             .await
             == Ok("SpdpDiscoveredParticipantData".to_string())
         {
             // Read data from each of the readers
             while let Ok(spdp_data_sample_list) = data_reader
-                .send_and_reply(dds_data_reader::Read::new(
+                .send_and_reply(dds_data_reader::read::new(
                     1,
                     vec![SampleStateKind::NotRead],
                     ANY_VIEW_STATE.to_vec(),
@@ -1020,14 +1020,14 @@ async fn process_sedp_discovery(
         .await?
     {
         match stateful_builtin_reader
-            .send_and_reply(dds_data_reader::GetTopicName)
+            .send_and_reply(dds_data_reader::get_topic_name::new())
             .await?
             .as_str()
         {
             DCPS_PUBLICATION => {
                 //::<DiscoveredWriterData>
                 if let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader
-                    .send_and_reply(dds_data_reader::Read::new(
+                    .send_and_reply(dds_data_reader::read::new(
                         i32::MAX,
                         ANY_SAMPLE_STATE.to_vec(),
                         ANY_VIEW_STATE.to_vec(),
@@ -1049,7 +1049,7 @@ async fn process_sedp_discovery(
             DCPS_SUBSCRIPTION => {
                 //::<DiscoveredReaderData>
                 if let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader
-                    .send_and_reply(dds_data_reader::Read::new(
+                    .send_and_reply(dds_data_reader::read::new(
                         i32::MAX,
                         ANY_SAMPLE_STATE.to_vec(),
                         ANY_VIEW_STATE.to_vec(),
@@ -1071,7 +1071,7 @@ async fn process_sedp_discovery(
             DCPS_TOPIC => {
                 //::<DiscoveredTopicData>
                 if let Ok(discovered_topic_sample_list) = stateful_builtin_reader
-                    .send_and_reply(dds_data_reader::Read::new(
+                    .send_and_reply(dds_data_reader::read::new(
                         i32::MAX,
                         ANY_SAMPLE_STATE.to_vec(),
                         ANY_VIEW_STATE.to_vec(),
@@ -1168,7 +1168,7 @@ async fn discover_matched_writers(
                                     );
 
                                     data_reader_address
-                                        .send_and_reply(dds_data_reader::AddMatchedWriter::new(
+                                        .send_and_reply(dds_data_reader::add_matched_writer::new(
                                             discovered_writer_data.clone(),
                                             default_unicast_locator_list.clone(),
                                             default_multicast_locator_list.clone(),
@@ -1183,7 +1183,7 @@ async fn discover_matched_writers(
                                         ))
                                         .await??;
                                     data_reader_address
-                                        .send_only(dds_data_reader::SendMessage::new(
+                                        .send_only(dds_data_reader::send_message::new(
                                             RtpsMessageHeader::new(
                                                 participant_address
                                                     .send_and_reply(
@@ -1233,7 +1233,7 @@ async fn discover_matched_writers(
                     );
 
                     data_reader
-                        .send_and_reply(dds_data_reader::RemoveMatchedWriter::new(
+                        .send_and_reply(dds_data_reader::remove_matched_writer::new(
                             discovered_writer_sample.sample_info().instance_handle,
                             data_reader.clone(),
                             subscriber.clone(),

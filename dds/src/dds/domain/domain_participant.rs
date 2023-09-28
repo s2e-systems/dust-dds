@@ -328,12 +328,12 @@ impl DomainParticipant {
             let data_reader_list =
                 subscriber.send_and_reply_blocking(dds_subscriber::data_reader_list::new())?;
             for data_reader in data_reader_list {
-                if data_reader.send_and_reply_blocking(dds_data_reader::GetTypeName)
+                if data_reader.send_and_reply_blocking(dds_data_reader::get_type_name::new())
                     == a_topic
                         .node()
                         .topic_address()
                         .send_and_reply_blocking(dds_topic::get_type_name::new())
-                    && data_reader.send_and_reply_blocking(dds_data_reader::GetTopicName)
+                    && data_reader.send_and_reply_blocking(dds_data_reader::get_topic_name::new())
                         == a_topic
                             .node()
                             .topic_address()
@@ -571,7 +571,8 @@ impl DomainParticipant {
                 subscriber.send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
             {
                 subscriber.send_and_reply_blocking(dds_subscriber::data_reader_delete::new(
-                    data_reader.get_instance_handle()?,
+                    data_reader
+                        .send_and_reply_blocking(dds_data_reader::get_instance_handle::new())?,
                 ))?;
             }
             self.0
@@ -860,7 +861,7 @@ impl DomainParticipant {
                 .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
                 .send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
             {
-                builtin_reader.enable()?;
+                builtin_reader.send_and_reply_blocking(dds_data_reader::enable::new())?;
             }
 
             for builtin_writer in self
@@ -986,7 +987,7 @@ impl DomainParticipant {
                                 .await?
                             {
                                 data_reader
-                                    .send_only(dds_data_reader::UpdateCommunicationStatus::new(
+                                    .send_only(dds_data_reader::update_communication_status::new(
                                         now,
                                         data_reader.clone(),
                                         subscriber.clone(),

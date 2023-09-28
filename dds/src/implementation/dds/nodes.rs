@@ -100,11 +100,11 @@ impl DataReaderNode {
             if topic.send_and_reply_blocking(dds_topic::get_type_name::new())
                 == self
                     .reader_address
-                    .send_and_reply_blocking(dds_data_reader::GetTypeName)
+                    .send_and_reply_blocking(dds_data_reader::get_type_name::new())
                 && topic.send_and_reply_blocking(dds_topic::get_name::new())
                     == self
                         .reader_address
-                        .send_and_reply_blocking(dds_data_reader::GetTopicName)
+                        .send_and_reply_blocking(dds_data_reader::get_topic_name::new())
             {
                 return topic;
             }

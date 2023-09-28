@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         dds::{
-            dds_data_reader::DdsDataReader,
+            dds_data_reader::{self, DdsDataReader},
             dds_data_reader_listener::DdsDataReaderListener,
             dds_data_writer, dds_domain_participant, dds_publisher, dds_subscriber,
             nodes::{DataReaderNode, DomainParticipantNode, SubscriberNode},
@@ -202,7 +202,10 @@ impl Subscriber {
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_datareader))]
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
-        let reader_handle = a_datareader.node().reader_address().get_instance_handle()?;
+        let reader_handle = a_datareader
+            .node()
+            .reader_address()
+            .send_and_reply_blocking(dds_data_reader::get_instance_handle::new())?;
         if self
             .0
             .subscriber_address()
@@ -217,7 +220,10 @@ impl Subscriber {
             ));
         }
 
-        let reader_is_enabled = a_datareader.node().reader_address().is_enabled()?;
+        let reader_is_enabled = a_datareader
+            .node()
+            .reader_address()
+            .send_and_reply_blocking(dds_data_reader::is_enabled::new())?;
         self.0
             .subscriber_address()
             .send_and_reply_blocking(dds_subscriber::data_reader_delete::new(reader_handle))?;
@@ -475,7 +481,7 @@ impl Subscriber {
                     .subscriber_address()
                     .send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
                 {
-                    data_reader.enable()?;
+                    data_reader.send_and_reply_blocking(dds_data_reader::enable::new())?;
                 }
             }
         }
