@@ -84,19 +84,19 @@ impl Publisher {
     where
         Foo: DdsHasKey + DdsGetKey + serde::Serialize + Send + 'static,
     {
-        let default_unicast_locator_list = self.0.participant_address().send_and_reply_blocking(
+        let default_unicast_locator_list = self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::get_default_unicast_locator_list::new(),
         )?;
-        let default_multicast_locator_list = self.0.participant_address().send_and_reply_blocking(
+        let default_multicast_locator_list = self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::get_default_multicast_locator_list::new(),
         )?;
         let data_max_size_serialized = self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::data_max_size_serialized::new())?;
+            .send_mail_and_await_reply_blocking(dds_domain_participant::data_max_size_serialized::new())?;
 
         let listener = a_listener.map(|l| spawn_actor(DdsDataWriterListener::new(Box::new(l))));
-        let data_writer_address = self.0.publisher_address().send_and_reply_blocking(
+        let data_writer_address = self.0.publisher_address().send_mail_and_await_reply_blocking(
             dds_publisher::create_datawriter::new(
                 a_topic.get_type_name()?,
                 a_topic.get_name()?,
@@ -119,11 +119,11 @@ impl Publisher {
         if self
             .0
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_publisher::is_enabled::new())?
             && self
                 .0
                 .publisher_address()
-                .send_and_reply_blocking(dds_publisher::get_qos::new())?
+                .send_mail_and_await_reply_blocking(dds_publisher::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -144,15 +144,15 @@ impl Publisher {
         let writer_handle = a_datawriter
             .node()
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::get_instance_handle::new())?;
+            .send_mail_and_await_reply_blocking(dds_data_writer::get_instance_handle::new())?;
         if self
             .0
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::guid::new())?
+            .send_mail_and_await_reply_blocking(dds_publisher::guid::new())?
             != a_datawriter
                 .node()
                 .publisher_address()
-                .send_and_reply_blocking(dds_publisher::guid::new())?
+                .send_mail_and_await_reply_blocking(dds_publisher::guid::new())?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
@@ -162,10 +162,10 @@ impl Publisher {
         let writer_is_enabled = a_datawriter
             .node()
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::is_enabled::new())?;
+            .send_mail_and_await_reply_blocking(dds_data_writer::is_enabled::new())?;
         self.0
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::datawriter_delete::new(writer_handle))?;
+            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_delete::new(writer_handle))?;
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if writer_is_enabled {
@@ -177,19 +177,19 @@ impl Publisher {
             let timestamp = a_datawriter
                 .node()
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
             let builtin_publisher = a_datawriter
                 .node()
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
             let data_writer_list =
-                builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
+                builtin_publisher.send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
             for data_writer in data_writer_list {
-                if data_writer.send_and_reply_blocking(dds_data_writer::get_type_name::new())
+                if data_writer.send_mail_and_await_reply_blocking(dds_data_writer::get_type_name::new())
                     == Ok("DiscoveredWriterData".to_string())
                 {
-                    data_writer.send_and_reply_blocking(
+                    data_writer.send_mail_and_await_reply_blocking(
                         dds_data_writer::dispose_w_timestamp::new(
                             instance_serialized_key,
                             writer_handle,
@@ -197,34 +197,34 @@ impl Publisher {
                         ),
                     )??;
 
-                    data_writer.send_only_blocking(dds_data_writer::send_message::new(
+                    data_writer.send_mail_blocking(dds_data_writer::send_message::new(
                         RtpsMessageHeader::new(
                             a_datawriter
                                 .node()
                                 .participant_address()
-                                .send_and_reply_blocking(
+                                .send_mail_and_await_reply_blocking(
                                     dds_domain_participant::GetProtocolVersion,
                                 )?,
                             a_datawriter
                                 .node()
                                 .participant_address()
-                                .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                                .send_mail_and_await_reply_blocking(dds_domain_participant::GetVendorId)?,
                             a_datawriter
                                 .node()
                                 .participant_address()
-                                .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                                .send_mail_and_await_reply_blocking(dds_domain_participant::GetGuid)?
                                 .prefix(),
                         ),
                         a_datawriter
                             .node()
                             .participant_address()
-                            .send_and_reply_blocking(
+                            .send_mail_and_await_reply_blocking(
                                 dds_domain_participant::GetUdpTransportWrite,
                             )?,
                         a_datawriter
                             .node()
                             .participant_address()
-                            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+                            .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?,
                     ))?;
                     break;
                 }
@@ -347,7 +347,7 @@ impl Publisher {
             QosKind::Default => self
                 .0
                 .publisher_address()
-                .send_and_reply_blocking(dds_publisher::get_default_datawriter_qos::new())?,
+                .send_mail_and_await_reply_blocking(dds_publisher::get_default_datawriter_qos::new())?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
@@ -356,7 +356,7 @@ impl Publisher {
 
         self.0
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::set_default_datawriter_qos::new(qos))
+            .send_mail_and_await_reply_blocking(dds_publisher::set_default_datawriter_qos::new(qos))
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created
@@ -367,7 +367,7 @@ impl Publisher {
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
         self.0
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::get_default_datawriter_qos::new())
+            .send_mail_and_await_reply_blocking(dds_publisher::get_default_datawriter_qos::new())
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datawriter_qos`.
@@ -410,7 +410,7 @@ impl Publisher {
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
         self.0
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::get_qos::new())
+            .send_mail_and_await_reply_blocking(dds_publisher::get_qos::new())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -471,7 +471,7 @@ impl Publisher {
     pub fn enable(&self) -> DdsResult<()> {
         self.0
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::enable::new())
+            .send_mail_and_await_reply_blocking(dds_publisher::enable::new())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
@@ -479,6 +479,6 @@ impl Publisher {
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.0
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::get_instance_handle::new())
+            .send_mail_and_await_reply_blocking(dds_publisher::get_instance_handle::new())
     }
 }

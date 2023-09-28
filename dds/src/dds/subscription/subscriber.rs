@@ -100,10 +100,10 @@ impl Subscriber {
     where
         Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey + 'static,
     {
-        let default_unicast_locator_list = self.0.participant_address().send_and_reply_blocking(
+        let default_unicast_locator_list = self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::get_default_unicast_locator_list::new(),
         )?;
-        let default_multicast_locator_list = self.0.participant_address().send_and_reply_blocking(
+        let default_multicast_locator_list = self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::get_default_unicast_locator_list::new(),
         )?;
 
@@ -111,7 +111,7 @@ impl Subscriber {
             QosKind::Default => self
                 .0
                 .subscriber_address()
-                .send_and_reply_blocking(dds_subscriber::get_default_datareader_qos::new())?,
+                .send_mail_and_await_reply_blocking(dds_subscriber::get_default_datareader_qos::new())?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
@@ -125,13 +125,13 @@ impl Subscriber {
         let subscriber_guid = self
             .0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::guid::new())?;
+            .send_mail_and_await_reply_blocking(dds_subscriber::guid::new())?;
 
         let entity_key: [u8; 3] = [
             subscriber_guid.entity_id().entity_key()[0],
             self.0
                 .subscriber_address()
-                .send_and_reply_blocking(dds_subscriber::get_unique_reader_id::new())?,
+                .send_mail_and_await_reply_blocking(dds_subscriber::get_unique_reader_id::new())?,
             0,
         ];
 
@@ -168,7 +168,7 @@ impl Subscriber {
 
         let reader_actor = spawn_actor(data_reader);
         let reader_address = reader_actor.address().clone();
-        self.0.subscriber_address().send_and_reply_blocking(
+        self.0.subscriber_address().send_mail_and_await_reply_blocking(
             dds_subscriber::data_reader_add::new(guid.into(), reader_actor),
         )?;
 
@@ -181,11 +181,11 @@ impl Subscriber {
         if self
             .0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_subscriber::is_enabled::new())?
             && self
                 .0
                 .subscriber_address()
-                .send_and_reply_blocking(dds_subscriber::get_qos::new())?
+                .send_mail_and_await_reply_blocking(dds_subscriber::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -203,15 +203,15 @@ impl Subscriber {
         let reader_handle = a_datareader
             .node()
             .reader_address()
-            .send_and_reply_blocking(dds_data_reader::get_instance_handle::new())?;
+            .send_mail_and_await_reply_blocking(dds_data_reader::get_instance_handle::new())?;
         if self
             .0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::guid::new())?
+            .send_mail_and_await_reply_blocking(dds_subscriber::guid::new())?
             != a_datareader
                 .node()
                 .subscriber_address()
-                .send_and_reply_blocking(dds_subscriber::guid::new())?
+                .send_mail_and_await_reply_blocking(dds_subscriber::guid::new())?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Data reader can only be deleted from its parent subscriber".to_string(),
@@ -221,10 +221,10 @@ impl Subscriber {
         let reader_is_enabled = a_datareader
             .node()
             .reader_address()
-            .send_and_reply_blocking(dds_data_reader::is_enabled::new())?;
+            .send_mail_and_await_reply_blocking(dds_data_reader::is_enabled::new())?;
         self.0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::data_reader_delete::new(reader_handle))?;
+            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_delete::new(reader_handle))?;
 
         if reader_is_enabled {
             let instance_serialized_key =
@@ -235,52 +235,52 @@ impl Subscriber {
             let timestamp = a_datareader
                 .node()
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
             let builtin_publisher = a_datareader
                 .node()
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
             let data_writer_list =
-                builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
+                builtin_publisher.send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
             for dw in data_writer_list {
-                if dw.send_and_reply_blocking(dds_data_writer::get_type_name::new())
+                if dw.send_mail_and_await_reply_blocking(dds_data_writer::get_type_name::new())
                     == Ok("DiscoveredReaderData".to_string())
                 {
-                    dw.send_and_reply_blocking(dds_data_writer::dispose_w_timestamp::new(
+                    dw.send_mail_and_await_reply_blocking(dds_data_writer::dispose_w_timestamp::new(
                         instance_serialized_key,
                         reader_handle,
                         timestamp,
                     ))??;
 
-                    dw.send_only_blocking(dds_data_writer::send_message::new(
+                    dw.send_mail_blocking(dds_data_writer::send_message::new(
                         RtpsMessageHeader::new(
                             a_datareader
                                 .node()
                                 .participant_address()
-                                .send_and_reply_blocking(
+                                .send_mail_and_await_reply_blocking(
                                     dds_domain_participant::GetProtocolVersion,
                                 )?,
                             a_datareader
                                 .node()
                                 .participant_address()
-                                .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                                .send_mail_and_await_reply_blocking(dds_domain_participant::GetVendorId)?,
                             a_datareader
                                 .node()
                                 .participant_address()
-                                .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                                .send_mail_and_await_reply_blocking(dds_domain_participant::GetGuid)?
                                 .prefix(),
                         ),
                         a_datareader
                             .node()
                             .participant_address()
-                            .send_and_reply_blocking(
+                            .send_mail_and_await_reply_blocking(
                                 dds_domain_participant::GetUdpTransportWrite,
                             )?,
                         a_datareader
                             .node()
                             .participant_address()
-                            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+                            .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?,
                     ))?;
                     break;
                 }
@@ -346,7 +346,7 @@ impl Subscriber {
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         self.0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::set_default_datareader_qos::new(qos))?
+            .send_mail_and_await_reply_blocking(dds_subscriber::set_default_datareader_qos::new(qos))?
     }
 
     /// This operation retrieves the default value of the [`DataReaderQos`], that is, the qos policies which will be used for newly
@@ -357,7 +357,7 @@ impl Subscriber {
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         self.0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::get_default_datareader_qos::new())
+            .send_mail_and_await_reply_blocking(dds_subscriber::get_default_datareader_qos::new())
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datareader_qos`.
@@ -396,7 +396,7 @@ impl Subscriber {
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         self.0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::get_qos::new())
+            .send_mail_and_await_reply_blocking(dds_subscriber::get_qos::new())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -421,7 +421,7 @@ impl Subscriber {
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::get_statuscondition::new())
+            .send_mail_and_await_reply_blocking(dds_subscriber::get_statuscondition::new())
             .map(StatusCondition::new)
     }
 
@@ -461,25 +461,25 @@ impl Subscriber {
         if !self
             .0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_subscriber::is_enabled::new())?
         {
             self.0
                 .subscriber_address()
-                .send_and_reply_blocking(dds_subscriber::enable::new())?;
+                .send_mail_and_await_reply_blocking(dds_subscriber::enable::new())?;
 
             if self
                 .0
                 .subscriber_address()
-                .send_and_reply_blocking(dds_subscriber::get_qos::new())?
+                .send_mail_and_await_reply_blocking(dds_subscriber::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
             {
                 for data_reader in self
                     .0
                     .subscriber_address()
-                    .send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
+                    .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_list::new())?
                 {
-                    data_reader.send_and_reply_blocking(dds_data_reader::enable::new())?;
+                    data_reader.send_mail_and_await_reply_blocking(dds_data_reader::enable::new())?;
                 }
             }
         }
@@ -492,6 +492,6 @@ impl Subscriber {
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.0
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::get_instance_handle::new())
+            .send_mail_and_await_reply_blocking(dds_subscriber::get_instance_handle::new())
     }
 }

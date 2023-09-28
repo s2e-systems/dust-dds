@@ -271,28 +271,28 @@ impl DdsDomainParticipant {
 
         builtin_subscriber
             .address()
-            .send_and_reply_blocking(dds_subscriber::data_reader_add::new(
+            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
                 spdp_builtin_participant_reader_guid.into(),
                 spdp_builtin_participant_reader,
             ))
             .unwrap();
         builtin_subscriber
             .address()
-            .send_and_reply_blocking(dds_subscriber::data_reader_add::new(
+            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
                 sedp_builtin_topics_reader_guid.into(),
                 sedp_builtin_topics_reader,
             ))
             .unwrap();
         builtin_subscriber
             .address()
-            .send_and_reply_blocking(dds_subscriber::data_reader_add::new(
+            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
                 sedp_builtin_publications_reader_guid.into(),
                 sedp_builtin_publications_reader,
             ))
             .unwrap();
         builtin_subscriber
             .address()
-            .send_and_reply_blocking(dds_subscriber::data_reader_add::new(
+            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
                 sedp_builtin_subscriptions_reader_guid.into(),
                 sedp_builtin_subscriptions_reader,
             ))
@@ -329,7 +329,7 @@ impl DdsDomainParticipant {
         {
             spdp_builtin_participant_writer
                 .address()
-                .send_and_reply_blocking(dds_data_writer::reader_locator_add::new(reader_locator))
+                .send_mail_and_await_reply_blocking(dds_data_writer::reader_locator_add::new(reader_locator))
                 .unwrap();
         }
 
@@ -395,28 +395,28 @@ impl DdsDomainParticipant {
 
         builtin_publisher
             .address()
-            .send_and_reply_blocking(dds_publisher::datawriter_add::new(
+            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
                 spdp_builtin_participant_writer_guid.into(),
                 spdp_builtin_participant_writer,
             ))
             .unwrap();
         builtin_publisher
             .address()
-            .send_and_reply_blocking(dds_publisher::datawriter_add::new(
+            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
                 sedp_builtin_topics_writer_guid.into(),
                 sedp_builtin_topics_writer_actor,
             ))
             .unwrap();
         builtin_publisher
             .address()
-            .send_and_reply_blocking(dds_publisher::datawriter_add::new(
+            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
                 sedp_builtin_publications_writer_guid.into(),
                 sedp_builtin_publications_writer_actor,
             ))
             .unwrap();
         builtin_publisher
             .address()
-            .send_and_reply_blocking(dds_publisher::datawriter_add::new(
+            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
                 sedp_builtin_subscriptions_writer_guid.into(),
                 sedp_builtin_subscriptions_writer_actor,
             ))
@@ -655,13 +655,13 @@ impl DdsDomainParticipant {
         for (_, user_defined_publisher) in self.user_defined_publisher_list.drain() {
             user_defined_publisher
                 .address()
-                .send_and_reply_blocking(dds_publisher::delete_contained_entities::new())?;
+                .send_mail_and_await_reply_blocking(dds_publisher::delete_contained_entities::new())?;
         }
 
         for (_, user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
             user_defined_subscriber
                 .address()
-                .send_and_reply_blocking(dds_subscriber::delete_contained_entities::new())?;
+                .send_mail_and_await_reply_blocking(dds_subscriber::delete_contained_entities::new())?;
         }
 
         self.topic_list.clear();
@@ -1166,7 +1166,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
             .map(|a| a.address())
         {
             user_defined_subscriber_address
-                .send_only(dds_subscriber::process_rtps_message::new(
+                .send_mail(dds_subscriber::process_rtps_message::new(
                     mail.message.clone(),
                     self.get_current_time(),
                     mail.participant_address.clone(),
@@ -1177,7 +1177,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
                 .expect("Should not fail to send command");
 
             user_defined_subscriber_address
-                .send_only(dds_subscriber::send_message::new(
+                .send_mail(dds_subscriber::send_message::new(
                     RtpsMessageHeader::new(
                         self.rtps_participant.protocol_version(),
                         self.rtps_participant.vendor_id(),
@@ -1195,13 +1195,13 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
             .map(|a| a.address())
         {
             user_defined_publisher_address
-                .send_only(dds_publisher::process_rtps_message::new(
+                .send_mail(dds_publisher::process_rtps_message::new(
                     mail.message.clone(),
                 ))
                 .await
                 .expect("Should not fail to send command");
             user_defined_publisher_address
-                .send_only(dds_publisher::send_message::new(
+                .send_mail(dds_publisher::send_message::new(
                     RtpsMessageHeader::new(
                         self.rtps_participant.protocol_version(),
                         self.rtps_participant.vendor_id(),

@@ -166,7 +166,7 @@ impl DdsSubscriber {
     ) {
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
-                .send_only(dds_data_reader::send_message::new(
+                .send_mail(dds_data_reader::send_message::new(
                     header,
                     udp_transport_write.clone(),
                 ))
@@ -193,7 +193,7 @@ impl DdsSubscriber {
 
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
-                .send_and_reply(dds_data_reader::process_rtps_message::new(
+                .send_mail_and_await_reply(dds_data_reader::process_rtps_message::new(
                     message.clone(),
                     reception_timestamp,
                     data_reader_address.clone(),

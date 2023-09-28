@@ -92,7 +92,7 @@ where
         let timestamp = {
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?
         };
         self.register_instance_w_timestamp(instance, timestamp)
     }
@@ -147,7 +147,7 @@ where
         let timestamp = {
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?
         };
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
@@ -192,7 +192,7 @@ where
 
             let instance_serialized_key = dds_serialize_key_to_bytes(instance)?;
 
-            self.0.writer_address().send_and_reply_blocking(
+            self.0.writer_address().send_mail_and_await_reply_blocking(
                 dds_data_writer::unregister_instance_w_timestamp::new(
                     instance_serialized_key.as_ref().to_vec(),
                     instance_handle,
@@ -222,7 +222,7 @@ where
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.0
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::lookup_instance::new(dds_serialize_key(
+            .send_mail_and_await_reply_blocking(dds_data_writer::lookup_instance::new(dds_serialize_key(
                 instance,
             )?))?
     }
@@ -264,7 +264,7 @@ where
         let timestamp = {
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?
         };
         self.write_w_timestamp(data, handle, timestamp)
     }
@@ -283,7 +283,7 @@ where
     ) -> DdsResult<()> {
         let serialized_data = dds_serialize_to_bytes(data)?;
 
-        self.0.writer_address().send_and_reply_blocking(
+        self.0.writer_address().send_mail_and_await_reply_blocking(
             dds_data_writer::write_w_timestamp::new(
                 serialized_data,
                 dds_serialize_key(data)?,
@@ -294,25 +294,25 @@ where
 
         self.0
             .writer_address()
-            .send_only_blocking(dds_data_writer::send_message::new(
+            .send_mail_blocking(dds_data_writer::send_message::new(
                 RtpsMessageHeader::new(
                     self.0
                         .participant_address()
-                        .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
+                        .send_mail_and_await_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
                     self.0
                         .participant_address()
-                        .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                        .send_mail_and_await_reply_blocking(dds_domain_participant::GetVendorId)?,
                     self.0
                         .participant_address()
-                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                        .send_mail_and_await_reply_blocking(dds_domain_participant::GetGuid)?
                         .prefix(),
                 ),
                 self.0
                     .participant_address()
-                    .send_and_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
+                    .send_mail_and_await_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
                 self.0
                     .participant_address()
-                    .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+                    .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?,
             ))?;
 
         Ok(())
@@ -335,7 +335,7 @@ where
         let timestamp = {
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?
         };
         self.dispose_w_timestamp(data, handle, timestamp)
     }
@@ -379,7 +379,7 @@ where
 
         let instance_serialized_key = dds_serialize_key_to_bytes(data)?;
 
-        self.0.writer_address().send_and_reply_blocking(
+        self.0.writer_address().send_mail_and_await_reply_blocking(
             dds_data_writer::dispose_w_timestamp::new(
                 instance_serialized_key.as_ref().to_vec(),
                 instance_handle,
@@ -405,7 +405,7 @@ impl<Foo> DataWriter<Foo> {
             if self
                 .0
                 .writer_address()
-                .send_and_reply_blocking(dds_data_writer::are_all_changes_acknowledge::new())?
+                .send_mail_and_await_reply_blocking(dds_data_writer::are_all_changes_acknowledge::new())?
             {
                 return Ok(());
             }
@@ -438,7 +438,7 @@ impl<Foo> DataWriter<Foo> {
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         self.0
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::get_publication_matched_status::new())?
+            .send_mail_and_await_reply_blocking(dds_data_writer::get_publication_matched_status::new())?
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
@@ -482,7 +482,7 @@ impl<Foo> DataWriter<Foo> {
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         self.0
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::get_matched_subscription_data::new(
+            .send_mail_and_await_reply_blocking(dds_data_writer::get_matched_subscription_data::new(
                 subscription_handle,
             ))?
             .ok_or(DdsError::BadParameter)
@@ -498,7 +498,7 @@ impl<Foo> DataWriter<Foo> {
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.0
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::get_matched_subscriptions::new())
+            .send_mail_and_await_reply_blocking(dds_data_writer::get_matched_subscriptions::new())
     }
 }
 
@@ -525,7 +525,7 @@ where
             QosKind::Default => self
                 .0
                 .publisher_address()
-                .send_and_reply_blocking(dds_publisher::get_default_datawriter_qos::new())?,
+                .send_mail_and_await_reply_blocking(dds_publisher::get_default_datawriter_qos::new())?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
@@ -533,25 +533,25 @@ where
         };
         self.0
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::set_qos::new(q))?;
+            .send_mail_and_await_reply_blocking(dds_data_writer::set_qos::new(q))?;
 
         if self
             .0
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_data_writer::is_enabled::new())?
         {
             announce_data_writer(
                 self.0.participant_address(),
-                &self.0.writer_address().send_and_reply_blocking(
+                &self.0.writer_address().send_mail_and_await_reply_blocking(
                     dds_data_writer::as_discovered_writer_data::new(
                         TopicQos::default(),
                         self.0
                             .publisher_address()
-                            .send_and_reply_blocking(dds_publisher::get_qos::new())?,
-                        self.0.participant_address().send_and_reply_blocking(
+                            .send_mail_and_await_reply_blocking(dds_publisher::get_qos::new())?,
+                        self.0.participant_address().send_mail_and_await_reply_blocking(
                             dds_domain_participant::get_default_unicast_locator_list::new(),
                         )?,
-                        self.0.participant_address().send_and_reply_blocking(
+                        self.0.participant_address().send_mail_and_await_reply_blocking(
                             dds_domain_participant::get_default_multicast_locator_list::new(),
                         )?,
                     ),
@@ -567,7 +567,7 @@ where
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
         self.0
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::get_qos::new())
+            .send_mail_and_await_reply_blocking(dds_data_writer::get_qos::new())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -592,7 +592,7 @@ where
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::get_statuscondition::new())
+            .send_mail_and_await_reply_blocking(dds_data_writer::get_statuscondition::new())
             .map(StatusCondition::new)
     }
 
@@ -632,24 +632,24 @@ where
         if !self
             .0
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_data_writer::is_enabled::new())?
         {
             self.0
                 .writer_address()
-                .send_and_reply_blocking(dds_data_writer::enable::new())?;
+                .send_mail_and_await_reply_blocking(dds_data_writer::enable::new())?;
 
             announce_data_writer(
                 self.0.participant_address(),
-                &self.0.writer_address().send_and_reply_blocking(
+                &self.0.writer_address().send_mail_and_await_reply_blocking(
                     dds_data_writer::as_discovered_writer_data::new(
                         TopicQos::default(),
                         self.0
                             .publisher_address()
-                            .send_and_reply_blocking(dds_publisher::get_qos::new())?,
-                        self.0.participant_address().send_and_reply_blocking(
+                            .send_mail_and_await_reply_blocking(dds_publisher::get_qos::new())?,
+                        self.0.participant_address().send_mail_and_await_reply_blocking(
                             dds_domain_participant::get_default_unicast_locator_list::new(),
                         )?,
-                        self.0.participant_address().send_and_reply_blocking(
+                        self.0.participant_address().send_mail_and_await_reply_blocking(
                             dds_domain_participant::get_default_multicast_locator_list::new(),
                         )?,
                     ),
@@ -664,7 +664,7 @@ where
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.0
             .writer_address()
-            .send_and_reply_blocking(dds_data_writer::get_instance_handle::new())
+            .send_mail_and_await_reply_blocking(dds_data_writer::get_instance_handle::new())
     }
 }
 
@@ -676,38 +676,38 @@ fn announce_data_writer(
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(discovered_writer_data)?;
     let timestamp =
-        domain_participant.send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+        domain_participant.send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?;
 
     let builtin_publisher =
-        domain_participant.send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+        domain_participant.send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
     let data_writer_list =
-        builtin_publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
+        builtin_publisher.send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
 
     for dw in data_writer_list {
-        if dw.send_and_reply_blocking(dds_data_writer::get_type_name::new())
+        if dw.send_mail_and_await_reply_blocking(dds_data_writer::get_type_name::new())
             == Ok("DiscoveredWriterData".to_string())
         {
-            dw.send_and_reply_blocking(dds_data_writer::write_w_timestamp::new(
+            dw.send_mail_and_await_reply_blocking(dds_data_writer::write_w_timestamp::new(
                 serialized_data,
                 dds_serialize_key(discovered_writer_data)?,
                 None,
                 timestamp,
             ))??;
 
-            dw.send_only_blocking(dds_data_writer::send_message::new(
+            dw.send_mail_blocking(dds_data_writer::send_message::new(
                 RtpsMessageHeader::new(
                     domain_participant
-                        .send_and_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
+                        .send_mail_and_await_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
                     domain_participant
-                        .send_and_reply_blocking(dds_domain_participant::GetVendorId)?,
+                        .send_mail_and_await_reply_blocking(dds_domain_participant::GetVendorId)?,
                     domain_participant
-                        .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+                        .send_mail_and_await_reply_blocking(dds_domain_participant::GetGuid)?
                         .prefix(),
                 ),
                 domain_participant
-                    .send_and_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
+                    .send_mail_and_await_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
                 domain_participant
-                    .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+                    .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?,
             ))?;
             break;
         }

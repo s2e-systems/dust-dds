@@ -331,19 +331,19 @@ impl DdsDataReader {
         ),
     ) -> DdsResult<()> {
         subscriber_status_condition
-            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::AddCommunicationState::new(
                 StatusKind::DataOnReaders,
             ))
             .await?;
         self.status_condition
             .address()
-            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::AddCommunicationState::new(
                 StatusKind::DataAvailable,
             ))
             .await?;
         match subscriber_listener_address {
             Some(l) if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) => {
-                l.send_only(dds_subscriber_listener::TriggerOnDataOnReaders::new(
+                l.send_mail(dds_subscriber_listener::TriggerOnDataOnReaders::new(
                     SubscriberNode::new(subscriber_address.clone(), participant_address.clone()),
                 ))
                 .await?;
@@ -355,7 +355,7 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.send_only(dds_data_reader_listener::trigger_on_data_available::new(
+                    l.send_mail(dds_data_reader_listener::trigger_on_data_available::new(
                         reader,
                     ))
                     .await?;
@@ -624,7 +624,7 @@ impl DdsDataReader {
         self.sample_lost_status.increment();
         self.status_condition
             .address()
-            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::AddCommunicationState::new(
                 StatusKind::SampleLost,
             ))
             .await?;
@@ -636,7 +636,7 @@ impl DdsDataReader {
                     participant_address.clone(),
                 );
                 let status = self.get_sample_lost_status();
-                l.send_only(dds_data_reader_listener::trigger_on_sample_lost::new(
+                l.send_mail(dds_data_reader_listener::trigger_on_sample_lost::new(
                     reader, status,
                 ))
                 .await?;
@@ -649,7 +649,7 @@ impl DdsDataReader {
                         participant_address.clone(),
                     );
                     let status = self.get_sample_lost_status();
-                    l.send_only(dds_subscriber_listener::TriggerOnSampleLost::new(
+                    l.send_mail(dds_subscriber_listener::TriggerOnSampleLost::new(
                         reader, status,
                     ))
                     .await?;
@@ -662,7 +662,7 @@ impl DdsDataReader {
                             participant_address.clone(),
                         );
                         let status = self.get_sample_lost_status();
-                        l.send_only(dds_domain_participant_listener::TriggerOnSampleLost::new(
+                        l.send_mail(dds_domain_participant_listener::TriggerOnSampleLost::new(
                             reader, status,
                         ))
                         .await?;
@@ -692,7 +692,7 @@ impl DdsDataReader {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
             .address()
-            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::AddCommunicationState::new(
                 StatusKind::SubscriptionMatched,
             ))
             .await?;
@@ -705,7 +705,7 @@ impl DdsDataReader {
                     participant_address,
                 );
                 let status = self.get_subscription_matched_status().await?;
-                l.send_only(
+                l.send_mail(
                     dds_data_reader_listener::trigger_on_subscription_matched::new(reader, status),
                 )
                 .await?;
@@ -718,7 +718,7 @@ impl DdsDataReader {
                         participant_address,
                     );
                     let status = self.get_subscription_matched_status().await?;
-                    l.send_only(dds_subscriber_listener::TriggerOnSubscriptionMatched::new(
+                    l.send_mail(dds_subscriber_listener::TriggerOnSubscriptionMatched::new(
                         reader, status,
                     ))
                     .await?;
@@ -733,7 +733,7 @@ impl DdsDataReader {
                             participant_address,
                         );
                         let status = self.get_subscription_matched_status().await?;
-                        l.send_only(
+                        l.send_mail(
                             dds_domain_participant_listener::TriggerOnSubscriptionMatched::new(
                                 reader, status,
                             ),
@@ -768,7 +768,7 @@ impl DdsDataReader {
             .increment(instance_handle, rejected_reason);
         self.status_condition
             .address()
-            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::AddCommunicationState::new(
                 StatusKind::SampleRejected,
             ))
             .await?;
@@ -780,7 +780,7 @@ impl DdsDataReader {
                     subscriber_address.clone(),
                     participant_address.clone(),
                 );
-                l.send_only(dds_data_reader_listener::trigger_on_sample_rejected::new(
+                l.send_mail(dds_data_reader_listener::trigger_on_sample_rejected::new(
                     reader, status,
                 ))
                 .await?;
@@ -793,7 +793,7 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.send_only(dds_subscriber_listener::TriggerOnSampleRejected::new(
+                    l.send_mail(dds_subscriber_listener::TriggerOnSampleRejected::new(
                         reader, status,
                     ))
                     .await?;
@@ -806,7 +806,7 @@ impl DdsDataReader {
                             subscriber_address.clone(),
                             participant_address.clone(),
                         );
-                        l.send_only(
+                        l.send_mail(
                             dds_domain_participant_listener::TriggerOnSampleRejected::new(
                                 reader, status,
                             ),
@@ -839,7 +839,7 @@ impl DdsDataReader {
             .increment(incompatible_qos_policy_list);
         self.status_condition
             .address()
-            .send_and_reply(dds_status_condition::AddCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::AddCommunicationState::new(
                 StatusKind::RequestedIncompatibleQos,
             ))
             .await?;
@@ -856,7 +856,7 @@ impl DdsDataReader {
                     subscriber_address.clone(),
                     participant_address.clone(),
                 );
-                l.send_only(
+                l.send_mail(
                     dds_data_reader_listener::trigger_on_requested_incompatible_qos::new(
                         reader, status,
                     ),
@@ -873,7 +873,7 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.send_only(
+                    l.send_mail(
                         dds_subscriber_listener::TriggerOnRequestedIncompatibleQos::new(
                             reader, status,
                         ),
@@ -892,7 +892,7 @@ impl DdsDataReader {
                                 subscriber_address.clone(),
                                 participant_address.clone(),
                             );
-                            l.send_only(dds_domain_participant_listener::TriggerOnRequestedIncompatibleQos::new(reader, status)).await
+                            l.send_mail(dds_domain_participant_listener::TriggerOnRequestedIncompatibleQos::new(reader, status)).await
                             ?;
                         }
                         _ => (),
@@ -1413,7 +1413,7 @@ impl DdsDataReader {
 
         self.status_condition
             .address()
-            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::RemoveCommunicationState::new(
                 StatusKind::DataAvailable,
             ))
             .await?;
@@ -1463,7 +1463,7 @@ impl DdsDataReader {
 
         self.status_condition
             .address()
-            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::RemoveCommunicationState::new(
                 StatusKind::DataAvailable,
             ))
             .await?;
@@ -1641,7 +1641,7 @@ impl DdsDataReader {
     async fn get_subscription_matched_status(&mut self) -> DdsResult<SubscriptionMatchedStatus> {
         self.status_condition
             .address()
-            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::RemoveCommunicationState::new(
                 StatusKind::SubscriptionMatched,
             ))
             .await?;
@@ -1942,7 +1942,7 @@ impl DdsDataReader {
 
             self.status_condition
                 .address()
-                .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                .send_mail_and_await_reply(dds_status_condition::AddCommunicationState::new(
                     StatusKind::RequestedDeadlineMissed,
                 ))
                 .await?;
@@ -1958,7 +1958,7 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.send_only(
+                    l.send_mail(
                         dds_data_reader_listener::trigger_on_requested_deadline_missed::new(
                             reader, status,
                         ),
@@ -1976,7 +1976,7 @@ impl DdsDataReader {
                             subscriber_address.clone(),
                             participant_address.clone(),
                         );
-                        l.send_only(
+                        l.send_mail(
                             dds_subscriber_listener::TriggerOnRequestedDeadlineMissed::new(
                                 reader, status,
                             ),
@@ -1994,7 +1994,7 @@ impl DdsDataReader {
                                 subscriber_address.clone(),
                                 participant_address.clone(),
                             );
-                            l.send_only(dds_domain_participant_listener::TriggerOnRequestedDeadlineMissed::new(reader, status)).await
+                            l.send_mail(dds_domain_participant_listener::TriggerOnRequestedDeadlineMissed::new(reader, status)).await
                                 ?;
                         }
                         _ => (),

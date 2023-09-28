@@ -51,7 +51,7 @@ impl<A> PartialEq for ActorAddress<A> {
 impl<A> Eq for ActorAddress<A> {}
 
 impl<A> ActorAddress<A> {
-    pub async fn send_and_reply<M>(&self, mail: M) -> DdsResult<M::Result>
+    pub async fn send_mail_and_await_reply<M>(&self, mail: M) -> DdsResult<M::Result>
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
@@ -68,7 +68,7 @@ impl<A> ActorAddress<A> {
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
-    pub fn send_and_reply_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
+    pub fn send_mail_and_await_reply_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
@@ -111,7 +111,7 @@ impl<A> ActorAddress<A> {
         Ok(receive_result.expect("Receive result should be Ok"))
     }
 
-    pub async fn send_only<M>(&self, mail: M) -> DdsResult<()>
+    pub async fn send_mail<M>(&self, mail: M) -> DdsResult<()>
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
@@ -122,7 +122,7 @@ impl<A> ActorAddress<A> {
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
-    pub fn send_only_blocking<M>(&self, mail: M) -> DdsResult<()>
+    pub fn send_mail_blocking<M>(&self, mail: M) -> DdsResult<()>
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
@@ -363,7 +363,7 @@ mod tests {
         assert_eq!(
             actor
                 .address()
-                .send_and_reply_blocking(increment::new(10))
+                .send_mail_and_await_reply_blocking(increment::new(10))
                 .unwrap(),
             10
         )
@@ -376,7 +376,7 @@ mod tests {
         let actor_address = actor.address().clone();
         std::mem::drop(actor);
         assert_eq!(
-            actor_address.send_and_reply_blocking(increment::new(10)),
+            actor_address.send_mail_and_await_reply_blocking(increment::new(10)),
             Err(DdsError::AlreadyDeleted)
         );
     }

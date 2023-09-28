@@ -215,7 +215,7 @@ impl DdsPublisher {
     async fn process_rtps_message(&self, message: RtpsMessageRead) {
         for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
             data_writer_address
-                .send_only(dds_data_writer::process_rtps_message::new(message.clone()))
+                .send_mail(dds_data_writer::process_rtps_message::new(message.clone()))
                 .await
                 .expect("Should not fail to send command");
         }
@@ -229,7 +229,7 @@ impl DdsPublisher {
     ) {
         for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
             data_writer_address
-                .send_only(dds_data_writer::send_message::new(
+                .send_mail(dds_data_writer::send_message::new(
                     header,
                     udp_transport_write.clone(),
                     now,

@@ -120,7 +120,7 @@ impl DdsTopic {
         let status = self.inconsistent_topic_status.read_and_reset();
         self.status_condition
             .address()
-            .send_and_reply(dds_status_condition::RemoveCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::RemoveCommunicationState::new(
                 StatusKind::InconsistentTopic,
             ))
             .await?;
@@ -141,7 +141,7 @@ impl DdsTopic {
             self.inconsistent_topic_status.increment();
             self.status_condition
                 .address()
-                .send_and_reply(dds_status_condition::AddCommunicationState::new(
+                .send_mail_and_await_reply(dds_status_condition::AddCommunicationState::new(
                     StatusKind::InconsistentTopic,
                 ))
                 .await?;

@@ -82,7 +82,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher_address = self.0.participant_address().send_and_reply_blocking(
+        let publisher_address = self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::create_publisher::new(qos, a_listener, mask.to_vec()),
         )?;
 
@@ -93,11 +93,11 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::is_enabled::new())?
             && self
                 .0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::get_qos::new())?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -119,12 +119,12 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::GetGuid)?
             .prefix()
             != a_publisher
                 .node()
                 .publisher_address()
-                .send_and_reply_blocking(dds_publisher::guid::new())?
+                .send_mail_and_await_reply_blocking(dds_publisher::guid::new())?
                 .prefix()
         {
             return Err(DdsError::PreconditionNotMet(
@@ -135,7 +135,7 @@ impl DomainParticipant {
         if !a_publisher
             .node()
             .publisher_address()
-            .send_and_reply_blocking(dds_publisher::data_writer_list::new())?
+            .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?
             .is_empty()
         {
             return Err(DdsError::PreconditionNotMet(
@@ -143,7 +143,7 @@ impl DomainParticipant {
             ));
         }
 
-        self.0.participant_address().send_and_reply_blocking(
+        self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::delete_user_defined_publisher::new(
                 a_publisher.get_instance_handle()?,
             ),
@@ -165,7 +165,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber_address = self.0.participant_address().send_and_reply_blocking(
+        let subscriber_address = self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::create_subscriber::new(qos, a_listener, mask.to_vec()),
         )?;
 
@@ -177,11 +177,11 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::is_enabled::new())?
             && self
                 .0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::get_qos::new())?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -202,12 +202,12 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::GetGuid)?
             .prefix()
             != a_subscriber
                 .node()
                 .subscriber_address()
-                .send_and_reply_blocking(dds_subscriber::guid::new())?
+                .send_mail_and_await_reply_blocking(dds_subscriber::guid::new())?
                 .prefix()
         {
             return Err(DdsError::PreconditionNotMet(
@@ -218,7 +218,7 @@ impl DomainParticipant {
         if !a_subscriber
             .node()
             .subscriber_address()
-            .send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
+            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_list::new())?
             .is_empty()
         {
             return Err(DdsError::PreconditionNotMet(
@@ -226,12 +226,12 @@ impl DomainParticipant {
             ));
         }
 
-        self.0.participant_address().send_and_reply_blocking(
+        self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::delete_user_defined_subscriber::new(
                 a_subscriber
                     .node()
                     .subscriber_address()
-                    .send_and_reply_blocking(dds_subscriber::get_instance_handle::new())?,
+                    .send_mail_and_await_reply_blocking(dds_subscriber::get_instance_handle::new())?,
             ),
         )
     }
@@ -252,7 +252,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Topic> {
-        let topic_address = self.0.participant_address().send_and_reply_blocking(
+        let topic_address = self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::create_topic::new(
                 topic_name.to_string(),
                 type_name.to_string(),
@@ -269,11 +269,11 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::is_enabled::new())?
             && self
                 .0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::get_qos::new())?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -294,12 +294,12 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::GetGuid)?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::GetGuid)?
             .prefix()
             != a_topic
                 .node()
                 .topic_address()
-                .send_and_reply_blocking(dds_topic::guid::new())?
+                .send_mail_and_await_reply_blocking(dds_topic::guid::new())?
                 .prefix()
         {
             return Err(DdsError::PreconditionNotMet(
@@ -310,21 +310,21 @@ impl DomainParticipant {
         for publisher in self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
         {
             let data_writer_list =
-                publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?;
+                publisher.send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
             for data_writer in data_writer_list {
-                if data_writer.send_and_reply_blocking(dds_data_writer::get_type_name::new())
+                if data_writer.send_mail_and_await_reply_blocking(dds_data_writer::get_type_name::new())
                     == a_topic
                         .node()
                         .topic_address()
-                        .send_and_reply_blocking(dds_topic::get_type_name::new())
-                    && data_writer.send_and_reply_blocking(dds_data_writer::get_topic_name::new())
+                        .send_mail_and_await_reply_blocking(dds_topic::get_type_name::new())
+                    && data_writer.send_mail_and_await_reply_blocking(dds_data_writer::get_topic_name::new())
                         == a_topic
                             .node()
                             .topic_address()
-                            .send_and_reply_blocking(dds_topic::get_name::new())
+                            .send_mail_and_await_reply_blocking(dds_topic::get_name::new())
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer".to_string(),
@@ -336,21 +336,21 @@ impl DomainParticipant {
         for subscriber in self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
         {
             let data_reader_list =
-                subscriber.send_and_reply_blocking(dds_subscriber::data_reader_list::new())?;
+                subscriber.send_mail_and_await_reply_blocking(dds_subscriber::data_reader_list::new())?;
             for data_reader in data_reader_list {
-                if data_reader.send_and_reply_blocking(dds_data_reader::get_type_name::new())
+                if data_reader.send_mail_and_await_reply_blocking(dds_data_reader::get_type_name::new())
                     == a_topic
                         .node()
                         .topic_address()
-                        .send_and_reply_blocking(dds_topic::get_type_name::new())
-                    && data_reader.send_and_reply_blocking(dds_data_reader::get_topic_name::new())
+                        .send_mail_and_await_reply_blocking(dds_topic::get_type_name::new())
+                    && data_reader.send_mail_and_await_reply_blocking(dds_data_reader::get_topic_name::new())
                         == a_topic
                             .node()
                             .topic_address()
-                            .send_and_reply_blocking(dds_topic::get_name::new())
+                            .send_mail_and_await_reply_blocking(dds_topic::get_name::new())
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data reader".to_string(),
@@ -359,12 +359,12 @@ impl DomainParticipant {
             }
         }
 
-        self.0.participant_address().send_and_reply_blocking(
+        self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::delete_topic::new(
                 a_topic
                     .node()
                     .topic_address()
-                    .send_and_reply_blocking(dds_topic::get_instance_handle::new())?,
+                    .send_mail_and_await_reply_blocking(dds_topic::get_instance_handle::new())?,
             ),
         )
     }
@@ -388,9 +388,9 @@ impl DomainParticipant {
             for topic in self
                 .0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
             {
-                if topic.send_and_reply_blocking(dds_topic::get_name::new())? == topic_name {
+                if topic.send_mail_and_await_reply_blocking(dds_topic::get_name::new())? == topic_name {
                     return Ok(Topic::new(TopicNode::new(
                         topic,
                         self.0.participant_address().clone(),
@@ -401,10 +401,10 @@ impl DomainParticipant {
             for discovered_topic_handle in self
                 .0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::discovered_topic_list::new())?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::discovered_topic_list::new())?
             {
                 if let Ok(discovered_topic_data) =
-                    self.0.participant_address().send_and_reply_blocking(
+                    self.0.participant_address().send_mail_and_await_reply_blocking(
                         dds_domain_participant::discovered_topic_data::new(discovered_topic_handle),
                     )?
                 {
@@ -473,7 +473,7 @@ impl DomainParticipant {
         Ok(Subscriber::new(SubscriberNode::new(
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?,
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?,
             self.0.participant_address().clone(),
         )))
     }
@@ -494,11 +494,11 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::is_enabled::new())?
         {
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::ignore_participant::new(handle))
+                .send_mail_and_await_reply_blocking(dds_domain_participant::ignore_participant::new(handle))
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -516,11 +516,11 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::is_enabled::new())?
         {
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::ignore_topic::new(handle))
+                .send_mail_and_await_reply_blocking(dds_domain_participant::ignore_topic::new(handle))
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -536,11 +536,11 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::is_enabled::new())?
         {
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::ignore_publication::new(handle))
+                .send_mail_and_await_reply_blocking(dds_domain_participant::ignore_publication::new(handle))
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -557,11 +557,11 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::is_enabled::new())?
         {
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::ignore_subscription::new(handle))
+                .send_mail_and_await_reply_blocking(dds_domain_participant::ignore_subscription::new(handle))
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -573,7 +573,7 @@ impl DomainParticipant {
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::GetDomainId)
+            .send_mail_and_await_reply_blocking(dds_domain_participant::GetDomainId)
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -591,50 +591,50 @@ impl DomainParticipant {
         for publisher in self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::GetUserDefinedPublisherList)?
         {
             for data_writer in
-                publisher.send_and_reply_blocking(dds_publisher::data_writer_list::new())?
+                publisher.send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?
             {
-                publisher.send_and_reply_blocking(dds_publisher::datawriter_delete::new(
+                publisher.send_mail_and_await_reply_blocking(dds_publisher::datawriter_delete::new(
                     data_writer
-                        .send_and_reply_blocking(dds_data_writer::get_instance_handle::new())?,
+                        .send_mail_and_await_reply_blocking(dds_data_writer::get_instance_handle::new())?,
                 ))?;
             }
-            self.0.participant_address().send_and_reply_blocking(
+            self.0.participant_address().send_mail_and_await_reply_blocking(
                 dds_domain_participant::delete_user_defined_publisher::new(
-                    publisher.send_and_reply_blocking(dds_publisher::get_instance_handle::new())?,
+                    publisher.send_mail_and_await_reply_blocking(dds_publisher::get_instance_handle::new())?,
                 ),
             )?;
         }
         for subscriber in self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::GetUserDefinedSubscriberList)?
         {
             for data_reader in
-                subscriber.send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
+                subscriber.send_mail_and_await_reply_blocking(dds_subscriber::data_reader_list::new())?
             {
-                subscriber.send_and_reply_blocking(dds_subscriber::data_reader_delete::new(
+                subscriber.send_mail_and_await_reply_blocking(dds_subscriber::data_reader_delete::new(
                     data_reader
-                        .send_and_reply_blocking(dds_data_reader::get_instance_handle::new())?,
+                        .send_mail_and_await_reply_blocking(dds_data_reader::get_instance_handle::new())?,
                 ))?;
             }
-            self.0.participant_address().send_and_reply_blocking(
+            self.0.participant_address().send_mail_and_await_reply_blocking(
                 dds_domain_participant::delete_user_defined_subscriber::new(
                     subscriber
-                        .send_and_reply_blocking(dds_subscriber::get_instance_handle::new())?,
+                        .send_mail_and_await_reply_blocking(dds_subscriber::get_instance_handle::new())?,
                 ),
             )?;
         }
         for topic in self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)?
         {
-            self.0.participant_address().send_and_reply_blocking(
+            self.0.participant_address().send_mail_and_await_reply_blocking(
                 dds_domain_participant::delete_topic::new(
-                    topic.send_and_reply_blocking(dds_topic::get_instance_handle::new())?,
+                    topic.send_mail_and_await_reply_blocking(dds_topic::get_instance_handle::new())?,
                 ),
             )?;
         }
@@ -670,7 +670,7 @@ impl DomainParticipant {
         };
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::set_default_publisher_qos::new(qos))
+            .send_mail_and_await_reply_blocking(dds_domain_participant::set_default_publisher_qos::new(qos))
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -681,7 +681,7 @@ impl DomainParticipant {
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::default_publisher_qos::new())
+            .send_mail_and_await_reply_blocking(dds_domain_participant::default_publisher_qos::new())
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created [`Subscriber`] entities in the
@@ -699,7 +699,7 @@ impl DomainParticipant {
 
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::set_default_subscriber_qos::new(qos))
+            .send_mail_and_await_reply_blocking(dds_domain_participant::set_default_subscriber_qos::new(qos))
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -710,7 +710,7 @@ impl DomainParticipant {
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::default_subscriber_qos::new())
+            .send_mail_and_await_reply_blocking(dds_domain_participant::default_subscriber_qos::new())
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created [`Topic`] entities in the case
@@ -730,7 +730,7 @@ impl DomainParticipant {
         };
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::set_default_topic_qos::new(qos))
+            .send_mail_and_await_reply_blocking(dds_domain_participant::set_default_topic_qos::new(qos))
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created [`Topic`]
@@ -741,7 +741,7 @@ impl DomainParticipant {
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::default_topic_qos::new())
+            .send_mail_and_await_reply_blocking(dds_domain_participant::default_topic_qos::new())
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
@@ -750,7 +750,7 @@ impl DomainParticipant {
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::get_discovered_participants::new())
+            .send_mail_and_await_reply_blocking(dds_domain_participant::get_discovered_participants::new())
     }
 
     /// This operation retrieves information on a [`DomainParticipant`] that has been discovered on the network. The participant must
@@ -773,7 +773,7 @@ impl DomainParticipant {
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::discovered_topic_list::new())
+            .send_mail_and_await_reply_blocking(dds_domain_participant::discovered_topic_list::new())
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -787,7 +787,7 @@ impl DomainParticipant {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        self.0.participant_address().send_and_reply_blocking(
+        self.0.participant_address().send_mail_and_await_reply_blocking(
             dds_domain_participant::discovered_topic_data::new(topic_handle),
         )?
     }
@@ -812,7 +812,7 @@ impl DomainParticipant {
     pub fn get_current_time(&self) -> DdsResult<Time> {
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::GetCurrentTime)
+            .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)
     }
 }
 
@@ -839,7 +839,7 @@ impl DomainParticipant {
 
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::set_qos::new(qos))
+            .send_mail_and_await_reply_blocking(dds_domain_participant::set_qos::new(qos))
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
@@ -847,7 +847,7 @@ impl DomainParticipant {
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::get_qos::new())
+            .send_mail_and_await_reply_blocking(dds_domain_participant::get_qos::new())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -909,38 +909,38 @@ impl DomainParticipant {
         if !self
             .0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(dds_domain_participant::is_enabled::new())?
         {
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
-                .send_and_reply_blocking(dds_publisher::enable::new())?;
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
+                .send_mail_and_await_reply_blocking(dds_publisher::enable::new())?;
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
-                .send_and_reply_blocking(dds_subscriber::enable::new())?;
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
+                .send_mail_and_await_reply_blocking(dds_subscriber::enable::new())?;
 
             for builtin_reader in self
                 .0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
-                .send_and_reply_blocking(dds_subscriber::data_reader_list::new())?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltInSubscriber)?
+                .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_list::new())?
             {
-                builtin_reader.send_and_reply_blocking(dds_data_reader::enable::new())?;
+                builtin_reader.send_mail_and_await_reply_blocking(dds_data_reader::enable::new())?;
             }
 
             for builtin_writer in self
                 .0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
-                .send_and_reply_blocking(dds_publisher::data_writer_list::new())?
+                .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
+                .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?
             {
-                builtin_writer.send_and_reply_blocking(dds_data_writer::enable::new())?;
+                builtin_writer.send_mail_and_await_reply_blocking(dds_data_writer::enable::new())?;
             }
 
             self.0
                 .participant_address()
-                .send_and_reply_blocking(dds_domain_participant::enable::new())?;
+                .send_mail_and_await_reply_blocking(dds_domain_participant::enable::new())?;
 
             let domain_participant_address = self.0.participant_address().clone();
 
@@ -950,29 +950,29 @@ impl DomainParticipant {
                 loop {
                     let r: DdsResult<()> = async {
                         let builtin_publisher = domain_participant_address
-                            .send_and_reply(dds_domain_participant::GetBuiltinPublisher)
+                            .send_mail_and_await_reply(dds_domain_participant::GetBuiltinPublisher)
                             .await?;
                         let data_writer_list = builtin_publisher
-                            .send_and_reply(dds_publisher::data_writer_list::new())
+                            .send_mail_and_await_reply(dds_publisher::data_writer_list::new())
                             .await?;
                         for data_writer in data_writer_list {
                             if data_writer
-                                .send_and_reply(dds_data_writer::get_type_name::new())
+                                .send_mail_and_await_reply(dds_data_writer::get_type_name::new())
                                 .await
                                 == Ok("SpdpDiscoveredParticipantData".to_string())
                             {
                                 let spdp_discovered_participant_data = domain_participant_address
-                                    .send_and_reply(
+                                    .send_mail_and_await_reply(
                                         dds_domain_participant::AsSpdpDiscoveredParticipantData,
                                     )
                                     .await?;
                                 let serialized_data =
                                     dds_serialize_to_bytes(&spdp_discovered_participant_data)?;
                                 let timestamp = domain_participant_address
-                                    .send_and_reply(dds_domain_participant::GetCurrentTime)
+                                    .send_mail_and_await_reply(dds_domain_participant::GetCurrentTime)
                                     .await?;
                                 data_writer
-                                    .send_and_reply(dds_data_writer::write_w_timestamp::new(
+                                    .send_mail_and_await_reply(dds_data_writer::write_w_timestamp::new(
                                         serialized_data,
                                         dds_serialize_key(&spdp_discovered_participant_data)
                                             .unwrap(),
@@ -982,23 +982,23 @@ impl DomainParticipant {
                                     .await??;
 
                                 data_writer
-                                    .send_only(dds_data_writer::send_message::new(
+                                    .send_mail(dds_data_writer::send_message::new(
                                         RtpsMessageHeader::new(
                                             domain_participant_address
-                                                .send_and_reply(
+                                                .send_mail_and_await_reply(
                                                     dds_domain_participant::GetProtocolVersion,
                                                 )
                                                 .await?,
                                             domain_participant_address
-                                                .send_and_reply(dds_domain_participant::GetVendorId)
+                                                .send_mail_and_await_reply(dds_domain_participant::GetVendorId)
                                                 .await?,
                                             domain_participant_address
-                                                .send_and_reply(dds_domain_participant::GetGuid)
+                                                .send_mail_and_await_reply(dds_domain_participant::GetGuid)
                                                 .await?
                                                 .prefix(),
                                         ),
                                         domain_participant_address
-                                            .send_and_reply(
+                                            .send_mail_and_await_reply(
                                                 dds_domain_participant::GetUdpTransportWrite,
                                             )
                                             .await?,
@@ -1027,34 +1027,34 @@ impl DomainParticipant {
                 loop {
                     let r: DdsResult<()> = async {
                         let now = domain_participant_address
-                            .send_and_reply(dds_domain_participant::GetCurrentTime)
+                            .send_mail_and_await_reply(dds_domain_participant::GetCurrentTime)
                             .await?;
                         let participant_mask_listener = (
                             domain_participant_address
-                                .send_and_reply(dds_domain_participant::GetListener)
+                                .send_mail_and_await_reply(dds_domain_participant::GetListener)
                                 .await?,
                             domain_participant_address
-                                .send_and_reply(dds_domain_participant::GetStatusKind)
+                                .send_mail_and_await_reply(dds_domain_participant::GetStatusKind)
                                 .await?,
                         );
                         for subscriber in domain_participant_address
-                            .send_and_reply(dds_domain_participant::GetUserDefinedSubscriberList)
+                            .send_mail_and_await_reply(dds_domain_participant::GetUserDefinedSubscriberList)
                             .await?
                         {
                             let subscriber_mask_listener = (
                                 subscriber
-                                    .send_and_reply(dds_subscriber::get_listener::new())
+                                    .send_mail_and_await_reply(dds_subscriber::get_listener::new())
                                     .await?,
                                 subscriber
-                                    .send_and_reply(dds_subscriber::get_status_kind::new())
+                                    .send_mail_and_await_reply(dds_subscriber::get_status_kind::new())
                                     .await?,
                             );
                             for data_reader in subscriber
-                                .send_and_reply(dds_subscriber::data_reader_list::new())
+                                .send_mail_and_await_reply(dds_subscriber::data_reader_list::new())
                                 .await?
                             {
                                 data_reader
-                                    .send_only(dds_data_reader::update_communication_status::new(
+                                    .send_mail(dds_data_reader::update_communication_status::new(
                                         now,
                                         data_reader.clone(),
                                         subscriber.clone(),
@@ -1067,36 +1067,36 @@ impl DomainParticipant {
                         }
 
                         for user_defined_publisher in domain_participant_address
-                            .send_and_reply(dds_domain_participant::GetUserDefinedPublisherList)
+                            .send_mail_and_await_reply(dds_domain_participant::GetUserDefinedPublisherList)
                             .await?
                         {
                             for data_writer in user_defined_publisher
-                                .send_and_reply(dds_publisher::data_writer_list::new())
+                                .send_mail_and_await_reply(dds_publisher::data_writer_list::new())
                                 .await?
                             {
                                 data_writer
-                                    .send_only(dds_data_writer::send_message::new(
+                                    .send_mail(dds_data_writer::send_message::new(
                                         RtpsMessageHeader::new(
                                             domain_participant_address
-                                                .send_and_reply(
+                                                .send_mail_and_await_reply(
                                                     dds_domain_participant::GetProtocolVersion,
                                                 )
                                                 .await?,
                                             domain_participant_address
-                                                .send_and_reply(dds_domain_participant::GetVendorId)
+                                                .send_mail_and_await_reply(dds_domain_participant::GetVendorId)
                                                 .await?,
                                             domain_participant_address
-                                                .send_and_reply(dds_domain_participant::GetGuid)
+                                                .send_mail_and_await_reply(dds_domain_participant::GetGuid)
                                                 .await?
                                                 .prefix(),
                                         ),
                                         domain_participant_address
-                                            .send_and_reply(
+                                            .send_mail_and_await_reply(
                                                 dds_domain_participant::GetUdpTransportWrite,
                                             )
                                             .await?,
                                         domain_participant_address
-                                            .send_and_reply(dds_domain_participant::GetCurrentTime)
+                                            .send_mail_and_await_reply(dds_domain_participant::GetCurrentTime)
                                             .await?,
                                     ))
                                     .await?;
@@ -1123,6 +1123,6 @@ impl DomainParticipant {
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.0
             .participant_address()
-            .send_and_reply_blocking(dds_domain_participant::get_instance_handle::new())
+            .send_mail_and_await_reply_blocking(dds_domain_participant::get_instance_handle::new())
     }
 }
