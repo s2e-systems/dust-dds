@@ -94,7 +94,9 @@ impl DataReaderNode {
     pub fn topic_address(&self) -> ActorAddress<DdsTopic> {
         let user_defined_topic_list = self
             .participant_address
-            .send_mail_and_await_reply_blocking(dds_domain_participant::GetUserDefinedTopicList)
+            .send_mail_and_await_reply_blocking(
+                dds_domain_participant::get_user_defined_topic_list::new(),
+            )
             .expect("should never fail");
         for topic in user_defined_topic_list {
             if topic.send_mail_and_await_reply_blocking(dds_topic::get_type_name::new())

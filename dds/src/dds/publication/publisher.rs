@@ -84,20 +84,30 @@ impl Publisher {
     where
         Foo: DdsHasKey + DdsGetKey + serde::Serialize + Send + 'static,
     {
-        let default_unicast_locator_list = self.0.participant_address().send_mail_and_await_reply_blocking(
-            dds_domain_participant::get_default_unicast_locator_list::new(),
-        )?;
-        let default_multicast_locator_list = self.0.participant_address().send_mail_and_await_reply_blocking(
-            dds_domain_participant::get_default_multicast_locator_list::new(),
-        )?;
+        let default_unicast_locator_list = self
+            .0
+            .participant_address()
+            .send_mail_and_await_reply_blocking(
+                dds_domain_participant::get_default_unicast_locator_list::new(),
+            )?;
+        let default_multicast_locator_list = self
+            .0
+            .participant_address()
+            .send_mail_and_await_reply_blocking(
+                dds_domain_participant::get_default_multicast_locator_list::new(),
+            )?;
         let data_max_size_serialized = self
             .0
             .participant_address()
-            .send_mail_and_await_reply_blocking(dds_domain_participant::data_max_size_serialized::new())?;
+            .send_mail_and_await_reply_blocking(
+                dds_domain_participant::data_max_size_serialized::new(),
+            )?;
 
         let listener = a_listener.map(|l| spawn_actor(DdsDataWriterListener::new(Box::new(l))));
-        let data_writer_address = self.0.publisher_address().send_mail_and_await_reply_blocking(
-            dds_publisher::create_datawriter::new(
+        let data_writer_address = self
+            .0
+            .publisher_address()
+            .send_mail_and_await_reply_blocking(dds_publisher::create_datawriter::new(
                 a_topic.get_type_name()?,
                 a_topic.get_name()?,
                 Foo::HAS_KEY,
@@ -107,8 +117,7 @@ impl Publisher {
                 mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
-            ),
-        )??;
+            ))??;
 
         let data_writer = DataWriter::new(DataWriterNode::new(
             data_writer_address,
@@ -165,7 +174,9 @@ impl Publisher {
             .send_mail_and_await_reply_blocking(dds_data_writer::is_enabled::new())?;
         self.0
             .publisher_address()
-            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_delete::new(writer_handle))?;
+            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_delete::new(
+                writer_handle,
+            ))?;
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if writer_is_enabled {
@@ -183,10 +194,11 @@ impl Publisher {
                 .node()
                 .participant_address()
                 .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
-            let data_writer_list =
-                builtin_publisher.send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
+            let data_writer_list = builtin_publisher
+                .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
             for data_writer in data_writer_list {
-                if data_writer.send_mail_and_await_reply_blocking(dds_data_writer::get_type_name::new())
+                if data_writer
+                    .send_mail_and_await_reply_blocking(dds_data_writer::get_type_name::new())
                     == Ok("DiscoveredWriterData".to_string())
                 {
                     data_writer.send_mail_and_await_reply_blocking(
@@ -203,28 +215,34 @@ impl Publisher {
                                 .node()
                                 .participant_address()
                                 .send_mail_and_await_reply_blocking(
-                                    dds_domain_participant::GetProtocolVersion,
+                                    dds_domain_participant::get_protocol_version::new(),
                                 )?,
                             a_datawriter
                                 .node()
                                 .participant_address()
-                                .send_mail_and_await_reply_blocking(dds_domain_participant::GetVendorId)?,
+                                .send_mail_and_await_reply_blocking(
+                                    dds_domain_participant::get_vendor_id::new(),
+                                )?,
                             a_datawriter
                                 .node()
                                 .participant_address()
-                                .send_mail_and_await_reply_blocking(dds_domain_participant::GetGuid)?
+                                .send_mail_and_await_reply_blocking(
+                                    dds_domain_participant::get_guid::new(),
+                                )?
                                 .prefix(),
                         ),
                         a_datawriter
                             .node()
                             .participant_address()
                             .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::GetUdpTransportWrite,
+                                dds_domain_participant::get_upd_transport_write::new(),
                             )?,
                         a_datawriter
                             .node()
                             .participant_address()
-                            .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?,
+                            .send_mail_and_await_reply_blocking(
+                                dds_domain_participant::GetCurrentTime,
+                            )?,
                     ))?;
                     break;
                 }
@@ -347,7 +365,9 @@ impl Publisher {
             QosKind::Default => self
                 .0
                 .publisher_address()
-                .send_mail_and_await_reply_blocking(dds_publisher::get_default_datawriter_qos::new())?,
+                .send_mail_and_await_reply_blocking(
+                    dds_publisher::get_default_datawriter_qos::new(),
+                )?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q

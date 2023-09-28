@@ -329,7 +329,9 @@ impl DdsDomainParticipant {
         {
             spdp_builtin_participant_writer
                 .address()
-                .send_mail_and_await_reply_blocking(dds_data_writer::reader_locator_add::new(reader_locator))
+                .send_mail_and_await_reply_blocking(dds_data_writer::reader_locator_add::new(
+                    reader_locator,
+                ))
                 .unwrap();
         }
 
@@ -655,13 +657,17 @@ impl DdsDomainParticipant {
         for (_, user_defined_publisher) in self.user_defined_publisher_list.drain() {
             user_defined_publisher
                 .address()
-                .send_mail_and_await_reply_blocking(dds_publisher::delete_contained_entities::new())?;
+                .send_mail_and_await_reply_blocking(
+                    dds_publisher::delete_contained_entities::new(),
+                )?;
         }
 
         for (_, user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
             user_defined_subscriber
                 .address()
-                .send_mail_and_await_reply_blocking(dds_subscriber::delete_contained_entities::new())?;
+                .send_mail_and_await_reply_blocking(
+                    dds_subscriber::delete_contained_entities::new(),
+                )?;
         }
 
         self.topic_list.clear();
@@ -714,273 +720,76 @@ impl DdsDomainParticipant {
     async fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
         self.discovered_participant_list.keys().cloned().collect()
     }
-}
 
-pub struct DiscoveredParticipantAdd {
-    handle: InstanceHandle,
-    discovered_participant_data: SpdpDiscoveredParticipantData,
-}
-
-impl DiscoveredParticipantAdd {
-    pub fn new(
+    async fn discovered_participant_add(
+        &mut self,
         handle: InstanceHandle,
         discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) -> Self {
-        Self {
-            handle,
-            discovered_participant_data,
-        }
-    }
-}
-
-impl Mail for DiscoveredParticipantAdd {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<DiscoveredParticipantAdd> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: DiscoveredParticipantAdd,
-    ) -> <DiscoveredParticipantAdd as Mail>::Result {
+    ) {
         self.discovered_participant_list
-            .insert(mail.handle, mail.discovered_participant_data);
+            .insert(handle, discovered_participant_data);
     }
-}
 
-pub struct DiscoveredTopicAdd {
-    handle: InstanceHandle,
-    discovered_topic_data: TopicBuiltinTopicData,
-}
-
-impl DiscoveredTopicAdd {
-    pub fn new(handle: InstanceHandle, discovered_topic_data: TopicBuiltinTopicData) -> Self {
-        Self {
-            handle,
-            discovered_topic_data,
-        }
-    }
-}
-
-impl Mail for DiscoveredTopicAdd {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<DiscoveredTopicAdd> for DdsDomainParticipant {
-    async fn handle(&mut self, mail: DiscoveredTopicAdd) -> <DiscoveredTopicAdd as Mail>::Result {
-        self.discovered_topic_list
-            .insert(mail.handle, mail.discovered_topic_data);
-    }
-}
-
-pub struct GetUserDefinedTopicList;
-
-impl Mail for GetUserDefinedTopicList {
-    type Result = Vec<ActorAddress<DdsTopic>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetUserDefinedTopicList> for DdsDomainParticipant {
-    async fn handle(
+    async fn discovered_topic_add(
         &mut self,
-        _mail: GetUserDefinedTopicList,
-    ) -> <GetUserDefinedTopicList as Mail>::Result {
+        handle: InstanceHandle,
+        discovered_topic_data: TopicBuiltinTopicData,
+    ) {
+        self.discovered_topic_list
+            .insert(handle, discovered_topic_data);
+    }
+
+    async fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
         self.topic_list
             .values()
             .map(|a| a.address().clone())
             .collect()
     }
-}
 
-pub struct DiscoveredParticipantGet {
-    handle: InstanceHandle,
-}
-
-impl DiscoveredParticipantGet {
-    pub fn new(handle: InstanceHandle) -> Self {
-        Self { handle }
+    async fn discovered_participant_get(
+        &self,
+        handle: InstanceHandle,
+    ) -> Option<SpdpDiscoveredParticipantData> {
+        self.discovered_participant_list.get(&handle).cloned()
     }
-}
 
-impl Mail for DiscoveredParticipantGet {
-    type Result = Option<SpdpDiscoveredParticipantData>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<DiscoveredParticipantGet> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: DiscoveredParticipantGet,
-    ) -> <DiscoveredParticipantGet as Mail>::Result {
-        self.discovered_participant_list.get(&mail.handle).cloned()
+    async fn is_publication_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_publications.contains(&handle)
     }
-}
 
-pub struct IsPublicationIgnored {
-    handle: InstanceHandle,
-}
-
-impl IsPublicationIgnored {
-    pub fn new(handle: InstanceHandle) -> Self {
-        Self { handle }
+    async fn is_subscription_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_subcriptions.contains(&handle)
     }
-}
 
-impl Mail for IsPublicationIgnored {
-    type Result = bool;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<IsPublicationIgnored> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: IsPublicationIgnored,
-    ) -> <IsPublicationIgnored as Mail>::Result {
-        self.ignored_publications.contains(&mail.handle)
+    async fn is_participant_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_participants.contains(&handle)
     }
-}
 
-pub struct IsSubscriptionIgnored {
-    handle: InstanceHandle,
-}
-
-impl IsSubscriptionIgnored {
-    pub fn new(handle: InstanceHandle) -> Self {
-        Self { handle }
-    }
-}
-
-impl Mail for IsSubscriptionIgnored {
-    type Result = bool;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<IsSubscriptionIgnored> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: IsSubscriptionIgnored,
-    ) -> <IsSubscriptionIgnored as Mail>::Result {
-        self.ignored_subcriptions.contains(&mail.handle)
-    }
-}
-
-pub struct IsParticipantIgnored {
-    handle: InstanceHandle,
-}
-
-impl IsParticipantIgnored {
-    pub fn new(handle: InstanceHandle) -> Self {
-        Self { handle }
-    }
-}
-
-impl Mail for IsParticipantIgnored {
-    type Result = bool;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<IsParticipantIgnored> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: IsParticipantIgnored,
-    ) -> <IsParticipantIgnored as Mail>::Result {
-        self.ignored_participants.contains(&mail.handle)
-    }
-}
-
-pub struct GetDomainId;
-
-impl Mail for GetDomainId {
-    type Result = DomainId;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetDomainId> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetDomainId) -> <GetDomainId as Mail>::Result {
+    async fn get_domain_id(&self) -> DomainId {
         self.domain_id
     }
-}
 
-pub struct GetDomainTag;
-
-impl Mail for GetDomainTag {
-    type Result = String;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetDomainTag> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetDomainTag) -> <GetDomainTag as Mail>::Result {
+    async fn get_domain_tag(&self) -> String {
         self.domain_tag.clone()
     }
-}
-pub struct GetBuiltInSubscriber;
 
-impl Mail for GetBuiltInSubscriber {
-    type Result = ActorAddress<DdsSubscriber>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetBuiltInSubscriber> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: GetBuiltInSubscriber,
-    ) -> <GetBuiltInSubscriber as Mail>::Result {
+    async fn get_built_in_subscriber(&self) -> ActorAddress<DdsSubscriber> {
         self.builtin_subscriber.address().clone()
     }
-}
 
-pub struct GetUdpTransportWrite;
-
-impl Mail for GetUdpTransportWrite {
-    type Result = ActorAddress<UdpTransportWrite>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetUdpTransportWrite> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: GetUdpTransportWrite,
-    ) -> <GetUdpTransportWrite as Mail>::Result {
+    async fn get_upd_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
         self.udp_transport_write.address().clone()
     }
-}
 
-pub struct GetGuid;
-
-impl Mail for GetGuid {
-    type Result = Guid;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetGuid> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetGuid) -> <GetGuid as Mail>::Result {
+    async fn get_guid(&self) -> Guid {
         self.rtps_participant.guid()
     }
-}
 
-pub struct GetProtocolVersion;
-
-impl Mail for GetProtocolVersion {
-    type Result = ProtocolVersion;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetProtocolVersion> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetProtocolVersion) -> <GetProtocolVersion as Mail>::Result {
+    async fn get_protocol_version(&self) -> ProtocolVersion {
         self.rtps_participant.protocol_version()
     }
-}
 
-pub struct GetVendorId;
-
-impl Mail for GetVendorId {
-    type Result = VendorId;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetVendorId> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetVendorId) -> <GetVendorId as Mail>::Result {
+    async fn get_vendor_id(&self) -> VendorId {
         self.rtps_participant.vendor_id()
     }
 }

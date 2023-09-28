@@ -117,7 +117,9 @@ impl Topic {
             QosKind::Default => self
                 .0
                 .participant_address()
-                .send_mail_and_await_reply_blocking(dds_domain_participant::default_topic_qos::new())?,
+                .send_mail_and_await_reply_blocking(
+                    dds_domain_participant::default_topic_qos::new(),
+                )?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
@@ -203,9 +205,9 @@ impl Topic {
 
             announce_topic(
                 self.0.participant_address(),
-                self.0
-                    .topic_address()
-                    .send_mail_and_await_reply_blocking(dds_topic::as_discovered_topic_data::new())?,
+                self.0.topic_address().send_mail_and_await_reply_blocking(
+                    dds_topic::as_discovered_topic_data::new(),
+                )?,
             )?;
         }
 
@@ -241,38 +243,48 @@ fn announce_topic(
     discovered_topic_data: DiscoveredTopicData,
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(&discovered_topic_data)?;
-    let timestamp =
-        domain_participant.send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?;
-    let builtin_publisher =
-        domain_participant.send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
-    let data_writer_list =
-        builtin_publisher.send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
+    let timestamp = domain_participant
+        .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+    let builtin_publisher = domain_participant
+        .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+    let data_writer_list = builtin_publisher
+        .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
     for data_writer in data_writer_list {
         if data_writer.send_mail_and_await_reply_blocking(dds_data_writer::get_type_name::new())
             == Ok("DiscoveredTopicData".to_string())
         {
-            data_writer.send_mail_and_await_reply_blocking(dds_data_writer::write_w_timestamp::new(
-                serialized_data,
-                dds_serialize_key_to_bytes(&discovered_topic_data)?,
-                None,
-                timestamp,
-            ))??;
-
-            data_writer.send_mail_blocking(dds_data_writer::send_message::new(
-                RtpsMessageHeader::new(
-                    domain_participant
-                        .send_mail_and_await_reply_blocking(dds_domain_participant::GetProtocolVersion)?,
-                    domain_participant
-                        .send_mail_and_await_reply_blocking(dds_domain_participant::GetVendorId)?,
-                    domain_participant
-                        .send_mail_and_await_reply_blocking(dds_domain_participant::GetGuid)?
-                        .prefix(),
+            data_writer.send_mail_and_await_reply_blocking(
+                dds_data_writer::write_w_timestamp::new(
+                    serialized_data,
+                    dds_serialize_key_to_bytes(&discovered_topic_data)?,
+                    None,
+                    timestamp,
                 ),
-                domain_participant
-                    .send_mail_and_await_reply_blocking(dds_domain_participant::GetUdpTransportWrite)?,
-                domain_participant
-                    .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?,
-            ))?;
+            )??;
+
+            data_writer.send_mail_blocking(
+                dds_data_writer::send_message::new(
+                    RtpsMessageHeader::new(
+                        domain_participant.send_mail_and_await_reply_blocking(
+                            dds_domain_participant::get_protocol_version::new(),
+                        )?,
+                        domain_participant.send_mail_and_await_reply_blocking(
+                            dds_domain_participant::get_vendor_id::new(),
+                        )?,
+                        domain_participant
+                            .send_mail_and_await_reply_blocking(
+                                dds_domain_participant::get_guid::new(),
+                            )?
+                            .prefix(),
+                    ),
+                    domain_participant.send_mail_and_await_reply_blocking(
+                        dds_domain_participant::get_upd_transport_write::new(),
+                    )?,
+                    domain_participant.send_mail_and_await_reply_blocking(
+                        dds_domain_participant::GetCurrentTime,
+                    )?,
+                ),
+            )?;
             break;
         }
     }
