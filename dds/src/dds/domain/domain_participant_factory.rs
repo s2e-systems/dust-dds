@@ -19,7 +19,7 @@ use crate::{
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
-            dds_domain_participant_factory::DdsDomainParticipantFactory,
+            dds_domain_participant_factory::{self, DdsDomainParticipantFactory},
             dds_domain_participant_listener::DdsDomainParticipantListener,
             dds_publisher, dds_subscriber, dds_topic,
             nodes::DomainParticipantNode,
@@ -106,7 +106,9 @@ impl DomainParticipantFactory {
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         let domain_participant_qos = match qos {
-            QosKind::Default => self.0.address().get_default_participant_qos()?,
+            QosKind::Default => self.0.address().send_and_reply_blocking(
+                dds_domain_participant_factory::get_default_participant_qos::new(),
+            )?,
             QosKind::Specific(q) => q,
         };
 
@@ -123,7 +125,13 @@ impl DomainParticipantFactory {
         }
 
         let app_id = std::process::id().to_ne_bytes();
-        let instance_id = self.0.address().get_unique_participant_id()?.to_ne_bytes();
+        let instance_id = self
+            .0
+            .address()
+            .send_and_reply_blocking(
+                dds_domain_participant_factory::get_unique_participant_id::new(),
+            )?
+            .to_ne_bytes();
 
         #[rustfmt::skip]
         let guid_prefix = [
@@ -213,9 +221,12 @@ impl DomainParticipantFactory {
 
         let participant_actor = spawn_actor(domain_participant);
         let participant_address = participant_actor.address().clone();
-        self.0
-            .address()
-            .add_participant(participant_guid.into(), participant_actor)?;
+        self.0.address().send_and_reply_blocking(
+            dds_domain_participant_factory::add_participant::new(
+                participant_guid.into(),
+                participant_actor,
+            ),
+        )?;
         let domain_participant =
             DomainParticipant::new(DomainParticipantNode::new(participant_address.clone()));
 
@@ -283,7 +294,7 @@ impl DomainParticipantFactory {
         if self
             .0
             .address()
-            .get_qos()?
+            .send_and_reply_blocking(dds_domain_participant_factory::get_qos::new())?
             .entity_factory
             .autoenable_created_entities
         {
@@ -299,7 +310,10 @@ impl DomainParticipantFactory {
     #[tracing::instrument(skip(self, participant))]
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         let handle = participant.get_instance_handle()?;
-        let participant_list = self.0.address().get_participant_list()?;
+        let participant_list = self
+            .0
+            .address()
+            .send_and_reply_blocking(dds_domain_participant_factory::get_participant_list::new())?;
         let participant = participant_list
             .iter()
             .find(|x| {
@@ -312,7 +326,9 @@ impl DomainParticipantFactory {
             .ok_or(DdsError::BadParameter)?;
 
         if participant.is_empty()? {
-            self.0.address().delete_participant(handle)?;
+            self.0.address().send_and_reply_blocking(
+                dds_domain_participant_factory::delete_participant::new(handle),
+            )?;
             Ok(())
         } else {
             Err(DdsError::PreconditionNotMet(
@@ -338,7 +354,7 @@ impl DomainParticipantFactory {
         Ok(self
             .0
             .address()
-            .get_participant_list()?
+            .send_and_reply_blocking(dds_domain_participant_factory::get_participant_list::new())?
             .iter()
             .find(|&a| {
                 if let Ok(id) = a.send_and_reply_blocking(dds_domain_participant::GetDomainId) {
@@ -361,7 +377,9 @@ impl DomainParticipantFactory {
             QosKind::Specific(q) => q,
         };
 
-        self.0.address().set_default_participant_qos(qos)
+        self.0.address().send_and_reply_blocking(
+            dds_domain_participant_factory::set_default_participant_qos::new(qos),
+        )
     }
 
     /// This operation retrieves the default value of the [`DomainParticipantQos`], that is, the QoS policies which will be used for
@@ -371,7 +389,9 @@ impl DomainParticipantFactory {
     /// [`DomainParticipantFactory::set_default_participant_qos`], or else, if the call was never made, the default value of [`DomainParticipantQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.0.address().get_default_participant_qos()
+        self.0.address().send_and_reply_blocking(
+            dds_domain_participant_factory::get_default_participant_qos::new(),
+        )
     }
 
     /// This operation sets the value of the [`DomainParticipantFactoryQos`] policies. These policies control the behavior of the object
@@ -386,13 +406,17 @@ impl DomainParticipantFactory {
             QosKind::Specific(q) => q,
         };
 
-        self.0.address().set_qos(qos)
+        self.0
+            .address()
+            .send_and_reply_blocking(dds_domain_participant_factory::set_qos::new(qos))
     }
 
     /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
-        self.0.address().get_qos()
+        self.0
+            .address()
+            .send_and_reply_blocking(dds_domain_participant_factory::get_qos::new())
     }
 }
 

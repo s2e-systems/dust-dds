@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
+use dust_dds_derive::actor_interface;
+
 use crate::{
-    implementation::utils::actor::{actor_mailbox_interface, Actor, ActorAddress},
+    implementation::utils::actor::{Actor, ActorAddress},
     infrastructure::{
         instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos},
@@ -33,40 +35,47 @@ impl DdsDomainParticipantFactory {
     }
 }
 
-actor_mailbox_interface! {
+#[actor_interface]
 impl DdsDomainParticipantFactory {
-    pub fn add_participant(&mut self, instance_handle: InstanceHandle, participant: Actor<DdsDomainParticipant>) {
-        self.domain_participant_list.insert(instance_handle, participant);
+    async fn add_participant(
+        &mut self,
+        instance_handle: InstanceHandle,
+        participant: Actor<DdsDomainParticipant>,
+    ) {
+        self.domain_participant_list
+            .insert(instance_handle, participant);
     }
 
-    pub fn get_participant_list(&self) -> Vec<ActorAddress<DdsDomainParticipant>> {
-        self.domain_participant_list.values().map(|dp| dp.address().clone()).collect()
+    async fn get_participant_list(&self) -> Vec<ActorAddress<DdsDomainParticipant>> {
+        self.domain_participant_list
+            .values()
+            .map(|dp| dp.address().clone())
+            .collect()
     }
 
-    pub fn get_unique_participant_id(&mut self) -> u32 {
+    async fn get_unique_participant_id(&mut self) -> u32 {
         let counter = self.domain_participant_counter;
         self.domain_participant_counter += 1;
         counter
     }
 
-    pub fn delete_participant(&mut self, handle: InstanceHandle) {
+    async fn delete_participant(&mut self, handle: InstanceHandle) {
         self.domain_participant_list.remove(&handle);
     }
 
-    pub fn get_qos(&self) -> DomainParticipantFactoryQos {
+    async fn get_qos(&self) -> DomainParticipantFactoryQos {
         self.qos.clone()
     }
 
-    pub fn set_qos(&mut self, qos: DomainParticipantFactoryQos) {
+    async fn set_qos(&mut self, qos: DomainParticipantFactoryQos) {
         self.qos = qos;
     }
 
-    pub fn get_default_participant_qos(&self) -> DomainParticipantQos {
+    async fn get_default_participant_qos(&self) -> DomainParticipantQos {
         self.default_participant_qos.clone()
     }
 
-    pub fn set_default_participant_qos(&mut self, qos: DomainParticipantQos) {
+    async fn set_default_participant_qos(&mut self, qos: DomainParticipantQos) {
         self.default_participant_qos = qos;
     }
-}
 }
