@@ -609,6 +609,7 @@ impl DdsDataWriter {
         self.type_name.clone()
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn add_matched_reader(
         &mut self,
         discovered_reader_data: DiscoveredReaderData,

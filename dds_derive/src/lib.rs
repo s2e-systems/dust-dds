@@ -218,6 +218,12 @@ pub fn actor_interface(
                 argument_ident_type_token_stream.extend(quote! { #argument, })
             }
 
+            // To allow marking the generated code as for example #[allow(clippy:too_many_arguments)]
+            let mut method_attributes_token_stream = proc_macro2::TokenStream::new();
+            for attribute in &method.attrs {
+                method_attributes_token_stream.extend(attribute.to_token_stream());
+            }
+
             let mut argument_ident_token_stream = proc_macro2::TokenStream::new();
             for argument_ident in method
                 .sig
@@ -258,6 +264,7 @@ pub fn actor_interface(
                 }
 
                 impl #method_ident {
+                    #method_attributes_token_stream
                     pub fn new(#argument_ident_type_token_stream) -> Self {
                         Self {
                             #argument_ident_token_stream

@@ -65,6 +65,7 @@ impl DdsPublisher {
 
 #[actor_interface]
 impl DdsPublisher {
+    #[allow(clippy::too_many_arguments)]
     async fn create_datawriter(
         &mut self,
         type_name: String,

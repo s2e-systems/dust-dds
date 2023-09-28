@@ -356,7 +356,7 @@ impl DdsDataReader {
                         subscriber_address.clone(),
                         participant_address.clone(),
                     );
-                    l.send_only(dds_data_reader_listener::TriggerOnDataAvailable::new(
+                    l.send_only(dds_data_reader_listener::trigger_on_data_available::new(
                         reader,
                     ))
                     .await?;
@@ -637,7 +637,7 @@ impl DdsDataReader {
                     participant_address.clone(),
                 );
                 let status = self.get_sample_lost_status();
-                l.send_only(dds_data_reader_listener::TriggerOnSampleLost::new(
+                l.send_only(dds_data_reader_listener::trigger_on_sample_lost::new(
                     reader, status,
                 ))
                 .await?;
@@ -706,9 +706,9 @@ impl DdsDataReader {
                     participant_address,
                 );
                 let status = self.get_subscription_matched_status().await?;
-                l.send_only(dds_data_reader_listener::TriggerOnSubscriptionMatched::new(
-                    reader, status,
-                ))
+                l.send_only(
+                    dds_data_reader_listener::trigger_on_subscription_matched::new(reader, status),
+                )
                 .await?;
             }
             _ => match subscriber_listener_address {
@@ -781,7 +781,7 @@ impl DdsDataReader {
                     subscriber_address.clone(),
                     participant_address.clone(),
                 );
-                l.send_only(dds_data_reader_listener::TriggerOnSampleRejected::new(
+                l.send_only(dds_data_reader_listener::trigger_on_sample_rejected::new(
                     reader, status,
                 ))
                 .await?;
@@ -858,7 +858,7 @@ impl DdsDataReader {
                     participant_address.clone(),
                 );
                 l.send_only(
-                    dds_data_reader_listener::TriggerOnRequestedIncompatibleQos::new(
+                    dds_data_reader_listener::trigger_on_requested_incompatible_qos::new(
                         reader, status,
                     ),
                 )
@@ -2309,7 +2309,7 @@ impl MailHandler<UpdateCommunicationStatus> for DdsDataReader {
                         mail.participant_address.clone(),
                     );
                     l.send_only(
-                        dds_data_reader_listener::TriggerOnRequestedDeadlineMissed::new(
+                        dds_data_reader_listener::trigger_on_requested_deadline_missed::new(
                             reader, status,
                         ),
                     )
