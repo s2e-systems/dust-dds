@@ -248,12 +248,16 @@ impl Subscriber {
             let timestamp = a_datareader
                 .node()
                 .participant_address()
-                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+                .send_mail_and_await_reply_blocking(
+                    dds_domain_participant::get_current_time::new(),
+                )?;
 
             let builtin_publisher = a_datareader
                 .node()
                 .participant_address()
-                .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+                .send_mail_and_await_reply_blocking(
+                    dds_domain_participant::get_builtin_publisher::new(),
+                )?;
             let data_writer_list = builtin_publisher
                 .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
             for dw in data_writer_list {
@@ -300,7 +304,7 @@ impl Subscriber {
                             .node()
                             .participant_address()
                             .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::GetCurrentTime,
+                                dds_domain_participant::get_current_time::new(),
                             )?,
                     ))?;
                     break;

@@ -279,10 +279,12 @@ impl DomainParticipantFactory {
 
             while let Some((_locator, message)) = default_unicast_transport.read().await {
                 let r = participant_address_clone
-                    .send_mail(dds_domain_participant::ProcessUserDefinedRtpsMessage::new(
-                        message,
-                        participant_address_clone.clone(),
-                    ))
+                    .send_mail(
+                        dds_domain_participant::process_user_defined_rtps_message::new(
+                            message,
+                            participant_address_clone.clone(),
+                        ),
+                    )
                     .await;
 
                 if r.is_err() {
@@ -694,10 +696,10 @@ async fn process_spdp_metatraffic(
 
     let participant_mask_listener = (
         participant_address
-            .send_mail_and_await_reply(dds_domain_participant::GetListener)
+            .send_mail_and_await_reply(dds_domain_participant::get_listener::new())
             .await?,
         participant_address
-            .send_mail_and_await_reply(dds_domain_participant::GetStatusKind)
+            .send_mail_and_await_reply(dds_domain_participant::get_status_kind::new())
             .await?,
     );
 
@@ -706,7 +708,7 @@ async fn process_spdp_metatraffic(
         .send_mail(dds_subscriber::process_rtps_message::new(
             message,
             participant_address
-                .send_mail_and_await_reply(dds_domain_participant::GetCurrentTime)
+                .send_mail_and_await_reply(dds_domain_participant::get_current_time::new())
                 .await?,
             participant_address.clone(),
             builtin_subscriber.clone(),
@@ -780,7 +782,9 @@ async fn process_spdp_metatraffic(
                     if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
                         // Process any new participant discovery (add/remove matched proxies)
                         let builtin_data_writer_list = participant_address
-                            .send_mail_and_await_reply(dds_domain_participant::GetBuiltinPublisher)
+                            .send_mail_and_await_reply(
+                                dds_domain_participant::get_builtin_publisher::new(),
+                            )
                             .await?
                             .send_mail_and_await_reply(dds_publisher::data_writer_list::new())
                             .await?;
@@ -831,7 +835,7 @@ async fn process_spdp_metatraffic(
                                         .await?,
                                     participant_address
                                         .send_mail_and_await_reply(
-                                            dds_domain_participant::GetCurrentTime,
+                                            dds_domain_participant::get_current_time::new(),
                                         )
                                         .await?,
                                 ))
@@ -890,7 +894,7 @@ async fn process_spdp_metatraffic(
                                         .await?,
                                     participant_address
                                         .send_mail_and_await_reply(
-                                            dds_domain_participant::GetCurrentTime,
+                                            dds_domain_participant::get_current_time::new(),
                                         )
                                         .await?,
                                 ))
@@ -947,7 +951,7 @@ async fn process_spdp_metatraffic(
                                         .await?,
                                     participant_address
                                         .send_mail_and_await_reply(
-                                            dds_domain_participant::GetCurrentTime,
+                                            dds_domain_participant::get_current_time::new(),
                                         )
                                         .await?,
                                 ))
@@ -990,14 +994,14 @@ async fn process_sedp_metatraffic(
         .send_mail_and_await_reply(dds_domain_participant::get_built_in_subscriber::new())
         .await?;
     let builtin_publisher = participant_address
-        .send_mail_and_await_reply(dds_domain_participant::GetBuiltinPublisher)
+        .send_mail_and_await_reply(dds_domain_participant::get_builtin_publisher::new())
         .await?;
     let participant_mask_listener = (
         participant_address
-            .send_mail_and_await_reply(dds_domain_participant::GetListener)
+            .send_mail_and_await_reply(dds_domain_participant::get_listener::new())
             .await?,
         participant_address
-            .send_mail_and_await_reply(dds_domain_participant::GetStatusKind)
+            .send_mail_and_await_reply(dds_domain_participant::get_status_kind::new())
             .await?,
     );
 
@@ -1030,7 +1034,7 @@ async fn process_sedp_metatraffic(
                     )
                     .await?,
                 participant_address
-                    .send_mail_and_await_reply(dds_domain_participant::GetCurrentTime)
+                    .send_mail_and_await_reply(dds_domain_participant::get_current_time::new())
                     .await?,
             ))
             .await?;
@@ -1040,7 +1044,7 @@ async fn process_sedp_metatraffic(
         .send_mail_and_await_reply(dds_subscriber::process_rtps_message::new(
             message,
             participant_address
-                .send_mail_and_await_reply(dds_domain_participant::GetCurrentTime)
+                .send_mail_and_await_reply(dds_domain_participant::get_current_time::new())
                 .await?,
             participant_address.clone(),
             builtin_subscriber.clone(),
@@ -1167,10 +1171,10 @@ async fn discover_matched_writers(
 ) -> DdsResult<()> {
     let participant_mask_listener = (
         participant_address
-            .send_mail_and_await_reply(dds_domain_participant::GetListener)
+            .send_mail_and_await_reply(dds_domain_participant::get_listener::new())
             .await?,
         participant_address
-            .send_mail_and_await_reply(dds_domain_participant::GetStatusKind)
+            .send_mail_and_await_reply(dds_domain_participant::get_status_kind::new())
             .await?,
     );
     match discovered_writer_sample.sample_info().instance_state {
@@ -1210,7 +1214,7 @@ async fn discover_matched_writers(
                             .to_vec();
                         for user_defined_subscriber_address in participant_address
                             .send_mail_and_await_reply(
-                                dds_domain_participant::GetUserDefinedSubscriberList,
+                                dds_domain_participant::get_user_defined_subscriber_list::new(),
                             )
                             .await?
                         {
@@ -1296,7 +1300,9 @@ async fn discover_matched_writers(
         }
         InstanceStateKind::NotAliveDisposed => {
             for subscriber in participant_address
-                .send_mail_and_await_reply(dds_domain_participant::GetUserDefinedSubscriberList)
+                .send_mail_and_await_reply(
+                    dds_domain_participant::get_user_defined_subscriber_list::new(),
+                )
                 .await?
             {
                 for data_reader in subscriber
@@ -1416,7 +1422,7 @@ pub async fn discover_matched_readers(
                             .to_vec();
                         for user_defined_publisher_address in participant_address
                             .send_mail_and_await_reply(
-                                dds_domain_participant::GetUserDefinedPublisherList,
+                                dds_domain_participant::get_user_defined_publisher_list::new(),
                             )
                             .await?
                         {
@@ -1459,14 +1465,14 @@ pub async fn discover_matched_readers(
                                     let participant_publication_matched_listener =
                                         match participant_address
                                             .send_mail_and_await_reply(
-                                                dds_domain_participant::GetListener,
+                                                dds_domain_participant::get_listener::new(),
                                             )
                                             .await?
                                         {
                                             Some(l)
                                                 if participant_address
                                                     .send_mail_and_await_reply(
-                                                        dds_domain_participant::GetStatusKind,
+                                                        dds_domain_participant::get_status_kind::new(),
                                                     )
                                                     .await?
                                                     .contains(&StatusKind::PublicationMatched) =>
@@ -1499,14 +1505,14 @@ pub async fn discover_matched_readers(
                                     let offered_incompatible_qos_participant_listener =
                                         match participant_address
                                             .send_mail_and_await_reply(
-                                                dds_domain_participant::GetListener,
+                                                dds_domain_participant::get_listener::new(),
                                             )
                                             .await?
                                         {
                                             Some(l)
                                                 if participant_address
                                                     .send_mail_and_await_reply(
-                                                        dds_domain_participant::GetStatusKind,
+                                                        dds_domain_participant::get_status_kind::new(),
                                                     )
                                                     .await?
                                                     .contains(
@@ -1561,7 +1567,7 @@ pub async fn discover_matched_readers(
                                                 .await?,
                                             participant_address
                                                 .send_mail_and_await_reply(
-                                                    dds_domain_participant::GetCurrentTime,
+                                                    dds_domain_participant::get_current_time::new(),
                                                 )
                                                 .await?,
                                         ))
@@ -1575,7 +1581,9 @@ pub async fn discover_matched_readers(
         }
         InstanceStateKind::NotAliveDisposed => {
             for publisher in participant_address
-                .send_mail_and_await_reply(dds_domain_participant::GetUserDefinedPublisherList)
+                .send_mail_and_await_reply(
+                    dds_domain_participant::get_user_defined_publisher_list::new(),
+                )
                 .await?
             {
                 for data_writer in publisher
@@ -1597,12 +1605,14 @@ pub async fn discover_matched_readers(
                         _ => None,
                     };
                     let participant_publication_matched_listener = match participant_address
-                        .send_mail_and_await_reply(dds_domain_participant::GetListener)
+                        .send_mail_and_await_reply(dds_domain_participant::get_listener::new())
                         .await?
                     {
                         Some(l)
                             if participant_address
-                                .send_mail_and_await_reply(dds_domain_participant::GetStatusKind)
+                                .send_mail_and_await_reply(
+                                    dds_domain_participant::get_status_kind::new(),
+                                )
                                 .await?
                                 .contains(&StatusKind::PublicationMatched) =>
                         {

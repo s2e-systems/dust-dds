@@ -324,7 +324,7 @@ impl DomainParticipant {
             .0
             .participant_address()
             .send_mail_and_await_reply_blocking(
-                dds_domain_participant::GetUserDefinedPublisherList,
+                dds_domain_participant::get_user_defined_publisher_list::new(),
             )?
         {
             let data_writer_list = publisher
@@ -354,7 +354,7 @@ impl DomainParticipant {
             .0
             .participant_address()
             .send_mail_and_await_reply_blocking(
-                dds_domain_participant::GetUserDefinedSubscriberList,
+                dds_domain_participant::get_user_defined_subscriber_list::new(),
             )?
         {
             let data_reader_list = subscriber
@@ -631,7 +631,7 @@ impl DomainParticipant {
             .0
             .participant_address()
             .send_mail_and_await_reply_blocking(
-                dds_domain_participant::GetUserDefinedPublisherList,
+                dds_domain_participant::get_user_defined_publisher_list::new(),
             )?
         {
             for data_writer in publisher
@@ -659,7 +659,7 @@ impl DomainParticipant {
             .0
             .participant_address()
             .send_mail_and_await_reply_blocking(
-                dds_domain_participant::GetUserDefinedSubscriberList,
+                dds_domain_participant::get_user_defined_subscriber_list::new(),
             )?
         {
             for data_reader in subscriber
@@ -883,7 +883,7 @@ impl DomainParticipant {
     pub fn get_current_time(&self) -> DdsResult<Time> {
         self.0
             .participant_address()
-            .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)
+            .send_mail_and_await_reply_blocking(dds_domain_participant::get_current_time::new())
     }
 }
 
@@ -984,7 +984,9 @@ impl DomainParticipant {
         {
             self.0
                 .participant_address()
-                .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
+                .send_mail_and_await_reply_blocking(
+                    dds_domain_participant::get_builtin_publisher::new(),
+                )?
                 .send_mail_and_await_reply_blocking(dds_publisher::enable::new())?;
             self.0
                 .participant_address()
@@ -1007,7 +1009,9 @@ impl DomainParticipant {
             for builtin_writer in self
                 .0
                 .participant_address()
-                .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?
+                .send_mail_and_await_reply_blocking(
+                    dds_domain_participant::get_builtin_publisher::new(),
+                )?
                 .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?
             {
                 builtin_writer.send_mail_and_await_reply_blocking(dds_data_writer::enable::new())?;
@@ -1025,7 +1029,7 @@ impl DomainParticipant {
                 loop {
                     let r: DdsResult<()> = async {
                         let builtin_publisher = domain_participant_address
-                            .send_mail_and_await_reply(dds_domain_participant::GetBuiltinPublisher)
+                            .send_mail_and_await_reply(dds_domain_participant::get_builtin_publisher::new())
                             .await?;
                         let data_writer_list = builtin_publisher
                             .send_mail_and_await_reply(dds_publisher::data_writer_list::new())
@@ -1038,14 +1042,14 @@ impl DomainParticipant {
                             {
                                 let spdp_discovered_participant_data = domain_participant_address
                                     .send_mail_and_await_reply(
-                                        dds_domain_participant::AsSpdpDiscoveredParticipantData,
+                                        dds_domain_participant::as_spdp_discovered_participant_data::new(),
                                     )
                                     .await?;
                                 let serialized_data =
                                     dds_serialize_to_bytes(&spdp_discovered_participant_data)?;
                                 let timestamp = domain_participant_address
                                     .send_mail_and_await_reply(
-                                        dds_domain_participant::GetCurrentTime,
+                                        dds_domain_participant::get_current_time::new(),
                                     )
                                     .await?;
                                 data_writer
@@ -1110,19 +1114,19 @@ impl DomainParticipant {
                 loop {
                     let r: DdsResult<()> = async {
                         let now = domain_participant_address
-                            .send_mail_and_await_reply(dds_domain_participant::GetCurrentTime)
+                            .send_mail_and_await_reply(dds_domain_participant::get_current_time::new())
                             .await?;
                         let participant_mask_listener = (
                             domain_participant_address
-                                .send_mail_and_await_reply(dds_domain_participant::GetListener)
+                                .send_mail_and_await_reply(dds_domain_participant::get_listener::new())
                                 .await?,
                             domain_participant_address
-                                .send_mail_and_await_reply(dds_domain_participant::GetStatusKind)
+                                .send_mail_and_await_reply(dds_domain_participant::get_status_kind::new())
                                 .await?,
                         );
                         for subscriber in domain_participant_address
                             .send_mail_and_await_reply(
-                                dds_domain_participant::GetUserDefinedSubscriberList,
+                                dds_domain_participant::get_user_defined_subscriber_list::new(),
                             )
                             .await?
                         {
@@ -1155,7 +1159,7 @@ impl DomainParticipant {
 
                         for user_defined_publisher in domain_participant_address
                             .send_mail_and_await_reply(
-                                dds_domain_participant::GetUserDefinedPublisherList,
+                                dds_domain_participant::get_user_defined_publisher_list::new(),
                             )
                             .await?
                         {
@@ -1190,7 +1194,7 @@ impl DomainParticipant {
                                             .await?,
                                         domain_participant_address
                                             .send_mail_and_await_reply(
-                                                dds_domain_participant::GetCurrentTime,
+                                                dds_domain_participant::get_current_time::new(),
                                             )
                                             .await?,
                                     ))

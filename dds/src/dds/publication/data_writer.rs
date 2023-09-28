@@ -92,7 +92,9 @@ where
         let timestamp = {
             self.0
                 .participant_address()
-                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?
+                .send_mail_and_await_reply_blocking(
+                    dds_domain_participant::get_current_time::new(),
+                )?
         };
         self.register_instance_w_timestamp(instance, timestamp)
     }
@@ -147,7 +149,9 @@ where
         let timestamp = {
             self.0
                 .participant_address()
-                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?
+                .send_mail_and_await_reply_blocking(
+                    dds_domain_participant::get_current_time::new(),
+                )?
         };
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
@@ -262,7 +266,9 @@ where
         let timestamp = {
             self.0
                 .participant_address()
-                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?
+                .send_mail_and_await_reply_blocking(
+                    dds_domain_participant::get_current_time::new(),
+                )?
         };
         self.write_w_timestamp(data, handle, timestamp)
     }
@@ -320,7 +326,7 @@ where
                     self.0
                         .participant_address()
                         .send_mail_and_await_reply_blocking(
-                            dds_domain_participant::GetCurrentTime,
+                            dds_domain_participant::get_current_time::new(),
                         )?,
                 ),
             )?;
@@ -345,7 +351,9 @@ where
         let timestamp = {
             self.0
                 .participant_address()
-                .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?
+                .send_mail_and_await_reply_blocking(
+                    dds_domain_participant::get_current_time::new(),
+                )?
         };
         self.dispose_w_timestamp(data, handle, timestamp)
     }
@@ -694,10 +702,10 @@ fn announce_data_writer(
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(discovered_writer_data)?;
     let timestamp = domain_participant
-        .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+        .send_mail_and_await_reply_blocking(dds_domain_participant::get_current_time::new())?;
 
     let builtin_publisher = domain_participant
-        .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+        .send_mail_and_await_reply_blocking(dds_domain_participant::get_builtin_publisher::new())?;
     let data_writer_list = builtin_publisher
         .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
 
@@ -731,7 +739,7 @@ fn announce_data_writer(
                         dds_domain_participant::get_upd_transport_write::new(),
                     )?,
                     domain_participant.send_mail_and_await_reply_blocking(
-                        dds_domain_participant::GetCurrentTime,
+                        dds_domain_participant::get_current_time::new(),
                     )?,
                 ),
             )?;

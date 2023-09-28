@@ -736,10 +736,10 @@ fn announce_data_reader(
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(&discovered_reader_data)?;
     let timestamp = domain_participant
-        .send_mail_and_await_reply_blocking(dds_domain_participant::GetCurrentTime)?;
+        .send_mail_and_await_reply_blocking(dds_domain_participant::get_current_time::new())?;
 
     let builtin_publisher = domain_participant
-        .send_mail_and_await_reply_blocking(dds_domain_participant::GetBuiltinPublisher)?;
+        .send_mail_and_await_reply_blocking(dds_domain_participant::get_builtin_publisher::new())?;
     let data_writer_list = builtin_publisher
         .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
     for dw in data_writer_list {
@@ -772,7 +772,7 @@ fn announce_data_reader(
                         dds_domain_participant::get_upd_transport_write::new(),
                     )?,
                     domain_participant.send_mail_and_await_reply_blocking(
-                        dds_domain_participant::GetCurrentTime,
+                        dds_domain_participant::get_current_time::new(),
                     )?,
                 ),
             )?;

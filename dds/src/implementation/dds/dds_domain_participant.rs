@@ -33,7 +33,7 @@ use crate::{
             writer::RtpsWriter,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{spawn_actor, Actor, ActorAddress, Mail, MailHandler},
+        utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -454,14 +454,6 @@ impl DdsDomainParticipant {
             status_kind,
         }
     }
-
-    fn get_current_time(&self) -> Time {
-        let now_system_time = SystemTime::now();
-        let unix_time = now_system_time
-            .duration_since(UNIX_EPOCH)
-            .expect("Clock time is before Unix epoch start");
-        Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
-    }
 }
 
 #[actor_interface]
@@ -792,58 +784,22 @@ impl DdsDomainParticipant {
     async fn get_vendor_id(&self) -> VendorId {
         self.rtps_participant.vendor_id()
     }
-}
 
-pub struct GetUserDefinedPublisherList;
-
-impl Mail for GetUserDefinedPublisherList {
-    type Result = Vec<ActorAddress<DdsPublisher>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetUserDefinedPublisherList> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: GetUserDefinedPublisherList,
-    ) -> <GetUserDefinedPublisherList as Mail>::Result {
+    async fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
         self.user_defined_publisher_list
             .values()
             .map(|a| a.address().clone())
             .collect()
     }
-}
 
-pub struct GetUserDefinedSubscriberList;
-
-impl Mail for GetUserDefinedSubscriberList {
-    type Result = Vec<ActorAddress<DdsSubscriber>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetUserDefinedSubscriberList> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: GetUserDefinedSubscriberList,
-    ) -> <GetUserDefinedSubscriberList as Mail>::Result {
+    async fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
         self.user_defined_subscriber_list
             .values()
             .map(|a| a.address().clone())
             .collect()
     }
-}
 
-pub struct AsSpdpDiscoveredParticipantData;
-
-impl Mail for AsSpdpDiscoveredParticipantData {
-    type Result = SpdpDiscoveredParticipantData;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<AsSpdpDiscoveredParticipantData> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: AsSpdpDiscoveredParticipantData,
-    ) -> <AsSpdpDiscoveredParticipantData as Mail>::Result {
+    async fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
         SpdpDiscoveredParticipantData::new(
             ParticipantBuiltinTopicData::new(
                 BuiltInTopicKey {
@@ -877,94 +833,32 @@ impl MailHandler<AsSpdpDiscoveredParticipantData> for DdsDomainParticipant {
             self.lease_duration,
         )
     }
-}
 
-pub struct GetListener;
-
-impl Mail for GetListener {
-    type Result = Option<ActorAddress<DdsDomainParticipantListener>>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetListener> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetListener) -> <GetListener as Mail>::Result {
+    async fn get_listener(&self) -> Option<ActorAddress<DdsDomainParticipantListener>> {
         self.listener.as_ref().map(|l| l.address().clone())
     }
-}
 
-pub struct GetStatusKind;
-
-impl Mail for GetStatusKind {
-    type Result = Vec<StatusKind>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetStatusKind> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetStatusKind) -> <GetStatusKind as Mail>::Result {
+    async fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
-}
 
-pub struct GetCurrentTime;
-
-impl Mail for GetCurrentTime {
-    type Result = Time;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetCurrentTime> for DdsDomainParticipant {
-    async fn handle(&mut self, _mail: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
+    async fn get_current_time(&self) -> Time {
         let now_system_time = SystemTime::now();
         let unix_time = now_system_time
             .duration_since(UNIX_EPOCH)
             .expect("Clock time is before Unix epoch start");
         Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
-}
 
-pub struct GetBuiltinPublisher;
-
-impl Mail for GetBuiltinPublisher {
-    type Result = ActorAddress<DdsPublisher>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetBuiltinPublisher> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        _mail: GetBuiltinPublisher,
-    ) -> <GetBuiltinPublisher as Mail>::Result {
+    async fn get_builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
         self.builtin_publisher.address().clone()
     }
-}
 
-pub struct ProcessUserDefinedRtpsMessage {
-    message: RtpsMessageRead,
-    participant_address: ActorAddress<DdsDomainParticipant>,
-}
-
-impl ProcessUserDefinedRtpsMessage {
-    pub fn new(
+    async fn process_user_defined_rtps_message(
+        &self,
         message: RtpsMessageRead,
         participant_address: ActorAddress<DdsDomainParticipant>,
-    ) -> Self {
-        Self {
-            message,
-            participant_address,
-        }
-    }
-}
-
-impl Mail for ProcessUserDefinedRtpsMessage {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
-    async fn handle(
-        &mut self,
-        mail: ProcessUserDefinedRtpsMessage,
-    ) -> <ProcessUserDefinedRtpsMessage as Mail>::Result {
+    ) {
         let participant_mask_listener = (
             self.listener.as_ref().map(|a| a.address()).cloned(),
             self.status_kind.clone(),
@@ -976,9 +870,9 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
         {
             user_defined_subscriber_address
                 .send_mail(dds_subscriber::process_rtps_message::new(
-                    mail.message.clone(),
-                    self.get_current_time(),
-                    mail.participant_address.clone(),
+                    message.clone(),
+                    self.get_current_time().await,
+                    participant_address.clone(),
                     user_defined_subscriber_address.clone(),
                     participant_mask_listener.clone(),
                 ))
@@ -1004,9 +898,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
             .map(|a| a.address())
         {
             user_defined_publisher_address
-                .send_mail(dds_publisher::process_rtps_message::new(
-                    mail.message.clone(),
-                ))
+                .send_mail(dds_publisher::process_rtps_message::new(message.clone()))
                 .await
                 .expect("Should not fail to send command");
             user_defined_publisher_address
@@ -1017,7 +909,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DdsDomainParticipant {
                         self.rtps_participant.guid().prefix(),
                     ),
                     self.udp_transport_write.address().clone(),
-                    self.get_current_time(),
+                    self.get_current_time().await,
                 ))
                 .await
                 .expect("Should not fail to send command");
