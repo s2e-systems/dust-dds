@@ -560,7 +560,7 @@ impl DdsDataWriter {
     async fn get_publication_matched_status(&mut self) -> DdsResult<PublicationMatchedStatus> {
         self.status_condition
             .address()
-            .send_mail_and_await_reply(dds_status_condition::RemoveCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::remove_communication_state::new(
                 StatusKind::PublicationMatched,
             ))
             .await?;
@@ -909,7 +909,7 @@ impl DdsDataWriter {
                                 cache_change.as_data_submessage(ENTITYID_UNKNOWN),
                             );
                             udp_transport_write
-                                .send_mail(udp_transport::Write::new(
+                                .send_mail(udp_transport::write::new(
                                     RtpsMessageWrite::new(
                                         header,
                                         vec![info_ts_submessage, data_submessage],
@@ -927,7 +927,7 @@ impl DdsDataWriter {
                                     SequenceNumberSet::new(unsent_change_seq_num + 1, vec![]),
                                 ));
                             udp_transport_write
-                                .send_mail(udp_transport::Write::new(
+                                .send_mail(udp_transport::write::new(
                                     RtpsMessageWrite::new(header, vec![gap_submessage]),
                                     vec![reader_locator.locator()],
                                 ))
@@ -1021,7 +1021,7 @@ impl DdsDataWriter {
     ) -> DdsResult<()> {
         self.status_condition
             .address()
-            .send_mail_and_await_reply(dds_status_condition::AddCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::add_communication_state::new(
                 StatusKind::PublicationMatched,
             ))
             .await?;
@@ -1031,9 +1031,9 @@ impl DdsDataWriter {
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             let status = self.get_publication_matched_status().await?;
             listener_address
-                .send_mail(dds_data_writer_listener::TriggerOnPublicationMatched::new(
-                    writer, status,
-                ))
+                .send_mail(
+                    dds_data_writer_listener::trigger_on_publication_matched::new(writer, status),
+                )
                 .await?
         } else if let Some(publisher_publication_matched_listener) =
             publisher_publication_matched_listener
@@ -1042,7 +1042,7 @@ impl DdsDataWriter {
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             publisher_publication_matched_listener
-                .send_mail(dds_publisher_listener::TriggerOnPublicationMatched::new(
+                .send_mail(dds_publisher_listener::trigger_on_publication_matched::new(
                     writer, status,
                 ))
                 .await?;
@@ -1054,7 +1054,7 @@ impl DdsDataWriter {
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             participant_publication_matched_listener
                 .send_mail(
-                    dds_domain_participant_listener::TriggerOnPublicationMatched::new(
+                    dds_domain_participant_listener::trigger_on_publication_matched::new(
                         writer, status,
                     ),
                 )
@@ -1075,7 +1075,7 @@ impl DdsDataWriter {
     ) -> DdsResult<()> {
         self.status_condition
             .address()
-            .send_mail_and_await_reply(dds_status_condition::AddCommunicationState::new(
+            .send_mail_and_await_reply(dds_status_condition::add_communication_state::new(
                 StatusKind::OfferedIncompatibleQos,
             ))
             .await?;
@@ -1090,7 +1090,9 @@ impl DdsDataWriter {
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             listener_address
                 .send_mail(
-                    dds_data_writer_listener::TriggerOnOfferedIncompatibleQos::new(writer, status),
+                    dds_data_writer_listener::trigger_on_offered_incompatible_qos::new(
+                        writer, status,
+                    ),
                 )
                 .await?;
         } else if let Some(offered_incompatible_qos_publisher_listener) =
@@ -1101,7 +1103,9 @@ impl DdsDataWriter {
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             offered_incompatible_qos_publisher_listener
                 .send_mail(
-                    dds_publisher_listener::TriggerOnOfferedIncompatibleQos::new(writer, status),
+                    dds_publisher_listener::trigger_on_offered_incompatible_qos::new(
+                        writer, status,
+                    ),
                 )
                 .await?;
         } else if let Some(offered_incompatible_qos_participant_listener) =
@@ -1112,7 +1116,7 @@ impl DdsDataWriter {
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             offered_incompatible_qos_participant_listener
                 .send_mail(
-                    dds_domain_participant_listener::TriggerOnOfferedIncompatibleQos::new(
+                    dds_domain_participant_listener::trigger_on_offered_incompatible_qos::new(
                         writer, status,
                     ),
                 )
@@ -1199,7 +1203,7 @@ async fn send_message_to_reader_proxy_best_effort(
                 SequenceNumberSet::new(gap_end_sequence_number + 1, vec![]),
             ));
             udp_transport_write
-                .send_mail(udp_transport::Write::new(
+                .send_mail(udp_transport::write::new(
                     RtpsMessageWrite::new(header, vec![gap_submessage]),
                     reader_proxy.unicast_locator_list().to_vec(),
                 ))
@@ -1235,7 +1239,7 @@ async fn send_message_to_reader_proxy_best_effort(
                     let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write
-                        .send_mail(udp_transport::Write::new(
+                        .send_mail(udp_transport::write::new(
                             RtpsMessageWrite::new(
                                 header,
                                 vec![info_dst, info_timestamp, data_frag],
@@ -1263,7 +1267,7 @@ async fn send_message_to_reader_proxy_best_effort(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
                 udp_transport_write
-                    .send_mail(udp_transport::Write::new(
+                    .send_mail(udp_transport::write::new(
                         RtpsMessageWrite::new(
                             header,
                             vec![info_dst, info_timestamp, data_submessage],
@@ -1275,7 +1279,7 @@ async fn send_message_to_reader_proxy_best_effort(
             }
         } else {
             udp_transport_write
-                .send_mail(udp_transport::Write::new(
+                .send_mail(udp_transport::write::new(
                     RtpsMessageWrite::new(
                         header,
                         vec![RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
@@ -1329,7 +1333,7 @@ async fn send_message_to_reader_proxy_reliable(
                     .heartbeat_machine()
                     .submessage(writer_id, first_sn, last_sn);
                 udp_transport_write
-                    .send_mail(udp_transport::Write::new(
+                    .send_mail(udp_transport::write::new(
                         RtpsMessageWrite::new(header, vec![gap_submessage, heartbeat_submessage]),
                         reader_proxy.unicast_locator_list().to_vec(),
                     ))
@@ -1368,7 +1372,7 @@ async fn send_message_to_reader_proxy_reliable(
             .heartbeat_machine()
             .submessage(writer_id, first_sn, last_sn);
         udp_transport_write
-            .send_mail(udp_transport::Write::new(
+            .send_mail(udp_transport::write::new(
                 RtpsMessageWrite::new(header, vec![heartbeat_submessage]),
                 reader_proxy.unicast_locator_list().to_vec(),
             ))
@@ -1435,7 +1439,7 @@ async fn send_change_message_reader_proxy_reliable(
                     let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write
-                        .send_mail(udp_transport::Write::new(
+                        .send_mail(udp_transport::write::new(
                             RtpsMessageWrite::new(
                                 header,
                                 vec![info_dst, info_timestamp, data_frag],
@@ -1478,7 +1482,7 @@ async fn send_change_message_reader_proxy_reliable(
                     .submessage(writer_id, first_sn, last_sn);
 
                 udp_transport_write
-                    .send_mail(udp_transport::Write::new(
+                    .send_mail(udp_transport::write::new(
                         RtpsMessageWrite::new(
                             header,
                             vec![info_dst, info_timestamp, data_submessage, heartbeat],
@@ -1502,7 +1506,7 @@ async fn send_change_message_reader_proxy_reliable(
             ));
 
             udp_transport_write
-                .send_mail(udp_transport::Write::new(
+                .send_mail(udp_transport::write::new(
                     RtpsMessageWrite::new(header, vec![info_dst, gap_submessage]),
                     reader_proxy.unicast_locator_list().to_vec(),
                 ))

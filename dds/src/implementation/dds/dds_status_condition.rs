@@ -1,7 +1,6 @@
-use crate::{
-    implementation::utils::actor::{Mail, MailHandler},
-    infrastructure::status::StatusKind,
-};
+use dust_dds_derive::actor_interface;
+
+use crate::infrastructure::status::StatusKind;
 
 pub struct DdsStatusCondition {
     enabled_statuses: Vec<StatusKind>,
@@ -31,97 +30,25 @@ impl Default for DdsStatusCondition {
     }
 }
 
-pub struct AddCommunicationState {
-    state: StatusKind,
-}
-
-impl AddCommunicationState {
-    pub fn new(state: StatusKind) -> Self {
-        Self { state }
+#[actor_interface]
+impl DdsStatusCondition {
+    async fn add_communication_state(&mut self, state: StatusKind) {
+        self.status_changes.push(state);
     }
-}
 
-impl Mail for AddCommunicationState {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<AddCommunicationState> for DdsStatusCondition {
-    async fn handle(
-        &mut self,
-        mail: AddCommunicationState,
-    ) -> <AddCommunicationState as Mail>::Result {
-        self.status_changes.push(mail.state);
+    async fn remove_communication_state(&mut self, state: StatusKind) {
+        self.status_changes.retain(|x| x != &state);
     }
-}
 
-pub struct RemoveCommunicationState {
-    state: StatusKind,
-}
-
-impl RemoveCommunicationState {
-    pub fn new(state: StatusKind) -> Self {
-        Self { state }
-    }
-}
-
-impl Mail for RemoveCommunicationState {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<RemoveCommunicationState> for DdsStatusCondition {
-    async fn handle(
-        &mut self,
-        mail: RemoveCommunicationState,
-    ) -> <RemoveCommunicationState as Mail>::Result {
-        self.status_changes.retain(|x| x != &mail.state);
-    }
-}
-
-pub struct GetEnabledStatuses;
-
-impl Mail for GetEnabledStatuses {
-    type Result = Vec<StatusKind>;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetEnabledStatuses> for DdsStatusCondition {
-    async fn handle(&mut self, _mail: GetEnabledStatuses) -> <GetEnabledStatuses as Mail>::Result {
+    async fn get_enabled_statuses(&self) -> Vec<StatusKind> {
         self.enabled_statuses.clone()
     }
-}
 
-pub struct SetEnabledStatuses {
-    mask: Vec<StatusKind>,
-}
-
-impl SetEnabledStatuses {
-    pub fn new(mask: Vec<StatusKind>) -> Self {
-        Self { mask }
+    async fn set_enabled_statuses(&mut self, mask: Vec<StatusKind>) {
+        self.enabled_statuses = mask;
     }
-}
 
-impl Mail for SetEnabledStatuses {
-    type Result = ();
-}
-
-#[async_trait::async_trait]
-impl MailHandler<SetEnabledStatuses> for DdsStatusCondition {
-    async fn handle(&mut self, mail: SetEnabledStatuses) -> <SetEnabledStatuses as Mail>::Result {
-        self.enabled_statuses = mail.mask;
-    }
-}
-
-pub struct GetTriggerValue;
-
-impl Mail for GetTriggerValue {
-    type Result = bool;
-}
-
-#[async_trait::async_trait]
-impl MailHandler<GetTriggerValue> for DdsStatusCondition {
-    async fn handle(&mut self, _mail: GetTriggerValue) -> <GetTriggerValue as Mail>::Result {
+    async fn get_trigger_value(&self) -> bool {
         for status in &self.status_changes {
             if self.enabled_statuses.contains(status) {
                 return true;
