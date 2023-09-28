@@ -177,13 +177,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
 }
 
 fn field_has_key_attribute(field: &Field) -> bool {
-    field.attrs.iter().any(|attr| {
-        attr.parse_meta()
-            .ok()
-            .and_then(|meta| meta.path().get_ident().cloned())
-            .map(|ident| ident == "key")
-            .unwrap_or(false)
-    })
+    field.attrs.iter().any(|attr| attr.path().is_ident("key"))
 }
 
 /// Attribute macro to generate the actor interface from
@@ -201,7 +195,7 @@ pub fn actor_interface(
         let mut actor_structs = proc_macro2::TokenStream::new();
 
         for method in input.items.iter().filter_map(|i| match i {
-            syn::ImplItem::Method(m) => Some(m),
+            syn::ImplItem::Fn(m) => Some(m),
             _ => None,
         }) {
             let method_ident = &method.sig.ident;
