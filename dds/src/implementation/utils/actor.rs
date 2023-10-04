@@ -272,14 +272,37 @@ where
 }
 
 pub struct Actor<A> {
-    address: ActorAddress<A>,
+    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
     join_handle: tokio::task::JoinHandle<()>,
     cancellation_token: Arc<AtomicBool>,
 }
 
 impl<A> Actor<A> {
-    pub fn address(&self) -> &ActorAddress<A> {
-        &self.address
+    pub fn address(&self) -> ActorAddress<A> {
+        ActorAddress {
+            sender: self.sender.clone(),
+        }
+    }
+
+    pub async fn send_mail_and_await_reply<M>(&self, mail: M) -> M::Result
+    where
+        A: MailHandler<M> + Send,
+        M: Mail + Send + 'static,
+        M::Result: Send,
+    {
+        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
+
+        self.sender
+            .send(Box::new(AsyncMail::new(mail, response_sender)))
+            .await
+            .map_err(|_| ())
+            .expect(
+                "Received is guaranteed to exist while actor object is alive. Sending must succeed",
+            );
+
+        response_receiver
+            .await
+            .expect("Message is always processed as long as actor object exists")
     }
 }
 
@@ -302,8 +325,6 @@ where
 {
     let (sender, mailbox) = tokio::sync::mpsc::channel(16);
 
-    let address = ActorAddress { sender };
-
     let mut actor_obj = SpawnedActor {
         value: actor,
         mailbox,
@@ -322,7 +343,7 @@ where
     });
 
     Actor {
-        address,
+        sender,
         join_handle,
         cancellation_token,
     }

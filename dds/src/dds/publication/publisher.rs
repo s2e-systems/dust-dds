@@ -261,22 +261,20 @@ impl Publisher {
     /// If multiple [`DataWriter`] attached to the [`Publisher`] satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     #[tracing::instrument(skip(self))]
-    pub fn lookup_datawriter<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>>
-    where
-        Foo: DdsHasKey,
-    {
-        todo!()
-        // self.call_participant_mut_method(|dp| {
-        //     Ok(
-        //         crate::implementation::behavior::user_defined_publisher::lookup_datawriter(
-        //             dp,
-        //             self.0.guid(),
-        //             Foo,
-        //             topic_name,
-        //         )?
-        //         .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x))),
-        //     )
-        // })
+    pub fn lookup_datawriter<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>> {
+        Ok(self
+            .0
+            .publisher_address()
+            .send_mail_and_await_reply_blocking(dds_publisher::lookup_datawriter::new(
+                topic_name.to_string(),
+            ))?
+            .map(|dw| {
+                DataWriter::new(DataWriterNode::new(
+                    dw,
+                    self.0.publisher_address().clone(),
+                    self.0.participant_address().clone(),
+                ))
+            }))
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using [`DataWriter`] objects

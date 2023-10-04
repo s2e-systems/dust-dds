@@ -128,6 +128,19 @@ impl DdsPublisher {
         Ok(data_writer_address)
     }
 
+    async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DdsDataWriter>> {
+        for (_, dw) in &self.data_writer_list {
+            if dw
+                .send_mail_and_await_reply(dds_data_writer::get_topic_name::new())
+                .await
+                == topic_name
+            {
+                return Some(dw.address());
+            }
+        }
+        None
+    }
+
     async fn enable(&mut self) {
         self.enabled = true;
     }

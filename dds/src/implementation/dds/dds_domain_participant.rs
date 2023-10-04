@@ -915,6 +915,13 @@ impl DdsDomainParticipant {
                 .expect("Should not fail to send command");
         }
     }
+
+    async fn announce_creater_or_modified_data_writer(
+        &self,
+        discovered_writer_data: DiscoveredWriterData,
+    ) {
+        todo!()
+    }
 }
 
 fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
