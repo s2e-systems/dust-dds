@@ -60,7 +60,7 @@ impl<A> ActorAddress<A> {
         let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
 
         self.sender
-            .send(Box::new(AsyncMail::new(mail, response_sender)))
+            .send(Box::new(ReplyMail::new(mail, response_sender)))
             .await
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
@@ -78,7 +78,7 @@ impl<A> ActorAddress<A> {
 
         let mut send_result = self
             .sender
-            .try_send(Box::new(AsyncMail::new(mail, response_sender)));
+            .try_send(Box::new(ReplyMail::new(mail, response_sender)));
         // Try sending the mail until it succeeds. This is done instead of calling a tokio::task::block_in_place because this solution
         // would be only valid when the runtime is multithreaded. For single threaded runtimes this would still cause a panic.
         while let Err(receive_error) = send_result {
@@ -177,7 +177,7 @@ where
     }
 }
 
-struct AsyncMail<M>
+struct ReplyMail<M>
 where
     M: Mail,
 {
@@ -188,7 +188,7 @@ where
     sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
 }
 
-impl<M> AsyncMail<M>
+impl<M> ReplyMail<M>
 where
     M: Mail,
 {
@@ -201,7 +201,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<A, M> GenericHandler<A> for AsyncMail<M>
+impl<A, M> GenericHandler<A> for ReplyMail<M>
 where
     A: MailHandler<M> + Send,
     M: Mail + Send,
@@ -246,7 +246,7 @@ impl<A> Actor<A> {
         let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
 
         self.sender
-            .send(Box::new(AsyncMail::new(mail, response_sender)))
+            .send(Box::new(ReplyMail::new(mail, response_sender)))
             .await
             .map_err(|_| ())
             .expect(
