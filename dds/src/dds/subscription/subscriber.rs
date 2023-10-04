@@ -287,11 +287,20 @@ impl Subscriber {
     /// specified which one.
     /// The use of this operation on the built-in [`Subscriber`] allows access to the built-in [`DataReader`] entities for the built-in topics.
     #[tracing::instrument(skip(self))]
-    pub fn lookup_datareader<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataReader<Foo>>>
-    where
-        Foo: DdsHasKey + for<'de> serde::Deserialize<'de>,
-    {
-        todo!()
+    pub fn lookup_datareader<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataReader<Foo>>> {
+        Ok(self
+            .0
+            .subscriber_address()
+            .send_mail_and_await_reply_blocking(dds_subscriber::lookup_datareader::new(
+                topic_name.to_string(),
+            ))?
+            .map(|reader_address| {
+                DataReader::new(DataReaderNode::new(
+                    reader_address,
+                    self.0.subscriber_address().clone(),
+                    self.0.participant_address().clone(),
+                ))
+            }))
     }
 
     /// This operation invokes the operation [`DataReaderListener::on_data_available`] on the listener objects attached to contained [`DataReader`]

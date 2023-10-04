@@ -66,6 +66,18 @@ impl DdsSubscriber {
 
 #[actor_interface]
 impl DdsSubscriber {
+    async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DdsDataReader>> {
+        for dr in self.data_reader_list.values() {
+            if dr
+                .send_mail_and_await_reply(dds_data_reader::get_topic_name::new())
+                .await
+                == topic_name
+            {
+                return Some(dr.address());
+            }
+        }
+        None
+    }
     async fn delete_contained_entities(&mut self) {}
 
     async fn guid(&self) -> Guid {
