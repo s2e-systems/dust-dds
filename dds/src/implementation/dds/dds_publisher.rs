@@ -129,7 +129,7 @@ impl DdsPublisher {
     }
 
     async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DdsDataWriter>> {
-        for (_, dw) in &self.data_writer_list {
+        for dw in self.data_writer_list.values() {
             if dw
                 .send_mail_and_await_reply(dds_data_writer::get_topic_name::new())
                 .await

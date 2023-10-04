@@ -7,32 +7,21 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
             discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
             discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         dds::{
-            dds_data_reader::{self, DdsDataReader},
-            dds_data_writer::{self, DdsDataWriter},
-            dds_domain_participant::{
-                self, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            },
+            dds_data_reader, dds_data_writer,
+            dds_domain_participant::{self, DdsDomainParticipant},
             dds_domain_participant_factory::{self, DdsDomainParticipantFactory},
             dds_domain_participant_listener::DdsDomainParticipantListener,
             dds_publisher, dds_subscriber, dds_topic,
             nodes::DomainParticipantNode,
         },
         rtps::{
-            discovery_types::BuiltinEndpointSet,
             participant::RtpsParticipant,
-            reader_proxy::RtpsReaderProxy,
             types::{
-                Guid, Locator, ReliabilityKind, SequenceNumber, ENTITYID_PARTICIPANT,
-                ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E,
+                Guid, Locator, ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
+                VENDOR_ID_S2E,
             },
-            writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
         utils::actor::{spawn_actor, Actor, ActorAddress, THE_RUNTIME},
@@ -46,12 +35,9 @@ use crate::{
     },
     subscription::{
         data_reader::Sample,
-        sample_info::{
-            InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-        },
+        sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::{dds_deserialize_from_bytes, dds_serialize_key},
+    topic_definition::type_support::dds_serialize_key,
 };
 use fnmatch_regex::glob_to_regex;
 use jsonschema::JSONSchema;
@@ -252,7 +238,17 @@ impl DomainParticipantFactory {
                     break;
                 }
 
-                let r = process_spdp_metatraffic(&participant_address_clone).await;
+                let r = participant_address_clone
+                    .send_mail_and_await_reply(
+                        dds_domain_participant::process_builtin_discovery::new(),
+                    )
+                    .await;
+                if r.is_err() {
+                    break;
+                }
+                let r = participant_address_clone
+                    .send_mail(dds_domain_participant::send_message::new())
+                    .await;
                 if r.is_err() {
                     break;
                 }
@@ -276,6 +272,12 @@ impl DomainParticipantFactory {
                             ),
                         )
                         .await??;
+                    // participant_address_clone
+                    //     .send_mail_and_await_reply(
+                    //         dds_domain_participant::process_builtin_discovery::new(),
+                    //     )
+                    //     .await?;
+
                     process_sedp_discovery(&participant_address_clone).await?;
                     participant_address_clone
                         .send_mail(dds_domain_participant::send_message::new())
@@ -448,449 +450,6 @@ impl DomainParticipantFactory {
             .address()
             .send_mail_and_await_reply_blocking(dds_domain_participant_factory::get_qos::new())
     }
-}
-
-async fn lookup_data_writer_by_topic_name(
-    writer_list: &[ActorAddress<DdsDataWriter>],
-    topic_name: &str,
-) -> Option<ActorAddress<DdsDataWriter>> {
-    for data_writer in writer_list {
-        if let Ok(t) = data_writer
-            .send_mail_and_await_reply(dds_data_writer::get_topic_name::new())
-            .await
-        {
-            if t == topic_name {
-                return Some(data_writer.clone());
-            }
-        }
-    }
-    None
-}
-
-async fn lookup_data_reader_by_topic_name(
-    stateful_reader_list: &[ActorAddress<DdsDataReader>],
-    topic_name: &str,
-) -> Option<ActorAddress<DdsDataReader>> {
-    for data_reader in stateful_reader_list {
-        if data_reader
-            .send_mail_and_await_reply(dds_data_reader::get_topic_name::new())
-            .await
-            == Ok(topic_name.to_string())
-        {
-            return Some(data_reader.clone());
-        }
-    }
-    None
-}
-
-async fn add_matched_publications_detector(
-    writer: &ActorAddress<DdsDataWriter>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
-    {
-        let remote_reader_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let expects_inline_qos = false;
-        let proxy = RtpsReaderProxy::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            expects_inline_qos,
-            true,
-            ReliabilityKind::Reliable,
-            SequenceNumber::from(0),
-        );
-        writer
-            .send_mail_and_await_reply(dds_data_writer::matched_reader_add::new(proxy))
-            .await
-            .unwrap();
-    }
-}
-
-async fn add_matched_publications_announcer(
-    reader: &ActorAddress<DdsDataReader>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
-    {
-        let remote_writer_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let data_max_size_serialized = None;
-
-        let proxy = RtpsWriterProxy::new(
-            remote_writer_guid,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            data_max_size_serialized,
-            remote_group_entity_id,
-        );
-
-        reader
-            .send_mail_and_await_reply(dds_data_reader::matched_writer_add::new(proxy))
-            .await
-            .unwrap();
-    }
-}
-
-async fn add_matched_subscriptions_detector(
-    writer: &ActorAddress<DdsDataWriter>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
-    {
-        let remote_reader_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let expects_inline_qos = false;
-        let proxy = RtpsReaderProxy::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            expects_inline_qos,
-            true,
-            ReliabilityKind::Reliable,
-            SequenceNumber::from(0),
-        );
-        writer
-            .send_mail_and_await_reply(dds_data_writer::matched_reader_add::new(proxy))
-            .await
-            .unwrap();
-    }
-}
-
-async fn add_matched_subscriptions_announcer(
-    reader: &ActorAddress<DdsDataReader>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
-    {
-        let remote_writer_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let data_max_size_serialized = None;
-
-        let proxy = RtpsWriterProxy::new(
-            remote_writer_guid,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            data_max_size_serialized,
-            remote_group_entity_id,
-        );
-        reader
-            .send_mail_and_await_reply(dds_data_reader::matched_writer_add::new(proxy))
-            .await
-            .unwrap();
-    }
-}
-
-async fn add_matched_topics_detector(
-    writer: &ActorAddress<DdsDataWriter>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
-    {
-        let remote_reader_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let expects_inline_qos = false;
-        let proxy = RtpsReaderProxy::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            expects_inline_qos,
-            true,
-            ReliabilityKind::Reliable,
-            SequenceNumber::from(0),
-        );
-        writer
-            .send_mail_and_await_reply(dds_data_writer::matched_reader_add::new(proxy))
-            .await
-            .unwrap();
-    }
-}
-
-async fn add_matched_topics_announcer(
-    reader: &ActorAddress<DdsDataReader>,
-    discovered_participant_data: &SpdpDiscoveredParticipantData,
-) {
-    if discovered_participant_data
-        .participant_proxy()
-        .available_builtin_endpoints()
-        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
-    {
-        let remote_writer_guid = Guid::new(
-            discovered_participant_data
-                .participant_proxy()
-                .guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let data_max_size_serialized = None;
-
-        let proxy = RtpsWriterProxy::new(
-            remote_writer_guid,
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_unicast_locator_list(),
-            discovered_participant_data
-                .participant_proxy()
-                .metatraffic_multicast_locator_list(),
-            data_max_size_serialized,
-            remote_group_entity_id,
-        );
-        reader
-            .send_mail_and_await_reply(dds_data_reader::matched_writer_add::new(proxy))
-            .await
-            .unwrap();
-    }
-}
-
-async fn process_spdp_metatraffic(
-    participant_address: &ActorAddress<DdsDomainParticipant>,
-) -> DdsResult<()> {
-    let builtin_subscriber = participant_address
-        .send_mail_and_await_reply(dds_domain_participant::get_built_in_subscriber::new())
-        .await?;
-
-    let data_reader_list = builtin_subscriber
-        .send_mail_and_await_reply(dds_subscriber::data_reader_list::new())
-        .await?;
-    for data_reader in data_reader_list {
-        if data_reader
-            .send_mail_and_await_reply(dds_data_reader::get_type_name::new())
-            .await
-            == Ok("SpdpDiscoveredParticipantData".to_string())
-        {
-            // Read data from each of the readers
-            while let Ok(spdp_data_sample_list) = data_reader
-                .send_mail_and_await_reply(dds_data_reader::read::new(
-                    1,
-                    vec![SampleStateKind::NotRead],
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                ))
-                .await?
-            {
-                for (spdp_data_sample, _) in spdp_data_sample_list {
-                    let discovered_participant_data =
-                        dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(
-                            spdp_data_sample.expect("Should contain data").as_ref(),
-                        )?;
-
-                    // Check that the domainId of the discovered participant equals the local one.
-                    // If it is not equal then there the local endpoints are not configured to
-                    // communicate with the discovered participant.
-                    // AND
-                    // Check that the domainTag of the discovered participant equals the local one.
-                    // If it is not equal then there the local endpoints are not configured to
-                    // communicate with the discovered participant.
-                    // IN CASE no domain id was transmitted the a local domain id is assumed
-                    // (as specified in Table 9.19 - ParameterId mapping and default values)
-                    let is_domain_id_matching = if let Some(domain_id) =
-                        discovered_participant_data.participant_proxy().domain_id()
-                    {
-                        domain_id
-                            == participant_address
-                                .send_mail_and_await_reply(
-                                    dds_domain_participant::get_domain_id::new(),
-                                )
-                                .await?
-                    } else {
-                        true
-                    };
-                    let is_domain_tag_matching =
-                        discovered_participant_data.participant_proxy().domain_tag()
-                            == participant_address
-                                .send_mail_and_await_reply(
-                                    dds_domain_participant::get_domain_tag::new(),
-                                )
-                                .await?;
-                    let is_participant_ignored = participant_address
-                        .send_mail_and_await_reply(
-                            dds_domain_participant::is_participant_ignored::new(
-                                dds_serialize_key(&discovered_participant_data)?.into(),
-                            ),
-                        )
-                        .await?;
-
-                    if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
-                        // Process any new participant discovery (add/remove matched proxies)
-                        let builtin_data_writer_list = participant_address
-                            .send_mail_and_await_reply(
-                                dds_domain_participant::get_builtin_publisher::new(),
-                            )
-                            .await?
-                            .send_mail_and_await_reply(dds_publisher::data_writer_list::new())
-                            .await?;
-                        let builtin_data_reader_list = participant_address
-                            .send_mail_and_await_reply(
-                                dds_domain_participant::get_built_in_subscriber::new(),
-                            )
-                            .await?
-                            .send_mail_and_await_reply(dds_subscriber::data_reader_list::new())
-                            .await?;
-
-                        if let Some(sedp_publications_announcer) = lookup_data_writer_by_topic_name(
-                            &builtin_data_writer_list,
-                            DCPS_PUBLICATION,
-                        )
-                        .await
-                        {
-                            add_matched_publications_detector(
-                                &sedp_publications_announcer,
-                                &discovered_participant_data,
-                            )
-                            .await;
-
-                            participant_address
-                                .send_mail_blocking(dds_domain_participant::send_message::new())?;
-                        }
-
-                        if let Some(sedp_publications_detector) = lookup_data_reader_by_topic_name(
-                            &builtin_data_reader_list,
-                            DCPS_PUBLICATION,
-                        )
-                        .await
-                        {
-                            add_matched_publications_announcer(
-                                &sedp_publications_detector,
-                                &discovered_participant_data,
-                            )
-                            .await;
-                        }
-
-                        if let Some(sedp_subscriptions_announcer) =
-                            lookup_data_writer_by_topic_name(
-                                &builtin_data_writer_list,
-                                DCPS_SUBSCRIPTION,
-                            )
-                            .await
-                        {
-                            add_matched_subscriptions_detector(
-                                &sedp_subscriptions_announcer,
-                                &discovered_participant_data,
-                            )
-                            .await;
-
-                            participant_address
-                                .send_mail_blocking(dds_domain_participant::send_message::new())?;
-                        }
-
-                        if let Some(sedp_subscriptions_detector) = lookup_data_reader_by_topic_name(
-                            &builtin_data_reader_list,
-                            DCPS_SUBSCRIPTION,
-                        )
-                        .await
-                        {
-                            add_matched_subscriptions_announcer(
-                                &sedp_subscriptions_detector,
-                                &discovered_participant_data,
-                            )
-                            .await;
-                        }
-
-                        if let Some(sedp_topics_announcer) =
-                            lookup_data_writer_by_topic_name(&builtin_data_writer_list, DCPS_TOPIC)
-                                .await
-                        {
-                            add_matched_topics_detector(
-                                &sedp_topics_announcer,
-                                &discovered_participant_data,
-                            )
-                            .await;
-
-                            participant_address
-                                .send_mail_blocking(dds_domain_participant::send_message::new())?;
-                        }
-
-                        if let Some(sedp_topics_detector) =
-                            lookup_data_reader_by_topic_name(&builtin_data_reader_list, DCPS_TOPIC)
-                                .await
-                        {
-                            add_matched_topics_announcer(
-                                &sedp_topics_detector,
-                                &discovered_participant_data,
-                            )
-                            .await;
-                        }
-
-                        participant_address
-                            .send_mail_and_await_reply(
-                                dds_domain_participant::discovered_participant_add::new(
-                                    dds_serialize_key(&discovered_participant_data)?.into(),
-                                    discovered_participant_data,
-                                ),
-                            )
-                            .await?;
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(())
 }
 
 async fn process_sedp_discovery(

@@ -1015,13 +1015,13 @@ impl DdsDomainParticipant {
         }
     }
 
-    async fn process_builtin_discovery(&self) {
+    async fn process_builtin_discovery(&mut self) {
         self.process_spdp_participant_discovery().await;
     }
 }
 
 impl DdsDomainParticipant {
-    async fn process_spdp_participant_discovery(&self) {
+    async fn process_spdp_participant_discovery(&mut self) {
         if let Some(spdp_participant_reader) = self
             .builtin_subscriber
             .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
@@ -1059,7 +1059,7 @@ impl DdsDomainParticipant {
     }
 
     async fn process_discovered_participant_data(
-        &self,
+        &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
     ) {
         // Check that the domainId of the discovered participant equals the local one.
@@ -1077,7 +1077,7 @@ impl DdsDomainParticipant {
             .unwrap_or(self.domain_id)
             == self.domain_id;
         let is_domain_tag_matching =
-            discovered_participant_data.participant_proxy().domain_tag() == &self.domain_tag;
+            discovered_participant_data.participant_proxy().domain_tag() == self.domain_tag;
         let discovered_participant_handle = InstanceHandle::new(
             discovered_participant_data
                 .dds_participant_data()
@@ -1100,6 +1100,16 @@ impl DdsDomainParticipant {
                 .await;
             self.add_matched_topics_announcer(&discovered_participant_data)
                 .await;
+
+            self.discovered_participant_list.insert(
+                InstanceHandle::new(
+                    discovered_participant_data
+                        .dds_participant_data()
+                        .key()
+                        .value,
+                ),
+                discovered_participant_data,
+            );
         }
     }
 
