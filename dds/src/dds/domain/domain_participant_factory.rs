@@ -26,7 +26,6 @@ use crate::{
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
-            messages::overall_structure::RtpsMessageRead,
             participant::RtpsParticipant,
             reader_proxy::RtpsReaderProxy,
             types::{
@@ -241,8 +240,19 @@ impl DomainParticipantFactory {
             );
 
             while let Some((_locator, message)) = metatraffic_multicast_transport.read().await {
-                let r = process_spdp_metatraffic(&participant_address_clone, message).await;
+                let r = participant_address_clone
+                    .send_mail_and_await_reply(
+                        dds_domain_participant::process_metatraffic_rtps_message::new(
+                            message,
+                            participant_address_clone.clone(),
+                        ),
+                    )
+                    .await;
+                if r.is_err() {
+                    break;
+                }
 
+                let r = process_spdp_metatraffic(&participant_address_clone).await;
                 if r.is_err() {
                     break;
                 }
@@ -258,8 +268,18 @@ impl DomainParticipantFactory {
 
             while let Some((_locator, message)) = metatraffic_unicast_transport.read().await {
                 let r: DdsResult<()> = async {
-                    process_sedp_metatraffic(&participant_address_clone, message).await?;
+                    participant_address_clone
+                        .send_mail_and_await_reply(
+                            dds_domain_participant::process_metatraffic_rtps_message::new(
+                                message,
+                                participant_address_clone.clone(),
+                            ),
+                        )
+                        .await??;
                     process_sedp_discovery(&participant_address_clone).await?;
+                    participant_address_clone
+                        .send_mail(dds_domain_participant::send_message::new())
+                        .await?;
                     Ok(())
                 }
                 .await;
@@ -688,34 +708,10 @@ async fn add_matched_topics_announcer(
 
 async fn process_spdp_metatraffic(
     participant_address: &ActorAddress<DdsDomainParticipant>,
-    message: RtpsMessageRead,
 ) -> DdsResult<()> {
     let builtin_subscriber = participant_address
         .send_mail_and_await_reply(dds_domain_participant::get_built_in_subscriber::new())
         .await?;
-
-    let participant_mask_listener = (
-        participant_address
-            .send_mail_and_await_reply(dds_domain_participant::get_listener::new())
-            .await?,
-        participant_address
-            .send_mail_and_await_reply(dds_domain_participant::get_status_kind::new())
-            .await?,
-    );
-
-    // Receive the data on the builtin spdp reader
-    builtin_subscriber
-        .send_mail(dds_subscriber::process_rtps_message::new(
-            message,
-            participant_address
-                .send_mail_and_await_reply(dds_domain_participant::get_current_time::new())
-                .await?,
-            participant_address.clone(),
-            builtin_subscriber.clone(),
-            participant_mask_listener,
-        ))
-        .await
-        .expect("Should not fail to send command");
 
     let data_reader_list = builtin_subscriber
         .send_mail_and_await_reply(dds_subscriber::data_reader_list::new())
@@ -893,53 +889,6 @@ async fn process_spdp_metatraffic(
             }
         }
     }
-
-    Ok(())
-}
-
-async fn process_sedp_metatraffic(
-    participant_address: &ActorAddress<DdsDomainParticipant>,
-    message: RtpsMessageRead,
-) -> DdsResult<()> {
-    let builtin_subscriber = participant_address
-        .send_mail_and_await_reply(dds_domain_participant::get_built_in_subscriber::new())
-        .await?;
-    let builtin_publisher = participant_address
-        .send_mail_and_await_reply(dds_domain_participant::get_builtin_publisher::new())
-        .await?;
-    let participant_mask_listener = (
-        participant_address
-            .send_mail_and_await_reply(dds_domain_participant::get_listener::new())
-            .await?,
-        participant_address
-            .send_mail_and_await_reply(dds_domain_participant::get_status_kind::new())
-            .await?,
-    );
-
-    for stateful_builtin_writer in builtin_publisher
-        .send_mail_and_await_reply(dds_publisher::data_writer_list::new())
-        .await?
-    {
-        stateful_builtin_writer
-            .send_mail_and_await_reply(dds_data_writer::process_rtps_message::new(message.clone()))
-            .await?;
-
-        participant_address.send_mail_blocking(dds_domain_participant::send_message::new())?;
-    }
-
-    builtin_subscriber
-        .send_mail_and_await_reply(dds_subscriber::process_rtps_message::new(
-            message,
-            participant_address
-                .send_mail_and_await_reply(dds_domain_participant::get_current_time::new())
-                .await?,
-            participant_address.clone(),
-            builtin_subscriber.clone(),
-            participant_mask_listener,
-        ))
-        .await??;
-
-    participant_address.send_mail_blocking(dds_domain_participant::send_message::new())?;
 
     Ok(())
 }

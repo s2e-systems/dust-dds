@@ -890,6 +890,33 @@ impl DdsDomainParticipant {
         }
     }
 
+    async fn process_metatraffic_rtps_message(
+        &self,
+        message: RtpsMessageRead,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) -> DdsResult<()> {
+        let reception_timestamp = self.get_current_time().await;
+        let participant_mask_listener = (
+            self.listener.as_ref().map(|l| l.address()),
+            self.status_kind.clone(),
+        );
+        self.builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::process_rtps_message::new(
+                message.clone(),
+                reception_timestamp,
+                participant_address.clone(),
+                self.builtin_subscriber.address(),
+                participant_mask_listener,
+            ))
+            .await?;
+
+        self.builtin_publisher
+            .send_mail_and_await_reply(dds_publisher::process_rtps_message::new(message))
+            .await;
+
+        Ok(())
+    }
+
     async fn process_user_defined_rtps_message(
         &self,
         message: RtpsMessageRead,
