@@ -240,15 +240,14 @@ impl DdsPublisher {
         udp_transport_write: ActorAddress<UdpTransportWrite>,
         now: Time,
     ) {
-        for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
+        for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .send_mail(dds_data_writer::send_message::new(
                     header,
                     udp_transport_write.clone(),
                     now,
                 ))
-                .await
-                .expect("Should not fail to send command");
+                .await;
         }
     }
 }

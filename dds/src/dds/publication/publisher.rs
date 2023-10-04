@@ -7,7 +7,6 @@ use crate::{
             dds_domain_participant, dds_publisher,
             nodes::{DataWriterNode, DomainParticipantNode, PublisherNode},
         },
-        rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::spawn_actor,
     },
     infrastructure::{
@@ -213,41 +212,9 @@ impl Publisher {
                         ),
                     )??;
 
-                    data_writer.send_mail_blocking(dds_data_writer::send_message::new(
-                        RtpsMessageHeader::new(
-                            a_datawriter
-                                .node()
-                                .participant_address()
-                                .send_mail_and_await_reply_blocking(
-                                    dds_domain_participant::get_protocol_version::new(),
-                                )?,
-                            a_datawriter
-                                .node()
-                                .participant_address()
-                                .send_mail_and_await_reply_blocking(
-                                    dds_domain_participant::get_vendor_id::new(),
-                                )?,
-                            a_datawriter
-                                .node()
-                                .participant_address()
-                                .send_mail_and_await_reply_blocking(
-                                    dds_domain_participant::get_guid::new(),
-                                )?
-                                .prefix(),
-                        ),
-                        a_datawriter
-                            .node()
-                            .participant_address()
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_upd_transport_write::new(),
-                            )?,
-                        a_datawriter
-                            .node()
-                            .participant_address()
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_current_time::new(),
-                            )?,
-                    ))?;
+                    self.0
+                        .participant_address()
+                        .send_mail_blocking(dds_domain_participant::send_message::new())?;
                     break;
                 }
             }

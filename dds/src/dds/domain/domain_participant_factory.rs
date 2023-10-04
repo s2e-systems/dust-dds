@@ -26,7 +26,7 @@ use crate::{
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
-            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+            messages::overall_structure::RtpsMessageRead,
             participant::RtpsParticipant,
             reader_proxy::RtpsReaderProxy,
             types::{
@@ -808,38 +808,8 @@ async fn process_spdp_metatraffic(
                             )
                             .await;
 
-                            sedp_publications_announcer
-                                .send_mail(dds_data_writer::send_message::new(
-                                    RtpsMessageHeader::new(
-                                        participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_protocol_version::new(),
-                                            )
-                                            .await?,
-                                        participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_vendor_id::new(),
-                                            )
-                                            .await?,
-                                        participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_guid::new(),
-                                            )
-                                            .await?
-                                            .prefix(),
-                                    ),
-                                    participant_address
-                                        .send_mail_and_await_reply(
-                                            dds_domain_participant::get_upd_transport_write::new(),
-                                        )
-                                        .await?,
-                                    participant_address
-                                        .send_mail_and_await_reply(
-                                            dds_domain_participant::get_current_time::new(),
-                                        )
-                                        .await?,
-                                ))
-                                .await?;
+                            participant_address
+                                .send_mail_blocking(dds_domain_participant::send_message::new())?;
                         }
 
                         if let Some(sedp_publications_detector) = lookup_data_reader_by_topic_name(
@@ -867,38 +837,9 @@ async fn process_spdp_metatraffic(
                                 &discovered_participant_data,
                             )
                             .await;
-                            sedp_subscriptions_announcer
-                                .send_mail(dds_data_writer::send_message::new(
-                                    RtpsMessageHeader::new(
-                                        participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_protocol_version::new(),
-                                            )
-                                            .await?,
-                                        participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_vendor_id::new(),
-                                            )
-                                            .await?,
-                                        participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_guid::new(),
-                                            )
-                                            .await?
-                                            .prefix(),
-                                    ),
-                                    participant_address
-                                        .send_mail_and_await_reply(
-                                            dds_domain_participant::get_upd_transport_write::new(),
-                                        )
-                                        .await?,
-                                    participant_address
-                                        .send_mail_and_await_reply(
-                                            dds_domain_participant::get_current_time::new(),
-                                        )
-                                        .await?,
-                                ))
-                                .await?;
+
+                            participant_address
+                                .send_mail_blocking(dds_domain_participant::send_message::new())?;
                         }
 
                         if let Some(sedp_subscriptions_detector) = lookup_data_reader_by_topic_name(
@@ -924,38 +865,8 @@ async fn process_spdp_metatraffic(
                             )
                             .await;
 
-                            sedp_topics_announcer
-                                .send_mail(dds_data_writer::send_message::new(
-                                    RtpsMessageHeader::new(
-                                        participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_protocol_version::new(),
-                                            )
-                                            .await?,
-                                        participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_vendor_id::new(),
-                                            )
-                                            .await?,
-                                        participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_guid::new(),
-                                            )
-                                            .await?
-                                            .prefix(),
-                                    ),
-                                    participant_address
-                                        .send_mail_and_await_reply(
-                                            dds_domain_participant::get_upd_transport_write::new(),
-                                        )
-                                        .await?,
-                                    participant_address
-                                        .send_mail_and_await_reply(
-                                            dds_domain_participant::get_current_time::new(),
-                                        )
-                                        .await?,
-                                ))
-                                .await?;
+                            participant_address
+                                .send_mail_blocking(dds_domain_participant::send_message::new())?;
                         }
 
                         if let Some(sedp_topics_detector) =
@@ -1012,32 +923,8 @@ async fn process_sedp_metatraffic(
         stateful_builtin_writer
             .send_mail_and_await_reply(dds_data_writer::process_rtps_message::new(message.clone()))
             .await?;
-        stateful_builtin_writer
-            .send_mail_and_await_reply(dds_data_writer::send_message::new(
-                RtpsMessageHeader::new(
-                    participant_address
-                        .send_mail_and_await_reply(
-                            dds_domain_participant::get_protocol_version::new(),
-                        )
-                        .await?,
-                    participant_address
-                        .send_mail_and_await_reply(dds_domain_participant::get_vendor_id::new())
-                        .await?,
-                    participant_address
-                        .send_mail_and_await_reply(dds_domain_participant::get_guid::new())
-                        .await?
-                        .prefix(),
-                ),
-                participant_address
-                    .send_mail_and_await_reply(
-                        dds_domain_participant::get_upd_transport_write::new(),
-                    )
-                    .await?,
-                participant_address
-                    .send_mail_and_await_reply(dds_domain_participant::get_current_time::new())
-                    .await?,
-            ))
-            .await?;
+
+        participant_address.send_mail_blocking(dds_domain_participant::send_message::new())?;
     }
 
     builtin_subscriber
@@ -1052,26 +939,7 @@ async fn process_sedp_metatraffic(
         ))
         .await??;
 
-    builtin_subscriber
-        .send_mail_and_await_reply(dds_subscriber::send_message::new(
-            RtpsMessageHeader::new(
-                participant_address
-                    .send_mail_and_await_reply(dds_domain_participant::get_protocol_version::new())
-                    .await?,
-                participant_address
-                    .send_mail_and_await_reply(dds_domain_participant::get_vendor_id::new())
-                    .await?,
-                participant_address
-                    .send_mail_and_await_reply(dds_domain_participant::get_guid::new())
-                    .await?
-                    .prefix(),
-            ),
-            participant_address
-                .send_mail_and_await_reply(dds_domain_participant::get_upd_transport_write::new())
-                .await?,
-        ))
-        .await
-        .expect("Should not fail to send command");
+    participant_address.send_mail_blocking(dds_domain_participant::send_message::new())?;
 
     Ok(())
 }
@@ -1264,33 +1132,10 @@ async fn discover_matched_writers(
                                             ),
                                         )
                                         .await??;
-                                    data_reader_address
-                                        .send_mail(dds_data_reader::send_message::new(
-                                            RtpsMessageHeader::new(
-                                                participant_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_domain_participant::get_protocol_version::new(),
-                                                    )
-                                                    .await?,
-                                                participant_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_domain_participant::get_vendor_id::new(),
-                                                    )
-                                                    .await?,
-                                                participant_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_domain_participant::get_guid::new(),
-                                                    )
-                                                    .await?
-                                                    .prefix(),
-                                            ),
-                                            participant_address
-                                                .send_mail_and_await_reply(
-                                                    dds_domain_participant::get_upd_transport_write::new(),
-                                                )
-                                                .await?,
-                                        ))
-                                        .await?;
+
+                                    participant_address.send_mail_blocking(
+                                        dds_domain_participant::send_message::new(),
+                                    )?;
                                 }
                             }
                         }
@@ -1540,38 +1385,10 @@ pub async fn discover_matched_readers(
                                             ),
                                         )
                                         .await??;
-                                    data_writer
-                                        .send_mail(dds_data_writer::send_message::new(
-                                            RtpsMessageHeader::new(
-                                                participant_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_domain_participant::get_protocol_version::new(),
-                                                    )
-                                                    .await?,
-                                                participant_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_domain_participant::get_vendor_id::new(),
-                                                    )
-                                                    .await?,
-                                                participant_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_domain_participant::get_guid::new(),
-                                                    )
-                                                    .await?
-                                                    .prefix(),
-                                            ),
-                                            participant_address
-                                                .send_mail_and_await_reply(
-                                                    dds_domain_participant::get_upd_transport_write::new(),
-                                                )
-                                                .await?,
-                                            participant_address
-                                                .send_mail_and_await_reply(
-                                                    dds_domain_participant::get_current_time::new(),
-                                                )
-                                                .await?,
-                                        ))
-                                        .await?;
+
+                                    participant_address.send_mail_blocking(
+                                        dds_domain_participant::send_message::new(),
+                                    )?;
                                 }
                             }
                         }

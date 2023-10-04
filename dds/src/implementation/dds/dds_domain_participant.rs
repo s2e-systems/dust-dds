@@ -25,10 +25,10 @@ use crate::{
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
             types::{
-                EntityId, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
-                BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
-                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP,
-                USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
+                EntityId, Guid, Locator, TopicKind, BUILT_IN_READER_GROUP,
+                BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
+                BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+                USER_DEFINED_WRITER_GROUP,
             },
             writer::RtpsWriter,
         },
@@ -780,14 +780,6 @@ impl DdsDomainParticipant {
         self.rtps_participant.guid()
     }
 
-    async fn get_protocol_version(&self) -> ProtocolVersion {
-        self.rtps_participant.protocol_version()
-    }
-
-    async fn get_vendor_id(&self) -> VendorId {
-        self.rtps_participant.vendor_id()
-    }
-
     async fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
         self.user_defined_publisher_list
             .values()
@@ -855,6 +847,47 @@ impl DdsDomainParticipant {
 
     async fn get_builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
         self.builtin_publisher.address().clone()
+    }
+
+    async fn send_message(&self) {
+        let now = self.get_current_time().await;
+        let header = RtpsMessageHeader::new(
+            self.rtps_participant.protocol_version(),
+            self.rtps_participant.vendor_id(),
+            self.rtps_participant.guid().prefix(),
+        );
+        self.builtin_publisher
+            .send_mail(dds_publisher::send_message::new(
+                header,
+                self.udp_transport_write.address(),
+                now,
+            ))
+            .await;
+        self.builtin_subscriber
+            .send_mail(dds_subscriber::send_message::new(
+                header,
+                self.udp_transport_write.address(),
+            ))
+            .await;
+
+        for publisher in self.user_defined_publisher_list.values() {
+            publisher
+                .send_mail(dds_publisher::send_message::new(
+                    header,
+                    self.udp_transport_write.address(),
+                    now,
+                ))
+                .await;
+        }
+
+        for subscriber in self.user_defined_subscriber_list.values() {
+            subscriber
+                .send_mail(dds_subscriber::send_message::new(
+                    header,
+                    self.udp_transport_write.address(),
+                ))
+                .await;
+        }
     }
 
     async fn process_user_defined_rtps_message(

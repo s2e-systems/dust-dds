@@ -164,14 +164,13 @@ impl DdsSubscriber {
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
     ) {
-        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
+        for data_reader_address in self.data_reader_list.values() {
             data_reader_address
                 .send_mail(dds_data_reader::send_message::new(
                     header,
                     udp_transport_write.clone(),
                 ))
-                .await
-                .expect("Should not fail to send command");
+                .await;
         }
     }
 

@@ -2,14 +2,9 @@ use std::{marker::PhantomData, time::Instant};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::{
-        dds::{
-            dds_data_writer,
-            dds_domain_participant,
-            dds_publisher,
-            nodes::{DataWriterNode, PublisherNode},
-        },
-        rtps::messages::overall_structure::RtpsMessageHeader,
+    implementation::dds::{
+        dds_data_writer, dds_domain_participant, dds_publisher,
+        nodes::{DataWriterNode, PublisherNode},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -295,39 +290,8 @@ where
             ))??;
 
         self.0
-            .writer_address()
-            .send_mail_blocking(
-                dds_data_writer::send_message::new(
-                    RtpsMessageHeader::new(
-                        self.0
-                            .participant_address()
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_protocol_version::new(),
-                            )?,
-                        self.0
-                            .participant_address()
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_vendor_id::new(),
-                            )?,
-                        self.0
-                            .participant_address()
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_guid::new(),
-                            )?
-                            .prefix(),
-                    ),
-                    self.0
-                        .participant_address()
-                        .send_mail_and_await_reply_blocking(
-                            dds_domain_participant::get_upd_transport_write::new(),
-                        )?,
-                    self.0
-                        .participant_address()
-                        .send_mail_and_await_reply_blocking(
-                            dds_domain_participant::get_current_time::new(),
-                        )?,
-                ),
-            )?;
+            .participant_address()
+            .send_mail_blocking(dds_domain_participant::send_message::new())?;
 
         Ok(())
     }

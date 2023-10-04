@@ -250,12 +250,26 @@ impl<A> Actor<A> {
             .await
             .map_err(|_| ())
             .expect(
-                "Received is guaranteed to exist while actor object is alive. Sending must succeed",
+                "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
             );
 
         response_receiver
             .await
             .expect("Message is always processed as long as actor object exists")
+    }
+
+    pub async fn send_mail<M>(&self, mail: M)
+    where
+        A: MailHandler<M> + Send,
+        M: Mail + Send + 'static,
+    {
+        self.sender
+            .send(Box::new(CommandMail::new(mail)))
+            .await
+            .map_err(|_| ())
+            .expect(
+                "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
+            );
     }
 }
 
