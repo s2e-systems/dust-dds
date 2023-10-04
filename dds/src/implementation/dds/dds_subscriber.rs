@@ -187,7 +187,7 @@ impl DdsSubscriber {
         ),
     ) -> DdsResult<()> {
         let subscriber_mask_listener = (
-            self.listener.as_ref().map(|a| a.address()).cloned(),
+            self.listener.as_ref().map(|a| a.address()),
             self.status_kind.clone(),
         );
 

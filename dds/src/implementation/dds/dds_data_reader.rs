@@ -628,7 +628,7 @@ impl DdsDataReader {
                 StatusKind::SampleLost,
             ))
             .await?;
-        match self.listener.as_ref().map(|a| a.address()).cloned() {
+        match self.listener.as_ref().map(|a| a.address()) {
             Some(l) if self.status_kind.contains(&StatusKind::SampleLost) => {
                 let reader = DataReaderNode::new(
                     data_reader_address.clone(),
@@ -699,7 +699,7 @@ impl DdsDataReader {
             ))
             .await?;
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
-        match self.listener.as_ref().map(|a| a.address()).cloned() {
+        match self.listener.as_ref().map(|a| a.address()) {
             Some(l) if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
                 let reader = DataReaderNode::new(
                     data_reader_address,
@@ -776,7 +776,7 @@ impl DdsDataReader {
                 StatusKind::SampleRejected,
             ))
             .await?;
-        match self.listener.as_ref().map(|a| a.address()).cloned() {
+        match self.listener.as_ref().map(|a| a.address()) {
             Some(l) if self.status_kind.contains(&StatusKind::SampleRejected) => {
                 let status = self.get_sample_rejected_status();
                 let reader = DataReaderNode::new(
@@ -848,7 +848,7 @@ impl DdsDataReader {
             ))
             .await?;
 
-        match self.listener.as_ref().map(|a| a.address()).cloned() {
+        match self.listener.as_ref().map(|a| a.address()) {
             Some(l)
                 if self
                     .status_kind
@@ -1948,7 +1948,7 @@ impl DdsDataReader {
                     StatusKind::RequestedDeadlineMissed,
                 ))
                 .await?;
-            match self.listener.as_ref().map(|a| a.address()).cloned() {
+            match self.listener.as_ref().map(|a| a.address()) {
                 Some(l)
                     if self
                         .status_kind

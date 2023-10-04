@@ -47,7 +47,10 @@ use crate::{
     },
     publication::publisher_listener::PublisherListener,
     subscription::subscriber_listener::SubscriberListener,
-    topic_definition::topic_listener::TopicListener,
+    topic_definition::{
+        topic_listener::TopicListener,
+        type_support::{dds_serialize_key, dds_serialize_to_bytes},
+    },
     {
         builtin_topics::TopicBuiltinTopicData,
         infrastructure::{
@@ -860,7 +863,7 @@ impl DdsDomainParticipant {
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         let participant_mask_listener = (
-            self.listener.as_ref().map(|a| a.address()).cloned(),
+            self.listener.as_ref().map(|a| a.address()),
             self.status_kind.clone(),
         );
         for user_defined_subscriber_address in self
@@ -916,11 +919,33 @@ impl DdsDomainParticipant {
         }
     }
 
-    async fn announce_creater_or_modified_data_writer(
+    async fn announce_created_or_modified_data_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
     ) {
-        todo!()
+        if let Some(sedp_publications_announcer) = self
+            .builtin_publisher
+            .send_mail_and_await_reply(dds_publisher::lookup_datawriter::new(
+                DCPS_PUBLICATION.to_string(),
+            ))
+            .await
+        {
+            let timestamp = self.get_current_time().await;
+            let serialized_data = dds_serialize_to_bytes(&discovered_writer_data)
+                .expect("Shouldn't fail to serialize builtin type");
+            let instance_serialized_key = dds_serialize_key(&discovered_writer_data)
+                .expect("Shouldn't fail to serialize key of builtin type");
+            sedp_publications_announcer
+                .send_mail_and_await_reply(dds_data_writer::write_w_timestamp::new(
+                    serialized_data,
+                    instance_serialized_key,
+                    None,
+                    timestamp,
+                ))
+                .await
+                .expect("Shouldn't fail to send to built-in data writer")
+                .expect("Shouldn't fail to write to built-in data writer");
+        }
     }
 }
 
