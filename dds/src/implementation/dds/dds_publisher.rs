@@ -257,6 +257,7 @@ impl DdsPublisher {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn add_matched_reader(
         &self,
         discovered_reader_data: DiscoveredReaderData,

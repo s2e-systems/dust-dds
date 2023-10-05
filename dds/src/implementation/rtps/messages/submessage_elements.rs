@@ -19,6 +19,7 @@ use std::{
 /// 8.3.5 RTPS SubmessageElements
 ///
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum SubmessageElement<'a> {
     Count(Count),

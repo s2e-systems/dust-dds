@@ -1,5 +1,4 @@
 use super::{
-    writer_history_cache::WriterHistoryCache,
     messages::{
         overall_structure::RtpsSubmessageWriteKind,
         submessages::{
@@ -9,6 +8,7 @@ use super::{
     },
     types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
     utils::clock::{StdTimer, Timer, TimerConstructor},
+    writer_history_cache::WriterHistoryCache,
 };
 use crate::infrastructure::time::Duration;
 
@@ -64,14 +64,14 @@ impl HeartbeatFragMachine {
             reader_id,
         }
     }
-    pub fn submessage<'a>(
+    pub fn _submessage<'a>(
         &mut self,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
         last_fragment_num: FragmentNumber,
     ) -> RtpsSubmessageWriteKind<'a> {
         self.count = self.count.wrapping_add(1);
-        RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessageWrite::new(
+        RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessageWrite::_new(
             self.reader_id,
             writer_id,
             writer_sn,
@@ -149,7 +149,7 @@ impl RtpsReaderProxy {
         &mut self.heartbeat_machine
     }
 
-    pub fn heartbeat_frag_machine(&mut self) -> &mut HeartbeatFragMachine {
+    pub fn _heartbeat_frag_machine(&mut self) -> &mut HeartbeatFragMachine {
         &mut self.heartbeat_frag_machine
     }
 
@@ -241,7 +241,7 @@ impl RtpsReaderProxy {
         self.first_relevant_sample_seq_num
     }
 
-    pub fn set_first_relevant_sample_seq_num(&mut self, seq_num: SequenceNumber) {
+    pub fn _set_first_relevant_sample_seq_num(&mut self, seq_num: SequenceNumber) {
         self.first_relevant_sample_seq_num = seq_num;
     }
 

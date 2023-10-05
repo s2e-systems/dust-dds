@@ -220,7 +220,7 @@ impl WriterHistoryCache {
         }
     }
 
-    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+    pub fn _get_seq_num_min(&self) -> Option<SequenceNumber> {
         self.changes
             .values()
             .flatten()
@@ -228,7 +228,7 @@ impl WriterHistoryCache {
             .min()
     }
 
-    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+    pub fn _get_seq_num_max(&self) -> Option<SequenceNumber> {
         self.changes
             .values()
             .flatten()
@@ -301,7 +301,7 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        assert_eq!(hc.get_seq_num_min(), Some(SequenceNumber::from(1)));
+        assert_eq!(hc._get_seq_num_min(), Some(SequenceNumber::from(1)));
     }
 
     #[test]
@@ -337,6 +337,6 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        assert_eq!(hc.get_seq_num_max(), Some(SequenceNumber::from(2)));
+        assert_eq!(hc._get_seq_num_max(), Some(SequenceNumber::from(2)));
     }
 }

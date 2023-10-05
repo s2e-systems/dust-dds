@@ -25,7 +25,7 @@ impl<'a> AckNackSubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn final_flag(&self) -> bool {
+    pub fn _final_flag(&self) -> bool {
         self.submessage_header().flags()[1]
     }
 
@@ -33,7 +33,7 @@ impl<'a> AckNackSubmessageRead<'a> {
         self.map(&self.data[4..])
     }
 
-    pub fn writer_id(&self) -> EntityId {
+    pub fn _writer_id(&self) -> EntityId {
         self.map(&self.data[8..])
     }
 
@@ -133,16 +133,14 @@ mod tests {
         ]);
 
         let expected_final_flag = false;
-        let expected_reader_id =
-            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
-        let expected_writer_id =
-            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let expected_reader_sn_state = SequenceNumberSet::new(SequenceNumber::from(10), vec![]);
         let expected_count = 2;
 
-        assert_eq!(expected_final_flag, submessage.final_flag());
+        assert_eq!(expected_final_flag, submessage._final_flag());
         assert_eq!(expected_reader_id, submessage.reader_id());
-        assert_eq!(expected_writer_id, submessage.writer_id());
+        assert_eq!(expected_writer_id, submessage._writer_id());
         assert_eq!(expected_reader_sn_state, submessage.reader_sn_state());
         assert_eq!(expected_count, submessage.count());
     }

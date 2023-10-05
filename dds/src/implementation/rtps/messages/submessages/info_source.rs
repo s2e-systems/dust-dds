@@ -44,7 +44,7 @@ pub struct InfoSourceSubmessageWrite<'a> {
 }
 
 impl InfoSourceSubmessageWrite<'_> {
-    pub fn new(
+    pub fn _new(
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn serialize_info_source() {
-        let submessage = InfoSourceSubmessageWrite::new(
+        let submessage = InfoSourceSubmessageWrite::_new(
             PROTOCOLVERSION_1_0,
             VENDOR_ID_UNKNOWN,
             GUIDPREFIX_UNKNOWN,

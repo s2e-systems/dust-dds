@@ -214,6 +214,7 @@ pub enum RtpsSubmessageReadKind<'a> {
     Pad(PadSubmessageRead<'a>),
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageWriteKind<'a> {
     AckNack(AckNackSubmessageWrite<'a>),
@@ -267,7 +268,7 @@ impl RtpsMessageHeader {
         }
     }
 
-    pub fn protocol(&self) -> ProtocolId {
+    pub fn _protocol(&self) -> ProtocolId {
         self.protocol
     }
 
