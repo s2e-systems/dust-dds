@@ -3,15 +3,10 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         configuration::DustDdsConfiguration,
-        data_representation_builtin_endpoints::discovered_topic_data::{
-            DiscoveredTopicData, DCPS_TOPIC,
-        },
         dds::{
-            dds_data_reader,
             dds_domain_participant::{self, DdsDomainParticipant},
             dds_domain_participant_factory::{self, DdsDomainParticipantFactory},
             dds_domain_participant_listener::DdsDomainParticipantListener,
-            dds_subscriber, dds_topic,
             nodes::DomainParticipantNode,
         },
         rtps::{
@@ -19,18 +14,13 @@ use crate::{
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
-        utils::actor::{spawn_actor, Actor, ActorAddress, THE_RUNTIME},
+        utils::actor::{spawn_actor, Actor, THE_RUNTIME},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    subscription::{
-        data_reader::Sample,
-        sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    },
-    topic_definition::type_support::dds_serialize_key,
 };
 use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
@@ -274,7 +264,6 @@ impl DomainParticipantFactory {
                         )
                         .await?;
 
-                    process_sedp_discovery(&participant_address_clone).await?;
                     participant_address_clone
                         .send_mail(dds_domain_participant::send_message::new())
                         .await?;
@@ -446,86 +435,6 @@ impl DomainParticipantFactory {
             .address()
             .send_mail_and_await_reply_blocking(dds_domain_participant_factory::get_qos::new())
     }
-}
-
-async fn process_sedp_discovery(
-    participant_address: &ActorAddress<DdsDomainParticipant>,
-) -> DdsResult<()> {
-    let builtin_subscriber = participant_address
-        .send_mail_and_await_reply(dds_domain_participant::get_built_in_subscriber::new())
-        .await?;
-
-    for stateful_builtin_reader in builtin_subscriber
-        .send_mail_and_await_reply(dds_subscriber::data_reader_list::new())
-        .await?
-    {
-        match stateful_builtin_reader
-            .send_mail_and_await_reply(dds_data_reader::get_topic_name::new())
-            .await?
-            .as_str()
-        {
-            DCPS_TOPIC => {
-                //::<DiscoveredTopicData>
-                if let Ok(discovered_topic_sample_list) = stateful_builtin_reader
-                    .send_mail_and_await_reply(dds_data_reader::read::new(
-                        i32::MAX,
-                        ANY_SAMPLE_STATE.to_vec(),
-                        ANY_VIEW_STATE.to_vec(),
-                        ANY_INSTANCE_STATE.to_vec(),
-                        None,
-                    ))
-                    .await?
-                {
-                    for (discovered_topic_data, discovered_topic_sample_info) in
-                        discovered_topic_sample_list
-                    {
-                        let discovered_topic_sample =
-                            Sample::new(discovered_topic_data, discovered_topic_sample_info);
-                        discover_matched_topics(participant_address, &discovered_topic_sample)
-                            .await?;
-                    }
-                }
-            }
-            _ => (),
-        };
-    }
-
-    Ok(())
-}
-
-async fn discover_matched_topics(
-    participant_address: &ActorAddress<DdsDomainParticipant>,
-    discovered_topic_sample: &Sample<DiscoveredTopicData>,
-) -> DdsResult<()> {
-    match discovered_topic_sample.sample_info().instance_state {
-        InstanceStateKind::Alive => {
-            if let Some(topic_data) = discovered_topic_sample.data() {
-                for topic in participant_address
-                    .send_mail_and_await_reply(
-                        dds_domain_participant::get_user_defined_topic_list::new(),
-                    )
-                    .await?
-                {
-                    topic
-                        .send_mail_and_await_reply(dds_topic::process_discovered_topic::new(
-                            topic_data.clone(),
-                        ))
-                        .await??;
-                }
-
-                participant_address
-                    .send_mail_and_await_reply(dds_domain_participant::discovered_topic_add::new(
-                        dds_serialize_key(&topic_data)?.into(),
-                        topic_data.topic_builtin_topic_data().clone(),
-                    ))
-                    .await?;
-            }
-        }
-        InstanceStateKind::NotAliveDisposed => todo!(),
-        InstanceStateKind::NotAliveNoWriters => todo!(),
-    }
-
-    Ok(())
 }
 
 fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfiguration, String> {

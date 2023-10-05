@@ -84,6 +84,7 @@ use super::{
     dds_publisher_listener::DdsPublisherListener,
     dds_subscriber,
     dds_subscriber_listener::DdsSubscriberListener,
+    dds_topic,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -140,6 +141,7 @@ pub struct DdsDomainParticipant {
     ignored_participants: HashSet<InstanceHandle>,
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
+    ignored_topic_list: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
     udp_transport_write: Actor<UdpTransportWrite>,
     listener: Option<Actor<DdsDomainParticipantListener>>,
@@ -462,6 +464,7 @@ impl DdsDomainParticipant {
             ignored_participants: HashSet::new(),
             ignored_publications: HashSet::new(),
             ignored_subcriptions: HashSet::new(),
+            ignored_topic_list: HashSet::new(),
             data_max_size_serialized,
             udp_transport_write,
             listener,
@@ -734,15 +737,6 @@ impl DdsDomainParticipant {
     ) {
         self.discovered_participant_list
             .insert(handle, discovered_participant_data);
-    }
-
-    async fn discovered_topic_add(
-        &mut self,
-        handle: InstanceHandle,
-        discovered_topic_data: TopicBuiltinTopicData,
-    ) {
-        self.discovered_topic_list
-            .insert(handle, discovered_topic_data);
     }
 
     async fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
@@ -1028,6 +1022,7 @@ impl DdsDomainParticipant {
             .await;
         self.process_sedp_subscriptions_discovery(participant_address)
             .await;
+        self.process_sedp_topics_discovery().await;
     }
 }
 
@@ -1696,6 +1691,69 @@ impl DdsDomainParticipant {
                     participant_publication_matched_listener,
                 ))
                 .await;
+        }
+    }
+
+    async fn process_sedp_topics_discovery(&mut self) {
+        if let Some(sedp_topics_detector) = self
+            .builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+                DCPS_TOPIC.to_string(),
+            ))
+            .await
+        {
+            if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
+                .send_mail_and_await_reply(dds_data_reader::read::new(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                ))
+                .await
+                .expect("Can not fail to send mail to builtin reader")
+            {
+                for (discovered_topic_data, discovered_topic_sample_info) in
+                    discovered_topic_sample_list.drain(..)
+                {
+                    match discovered_topic_sample_info.instance_state {
+                        InstanceStateKind::Alive => {
+                            match dds_deserialize_from_bytes::<DiscoveredTopicData>(
+                                discovered_topic_data.expect("Should contain data").as_ref(),
+                            ) {
+                                Ok(discovered_topic_data) => {
+                                    self.add_matched_topic(discovered_topic_data).await;
+                                }
+                                Err(e) => warn!(
+                                    "Received invalid DiscoveredTopicData sample. Error {:?}",
+                                    e
+                                ),
+                            }
+                        }
+                        InstanceStateKind::NotAliveDisposed => todo!(),
+                        InstanceStateKind::NotAliveNoWriters => todo!(),
+                    }
+                }
+            }
+        }
+    }
+
+    async fn add_matched_topic(&mut self, discovered_topic_data: DiscoveredTopicData) {
+        let handle =
+            InstanceHandle::new(discovered_topic_data.topic_builtin_topic_data().key().value);
+        let is_topic_ignored = self.ignored_topic_list.contains(&handle);
+        if !is_topic_ignored {
+            for topic in self.topic_list.values() {
+                topic
+                    .send_mail_and_await_reply(dds_topic::process_discovered_topic::new(
+                        discovered_topic_data.clone(),
+                    ))
+                    .await;
+            }
+            self.discovered_topic_list.insert(
+                handle,
+                discovered_topic_data.topic_builtin_topic_data().clone(),
+            );
         }
     }
 }
