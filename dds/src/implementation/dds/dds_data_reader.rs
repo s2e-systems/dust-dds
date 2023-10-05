@@ -690,27 +690,27 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) -> DdsResult<()> {
+    ) {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
-            .address()
             .send_mail_and_await_reply(dds_status_condition::add_communication_state::new(
                 StatusKind::SubscriptionMatched,
             ))
-            .await?;
+            .await;
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
-        match self.listener.as_ref().map(|a| a.address()) {
+        match self.listener.as_ref().map(|l| l.address()) {
             Some(l) if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
                 let reader = DataReaderNode::new(
                     data_reader_address,
                     subscriber_address,
                     participant_address,
                 );
-                let status = self.get_subscription_matched_status().await?;
+                let status = self.get_subscription_matched_status().await;
                 l.send_mail(
                     dds_data_reader_listener::trigger_on_subscription_matched::new(reader, status),
                 )
-                .await?;
+                .await
+                .expect("Listener is guaranteed to exist");
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
@@ -719,13 +719,14 @@ impl DdsDataReader {
                         subscriber_address,
                         participant_address,
                     );
-                    let status = self.get_subscription_matched_status().await?;
+                    let status = self.get_subscription_matched_status().await;
                     l.send_mail(
                         dds_subscriber_listener::trigger_on_subscription_matched::new(
                             reader, status,
                         ),
                     )
-                    .await?;
+                    .await
+                    .expect("Subscriber is guaranteed to exist");
                 }
                 _ => match participant_listener_address {
                     Some(l)
@@ -736,19 +737,19 @@ impl DdsDataReader {
                             subscriber_address,
                             participant_address,
                         );
-                        let status = self.get_subscription_matched_status().await?;
+                        let status = self.get_subscription_matched_status().await;
                         l.send_mail(
                             dds_domain_participant_listener::trigger_on_subscription_matched::new(
                                 reader, status,
                             ),
                         )
-                        .await?;
+                        .await
+                        .expect("Participant is guaranteed to exist");
                     }
                     _ => (),
                 },
             },
         };
-        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -838,15 +839,14 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) -> DdsResult<()> {
+    ) {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
         self.status_condition
-            .address()
             .send_mail_and_await_reply(dds_status_condition::add_communication_state::new(
                 StatusKind::RequestedIncompatibleQos,
             ))
-            .await?;
+            .await;
 
         match self.listener.as_ref().map(|a| a.address()) {
             Some(l)
@@ -865,7 +865,8 @@ impl DdsDataReader {
                         reader, status,
                     ),
                 )
-                .await?;
+                .await
+                .expect("Listener should exist");
             }
             _ => match subscriber_listener_address {
                 Some(l)
@@ -882,7 +883,8 @@ impl DdsDataReader {
                             reader, status,
                         ),
                     )
-                    .await?;
+                    .await
+                    .expect("Subscriber listener should exist");
                 }
                 _ => match participant_listener_address {
                     Some(l)
@@ -896,13 +898,12 @@ impl DdsDataReader {
                             participant_address.clone(),
                         );
                         l.send_mail(dds_domain_participant_listener::trigger_on_requested_incompatible_qos::new(reader, status)).await
-                            ?;
+                            .expect("Participant listener should exist");
                     }
                     _ => (),
                 },
             },
         }
-        Ok(())
     }
 
     pub fn guid(&self) -> Guid {
@@ -1640,17 +1641,15 @@ impl DdsDataReader {
         }
     }
 
-    async fn get_subscription_matched_status(&mut self) -> DdsResult<SubscriptionMatchedStatus> {
+    async fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
         self.status_condition
-            .address()
             .send_mail_and_await_reply(dds_status_condition::remove_communication_state::new(
                 StatusKind::SubscriptionMatched,
             ))
-            .await?;
+            .await;
 
-        Ok(self
-            .subscription_matched_status
-            .read_and_reset(self.matched_publication_list.len() as i32))
+        self.subscription_matched_status
+            .read_and_reset(self.matched_publication_list.len() as i32)
     }
 
     async fn read_next_instance(
@@ -1705,7 +1704,7 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) -> DdsResult<()> {
+    ) {
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
             && publication_builtin_topic_data.get_type_name() == self.type_name
@@ -1776,7 +1775,7 @@ impl DdsDataReader {
                             &subscriber_mask_listener,
                             &participant_mask_listener,
                         )
-                        .await?;
+                        .await;
                     }
                     None => {
                         self.on_subscription_matched(
@@ -1787,7 +1786,7 @@ impl DdsDataReader {
                             &subscriber_mask_listener,
                             &participant_mask_listener,
                         )
-                        .await?;
+                        .await;
                     }
                     _ => (),
                 }
@@ -1800,10 +1799,9 @@ impl DdsDataReader {
                     &subscriber_mask_listener,
                     &participant_mask_listener,
                 )
-                .await?;
+                .await;
             }
         }
-        Ok(())
     }
 
     async fn remove_matched_writer(
@@ -1817,7 +1815,7 @@ impl DdsDataReader {
             Option<ActorAddress<DdsDomainParticipantListener>>,
             Vec<StatusKind>,
         ),
-    ) -> DdsResult<()> {
+    ) {
         let matched_publication = self
             .matched_publication_list
             .remove(&discovered_writer_handle);
@@ -1832,9 +1830,8 @@ impl DdsDataReader {
                 &subscriber_mask_listener,
                 &participant_mask_listener,
             )
-            .await?;
+            .await;
         }
-        Ok(())
     }
 
     async fn get_topic_name(&mut self) -> String {

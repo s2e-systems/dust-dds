@@ -470,7 +470,7 @@ impl<Foo> DataReader<Foo> {
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
         self.0.reader_address().send_mail_and_await_reply_blocking(
             dds_data_reader::get_subscription_matched_status::new(),
-        )?
+        )
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]

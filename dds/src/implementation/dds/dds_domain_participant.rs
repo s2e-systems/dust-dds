@@ -29,8 +29,9 @@ use crate::{
             types::{
                 EntityId, Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind,
                 BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
-                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN,
-                USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
+                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT,
+                ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+                USER_DEFINED_WRITER_GROUP,
             },
             writer::RtpsWriter,
             writer_proxy::RtpsWriterProxy,
@@ -50,7 +51,10 @@ use crate::{
     },
     publication::publisher_listener::PublisherListener,
     subscription::{
-        sample_info::{SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
+        sample_info::{
+            InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+        },
         subscriber_listener::SubscriberListener,
     },
     topic_definition::{
@@ -1015,8 +1019,13 @@ impl DdsDomainParticipant {
         }
     }
 
-    async fn process_builtin_discovery(&mut self) {
+    async fn process_builtin_discovery(
+        &mut self,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
         self.process_spdp_participant_discovery().await;
+        self.process_sedp_publications_discovery(participant_address)
+            .await;
     }
 }
 
@@ -1381,6 +1390,145 @@ impl DdsDomainParticipant {
                     .await
                     .unwrap();
             }
+        }
+    }
+
+    async fn process_sedp_publications_discovery(
+        &mut self,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        if let Some(sedp_publications_detector) = self
+            .builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+                DCPS_PUBLICATION.to_string(),
+            ))
+            .await
+        {
+            if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
+                .send_mail_and_await_reply(dds_data_reader::read::new(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                ))
+                .await
+                .expect("Can not fail to send mail to builtin reader")
+            {
+                for (discovered_writer_data, discovered_writer_sample_info) in
+                    discovered_writer_sample_list.drain(..)
+                {
+                    match discovered_writer_sample_info.instance_state {
+                        InstanceStateKind::Alive => {
+                            match dds_deserialize_from_bytes::<DiscoveredWriterData>(
+                                discovered_writer_data
+                                    .expect("Should contain data")
+                                    .as_ref(),
+                            ) {
+                                Ok(discovered_writer_data) => {
+                                    self.add_matched_writer(
+                                        discovered_writer_data,
+                                        participant_address.clone(),
+                                    )
+                                    .await;
+                                }
+                                Err(e) => warn!(
+                                    "Received invalid DiscoveredWriterData sample. Error {:?}",
+                                    e
+                                ),
+                            }
+                        }
+                        InstanceStateKind::NotAliveDisposed => {
+                            self.remove_matched_writer(
+                                discovered_writer_sample_info.instance_handle,
+                                participant_address.clone(),
+                            )
+                            .await
+                        }
+                        InstanceStateKind::NotAliveNoWriters => {
+                            todo!()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async fn add_matched_writer(
+        &self,
+        discovered_writer_data: DiscoveredWriterData,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
+            discovered_writer_data
+                .dds_publication_data()
+                .participant_key()
+                .value,
+        ));
+        let is_publication_ignored = self.ignored_publications.contains(&InstanceHandle::new(
+            discovered_writer_data.dds_publication_data().key().value,
+        ));
+        if !is_publication_ignored && !is_participant_ignored {
+            if let Some(discovered_participant_data) =
+                self.discovered_participant_list.get(&InstanceHandle::new(
+                    Guid::new(
+                        discovered_writer_data
+                            .writer_proxy()
+                            .remote_writer_guid()
+                            .prefix(),
+                        ENTITYID_PARTICIPANT,
+                    )
+                    .into(),
+                ))
+            {
+                let default_unicast_locator_list = discovered_participant_data
+                    .participant_proxy()
+                    .default_unicast_locator_list()
+                    .to_vec();
+                let default_multicast_locator_list = discovered_participant_data
+                    .participant_proxy()
+                    .default_multicast_locator_list()
+                    .to_vec();
+                for subscriber in self.user_defined_subscriber_list.values() {
+                    let subscriber_address = subscriber.address();
+                    let participant_mask_listener = (
+                        self.listener.as_ref().map(|l| l.address()),
+                        self.status_kind.clone(),
+                    );
+                    subscriber
+                        .send_mail_and_await_reply(dds_subscriber::add_matched_writer::new(
+                            discovered_writer_data.clone(),
+                            default_unicast_locator_list.clone(),
+                            default_multicast_locator_list.clone(),
+                            subscriber_address,
+                            participant_address.clone(),
+                            participant_mask_listener,
+                        ))
+                        .await;
+                }
+            }
+        }
+    }
+
+    async fn remove_matched_writer(
+        &self,
+        discovered_writer_handle: InstanceHandle,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        for subscriber in self.user_defined_subscriber_list.values() {
+            let subscriber_address = subscriber.address();
+            let participant_mask_listener = (
+                self.listener.as_ref().map(|l| l.address()),
+                self.status_kind.clone(),
+            );
+            subscriber
+                .send_mail_and_await_reply(dds_subscriber::remove_matched_writer::new(
+                    discovered_writer_handle,
+                    subscriber_address,
+                    participant_address.clone(),
+                    participant_mask_listener,
+                ))
+                .await;
         }
     }
 }

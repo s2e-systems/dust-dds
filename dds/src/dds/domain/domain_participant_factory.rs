@@ -6,7 +6,6 @@ use crate::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
             discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-            discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         },
         dds::{
             dds_data_reader, dds_data_writer,
@@ -240,7 +239,9 @@ impl DomainParticipantFactory {
 
                 let r = participant_address_clone
                     .send_mail_and_await_reply(
-                        dds_domain_participant::process_builtin_discovery::new(),
+                        dds_domain_participant::process_builtin_discovery::new(
+                            participant_address_clone.clone(),
+                        ),
                     )
                     .await;
                 if r.is_err() {
@@ -272,11 +273,13 @@ impl DomainParticipantFactory {
                             ),
                         )
                         .await??;
-                    // participant_address_clone
-                    //     .send_mail_and_await_reply(
-                    //         dds_domain_participant::process_builtin_discovery::new(),
-                    //     )
-                    //     .await?;
+                    participant_address_clone
+                        .send_mail_and_await_reply(
+                            dds_domain_participant::process_builtin_discovery::new(
+                                participant_address_clone.clone(),
+                            ),
+                        )
+                        .await?;
 
                     process_sedp_discovery(&participant_address_clone).await?;
                     participant_address_clone
@@ -468,28 +471,6 @@ async fn process_sedp_discovery(
             .await?
             .as_str()
         {
-            DCPS_PUBLICATION => {
-                //::<DiscoveredWriterData>
-                if let Ok(mut discovered_writer_sample_list) = stateful_builtin_reader
-                    .send_mail_and_await_reply(dds_data_reader::read::new(
-                        i32::MAX,
-                        ANY_SAMPLE_STATE.to_vec(),
-                        ANY_VIEW_STATE.to_vec(),
-                        ANY_INSTANCE_STATE.to_vec(),
-                        None,
-                    ))
-                    .await?
-                {
-                    for (discovered_writer_data, discovered_writer_sample_info) in
-                        discovered_writer_sample_list.drain(..)
-                    {
-                        let discovered_writer_sample =
-                            Sample::new(discovered_writer_data, discovered_writer_sample_info);
-                        discover_matched_writers(participant_address, &discovered_writer_sample)
-                            .await?;
-                    }
-                }
-            }
             DCPS_SUBSCRIPTION => {
                 //::<DiscoveredReaderData>
                 if let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader
@@ -536,155 +517,6 @@ async fn process_sedp_discovery(
             }
             _ => (),
         };
-    }
-
-    Ok(())
-}
-
-async fn discover_matched_writers(
-    participant_address: &ActorAddress<DdsDomainParticipant>,
-    discovered_writer_sample: &Sample<DiscoveredWriterData>,
-) -> DdsResult<()> {
-    let participant_mask_listener = (
-        participant_address
-            .send_mail_and_await_reply(dds_domain_participant::get_listener::new())
-            .await?,
-        participant_address
-            .send_mail_and_await_reply(dds_domain_participant::get_status_kind::new())
-            .await?,
-    );
-    match discovered_writer_sample.sample_info().instance_state {
-        InstanceStateKind::Alive => {
-            if let Some(discovered_writer_data) = discovered_writer_sample.data() {
-                if !participant_address
-                    .send_mail_and_await_reply(dds_domain_participant::is_publication_ignored::new(
-                        discovered_writer_data
-                            .writer_proxy()
-                            .remote_writer_guid()
-                            .into(),
-                    ))
-                    .await?
-                {
-                    let remote_writer_guid_prefix = discovered_writer_data
-                        .writer_proxy()
-                        .remote_writer_guid()
-                        .prefix();
-                    let writer_parent_participant_guid =
-                        Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
-
-                    if let Some(spdp_discovered_participant_data) = participant_address
-                        .send_mail_and_await_reply(
-                            dds_domain_participant::discovered_participant_get::new(
-                                InstanceHandle::from(writer_parent_participant_guid),
-                            ),
-                        )
-                        .await?
-                    {
-                        let default_unicast_locator_list = spdp_discovered_participant_data
-                            .participant_proxy()
-                            .default_unicast_locator_list()
-                            .to_vec();
-                        let default_multicast_locator_list = spdp_discovered_participant_data
-                            .participant_proxy()
-                            .default_multicast_locator_list()
-                            .to_vec();
-                        for user_defined_subscriber_address in participant_address
-                            .send_mail_and_await_reply(
-                                dds_domain_participant::get_user_defined_subscriber_list::new(),
-                            )
-                            .await?
-                        {
-                            let subscriber_qos = user_defined_subscriber_address
-                                .send_mail_and_await_reply(dds_subscriber::get_qos::new())
-                                .await?;
-
-                            if is_partition_matched(
-                                discovered_writer_data.dds_publication_data().partition(),
-                                &subscriber_qos.partition,
-                            ) {
-                                for data_reader_address in user_defined_subscriber_address
-                                    .send_mail_and_await_reply(
-                                        dds_subscriber::data_reader_list::new(),
-                                    )
-                                    .await?
-                                {
-                                    let subscriber_mask_listener = (
-                                        user_defined_subscriber_address
-                                            .send_mail_and_await_reply(
-                                                dds_subscriber::get_listener::new(),
-                                            )
-                                            .await?,
-                                        user_defined_subscriber_address
-                                            .send_mail_and_await_reply(
-                                                dds_subscriber::get_status_kind::new(),
-                                            )
-                                            .await?,
-                                    );
-
-                                    data_reader_address
-                                        .send_mail_and_await_reply(
-                                            dds_data_reader::add_matched_writer::new(
-                                                discovered_writer_data.clone(),
-                                                default_unicast_locator_list.clone(),
-                                                default_multicast_locator_list.clone(),
-                                                data_reader_address.clone(),
-                                                user_defined_subscriber_address.clone(),
-                                                participant_address.clone(),
-                                                user_defined_subscriber_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_subscriber::get_qos::new(),
-                                                    )
-                                                    .await?,
-                                                subscriber_mask_listener.clone(),
-                                                participant_mask_listener.clone(),
-                                            ),
-                                        )
-                                        .await??;
-
-                                    participant_address.send_mail_blocking(
-                                        dds_domain_participant::send_message::new(),
-                                    )?;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        InstanceStateKind::NotAliveDisposed => {
-            for subscriber in participant_address
-                .send_mail_and_await_reply(
-                    dds_domain_participant::get_user_defined_subscriber_list::new(),
-                )
-                .await?
-            {
-                for data_reader in subscriber
-                    .send_mail_and_await_reply(dds_subscriber::data_reader_list::new())
-                    .await?
-                {
-                    let subscriber_mask_listener = (
-                        subscriber
-                            .send_mail_and_await_reply(dds_subscriber::get_listener::new())
-                            .await?,
-                        subscriber
-                            .send_mail_and_await_reply(dds_subscriber::get_status_kind::new())
-                            .await?,
-                    );
-
-                    data_reader
-                        .send_mail_and_await_reply(dds_data_reader::remove_matched_writer::new(
-                            discovered_writer_sample.sample_info().instance_handle,
-                            data_reader.clone(),
-                            subscriber.clone(),
-                            participant_address.clone(),
-                            subscriber_mask_listener.clone(),
-                            participant_mask_listener.clone(),
-                        ))
-                        .await??;
-                }
-            }
-        }
-        InstanceStateKind::NotAliveNoWriters => todo!(),
     }
 
     Ok(())
