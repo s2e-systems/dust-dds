@@ -3,33 +3,27 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         configuration::DustDdsConfiguration,
-        data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
-            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+        data_representation_builtin_endpoints::discovered_topic_data::{
+            DiscoveredTopicData, DCPS_TOPIC,
         },
         dds::{
-            dds_data_reader, dds_data_writer,
+            dds_data_reader,
             dds_domain_participant::{self, DdsDomainParticipant},
             dds_domain_participant_factory::{self, DdsDomainParticipantFactory},
             dds_domain_participant_listener::DdsDomainParticipantListener,
-            dds_publisher, dds_subscriber, dds_topic,
+            dds_subscriber, dds_topic,
             nodes::DomainParticipantNode,
         },
         rtps::{
             participant::RtpsParticipant,
-            types::{
-                Guid, Locator, ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
-                VENDOR_ID_S2E,
-            },
+            types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
         utils::actor::{spawn_actor, Actor, ActorAddress, THE_RUNTIME},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
-        qos_policy::PartitionQosPolicy,
         status::StatusKind,
     },
     subscription::{
@@ -38,7 +32,6 @@ use crate::{
     },
     topic_definition::type_support::dds_serialize_key,
 };
-use fnmatch_regex::glob_to_regex;
 use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -471,28 +464,6 @@ async fn process_sedp_discovery(
             .await?
             .as_str()
         {
-            DCPS_SUBSCRIPTION => {
-                //::<DiscoveredReaderData>
-                if let Ok(mut discovered_reader_sample_list) = stateful_builtin_reader
-                    .send_mail_and_await_reply(dds_data_reader::read::new(
-                        i32::MAX,
-                        ANY_SAMPLE_STATE.to_vec(),
-                        ANY_VIEW_STATE.to_vec(),
-                        ANY_INSTANCE_STATE.to_vec(),
-                        None,
-                    ))
-                    .await?
-                {
-                    for (discovered_reader_data, discovered_reader_sample_info) in
-                        discovered_reader_sample_list.drain(..)
-                    {
-                        let discovered_reader_sample =
-                            Sample::new(discovered_reader_data, discovered_reader_sample_info);
-                        discover_matched_readers(participant_address, &discovered_reader_sample)
-                            .await?;
-                    }
-                }
-            }
             DCPS_TOPIC => {
                 //::<DiscoveredTopicData>
                 if let Ok(discovered_topic_sample_list) = stateful_builtin_reader
@@ -517,281 +488,6 @@ async fn process_sedp_discovery(
             }
             _ => (),
         };
-    }
-
-    Ok(())
-}
-
-pub fn is_partition_matched(lhs: &PartitionQosPolicy, rhs: &PartitionQosPolicy) -> bool {
-    fn compare_regex_with_partition(
-        regex: &PartitionQosPolicy,
-        partition: &PartitionQosPolicy,
-    ) -> bool {
-        for partition_regex in regex.name.iter() {
-            match glob_to_regex(partition_regex) {
-                Ok(d) => {
-                    let is_any_partition_matched = partition.name.iter().any(|p| d.is_match(p));
-                    if is_any_partition_matched {
-                        return true;
-                    }
-                }
-                Err(e) => {
-                    warn!(
-                        "Received invalid partition regex name {:?}. Error {:?}",
-                        partition_regex, e
-                    );
-                }
-            }
-        }
-
-        false
-    }
-
-    fn compare_partition_names(lhs: &PartitionQosPolicy, rhs: &PartitionQosPolicy) -> bool {
-        for partition_name in lhs.name.iter() {
-            let is_any_partition_matched = rhs.name.contains(partition_name);
-            if is_any_partition_matched {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    (lhs.name.is_empty() && rhs.name.is_empty())
-        || compare_regex_with_partition(lhs, rhs)
-        || compare_regex_with_partition(rhs, lhs)
-        || compare_partition_names(lhs, rhs)
-}
-
-pub async fn discover_matched_readers(
-    participant_address: &ActorAddress<DdsDomainParticipant>,
-    discovered_reader_sample: &Sample<DiscoveredReaderData>,
-) -> DdsResult<()> {
-    match discovered_reader_sample.sample_info().instance_state {
-        InstanceStateKind::Alive => {
-            if let Some(discovered_reader_data) = discovered_reader_sample.data() {
-                if !participant_address
-                    .send_mail_and_await_reply(
-                        dds_domain_participant::is_subscription_ignored::new(
-                            discovered_reader_data
-                                .reader_proxy()
-                                .remote_reader_guid()
-                                .into(),
-                        ),
-                    )
-                    .await?
-                {
-                    let remote_reader_guid_prefix = discovered_reader_data
-                        .reader_proxy()
-                        .remote_reader_guid()
-                        .prefix();
-                    let reader_parent_participant_guid =
-                        Guid::new(remote_reader_guid_prefix, ENTITYID_PARTICIPANT);
-
-                    if let Some(spdp_discovered_participant_data) = participant_address
-                        .send_mail_and_await_reply(
-                            dds_domain_participant::discovered_participant_get::new(
-                                InstanceHandle::from(reader_parent_participant_guid),
-                            ),
-                        )
-                        .await?
-                    {
-                        let default_unicast_locator_list = spdp_discovered_participant_data
-                            .participant_proxy()
-                            .default_unicast_locator_list()
-                            .to_vec();
-                        let default_multicast_locator_list = spdp_discovered_participant_data
-                            .participant_proxy()
-                            .default_multicast_locator_list()
-                            .to_vec();
-                        for user_defined_publisher_address in participant_address
-                            .send_mail_and_await_reply(
-                                dds_domain_participant::get_user_defined_publisher_list::new(),
-                            )
-                            .await?
-                        {
-                            let publisher_qos = user_defined_publisher_address
-                                .send_mail_and_await_reply(dds_publisher::get_qos::new())
-                                .await?;
-
-                            if is_partition_matched(
-                                discovered_reader_data
-                                    .subscription_builtin_topic_data()
-                                    .partition(),
-                                &publisher_qos.partition,
-                            ) {
-                                for data_writer in user_defined_publisher_address
-                                    .send_mail_and_await_reply(
-                                        dds_publisher::data_writer_list::new(),
-                                    )
-                                    .await?
-                                {
-                                    let publisher_publication_matched_listener =
-                                        match user_defined_publisher_address
-                                            .send_mail_and_await_reply(
-                                                dds_publisher::get_listener::new(),
-                                            )
-                                            .await?
-                                        {
-                                            Some(l)
-                                                if user_defined_publisher_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_publisher::get_status_kind::new(),
-                                                    )
-                                                    .await?
-                                                    .contains(&StatusKind::PublicationMatched) =>
-                                            {
-                                                Some(l)
-                                            }
-                                            _ => None,
-                                        };
-
-                                    let participant_publication_matched_listener =
-                                        match participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_listener::new(),
-                                            )
-                                            .await?
-                                        {
-                                            Some(l)
-                                                if participant_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_domain_participant::get_status_kind::new(),
-                                                    )
-                                                    .await?
-                                                    .contains(&StatusKind::PublicationMatched) =>
-                                            {
-                                                Some(l)
-                                            }
-                                            _ => None,
-                                        };
-                                    let offered_incompatible_qos_publisher_listener =
-                                        match user_defined_publisher_address
-                                            .send_mail_and_await_reply(
-                                                dds_publisher::get_listener::new(),
-                                            )
-                                            .await?
-                                        {
-                                            Some(l)
-                                                if user_defined_publisher_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_publisher::get_status_kind::new(),
-                                                    )
-                                                    .await?
-                                                    .contains(
-                                                        &StatusKind::OfferedIncompatibleQos,
-                                                    ) =>
-                                            {
-                                                Some(l)
-                                            }
-                                            _ => None,
-                                        };
-                                    let offered_incompatible_qos_participant_listener =
-                                        match participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_listener::new(),
-                                            )
-                                            .await?
-                                        {
-                                            Some(l)
-                                                if participant_address
-                                                    .send_mail_and_await_reply(
-                                                        dds_domain_participant::get_status_kind::new(),
-                                                    )
-                                                    .await?
-                                                    .contains(
-                                                        &StatusKind::OfferedIncompatibleQos,
-                                                    ) =>
-                                            {
-                                                Some(l)
-                                            }
-                                            _ => None,
-                                        };
-                                    data_writer
-                                        .send_mail_and_await_reply(
-                                            dds_data_writer::add_matched_reader::new(
-                                                discovered_reader_data.clone(),
-                                                default_unicast_locator_list.clone(),
-                                                default_multicast_locator_list.clone(),
-                                                data_writer.clone(),
-                                                user_defined_publisher_address.clone(),
-                                                participant_address.clone(),
-                                                publisher_qos.clone(),
-                                                publisher_publication_matched_listener,
-                                                participant_publication_matched_listener,
-                                                offered_incompatible_qos_publisher_listener,
-                                                offered_incompatible_qos_participant_listener,
-                                            ),
-                                        )
-                                        .await??;
-
-                                    participant_address.send_mail_blocking(
-                                        dds_domain_participant::send_message::new(),
-                                    )?;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        InstanceStateKind::NotAliveDisposed => {
-            for publisher in participant_address
-                .send_mail_and_await_reply(
-                    dds_domain_participant::get_user_defined_publisher_list::new(),
-                )
-                .await?
-            {
-                for data_writer in publisher
-                    .send_mail_and_await_reply(dds_publisher::data_writer_list::new())
-                    .await?
-                {
-                    let publisher_publication_matched_listener = match publisher
-                        .send_mail_and_await_reply(dds_publisher::get_listener::new())
-                        .await?
-                    {
-                        Some(l)
-                            if publisher
-                                .send_mail_and_await_reply(dds_publisher::get_status_kind::new())
-                                .await?
-                                .contains(&StatusKind::PublicationMatched) =>
-                        {
-                            Some(l)
-                        }
-                        _ => None,
-                    };
-                    let participant_publication_matched_listener = match participant_address
-                        .send_mail_and_await_reply(dds_domain_participant::get_listener::new())
-                        .await?
-                    {
-                        Some(l)
-                            if participant_address
-                                .send_mail_and_await_reply(
-                                    dds_domain_participant::get_status_kind::new(),
-                                )
-                                .await?
-                                .contains(&StatusKind::PublicationMatched) =>
-                        {
-                            Some(l)
-                        }
-                        _ => None,
-                    };
-                    data_writer
-                        .send_mail_and_await_reply(dds_data_writer::remove_matched_reader::new(
-                            discovered_reader_sample.sample_info().instance_handle,
-                            data_writer.clone(),
-                            publisher.clone(),
-                            participant_address.clone(),
-                            publisher_publication_matched_listener,
-                            participant_publication_matched_listener,
-                        ))
-                        .await??;
-                }
-            }
-        }
-
-        InstanceStateKind::NotAliveNoWriters => todo!(),
     }
 
     Ok(())

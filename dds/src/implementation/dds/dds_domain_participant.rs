@@ -1024,7 +1024,9 @@ impl DdsDomainParticipant {
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         self.process_spdp_participant_discovery().await;
-        self.process_sedp_publications_discovery(participant_address)
+        self.process_sedp_publications_discovery(participant_address.clone())
+            .await;
+        self.process_sedp_subscriptions_discovery(participant_address)
             .await;
     }
 }
@@ -1460,10 +1462,14 @@ impl DdsDomainParticipant {
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
-            discovered_writer_data
-                .dds_publication_data()
-                .participant_key()
-                .value,
+            Guid::new(
+                discovered_writer_data
+                    .writer_proxy()
+                    .remote_writer_guid()
+                    .prefix(),
+                ENTITYID_PARTICIPANT,
+            )
+            .into(),
         ));
         let is_publication_ignored = self.ignored_publications.contains(&InstanceHandle::new(
             discovered_writer_data.dds_publication_data().key().value,
@@ -1527,6 +1533,167 @@ impl DdsDomainParticipant {
                     subscriber_address,
                     participant_address.clone(),
                     participant_mask_listener,
+                ))
+                .await;
+        }
+    }
+
+    async fn process_sedp_subscriptions_discovery(
+        &mut self,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        if let Some(sedp_subscriptions_detector) = self
+            .builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+                DCPS_SUBSCRIPTION.to_string(),
+            ))
+            .await
+        {
+            if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
+                .send_mail_and_await_reply(dds_data_reader::read::new(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                ))
+                .await
+                .expect("Can not fail to send mail to builtin reader")
+            {
+                for (discovered_reader_data, discovered_reader_sample_info) in
+                    discovered_reader_sample_list.drain(..)
+                {
+                    match discovered_reader_sample_info.instance_state {
+                        InstanceStateKind::Alive => {
+                            match dds_deserialize_from_bytes::<DiscoveredReaderData>(
+                                discovered_reader_data
+                                    .expect("Should contain data")
+                                    .as_ref(),
+                            ) {
+                                Ok(discovered_reader_data) => {
+                                    self.add_matched_reader(
+                                        discovered_reader_data,
+                                        participant_address.clone(),
+                                    )
+                                    .await;
+                                }
+                                Err(e) => warn!(
+                                    "Received invalid DiscoveredReaderData sample. Error {:?}",
+                                    e
+                                ),
+                            }
+                        }
+                        InstanceStateKind::NotAliveDisposed => {
+                            self.remove_matched_reader(
+                                discovered_reader_sample_info.instance_handle,
+                                participant_address.clone(),
+                            )
+                            .await
+                        }
+                        InstanceStateKind::NotAliveNoWriters => {
+                            todo!()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async fn add_matched_reader(
+        &self,
+        discovered_reader_data: DiscoveredReaderData,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
+            Guid::new(
+                discovered_reader_data
+                    .reader_proxy()
+                    .remote_reader_guid()
+                    .prefix(),
+                ENTITYID_PARTICIPANT,
+            )
+            .into(),
+        ));
+        let is_subscription_ignored = self.ignored_subcriptions.contains(&InstanceHandle::new(
+            discovered_reader_data
+                .subscription_builtin_topic_data()
+                .key()
+                .value,
+        ));
+        if !is_subscription_ignored && !is_participant_ignored {
+            if let Some(discovered_participant_data) =
+                self.discovered_participant_list.get(&InstanceHandle::new(
+                    Guid::new(
+                        discovered_reader_data
+                            .reader_proxy()
+                            .remote_reader_guid()
+                            .prefix(),
+                        ENTITYID_PARTICIPANT,
+                    )
+                    .into(),
+                ))
+            {
+                let default_unicast_locator_list = discovered_participant_data
+                    .participant_proxy()
+                    .default_unicast_locator_list()
+                    .to_vec();
+                let default_multicast_locator_list = discovered_participant_data
+                    .participant_proxy()
+                    .default_multicast_locator_list()
+                    .to_vec();
+
+                for publisher in self.user_defined_publisher_list.values() {
+                    let publisher_address = publisher.address();
+
+                    let participant_publication_matched_listener =
+                        if self.status_kind.contains(&StatusKind::PublicationMatched) {
+                            self.listener.as_ref().map(|l| l.address())
+                        } else {
+                            None
+                        };
+                    let offered_incompatible_qos_participant_listener = if self
+                        .status_kind
+                        .contains(&StatusKind::OfferedIncompatibleQos)
+                    {
+                        self.listener.as_ref().map(|l| l.address())
+                    } else {
+                        None
+                    };
+                    publisher
+                        .send_mail_and_await_reply(dds_publisher::add_matched_reader::new(
+                            discovered_reader_data.clone(),
+                            default_unicast_locator_list.clone(),
+                            default_multicast_locator_list.clone(),
+                            publisher_address,
+                            participant_address.clone(),
+                            participant_publication_matched_listener,
+                            offered_incompatible_qos_participant_listener,
+                        ))
+                        .await;
+                }
+            }
+        }
+    }
+
+    async fn remove_matched_reader(
+        &self,
+        discovered_reader_handle: InstanceHandle,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        for publisher in self.user_defined_publisher_list.values() {
+            let publisher_address = publisher.address();
+            let participant_publication_matched_listener =
+                if self.status_kind.contains(&StatusKind::PublicationMatched) {
+                    self.listener.as_ref().map(|l| l.address())
+                } else {
+                    None
+                };
+            publisher
+                .send_mail_and_await_reply(dds_publisher::remove_matched_reader::new(
+                    discovered_reader_handle,
+                    publisher_address,
+                    participant_address.clone(),
+                    participant_publication_matched_listener,
                 ))
                 .await;
         }

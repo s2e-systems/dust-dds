@@ -416,7 +416,7 @@ impl<Foo> DataWriter<Foo> {
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         self.0.writer_address().send_mail_and_await_reply_blocking(
             dds_data_writer::get_publication_matched_status::new(),
-        )?
+        )
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].

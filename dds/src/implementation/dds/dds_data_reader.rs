@@ -169,7 +169,7 @@ impl RequestedDeadlineMissedStatus {
 }
 
 impl LivelinessChangedStatus {
-    fn read_and_reset(&mut self) -> Self {
+    fn _read_and_reset(&mut self) -> Self {
         let status = self.clone();
 
         self.alive_count_change = 0;
@@ -241,7 +241,7 @@ pub struct DdsDataReader {
     instance_handle_builder: InstanceHandleBuilder,
     type_name: String,
     topic_name: String,
-    liveliness_changed_status: LivelinessChangedStatus,
+    _liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
     sample_lost_status: SampleLostStatus,
@@ -279,7 +279,7 @@ impl DdsDataReader {
             changes: Vec::new(),
             type_name,
             topic_name,
-            liveliness_changed_status: LivelinessChangedStatus::default(),
+            _liveliness_changed_status: LivelinessChangedStatus::default(),
             requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
             sample_lost_status: SampleLostStatus::default(),
@@ -297,10 +297,6 @@ impl DdsDataReader {
             instance_handle_builder,
             instances: HashMap::new(),
         }
-    }
-
-    pub fn get_liveliness_changed_status(&mut self) -> LivelinessChangedStatus {
-        self.liveliness_changed_status.read_and_reset()
     }
 
     pub fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
@@ -566,22 +562,6 @@ impl DdsDataReader {
         }
 
         incompatible_qos_policy_list
-    }
-
-    pub fn get_key_value<Foo>(
-        &self,
-        _key_holder: &mut Foo,
-        _handle: InstanceHandle,
-    ) -> DdsResult<()> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn lookup_instance<Foo>(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        todo!()
     }
 
     pub fn on_gap_submessage_received(
@@ -904,10 +884,6 @@ impl DdsDataReader {
                 },
             },
         }
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.rtps_reader.guid()
     }
 
     fn convert_received_data_to_cache_change(
