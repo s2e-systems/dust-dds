@@ -25,7 +25,7 @@ impl<'a> GapSubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn reader_id(&self) -> EntityId {
+    pub fn _reader_id(&self) -> EntityId {
         self.map(&self.data[4..])
     }
 
@@ -121,7 +121,7 @@ mod tests {
            10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
         ]);
-        assert_eq!(expected_reader_id, submessage.reader_id());
+        assert_eq!(expected_reader_id, submessage._reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());
         assert_eq!(expected_gap_start, submessage.gap_start());
         assert_eq!(expected_gap_list, submessage.gap_list());

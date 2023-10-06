@@ -49,7 +49,7 @@ impl DdsDomainParticipantFactory {
     async fn get_participant_list(&self) -> Vec<ActorAddress<DdsDomainParticipant>> {
         self.domain_participant_list
             .values()
-            .map(|dp| dp.address().clone())
+            .map(|dp| dp.address())
             .collect()
     }
 

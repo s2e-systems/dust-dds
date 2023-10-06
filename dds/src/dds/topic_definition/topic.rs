@@ -8,7 +8,6 @@ use crate::{
             dds_publisher, dds_topic,
             nodes::{DomainParticipantNode, TopicNode},
         },
-        rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -262,29 +261,7 @@ fn announce_topic(
                 ),
             )??;
 
-            data_writer.send_mail_blocking(
-                dds_data_writer::send_message::new(
-                    RtpsMessageHeader::new(
-                        domain_participant.send_mail_and_await_reply_blocking(
-                            dds_domain_participant::get_protocol_version::new(),
-                        )?,
-                        domain_participant.send_mail_and_await_reply_blocking(
-                            dds_domain_participant::get_vendor_id::new(),
-                        )?,
-                        domain_participant
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_guid::new(),
-                            )?
-                            .prefix(),
-                    ),
-                    domain_participant.send_mail_and_await_reply_blocking(
-                        dds_domain_participant::get_upd_transport_write::new(),
-                    )?,
-                    domain_participant.send_mail_and_await_reply_blocking(
-                        dds_domain_participant::get_current_time::new(),
-                    )?,
-                ),
-            )?;
+            domain_participant.send_mail_blocking(dds_domain_participant::send_message::new())?;
             break;
         }
     }

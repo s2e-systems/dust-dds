@@ -25,7 +25,7 @@ impl<'a> HeartbeatFragSubmessageRead<'a> {
         Self { data }
     }
 
-    pub fn reader_id(&self) -> EntityId {
+    pub fn _reader_id(&self) -> EntityId {
         self.map(&self.data[4..])
     }
 
@@ -33,11 +33,11 @@ impl<'a> HeartbeatFragSubmessageRead<'a> {
         self.map(&self.data[8..])
     }
 
-    pub fn writer_sn(&self) -> SequenceNumber {
+    pub fn _writer_sn(&self) -> SequenceNumber {
         self.map(&self.data[12..])
     }
 
-    pub fn last_fragment_num(&self) -> FragmentNumber {
+    pub fn _last_fragment_num(&self) -> FragmentNumber {
         self.map(&self.data[20..])
     }
 
@@ -51,7 +51,7 @@ pub struct HeartbeatFragSubmessageWrite<'a> {
     submessage_elements: [SubmessageElement<'a>; 5],
 }
 impl HeartbeatFragSubmessageWrite<'_> {
-    pub fn new(
+    pub fn _new(
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn serialize_heart_beat() {
-        let submessage = HeartbeatFragSubmessageWrite::new(
+        let submessage = HeartbeatFragSubmessageWrite::_new(
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
             SequenceNumber::from(5),
@@ -132,10 +132,10 @@ mod tests {
         let expected_last_fragment_num = 7;
         let expected_count = 2;
 
-        assert_eq!(expected_reader_id, submessage.reader_id());
+        assert_eq!(expected_reader_id, submessage._reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());
-        assert_eq!(expected_writer_sn, submessage.writer_sn());
-        assert_eq!(expected_last_fragment_num, submessage.last_fragment_num());
+        assert_eq!(expected_writer_sn, submessage._writer_sn());
+        assert_eq!(expected_last_fragment_num, submessage._last_fragment_num());
         assert_eq!(expected_count, submessage.count());
     }
 }

@@ -1,4 +1,5 @@
 use dust_dds_derive::actor_interface;
+use tracing::warn;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
@@ -27,13 +28,16 @@ use crate::{
             participant::RtpsParticipant,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
+            reader_proxy::RtpsReaderProxy,
             types::{
-                EntityId, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
+                EntityId, Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind,
                 BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
-                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP,
-                USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
+                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT,
+                ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+                USER_DEFINED_WRITER_GROUP,
             },
             writer::RtpsWriter,
+            writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{spawn_actor, Actor, ActorAddress},
@@ -49,8 +53,17 @@ use crate::{
         time::{DurationKind, DURATION_ZERO},
     },
     publication::publisher_listener::PublisherListener,
-    subscription::subscriber_listener::SubscriberListener,
-    topic_definition::topic_listener::TopicListener,
+    subscription::{
+        sample_info::{
+            InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+        },
+        subscriber_listener::SubscriberListener,
+    },
+    topic_definition::{
+        topic_listener::TopicListener,
+        type_support::{dds_deserialize_from_bytes, dds_serialize_key, dds_serialize_to_bytes},
+    },
     {
         builtin_topics::TopicBuiltinTopicData,
         infrastructure::{
@@ -67,12 +80,14 @@ use std::{
 };
 
 use super::{
+    dds_data_reader,
     dds_data_writer::{self, DdsDataWriter},
     dds_domain_participant_listener::DdsDomainParticipantListener,
     dds_publisher::{self, DdsPublisher},
     dds_publisher_listener::DdsPublisherListener,
     dds_subscriber,
     dds_subscriber_listener::DdsSubscriberListener,
+    dds_topic,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -129,6 +144,7 @@ pub struct DdsDomainParticipant {
     ignored_participants: HashSet<InstanceHandle>,
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
+    ignored_topic_list: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
     udp_transport_write: Actor<UdpTransportWrite>,
     listener: Option<Actor<DdsDomainParticipantListener>>,
@@ -451,6 +467,7 @@ impl DdsDomainParticipant {
             ignored_participants: HashSet::new(),
             ignored_publications: HashSet::new(),
             ignored_subcriptions: HashSet::new(),
+            ignored_topic_list: HashSet::new(),
             data_max_size_serialized,
             udp_transport_write,
             listener,
@@ -480,7 +497,7 @@ impl DdsDomainParticipant {
         let publisher = DdsPublisher::new(publisher_qos, rtps_group, listener, status_kind);
 
         let publisher_actor = spawn_actor(publisher);
-        let publisher_address = publisher_actor.address().clone();
+        let publisher_address = publisher_actor.address();
         self.user_defined_publisher_list
             .insert(guid.into(), publisher_actor);
 
@@ -507,7 +524,7 @@ impl DdsDomainParticipant {
         let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
 
         let subscriber_actor = spawn_actor(subscriber);
-        let subscriber_address = subscriber_actor.address().clone();
+        let subscriber_address = subscriber_actor.address();
 
         self.user_defined_subscriber_list
             .insert(guid.into(), subscriber_actor);
@@ -534,7 +551,7 @@ impl DdsDomainParticipant {
         let topic = DdsTopic::new(guid, qos, type_name, &topic_name);
 
         let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
-        let topic_address = topic_actor.address().clone();
+        let topic_address = topic_actor.address();
         self.topic_list.insert(guid.into(), topic_actor);
 
         topic_address
@@ -725,19 +742,10 @@ impl DdsDomainParticipant {
             .insert(handle, discovered_participant_data);
     }
 
-    async fn discovered_topic_add(
-        &mut self,
-        handle: InstanceHandle,
-        discovered_topic_data: TopicBuiltinTopicData,
-    ) {
-        self.discovered_topic_list
-            .insert(handle, discovered_topic_data);
-    }
-
     async fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
         self.topic_list
             .values()
-            .map(|a| a.address().clone())
+            .map(|a| a.address())
             .collect()
     }
 
@@ -769,29 +777,21 @@ impl DdsDomainParticipant {
     }
 
     async fn get_built_in_subscriber(&self) -> ActorAddress<DdsSubscriber> {
-        self.builtin_subscriber.address().clone()
+        self.builtin_subscriber.address()
     }
 
     async fn get_upd_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
-        self.udp_transport_write.address().clone()
+        self.udp_transport_write.address()
     }
 
     async fn get_guid(&self) -> Guid {
         self.rtps_participant.guid()
     }
 
-    async fn get_protocol_version(&self) -> ProtocolVersion {
-        self.rtps_participant.protocol_version()
-    }
-
-    async fn get_vendor_id(&self) -> VendorId {
-        self.rtps_participant.vendor_id()
-    }
-
     async fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
         self.user_defined_publisher_list
             .values()
-            .map(|a| a.address().clone())
+            .map(|a| a.address())
             .collect()
     }
 
@@ -807,7 +807,7 @@ impl DdsDomainParticipant {
     async fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
         self.user_defined_subscriber_list
             .values()
-            .map(|a| a.address().clone())
+            .map(|a| a.address())
             .collect()
     }
 
@@ -847,7 +847,7 @@ impl DdsDomainParticipant {
     }
 
     async fn get_listener(&self) -> Option<ActorAddress<DdsDomainParticipantListener>> {
-        self.listener.as_ref().map(|l| l.address().clone())
+        self.listener.as_ref().map(|l| l.address())
     }
 
     async fn get_status_kind(&self) -> Vec<StatusKind> {
@@ -863,7 +863,75 @@ impl DdsDomainParticipant {
     }
 
     async fn get_builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
-        self.builtin_publisher.address().clone()
+        self.builtin_publisher.address()
+    }
+
+    async fn send_message(&self) {
+        let now = self.get_current_time().await;
+        let header = RtpsMessageHeader::new(
+            self.rtps_participant.protocol_version(),
+            self.rtps_participant.vendor_id(),
+            self.rtps_participant.guid().prefix(),
+        );
+        self.builtin_publisher
+            .send_mail(dds_publisher::send_message::new(
+                header,
+                self.udp_transport_write.address(),
+                now,
+            ))
+            .await;
+        self.builtin_subscriber
+            .send_mail(dds_subscriber::send_message::new(
+                header,
+                self.udp_transport_write.address(),
+            ))
+            .await;
+
+        for publisher in self.user_defined_publisher_list.values() {
+            publisher
+                .send_mail(dds_publisher::send_message::new(
+                    header,
+                    self.udp_transport_write.address(),
+                    now,
+                ))
+                .await;
+        }
+
+        for subscriber in self.user_defined_subscriber_list.values() {
+            subscriber
+                .send_mail(dds_subscriber::send_message::new(
+                    header,
+                    self.udp_transport_write.address(),
+                ))
+                .await;
+        }
+    }
+
+    async fn process_metatraffic_rtps_message(
+        &self,
+        message: RtpsMessageRead,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) -> DdsResult<()> {
+        let reception_timestamp = self.get_current_time().await;
+        let participant_mask_listener = (
+            self.listener.as_ref().map(|l| l.address()),
+            self.status_kind.clone(),
+        );
+        self.builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::process_rtps_message::new(
+                message.clone(),
+                reception_timestamp,
+                participant_address.clone(),
+                self.builtin_subscriber.address(),
+                participant_mask_listener,
+            ))
+            .await?;
+
+        self.builtin_publisher
+            .send_mail_and_await_reply(dds_publisher::process_rtps_message::new(message))
+            .await;
+
+        Ok(())
     }
 
     async fn process_user_defined_rtps_message(
@@ -872,7 +940,7 @@ impl DdsDomainParticipant {
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
         let participant_mask_listener = (
-            self.listener.as_ref().map(|a| a.address()).cloned(),
+            self.listener.as_ref().map(|a| a.address()),
             self.status_kind.clone(),
         );
         for user_defined_subscriber_address in self
@@ -925,6 +993,779 @@ impl DdsDomainParticipant {
                 ))
                 .await
                 .expect("Should not fail to send command");
+        }
+    }
+
+    async fn announce_created_or_modified_data_writer(
+        &self,
+        discovered_writer_data: DiscoveredWriterData,
+    ) {
+        if let Some(sedp_publications_announcer) = self
+            .builtin_publisher
+            .send_mail_and_await_reply(dds_publisher::lookup_datawriter::new(
+                DCPS_PUBLICATION.to_string(),
+            ))
+            .await
+        {
+            let timestamp = self.get_current_time().await;
+            let serialized_data = dds_serialize_to_bytes(&discovered_writer_data)
+                .expect("Shouldn't fail to serialize builtin type");
+            let instance_serialized_key = dds_serialize_key(&discovered_writer_data)
+                .expect("Shouldn't fail to serialize key of builtin type");
+            sedp_publications_announcer
+                .send_mail_and_await_reply(dds_data_writer::write_w_timestamp::new(
+                    serialized_data,
+                    instance_serialized_key,
+                    None,
+                    timestamp,
+                ))
+                .await
+                .expect("Shouldn't fail to send to built-in data writer")
+                .expect("Shouldn't fail to write to built-in data writer");
+        }
+    }
+
+    async fn process_builtin_discovery(
+        &mut self,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        self.process_spdp_participant_discovery().await;
+        self.process_sedp_publications_discovery(participant_address.clone())
+            .await;
+        self.process_sedp_subscriptions_discovery(participant_address)
+            .await;
+        self.process_sedp_topics_discovery().await;
+    }
+}
+
+impl DdsDomainParticipant {
+    async fn process_spdp_participant_discovery(&mut self) {
+        if let Some(spdp_participant_reader) = self
+            .builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+                DCPS_PARTICIPANT.to_string(),
+            ))
+            .await
+        {
+            if let Ok(spdp_data_sample_list) = spdp_participant_reader
+                .send_mail_and_await_reply(dds_data_reader::read::new(
+                    i32::MAX,
+                    vec![SampleStateKind::NotRead],
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                ))
+                .await
+                .expect("Can not fail to send mail to builtin reader")
+            {
+                for (spdp_data_sample, _) in spdp_data_sample_list {
+                    match dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(
+                        spdp_data_sample.expect("Should contain data").as_ref(),
+                    ) {
+                        Ok(discovered_participant_data) => {
+                            self.process_discovered_participant_data(discovered_participant_data)
+                                .await
+                        }
+                        Err(e) => warn!(
+                            "Received invalid SpdpDiscoveredParticipantData. Error {:?}",
+                            e
+                        ),
+                    }
+                }
+            }
+        }
+    }
+
+    async fn process_discovered_participant_data(
+        &mut self,
+        discovered_participant_data: SpdpDiscoveredParticipantData,
+    ) {
+        // Check that the domainId of the discovered participant equals the local one.
+        // If it is not equal then there the local endpoints are not configured to
+        // communicate with the discovered participant.
+        // AND
+        // Check that the domainTag of the discovered participant equals the local one.
+        // If it is not equal then there the local endpoints are not configured to
+        // communicate with the discovered participant.
+        // IN CASE no domain id was transmitted the a local domain id is assumed
+        // (as specified in Table 9.19 - ParameterId mapping and default values)
+        let is_domain_id_matching = discovered_participant_data
+            .participant_proxy()
+            .domain_id()
+            .unwrap_or(self.domain_id)
+            == self.domain_id;
+        let is_domain_tag_matching =
+            discovered_participant_data.participant_proxy().domain_tag() == self.domain_tag;
+        let discovered_participant_handle = InstanceHandle::new(
+            discovered_participant_data
+                .dds_participant_data()
+                .key()
+                .value,
+        );
+        let is_participant_ignored = self
+            .ignored_participants
+            .contains(&discovered_participant_handle);
+        if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
+            self.add_matched_publications_detector(&discovered_participant_data)
+                .await;
+            self.add_matched_publications_announcer(&discovered_participant_data)
+                .await;
+            self.add_matched_subscriptions_detector(&discovered_participant_data)
+                .await;
+            self.add_matched_subscriptions_announcer(&discovered_participant_data)
+                .await;
+            self.add_matched_topics_detector(&discovered_participant_data)
+                .await;
+            self.add_matched_topics_announcer(&discovered_participant_data)
+                .await;
+
+            self.discovered_participant_list.insert(
+                InstanceHandle::new(
+                    discovered_participant_data
+                        .dds_participant_data()
+                        .key()
+                        .value,
+                ),
+                discovered_participant_data,
+            );
+        }
+    }
+
+    async fn add_matched_publications_detector(
+        &self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if let Some(sedp_publications_announcer) = self
+            .builtin_publisher
+            .send_mail_and_await_reply(dds_publisher::lookup_datawriter::new(
+                DCPS_PUBLICATION.to_string(),
+            ))
+            .await
+        {
+            if discovered_participant_data
+                .participant_proxy()
+                .available_builtin_endpoints()
+                .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
+            {
+                let remote_reader_guid = Guid::new(
+                    discovered_participant_data
+                        .participant_proxy()
+                        .guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+                );
+                let remote_group_entity_id = ENTITYID_UNKNOWN;
+                let expects_inline_qos = false;
+                let proxy = RtpsReaderProxy::new(
+                    remote_reader_guid,
+                    remote_group_entity_id,
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_unicast_locator_list(),
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_multicast_locator_list(),
+                    expects_inline_qos,
+                    true,
+                    ReliabilityKind::Reliable,
+                    SequenceNumber::from(0),
+                );
+                sedp_publications_announcer
+                    .send_mail_and_await_reply(dds_data_writer::matched_reader_add::new(proxy))
+                    .await
+                    .unwrap();
+            }
+        }
+    }
+
+    async fn add_matched_publications_announcer(
+        &self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if let Some(sedp_publications_detector) = self
+            .builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+                DCPS_PUBLICATION.to_string(),
+            ))
+            .await
+        {
+            if discovered_participant_data
+                .participant_proxy()
+                .available_builtin_endpoints()
+                .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
+            {
+                let remote_writer_guid = Guid::new(
+                    discovered_participant_data
+                        .participant_proxy()
+                        .guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                );
+                let remote_group_entity_id = ENTITYID_UNKNOWN;
+                let data_max_size_serialized = None;
+
+                let proxy = RtpsWriterProxy::new(
+                    remote_writer_guid,
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_unicast_locator_list(),
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_multicast_locator_list(),
+                    data_max_size_serialized,
+                    remote_group_entity_id,
+                );
+
+                sedp_publications_detector
+                    .send_mail_and_await_reply(dds_data_reader::matched_writer_add::new(proxy))
+                    .await
+                    .unwrap();
+            }
+        }
+    }
+
+    async fn add_matched_subscriptions_detector(
+        &self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if let Some(sedp_subscriptions_announcer) = self
+            .builtin_publisher
+            .send_mail_and_await_reply(dds_publisher::lookup_datawriter::new(
+                DCPS_SUBSCRIPTION.to_string(),
+            ))
+            .await
+        {
+            if discovered_participant_data
+                .participant_proxy()
+                .available_builtin_endpoints()
+                .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
+            {
+                let remote_reader_guid = Guid::new(
+                    discovered_participant_data
+                        .participant_proxy()
+                        .guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+                );
+                let remote_group_entity_id = ENTITYID_UNKNOWN;
+                let expects_inline_qos = false;
+                let proxy = RtpsReaderProxy::new(
+                    remote_reader_guid,
+                    remote_group_entity_id,
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_unicast_locator_list(),
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_multicast_locator_list(),
+                    expects_inline_qos,
+                    true,
+                    ReliabilityKind::Reliable,
+                    SequenceNumber::from(0),
+                );
+                sedp_subscriptions_announcer
+                    .send_mail_and_await_reply(dds_data_writer::matched_reader_add::new(proxy))
+                    .await
+                    .unwrap();
+            }
+        }
+    }
+
+    async fn add_matched_subscriptions_announcer(
+        &self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if let Some(sedp_subscriptions_detector) = self
+            .builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+                DCPS_SUBSCRIPTION.to_string(),
+            ))
+            .await
+        {
+            if discovered_participant_data
+                .participant_proxy()
+                .available_builtin_endpoints()
+                .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
+            {
+                let remote_writer_guid = Guid::new(
+                    discovered_participant_data
+                        .participant_proxy()
+                        .guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+                );
+                let remote_group_entity_id = ENTITYID_UNKNOWN;
+                let data_max_size_serialized = None;
+
+                let proxy = RtpsWriterProxy::new(
+                    remote_writer_guid,
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_unicast_locator_list(),
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_multicast_locator_list(),
+                    data_max_size_serialized,
+                    remote_group_entity_id,
+                );
+                sedp_subscriptions_detector
+                    .send_mail_and_await_reply(dds_data_reader::matched_writer_add::new(proxy))
+                    .await
+                    .unwrap();
+            }
+        }
+    }
+
+    async fn add_matched_topics_detector(
+        &self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if let Some(sedp_topics_announcer) = self
+            .builtin_publisher
+            .send_mail_and_await_reply(dds_publisher::lookup_datawriter::new(
+                DCPS_TOPIC.to_string(),
+            ))
+            .await
+        {
+            if discovered_participant_data
+                .participant_proxy()
+                .available_builtin_endpoints()
+                .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
+            {
+                let remote_reader_guid = Guid::new(
+                    discovered_participant_data
+                        .participant_proxy()
+                        .guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+                );
+                let remote_group_entity_id = ENTITYID_UNKNOWN;
+                let expects_inline_qos = false;
+                let proxy = RtpsReaderProxy::new(
+                    remote_reader_guid,
+                    remote_group_entity_id,
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_unicast_locator_list(),
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_multicast_locator_list(),
+                    expects_inline_qos,
+                    true,
+                    ReliabilityKind::Reliable,
+                    SequenceNumber::from(0),
+                );
+                sedp_topics_announcer
+                    .send_mail_and_await_reply(dds_data_writer::matched_reader_add::new(proxy))
+                    .await
+                    .unwrap();
+            }
+        }
+    }
+
+    async fn add_matched_topics_announcer(
+        &self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if let Some(sedp_topics_detector) = self
+            .builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+                DCPS_TOPIC.to_string(),
+            ))
+            .await
+        {
+            if discovered_participant_data
+                .participant_proxy()
+                .available_builtin_endpoints()
+                .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
+            {
+                let remote_writer_guid = Guid::new(
+                    discovered_participant_data
+                        .participant_proxy()
+                        .guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+                );
+                let remote_group_entity_id = ENTITYID_UNKNOWN;
+                let data_max_size_serialized = None;
+
+                let proxy = RtpsWriterProxy::new(
+                    remote_writer_guid,
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_unicast_locator_list(),
+                    discovered_participant_data
+                        .participant_proxy()
+                        .metatraffic_multicast_locator_list(),
+                    data_max_size_serialized,
+                    remote_group_entity_id,
+                );
+                sedp_topics_detector
+                    .send_mail_and_await_reply(dds_data_reader::matched_writer_add::new(proxy))
+                    .await
+                    .unwrap();
+            }
+        }
+    }
+
+    async fn process_sedp_publications_discovery(
+        &mut self,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        if let Some(sedp_publications_detector) = self
+            .builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+                DCPS_PUBLICATION.to_string(),
+            ))
+            .await
+        {
+            if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
+                .send_mail_and_await_reply(dds_data_reader::read::new(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                ))
+                .await
+                .expect("Can not fail to send mail to builtin reader")
+            {
+                for (discovered_writer_data, discovered_writer_sample_info) in
+                    discovered_writer_sample_list.drain(..)
+                {
+                    match discovered_writer_sample_info.instance_state {
+                        InstanceStateKind::Alive => {
+                            match dds_deserialize_from_bytes::<DiscoveredWriterData>(
+                                discovered_writer_data
+                                    .expect("Should contain data")
+                                    .as_ref(),
+                            ) {
+                                Ok(discovered_writer_data) => {
+                                    self.add_matched_writer(
+                                        discovered_writer_data,
+                                        participant_address.clone(),
+                                    )
+                                    .await;
+                                }
+                                Err(e) => warn!(
+                                    "Received invalid DiscoveredWriterData sample. Error {:?}",
+                                    e
+                                ),
+                            }
+                        }
+                        InstanceStateKind::NotAliveDisposed => {
+                            self.remove_matched_writer(
+                                discovered_writer_sample_info.instance_handle,
+                                participant_address.clone(),
+                            )
+                            .await
+                        }
+                        InstanceStateKind::NotAliveNoWriters => {
+                            todo!()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async fn add_matched_writer(
+        &self,
+        discovered_writer_data: DiscoveredWriterData,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
+            Guid::new(
+                discovered_writer_data
+                    .writer_proxy()
+                    .remote_writer_guid()
+                    .prefix(),
+                ENTITYID_PARTICIPANT,
+            )
+            .into(),
+        ));
+        let is_publication_ignored = self.ignored_publications.contains(&InstanceHandle::new(
+            discovered_writer_data.dds_publication_data().key().value,
+        ));
+        if !is_publication_ignored && !is_participant_ignored {
+            if let Some(discovered_participant_data) =
+                self.discovered_participant_list.get(&InstanceHandle::new(
+                    Guid::new(
+                        discovered_writer_data
+                            .writer_proxy()
+                            .remote_writer_guid()
+                            .prefix(),
+                        ENTITYID_PARTICIPANT,
+                    )
+                    .into(),
+                ))
+            {
+                let default_unicast_locator_list = discovered_participant_data
+                    .participant_proxy()
+                    .default_unicast_locator_list()
+                    .to_vec();
+                let default_multicast_locator_list = discovered_participant_data
+                    .participant_proxy()
+                    .default_multicast_locator_list()
+                    .to_vec();
+                for subscriber in self.user_defined_subscriber_list.values() {
+                    let subscriber_address = subscriber.address();
+                    let participant_mask_listener = (
+                        self.listener.as_ref().map(|l| l.address()),
+                        self.status_kind.clone(),
+                    );
+                    subscriber
+                        .send_mail_and_await_reply(dds_subscriber::add_matched_writer::new(
+                            discovered_writer_data.clone(),
+                            default_unicast_locator_list.clone(),
+                            default_multicast_locator_list.clone(),
+                            subscriber_address,
+                            participant_address.clone(),
+                            participant_mask_listener,
+                        ))
+                        .await;
+                }
+            }
+        }
+    }
+
+    async fn remove_matched_writer(
+        &self,
+        discovered_writer_handle: InstanceHandle,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        for subscriber in self.user_defined_subscriber_list.values() {
+            let subscriber_address = subscriber.address();
+            let participant_mask_listener = (
+                self.listener.as_ref().map(|l| l.address()),
+                self.status_kind.clone(),
+            );
+            subscriber
+                .send_mail_and_await_reply(dds_subscriber::remove_matched_writer::new(
+                    discovered_writer_handle,
+                    subscriber_address,
+                    participant_address.clone(),
+                    participant_mask_listener,
+                ))
+                .await;
+        }
+    }
+
+    async fn process_sedp_subscriptions_discovery(
+        &mut self,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        if let Some(sedp_subscriptions_detector) = self
+            .builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+                DCPS_SUBSCRIPTION.to_string(),
+            ))
+            .await
+        {
+            if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
+                .send_mail_and_await_reply(dds_data_reader::read::new(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                ))
+                .await
+                .expect("Can not fail to send mail to builtin reader")
+            {
+                for (discovered_reader_data, discovered_reader_sample_info) in
+                    discovered_reader_sample_list.drain(..)
+                {
+                    match discovered_reader_sample_info.instance_state {
+                        InstanceStateKind::Alive => {
+                            match dds_deserialize_from_bytes::<DiscoveredReaderData>(
+                                discovered_reader_data
+                                    .expect("Should contain data")
+                                    .as_ref(),
+                            ) {
+                                Ok(discovered_reader_data) => {
+                                    self.add_matched_reader(
+                                        discovered_reader_data,
+                                        participant_address.clone(),
+                                    )
+                                    .await;
+                                }
+                                Err(e) => warn!(
+                                    "Received invalid DiscoveredReaderData sample. Error {:?}",
+                                    e
+                                ),
+                            }
+                        }
+                        InstanceStateKind::NotAliveDisposed => {
+                            self.remove_matched_reader(
+                                discovered_reader_sample_info.instance_handle,
+                                participant_address.clone(),
+                            )
+                            .await
+                        }
+                        InstanceStateKind::NotAliveNoWriters => {
+                            todo!()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async fn add_matched_reader(
+        &self,
+        discovered_reader_data: DiscoveredReaderData,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
+            Guid::new(
+                discovered_reader_data
+                    .reader_proxy()
+                    .remote_reader_guid()
+                    .prefix(),
+                ENTITYID_PARTICIPANT,
+            )
+            .into(),
+        ));
+        let is_subscription_ignored = self.ignored_subcriptions.contains(&InstanceHandle::new(
+            discovered_reader_data
+                .subscription_builtin_topic_data()
+                .key()
+                .value,
+        ));
+        if !is_subscription_ignored && !is_participant_ignored {
+            if let Some(discovered_participant_data) =
+                self.discovered_participant_list.get(&InstanceHandle::new(
+                    Guid::new(
+                        discovered_reader_data
+                            .reader_proxy()
+                            .remote_reader_guid()
+                            .prefix(),
+                        ENTITYID_PARTICIPANT,
+                    )
+                    .into(),
+                ))
+            {
+                let default_unicast_locator_list = discovered_participant_data
+                    .participant_proxy()
+                    .default_unicast_locator_list()
+                    .to_vec();
+                let default_multicast_locator_list = discovered_participant_data
+                    .participant_proxy()
+                    .default_multicast_locator_list()
+                    .to_vec();
+
+                for publisher in self.user_defined_publisher_list.values() {
+                    let publisher_address = publisher.address();
+
+                    let participant_publication_matched_listener =
+                        if self.status_kind.contains(&StatusKind::PublicationMatched) {
+                            self.listener.as_ref().map(|l| l.address())
+                        } else {
+                            None
+                        };
+                    let offered_incompatible_qos_participant_listener = if self
+                        .status_kind
+                        .contains(&StatusKind::OfferedIncompatibleQos)
+                    {
+                        self.listener.as_ref().map(|l| l.address())
+                    } else {
+                        None
+                    };
+                    publisher
+                        .send_mail_and_await_reply(dds_publisher::add_matched_reader::new(
+                            discovered_reader_data.clone(),
+                            default_unicast_locator_list.clone(),
+                            default_multicast_locator_list.clone(),
+                            publisher_address,
+                            participant_address.clone(),
+                            participant_publication_matched_listener,
+                            offered_incompatible_qos_participant_listener,
+                        ))
+                        .await;
+                }
+            }
+        }
+    }
+
+    async fn remove_matched_reader(
+        &self,
+        discovered_reader_handle: InstanceHandle,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+    ) {
+        for publisher in self.user_defined_publisher_list.values() {
+            let publisher_address = publisher.address();
+            let participant_publication_matched_listener =
+                if self.status_kind.contains(&StatusKind::PublicationMatched) {
+                    self.listener.as_ref().map(|l| l.address())
+                } else {
+                    None
+                };
+            publisher
+                .send_mail_and_await_reply(dds_publisher::remove_matched_reader::new(
+                    discovered_reader_handle,
+                    publisher_address,
+                    participant_address.clone(),
+                    participant_publication_matched_listener,
+                ))
+                .await;
+        }
+    }
+
+    async fn process_sedp_topics_discovery(&mut self) {
+        if let Some(sedp_topics_detector) = self
+            .builtin_subscriber
+            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+                DCPS_TOPIC.to_string(),
+            ))
+            .await
+        {
+            if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
+                .send_mail_and_await_reply(dds_data_reader::read::new(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                ))
+                .await
+                .expect("Can not fail to send mail to builtin reader")
+            {
+                for (discovered_topic_data, discovered_topic_sample_info) in
+                    discovered_topic_sample_list.drain(..)
+                {
+                    match discovered_topic_sample_info.instance_state {
+                        InstanceStateKind::Alive => {
+                            match dds_deserialize_from_bytes::<DiscoveredTopicData>(
+                                discovered_topic_data.expect("Should contain data").as_ref(),
+                            ) {
+                                Ok(discovered_topic_data) => {
+                                    self.add_matched_topic(discovered_topic_data).await;
+                                }
+                                Err(e) => warn!(
+                                    "Received invalid DiscoveredTopicData sample. Error {:?}",
+                                    e
+                                ),
+                            }
+                        }
+                        InstanceStateKind::NotAliveDisposed => todo!(),
+                        InstanceStateKind::NotAliveNoWriters => todo!(),
+                    }
+                }
+            }
+        }
+    }
+
+    async fn add_matched_topic(&mut self, discovered_topic_data: DiscoveredTopicData) {
+        let handle =
+            InstanceHandle::new(discovered_topic_data.topic_builtin_topic_data().key().value);
+        let is_topic_ignored = self.ignored_topic_list.contains(&handle);
+        if !is_topic_ignored {
+            for topic in self.topic_list.values() {
+                topic
+                    .send_mail_and_await_reply(dds_topic::process_discovered_topic::new(
+                        discovered_topic_data.clone(),
+                    ))
+                    .await;
+            }
+            self.discovered_topic_list.insert(
+                handle,
+                discovered_topic_data.topic_builtin_topic_data().clone(),
+            );
         }
     }
 }

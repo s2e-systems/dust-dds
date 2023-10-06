@@ -9,7 +9,6 @@ use crate::{
             dds_publisher, dds_subscriber, dds_topic,
             nodes::{DomainParticipantNode, PublisherNode, SubscriberNode, TopicNode},
         },
-        rtps::messages::overall_structure::RtpsMessageHeader,
         utils::actor::THE_RUNTIME,
     },
     infrastructure::{
@@ -1070,34 +1069,8 @@ impl DomainParticipant {
                                     )
                                     .await??;
 
-                                data_writer
-                                    .send_mail(dds_data_writer::send_message::new(
-                                        RtpsMessageHeader::new(
-                                            domain_participant_address
-                                                .send_mail_and_await_reply(
-                                                    dds_domain_participant::get_protocol_version::new(),
-                                                )
-                                                .await?,
-                                            domain_participant_address
-                                                .send_mail_and_await_reply(
-                                                    dds_domain_participant::get_vendor_id::new(),
-                                                )
-                                                .await?,
-                                            domain_participant_address
-                                                .send_mail_and_await_reply(
-                                                    dds_domain_participant::get_guid::new(),
-                                                )
-                                                .await?
-                                                .prefix(),
-                                        ),
-                                        domain_participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_upd_transport_write::new(),
-                                            )
-                                            .await?,
-                                        timestamp,
-                                    ))
-                                    .await?;
+
+                                domain_participant_address.send_mail(dds_domain_participant::send_message::new()).await?;
                             }
                         }
 
@@ -1120,14 +1093,20 @@ impl DomainParticipant {
                 loop {
                     let r: DdsResult<()> = async {
                         let now = domain_participant_address
-                            .send_mail_and_await_reply(dds_domain_participant::get_current_time::new())
+                            .send_mail_and_await_reply(
+                                dds_domain_participant::get_current_time::new(),
+                            )
                             .await?;
                         let participant_mask_listener = (
                             domain_participant_address
-                                .send_mail_and_await_reply(dds_domain_participant::get_listener::new())
+                                .send_mail_and_await_reply(
+                                    dds_domain_participant::get_listener::new(),
+                                )
                                 .await?,
                             domain_participant_address
-                                .send_mail_and_await_reply(dds_domain_participant::get_status_kind::new())
+                                .send_mail_and_await_reply(
+                                    dds_domain_participant::get_status_kind::new(),
+                                )
                                 .await?,
                         );
                         for subscriber in domain_participant_address
@@ -1163,50 +1142,9 @@ impl DomainParticipant {
                             }
                         }
 
-                        for user_defined_publisher in domain_participant_address
-                            .send_mail_and_await_reply(
-                                dds_domain_participant::get_user_defined_publisher_list::new(),
-                            )
-                            .await?
-                        {
-                            for data_writer in user_defined_publisher
-                                .send_mail_and_await_reply(dds_publisher::data_writer_list::new())
-                                .await?
-                            {
-                                data_writer
-                                    .send_mail(dds_data_writer::send_message::new(
-                                        RtpsMessageHeader::new(
-                                            domain_participant_address
-                                                .send_mail_and_await_reply(
-                                                    dds_domain_participant::get_protocol_version::new(),
-                                                )
-                                                .await?,
-                                            domain_participant_address
-                                                .send_mail_and_await_reply(
-                                                    dds_domain_participant::get_vendor_id::new(),
-                                                )
-                                                .await?,
-                                            domain_participant_address
-                                                .send_mail_and_await_reply(
-                                                    dds_domain_participant::get_guid::new(),
-                                                )
-                                                .await?
-                                                .prefix(),
-                                        ),
-                                        domain_participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_upd_transport_write::new(),
-                                            )
-                                            .await?,
-                                        domain_participant_address
-                                            .send_mail_and_await_reply(
-                                                dds_domain_participant::get_current_time::new(),
-                                            )
-                                            .await?,
-                                    ))
-                                    .await?;
-                            }
-                        }
+                        domain_participant_address
+                            .send_mail(dds_domain_participant::send_message::new())
+                            .await?;
 
                         Ok(())
                     }

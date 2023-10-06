@@ -2,16 +2,9 @@ use std::{marker::PhantomData, time::Instant};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
-        dds::{
-            dds_data_writer,
-            dds_domain_participant::{self, DdsDomainParticipant},
-            dds_publisher,
-            nodes::{DataWriterNode, PublisherNode},
-        },
-        rtps::messages::overall_structure::RtpsMessageHeader,
-        utils::actor::ActorAddress,
+    implementation::dds::{
+        dds_data_writer, dds_domain_participant, dds_publisher,
+        nodes::{DataWriterNode, PublisherNode},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -303,39 +296,8 @@ where
             ))??;
 
         self.0
-            .writer_address()
-            .send_mail_blocking(
-                dds_data_writer::send_message::new(
-                    RtpsMessageHeader::new(
-                        self.0
-                            .participant_address()
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_protocol_version::new(),
-                            )?,
-                        self.0
-                            .participant_address()
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_vendor_id::new(),
-                            )?,
-                        self.0
-                            .participant_address()
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_guid::new(),
-                            )?
-                            .prefix(),
-                    ),
-                    self.0
-                        .participant_address()
-                        .send_mail_and_await_reply_blocking(
-                            dds_domain_participant::get_upd_transport_write::new(),
-                        )?,
-                    self.0
-                        .participant_address()
-                        .send_mail_and_await_reply_blocking(
-                            dds_domain_participant::get_current_time::new(),
-                        )?,
-                ),
-            )?;
+            .participant_address()
+            .send_mail_blocking(dds_domain_participant::send_message::new())?;
 
         Ok(())
     }
@@ -460,7 +422,7 @@ impl<Foo> DataWriter<Foo> {
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         self.0.writer_address().send_mail_and_await_reply_blocking(
             dds_data_writer::get_publication_matched_status::new(),
-        )?
+        )
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
@@ -564,9 +526,8 @@ where
             .writer_address()
             .send_mail_and_await_reply_blocking(dds_data_writer::is_enabled::new())?
         {
-            announce_data_writer(
-                self.0.participant_address(),
-                &self.0.writer_address().send_mail_and_await_reply_blocking(
+            let discovered_writer_data =
+                self.0.writer_address().send_mail_and_await_reply_blocking(
                     dds_data_writer::as_discovered_writer_data::new(
                         TopicQos::default(),
                         self.0
@@ -583,7 +544,11 @@ where
                                 dds_domain_participant::get_default_multicast_locator_list::new(),
                             )?,
                     ),
-                )?,
+                )?;
+            self.0.participant_address().send_mail_blocking(
+                dds_domain_participant::announce_created_or_modified_data_writer::new(
+                    discovered_writer_data,
+                ),
             )?;
         }
 
@@ -665,10 +630,8 @@ where
             self.0
                 .writer_address()
                 .send_mail_and_await_reply_blocking(dds_data_writer::enable::new())?;
-
-            announce_data_writer(
-                self.0.participant_address(),
-                &self.0.writer_address().send_mail_and_await_reply_blocking(
+            let discovered_writer_data =
+                self.0.writer_address().send_mail_and_await_reply_blocking(
                     dds_data_writer::as_discovered_writer_data::new(
                         TopicQos::default(),
                         self.0
@@ -685,7 +648,11 @@ where
                                 dds_domain_participant::get_default_multicast_locator_list::new(),
                             )?,
                     ),
-                )?,
+                )?;
+            self.0.participant_address().send_mail_blocking(
+                dds_domain_participant::announce_created_or_modified_data_writer::new(
+                    discovered_writer_data,
+                ),
             )?;
         }
         Ok(())
@@ -701,57 +668,3 @@ where
 }
 
 pub trait AnyDataWriter {}
-
-fn announce_data_writer(
-    domain_participant: &ActorAddress<DdsDomainParticipant>,
-    discovered_writer_data: &DiscoveredWriterData,
-) -> DdsResult<()> {
-    let serialized_data = dds_serialize_to_bytes(discovered_writer_data)?;
-    let timestamp = domain_participant
-        .send_mail_and_await_reply_blocking(dds_domain_participant::get_current_time::new())?;
-
-    let builtin_publisher = domain_participant
-        .send_mail_and_await_reply_blocking(dds_domain_participant::get_builtin_publisher::new())?;
-    let data_writer_list = builtin_publisher
-        .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
-
-    for dw in data_writer_list {
-        if dw.send_mail_and_await_reply_blocking(dds_data_writer::get_type_name::new())
-            == Ok("DiscoveredWriterData".to_string())
-        {
-            dw.send_mail_and_await_reply_blocking(dds_data_writer::write_w_timestamp::new(
-                serialized_data,
-                dds_serialize_key(discovered_writer_data)?,
-                None,
-                timestamp,
-            ))??;
-
-            dw.send_mail_blocking(
-                dds_data_writer::send_message::new(
-                    RtpsMessageHeader::new(
-                        domain_participant.send_mail_and_await_reply_blocking(
-                            dds_domain_participant::get_protocol_version::new(),
-                        )?,
-                        domain_participant.send_mail_and_await_reply_blocking(
-                            dds_domain_participant::get_vendor_id::new(),
-                        )?,
-                        domain_participant
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_guid::new(),
-                            )?
-                            .prefix(),
-                    ),
-                    domain_participant.send_mail_and_await_reply_blocking(
-                        dds_domain_participant::get_upd_transport_write::new(),
-                    )?,
-                    domain_participant.send_mail_and_await_reply_blocking(
-                        dds_domain_participant::get_current_time::new(),
-                    )?,
-                ),
-            )?;
-            break;
-        }
-    }
-
-    Ok(())
-}
