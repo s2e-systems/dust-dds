@@ -1,4 +1,5 @@
 use super::{
+    any_data_writer_listener::AnyDataWriterListener,
     dds_data_writer_listener::{self, DdsDataWriterListener},
     dds_domain_participant::DdsDomainParticipant,
     dds_domain_participant_listener::{self, DdsDomainParticipantListener},
@@ -354,6 +355,15 @@ impl DdsDataWriter {
 
     async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
         self.status_condition.address().clone()
+    }
+
+    async fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn AnyDataWriterListener + Send + 'static>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener.map(|l| spawn_actor(DdsDataWriterListener::new(l)));
+        self.status_kind = status_kind;
     }
 
     async fn guid(&self) -> Guid {

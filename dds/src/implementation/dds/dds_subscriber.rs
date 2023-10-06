@@ -28,6 +28,7 @@ use crate::{
         status::StatusKind,
         time::Time,
     },
+    subscription::subscriber_listener::SubscriberListener,
 };
 
 pub struct DdsSubscriber {
@@ -153,6 +154,15 @@ impl DdsSubscriber {
 
     async fn get_listener(&self) -> Option<ActorAddress<DdsSubscriberListener>> {
         self.listener.as_ref().map(|l| l.address().clone())
+    }
+
+    async fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn SubscriberListener + Send + 'static>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener.map(|l| spawn_actor(DdsSubscriberListener::new(l)));
+        self.status_kind = status_kind;
     }
 
     async fn get_status_kind(&self) -> Vec<StatusKind> {
