@@ -26,13 +26,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "HelloWorld",
-            "HelloWorldType",
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .find_topic("HelloWorld", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant
