@@ -128,7 +128,7 @@ impl DdsPublisher {
             qos,
         );
         let data_writer_actor = spawn_actor(data_writer);
-        let data_writer_address = data_writer_actor.address().clone();
+        let data_writer_address = data_writer_actor.address();
         self.data_writer_list.insert(guid.into(), data_writer_actor);
 
         Ok(data_writer_address)
@@ -217,7 +217,7 @@ impl DdsPublisher {
     }
 
     async fn get_listener(&self) -> Option<ActorAddress<DdsPublisherListener>> {
-        self.listener.as_ref().map(|l| l.address().clone())
+        self.listener.as_ref().map(|l| l.address())
     }
 
     async fn get_qos(&self) -> PublisherQos {
@@ -227,7 +227,7 @@ impl DdsPublisher {
     async fn data_writer_list(&self) -> Vec<ActorAddress<DdsDataWriter>> {
         self.data_writer_list
             .values()
-            .map(|x| x.address().clone())
+            .map(|x| x.address())
             .collect()
     }
 

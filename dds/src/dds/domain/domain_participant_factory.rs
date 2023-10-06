@@ -187,7 +187,7 @@ impl DomainParticipantFactory {
         );
 
         let participant_actor = spawn_actor(domain_participant);
-        let participant_address = participant_actor.address().clone();
+        let participant_address = participant_actor.address();
         self.0.address().send_mail_and_await_reply_blocking(
             dds_domain_participant_factory::add_participant::new(
                 participant_guid.into(),

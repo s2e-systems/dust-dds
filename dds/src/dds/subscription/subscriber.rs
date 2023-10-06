@@ -174,7 +174,7 @@ impl Subscriber {
         );
 
         let reader_actor = spawn_actor(data_reader);
-        let reader_address = reader_actor.address().clone();
+        let reader_address = reader_actor.address();
         self.0
             .subscriber_address()
             .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(

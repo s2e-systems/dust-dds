@@ -494,7 +494,7 @@ impl DdsDomainParticipant {
         let publisher = DdsPublisher::new(publisher_qos, rtps_group, listener, status_kind);
 
         let publisher_actor = spawn_actor(publisher);
-        let publisher_address = publisher_actor.address().clone();
+        let publisher_address = publisher_actor.address();
         self.user_defined_publisher_list
             .insert(guid.into(), publisher_actor);
 
@@ -521,7 +521,7 @@ impl DdsDomainParticipant {
         let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, listener, status_kind);
 
         let subscriber_actor = spawn_actor(subscriber);
-        let subscriber_address = subscriber_actor.address().clone();
+        let subscriber_address = subscriber_actor.address();
 
         self.user_defined_subscriber_list
             .insert(guid.into(), subscriber_actor);
@@ -548,7 +548,7 @@ impl DdsDomainParticipant {
         let topic = DdsTopic::new(guid, qos, type_name, &topic_name);
 
         let topic_actor: crate::implementation::utils::actor::Actor<DdsTopic> = spawn_actor(topic);
-        let topic_address = topic_actor.address().clone();
+        let topic_address = topic_actor.address();
         self.topic_list.insert(guid.into(), topic_actor);
 
         topic_address
@@ -742,7 +742,7 @@ impl DdsDomainParticipant {
     async fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
         self.topic_list
             .values()
-            .map(|a| a.address().clone())
+            .map(|a| a.address())
             .collect()
     }
 
@@ -774,11 +774,11 @@ impl DdsDomainParticipant {
     }
 
     async fn get_built_in_subscriber(&self) -> ActorAddress<DdsSubscriber> {
-        self.builtin_subscriber.address().clone()
+        self.builtin_subscriber.address()
     }
 
     async fn get_upd_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
-        self.udp_transport_write.address().clone()
+        self.udp_transport_write.address()
     }
 
     async fn get_guid(&self) -> Guid {
@@ -788,14 +788,14 @@ impl DdsDomainParticipant {
     async fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<DdsPublisher>> {
         self.user_defined_publisher_list
             .values()
-            .map(|a| a.address().clone())
+            .map(|a| a.address())
             .collect()
     }
 
     async fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
         self.user_defined_subscriber_list
             .values()
-            .map(|a| a.address().clone())
+            .map(|a| a.address())
             .collect()
     }
 
@@ -835,7 +835,7 @@ impl DdsDomainParticipant {
     }
 
     async fn get_listener(&self) -> Option<ActorAddress<DdsDomainParticipantListener>> {
-        self.listener.as_ref().map(|l| l.address().clone())
+        self.listener.as_ref().map(|l| l.address())
     }
 
     async fn get_status_kind(&self) -> Vec<StatusKind> {
@@ -851,7 +851,7 @@ impl DdsDomainParticipant {
     }
 
     async fn get_builtin_publisher(&self) -> ActorAddress<DdsPublisher> {
-        self.builtin_publisher.address().clone()
+        self.builtin_publisher.address()
     }
 
     async fn send_message(&self) {

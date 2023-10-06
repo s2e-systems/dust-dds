@@ -153,7 +153,7 @@ impl DdsSubscriber {
     }
 
     async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
-        self.status_condition.address().clone()
+        self.status_condition.address()
     }
 
     async fn get_qos(&self) -> SubscriberQos {
@@ -163,12 +163,12 @@ impl DdsSubscriber {
     async fn data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader>> {
         self.data_reader_list
             .values()
-            .map(|dr| dr.address().clone())
+            .map(|dr| dr.address())
             .collect()
     }
 
     async fn get_listener(&self) -> Option<ActorAddress<DdsSubscriberListener>> {
-        self.listener.as_ref().map(|l| l.address().clone())
+        self.listener.as_ref().map(|l| l.address())
     }
 
     async fn get_status_kind(&self) -> Vec<StatusKind> {

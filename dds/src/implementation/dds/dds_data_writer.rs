@@ -327,7 +327,7 @@ impl DdsDataWriter {
     }
 
     async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
-        self.status_condition.address().clone()
+        self.status_condition.address()
     }
 
     async fn guid(&self) -> Guid {
