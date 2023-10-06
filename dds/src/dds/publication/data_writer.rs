@@ -34,7 +34,7 @@ pub struct DataWriter<Foo>(DataWriterNode, PhantomData<Foo>);
 
 impl<Foo> Clone for DataWriter<Foo> {
     fn clone(&self) -> Self {
-        Self(self.0.clone(), self.1.clone())
+        Self(self.0.clone(), self.1)
     }
 }
 
