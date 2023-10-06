@@ -12,7 +12,7 @@ use super::{
 
 pub struct RtpsWriter {
     endpoint: RtpsEndpoint,
-    push_mode: bool,
+    _push_mode: bool,
     heartbeat_period: Duration,
     _nack_response_delay: Duration,
     _nack_suppression_duration: Duration,
@@ -31,7 +31,7 @@ impl RtpsWriter {
     ) -> Self {
         Self {
             endpoint,
-            push_mode,
+            _push_mode: push_mode,
             heartbeat_period,
             _nack_response_delay: nack_response_delay,
             _nack_suppression_duration: nack_suppression_duration,
@@ -52,8 +52,8 @@ impl RtpsWriter {
         self.endpoint.multicast_locator_list()
     }
 
-    pub fn push_mode(&self) -> bool {
-        self.push_mode
+    pub fn _push_mode(&self) -> bool {
+        self._push_mode
     }
 
     pub fn heartbeat_period(&self) -> Duration {

@@ -33,7 +33,7 @@ impl<'a> HeartbeatSubmessageRead<'a> {
         self.submessage_header().flags()[2]
     }
 
-    pub fn reader_id(&self) -> EntityId {
+    pub fn _reader_id(&self) -> EntityId {
         self.map(&self.data[4..])
     }
 
@@ -160,7 +160,7 @@ mod tests {
         ]);
         assert_eq!(expected_final_flag, submessage.final_flag());
         assert_eq!(expected_liveliness_flag, submessage.liveliness_flag());
-        assert_eq!(expected_reader_id, submessage.reader_id());
+        assert_eq!(expected_reader_id, submessage._reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());
         assert_eq!(expected_first_sn, submessage.first_sn());
         assert_eq!(expected_last_sn, submessage.last_sn());

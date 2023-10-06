@@ -398,10 +398,10 @@ impl ProtocolVersion {
     pub const fn new(major: Octet, minor: Octet) -> Self {
         Self { major, minor }
     }
-    pub const fn major(&self) -> Octet {
+    pub const fn _major(&self) -> Octet {
         self.major
     }
-    pub const fn minor(&self) -> Octet {
+    pub const fn _minor(&self) -> Octet {
         self.minor
     }
 }

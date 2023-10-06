@@ -7,7 +7,7 @@ use crate::{
             dds_publisher, dds_subscriber,
             nodes::{DataReaderNode, TopicNode},
         },
-        rtps::messages::{overall_structure::RtpsMessageHeader, submessage_elements::Data},
+        rtps::messages::submessage_elements::Data,
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -470,7 +470,7 @@ impl<Foo> DataReader<Foo> {
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
         self.0.reader_address().send_mail_and_await_reply_blocking(
             dds_data_reader::get_subscription_matched_status::new(),
-        )?
+        )
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
@@ -753,29 +753,7 @@ fn announce_data_reader(
                 timestamp,
             ))??;
 
-            dw.send_mail_blocking(
-                dds_data_writer::send_message::new(
-                    RtpsMessageHeader::new(
-                        domain_participant.send_mail_and_await_reply_blocking(
-                            dds_domain_participant::get_protocol_version::new(),
-                        )?,
-                        domain_participant.send_mail_and_await_reply_blocking(
-                            dds_domain_participant::get_vendor_id::new(),
-                        )?,
-                        domain_participant
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_guid::new(),
-                            )?
-                            .prefix(),
-                    ),
-                    domain_participant.send_mail_and_await_reply_blocking(
-                        dds_domain_participant::get_upd_transport_write::new(),
-                    )?,
-                    domain_participant.send_mail_and_await_reply_blocking(
-                        dds_domain_participant::get_current_time::new(),
-                    )?,
-                ),
-            )?;
+            domain_participant.send_mail_blocking(dds_domain_participant::send_message::new())?;
             break;
         }
     }

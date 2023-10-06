@@ -9,7 +9,6 @@ use crate::{
         },
         rtps::{
             endpoint::RtpsEndpoint,
-            messages::overall_structure::RtpsMessageHeader,
             reader::RtpsReader,
             types::{
                 EntityId, Guid, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
@@ -175,7 +174,7 @@ impl Subscriber {
         );
 
         let reader_actor = spawn_actor(data_reader);
-        let reader_address = reader_actor.address().clone();
+        let reader_address = reader_actor.address();
         self.0
             .subscriber_address()
             .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
@@ -272,41 +271,9 @@ impl Subscriber {
                         ),
                     )??;
 
-                    dw.send_mail_blocking(dds_data_writer::send_message::new(
-                        RtpsMessageHeader::new(
-                            a_datareader
-                                .node()
-                                .participant_address()
-                                .send_mail_and_await_reply_blocking(
-                                    dds_domain_participant::get_protocol_version::new(),
-                                )?,
-                            a_datareader
-                                .node()
-                                .participant_address()
-                                .send_mail_and_await_reply_blocking(
-                                    dds_domain_participant::get_vendor_id::new(),
-                                )?,
-                            a_datareader
-                                .node()
-                                .participant_address()
-                                .send_mail_and_await_reply_blocking(
-                                    dds_domain_participant::get_guid::new(),
-                                )?
-                                .prefix(),
-                        ),
-                        a_datareader
-                            .node()
-                            .participant_address()
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_upd_transport_write::new(),
-                            )?,
-                        a_datareader
-                            .node()
-                            .participant_address()
-                            .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_current_time::new(),
-                            )?,
-                    ))?;
+                    self.0
+                        .participant_address()
+                        .send_mail_blocking(dds_domain_participant::send_message::new())?;
                     break;
                 }
             }
@@ -320,11 +287,20 @@ impl Subscriber {
     /// specified which one.
     /// The use of this operation on the built-in [`Subscriber`] allows access to the built-in [`DataReader`] entities for the built-in topics.
     #[tracing::instrument(skip(self))]
-    pub fn lookup_datareader<Foo>(&self, _topic_name: &str) -> DdsResult<Option<DataReader<Foo>>>
-    where
-        Foo: DdsHasKey + for<'de> serde::Deserialize<'de>,
-    {
-        todo!()
+    pub fn lookup_datareader<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataReader<Foo>>> {
+        Ok(self
+            .0
+            .subscriber_address()
+            .send_mail_and_await_reply_blocking(dds_subscriber::lookup_datareader::new(
+                topic_name.to_string(),
+            ))?
+            .map(|reader_address| {
+                DataReader::new(DataReaderNode::new(
+                    reader_address,
+                    self.0.subscriber_address().clone(),
+                    self.0.participant_address().clone(),
+                ))
+            }))
     }
 
     /// This operation invokes the operation [`DataReaderListener::on_data_available`] on the listener objects attached to contained [`DataReader`]

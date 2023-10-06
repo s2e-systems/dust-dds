@@ -55,7 +55,7 @@ impl DataFragSubmessageRead {
         }
     }
 
-    pub fn endianness_flag(&self) -> bool {
+    pub fn _endianness_flag(&self) -> bool {
         (self.data[1] & 0b_0000_0001) != 0
     }
 
@@ -67,7 +67,7 @@ impl DataFragSubmessageRead {
         (self.data[1] & 0b_0000_0100) != 0
     }
 
-    pub fn non_standard_payload_flag(&self) -> bool {
+    pub fn _non_standard_payload_flag(&self) -> bool {
         (self.data[1] & 0b_0000_1000) != 0
     }
 
@@ -314,7 +314,7 @@ mod tests {
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());
         assert_eq!(
             expected_non_standard_payload_flag,
-            submessage.non_standard_payload_flag()
+            submessage._non_standard_payload_flag()
         );
         assert_eq!(expected_key_flag, submessage.key_flag());
         assert_eq!(expected_reader_id, submessage.reader_id());
@@ -369,7 +369,7 @@ mod tests {
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());
         assert_eq!(
             expected_non_standard_payload_flag,
-            submessage.non_standard_payload_flag()
+            submessage._non_standard_payload_flag()
         );
         assert_eq!(expected_key_flag, submessage.key_flag());
         assert_eq!(expected_reader_id, submessage.reader_id());

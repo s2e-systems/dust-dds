@@ -64,10 +64,7 @@ use crate::{
         },
         time::DurationKind,
     },
-    topic_definition::type_support::{
-        dds_serialize_key, dds_set_key_fields_from_serialized_key, DdsSerializedKey,
-        DdsSetKeyFields,
-    },
+    topic_definition::type_support::{dds_serialize_key, DdsSerializedKey},
     {
         builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
@@ -256,29 +253,6 @@ impl DdsDataWriter {
         }
     }
 
-    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
-    where
-        Foo: DdsSetKeyFields,
-    {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let serialized_key = self
-            .registered_instance_list
-            .get(&handle)
-            .ok_or(DdsError::BadParameter)?;
-        dds_set_key_fields_from_serialized_key(key_holder, serialized_key.as_ref())
-    }
-
-    pub fn reader_locator_list(&mut self) -> &[RtpsReaderLocator] {
-        &self.reader_locators
-    }
-
-    pub fn matched_reader_list(&mut self) -> &[RtpsReaderProxy] {
-        &self.matched_readers
-    }
-
     fn add_change(&mut self, change: RtpsWriterCacheChange) {
         self.writer_cache.add_change(change, &self.qos.history)
     }
@@ -353,7 +327,7 @@ impl DdsDataWriter {
     }
 
     async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
-        self.status_condition.address().clone()
+        self.status_condition.address()
     }
 
     async fn guid(&self) -> Guid {
@@ -557,14 +531,13 @@ impl DdsDataWriter {
         )
     }
 
-    async fn get_publication_matched_status(&mut self) -> DdsResult<PublicationMatchedStatus> {
+    async fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         self.status_condition
-            .address()
             .send_mail_and_await_reply(dds_status_condition::remove_communication_state::new(
                 StatusKind::PublicationMatched,
             ))
-            .await?;
-        Ok(self.matched_subscriptions.get_publication_matched_status())
+            .await;
+        self.matched_subscriptions.get_publication_matched_status()
     }
 
     async fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
@@ -627,7 +600,7 @@ impl DdsDataWriter {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DdsDomainParticipantListener>,
         >,
-    ) -> DdsResult<()> {
+    ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
             .topic_name()
@@ -739,7 +712,7 @@ impl DdsDataWriter {
                         publisher_publication_matched_listener,
                         participant_publication_matched_listener,
                     )
-                    .await?;
+                    .await;
                 }
             } else {
                 self.incompatible_subscriptions
@@ -751,10 +724,9 @@ impl DdsDataWriter {
                     offered_incompatible_qos_publisher_listener,
                     offered_incompatible_qos_participant_listener,
                 )
-                .await?;
+                .await;
             }
         }
-        Ok(())
     }
 
     async fn remove_matched_reader(
@@ -767,7 +739,7 @@ impl DdsDataWriter {
         participant_publication_matched_listener: Option<
             ActorAddress<DdsDomainParticipantListener>,
         >,
-    ) -> DdsResult<()> {
+    ) {
         if let Some(r) = self
             .get_matched_subscription_data(discovered_reader_handle)
             .await
@@ -783,9 +755,8 @@ impl DdsDataWriter {
                 publisher_publication_matched_listener,
                 participant_publication_matched_listener,
             )
-            .await?;
+            .await;
         }
-        Ok(())
     }
 
     async fn process_rtps_message(&mut self, message: RtpsMessageRead) {
@@ -1018,38 +989,39 @@ impl DdsDataWriter {
         participant_publication_matched_listener: Option<
             ActorAddress<DdsDomainParticipantListener>,
         >,
-    ) -> DdsResult<()> {
+    ) {
         self.status_condition
-            .address()
             .send_mail_and_await_reply(dds_status_condition::add_communication_state::new(
                 StatusKind::PublicationMatched,
             ))
-            .await?;
+            .await;
         if self.listener.is_some() && self.status_kind.contains(&StatusKind::PublicationMatched) {
-            let listener_address = self.listener.as_ref().unwrap().address().clone();
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
-            let status = self.get_publication_matched_status().await?;
-            listener_address
+            let status = self.get_publication_matched_status().await;
+            self.listener
+                .as_ref()
+                .unwrap()
                 .send_mail(
                     dds_data_writer_listener::trigger_on_publication_matched::new(writer, status),
                 )
-                .await?
+                .await;
         } else if let Some(publisher_publication_matched_listener) =
             publisher_publication_matched_listener
         {
-            let status = self.get_publication_matched_status().await?;
+            let status = self.get_publication_matched_status().await;
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             publisher_publication_matched_listener
                 .send_mail(dds_publisher_listener::trigger_on_publication_matched::new(
                     writer, status,
                 ))
-                .await?;
+                .await
+                .expect("Listener should exist");
         } else if let Some(participant_publication_matched_listener) =
             participant_publication_matched_listener
         {
-            let status = self.get_publication_matched_status().await?;
+            let status = self.get_publication_matched_status().await;
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             participant_publication_matched_listener
@@ -1058,9 +1030,9 @@ impl DdsDataWriter {
                         writer, status,
                     ),
                 )
-                .await?;
+                .await
+                .expect("Listener should exist");
         }
-        Ok(())
     }
 
     async fn on_offered_incompatible_qos(
@@ -1072,29 +1044,30 @@ impl DdsDataWriter {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DdsDomainParticipantListener>,
         >,
-    ) -> DdsResult<()> {
+    ) {
         self.status_condition
-            .address()
             .send_mail_and_await_reply(dds_status_condition::add_communication_state::new(
                 StatusKind::OfferedIncompatibleQos,
             ))
-            .await?;
+            .await;
         if self.listener.is_some()
             && self
                 .status_kind
                 .contains(&StatusKind::OfferedIncompatibleQos)
         {
             let status = self.get_offered_incompatible_qos_status().await;
-            let listener_address = self.listener.as_ref().unwrap().address();
+
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
-            listener_address
+            self.listener
+                .as_ref()
+                .unwrap()
                 .send_mail(
                     dds_data_writer_listener::trigger_on_offered_incompatible_qos::new(
                         writer, status,
                     ),
                 )
-                .await?;
+                .await;
         } else if let Some(offered_incompatible_qos_publisher_listener) =
             offered_incompatible_qos_publisher_listener
         {
@@ -1107,7 +1080,8 @@ impl DdsDataWriter {
                         writer, status,
                     ),
                 )
-                .await?;
+                .await
+                .expect("Listener should exist");
         } else if let Some(offered_incompatible_qos_participant_listener) =
             offered_incompatible_qos_participant_listener
         {
@@ -1120,9 +1094,9 @@ impl DdsDataWriter {
                         writer, status,
                     ),
                 )
-                .await?;
+                .await
+                .expect("Listener should exist");
         }
-        Ok(())
     }
 }
 

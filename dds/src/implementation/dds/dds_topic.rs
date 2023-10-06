@@ -90,7 +90,7 @@ impl DdsTopic {
     }
 
     async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
-        self.status_condition.address().clone()
+        self.status_condition.address()
     }
 
     async fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
@@ -127,10 +127,7 @@ impl DdsTopic {
         Ok(status)
     }
 
-    async fn process_discovered_topic(
-        &mut self,
-        discovered_topic_data: DiscoveredTopicData,
-    ) -> DdsResult<()> {
+    async fn process_discovered_topic(&mut self, discovered_topic_data: DiscoveredTopicData) {
         if discovered_topic_data
             .topic_builtin_topic_data()
             .get_type_name()
@@ -140,13 +137,11 @@ impl DdsTopic {
         {
             self.inconsistent_topic_status.increment();
             self.status_condition
-                .address()
                 .send_mail_and_await_reply(dds_status_condition::add_communication_state::new(
                     StatusKind::InconsistentTopic,
                 ))
-                .await?;
+                .await;
         }
-        Ok(())
     }
 }
 

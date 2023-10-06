@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use dust_dds_derive::actor_interface;
+use fnmatch_regex::glob_to_regex;
+use tracing::warn;
 
 use super::{
     dds_data_reader::{self, DdsDataReader},
@@ -9,6 +11,7 @@ use super::{
 };
 use crate::{
     implementation::{
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         dds::{
             dds_domain_participant_listener::DdsDomainParticipantListener,
             dds_status_condition::DdsStatusCondition,
@@ -16,7 +19,7 @@ use crate::{
         rtps::{
             group::RtpsGroup,
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
-            types::Guid,
+            types::{Guid, Locator},
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{spawn_actor, Actor, ActorAddress},
@@ -25,6 +28,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
+        qos_policy::PartitionQosPolicy,
         status::StatusKind,
         time::Time,
     },
@@ -66,6 +70,18 @@ impl DdsSubscriber {
 
 #[actor_interface]
 impl DdsSubscriber {
+    async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DdsDataReader>> {
+        for dr in self.data_reader_list.values() {
+            if dr
+                .send_mail_and_await_reply(dds_data_reader::get_topic_name::new())
+                .await
+                == topic_name
+            {
+                return Some(dr.address());
+            }
+        }
+        None
+    }
     async fn delete_contained_entities(&mut self) {}
 
     async fn guid(&self) -> Guid {
@@ -137,7 +153,7 @@ impl DdsSubscriber {
     }
 
     async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
-        self.status_condition.address().clone()
+        self.status_condition.address()
     }
 
     async fn get_qos(&self) -> SubscriberQos {
@@ -147,12 +163,12 @@ impl DdsSubscriber {
     async fn data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader>> {
         self.data_reader_list
             .values()
-            .map(|dr| dr.address().clone())
+            .map(|dr| dr.address())
             .collect()
     }
 
     async fn get_listener(&self) -> Option<ActorAddress<DdsSubscriberListener>> {
-        self.listener.as_ref().map(|l| l.address().clone())
+        self.listener.as_ref().map(|l| l.address())
     }
 
     async fn get_status_kind(&self) -> Vec<StatusKind> {
@@ -164,14 +180,13 @@ impl DdsSubscriber {
         header: RtpsMessageHeader,
         udp_transport_write: ActorAddress<UdpTransportWrite>,
     ) {
-        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
+        for data_reader_address in self.data_reader_list.values() {
             data_reader_address
                 .send_mail(dds_data_reader::send_message::new(
                     header,
                     udp_transport_write.clone(),
                 ))
-                .await
-                .expect("Should not fail to send command");
+                .await;
         }
     }
 
@@ -187,7 +202,7 @@ impl DdsSubscriber {
         ),
     ) -> DdsResult<()> {
         let subscriber_mask_listener = (
-            self.listener.as_ref().map(|a| a.address()).cloned(),
+            self.listener.as_ref().map(|a| a.address()),
             self.status_kind.clone(),
         );
 
@@ -206,5 +221,122 @@ impl DdsSubscriber {
                 .await??;
         }
         Ok(())
+    }
+
+    async fn add_matched_writer(
+        &self,
+        discovered_writer_data: DiscoveredWriterData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) {
+        if self.is_partition_matched(discovered_writer_data.dds_publication_data().partition()) {
+            for data_reader in self.data_reader_list.values() {
+                let subscriber_mask_listener = (
+                    self.listener.as_ref().map(|l| l.address()),
+                    self.status_kind.clone(),
+                );
+                let data_reader_address = data_reader.address();
+                let subscriber_qos = self.qos.clone();
+                data_reader
+                    .send_mail_and_await_reply(dds_data_reader::add_matched_writer::new(
+                        discovered_writer_data.clone(),
+                        default_unicast_locator_list.clone(),
+                        default_multicast_locator_list.clone(),
+                        data_reader_address,
+                        subscriber_address.clone(),
+                        participant_address.clone(),
+                        subscriber_qos,
+                        subscriber_mask_listener,
+                        participant_mask_listener.clone(),
+                    ))
+                    .await;
+            }
+        }
+    }
+
+    async fn remove_matched_writer(
+        &self,
+        discovered_writer_handle: InstanceHandle,
+        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        participant_mask_listener: (
+            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Vec<StatusKind>,
+        ),
+    ) {
+        for data_reader in self.data_reader_list.values() {
+            let data_reader_address = data_reader.address();
+            let subscriber_mask_listener = (
+                self.listener.as_ref().map(|l| l.address()),
+                self.status_kind.clone(),
+            );
+            data_reader
+                .send_mail_and_await_reply(dds_data_reader::remove_matched_writer::new(
+                    discovered_writer_handle,
+                    data_reader_address,
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                    subscriber_mask_listener,
+                    participant_mask_listener.clone(),
+                ))
+                .await;
+        }
+    }
+}
+
+impl DdsSubscriber {
+    fn is_partition_matched(&self, discovered_partition_qos_policy: &PartitionQosPolicy) -> bool {
+        let is_any_name_matched = discovered_partition_qos_policy
+            .name
+            .iter()
+            .any(|n| self.qos.partition.name.contains(n));
+
+        let is_any_received_regex_matched_with_partition_qos = discovered_partition_qos_policy
+            .name
+            .iter()
+            .filter_map(|n| match glob_to_regex(n) {
+                Ok(regex) => Some(regex),
+                Err(e) => {
+                    warn!(
+                        "Received invalid partition regex name {:?}. Error {:?}",
+                        n, e
+                    );
+                    None
+                }
+            })
+            .any(|regex| self.qos.partition.name.iter().any(|n| regex.is_match(n)));
+
+        let is_any_local_regex_matched_with_received_partition_qos = self
+            .qos
+            .partition
+            .name
+            .iter()
+            .filter_map(|n| match glob_to_regex(n) {
+                Ok(regex) => Some(regex),
+                Err(e) => {
+                    warn!(
+                        "Invalid partition regex name on subscriber qos {:?}. Error {:?}",
+                        n, e
+                    );
+                    None
+                }
+            })
+            .any(|regex| {
+                discovered_partition_qos_policy
+                    .name
+                    .iter()
+                    .any(|n| regex.is_match(n))
+            });
+
+        discovered_partition_qos_policy == &self.qos.partition
+            || is_any_name_matched
+            || is_any_received_regex_matched_with_partition_qos
+            || is_any_local_regex_matched_with_received_partition_qos
     }
 }

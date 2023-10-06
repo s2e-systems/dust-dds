@@ -29,7 +29,7 @@ impl<'a> NackFragSubmessageRead<'a> {
         self.map(&self.data[4..])
     }
 
-    pub fn writer_id(&self) -> EntityId {
+    pub fn _writer_id(&self) -> EntityId {
         self.map(&self.data[8..])
     }
 
@@ -37,7 +37,7 @@ impl<'a> NackFragSubmessageRead<'a> {
         self.map(&self.data[12..])
     }
 
-    pub fn fragment_number_state(&self) -> FragmentNumberSet {
+    pub fn _fragment_number_state(&self) -> FragmentNumberSet {
         self.map(&self.data[20..])
     }
 
@@ -133,11 +133,11 @@ mod tests {
         let expected_count = 6;
 
         assert_eq!(expected_reader_id, submessage.reader_id());
-        assert_eq!(expected_writer_id, submessage.writer_id());
+        assert_eq!(expected_writer_id, submessage._writer_id());
         assert_eq!(expected_writer_sn, submessage.writer_sn());
         assert_eq!(
             expected_fragment_number_state,
-            submessage.fragment_number_state()
+            submessage._fragment_number_state()
         );
         assert_eq!(expected_count, submessage.count());
     }

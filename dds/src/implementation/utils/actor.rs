@@ -60,7 +60,7 @@ impl<A> ActorAddress<A> {
         let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
 
         self.sender
-            .send(Box::new(AsyncMail::new(mail, response_sender)))
+            .send(Box::new(ReplyMail::new(mail, response_sender)))
             .await
             .map_err(|_| DdsError::AlreadyDeleted)?;
         response_receiver
@@ -74,11 +74,11 @@ impl<A> ActorAddress<A> {
         M: Mail + Send + 'static,
         M::Result: Send,
     {
-        let (response_sender, response_receiver) = std::sync::mpsc::sync_channel(1);
+        let (response_sender, mut response_receiver) = tokio::sync::oneshot::channel();
 
         let mut send_result = self
             .sender
-            .try_send(Box::new(SyncMail::new(mail, response_sender)));
+            .try_send(Box::new(ReplyMail::new(mail, response_sender)));
         // Try sending the mail until it succeeds. This is done instead of calling a tokio::task::block_in_place because this solution
         // would be only valid when the runtime is multithreaded. For single threaded runtimes this would still cause a panic.
         while let Err(receive_error) = send_result {
@@ -99,11 +99,11 @@ impl<A> ActorAddress<A> {
         let mut receive_result = response_receiver.try_recv();
         while let Err(receive_error) = receive_result {
             match receive_error {
-                std::sync::mpsc::TryRecvError::Empty => {
+                tokio::sync::oneshot::error::TryRecvError::Empty => {
                     receive_result = response_receiver.try_recv();
                 }
 
-                std::sync::mpsc::TryRecvError::Disconnected => {
+                tokio::sync::oneshot::error::TryRecvError::Closed => {
                     return Err(DdsError::AlreadyDeleted)
                 }
             }
@@ -150,53 +150,6 @@ trait GenericHandler<A> {
     async fn handle(&mut self, actor: &mut A);
 }
 
-struct SyncMail<M>
-where
-    M: Mail,
-{
-    // Both fields have to be inside an option because later on the contents
-    // have to be moved out and the struct. Because the struct is passed as a Boxed
-    // trait object this is only feasible by using the Option fields.
-    mail: Option<M>,
-    sender: Option<std::sync::mpsc::SyncSender<M::Result>>,
-}
-
-impl<M> SyncMail<M>
-where
-    M: Mail,
-{
-    fn new(message: M, sender: std::sync::mpsc::SyncSender<M::Result>) -> Self {
-        Self {
-            mail: Some(message),
-            sender: Some(sender),
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl<A, M> GenericHandler<A> for SyncMail<M>
-where
-    A: MailHandler<M> + Send,
-    M: Mail + Send,
-    M::Result: Send,
-{
-    async fn handle(&mut self, actor: &mut A) {
-        let result = <A as MailHandler<M>>::handle(
-            actor,
-            self.mail
-                .take()
-                .expect("Mail should be processed only once"),
-        )
-        .await;
-        self.sender
-            .take()
-            .expect("Mail should be processed only once")
-            .try_send(result)
-            .map_err(|_| "Remove need for Debug on message send type")
-            .expect("Sending should never fail neither due to full nor closed channel");
-    }
-}
-
 struct CommandMail<M> {
     mail: Option<M>,
 }
@@ -224,7 +177,7 @@ where
     }
 }
 
-struct AsyncMail<M>
+struct ReplyMail<M>
 where
     M: Mail,
 {
@@ -235,7 +188,7 @@ where
     sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
 }
 
-impl<M> AsyncMail<M>
+impl<M> ReplyMail<M>
 where
     M: Mail,
 {
@@ -248,7 +201,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<A, M> GenericHandler<A> for AsyncMail<M>
+impl<A, M> GenericHandler<A> for ReplyMail<M>
 where
     A: MailHandler<M> + Send,
     M: Mail + Send,
@@ -272,14 +225,51 @@ where
 }
 
 pub struct Actor<A> {
-    address: ActorAddress<A>,
+    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
     join_handle: tokio::task::JoinHandle<()>,
     cancellation_token: Arc<AtomicBool>,
 }
 
 impl<A> Actor<A> {
-    pub fn address(&self) -> &ActorAddress<A> {
-        &self.address
+    pub fn address(&self) -> ActorAddress<A> {
+        ActorAddress {
+            sender: self.sender.clone(),
+        }
+    }
+
+    pub async fn send_mail_and_await_reply<M>(&self, mail: M) -> M::Result
+    where
+        A: MailHandler<M> + Send,
+        M: Mail + Send + 'static,
+        M::Result: Send,
+    {
+        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
+
+        self.sender
+            .send(Box::new(ReplyMail::new(mail, response_sender)))
+            .await
+            .map_err(|_| ())
+            .expect(
+                "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
+            );
+
+        response_receiver
+            .await
+            .expect("Message is always processed as long as actor object exists")
+    }
+
+    pub async fn send_mail<M>(&self, mail: M)
+    where
+        A: MailHandler<M> + Send,
+        M: Mail + Send + 'static,
+    {
+        self.sender
+            .send(Box::new(CommandMail::new(mail)))
+            .await
+            .map_err(|_| ())
+            .expect(
+                "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
+            );
     }
 }
 
@@ -302,8 +292,6 @@ where
 {
     let (sender, mailbox) = tokio::sync::mpsc::channel(16);
 
-    let address = ActorAddress { sender };
-
     let mut actor_obj = SpawnedActor {
         value: actor,
         mailbox,
@@ -322,7 +310,7 @@ where
     });
 
     Actor {
-        address,
+        sender,
         join_handle,
         cancellation_token,
     }

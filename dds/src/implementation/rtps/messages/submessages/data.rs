@@ -64,7 +64,7 @@ impl DataSubmessageRead {
         self.submessage_header().flags()[1]
     }
 
-    pub fn data_flag(&self) -> bool {
+    pub fn _data_flag(&self) -> bool {
         self.submessage_header().flags()[2]
     }
 
@@ -72,7 +72,7 @@ impl DataSubmessageRead {
         self.submessage_header().flags()[3]
     }
 
-    pub fn non_standard_payload_flag(&self) -> bool {
+    pub fn _non_standard_payload_flag(&self) -> bool {
         self.submessage_header().flags()[4]
     }
 
@@ -347,11 +347,11 @@ mod tests {
         ].into());
 
         assert_eq!(inline_qos_flag, data_submessage.inline_qos_flag());
-        assert_eq!(data_flag, data_submessage.data_flag());
+        assert_eq!(data_flag, data_submessage._data_flag());
         assert_eq!(key_flag, data_submessage.key_flag());
         assert_eq!(
             non_standard_payload_flag,
-            data_submessage.non_standard_payload_flag()
+            data_submessage._non_standard_payload_flag()
         );
         assert_eq!(reader_id, data_submessage.reader_id());
         assert_eq!(writer_id, data_submessage.writer_id());

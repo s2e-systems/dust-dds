@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 
 use dust_dds_derive::actor_interface;
+use fnmatch_regex::glob_to_regex;
+use tracing::warn;
 
 use crate::{
     implementation::{
+        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         dds::dds_data_writer_listener::DdsDataWriterListener,
         rtps::{
             endpoint::RtpsEndpoint,
@@ -22,6 +25,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
+        qos_policy::PartitionQosPolicy,
         status::StatusKind,
         time::{Duration, Time, DURATION_ZERO},
     },
@@ -29,6 +33,8 @@ use crate::{
 
 use super::{
     dds_data_writer::{self, DdsDataWriter},
+    dds_domain_participant::DdsDomainParticipant,
+    dds_domain_participant_listener::DdsDomainParticipantListener,
     dds_publisher_listener::DdsPublisherListener,
 };
 
@@ -122,10 +128,23 @@ impl DdsPublisher {
             qos,
         );
         let data_writer_actor = spawn_actor(data_writer);
-        let data_writer_address = data_writer_actor.address().clone();
+        let data_writer_address = data_writer_actor.address();
         self.data_writer_list.insert(guid.into(), data_writer_actor);
 
         Ok(data_writer_address)
+    }
+
+    async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DdsDataWriter>> {
+        for dw in self.data_writer_list.values() {
+            if dw
+                .send_mail_and_await_reply(dds_data_writer::get_topic_name::new())
+                .await
+                == topic_name
+            {
+                return Some(dw.address());
+            }
+        }
+        None
     }
 
     async fn enable(&mut self) {
@@ -198,7 +217,7 @@ impl DdsPublisher {
     }
 
     async fn get_listener(&self) -> Option<ActorAddress<DdsPublisherListener>> {
-        self.listener.as_ref().map(|l| l.address().clone())
+        self.listener.as_ref().map(|l| l.address())
     }
 
     async fn get_qos(&self) -> PublisherQos {
@@ -208,7 +227,7 @@ impl DdsPublisher {
     async fn data_writer_list(&self) -> Vec<ActorAddress<DdsDataWriter>> {
         self.data_writer_list
             .values()
-            .map(|x| x.address().clone())
+            .map(|x| x.address())
             .collect()
     }
 
@@ -227,15 +246,150 @@ impl DdsPublisher {
         udp_transport_write: ActorAddress<UdpTransportWrite>,
         now: Time,
     ) {
-        for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
+        for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .send_mail(dds_data_writer::send_message::new(
                     header,
                     udp_transport_write.clone(),
                     now,
                 ))
-                .await
-                .expect("Should not fail to send command");
+                .await;
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn add_matched_reader(
+        &self,
+        discovered_reader_data: DiscoveredReaderData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        participant_publication_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
+        offered_incompatible_qos_participant_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
+    ) {
+        if self.is_partition_matched(
+            discovered_reader_data
+                .subscription_builtin_topic_data()
+                .partition(),
+        ) {
+            for data_writer in self.data_writer_list.values() {
+                let data_writer_address = data_writer.address();
+                let publisher_publication_matched_listener =
+                    if self.status_kind.contains(&StatusKind::PublicationMatched) {
+                        self.listener.as_ref().map(|l| l.address())
+                    } else {
+                        None
+                    };
+                let offered_incompatible_qos_publisher_listener = if self
+                    .status_kind
+                    .contains(&StatusKind::OfferedIncompatibleQos)
+                {
+                    self.listener.as_ref().map(|l| l.address())
+                } else {
+                    None
+                };
+                data_writer
+                    .send_mail_and_await_reply(dds_data_writer::add_matched_reader::new(
+                        discovered_reader_data.clone(),
+                        default_unicast_locator_list.clone(),
+                        default_multicast_locator_list.clone(),
+                        data_writer_address,
+                        publisher_address.clone(),
+                        participant_address.clone(),
+                        self.qos.clone(),
+                        publisher_publication_matched_listener,
+                        participant_publication_matched_listener.clone(),
+                        offered_incompatible_qos_publisher_listener,
+                        offered_incompatible_qos_participant_listener.clone(),
+                    ))
+                    .await;
+            }
+        }
+    }
+
+    async fn remove_matched_reader(
+        &self,
+        discovered_reader_handle: InstanceHandle,
+        publisher_address: ActorAddress<DdsPublisher>,
+        participant_address: ActorAddress<DdsDomainParticipant>,
+        participant_publication_matched_listener: Option<
+            ActorAddress<DdsDomainParticipantListener>,
+        >,
+    ) {
+        for data_writer in self.data_writer_list.values() {
+            let data_writer_address = data_writer.address();
+            let publisher_publication_matched_listener =
+                if self.status_kind.contains(&StatusKind::PublicationMatched) {
+                    self.listener.as_ref().map(|l| l.address())
+                } else {
+                    None
+                };
+            data_writer
+                .send_mail_and_await_reply(dds_data_writer::remove_matched_reader::new(
+                    discovered_reader_handle,
+                    data_writer_address,
+                    publisher_address.clone(),
+                    participant_address.clone(),
+                    publisher_publication_matched_listener,
+                    participant_publication_matched_listener.clone(),
+                ))
+                .await;
+        }
+    }
+}
+
+impl DdsPublisher {
+    fn is_partition_matched(&self, discovered_partition_qos_policy: &PartitionQosPolicy) -> bool {
+        let is_any_name_matched = discovered_partition_qos_policy
+            .name
+            .iter()
+            .any(|n| self.qos.partition.name.contains(n));
+
+        let is_any_received_regex_matched_with_partition_qos = discovered_partition_qos_policy
+            .name
+            .iter()
+            .filter_map(|n| match glob_to_regex(n) {
+                Ok(regex) => Some(regex),
+                Err(e) => {
+                    warn!(
+                        "Received invalid partition regex name {:?}. Error {:?}",
+                        n, e
+                    );
+                    None
+                }
+            })
+            .any(|regex| self.qos.partition.name.iter().any(|n| regex.is_match(n)));
+
+        let is_any_local_regex_matched_with_received_partition_qos = self
+            .qos
+            .partition
+            .name
+            .iter()
+            .filter_map(|n| match glob_to_regex(n) {
+                Ok(regex) => Some(regex),
+                Err(e) => {
+                    warn!(
+                        "Invalid partition regex name on publisher qos {:?}. Error {:?}",
+                        n, e
+                    );
+                    None
+                }
+            })
+            .any(|regex| {
+                discovered_partition_qos_policy
+                    .name
+                    .iter()
+                    .any(|n| regex.is_match(n))
+            });
+
+        discovered_partition_qos_policy == &self.qos.partition
+            || is_any_name_matched
+            || is_any_received_regex_matched_with_partition_qos
+            || is_any_local_regex_matched_with_received_partition_qos
     }
 }
