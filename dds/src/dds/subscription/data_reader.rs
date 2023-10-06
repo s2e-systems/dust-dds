@@ -105,6 +105,12 @@ impl<Foo> DataReader<Foo> {
     }
 }
 
+impl<Foo> Clone for DataReader<Foo> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone())
+    }
+}
+
 // impl<Foo> Drop for DataReader<Foo> {
 //     fn drop(&mut self) {
 //         todo!()

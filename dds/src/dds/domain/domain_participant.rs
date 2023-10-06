@@ -53,6 +53,7 @@ use super::{
 /// [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
 
+#[derive(Clone)]
 pub struct DomainParticipant(DomainParticipantNode);
 
 impl DomainParticipant {

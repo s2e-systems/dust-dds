@@ -38,6 +38,12 @@ use crate::{
 /// data to be published under a given [`Topic`].
 pub struct DataWriter<Foo>(DataWriterNode, PhantomData<Foo>);
 
+impl<Foo> Clone for DataWriter<Foo> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone())
+    }
+}
+
 impl<Foo> DataWriter<Foo> {
     pub(crate) fn new(data_writer: DataWriterNode) -> Self {
         Self(data_writer, PhantomData)
