@@ -44,7 +44,8 @@ use crate::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            LifespanQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
         },
         status::StatusKind,
         time::{DurationKind, DURATION_ZERO},
@@ -740,10 +741,7 @@ impl DdsDomainParticipant {
     }
 
     async fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<DdsTopic>> {
-        self.topic_list
-            .values()
-            .map(|a| a.address())
-            .collect()
+        self.topic_list.values().map(|a| a.address()).collect()
     }
 
     async fn discovered_participant_get(
@@ -1452,7 +1450,7 @@ impl DdsDomainParticipant {
     }
 
     async fn add_matched_writer(
-        &self,
+        &mut self,
         discovered_writer_data: DiscoveredWriterData,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
@@ -1507,6 +1505,62 @@ impl DdsDomainParticipant {
                         ))
                         .await;
                 }
+
+                // Add writer topic to discovered topic list using the writer instance handle
+                let topic_instance_handle =
+                    InstanceHandle::new(discovered_writer_data.dds_publication_data().key().value);
+                let writer_topic = TopicBuiltinTopicData::new(
+                    BuiltInTopicKey::default(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .topic_name()
+                        .to_string(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .get_type_name()
+                        .to_string(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .durability()
+                        .clone(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .deadline()
+                        .clone(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .latency_budget()
+                        .clone(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .liveliness()
+                        .clone(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .reliability()
+                        .clone(),
+                    TransportPriorityQosPolicy::default(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .lifespan()
+                        .clone(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .destination_order()
+                        .clone(),
+                    HistoryQosPolicy::default(),
+                    ResourceLimitsQosPolicy::default(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .ownership()
+                        .clone(),
+                    discovered_writer_data
+                        .dds_publication_data()
+                        .topic_data()
+                        .clone(),
+                );
+                self.discovered_topic_list
+                    .insert(topic_instance_handle, writer_topic);
             }
         }
     }
@@ -1595,7 +1649,7 @@ impl DdsDomainParticipant {
     }
 
     async fn add_matched_reader(
-        &self,
+        &mut self,
         discovered_reader_data: DiscoveredReaderData,
         participant_address: ActorAddress<DdsDomainParticipant>,
     ) {
@@ -1666,6 +1720,63 @@ impl DdsDomainParticipant {
                         ))
                         .await;
                 }
+
+                // Add reader topic to discovered topic list using the reader instance handle
+                let topic_instance_handle = InstanceHandle::new(
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .key()
+                        .value,
+                );
+                let reader_topic = TopicBuiltinTopicData::new(
+                    BuiltInTopicKey::default(),
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .topic_name()
+                        .to_string(),
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .get_type_name()
+                        .to_string(),
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .durability()
+                        .clone(),
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .deadline()
+                        .clone(),
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .latency_budget()
+                        .clone(),
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .liveliness()
+                        .clone(),
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .reliability()
+                        .clone(),
+                    TransportPriorityQosPolicy::default(),
+                    LifespanQosPolicy::default(),
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .destination_order()
+                        .clone(),
+                    HistoryQosPolicy::default(),
+                    ResourceLimitsQosPolicy::default(),
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .ownership()
+                        .clone(),
+                    discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .topic_data()
+                        .clone(),
+                );
+                self.discovered_topic_list
+                    .insert(topic_instance_handle, reader_topic);
             }
         }
     }
