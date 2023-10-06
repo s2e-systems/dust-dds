@@ -2,7 +2,10 @@ use dust_dds_derive::actor_interface;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
-    domain::domain_participant_factory::DomainId,
+    domain::{
+        domain_participant_factory::DomainId,
+        domain_participant_listener::DomainParticipantListener,
+    },
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
@@ -790,6 +793,15 @@ impl DdsDomainParticipant {
             .values()
             .map(|a| a.address().clone())
             .collect()
+    }
+
+    async fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener.map(|l| spawn_actor(DdsDomainParticipantListener::new(l)));
+        self.status_kind = status_kind;
     }
 
     async fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<DdsSubscriber>> {
