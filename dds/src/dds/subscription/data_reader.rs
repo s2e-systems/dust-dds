@@ -729,7 +729,7 @@ where
     #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataReaderListener<Foo> + Send + Sync>>,
+        a_listener: Option<Box<dyn DataReaderListener<Foo> + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.0.reader_address().send_mail_and_await_reply_blocking(
