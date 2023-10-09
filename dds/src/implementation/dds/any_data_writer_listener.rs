@@ -31,7 +31,7 @@ pub trait AnyDataWriterListener {
     );
 }
 
-impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo> + Send + Sync> {
+impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo> + Send> {
     fn trigger_on_liveliness_lost(
         &mut self,
         the_writer: DataWriterNode,

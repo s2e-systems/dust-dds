@@ -93,7 +93,7 @@ impl Subscriber {
         &self,
         a_topic: &Topic,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<Foo> + Send + Sync>>,
+        a_listener: Option<Box<dyn DataReaderListener<Foo> + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
@@ -411,7 +411,7 @@ impl Subscriber {
     #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        _a_listener: Option<Box<dyn SubscriberListener + Send>>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()

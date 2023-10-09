@@ -479,7 +479,7 @@ impl DdsDomainParticipant {
     async fn create_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: Vec<StatusKind>,
     ) -> ActorAddress<DdsPublisher> {
         let publisher_qos = match qos {
@@ -505,7 +505,7 @@ impl DdsDomainParticipant {
     async fn create_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        a_listener: Option<Box<dyn SubscriberListener + Send>>,
         mask: Vec<StatusKind>,
     ) -> ActorAddress<DdsSubscriber> {
         let subscriber_qos = match qos {
@@ -535,7 +535,7 @@ impl DdsDomainParticipant {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener + Send + Sync>>,
+        _a_listener: Option<Box<dyn TopicListener + Send>>,
         _mask: Vec<StatusKind>,
     ) -> ActorAddress<DdsTopic> {
         let qos = match qos {
