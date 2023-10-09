@@ -29,6 +29,7 @@ use crate::{
         status::StatusKind,
         time::{Duration, Time, DURATION_ZERO},
     },
+    publication::publisher_listener::PublisherListener,
 };
 
 use super::{
@@ -222,6 +223,15 @@ impl DdsPublisher {
 
     async fn get_qos(&self) -> PublisherQos {
         self.qos.clone()
+    }
+
+    async fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn PublisherListener + Send + 'static>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener.map(|l| spawn_actor(DdsPublisherListener::new(l)));
+        self.status_kind = status_kind;
     }
 
     async fn data_writer_list(&self) -> Vec<ActorAddress<DdsDataWriter>> {

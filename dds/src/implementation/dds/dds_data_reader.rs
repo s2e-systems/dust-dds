@@ -67,6 +67,7 @@ use crate::{
 };
 
 use super::{
+    any_data_reader_listener::AnyDataReaderListener,
     dds_data_reader_listener::{self, DdsDataReaderListener},
     dds_domain_participant::DdsDomainParticipant,
     dds_domain_participant_listener::{self, DdsDomainParticipantListener},
@@ -1653,6 +1654,15 @@ impl DdsDataReader {
             }
             None => Err(DdsError::NoData),
         }
+    }
+
+    async fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn AnyDataReaderListener + Send + 'static>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener.map(|l| spawn_actor(DdsDataReaderListener::new(l)));
+        self.status_kind = status_kind;
     }
 
     async fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
