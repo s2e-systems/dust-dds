@@ -566,7 +566,7 @@ where
     #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn DataWriterListener<Foo> + Send + Sync>>,
+        _a_listener: Option<Box<dyn DataWriterListener<Foo> + Send>>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()

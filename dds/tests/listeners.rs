@@ -1907,6 +1907,7 @@ fn data_writer_offered_incompatible_qos_listener() {
 
 #[test]
 fn non_sync_listener_should_be_accepted() {
+    // Use Cell to create a type which is Send but not Sync
     struct NonSyncListener(std::cell::Cell<()>);
 
     impl NonSyncListener {
@@ -1971,4 +1972,6 @@ fn non_sync_listener_should_be_accepted() {
             NO_STATUS,
         )
         .unwrap();
+
+    // This test doesn't assert. If trait bounds are not correct compilation will fail.
 }
