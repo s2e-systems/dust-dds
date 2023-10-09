@@ -718,7 +718,7 @@ impl<Foo> DataReader<Foo> {
 
 impl<Foo> DataReader<Foo>
 where
-    Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + 'static + Send + Sync,
+    Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + 'static + Send,
 {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves

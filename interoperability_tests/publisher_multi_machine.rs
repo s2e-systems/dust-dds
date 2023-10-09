@@ -70,7 +70,11 @@ fn main() {
     let number_of_subscribers_to_find = 2;
     for _ in 0..number_of_subscribers_to_find {
         wait_set.wait(Duration::new(60, 0)).unwrap();
-        writer.get_publication_matched_status().unwrap();
+        let publication_matched_status = writer.get_publication_matched_status().unwrap();
+        // If two subscribers are found at once then stop the loop
+        if publication_matched_status.current_count == 2 {
+            break;
+        }
     }
 
     let hello_world = HelloWorldType {

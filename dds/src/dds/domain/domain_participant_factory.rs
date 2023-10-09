@@ -69,7 +69,7 @@ impl DomainParticipantFactory {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        a_listener: Option<Box<dyn DomainParticipantListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         let domain_participant_qos = match qos {

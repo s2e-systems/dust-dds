@@ -28,7 +28,7 @@ use dust_dds::{
         subscriber::Subscriber,
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::{topic_listener::TopicListener, type_support::DdsType},
 };
 
 mod utils;
@@ -1903,4 +1903,75 @@ fn data_writer_offered_incompatible_qos_listener() {
         .unwrap();
     assert_eq!(status.total_count, 1);
     assert_eq!(status.total_count_change, 1);
+}
+
+#[test]
+fn non_sync_listener_should_be_accepted() {
+    // Use Cell to create a type which is Send but not Sync
+    struct NonSyncListener(std::cell::Cell<()>);
+
+    impl NonSyncListener {
+        fn new() -> Self {
+            Self(std::cell::Cell::new(()))
+        }
+    }
+
+    impl DomainParticipantListener for NonSyncListener {}
+    impl PublisherListener for NonSyncListener {}
+    impl SubscriberListener for NonSyncListener {}
+    impl TopicListener for NonSyncListener {}
+    impl<Foo> DataWriterListener<Foo> for NonSyncListener {}
+    impl<Foo> DataReaderListener<Foo> for NonSyncListener {}
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant = participant_factory
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Box::new(NonSyncListener::new())),
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic = participant
+        .create_topic(
+            "NonSync",
+            "MyData",
+            QosKind::Default,
+            Some(Box::new(NonSyncListener::new())),
+            NO_STATUS,
+        )
+        .unwrap();
+    let subscriber = participant
+        .create_subscriber(
+            QosKind::Default,
+            Some(Box::new(NonSyncListener::new())),
+            NO_STATUS,
+        )
+        .unwrap();
+    let _data_reader = subscriber
+        .create_datareader::<MyData>(
+            &topic,
+            QosKind::Default,
+            Some(Box::new(NonSyncListener::new())),
+            NO_STATUS,
+        )
+        .unwrap();
+    let publisher = participant
+        .create_publisher(
+            QosKind::Default,
+            Some(Box::new(NonSyncListener::new())),
+            NO_STATUS,
+        )
+        .unwrap();
+    let _data_writer = publisher
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Default,
+            Some(Box::new(NonSyncListener::new())),
+            NO_STATUS,
+        )
+        .unwrap();
+
+    // This test doesn't assert. If trait bounds are not correct compilation will fail.
 }
