@@ -8,7 +8,7 @@ use crate::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
         },
         configuration::DustDdsConfiguration,
-        dds::dds_domain_participant::DomainParticipantNode,
+        dds::dds_domain_participant::DdsDomainParticipant,
         rtps::{
             participant::RtpsParticipant,
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -195,7 +195,7 @@ impl DomainParticipantFactory {
             ),
         )?;
         let domain_participant =
-            DomainParticipant::new(DomainParticipantNode::new(participant_address.clone()));
+            DomainParticipant::new(DdsDomainParticipant::new(participant_address.clone()));
 
         let participant_address_clone = participant_address.clone();
         THE_RUNTIME.spawn(async move {
@@ -379,7 +379,7 @@ impl DomainParticipantFactory {
                     false
                 }
             })
-            .map(|dp| DomainParticipant::new(DomainParticipantNode::new(dp.clone()))))
+            .map(|dp| DomainParticipant::new(DdsDomainParticipant::new(dp.clone()))))
     }
 
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created

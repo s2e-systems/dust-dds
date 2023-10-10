@@ -12,13 +12,13 @@ use crate::{
 };
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct DataReaderNode {
+pub struct DdsDataReader {
     reader_address: ActorAddress<DataReaderActor>,
     subscriber_address: ActorAddress<SubscriberActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl DataReaderNode {
+impl DdsDataReader {
     pub fn new(
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
@@ -67,4 +67,4 @@ impl DataReaderNode {
     }
 }
 
-impl AnyDataReader for DataReaderNode {}
+impl AnyDataReader for DdsDataReader {}

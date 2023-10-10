@@ -7,7 +7,7 @@ use crate::{
             publisher_actor, topic_actor,
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        dds::{dds_domain_participant::DomainParticipantNode, dds_topic::TopicNode},
+        dds::{dds_domain_participant::DdsDomainParticipant, dds_topic::DdsTopic},
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -28,14 +28,14 @@ use super::{
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
 #[derive(PartialEq, Eq)]
-pub struct Topic(TopicNode);
+pub struct Topic(DdsTopic);
 
 impl Topic {
-    pub(crate) fn new(node: TopicNode) -> Self {
+    pub(crate) fn new(node: DdsTopic) -> Self {
         Self(node)
     }
 
-    pub(crate) fn node(&self) -> &TopicNode {
+    pub(crate) fn node(&self) -> &DdsTopic {
         &self.0
     }
 }
@@ -74,7 +74,7 @@ impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(DomainParticipantNode::new(
+        Ok(DomainParticipant::new(DdsDomainParticipant::new(
             self.0.participant_address().clone(),
         )))
     }

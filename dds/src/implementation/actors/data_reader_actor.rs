@@ -20,7 +20,7 @@ use crate::{
                 STATUS_INFO_UNREGISTERED,
             },
         },
-        dds::{dds_data_reader::DataReaderNode, dds_subscriber::SubscriberNode},
+        dds::{dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber},
         rtps::{
             message_receiver::MessageReceiver,
             messages::{
@@ -339,13 +339,13 @@ impl DataReaderActor {
         match subscriber_listener_address {
             Some(l) if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) => {
                 l.send_mail(subscriber_listener_actor::trigger_on_data_on_readers::new(
-                    SubscriberNode::new(subscriber_address.clone(), participant_address.clone()),
+                    DdsSubscriber::new(subscriber_address.clone(), participant_address.clone()),
                 ))
                 .await?;
             }
             _ => match self.listener.as_ref().map(|a| a.address()) {
                 Some(l) if self.status_kind.contains(&StatusKind::DataAvailable) => {
-                    let reader = DataReaderNode::new(
+                    let reader = DdsDataReader::new(
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
@@ -615,7 +615,7 @@ impl DataReaderActor {
             .await?;
         match self.listener.as_ref().map(|a| a.address()) {
             Some(l) if self.status_kind.contains(&StatusKind::SampleLost) => {
-                let reader = DataReaderNode::new(
+                let reader = DdsDataReader::new(
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
@@ -628,7 +628,7 @@ impl DataReaderActor {
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleLost) => {
-                    let reader = DataReaderNode::new(
+                    let reader = DdsDataReader::new(
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
@@ -641,7 +641,7 @@ impl DataReaderActor {
                 }
                 _ => match participant_listener_address {
                     Some(l) if participant_listener_mask.contains(&StatusKind::SampleLost) => {
-                        let reader = DataReaderNode::new(
+                        let reader = DdsDataReader::new(
                             data_reader_address.clone(),
                             subscriber_address.clone(),
                             participant_address.clone(),
@@ -685,7 +685,7 @@ impl DataReaderActor {
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         match self.listener.as_ref().map(|l| l.address()) {
             Some(l) if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
-                let reader = DataReaderNode::new(
+                let reader = DdsDataReader::new(
                     data_reader_address,
                     subscriber_address,
                     participant_address,
@@ -701,7 +701,7 @@ impl DataReaderActor {
             }
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
-                    let reader = DataReaderNode::new(
+                    let reader = DdsDataReader::new(
                         data_reader_address,
                         subscriber_address,
                         participant_address,
@@ -719,7 +719,7 @@ impl DataReaderActor {
                     Some(l)
                         if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) =>
                     {
-                        let reader = DataReaderNode::new(
+                        let reader = DdsDataReader::new(
                             data_reader_address,
                             subscriber_address,
                             participant_address,
@@ -767,7 +767,7 @@ impl DataReaderActor {
         match self.listener.as_ref().map(|a| a.address()) {
             Some(l) if self.status_kind.contains(&StatusKind::SampleRejected) => {
                 let status = self.get_sample_rejected_status();
-                let reader = DataReaderNode::new(
+                let reader = DdsDataReader::new(
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
@@ -780,7 +780,7 @@ impl DataReaderActor {
             _ => match subscriber_listener_address {
                 Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleRejected) => {
                     let status = self.get_sample_rejected_status();
-                    let reader = DataReaderNode::new(
+                    let reader = DdsDataReader::new(
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
@@ -793,7 +793,7 @@ impl DataReaderActor {
                 _ => match participant_listener_address {
                     Some(l) if participant_listener_mask.contains(&StatusKind::SampleRejected) => {
                         let status = self.get_sample_rejected_status();
-                        let reader = DataReaderNode::new(
+                        let reader = DdsDataReader::new(
                             data_reader_address.clone(),
                             subscriber_address.clone(),
                             participant_address.clone(),
@@ -842,7 +842,7 @@ impl DataReaderActor {
                     .contains(&StatusKind::RequestedIncompatibleQos) =>
             {
                 let status = self.get_requested_incompatible_qos_status();
-                let reader = DataReaderNode::new(
+                let reader = DdsDataReader::new(
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
@@ -860,7 +860,7 @@ impl DataReaderActor {
                     if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) =>
                 {
                     let status = self.get_requested_incompatible_qos_status();
-                    let reader = DataReaderNode::new(
+                    let reader = DdsDataReader::new(
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
@@ -879,7 +879,7 @@ impl DataReaderActor {
                             .contains(&StatusKind::RequestedIncompatibleQos) =>
                     {
                         let status = self.get_requested_incompatible_qos_status();
-                        let reader = DataReaderNode::new(
+                        let reader = DdsDataReader::new(
                             data_reader_address.clone(),
                             subscriber_address.clone(),
                             participant_address.clone(),
@@ -1953,7 +1953,7 @@ impl DataReaderActor {
                         .contains(&StatusKind::RequestedDeadlineMissed) =>
                 {
                     let status = self.get_requested_deadline_missed_status();
-                    let reader = DataReaderNode::new(
+                    let reader = DdsDataReader::new(
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
@@ -1971,7 +1971,7 @@ impl DataReaderActor {
                             .contains(&StatusKind::RequestedDeadlineMissed) =>
                     {
                         let status = self.get_requested_deadline_missed_status();
-                        let reader = DataReaderNode::new(
+                        let reader = DdsDataReader::new(
                             data_reader_address.clone(),
                             subscriber_address.clone(),
                             participant_address.clone(),
@@ -1989,7 +1989,7 @@ impl DataReaderActor {
                                 .contains(&StatusKind::RequestedDeadlineMissed) =>
                         {
                             let status = self.get_requested_deadline_missed_status();
-                            let reader = DataReaderNode::new(
+                            let reader = DdsDataReader::new(
                                 data_reader_address.clone(),
                                 subscriber_address.clone(),
                                 participant_address.clone(),

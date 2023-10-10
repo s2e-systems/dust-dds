@@ -4,7 +4,7 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         actors::{data_writer_actor, domain_participant_actor, publisher_actor},
-        dds::{dds_publisher::PublisherNode, dds_data_writer::DataWriterNode},
+        dds::{dds_publisher::DdsPublisher, dds_data_writer::DdsDataWriter},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -29,14 +29,14 @@ use crate::{
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
-pub struct DataWriter<Foo>(DataWriterNode, PhantomData<Foo>);
+pub struct DataWriter<Foo>(DdsDataWriter, PhantomData<Foo>);
 
 impl<Foo> DataWriter<Foo> {
-    pub(crate) fn new(data_writer: DataWriterNode) -> Self {
+    pub(crate) fn new(data_writer: DdsDataWriter) -> Self {
         Self(data_writer, PhantomData)
     }
 
-    pub(crate) fn node(&self) -> &DataWriterNode {
+    pub(crate) fn node(&self) -> &DdsDataWriter {
         &self.0
     }
 }
@@ -428,7 +428,7 @@ impl<Foo> DataWriter<Foo> {
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
-        Ok(Publisher::new(PublisherNode::new(
+        Ok(Publisher::new(DdsPublisher::new(
             self.0.publisher_address().clone(),
             self.0.participant_address().clone(),
         )))

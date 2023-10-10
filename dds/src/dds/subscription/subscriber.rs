@@ -7,8 +7,8 @@ use crate::{
             data_writer_actor, domain_participant_actor, publisher_actor, subscriber_actor,
         },
         dds::{
-            dds_data_reader::DataReaderNode, dds_domain_participant::DomainParticipantNode,
-            dds_subscriber::SubscriberNode,
+            dds_data_reader::DdsDataReader, dds_domain_participant::DdsDomainParticipant,
+            dds_subscriber::DdsSubscriber,
         },
         rtps::{
             endpoint::RtpsEndpoint,
@@ -43,14 +43,14 @@ use super::{
 /// A [`Subscriber`] acts on the behalf of one or several [`DataReader`] objects that are related to it. When it receives data (from the
 /// other parts of the system), it builds the list of concerned [`DataReader`] objects, and then indicates to the application that data is
 /// available, through its listener or by enabling related conditions.
-pub struct Subscriber(SubscriberNode);
+pub struct Subscriber(DdsSubscriber);
 
 impl Subscriber {
-    pub(crate) fn new(subscriber: SubscriberNode) -> Self {
+    pub(crate) fn new(subscriber: DdsSubscriber) -> Self {
         Self(subscriber)
     }
 
-    pub(crate) fn node(&self) -> &SubscriberNode {
+    pub(crate) fn node(&self) -> &DdsSubscriber {
         &self.0
     }
 }
@@ -185,7 +185,7 @@ impl Subscriber {
                 reader_actor,
             ))?;
 
-        let data_reader = DataReader::new(DataReaderNode::new(
+        let data_reader = DataReader::new(DdsDataReader::new(
             reader_address,
             self.0.subscriber_address().clone(),
             self.0.participant_address().clone(),
@@ -298,7 +298,7 @@ impl Subscriber {
                 topic_name.to_string(),
             ))?
             .map(|reader_address| {
-                DataReader::new(DataReaderNode::new(
+                DataReader::new(DdsDataReader::new(
                     reader_address,
                     self.0.subscriber_address().clone(),
                     self.0.participant_address().clone(),
@@ -318,7 +318,7 @@ impl Subscriber {
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(DomainParticipantNode::new(
+        Ok(DomainParticipant::new(DdsDomainParticipant::new(
             self.0.participant_address().clone(),
         )))
     }

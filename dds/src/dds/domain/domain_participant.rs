@@ -9,8 +9,8 @@ use crate::{
             publisher_actor, subscriber_actor, topic_actor,
         },
         dds::{
-            dds_domain_participant::DomainParticipantNode, dds_publisher::PublisherNode,
-            dds_subscriber::SubscriberNode, dds_topic::TopicNode,
+            dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher,
+            dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
         },
         utils::actor::THE_RUNTIME,
     },
@@ -55,10 +55,10 @@ use super::{
 /// [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
 
-pub struct DomainParticipant(DomainParticipantNode);
+pub struct DomainParticipant(DdsDomainParticipant);
 
 impl DomainParticipant {
-    pub(crate) fn new(node: DomainParticipantNode) -> Self {
+    pub(crate) fn new(node: DdsDomainParticipant) -> Self {
         Self(node)
     }
 }
@@ -91,7 +91,7 @@ impl DomainParticipant {
                     domain_participant_actor::create_publisher::new(qos, a_listener, mask.to_vec()),
                 )?;
 
-        let publisher = Publisher::new(PublisherNode::new(
+        let publisher = Publisher::new(DdsPublisher::new(
             publisher_address,
             self.0.participant_address().clone(),
         ));
@@ -179,7 +179,7 @@ impl DomainParticipant {
                 domain_participant_actor::create_subscriber::new(qos, a_listener, mask.to_vec()),
             )?;
 
-        let subscriber = Subscriber::new(SubscriberNode::new(
+        let subscriber = Subscriber::new(DdsSubscriber::new(
             subscriber_address,
             self.0.participant_address().clone(),
         ));
@@ -277,7 +277,7 @@ impl DomainParticipant {
                 mask.to_vec(),
             ))?;
 
-        let topic = Topic::new(TopicNode::new(
+        let topic = Topic::new(DdsTopic::new(
             topic_address,
             self.0.participant_address().clone(),
         ));
@@ -418,7 +418,7 @@ impl DomainParticipant {
                 if topic.send_mail_and_await_reply_blocking(topic_actor::get_name::new())?
                     == topic_name
                 {
-                    return Ok(Topic::new(TopicNode::new(
+                    return Ok(Topic::new(DdsTopic::new(
                         topic,
                         self.0.participant_address().clone(),
                     )));
@@ -503,7 +503,7 @@ impl DomainParticipant {
     /// objects.
     #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        Ok(Subscriber::new(SubscriberNode::new(
+        Ok(Subscriber::new(DdsSubscriber::new(
             self.0
                 .participant_address()
                 .send_mail_and_await_reply_blocking(

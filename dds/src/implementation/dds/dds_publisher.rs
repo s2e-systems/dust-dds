@@ -4,12 +4,12 @@ use crate::implementation::{
 };
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct PublisherNode {
+pub struct DdsPublisher {
     publisher_address: ActorAddress<PublisherActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl PublisherNode {
+impl DdsPublisher {
     pub fn new(
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,

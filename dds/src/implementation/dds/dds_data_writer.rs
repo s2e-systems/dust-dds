@@ -10,13 +10,13 @@ use crate::{
 };
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct DataWriterNode {
+pub struct DdsDataWriter {
     writer_address: ActorAddress<DataWriterActor>,
     publisher_address: ActorAddress<PublisherActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl DataWriterNode {
+impl DdsDataWriter {
     pub fn new(
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
@@ -42,4 +42,4 @@ impl DataWriterNode {
     }
 }
 
-impl AnyDataWriter for DataWriterNode {}
+impl AnyDataWriter for DdsDataWriter {}

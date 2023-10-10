@@ -6,8 +6,8 @@ use crate::{
             domain_participant_actor, publisher_actor,
         },
         dds::{
-            dds_domain_participant::DomainParticipantNode, dds_publisher::PublisherNode,
-            dds_data_writer::DataWriterNode,
+            dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher,
+            dds_data_writer::DdsDataWriter,
         },
         utils::actor::spawn_actor,
     },
@@ -30,14 +30,14 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// data associated with one of its [`DataWriter`] objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
-pub struct Publisher(PublisherNode);
+pub struct Publisher(DdsPublisher);
 
 impl Publisher {
-    pub(crate) fn new(publisher: PublisherNode) -> Self {
+    pub(crate) fn new(publisher: DdsPublisher) -> Self {
         Self(publisher)
     }
 
-    pub(crate) fn node(&self) -> &PublisherNode {
+    pub(crate) fn node(&self) -> &DdsPublisher {
         &self.0
     }
 }
@@ -120,7 +120,7 @@ impl Publisher {
                 default_multicast_locator_list,
             ))??;
 
-        let data_writer = DataWriter::new(DataWriterNode::new(
+        let data_writer = DataWriter::new(DdsDataWriter::new(
             data_writer_address,
             self.0.publisher_address().clone(),
             self.0.participant_address().clone(),
@@ -238,7 +238,7 @@ impl Publisher {
                 topic_name.to_string(),
             ))?
             .map(|dw| {
-                DataWriter::new(DataWriterNode::new(
+                DataWriter::new(DdsDataWriter::new(
                     dw,
                     self.0.publisher_address().clone(),
                     self.0.participant_address().clone(),
@@ -308,7 +308,7 @@ impl Publisher {
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(DomainParticipantNode::new(
+        Ok(DomainParticipant::new(DdsDomainParticipant::new(
             self.0.participant_address().clone(),
         )))
     }

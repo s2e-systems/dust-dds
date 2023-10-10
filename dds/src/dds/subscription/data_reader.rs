@@ -6,7 +6,7 @@ use crate::{
             publisher_actor, subscriber_actor,
         },
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-        dds::{dds_data_reader::DataReaderNode, dds_topic::TopicNode},
+        dds::{dds_data_reader::DdsDataReader, dds_topic::DdsTopic},
         rtps::messages::submessage_elements::Data,
         utils::actor::ActorAddress,
     },
@@ -93,14 +93,14 @@ impl<Foo> Sample<Foo> {
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<Foo>(DataReaderNode, PhantomData<Foo>);
+pub struct DataReader<Foo>(DdsDataReader, PhantomData<Foo>);
 
 impl<Foo> DataReader<Foo> {
-    pub(crate) fn new(data_reader: DataReaderNode) -> Self {
+    pub(crate) fn new(data_reader: DdsDataReader) -> Self {
         Self(data_reader, PhantomData)
     }
 
-    pub(crate) fn node(&self) -> &DataReaderNode {
+    pub(crate) fn node(&self) -> &DdsDataReader {
         &self.0
     }
 }
@@ -477,7 +477,7 @@ impl<Foo> DataReader<Foo> {
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
     pub fn get_topicdescription(&self) -> DdsResult<Topic> {
-        Ok(Topic::new(TopicNode::new(
+        Ok(Topic::new(DdsTopic::new(
             self.0.topic_address(),
             self.0.participant_address().clone(),
         )))

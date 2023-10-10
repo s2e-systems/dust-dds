@@ -1,7 +1,7 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
-    implementation::dds::dds_data_writer::DataWriterNode,
+    implementation::dds::dds_data_writer::DdsDataWriter,
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
     publication::publisher_listener::PublisherListener,
 };
@@ -20,7 +20,7 @@ impl PublisherListenerActor {
 impl PublisherListenerActor {
     async fn trigger_on_offered_incompatible_qos(
         &mut self,
-        the_writer: DataWriterNode,
+        the_writer: DdsDataWriter,
         status: OfferedIncompatibleQosStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -31,7 +31,7 @@ impl PublisherListenerActor {
 
     async fn trigger_on_publication_matched(
         &mut self,
-        the_writer: DataWriterNode,
+        the_writer: DdsDataWriter,
         status: PublicationMatchedStatus,
     ) {
         tokio::task::block_in_place(|| self.listener.on_publication_matched(&the_writer, status));

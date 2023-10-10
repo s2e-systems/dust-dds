@@ -3,11 +3,11 @@ use crate::implementation::{
 };
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct DomainParticipantNode {
+pub struct DdsDomainParticipant {
     participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl DomainParticipantNode {
+impl DdsDomainParticipant {
     pub fn new(participant_address: ActorAddress<DomainParticipantActor>) -> Self {
         Self {
             participant_address,

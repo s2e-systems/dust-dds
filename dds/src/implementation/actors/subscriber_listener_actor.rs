@@ -1,7 +1,7 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
-    implementation::dds::{dds_data_reader::DataReaderNode, dds_subscriber::SubscriberNode},
+    implementation::dds::{dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber},
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,
@@ -21,7 +21,7 @@ impl SubscriberListenerActor {
 
 #[actor_interface]
 impl SubscriberListenerActor {
-    async fn trigger_on_data_on_readers(&mut self, the_subscriber: SubscriberNode) {
+    async fn trigger_on_data_on_readers(&mut self, the_subscriber: DdsSubscriber) {
         tokio::task::block_in_place(|| {
             self.listener
                 .on_data_on_readers(&Subscriber::new(the_subscriber))
@@ -30,7 +30,7 @@ impl SubscriberListenerActor {
 
     async fn trigger_on_sample_rejected(
         &mut self,
-        the_reader: DataReaderNode,
+        the_reader: DdsDataReader,
         status: SampleRejectedStatus,
     ) {
         tokio::task::block_in_place(|| self.listener.on_sample_rejected(&the_reader, status));
@@ -38,7 +38,7 @@ impl SubscriberListenerActor {
 
     async fn trigger_on_requested_incompatible_qos(
         &mut self,
-        the_reader: DataReaderNode,
+        the_reader: DdsDataReader,
         status: RequestedIncompatibleQosStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -49,7 +49,7 @@ impl SubscriberListenerActor {
 
     async fn trigger_on_requested_deadline_missed(
         &mut self,
-        the_reader: DataReaderNode,
+        the_reader: DdsDataReader,
         status: RequestedDeadlineMissedStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -60,7 +60,7 @@ impl SubscriberListenerActor {
 
     async fn trigger_on_subscription_matched(
         &mut self,
-        the_reader: DataReaderNode,
+        the_reader: DdsDataReader,
         status: SubscriptionMatchedStatus,
     ) {
         tokio::task::block_in_place(|| self.listener.on_subscription_matched(&the_reader, status));
@@ -68,7 +68,7 @@ impl SubscriberListenerActor {
 
     async fn trigger_on_sample_lost(
         &mut self,
-        the_reader: DataReaderNode,
+        the_reader: DdsDataReader,
         status: SampleLostStatus,
     ) {
         tokio::task::block_in_place(|| self.listener.on_sample_lost(&the_reader, status));
