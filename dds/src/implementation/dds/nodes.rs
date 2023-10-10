@@ -1,12 +1,12 @@
 use crate::{
     implementation::{
         actors::{
-            data_reader_actor::{self, DdsDataReader},
-            data_writer_actor::DdsDataWriter,
-            domain_participant_actor::{self, DdsDomainParticipant},
-            publisher_actor::DdsPublisher,
-            subscriber_actor::DdsSubscriber,
-            topic_actor::{self, DdsTopic},
+            data_reader_actor::{self, DataReaderActor},
+            data_writer_actor::DataWriterActor,
+            domain_participant_actor::{self, DomainParticipantActor},
+            publisher_actor::PublisherActor,
+            subscriber_actor::SubscriberActor,
+            topic_actor::{self, TopicActor},
         },
         utils::actor::ActorAddress,
     },
@@ -16,31 +16,31 @@ use crate::{
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DomainParticipantNode {
-    participant_address: ActorAddress<DdsDomainParticipant>,
+    participant_address: ActorAddress<DomainParticipantActor>,
 }
 
 impl DomainParticipantNode {
-    pub fn new(participant_address: ActorAddress<DdsDomainParticipant>) -> Self {
+    pub fn new(participant_address: ActorAddress<DomainParticipantActor>) -> Self {
         Self {
             participant_address,
         }
     }
 
-    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+    pub fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         &self.participant_address
     }
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct SubscriberNode {
-    subscriber_address: ActorAddress<DdsSubscriber>,
-    participant_address: ActorAddress<DdsDomainParticipant>,
+    subscriber_address: ActorAddress<SubscriberActor>,
+    participant_address: ActorAddress<DomainParticipantActor>,
 }
 
 impl SubscriberNode {
     pub fn new(
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
     ) -> Self {
         Self {
             subscriber_address,
@@ -48,27 +48,27 @@ impl SubscriberNode {
         }
     }
 
-    pub fn subscriber_address(&self) -> &ActorAddress<DdsSubscriber> {
+    pub fn subscriber_address(&self) -> &ActorAddress<SubscriberActor> {
         &self.subscriber_address
     }
 
-    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+    pub fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         &self.participant_address
     }
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DataReaderNode {
-    reader_address: ActorAddress<DdsDataReader>,
-    subscriber_address: ActorAddress<DdsSubscriber>,
-    participant_address: ActorAddress<DdsDomainParticipant>,
+    reader_address: ActorAddress<DataReaderActor>,
+    subscriber_address: ActorAddress<SubscriberActor>,
+    participant_address: ActorAddress<DomainParticipantActor>,
 }
 
 impl DataReaderNode {
     pub fn new(
-        reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
     ) -> Self {
         Self {
             reader_address,
@@ -77,19 +77,19 @@ impl DataReaderNode {
         }
     }
 
-    pub fn reader_address(&self) -> &ActorAddress<DdsDataReader> {
+    pub fn reader_address(&self) -> &ActorAddress<DataReaderActor> {
         &self.reader_address
     }
 
-    pub fn subscriber_address(&self) -> &ActorAddress<DdsSubscriber> {
+    pub fn subscriber_address(&self) -> &ActorAddress<SubscriberActor> {
         &self.subscriber_address
     }
 
-    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+    pub fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         &self.participant_address
     }
 
-    pub fn topic_address(&self) -> ActorAddress<DdsTopic> {
+    pub fn topic_address(&self) -> ActorAddress<TopicActor> {
         let user_defined_topic_list = self
             .participant_address
             .send_mail_and_await_reply_blocking(
@@ -117,14 +117,14 @@ impl AnyDataReader for DataReaderNode {}
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct TopicNode {
-    topic_address: ActorAddress<DdsTopic>,
-    participant_address: ActorAddress<DdsDomainParticipant>,
+    topic_address: ActorAddress<TopicActor>,
+    participant_address: ActorAddress<DomainParticipantActor>,
 }
 
 impl TopicNode {
     pub fn new(
-        topic_address: ActorAddress<DdsTopic>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        topic_address: ActorAddress<TopicActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
     ) -> Self {
         Self {
             topic_address,
@@ -132,27 +132,27 @@ impl TopicNode {
         }
     }
 
-    pub fn topic_address(&self) -> &ActorAddress<DdsTopic> {
+    pub fn topic_address(&self) -> &ActorAddress<TopicActor> {
         &self.topic_address
     }
 
-    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+    pub fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         &self.participant_address
     }
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DataWriterNode {
-    writer_address: ActorAddress<DdsDataWriter>,
-    publisher_address: ActorAddress<DdsPublisher>,
-    participant_address: ActorAddress<DdsDomainParticipant>,
+    writer_address: ActorAddress<DataWriterActor>,
+    publisher_address: ActorAddress<PublisherActor>,
+    participant_address: ActorAddress<DomainParticipantActor>,
 }
 
 impl DataWriterNode {
     pub fn new(
-        writer_address: ActorAddress<DdsDataWriter>,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        writer_address: ActorAddress<DataWriterActor>,
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
     ) -> Self {
         Self {
             writer_address,
@@ -161,15 +161,15 @@ impl DataWriterNode {
         }
     }
 
-    pub fn writer_address(&self) -> &ActorAddress<DdsDataWriter> {
+    pub fn writer_address(&self) -> &ActorAddress<DataWriterActor> {
         &self.writer_address
     }
 
-    pub fn publisher_address(&self) -> &ActorAddress<DdsPublisher> {
+    pub fn publisher_address(&self) -> &ActorAddress<PublisherActor> {
         &self.publisher_address
     }
 
-    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+    pub fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         &self.participant_address
     }
 }
@@ -178,14 +178,14 @@ impl AnyDataWriter for DataWriterNode {}
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct PublisherNode {
-    publisher_address: ActorAddress<DdsPublisher>,
-    participant_address: ActorAddress<DdsDomainParticipant>,
+    publisher_address: ActorAddress<PublisherActor>,
+    participant_address: ActorAddress<DomainParticipantActor>,
 }
 
 impl PublisherNode {
     pub fn new(
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
     ) -> Self {
         Self {
             publisher_address,
@@ -193,11 +193,11 @@ impl PublisherNode {
         }
     }
 
-    pub fn publisher_address(&self) -> &ActorAddress<DdsPublisher> {
+    pub fn publisher_address(&self) -> &ActorAddress<PublisherActor> {
         &self.publisher_address
     }
 
-    pub fn participant_address(&self) -> &ActorAddress<DdsDomainParticipant> {
+    pub fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         &self.participant_address
     }
 }

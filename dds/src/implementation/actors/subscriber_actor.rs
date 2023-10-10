@@ -5,15 +5,15 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use super::{
-    data_reader_actor::{self, DdsDataReader},
-    domain_participant_actor::DdsDomainParticipant,
-    subscriber_listener_actor::DdsSubscriberListener,
+    data_reader_actor::{self, DataReaderActor},
+    domain_participant_actor::DomainParticipantActor,
+    subscriber_listener_actor::SubscriberListenerActor,
 };
 use crate::{
     implementation::{
         actors::{
-            domain_participant_listener_actor::DdsDomainParticipantListener,
-            status_condition_actor::DdsStatusCondition,
+            domain_participant_listener_actor::DomainParticipantListenerActor,
+            status_condition_actor::StatusConditionActor,
         },
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
@@ -34,27 +34,27 @@ use crate::{
     },
 };
 
-pub struct DdsSubscriber {
+pub struct SubscriberActor {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
-    data_reader_list: HashMap<InstanceHandle, Actor<DdsDataReader>>,
+    data_reader_list: HashMap<InstanceHandle, Actor<DataReaderActor>>,
     enabled: bool,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
-    status_condition: Actor<DdsStatusCondition>,
-    listener: Option<Actor<DdsSubscriberListener>>,
+    status_condition: Actor<StatusConditionActor>,
+    listener: Option<Actor<SubscriberListenerActor>>,
     status_kind: Vec<StatusKind>,
 }
 
-impl DdsSubscriber {
+impl SubscriberActor {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
-        listener: Option<Actor<DdsSubscriberListener>>,
+        listener: Option<Actor<SubscriberListenerActor>>,
         status_kind: Vec<StatusKind>,
     ) -> Self {
-        let status_condition = spawn_actor(DdsStatusCondition::default());
-        DdsSubscriber {
+        let status_condition = spawn_actor(StatusConditionActor::default());
+        SubscriberActor {
             qos,
             rtps_group,
             data_reader_list: HashMap::new(),
@@ -69,8 +69,8 @@ impl DdsSubscriber {
 }
 
 #[actor_interface]
-impl DdsSubscriber {
-    async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DdsDataReader>> {
+impl SubscriberActor {
+    async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DataReaderActor>> {
         for dr in self.data_reader_list.values() {
             if dr
                 .send_mail_and_await_reply(data_reader_actor::get_topic_name::new())
@@ -105,7 +105,7 @@ impl DdsSubscriber {
     async fn data_reader_add(
         &mut self,
         instance_handle: InstanceHandle,
-        data_reader: Actor<DdsDataReader>,
+        data_reader: Actor<DataReaderActor>,
     ) {
         self.data_reader_list.insert(instance_handle, data_reader);
     }
@@ -152,7 +152,7 @@ impl DdsSubscriber {
         self.rtps_group.guid().into()
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
@@ -160,14 +160,14 @@ impl DdsSubscriber {
         self.qos.clone()
     }
 
-    async fn data_reader_list(&self) -> Vec<ActorAddress<DdsDataReader>> {
+    async fn data_reader_list(&self) -> Vec<ActorAddress<DataReaderActor>> {
         self.data_reader_list
             .values()
             .map(|dr| dr.address())
             .collect()
     }
 
-    async fn get_listener(&self) -> Option<ActorAddress<DdsSubscriberListener>> {
+    async fn get_listener(&self) -> Option<ActorAddress<SubscriberListenerActor>> {
         self.listener.as_ref().map(|l| l.address())
     }
 
@@ -194,10 +194,10 @@ impl DdsSubscriber {
         &self,
         message: RtpsMessageRead,
         reception_timestamp: Time,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
         participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -228,10 +228,10 @@ impl DdsSubscriber {
         discovered_writer_data: DiscoveredWriterData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) {
@@ -263,10 +263,10 @@ impl DdsSubscriber {
     async fn remove_matched_writer(
         &self,
         discovered_writer_handle: InstanceHandle,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) {
@@ -290,7 +290,7 @@ impl DdsSubscriber {
     }
 }
 
-impl DdsSubscriber {
+impl SubscriberActor {
     fn is_partition_matched(&self, discovered_partition_qos_policy: &PartitionQosPolicy) -> bool {
         let is_any_name_matched = discovered_partition_qos_policy
             .name

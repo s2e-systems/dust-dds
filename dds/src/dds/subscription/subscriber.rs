@@ -2,8 +2,8 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
-            data_reader_actor::{self, DdsDataReader},
-            data_reader_listener_actor::DdsDataReaderListener,
+            data_reader_actor::{self, DataReaderActor},
+            data_reader_listener_actor::DataReaderListenerActor,
             data_writer_actor, domain_participant_actor, publisher_actor, subscriber_actor,
         },
         dds::nodes::{DataReaderNode, DomainParticipantNode, SubscriberNode},
@@ -162,9 +162,9 @@ impl Subscriber {
             false,
         );
 
-        let listener = a_listener.map(|l| spawn_actor(DdsDataReaderListener::new(Box::new(l))));
+        let listener = a_listener.map(|l| spawn_actor(DataReaderListenerActor::new(Box::new(l))));
         let status_kind = mask.to_vec();
-        let data_reader = DdsDataReader::new::<Foo>(
+        let data_reader = DataReaderActor::new::<Foo>(
             rtps_reader,
             a_topic.get_type_name()?,
             a_topic.get_name()?,

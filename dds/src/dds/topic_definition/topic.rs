@@ -3,7 +3,7 @@ use crate::{
     implementation::{
         actors::{
             data_writer_actor,
-            domain_participant_actor::{self, DdsDomainParticipant},
+            domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor, topic_actor,
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
@@ -238,7 +238,7 @@ impl Topic {
 }
 
 fn announce_topic(
-    domain_participant: &ActorAddress<DdsDomainParticipant>,
+    domain_participant: &ActorAddress<DomainParticipantActor>,
     discovered_topic_data: DiscoveredTopicData,
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(&discovered_topic_data)?;

@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use super::status_condition_actor::{self, DdsStatusCondition};
+use super::status_condition_actor::{self, StatusConditionActor};
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -30,19 +30,19 @@ impl InconsistentTopicStatus {
     }
 }
 
-pub struct DdsTopic {
+pub struct TopicActor {
     guid: Guid,
     qos: TopicQos,
     type_name: String,
     topic_name: String,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    status_condition: Actor<DdsStatusCondition>,
+    status_condition: Actor<StatusConditionActor>,
 }
 
-impl DdsTopic {
+impl TopicActor {
     pub fn new(guid: Guid, qos: TopicQos, type_name: String, topic_name: &str) -> Self {
-        let status_condition = spawn_actor(DdsStatusCondition::default());
+        let status_condition = spawn_actor(StatusConditionActor::default());
         Self {
             guid,
             qos,
@@ -56,7 +56,7 @@ impl DdsTopic {
 }
 
 #[actor_interface]
-impl DdsTopic {
+impl TopicActor {
     async fn get_type_name(&self) -> String {
         self.type_name.clone()
     }
@@ -89,7 +89,7 @@ impl DdsTopic {
         self.guid.into()
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 

@@ -10,18 +10,18 @@ use crate::{
     },
 };
 
-pub struct DdsDomainParticipantListener {
+pub struct DomainParticipantListenerActor {
     listener: Box<dyn DomainParticipantListener + Send>,
 }
 
-impl DdsDomainParticipantListener {
+impl DomainParticipantListenerActor {
     pub fn new(listener: Box<dyn DomainParticipantListener + Send>) -> Self {
         Self { listener }
     }
 }
 
 #[actor_interface]
-impl DdsDomainParticipantListener {
+impl DomainParticipantListenerActor {
     async fn trigger_on_sample_rejected(
         &mut self,
         the_reader: DataReaderNode,

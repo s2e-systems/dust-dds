@@ -67,13 +67,13 @@ use crate::{
 };
 
 use super::{
-    data_reader_listener_actor::{self, DdsDataReaderListener},
-    domain_participant_actor::DdsDomainParticipant,
-    domain_participant_listener_actor::{self, DdsDomainParticipantListener},
+    data_reader_listener_actor::{self, DataReaderListenerActor},
+    domain_participant_actor::DomainParticipantActor,
+    domain_participant_listener_actor::{self, DomainParticipantListenerActor},
     message_receiver::MessageReceiver,
-    status_condition_actor::{self, DdsStatusCondition},
-    subscriber_actor::DdsSubscriber,
-    subscriber_listener_actor::{self, DdsSubscriberListener},
+    status_condition_actor::{self, StatusConditionActor},
+    subscriber_actor::SubscriberActor,
+    subscriber_listener_actor::{self, SubscriberListenerActor},
 };
 
 struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
@@ -232,7 +232,7 @@ struct IndexedSample {
     sample: (Option<Data>, SampleInfo),
 }
 
-pub struct DdsDataReader {
+pub struct DataReaderActor {
     rtps_reader: RtpsReader,
     matched_writers: Vec<RtpsWriterProxy>,
     changes: Vec<RtpsReaderCacheChange>,
@@ -251,28 +251,28 @@ pub struct DdsDataReader {
     instance_reception_time: HashMap<InstanceHandle, Time>,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
-    status_condition: Actor<DdsStatusCondition>,
-    listener: Option<Actor<DdsDataReaderListener>>,
+    status_condition: Actor<StatusConditionActor>,
+    listener: Option<Actor<DataReaderListenerActor>>,
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, Instance>,
 }
 
-impl DdsDataReader {
+impl DataReaderActor {
     pub fn new<Foo>(
         rtps_reader: RtpsReader,
         type_name: String,
         topic_name: String,
         qos: DataReaderQos,
-        listener: Option<Actor<DdsDataReaderListener>>,
+        listener: Option<Actor<DataReaderListenerActor>>,
         status_kind: Vec<StatusKind>,
     ) -> Self
     where
         Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
     {
         let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
-        let status_condition = spawn_actor(DdsStatusCondition::default());
+        let status_condition = spawn_actor(StatusConditionActor::default());
 
-        DdsDataReader {
+        DataReaderActor {
             rtps_reader,
             matched_writers: Vec::new(),
             changes: Vec::new(),
@@ -316,12 +316,12 @@ impl DdsDataReader {
 
     pub async fn on_data_available(
         &self,
-        data_reader_address: &ActorAddress<DdsDataReader>,
-        subscriber_address: &ActorAddress<DdsSubscriber>,
-        participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
+        subscriber_address: &ActorAddress<SubscriberActor>,
+        participant_address: &ActorAddress<DomainParticipantActor>,
+        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            Option<ActorAddress<DdsSubscriberListener>>,
+            Option<ActorAddress<SubscriberListenerActor>>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -368,13 +368,13 @@ impl DdsDataReader {
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
-        data_reader_address: &ActorAddress<DdsDataReader>,
-        subscriber_address: &ActorAddress<DdsSubscriber>,
-        participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
-        subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        data_reader_address: &ActorAddress<DataReaderActor>,
+        subscriber_address: &ActorAddress<SubscriberActor>,
+        participant_address: &ActorAddress<DomainParticipantActor>,
+        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
+        subscriber_mask_listener: &(Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
         participant_mask_listener: &(
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -419,13 +419,13 @@ impl DdsDataReader {
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
-        data_reader_address: &ActorAddress<DdsDataReader>,
-        subscriber_address: &ActorAddress<DdsSubscriber>,
-        participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
-        subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        data_reader_address: &ActorAddress<DataReaderActor>,
+        subscriber_address: &ActorAddress<SubscriberActor>,
+        participant_address: &ActorAddress<DomainParticipantActor>,
+        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
+        subscriber_mask_listener: &(Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
         participant_mask_listener: &(
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -588,15 +588,15 @@ impl DdsDataReader {
 
     async fn on_sample_lost(
         &mut self,
-        data_reader_address: &ActorAddress<DdsDataReader>,
-        subscriber_address: &ActorAddress<DdsSubscriber>,
-        participant_address: &ActorAddress<DdsDomainParticipant>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
+        subscriber_address: &ActorAddress<SubscriberActor>,
+        participant_address: &ActorAddress<DomainParticipantActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            Option<ActorAddress<DdsSubscriberListener>>,
+            Option<ActorAddress<SubscriberListenerActor>>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -658,15 +658,15 @@ impl DdsDataReader {
     async fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        data_reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            Option<ActorAddress<DdsSubscriberListener>>,
+            Option<ActorAddress<SubscriberListenerActor>>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) {
@@ -738,15 +738,15 @@ impl DdsDataReader {
         &mut self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
-        data_reader_address: &ActorAddress<DdsDataReader>,
-        subscriber_address: &ActorAddress<DdsSubscriber>,
-        participant_address: &ActorAddress<DdsDomainParticipant>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
+        subscriber_address: &ActorAddress<SubscriberActor>,
+        participant_address: &ActorAddress<DomainParticipantActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            Option<ActorAddress<DdsSubscriberListener>>,
+            Option<ActorAddress<SubscriberListenerActor>>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -809,15 +809,15 @@ impl DdsDataReader {
     async fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-        data_reader_address: &ActorAddress<DdsDataReader>,
-        subscriber_address: &ActorAddress<DdsSubscriber>,
-        participant_address: &ActorAddress<DdsDomainParticipant>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
+        subscriber_address: &ActorAddress<SubscriberActor>,
+        participant_address: &ActorAddress<DomainParticipantActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            Option<ActorAddress<DdsSubscriberListener>>,
+            Option<ActorAddress<SubscriberListenerActor>>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) {
@@ -974,13 +974,13 @@ impl DdsDataReader {
         cache_change: RtpsReaderCacheChange,
         message_reader_id: EntityId,
         sequence_number: SequenceNumber,
-        data_reader_address: &ActorAddress<DdsDataReader>,
-        subscriber_address: &ActorAddress<DdsSubscriber>,
-        participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
-        subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        data_reader_address: &ActorAddress<DataReaderActor>,
+        subscriber_address: &ActorAddress<SubscriberActor>,
+        participant_address: &ActorAddress<DomainParticipantActor>,
+        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
+        subscriber_mask_listener: &(Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
         participant_mask_listener: &(
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1059,13 +1059,13 @@ impl DdsDataReader {
     async fn add_change(
         &mut self,
         change: RtpsReaderCacheChange,
-        data_reader_address: &ActorAddress<DdsDataReader>,
-        subscriber_address: &ActorAddress<DdsSubscriber>,
-        participant_address: &ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: &ActorAddress<DdsStatusCondition>,
-        subscriber_mask_listener: &(Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        data_reader_address: &ActorAddress<DataReaderActor>,
+        subscriber_address: &ActorAddress<SubscriberActor>,
+        participant_address: &ActorAddress<DomainParticipantActor>,
+        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
+        subscriber_mask_listener: &(Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
         participant_mask_listener: &(
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1378,7 +1378,7 @@ impl DdsDataReader {
 }
 
 #[actor_interface]
-impl DdsDataReader {
+impl DataReaderActor {
     async fn read(
         &mut self,
         max_samples: i32,
@@ -1580,7 +1580,7 @@ impl DdsDataReader {
         self.enabled = true;
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
@@ -1672,13 +1672,13 @@ impl DdsDataReader {
         discovered_writer_data: DiscoveredWriterData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        data_reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         subscriber_qos: SubscriberQos,
-        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        subscriber_mask_listener: (Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
         participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) {
@@ -1784,12 +1784,12 @@ impl DdsDataReader {
     async fn remove_matched_writer(
         &mut self,
         discovered_writer_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        data_reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber_mask_listener: (Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
         participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) {
@@ -1824,13 +1824,13 @@ impl DdsDataReader {
         &mut self,
         message: RtpsMessageRead,
         reception_timestamp: Time,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_status_condition: ActorAddress<DdsStatusCondition>,
-        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        data_reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber_status_condition: ActorAddress<StatusConditionActor>,
+        subscriber_mask_listener: (Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
         participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1892,12 +1892,12 @@ impl DdsDataReader {
     async fn update_communication_status(
         &mut self,
         now: Time,
-        data_reader_address: ActorAddress<DdsDataReader>,
-        subscriber_address: ActorAddress<DdsSubscriber>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        subscriber_mask_listener: (Option<ActorAddress<DdsSubscriberListener>>, Vec<StatusKind>),
+        data_reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber_mask_listener: (Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
         participant_mask_listener: (
-            Option<ActorAddress<DdsDomainParticipantListener>>,
+            Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {

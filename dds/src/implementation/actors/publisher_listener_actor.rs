@@ -6,18 +6,18 @@ use crate::{
     publication::publisher_listener::PublisherListener,
 };
 
-pub struct DdsPublisherListener {
+pub struct PublisherListenerActor {
     listener: Box<dyn PublisherListener + Send>,
 }
 
-impl DdsPublisherListener {
+impl PublisherListenerActor {
     pub fn new(listener: Box<dyn PublisherListener + Send>) -> Self {
         Self { listener }
     }
 }
 
 #[actor_interface]
-impl DdsPublisherListener {
+impl PublisherListenerActor {
     async fn trigger_on_offered_incompatible_qos(
         &mut self,
         the_writer: DataWriterNode,

@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        actors::status_condition_actor::{self, DdsStatusCondition},
+        actors::status_condition_actor::{self, StatusConditionActor},
         utils::actor::ActorAddress,
     },
     infrastructure::error::DdsResult,
@@ -12,7 +12,7 @@ use super::status::StatusKind;
 /// The *trigger_value* of the [`StatusCondition`] depends on the communication status of that entity (e.g., arrival of data, loss of
 /// information, etc.), ‘filtered’ by the set of *enabled_statuses* on the [`StatusCondition`].
 #[derive(Clone)]
-pub struct StatusCondition(ActorAddress<DdsStatusCondition>);
+pub struct StatusCondition(ActorAddress<StatusConditionActor>);
 
 impl StatusCondition {
     /// This operation retrieves the list of communication statuses that are taken into account to determine the *trigger_value* of the
@@ -51,7 +51,7 @@ impl StatusCondition {
 }
 
 impl StatusCondition {
-    pub(crate) fn new(dds_status_condition: ActorAddress<DdsStatusCondition>) -> Self {
+    pub(crate) fn new(dds_status_condition: ActorAddress<StatusConditionActor>) -> Self {
         Self(dds_status_condition)
     }
 }

@@ -2,12 +2,12 @@ use dust_dds_derive::actor_interface;
 
 use crate::infrastructure::status::StatusKind;
 
-pub struct DdsStatusCondition {
+pub struct StatusConditionActor {
     enabled_statuses: Vec<StatusKind>,
     status_changes: Vec<StatusKind>,
 }
 
-impl Default for DdsStatusCondition {
+impl Default for StatusConditionActor {
     fn default() -> Self {
         Self {
             enabled_statuses: vec![
@@ -31,7 +31,7 @@ impl Default for DdsStatusCondition {
 }
 
 #[actor_interface]
-impl DdsStatusCondition {
+impl StatusConditionActor {
     async fn add_communication_state(&mut self, state: StatusKind) {
         self.status_changes.push(state);
     }

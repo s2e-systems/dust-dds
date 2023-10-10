@@ -7,18 +7,18 @@ use crate::{
 
 use super::any_data_writer_listener::AnyDataWriterListener;
 
-pub struct DdsDataWriterListener {
+pub struct DataWriterListenerActor {
     listener: Box<dyn AnyDataWriterListener + Send + 'static>,
 }
 
-impl DdsDataWriterListener {
+impl DataWriterListenerActor {
     pub fn new(listener: Box<dyn AnyDataWriterListener + Send + 'static>) -> Self {
         Self { listener }
     }
 }
 
 #[actor_interface]
-impl DdsDataWriterListener {
+impl DataWriterListenerActor {
     async fn trigger_on_offered_incompatible_qos(
         &mut self,
         the_writer: DataWriterNode,

@@ -2,7 +2,7 @@ use crate::{
     implementation::{
         actors::{
             data_reader_actor, data_writer_actor,
-            domain_participant_actor::{self, DdsDomainParticipant},
+            domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor, subscriber_actor,
         },
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
@@ -731,7 +731,7 @@ where
 pub trait AnyDataReader {}
 
 fn announce_data_reader(
-    domain_participant: &ActorAddress<DdsDomainParticipant>,
+    domain_participant: &ActorAddress<DomainParticipantActor>,
     discovered_reader_data: DiscoveredReaderData,
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(&discovered_reader_data)?;

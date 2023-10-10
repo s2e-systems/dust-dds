@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
-            data_writer_actor, data_writer_listener_actor::DdsDataWriterListener,
+            data_writer_actor, data_writer_listener_actor::DataWriterListenerActor,
             domain_participant_actor, publisher_actor,
         },
         dds::nodes::{DataWriterNode, DomainParticipantNode, PublisherNode},
@@ -101,7 +101,7 @@ impl Publisher {
                 domain_participant_actor::data_max_size_serialized::new(),
             )?;
 
-        let listener = a_listener.map(|l| spawn_actor(DdsDataWriterListener::new(Box::new(l))));
+        let listener = a_listener.map(|l| spawn_actor(DataWriterListenerActor::new(Box::new(l))));
         let data_writer_address = self
             .0
             .publisher_address()

@@ -70,13 +70,13 @@ use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
 use super::{
-    data_writer_listener_actor::{self, DdsDataWriterListener},
-    domain_participant_actor::DdsDomainParticipant,
-    domain_participant_listener_actor::{self, DdsDomainParticipantListener},
+    data_writer_listener_actor::{self, DataWriterListenerActor},
+    domain_participant_actor::DomainParticipantActor,
+    domain_participant_listener_actor::{self, DomainParticipantListenerActor},
     message_receiver::MessageReceiver,
-    publisher_actor::DdsPublisher,
-    publisher_listener_actor::{self, DdsPublisherListener},
-    status_condition_actor::{self, DdsStatusCondition},
+    publisher_actor::PublisherActor,
+    publisher_listener_actor::{self, PublisherListenerActor},
+    status_condition_actor::{self, StatusConditionActor},
 };
 
 struct MatchedSubscriptions {
@@ -209,7 +209,7 @@ impl IncompatibleSubscriptions {
     }
 }
 
-pub struct DdsDataWriter {
+pub struct DataWriterActor {
     rtps_writer: RtpsWriter,
     reader_locators: Vec<RtpsReaderLocator>,
     matched_readers: Vec<RtpsReaderProxy>,
@@ -218,25 +218,25 @@ pub struct DdsDataWriter {
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
-    status_condition: Actor<DdsStatusCondition>,
-    listener: Option<Actor<DdsDataWriterListener>>,
+    status_condition: Actor<StatusConditionActor>,
+    listener: Option<Actor<DataWriterListenerActor>>,
     status_kind: Vec<StatusKind>,
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
     registered_instance_list: HashMap<InstanceHandle, DdsSerializedKey>,
 }
 
-impl DdsDataWriter {
+impl DataWriterActor {
     pub fn new(
         rtps_writer: RtpsWriter,
         type_name: String,
         topic_name: String,
-        listener: Option<Actor<DdsDataWriterListener>>,
+        listener: Option<Actor<DataWriterListenerActor>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
-        let status_condition = spawn_actor(DdsStatusCondition::default());
-        DdsDataWriter {
+        let status_condition = spawn_actor(StatusConditionActor::default());
+        DataWriterActor {
             rtps_writer,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
@@ -260,7 +260,7 @@ impl DdsDataWriter {
 }
 
 #[actor_interface]
-impl DdsDataWriter {
+impl DataWriterActor {
     async fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_writer.guid().into()
     }
@@ -327,7 +327,7 @@ impl DdsDataWriter {
         self.enabled
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<DdsStatusCondition> {
+    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
@@ -589,17 +589,17 @@ impl DdsDataWriter {
         discovered_reader_data: DiscoveredReaderData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        data_writer_address: ActorAddress<DdsDataWriter>,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        data_writer_address: ActorAddress<DataWriterActor>,
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         publisher_qos: PublisherQos,
-        publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
+        publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
         participant_publication_matched_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
+            ActorAddress<DomainParticipantListenerActor>,
         >,
-        offered_incompatible_qos_publisher_listener: Option<ActorAddress<DdsPublisherListener>>,
+        offered_incompatible_qos_publisher_listener: Option<ActorAddress<PublisherListenerActor>>,
         offered_incompatible_qos_participant_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
+            ActorAddress<DomainParticipantListenerActor>,
         >,
     ) {
         let is_matched_topic_name = discovered_reader_data
@@ -733,12 +733,12 @@ impl DdsDataWriter {
     async fn remove_matched_reader(
         &mut self,
         discovered_reader_handle: InstanceHandle,
-        data_writer_address: ActorAddress<DdsDataWriter>,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
+        data_writer_address: ActorAddress<DataWriterActor>,
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
         participant_publication_matched_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
+            ActorAddress<DomainParticipantListenerActor>,
         >,
     ) {
         if let Some(r) = self
@@ -809,7 +809,7 @@ impl DdsDataWriter {
     }
 }
 
-impl DdsDataWriter {
+impl DataWriterActor {
     fn remove_stale_changes(&mut self, now: Time) {
         let timespan_duration = self.qos.lifespan.duration;
         self.writer_cache
@@ -983,12 +983,12 @@ impl DdsDataWriter {
 
     async fn on_publication_matched(
         &mut self,
-        data_writer_address: ActorAddress<DdsDataWriter>,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        publisher_publication_matched_listener: Option<ActorAddress<DdsPublisherListener>>,
+        data_writer_address: ActorAddress<DataWriterActor>,
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
         participant_publication_matched_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
+            ActorAddress<DomainParticipantListenerActor>,
         >,
     ) {
         self.status_condition
@@ -1038,12 +1038,12 @@ impl DdsDataWriter {
 
     async fn on_offered_incompatible_qos(
         &mut self,
-        data_writer_address: ActorAddress<DdsDataWriter>,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
-        offered_incompatible_qos_publisher_listener: Option<ActorAddress<DdsPublisherListener>>,
+        data_writer_address: ActorAddress<DataWriterActor>,
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        offered_incompatible_qos_publisher_listener: Option<ActorAddress<PublisherListenerActor>>,
         offered_incompatible_qos_participant_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
+            ActorAddress<DomainParticipantListenerActor>,
         >,
     ) {
         self.status_condition

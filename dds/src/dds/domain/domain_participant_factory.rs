@@ -3,9 +3,9 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         actors::{
-            domain_participant_actor::{self, DdsDomainParticipant},
-            domain_participant_factory_actor::{self, DdsDomainParticipantFactory},
-            domain_participant_listener_actor::DdsDomainParticipantListener,
+            domain_participant_actor::{self, DomainParticipantActor},
+            domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
+            domain_participant_listener_actor::DomainParticipantListenerActor,
         },
         configuration::DustDdsConfiguration,
         dds::nodes::DomainParticipantNode,
@@ -39,7 +39,7 @@ lazy_static! {
     /// This value can be used as an alias for the singleton factory returned by the operation
     /// [`DomainParticipantFactory::get_instance()`].
     pub static ref THE_PARTICIPANT_FACTORY: DomainParticipantFactory = {
-        let participant_factory_actor = spawn_actor(DdsDomainParticipantFactory::new());
+        let participant_factory_actor = spawn_actor(DomainParticipantFactoryActor::new());
         DomainParticipantFactory(participant_factory_actor)
     };
 
@@ -54,7 +54,7 @@ lazy_static! {
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory(Actor<DdsDomainParticipantFactory>);
+pub struct DomainParticipantFactory(Actor<DomainParticipantFactoryActor>);
 
 impl DomainParticipantFactory {
     /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
@@ -171,10 +171,10 @@ impl DomainParticipantFactory {
         );
         let participant_guid = rtps_participant.guid();
 
-        let listener = a_listener.map(|l| spawn_actor(DdsDomainParticipantListener::new(l)));
+        let listener = a_listener.map(|l| spawn_actor(DomainParticipantListenerActor::new(l)));
         let status_kind = mask.to_vec();
 
-        let domain_participant = DdsDomainParticipant::new(
+        let domain_participant = DomainParticipantActor::new(
             rtps_participant,
             domain_id,
             THE_DDS_CONFIGURATION.domain_tag.clone(),

@@ -9,18 +9,18 @@ use crate::{
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
 };
 
-pub struct DdsSubscriberListener {
+pub struct SubscriberListenerActor {
     listener: Box<dyn SubscriberListener + Send>,
 }
 
-impl DdsSubscriberListener {
+impl SubscriberListenerActor {
     pub fn new(listener: Box<dyn SubscriberListener + Send>) -> Self {
         Self { listener }
     }
 }
 
 #[actor_interface]
-impl DdsSubscriberListener {
+impl SubscriberListenerActor {
     async fn trigger_on_data_on_readers(&mut self, the_subscriber: SubscriberNode) {
         tokio::task::block_in_place(|| {
             self.listener

@@ -10,18 +10,18 @@ use crate::{
 
 use super::any_data_reader_listener::AnyDataReaderListener;
 
-pub struct DdsDataReaderListener {
+pub struct DataReaderListenerActor {
     listener: Box<dyn AnyDataReaderListener + Send + 'static>,
 }
 
-impl DdsDataReaderListener {
+impl DataReaderListenerActor {
     pub fn new(listener: Box<dyn AnyDataReaderListener + Send + 'static>) -> Self {
         Self { listener }
     }
 }
 
 #[actor_interface]
-impl DdsDataReaderListener {
+impl DataReaderListenerActor {
     async fn trigger_on_data_available(&mut self, reader: DataReaderNode) {
         tokio::task::block_in_place(|| self.listener.trigger_on_data_available(reader));
     }

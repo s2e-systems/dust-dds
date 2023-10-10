@@ -6,7 +6,7 @@ use tracing::warn;
 
 use crate::{
     implementation::{
-        actors::data_writer_listener_actor::DdsDataWriterListener,
+        actors::data_writer_listener_actor::DataWriterListenerActor,
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
             endpoint::RtpsEndpoint,
@@ -32,28 +32,28 @@ use crate::{
 };
 
 use super::{
-    data_writer_actor::{self, DdsDataWriter},
-    domain_participant_actor::DdsDomainParticipant,
-    domain_participant_listener_actor::DdsDomainParticipantListener,
-    publisher_listener_actor::DdsPublisherListener,
+    data_writer_actor::{self, DataWriterActor},
+    domain_participant_actor::DomainParticipantActor,
+    domain_participant_listener_actor::DomainParticipantListenerActor,
+    publisher_listener_actor::PublisherListenerActor,
 };
 
-pub struct DdsPublisher {
+pub struct PublisherActor {
     qos: PublisherQos,
     rtps_group: RtpsGroup,
-    data_writer_list: HashMap<InstanceHandle, Actor<DdsDataWriter>>,
+    data_writer_list: HashMap<InstanceHandle, Actor<DataWriterActor>>,
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
-    listener: Option<Actor<DdsPublisherListener>>,
+    listener: Option<Actor<PublisherListenerActor>>,
     status_kind: Vec<StatusKind>,
 }
 
-impl DdsPublisher {
+impl PublisherActor {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        listener: Option<Actor<DdsPublisherListener>>,
+        listener: Option<Actor<PublisherListenerActor>>,
         status_kind: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -70,7 +70,7 @@ impl DdsPublisher {
 }
 
 #[actor_interface]
-impl DdsPublisher {
+impl PublisherActor {
     #[allow(clippy::too_many_arguments)]
     async fn create_datawriter(
         &mut self,
@@ -79,11 +79,11 @@ impl DdsPublisher {
         has_key: bool,
         data_max_size_serialized: usize,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Actor<DdsDataWriterListener>>,
+        a_listener: Option<Actor<DataWriterListenerActor>>,
         mask: Vec<StatusKind>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-    ) -> DdsResult<ActorAddress<DdsDataWriter>> {
+    ) -> DdsResult<ActorAddress<DataWriterActor>> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
             QosKind::Specific(q) => {
@@ -119,7 +119,7 @@ impl DdsPublisher {
             data_max_size_serialized,
         );
 
-        let data_writer = DdsDataWriter::new(
+        let data_writer = DataWriterActor::new(
             rtps_writer_impl,
             type_name,
             topic_name,
@@ -134,7 +134,7 @@ impl DdsPublisher {
         Ok(data_writer_address)
     }
 
-    async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DdsDataWriter>> {
+    async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DataWriterActor>> {
         for dw in self.data_writer_list.values() {
             if dw
                 .send_mail_and_await_reply(data_writer_actor::get_topic_name::new())
@@ -172,7 +172,7 @@ impl DdsPublisher {
     async fn datawriter_add(
         &mut self,
         instance_handle: InstanceHandle,
-        data_writer: Actor<DdsDataWriter>,
+        data_writer: Actor<DataWriterActor>,
     ) {
         self.data_writer_list.insert(instance_handle, data_writer);
     }
@@ -216,7 +216,7 @@ impl DdsPublisher {
         self.status_kind.clone()
     }
 
-    async fn get_listener(&self) -> Option<ActorAddress<DdsPublisherListener>> {
+    async fn get_listener(&self) -> Option<ActorAddress<PublisherListenerActor>> {
         self.listener.as_ref().map(|l| l.address())
     }
 
@@ -224,7 +224,7 @@ impl DdsPublisher {
         self.qos.clone()
     }
 
-    async fn data_writer_list(&self) -> Vec<ActorAddress<DdsDataWriter>> {
+    async fn data_writer_list(&self) -> Vec<ActorAddress<DataWriterActor>> {
         self.data_writer_list
             .values()
             .map(|x| x.address())
@@ -265,13 +265,13 @@ impl DdsPublisher {
         discovered_reader_data: DiscoveredReaderData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         participant_publication_matched_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
+            ActorAddress<DomainParticipantListenerActor>,
         >,
         offered_incompatible_qos_participant_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
+            ActorAddress<DomainParticipantListenerActor>,
         >,
     ) {
         if self.is_partition_matched(
@@ -317,10 +317,10 @@ impl DdsPublisher {
     async fn remove_matched_reader(
         &self,
         discovered_reader_handle: InstanceHandle,
-        publisher_address: ActorAddress<DdsPublisher>,
-        participant_address: ActorAddress<DdsDomainParticipant>,
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         participant_publication_matched_listener: Option<
-            ActorAddress<DdsDomainParticipantListener>,
+            ActorAddress<DomainParticipantListenerActor>,
         >,
     ) {
         for data_writer in self.data_writer_list.values() {
@@ -345,7 +345,7 @@ impl DdsPublisher {
     }
 }
 
-impl DdsPublisher {
+impl PublisherActor {
     fn is_partition_matched(&self, discovered_partition_qos_policy: &PartitionQosPolicy) -> bool {
         let is_any_name_matched = discovered_partition_qos_policy
             .name
