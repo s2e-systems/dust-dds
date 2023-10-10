@@ -22,6 +22,7 @@ use crate::{
         },
         dds::nodes::{DataReaderNode, SubscriberNode},
         rtps::{
+            message_receiver::MessageReceiver,
             messages::{
                 overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
                 submessage_elements::{Data, Parameter, ParameterList},
@@ -70,7 +71,6 @@ use super::{
     data_reader_listener_actor::{self, DataReaderListenerActor},
     domain_participant_actor::DomainParticipantActor,
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
-    message_receiver::MessageReceiver,
     status_condition_actor::{self, StatusConditionActor},
     subscriber_actor::SubscriberActor,
     subscriber_listener_actor::{self, SubscriberListenerActor},
@@ -372,7 +372,10 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
+        subscriber_mask_listener: &(
+            Option<ActorAddress<SubscriberListenerActor>>,
+            Vec<StatusKind>,
+        ),
         participant_mask_listener: &(
             Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
@@ -423,7 +426,10 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
+        subscriber_mask_listener: &(
+            Option<ActorAddress<SubscriberListenerActor>>,
+            Vec<StatusKind>,
+        ),
         participant_mask_listener: &(
             Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
@@ -978,7 +984,10 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
+        subscriber_mask_listener: &(
+            Option<ActorAddress<SubscriberListenerActor>>,
+            Vec<StatusKind>,
+        ),
         participant_mask_listener: &(
             Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
@@ -1063,7 +1072,10 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
+        subscriber_mask_listener: &(
+            Option<ActorAddress<SubscriberListenerActor>>,
+            Vec<StatusKind>,
+        ),
         participant_mask_listener: &(
             Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
@@ -1676,7 +1688,10 @@ impl DataReaderActor {
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
         subscriber_qos: SubscriberQos,
-        subscriber_mask_listener: (Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
+        subscriber_mask_listener: (
+            Option<ActorAddress<SubscriberListenerActor>>,
+            Vec<StatusKind>,
+        ),
         participant_mask_listener: (
             Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
@@ -1787,7 +1802,10 @@ impl DataReaderActor {
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        subscriber_mask_listener: (Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
+        subscriber_mask_listener: (
+            Option<ActorAddress<SubscriberListenerActor>>,
+            Vec<StatusKind>,
+        ),
         participant_mask_listener: (
             Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
@@ -1828,7 +1846,10 @@ impl DataReaderActor {
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: (Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
+        subscriber_mask_listener: (
+            Option<ActorAddress<SubscriberListenerActor>>,
+            Vec<StatusKind>,
+        ),
         participant_mask_listener: (
             Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,
@@ -1895,7 +1916,10 @@ impl DataReaderActor {
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        subscriber_mask_listener: (Option<ActorAddress<SubscriberListenerActor>>, Vec<StatusKind>),
+        subscriber_mask_listener: (
+            Option<ActorAddress<SubscriberListenerActor>>,
+            Vec<StatusKind>,
+        ),
         participant_mask_listener: (
             Option<ActorAddress<DomainParticipantListenerActor>>,
             Vec<StatusKind>,

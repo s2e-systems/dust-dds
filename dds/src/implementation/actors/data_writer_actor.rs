@@ -13,6 +13,7 @@ use crate::{
         },
         dds::nodes::DataWriterNode,
         rtps::{
+            message_receiver::MessageReceiver,
             messages::{
                 overall_structure::{
                     RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
@@ -73,7 +74,6 @@ use super::{
     data_writer_listener_actor::{self, DataWriterListenerActor},
     domain_participant_actor::DomainParticipantActor,
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
-    message_receiver::MessageReceiver,
     publisher_actor::PublisherActor,
     publisher_listener_actor::{self, PublisherListenerActor},
     status_condition_actor::{self, StatusConditionActor},
