@@ -5,7 +5,10 @@ use crate::{
             data_writer_actor, data_writer_listener_actor::DataWriterListenerActor,
             domain_participant_actor, publisher_actor,
         },
-        dds::nodes::{DataWriterNode, DomainParticipantNode, PublisherNode},
+        dds::{
+            dds_domain_participant::DomainParticipantNode,
+            nodes::{DataWriterNode, PublisherNode},
+        },
         utils::actor::spawn_actor,
     },
     infrastructure::{

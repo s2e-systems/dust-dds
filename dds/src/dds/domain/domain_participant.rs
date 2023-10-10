@@ -8,7 +8,10 @@ use crate::{
             domain_participant_actor::{self},
             publisher_actor, subscriber_actor, topic_actor,
         },
-        dds::nodes::{DomainParticipantNode, PublisherNode, SubscriberNode, TopicNode},
+        dds::{
+            dds_domain_participant::DomainParticipantNode,
+            nodes::{PublisherNode, SubscriberNode, TopicNode},
+        },
         utils::actor::THE_RUNTIME,
     },
     infrastructure::{

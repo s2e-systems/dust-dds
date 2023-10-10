@@ -8,7 +8,7 @@ use crate::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
         },
         configuration::DustDdsConfiguration,
-        dds::nodes::DomainParticipantNode,
+        dds::dds_domain_participant::DomainParticipantNode,
         rtps::{
             participant::RtpsParticipant,
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},

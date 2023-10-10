@@ -7,7 +7,7 @@ use crate::{
             publisher_actor, topic_actor,
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        dds::nodes::{DomainParticipantNode, TopicNode},
+        dds::{dds_domain_participant::DomainParticipantNode, nodes::TopicNode},
         utils::actor::ActorAddress,
     },
     infrastructure::{
