@@ -3,7 +3,10 @@ use tracing::warn;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
-    domain::domain_participant_factory::DomainId,
+    domain::{
+        domain_participant_factory::DomainId,
+        domain_participant_listener::DomainParticipantListener,
+    },
     implementation::{
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
@@ -551,7 +554,8 @@ impl DomainParticipantActor {
 
         let topic = TopicActor::new(guid, qos, type_name, &topic_name);
 
-        let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> = spawn_actor(topic);
+        let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
+            spawn_actor(topic);
         let topic_address = topic_actor.address();
         self.topic_list.insert(guid.into(), topic_actor);
 
@@ -1024,6 +1028,15 @@ impl DomainParticipantActor {
         self.process_sedp_subscriptions_discovery(participant_address)
             .await;
         self.process_sedp_topics_discovery().await;
+    }
+
+    async fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener.map(|l| spawn_actor(DomainParticipantListenerActor::new(l)));
+        self.status_kind = status_kind;
     }
 }
 

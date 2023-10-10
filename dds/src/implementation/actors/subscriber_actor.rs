@@ -32,6 +32,7 @@ use crate::{
         status::StatusKind,
         time::Time,
     },
+    subscription::subscriber_listener::SubscriberListener,
 };
 
 pub struct SubscriberActor {
@@ -287,6 +288,15 @@ impl SubscriberActor {
                 ))
                 .await;
         }
+    }
+
+    async fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn SubscriberListener + Send + 'static>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener.map(|l| spawn_actor(SubscriberListenerActor::new(l)));
+        self.status_kind = status_kind;
     }
 }
 

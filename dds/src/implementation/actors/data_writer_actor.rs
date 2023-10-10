@@ -71,6 +71,7 @@ use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
 use super::{
+    any_data_writer_listener::AnyDataWriterListener,
     data_writer_listener_actor::{self, DataWriterListenerActor},
     domain_participant_actor::DomainParticipantActor,
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
@@ -806,6 +807,15 @@ impl DataWriterActor {
         }
 
         self.reader_locators.push(locator);
+    }
+
+    async fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn AnyDataWriterListener + Send + 'static>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener.map(|l| spawn_actor(DataWriterListenerActor::new(l)));
+        self.status_kind = status_kind;
     }
 }
 

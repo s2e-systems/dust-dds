@@ -3,8 +3,11 @@ use std::{marker::PhantomData, time::Instant};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
-        actors::{data_writer_actor, domain_participant_actor, publisher_actor},
-        dds::{dds_publisher::DdsPublisher, dds_data_writer::DdsDataWriter},
+        actors::{
+            any_data_writer_listener::AnyDataWriterListener, data_writer_actor,
+            domain_participant_actor, publisher_actor,
+        },
+        dds::{dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -30,6 +33,12 @@ use crate::{
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
 pub struct DataWriter<Foo>(DdsDataWriter, PhantomData<Foo>);
+
+impl<Foo> Clone for DataWriter<Foo> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1)
+    }
+}
 
 impl<Foo> DataWriter<Foo> {
     pub(crate) fn new(data_writer: DdsDataWriter) -> Self {
@@ -563,13 +572,19 @@ where
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn DataWriterListener<Foo> + Send>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn DataWriterListener<Foo> + Send>>,
+        mask: &[StatusKind],
     ) -> DdsResult<()> {
-        todo!()
+        self.0.writer_address().send_mail_and_await_reply_blocking(
+            data_writer_actor::set_listener::new(
+                a_listener
+                    .map::<Box<dyn AnyDataWriterListener + Send + 'static>, _>(|l| Box::new(l)),
+                mask.to_vec(),
+            ),
+        )
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

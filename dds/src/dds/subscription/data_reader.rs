@@ -1,6 +1,7 @@
 use crate::{
     implementation::{
         actors::{
+            any_data_reader_listener::AnyDataReaderListener,
             data_reader_actor, data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor, subscriber_actor,
@@ -102,6 +103,12 @@ impl<Foo> DataReader<Foo> {
 
     pub(crate) fn node(&self) -> &DdsDataReader {
         &self.0
+    }
+}
+
+impl<Foo> Clone for DataReader<Foo> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1)
     }
 }
 
@@ -719,13 +726,19 @@ where
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn DataReaderListener<Foo> + Send>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn DataReaderListener<Foo> + Send>>,
+        mask: &[StatusKind],
     ) -> DdsResult<()> {
-        todo!()
+        self.0.reader_address().send_mail_and_await_reply_blocking(
+            data_reader_actor::set_listener::new(
+                a_listener
+                    .map::<Box<dyn AnyDataReaderListener + Send + 'static>, _>(|l| Box::new(l)),
+                mask.to_vec(),
+            ),
+        )
     }
 }
 pub trait AnyDataReader {}

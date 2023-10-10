@@ -68,6 +68,7 @@ use crate::{
 };
 
 use super::{
+    any_data_reader_listener::AnyDataReaderListener,
     data_reader_listener_actor::{self, DataReaderListenerActor},
     domain_participant_actor::DomainParticipantActor,
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
@@ -2016,5 +2017,14 @@ impl DataReaderActor {
                 .send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
                 .await
         }
+    }
+
+    async fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn AnyDataReaderListener + Send + 'static>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener.map(|l| spawn_actor(DataReaderListenerActor::new(l)));
+        self.status_kind = status_kind;
     }
 }

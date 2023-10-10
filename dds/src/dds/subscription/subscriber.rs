@@ -411,13 +411,18 @@ impl Subscriber {
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn SubscriberListener + Send>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn SubscriberListener + Send + 'static>>,
+        mask: &[StatusKind],
     ) -> DdsResult<()> {
-        todo!()
+        self.0
+            .subscriber_address()
+            .send_mail_and_await_reply_blocking(subscriber_actor::set_listener::new(
+                a_listener,
+                mask.to_vec(),
+            ))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

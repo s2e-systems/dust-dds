@@ -29,6 +29,7 @@ use crate::{
         status::StatusKind,
         time::{Duration, Time, DURATION_ZERO},
     },
+    publication::publisher_listener::PublisherListener,
 };
 
 use super::{
@@ -342,6 +343,15 @@ impl PublisherActor {
                 ))
                 .await;
         }
+    }
+
+    async fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn PublisherListener + Send + 'static>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener.map(|l| spawn_actor(PublisherListenerActor::new(l)));
+        self.status_kind = status_kind;
     }
 }
 
