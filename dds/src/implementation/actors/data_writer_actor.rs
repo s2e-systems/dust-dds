@@ -11,7 +11,6 @@ use crate::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
-        dds::dds_data_writer::DdsDataWriter,
         rtps::{
             message_receiver::MessageReceiver,
             messages::{
@@ -1007,25 +1006,31 @@ impl DataWriterActor {
             ))
             .await;
         if self.listener.is_some() && self.status_kind.contains(&StatusKind::PublicationMatched) {
-            let writer =
-                DdsDataWriter::new(data_writer_address, publisher_address, participant_address);
             let status = self.get_publication_matched_status().await;
             self.listener
                 .as_ref()
                 .unwrap()
                 .send_mail(
-                    data_writer_listener_actor::trigger_on_publication_matched::new(writer, status),
+                    data_writer_listener_actor::trigger_on_publication_matched::new(
+                        data_writer_address,
+                        publisher_address,
+                        participant_address,
+                        status,
+                    ),
                 )
                 .await;
         } else if let Some(publisher_publication_matched_listener) =
             publisher_publication_matched_listener
         {
             let status = self.get_publication_matched_status().await;
-            let writer =
-                DdsDataWriter::new(data_writer_address, publisher_address, participant_address);
             publisher_publication_matched_listener
                 .send_mail(
-                    publisher_listener_actor::trigger_on_publication_matched::new(writer, status),
+                    publisher_listener_actor::trigger_on_publication_matched::new(
+                        data_writer_address,
+                        publisher_address,
+                        participant_address,
+                        status,
+                    ),
                 )
                 .await
                 .expect("Listener should exist");
@@ -1033,12 +1038,13 @@ impl DataWriterActor {
             participant_publication_matched_listener
         {
             let status = self.get_publication_matched_status().await;
-            let writer =
-                DdsDataWriter::new(data_writer_address, publisher_address, participant_address);
             participant_publication_matched_listener
                 .send_mail(
                     domain_participant_listener_actor::trigger_on_publication_matched::new(
-                        writer, status,
+                        data_writer_address,
+                        publisher_address,
+                        participant_address,
+                        status,
                     ),
                 )
                 .await
@@ -1068,14 +1074,15 @@ impl DataWriterActor {
         {
             let status = self.get_offered_incompatible_qos_status().await;
 
-            let writer =
-                DdsDataWriter::new(data_writer_address, publisher_address, participant_address);
             self.listener
                 .as_ref()
                 .unwrap()
                 .send_mail(
                     data_writer_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        writer, status,
+                        data_writer_address,
+                        publisher_address,
+                        participant_address,
+                        status,
                     ),
                 )
                 .await;
@@ -1083,12 +1090,13 @@ impl DataWriterActor {
             offered_incompatible_qos_publisher_listener
         {
             let status = self.get_offered_incompatible_qos_status().await;
-            let writer =
-                DdsDataWriter::new(data_writer_address, publisher_address, participant_address);
             offered_incompatible_qos_publisher_listener
                 .send_mail(
                     publisher_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        writer, status,
+                        data_writer_address,
+                        publisher_address,
+                        participant_address,
+                        status,
                     ),
                 )
                 .await
@@ -1097,12 +1105,13 @@ impl DataWriterActor {
             offered_incompatible_qos_participant_listener
         {
             let status = self.get_offered_incompatible_qos_status().await;
-            let writer =
-                DdsDataWriter::new(data_writer_address, publisher_address, participant_address);
             offered_incompatible_qos_participant_listener
                 .send_mail(
                     domain_participant_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        writer, status,
+                        data_writer_address,
+                        publisher_address,
+                        participant_address,
+                        status,
                     ),
                 )
                 .await

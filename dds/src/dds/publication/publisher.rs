@@ -2,13 +2,10 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
-            data_writer_actor, data_writer_listener_actor::DataWriterListenerActor,
-            domain_participant_actor, publisher_actor,
+            data_writer_listener_actor::DataWriterListenerActor, domain_participant_actor,
+            publisher_actor,
         },
-        dds::{
-            dds_data_writer::DdsDataWriter, dds_domain_participant::DdsDomainParticipant,
-            dds_publisher::DdsPublisher,
-        },
+        dds::{dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher},
         utils::actor::spawn_actor,
     },
     infrastructure::{
@@ -120,11 +117,11 @@ impl Publisher {
                 default_multicast_locator_list,
             ))??;
 
-        let data_writer = DataWriter::new(DdsDataWriter::new(
+        let data_writer = DataWriter::new(
             data_writer_address,
             self.0.publisher_address().clone(),
             self.0.participant_address().clone(),
-        ));
+        );
 
         if self
             .0
@@ -151,78 +148,29 @@ impl Publisher {
     /// [`DataWriter`].
     #[tracing::instrument(skip(self, a_datawriter))]
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
-        let writer_handle = a_datawriter
-            .node()
-            .writer_address()
-            .send_mail_and_await_reply_blocking(data_writer_actor::get_instance_handle::new())?;
+        let writer_handle = a_datawriter.get_instance_handle()?;
         if self
             .0
             .publisher_address()
-            .send_mail_and_await_reply_blocking(publisher_actor::guid::new())?
-            != a_datawriter
-                .node()
-                .publisher_address()
-                .send_mail_and_await_reply_blocking(publisher_actor::guid::new())?
+            .send_mail_and_await_reply_blocking(publisher_actor::get_instance_handle::new())?
+            != a_datawriter.get_publisher()?.get_instance_handle()?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
             ));
         }
 
-        let writer_is_enabled = a_datawriter
-            .node()
-            .writer_address()
-            .send_mail_and_await_reply_blocking(data_writer_actor::is_enabled::new())?;
         self.0
             .publisher_address()
             .send_mail_and_await_reply_blocking(publisher_actor::datawriter_delete::new(
                 writer_handle,
             ))?;
 
-        // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
-        if writer_is_enabled {
-            let instance_serialized_key =
-                cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
-                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-                    .expect("Failed to serialize data");
-
-            let timestamp = a_datawriter
-                .node()
-                .participant_address()
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_current_time::new(),
-                )?;
-
-            let builtin_publisher = a_datawriter
-                .node()
-                .participant_address()
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_builtin_publisher::new(),
-                )?;
-            let data_writer_list = builtin_publisher
-                .send_mail_and_await_reply_blocking(publisher_actor::data_writer_list::new())?;
-            for data_writer in data_writer_list {
-                if data_writer
-                    .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
-                    == Ok("DiscoveredWriterData".to_string())
-                {
-                    data_writer.send_mail_and_await_reply_blocking(
-                        data_writer_actor::dispose_w_timestamp::new(
-                            instance_serialized_key,
-                            writer_handle,
-                            timestamp,
-                        ),
-                    )??;
-
-                    self.0
-                        .participant_address()
-                        .send_mail_blocking(domain_participant_actor::send_message::new())?;
-                    break;
-                }
-            }
-        }
-
-        Ok(())
+        self.0
+            .participant_address()
+            .send_mail_and_await_reply_blocking(
+                domain_participant_actor::announce_deleted_data_writer::new(writer_handle),
+            )?
     }
 
     /// This operation retrieves a previously created [`DataWriter`] belonging to the [`Publisher`] that is attached to a [`Topic`] with a matching
@@ -238,11 +186,11 @@ impl Publisher {
                 topic_name.to_string(),
             ))?
             .map(|dw| {
-                DataWriter::new(DdsDataWriter::new(
+                DataWriter::new(
                     dw,
                     self.0.publisher_address().clone(),
                     self.0.participant_address().clone(),
-                ))
+                )
             }))
     }
 

@@ -1018,6 +1018,31 @@ impl DomainParticipantActor {
         }
     }
 
+    async fn announce_deleted_data_writer(&self, writer_handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(sedp_publications_announcer) = self
+            .builtin_publisher
+            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
+                DCPS_PUBLICATION.to_string(),
+            ))
+            .await
+        {
+            let timestamp = self.get_current_time().await;
+            let instance_serialized_key =
+                cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+                    .expect("Failed to serialize data");
+            sedp_publications_announcer
+                .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
+                    instance_serialized_key,
+                    writer_handle,
+                    timestamp,
+                ))
+                .await?
+        } else {
+            Ok(())
+        }
+    }
+
     async fn process_builtin_discovery(
         &mut self,
         participant_address: ActorAddress<DomainParticipantActor>,

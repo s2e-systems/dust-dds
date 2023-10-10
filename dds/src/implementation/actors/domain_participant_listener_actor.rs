@@ -2,12 +2,18 @@ use dust_dds_derive::actor_interface;
 
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
-    implementation::dds::{dds_data_reader::DdsDataReader, dds_data_writer::DdsDataWriter},
+    implementation::{dds::dds_data_reader::DdsDataReader, utils::actor::ActorAddress},
     infrastructure::status::{
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
         SubscriptionMatchedStatus,
     },
+    publication::data_writer::DataWriter,
+};
+
+use super::{
+    data_writer_actor::DataWriterActor, domain_participant_actor::DomainParticipantActor,
+    publisher_actor::PublisherActor,
 };
 
 pub struct DomainParticipantListenerActor {
@@ -43,21 +49,32 @@ impl DomainParticipantListenerActor {
 
     async fn trigger_on_offered_incompatible_qos(
         &mut self,
-        the_writer: DdsDataWriter,
+        writer_address: ActorAddress<DataWriterActor>,
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         status: OfferedIncompatibleQosStatus,
     ) {
         tokio::task::block_in_place(|| {
-            self.listener
-                .on_offered_incompatible_qos(&the_writer, status)
+            self.listener.on_offered_incompatible_qos(
+                &DataWriter::<()>::new(writer_address, publisher_address, participant_address),
+                status,
+            )
         });
     }
 
     async fn trigger_on_publication_matched(
         &mut self,
-        the_writer: DdsDataWriter,
+        writer_address: ActorAddress<DataWriterActor>,
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         status: PublicationMatchedStatus,
     ) {
-        tokio::task::block_in_place(|| self.listener.on_publication_matched(&the_writer, status));
+        tokio::task::block_in_place(|| {
+            self.listener.on_publication_matched(
+                &DataWriter::<()>::new(writer_address, publisher_address, participant_address),
+                status,
+            )
+        });
     }
 
     async fn trigger_on_requested_deadline_missed(
