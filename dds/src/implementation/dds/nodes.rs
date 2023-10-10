@@ -1,19 +1,17 @@
 use crate::{
     implementation::{
-        dds::{dds_domain_participant, dds_topic},
+        actors::{
+            data_reader_actor::{self, DdsDataReader},
+            data_writer_actor::DdsDataWriter,
+            domain_participant_actor::{self, DdsDomainParticipant},
+            publisher_actor::DdsPublisher,
+            subscriber_actor::DdsSubscriber,
+            topic_actor::{self, DdsTopic},
+        },
         utils::actor::ActorAddress,
     },
     publication::data_writer::AnyDataWriter,
     subscription::data_reader::AnyDataReader,
-};
-
-use super::{
-    dds_data_reader::{self, DdsDataReader},
-    dds_data_writer::DdsDataWriter,
-    dds_domain_participant::DdsDomainParticipant,
-    dds_publisher::DdsPublisher,
-    dds_subscriber::DdsSubscriber,
-    dds_topic::DdsTopic,
 };
 
 #[derive(Clone, PartialEq, Eq)]
@@ -95,18 +93,18 @@ impl DataReaderNode {
         let user_defined_topic_list = self
             .participant_address
             .send_mail_and_await_reply_blocking(
-                dds_domain_participant::get_user_defined_topic_list::new(),
+                domain_participant_actor::get_user_defined_topic_list::new(),
             )
             .expect("should never fail");
         for topic in user_defined_topic_list {
-            if topic.send_mail_and_await_reply_blocking(dds_topic::get_type_name::new())
+            if topic.send_mail_and_await_reply_blocking(topic_actor::get_type_name::new())
                 == self
                     .reader_address
-                    .send_mail_and_await_reply_blocking(dds_data_reader::get_type_name::new())
-                && topic.send_mail_and_await_reply_blocking(dds_topic::get_name::new())
+                    .send_mail_and_await_reply_blocking(data_reader_actor::get_type_name::new())
+                && topic.send_mail_and_await_reply_blocking(topic_actor::get_name::new())
                     == self
                         .reader_address
-                        .send_mail_and_await_reply_blocking(dds_data_reader::get_topic_name::new())
+                        .send_mail_and_await_reply_blocking(data_reader_actor::get_topic_name::new())
             {
                 return topic;
             }

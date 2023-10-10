@@ -1,12 +1,11 @@
 use crate::{
+    implementation::dds::nodes::DataReaderNode,
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
 };
-
-use super::nodes::DataReaderNode;
 
 pub trait AnyDataReaderListener {
     fn trigger_on_data_available(&mut self, reader: DataReaderNode);

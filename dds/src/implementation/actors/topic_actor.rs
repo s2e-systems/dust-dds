@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use super::dds_status_condition::{self, DdsStatusCondition};
+use super::status_condition_actor::{self, DdsStatusCondition};
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -120,7 +120,7 @@ impl DdsTopic {
         let status = self.inconsistent_topic_status.read_and_reset();
         self.status_condition
             .address()
-            .send_mail_and_await_reply(dds_status_condition::remove_communication_state::new(
+            .send_mail_and_await_reply(status_condition_actor::remove_communication_state::new(
                 StatusKind::InconsistentTopic,
             ))
             .await?;
@@ -137,7 +137,7 @@ impl DdsTopic {
         {
             self.inconsistent_topic_status.increment();
             self.status_condition
-                .send_mail_and_await_reply(dds_status_condition::add_communication_state::new(
+                .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
                     StatusKind::InconsistentTopic,
                 ))
                 .await;

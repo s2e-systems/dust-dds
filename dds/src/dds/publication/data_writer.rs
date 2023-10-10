@@ -2,9 +2,9 @@ use std::{marker::PhantomData, time::Instant};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::dds::{
-        dds_data_writer, dds_domain_participant, dds_publisher,
-        nodes::{DataWriterNode, PublisherNode},
+    implementation::{
+        actors::{data_writer_actor, domain_participant_actor, publisher_actor},
+        dds::nodes::{DataWriterNode, PublisherNode},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -86,7 +86,7 @@ where
             self.0
                 .participant_address()
                 .send_mail_and_await_reply_blocking(
-                    dds_domain_participant::get_current_time::new(),
+                    domain_participant_actor::get_current_time::new(),
                 )?
         };
         self.register_instance_w_timestamp(instance, timestamp)
@@ -143,7 +143,7 @@ where
             self.0
                 .participant_address()
                 .send_mail_and_await_reply_blocking(
-                    dds_domain_participant::get_current_time::new(),
+                    domain_participant_actor::get_current_time::new(),
                 )?
         };
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
@@ -190,7 +190,7 @@ where
             let instance_serialized_key = dds_serialize_key_to_bytes(instance)?;
 
             self.0.writer_address().send_mail_and_await_reply_blocking(
-                dds_data_writer::unregister_instance_w_timestamp::new(
+                data_writer_actor::unregister_instance_w_timestamp::new(
                     instance_serialized_key.as_ref().to_vec(),
                     instance_handle,
                     timestamp,
@@ -218,7 +218,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.0.writer_address().send_mail_and_await_reply_blocking(
-            dds_data_writer::lookup_instance::new(dds_serialize_key(instance)?),
+            data_writer_actor::lookup_instance::new(dds_serialize_key(instance)?),
         )?
     }
 
@@ -260,7 +260,7 @@ where
             self.0
                 .participant_address()
                 .send_mail_and_await_reply_blocking(
-                    dds_domain_participant::get_current_time::new(),
+                    domain_participant_actor::get_current_time::new(),
                 )?
         };
         self.write_w_timestamp(data, handle, timestamp)
@@ -282,7 +282,7 @@ where
 
         self.0
             .writer_address()
-            .send_mail_and_await_reply_blocking(dds_data_writer::write_w_timestamp::new(
+            .send_mail_and_await_reply_blocking(data_writer_actor::write_w_timestamp::new(
                 serialized_data,
                 dds_serialize_key(data)?,
                 handle,
@@ -291,7 +291,7 @@ where
 
         self.0
             .participant_address()
-            .send_mail_blocking(dds_domain_participant::send_message::new())?;
+            .send_mail_blocking(domain_participant_actor::send_message::new())?;
 
         Ok(())
     }
@@ -314,7 +314,7 @@ where
             self.0
                 .participant_address()
                 .send_mail_and_await_reply_blocking(
-                    dds_domain_participant::get_current_time::new(),
+                    domain_participant_actor::get_current_time::new(),
                 )?
         };
         self.dispose_w_timestamp(data, handle, timestamp)
@@ -360,7 +360,7 @@ where
         let instance_serialized_key = dds_serialize_key_to_bytes(data)?;
 
         self.0.writer_address().send_mail_and_await_reply_blocking(
-            dds_data_writer::dispose_w_timestamp::new(
+            data_writer_actor::dispose_w_timestamp::new(
                 instance_serialized_key.as_ref().to_vec(),
                 instance_handle,
                 timestamp,
@@ -383,7 +383,7 @@ impl<Foo> DataWriter<Foo> {
         let start_time = Instant::now();
         while start_time.elapsed() < std::time::Duration::from(max_wait) {
             if self.0.writer_address().send_mail_and_await_reply_blocking(
-                dds_data_writer::are_all_changes_acknowledge::new(),
+                data_writer_actor::are_all_changes_acknowledge::new(),
             )? {
                 return Ok(());
             }
@@ -415,7 +415,7 @@ impl<Foo> DataWriter<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         self.0.writer_address().send_mail_and_await_reply_blocking(
-            dds_data_writer::get_publication_matched_status::new(),
+            data_writer_actor::get_publication_matched_status::new(),
         )
     }
 
@@ -461,7 +461,7 @@ impl<Foo> DataWriter<Foo> {
         self.0
             .writer_address()
             .send_mail_and_await_reply_blocking(
-                dds_data_writer::get_matched_subscription_data::new(subscription_handle),
+                data_writer_actor::get_matched_subscription_data::new(subscription_handle),
             )?
             .ok_or(DdsError::BadParameter)
     }
@@ -476,7 +476,7 @@ impl<Foo> DataWriter<Foo> {
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.0
             .writer_address()
-            .send_mail_and_await_reply_blocking(dds_data_writer::get_matched_subscriptions::new())
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_matched_subscriptions::new())
     }
 }
 
@@ -504,7 +504,7 @@ where
                 .0
                 .publisher_address()
                 .send_mail_and_await_reply_blocking(
-                    dds_publisher::get_default_datawriter_qos::new(),
+                    publisher_actor::get_default_datawriter_qos::new(),
                 )?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
@@ -513,34 +513,34 @@ where
         };
         self.0
             .writer_address()
-            .send_mail_and_await_reply_blocking(dds_data_writer::set_qos::new(q))?;
+            .send_mail_and_await_reply_blocking(data_writer_actor::set_qos::new(q))?;
 
         if self
             .0
             .writer_address()
-            .send_mail_and_await_reply_blocking(dds_data_writer::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(data_writer_actor::is_enabled::new())?
         {
             let discovered_writer_data =
                 self.0.writer_address().send_mail_and_await_reply_blocking(
-                    dds_data_writer::as_discovered_writer_data::new(
+                    data_writer_actor::as_discovered_writer_data::new(
                         TopicQos::default(),
                         self.0
                             .publisher_address()
-                            .send_mail_and_await_reply_blocking(dds_publisher::get_qos::new())?,
+                            .send_mail_and_await_reply_blocking(publisher_actor::get_qos::new())?,
                         self.0
                             .participant_address()
                             .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_default_unicast_locator_list::new(),
+                                domain_participant_actor::get_default_unicast_locator_list::new(),
                             )?,
                         self.0
                             .participant_address()
                             .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_default_multicast_locator_list::new(),
+                                domain_participant_actor::get_default_multicast_locator_list::new(),
                             )?,
                     ),
                 )?;
             self.0.participant_address().send_mail_blocking(
-                dds_domain_participant::announce_created_or_modified_data_writer::new(
+                domain_participant_actor::announce_created_or_modified_data_writer::new(
                     discovered_writer_data,
                 ),
             )?;
@@ -554,7 +554,7 @@ where
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
         self.0
             .writer_address()
-            .send_mail_and_await_reply_blocking(dds_data_writer::get_qos::new())
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_qos::new())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -579,7 +579,7 @@ where
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
             .writer_address()
-            .send_mail_and_await_reply_blocking(dds_data_writer::get_statuscondition::new())
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_statuscondition::new())
             .map(StatusCondition::new)
     }
 
@@ -619,32 +619,32 @@ where
         if !self
             .0
             .writer_address()
-            .send_mail_and_await_reply_blocking(dds_data_writer::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(data_writer_actor::is_enabled::new())?
         {
             self.0
                 .writer_address()
-                .send_mail_and_await_reply_blocking(dds_data_writer::enable::new())?;
+                .send_mail_and_await_reply_blocking(data_writer_actor::enable::new())?;
             let discovered_writer_data =
                 self.0.writer_address().send_mail_and_await_reply_blocking(
-                    dds_data_writer::as_discovered_writer_data::new(
+                    data_writer_actor::as_discovered_writer_data::new(
                         TopicQos::default(),
                         self.0
                             .publisher_address()
-                            .send_mail_and_await_reply_blocking(dds_publisher::get_qos::new())?,
+                            .send_mail_and_await_reply_blocking(publisher_actor::get_qos::new())?,
                         self.0
                             .participant_address()
                             .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_default_unicast_locator_list::new(),
+                                domain_participant_actor::get_default_unicast_locator_list::new(),
                             )?,
                         self.0
                             .participant_address()
                             .send_mail_and_await_reply_blocking(
-                                dds_domain_participant::get_default_multicast_locator_list::new(),
+                                domain_participant_actor::get_default_multicast_locator_list::new(),
                             )?,
                     ),
                 )?;
             self.0.participant_address().send_mail_blocking(
-                dds_domain_participant::announce_created_or_modified_data_writer::new(
+                domain_participant_actor::announce_created_or_modified_data_writer::new(
                     discovered_writer_data,
                 ),
             )?;
@@ -657,7 +657,7 @@ where
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.0
             .writer_address()
-            .send_mail_and_await_reply_blocking(dds_data_writer::get_instance_handle::new())
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_instance_handle::new())
     }
 }
 

@@ -10,7 +10,8 @@ use crate::{
     },
 };
 
-use super::dds_domain_participant::DdsDomainParticipant;
+use super::domain_participant_actor::DdsDomainParticipant;
+
 pub struct DdsDomainParticipantFactory {
     domain_participant_list: HashMap<InstanceHandle, Actor<DdsDomainParticipant>>,
     domain_participant_counter: u32,

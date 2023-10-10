@@ -2,14 +2,13 @@ use dust_dds_derive::actor_interface;
 
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
+    implementation::dds::nodes::{DataReaderNode, DataWriterNode},
     infrastructure::status::{
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
         SubscriptionMatchedStatus,
     },
 };
-
-use super::nodes::{DataReaderNode, DataWriterNode};
 
 pub struct DdsDomainParticipantListener {
     listener: Box<dyn DomainParticipantListener + Send>,

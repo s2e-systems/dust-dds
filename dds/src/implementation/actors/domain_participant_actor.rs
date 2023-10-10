@@ -5,6 +5,10 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
     implementation::{
+        actors::{
+            data_reader_actor::DdsDataReader, subscriber_actor::DdsSubscriber,
+            topic_actor::DdsTopic,
+        },
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
             discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
@@ -13,7 +17,6 @@ use crate::{
                 ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
             },
         },
-        dds::{dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber, dds_topic::DdsTopic},
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
@@ -78,14 +81,14 @@ use std::{
 };
 
 use super::{
-    dds_data_reader,
-    dds_data_writer::{self, DdsDataWriter},
-    dds_domain_participant_listener::DdsDomainParticipantListener,
-    dds_publisher::{self, DdsPublisher},
-    dds_publisher_listener::DdsPublisherListener,
-    dds_subscriber,
-    dds_subscriber_listener::DdsSubscriberListener,
-    dds_topic,
+    data_reader_actor,
+    data_writer_actor::{self, DdsDataWriter},
+    domain_participant_listener_actor::DdsDomainParticipantListener,
+    publisher_actor::{self, DdsPublisher},
+    publisher_listener_actor::DdsPublisherListener,
+    subscriber_actor,
+    subscriber_listener_actor::DdsSubscriberListener,
+    topic_actor,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -288,28 +291,28 @@ impl DdsDomainParticipant {
 
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
+            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
                 spdp_builtin_participant_reader_guid.into(),
                 spdp_builtin_participant_reader,
             ))
             .unwrap();
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
+            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
                 sedp_builtin_topics_reader_guid.into(),
                 sedp_builtin_topics_reader,
             ))
             .unwrap();
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
+            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
                 sedp_builtin_publications_reader_guid.into(),
                 sedp_builtin_publications_reader,
             ))
             .unwrap();
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply_blocking(dds_subscriber::data_reader_add::new(
+            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
                 sedp_builtin_subscriptions_reader_guid.into(),
                 sedp_builtin_subscriptions_reader,
             ))
@@ -346,7 +349,7 @@ impl DdsDomainParticipant {
         {
             spdp_builtin_participant_writer
                 .address()
-                .send_mail_and_await_reply_blocking(dds_data_writer::reader_locator_add::new(
+                .send_mail_and_await_reply_blocking(data_writer_actor::reader_locator_add::new(
                     reader_locator,
                 ))
                 .unwrap();
@@ -414,28 +417,28 @@ impl DdsDomainParticipant {
 
         builtin_publisher
             .address()
-            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
+            .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
                 spdp_builtin_participant_writer_guid.into(),
                 spdp_builtin_participant_writer,
             ))
             .unwrap();
         builtin_publisher
             .address()
-            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
+            .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
                 sedp_builtin_topics_writer_guid.into(),
                 sedp_builtin_topics_writer_actor,
             ))
             .unwrap();
         builtin_publisher
             .address()
-            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
+            .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
                 sedp_builtin_publications_writer_guid.into(),
                 sedp_builtin_publications_writer_actor,
             ))
             .unwrap();
         builtin_publisher
             .address()
-            .send_mail_and_await_reply_blocking(dds_publisher::datawriter_add::new(
+            .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
                 sedp_builtin_subscriptions_writer_guid.into(),
                 sedp_builtin_subscriptions_writer_actor,
             ))
@@ -668,7 +671,7 @@ impl DdsDomainParticipant {
             user_defined_publisher
                 .address()
                 .send_mail_and_await_reply_blocking(
-                    dds_publisher::delete_contained_entities::new(),
+                    publisher_actor::delete_contained_entities::new(),
                 )?;
         }
 
@@ -676,7 +679,7 @@ impl DdsDomainParticipant {
             user_defined_subscriber
                 .address()
                 .send_mail_and_await_reply_blocking(
-                    dds_subscriber::delete_contained_entities::new(),
+                    subscriber_actor::delete_contained_entities::new(),
                 )?;
         }
 
@@ -860,14 +863,14 @@ impl DdsDomainParticipant {
             self.rtps_participant.guid().prefix(),
         );
         self.builtin_publisher
-            .send_mail(dds_publisher::send_message::new(
+            .send_mail(publisher_actor::send_message::new(
                 header,
                 self.udp_transport_write.address(),
                 now,
             ))
             .await;
         self.builtin_subscriber
-            .send_mail(dds_subscriber::send_message::new(
+            .send_mail(subscriber_actor::send_message::new(
                 header,
                 self.udp_transport_write.address(),
             ))
@@ -875,7 +878,7 @@ impl DdsDomainParticipant {
 
         for publisher in self.user_defined_publisher_list.values() {
             publisher
-                .send_mail(dds_publisher::send_message::new(
+                .send_mail(publisher_actor::send_message::new(
                     header,
                     self.udp_transport_write.address(),
                     now,
@@ -885,7 +888,7 @@ impl DdsDomainParticipant {
 
         for subscriber in self.user_defined_subscriber_list.values() {
             subscriber
-                .send_mail(dds_subscriber::send_message::new(
+                .send_mail(subscriber_actor::send_message::new(
                     header,
                     self.udp_transport_write.address(),
                 ))
@@ -904,7 +907,7 @@ impl DdsDomainParticipant {
             self.status_kind.clone(),
         );
         self.builtin_subscriber
-            .send_mail_and_await_reply(dds_subscriber::process_rtps_message::new(
+            .send_mail_and_await_reply(subscriber_actor::process_rtps_message::new(
                 message.clone(),
                 reception_timestamp,
                 participant_address.clone(),
@@ -914,7 +917,7 @@ impl DdsDomainParticipant {
             .await?;
 
         self.builtin_publisher
-            .send_mail_and_await_reply(dds_publisher::process_rtps_message::new(message))
+            .send_mail_and_await_reply(publisher_actor::process_rtps_message::new(message))
             .await;
 
         Ok(())
@@ -935,7 +938,7 @@ impl DdsDomainParticipant {
             .map(|a| a.address())
         {
             user_defined_subscriber_address
-                .send_mail(dds_subscriber::process_rtps_message::new(
+                .send_mail(subscriber_actor::process_rtps_message::new(
                     message.clone(),
                     self.get_current_time().await,
                     participant_address.clone(),
@@ -946,7 +949,7 @@ impl DdsDomainParticipant {
                 .expect("Should not fail to send command");
 
             user_defined_subscriber_address
-                .send_mail(dds_subscriber::send_message::new(
+                .send_mail(subscriber_actor::send_message::new(
                     RtpsMessageHeader::new(
                         self.rtps_participant.protocol_version(),
                         self.rtps_participant.vendor_id(),
@@ -964,11 +967,11 @@ impl DdsDomainParticipant {
             .map(|a| a.address())
         {
             user_defined_publisher_address
-                .send_mail(dds_publisher::process_rtps_message::new(message.clone()))
+                .send_mail(publisher_actor::process_rtps_message::new(message.clone()))
                 .await
                 .expect("Should not fail to send command");
             user_defined_publisher_address
-                .send_mail(dds_publisher::send_message::new(
+                .send_mail(publisher_actor::send_message::new(
                     RtpsMessageHeader::new(
                         self.rtps_participant.protocol_version(),
                         self.rtps_participant.vendor_id(),
@@ -988,7 +991,7 @@ impl DdsDomainParticipant {
     ) {
         if let Some(sedp_publications_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(dds_publisher::lookup_datawriter::new(
+            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
                 DCPS_PUBLICATION.to_string(),
             ))
             .await
@@ -999,7 +1002,7 @@ impl DdsDomainParticipant {
             let instance_serialized_key = dds_serialize_key(&discovered_writer_data)
                 .expect("Shouldn't fail to serialize key of builtin type");
             sedp_publications_announcer
-                .send_mail_and_await_reply(dds_data_writer::write_w_timestamp::new(
+                .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
                     serialized_data,
                     instance_serialized_key,
                     None,
@@ -1028,13 +1031,13 @@ impl DdsDomainParticipant {
     async fn process_spdp_participant_discovery(&mut self) {
         if let Some(spdp_participant_reader) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
                 DCPS_PARTICIPANT.to_string(),
             ))
             .await
         {
             if let Ok(spdp_data_sample_list) = spdp_participant_reader
-                .send_mail_and_await_reply(dds_data_reader::read::new(
+                .send_mail_and_await_reply(data_reader_actor::read::new(
                     i32::MAX,
                     vec![SampleStateKind::NotRead],
                     ANY_VIEW_STATE.to_vec(),
@@ -1123,7 +1126,7 @@ impl DdsDomainParticipant {
     ) {
         if let Some(sedp_publications_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(dds_publisher::lookup_datawriter::new(
+            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
                 DCPS_PUBLICATION.to_string(),
             ))
             .await
@@ -1156,7 +1159,7 @@ impl DdsDomainParticipant {
                     SequenceNumber::from(0),
                 );
                 sedp_publications_announcer
-                    .send_mail_and_await_reply(dds_data_writer::matched_reader_add::new(proxy))
+                    .send_mail_and_await_reply(data_writer_actor::matched_reader_add::new(proxy))
                     .await
                     .unwrap();
             }
@@ -1169,7 +1172,7 @@ impl DdsDomainParticipant {
     ) {
         if let Some(sedp_publications_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
                 DCPS_PUBLICATION.to_string(),
             ))
             .await
@@ -1201,7 +1204,7 @@ impl DdsDomainParticipant {
                 );
 
                 sedp_publications_detector
-                    .send_mail_and_await_reply(dds_data_reader::matched_writer_add::new(proxy))
+                    .send_mail_and_await_reply(data_reader_actor::matched_writer_add::new(proxy))
                     .await
                     .unwrap();
             }
@@ -1214,7 +1217,7 @@ impl DdsDomainParticipant {
     ) {
         if let Some(sedp_subscriptions_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(dds_publisher::lookup_datawriter::new(
+            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
                 DCPS_SUBSCRIPTION.to_string(),
             ))
             .await
@@ -1247,7 +1250,7 @@ impl DdsDomainParticipant {
                     SequenceNumber::from(0),
                 );
                 sedp_subscriptions_announcer
-                    .send_mail_and_await_reply(dds_data_writer::matched_reader_add::new(proxy))
+                    .send_mail_and_await_reply(data_writer_actor::matched_reader_add::new(proxy))
                     .await
                     .unwrap();
             }
@@ -1260,7 +1263,7 @@ impl DdsDomainParticipant {
     ) {
         if let Some(sedp_subscriptions_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
                 DCPS_SUBSCRIPTION.to_string(),
             ))
             .await
@@ -1291,7 +1294,7 @@ impl DdsDomainParticipant {
                     remote_group_entity_id,
                 );
                 sedp_subscriptions_detector
-                    .send_mail_and_await_reply(dds_data_reader::matched_writer_add::new(proxy))
+                    .send_mail_and_await_reply(data_reader_actor::matched_writer_add::new(proxy))
                     .await
                     .unwrap();
             }
@@ -1304,7 +1307,7 @@ impl DdsDomainParticipant {
     ) {
         if let Some(sedp_topics_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(dds_publisher::lookup_datawriter::new(
+            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
                 DCPS_TOPIC.to_string(),
             ))
             .await
@@ -1337,7 +1340,7 @@ impl DdsDomainParticipant {
                     SequenceNumber::from(0),
                 );
                 sedp_topics_announcer
-                    .send_mail_and_await_reply(dds_data_writer::matched_reader_add::new(proxy))
+                    .send_mail_and_await_reply(data_writer_actor::matched_reader_add::new(proxy))
                     .await
                     .unwrap();
             }
@@ -1350,7 +1353,7 @@ impl DdsDomainParticipant {
     ) {
         if let Some(sedp_topics_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
                 DCPS_TOPIC.to_string(),
             ))
             .await
@@ -1381,7 +1384,7 @@ impl DdsDomainParticipant {
                     remote_group_entity_id,
                 );
                 sedp_topics_detector
-                    .send_mail_and_await_reply(dds_data_reader::matched_writer_add::new(proxy))
+                    .send_mail_and_await_reply(data_reader_actor::matched_writer_add::new(proxy))
                     .await
                     .unwrap();
             }
@@ -1394,13 +1397,13 @@ impl DdsDomainParticipant {
     ) {
         if let Some(sedp_publications_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
                 DCPS_PUBLICATION.to_string(),
             ))
             .await
         {
             if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
-                .send_mail_and_await_reply(dds_data_reader::read::new(
+                .send_mail_and_await_reply(data_reader_actor::read::new(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
                     ANY_VIEW_STATE.to_vec(),
@@ -1495,7 +1498,7 @@ impl DdsDomainParticipant {
                         self.status_kind.clone(),
                     );
                     subscriber
-                        .send_mail_and_await_reply(dds_subscriber::add_matched_writer::new(
+                        .send_mail_and_await_reply(subscriber_actor::add_matched_writer::new(
                             discovered_writer_data.clone(),
                             default_unicast_locator_list.clone(),
                             default_multicast_locator_list.clone(),
@@ -1577,7 +1580,7 @@ impl DdsDomainParticipant {
                 self.status_kind.clone(),
             );
             subscriber
-                .send_mail_and_await_reply(dds_subscriber::remove_matched_writer::new(
+                .send_mail_and_await_reply(subscriber_actor::remove_matched_writer::new(
                     discovered_writer_handle,
                     subscriber_address,
                     participant_address.clone(),
@@ -1593,13 +1596,13 @@ impl DdsDomainParticipant {
     ) {
         if let Some(sedp_subscriptions_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
                 DCPS_SUBSCRIPTION.to_string(),
             ))
             .await
         {
             if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
-                .send_mail_and_await_reply(dds_data_reader::read::new(
+                .send_mail_and_await_reply(data_reader_actor::read::new(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
                     ANY_VIEW_STATE.to_vec(),
@@ -1709,7 +1712,7 @@ impl DdsDomainParticipant {
                         None
                     };
                     publisher
-                        .send_mail_and_await_reply(dds_publisher::add_matched_reader::new(
+                        .send_mail_and_await_reply(publisher_actor::add_matched_reader::new(
                             discovered_reader_data.clone(),
                             default_unicast_locator_list.clone(),
                             default_multicast_locator_list.clone(),
@@ -1795,7 +1798,7 @@ impl DdsDomainParticipant {
                     None
                 };
             publisher
-                .send_mail_and_await_reply(dds_publisher::remove_matched_reader::new(
+                .send_mail_and_await_reply(publisher_actor::remove_matched_reader::new(
                     discovered_reader_handle,
                     publisher_address,
                     participant_address.clone(),
@@ -1808,13 +1811,13 @@ impl DdsDomainParticipant {
     async fn process_sedp_topics_discovery(&mut self) {
         if let Some(sedp_topics_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(dds_subscriber::lookup_datareader::new(
+            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
                 DCPS_TOPIC.to_string(),
             ))
             .await
         {
             if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
-                .send_mail_and_await_reply(dds_data_reader::read::new(
+                .send_mail_and_await_reply(data_reader_actor::read::new(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
                     ANY_VIEW_STATE.to_vec(),
@@ -1856,7 +1859,7 @@ impl DdsDomainParticipant {
         if !is_topic_ignored {
             for topic in self.topic_list.values() {
                 topic
-                    .send_mail_and_await_reply(dds_topic::process_discovered_topic::new(
+                    .send_mail_and_await_reply(topic_actor::process_discovered_topic::new(
                         discovered_topic_data.clone(),
                     ))
                     .await;

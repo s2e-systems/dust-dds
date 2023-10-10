@@ -1,13 +1,3 @@
-use super::{
-    dds_data_writer_listener::{self, DdsDataWriterListener},
-    dds_domain_participant::DdsDomainParticipant,
-    dds_domain_participant_listener::{self, DdsDomainParticipantListener},
-    dds_publisher::DdsPublisher,
-    dds_publisher_listener::{self, DdsPublisherListener},
-    dds_status_condition::{self, DdsStatusCondition},
-    message_receiver::MessageReceiver,
-    nodes::DataWriterNode,
-};
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     implementation::{
@@ -21,6 +11,7 @@ use crate::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
+        dds::nodes::DataWriterNode,
         rtps::{
             messages::{
                 overall_structure::{
@@ -77,6 +68,16 @@ use crate::{
 use dust_dds_derive::actor_interface;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
+
+use super::{
+    data_writer_listener_actor::{self, DdsDataWriterListener},
+    domain_participant_actor::DdsDomainParticipant,
+    domain_participant_listener_actor::{self, DdsDomainParticipantListener},
+    message_receiver::MessageReceiver,
+    publisher_actor::DdsPublisher,
+    publisher_listener_actor::{self, DdsPublisherListener},
+    status_condition_actor::{self, DdsStatusCondition},
+};
 
 struct MatchedSubscriptions {
     matched_subscription_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
@@ -533,7 +534,7 @@ impl DdsDataWriter {
 
     async fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         self.status_condition
-            .send_mail_and_await_reply(dds_status_condition::remove_communication_state::new(
+            .send_mail_and_await_reply(status_condition_actor::remove_communication_state::new(
                 StatusKind::PublicationMatched,
             ))
             .await;
@@ -991,7 +992,7 @@ impl DdsDataWriter {
         >,
     ) {
         self.status_condition
-            .send_mail_and_await_reply(dds_status_condition::add_communication_state::new(
+            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
                 StatusKind::PublicationMatched,
             ))
             .await;
@@ -1003,7 +1004,7 @@ impl DdsDataWriter {
                 .as_ref()
                 .unwrap()
                 .send_mail(
-                    dds_data_writer_listener::trigger_on_publication_matched::new(writer, status),
+                    data_writer_listener_actor::trigger_on_publication_matched::new(writer, status),
                 )
                 .await;
         } else if let Some(publisher_publication_matched_listener) =
@@ -1013,9 +1014,9 @@ impl DdsDataWriter {
             let writer =
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             publisher_publication_matched_listener
-                .send_mail(dds_publisher_listener::trigger_on_publication_matched::new(
-                    writer, status,
-                ))
+                .send_mail(
+                    publisher_listener_actor::trigger_on_publication_matched::new(writer, status),
+                )
                 .await
                 .expect("Listener should exist");
         } else if let Some(participant_publication_matched_listener) =
@@ -1026,7 +1027,7 @@ impl DdsDataWriter {
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             participant_publication_matched_listener
                 .send_mail(
-                    dds_domain_participant_listener::trigger_on_publication_matched::new(
+                    domain_participant_listener_actor::trigger_on_publication_matched::new(
                         writer, status,
                     ),
                 )
@@ -1046,7 +1047,7 @@ impl DdsDataWriter {
         >,
     ) {
         self.status_condition
-            .send_mail_and_await_reply(dds_status_condition::add_communication_state::new(
+            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
                 StatusKind::OfferedIncompatibleQos,
             ))
             .await;
@@ -1063,7 +1064,7 @@ impl DdsDataWriter {
                 .as_ref()
                 .unwrap()
                 .send_mail(
-                    dds_data_writer_listener::trigger_on_offered_incompatible_qos::new(
+                    data_writer_listener_actor::trigger_on_offered_incompatible_qos::new(
                         writer, status,
                     ),
                 )
@@ -1076,7 +1077,7 @@ impl DdsDataWriter {
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             offered_incompatible_qos_publisher_listener
                 .send_mail(
-                    dds_publisher_listener::trigger_on_offered_incompatible_qos::new(
+                    publisher_listener_actor::trigger_on_offered_incompatible_qos::new(
                         writer, status,
                     ),
                 )
@@ -1090,7 +1091,7 @@ impl DdsDataWriter {
                 DataWriterNode::new(data_writer_address, publisher_address, participant_address);
             offered_incompatible_qos_participant_listener
                 .send_mail(
-                    dds_domain_participant_listener::trigger_on_offered_incompatible_qos::new(
+                    domain_participant_listener_actor::trigger_on_offered_incompatible_qos::new(
                         writer, status,
                     ),
                 )

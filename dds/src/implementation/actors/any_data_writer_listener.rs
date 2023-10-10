@@ -1,12 +1,11 @@
 use crate::{
+    implementation::dds::nodes::DataWriterNode,
     infrastructure::status::{
         LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
         PublicationMatchedStatus,
     },
     publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
 };
-
-use super::nodes::DataWriterNode;
 
 pub trait AnyDataWriterListener {
     fn trigger_on_liveliness_lost(

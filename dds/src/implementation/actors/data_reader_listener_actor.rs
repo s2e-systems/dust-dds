@@ -1,11 +1,14 @@
 use dust_dds_derive::actor_interface;
 
-use crate::infrastructure::status::{
-    RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-    SampleRejectedStatus, SubscriptionMatchedStatus,
+use crate::{
+    implementation::dds::nodes::DataReaderNode,
+    infrastructure::status::{
+        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+        SampleRejectedStatus, SubscriptionMatchedStatus,
+    },
 };
 
-use super::{any_data_reader_listener::AnyDataReaderListener, nodes::DataReaderNode};
+use super::any_data_reader_listener::AnyDataReaderListener;
 
 pub struct DdsDataReaderListener {
     listener: Box<dyn AnyDataReaderListener + Send + 'static>,

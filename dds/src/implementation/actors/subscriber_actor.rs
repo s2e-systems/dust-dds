@@ -5,17 +5,17 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use super::{
-    dds_data_reader::{self, DdsDataReader},
-    dds_domain_participant::DdsDomainParticipant,
-    dds_subscriber_listener::DdsSubscriberListener,
+    data_reader_actor::{self, DdsDataReader},
+    domain_participant_actor::DdsDomainParticipant,
+    subscriber_listener_actor::DdsSubscriberListener,
 };
 use crate::{
     implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
-        dds::{
-            dds_domain_participant_listener::DdsDomainParticipantListener,
-            dds_status_condition::DdsStatusCondition,
+        actors::{
+            domain_participant_listener_actor::DdsDomainParticipantListener,
+            status_condition_actor::DdsStatusCondition,
         },
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
             group::RtpsGroup,
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
@@ -73,7 +73,7 @@ impl DdsSubscriber {
     async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DdsDataReader>> {
         for dr in self.data_reader_list.values() {
             if dr
-                .send_mail_and_await_reply(dds_data_reader::get_topic_name::new())
+                .send_mail_and_await_reply(data_reader_actor::get_topic_name::new())
                 .await
                 == topic_name
             {
@@ -182,7 +182,7 @@ impl DdsSubscriber {
     ) {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address
-                .send_mail(dds_data_reader::send_message::new(
+                .send_mail(data_reader_actor::send_message::new(
                     header,
                     udp_transport_write.clone(),
                 ))
@@ -208,7 +208,7 @@ impl DdsSubscriber {
 
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
-                .send_mail_and_await_reply(dds_data_reader::process_rtps_message::new(
+                .send_mail_and_await_reply(data_reader_actor::process_rtps_message::new(
                     message.clone(),
                     reception_timestamp,
                     data_reader_address.clone(),
@@ -244,7 +244,7 @@ impl DdsSubscriber {
                 let data_reader_address = data_reader.address();
                 let subscriber_qos = self.qos.clone();
                 data_reader
-                    .send_mail_and_await_reply(dds_data_reader::add_matched_writer::new(
+                    .send_mail_and_await_reply(data_reader_actor::add_matched_writer::new(
                         discovered_writer_data.clone(),
                         default_unicast_locator_list.clone(),
                         default_multicast_locator_list.clone(),
@@ -277,7 +277,7 @@ impl DdsSubscriber {
                 self.status_kind.clone(),
             );
             data_reader
-                .send_mail_and_await_reply(dds_data_reader::remove_matched_writer::new(
+                .send_mail_and_await_reply(data_reader_actor::remove_matched_writer::new(
                     discovered_writer_handle,
                     data_reader_address,
                     subscriber_address.clone(),

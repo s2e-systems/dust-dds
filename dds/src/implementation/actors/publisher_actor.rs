@@ -6,8 +6,8 @@ use tracing::warn;
 
 use crate::{
     implementation::{
+        actors::data_writer_listener_actor::DdsDataWriterListener,
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-        dds::dds_data_writer_listener::DdsDataWriterListener,
         rtps::{
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
@@ -32,10 +32,10 @@ use crate::{
 };
 
 use super::{
-    dds_data_writer::{self, DdsDataWriter},
-    dds_domain_participant::DdsDomainParticipant,
-    dds_domain_participant_listener::DdsDomainParticipantListener,
-    dds_publisher_listener::DdsPublisherListener,
+    data_writer_actor::{self, DdsDataWriter},
+    domain_participant_actor::DdsDomainParticipant,
+    domain_participant_listener_actor::DdsDomainParticipantListener,
+    publisher_listener_actor::DdsPublisherListener,
 };
 
 pub struct DdsPublisher {
@@ -137,7 +137,7 @@ impl DdsPublisher {
     async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DdsDataWriter>> {
         for dw in self.data_writer_list.values() {
             if dw
-                .send_mail_and_await_reply(dds_data_writer::get_topic_name::new())
+                .send_mail_and_await_reply(data_writer_actor::get_topic_name::new())
                 .await
                 == topic_name
             {
@@ -234,7 +234,9 @@ impl DdsPublisher {
     async fn process_rtps_message(&self, message: RtpsMessageRead) {
         for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
             data_writer_address
-                .send_mail(dds_data_writer::process_rtps_message::new(message.clone()))
+                .send_mail(data_writer_actor::process_rtps_message::new(
+                    message.clone(),
+                ))
                 .await
                 .expect("Should not fail to send command");
         }
@@ -248,7 +250,7 @@ impl DdsPublisher {
     ) {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
-                .send_mail(dds_data_writer::send_message::new(
+                .send_mail(data_writer_actor::send_message::new(
                     header,
                     udp_transport_write.clone(),
                     now,
@@ -294,7 +296,7 @@ impl DdsPublisher {
                     None
                 };
                 data_writer
-                    .send_mail_and_await_reply(dds_data_writer::add_matched_reader::new(
+                    .send_mail_and_await_reply(data_writer_actor::add_matched_reader::new(
                         discovered_reader_data.clone(),
                         default_unicast_locator_list.clone(),
                         default_multicast_locator_list.clone(),
@@ -330,7 +332,7 @@ impl DdsPublisher {
                     None
                 };
             data_writer
-                .send_mail_and_await_reply(dds_data_writer::remove_matched_reader::new(
+                .send_mail_and_await_reply(data_writer_actor::remove_matched_reader::new(
                     discovered_reader_handle,
                     data_writer_address,
                     publisher_address.clone(),
