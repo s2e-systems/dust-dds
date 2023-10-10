@@ -1,13 +1,13 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
-        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        dds::{
-            dds_data_writer,
-            dds_domain_participant::{self, DdsDomainParticipant},
-            dds_publisher, dds_topic,
-            nodes::{DomainParticipantNode, TopicNode},
+        actors::{
+            data_writer_actor,
+            domain_participant_actor::{self, DomainParticipantActor},
+            publisher_actor, topic_actor,
         },
+        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
+        dds::{dds_domain_participant::DdsDomainParticipant, dds_topic::DdsTopic},
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -27,15 +27,15 @@ use super::{
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
-#[derive(PartialEq, Eq, Clone)]
-pub struct Topic(TopicNode);
+#[derive(PartialEq, Eq)]
+pub struct Topic(DdsTopic);
 
 impl Topic {
-    pub(crate) fn new(node: TopicNode) -> Self {
+    pub(crate) fn new(node: DdsTopic) -> Self {
         Self(node)
     }
 
-    pub(crate) fn node(&self) -> &TopicNode {
+    pub(crate) fn node(&self) -> &DdsTopic {
         &self.0
     }
 }
@@ -65,7 +65,7 @@ impl Topic {
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         self.0
             .topic_address()
-            .send_mail_and_await_reply_blocking(dds_topic::get_inconsistent_topic_status::new())?
+            .send_mail_and_await_reply_blocking(topic_actor::get_inconsistent_topic_status::new())?
     }
 }
 
@@ -74,7 +74,7 @@ impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(DomainParticipantNode::new(
+        Ok(DomainParticipant::new(DdsDomainParticipant::new(
             self.0.participant_address().clone(),
         )))
     }
@@ -84,7 +84,7 @@ impl Topic {
     pub fn get_type_name(&self) -> DdsResult<String> {
         self.0
             .topic_address()
-            .send_mail_and_await_reply_blocking(dds_topic::get_type_name::new())
+            .send_mail_and_await_reply_blocking(topic_actor::get_type_name::new())
     }
 
     /// The name used to create the [`Topic`]
@@ -92,7 +92,7 @@ impl Topic {
     pub fn get_name(&self) -> DdsResult<String> {
         self.0
             .topic_address()
-            .send_mail_and_await_reply_blocking(dds_topic::get_name::new())
+            .send_mail_and_await_reply_blocking(topic_actor::get_name::new())
     }
 }
 
@@ -117,7 +117,7 @@ impl Topic {
                 .0
                 .participant_address()
                 .send_mail_and_await_reply_blocking(
-                    dds_domain_participant::default_topic_qos::new(),
+                    domain_participant_actor::default_topic_qos::new(),
                 )?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
@@ -128,17 +128,17 @@ impl Topic {
         if self
             .0
             .topic_address()
-            .send_mail_and_await_reply_blocking(dds_topic::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(topic_actor::is_enabled::new())?
         {
             self.0
                 .topic_address()
-                .send_mail_and_await_reply_blocking(dds_topic::get_qos::new())?
+                .send_mail_and_await_reply_blocking(topic_actor::get_qos::new())?
                 .check_immutability(&qos)?
         }
 
         self.0
             .topic_address()
-            .send_mail_and_await_reply_blocking(dds_topic::set_qos::new(qos))
+            .send_mail_and_await_reply_blocking(topic_actor::set_qos::new(qos))
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
@@ -146,7 +146,7 @@ impl Topic {
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
         self.0
             .topic_address()
-            .send_mail_and_await_reply_blocking(dds_topic::get_qos::new())
+            .send_mail_and_await_reply_blocking(topic_actor::get_qos::new())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -156,7 +156,7 @@ impl Topic {
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.0
             .topic_address()
-            .send_mail_and_await_reply_blocking(dds_topic::get_statuscondition::new())
+            .send_mail_and_await_reply_blocking(topic_actor::get_statuscondition::new())
             .map(StatusCondition::new)
     }
 
@@ -196,16 +196,16 @@ impl Topic {
         if !self
             .0
             .topic_address()
-            .send_mail_and_await_reply_blocking(dds_topic::is_enabled::new())?
+            .send_mail_and_await_reply_blocking(topic_actor::is_enabled::new())?
         {
             self.0
                 .topic_address()
-                .send_mail_and_await_reply_blocking(dds_topic::enable::new())?;
+                .send_mail_and_await_reply_blocking(topic_actor::enable::new())?;
 
             announce_topic(
                 self.0.participant_address(),
                 self.0.topic_address().send_mail_and_await_reply_blocking(
-                    dds_topic::as_discovered_topic_data::new(),
+                    topic_actor::as_discovered_topic_data::new(),
                 )?,
             )?;
         }
@@ -218,7 +218,7 @@ impl Topic {
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.0
             .topic_address()
-            .send_mail_and_await_reply_blocking(dds_topic::get_instance_handle::new())
+            .send_mail_and_await_reply_blocking(topic_actor::get_instance_handle::new())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -238,22 +238,23 @@ impl Topic {
 }
 
 fn announce_topic(
-    domain_participant: &ActorAddress<DdsDomainParticipant>,
+    domain_participant: &ActorAddress<DomainParticipantActor>,
     discovered_topic_data: DiscoveredTopicData,
 ) -> DdsResult<()> {
     let serialized_data = dds_serialize_to_bytes(&discovered_topic_data)?;
     let timestamp = domain_participant
-        .send_mail_and_await_reply_blocking(dds_domain_participant::get_current_time::new())?;
-    let builtin_publisher = domain_participant
-        .send_mail_and_await_reply_blocking(dds_domain_participant::get_builtin_publisher::new())?;
+        .send_mail_and_await_reply_blocking(domain_participant_actor::get_current_time::new())?;
+    let builtin_publisher = domain_participant.send_mail_and_await_reply_blocking(
+        domain_participant_actor::get_builtin_publisher::new(),
+    )?;
     let data_writer_list = builtin_publisher
-        .send_mail_and_await_reply_blocking(dds_publisher::data_writer_list::new())?;
+        .send_mail_and_await_reply_blocking(publisher_actor::data_writer_list::new())?;
     for data_writer in data_writer_list {
-        if data_writer.send_mail_and_await_reply_blocking(dds_data_writer::get_type_name::new())
+        if data_writer.send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
             == Ok("DiscoveredTopicData".to_string())
         {
             data_writer.send_mail_and_await_reply_blocking(
-                dds_data_writer::write_w_timestamp::new(
+                data_writer_actor::write_w_timestamp::new(
                     serialized_data,
                     dds_serialize_key_to_bytes(&discovered_topic_data)?,
                     None,
@@ -261,7 +262,7 @@ fn announce_topic(
                 ),
             )??;
 
-            domain_participant.send_mail_blocking(dds_domain_participant::send_message::new())?;
+            domain_participant.send_mail_blocking(domain_participant_actor::send_message::new())?;
             break;
         }
     }

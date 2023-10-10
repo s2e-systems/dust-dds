@@ -2,13 +2,13 @@ use super::domain_participant::DomainParticipant;
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
-        configuration::DustDdsConfiguration,
-        dds::{
-            dds_domain_participant::{self, DdsDomainParticipant},
-            dds_domain_participant_factory::{self, DdsDomainParticipantFactory},
-            dds_domain_participant_listener::DdsDomainParticipantListener,
-            nodes::DomainParticipantNode,
+        actors::{
+            domain_participant_actor::{self, DomainParticipantActor},
+            domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
+            domain_participant_listener_actor::DomainParticipantListenerActor,
         },
+        configuration::DustDdsConfiguration,
+        dds::dds_domain_participant::DdsDomainParticipant,
         rtps::{
             participant::RtpsParticipant,
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -39,7 +39,7 @@ lazy_static! {
     /// This value can be used as an alias for the singleton factory returned by the operation
     /// [`DomainParticipantFactory::get_instance()`].
     pub static ref THE_PARTICIPANT_FACTORY: DomainParticipantFactory = {
-        let participant_factory_actor = spawn_actor(DdsDomainParticipantFactory::new());
+        let participant_factory_actor = spawn_actor(DomainParticipantFactoryActor::new());
         DomainParticipantFactory(participant_factory_actor)
     };
 
@@ -54,7 +54,7 @@ lazy_static! {
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory(Actor<DdsDomainParticipantFactory>);
+pub struct DomainParticipantFactory(Actor<DomainParticipantFactoryActor>);
 
 impl DomainParticipantFactory {
     /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
@@ -74,7 +74,7 @@ impl DomainParticipantFactory {
     ) -> DdsResult<DomainParticipant> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.0.address().send_mail_and_await_reply_blocking(
-                dds_domain_participant_factory::get_default_participant_qos::new(),
+                domain_participant_factory_actor::get_default_participant_qos::new(),
             )?,
             QosKind::Specific(q) => q,
         };
@@ -96,7 +96,7 @@ impl DomainParticipantFactory {
             .0
             .address()
             .send_mail_and_await_reply_blocking(
-                dds_domain_participant_factory::get_unique_participant_id::new(),
+                domain_participant_factory_actor::get_unique_participant_id::new(),
             )?
             .to_ne_bytes();
 
@@ -171,10 +171,10 @@ impl DomainParticipantFactory {
         );
         let participant_guid = rtps_participant.guid();
 
-        let listener = a_listener.map(|l| spawn_actor(DdsDomainParticipantListener::new(l)));
+        let listener = a_listener.map(|l| spawn_actor(DomainParticipantListenerActor::new(l)));
         let status_kind = mask.to_vec();
 
-        let domain_participant = DdsDomainParticipant::new(
+        let domain_participant = DomainParticipantActor::new(
             rtps_participant,
             domain_id,
             THE_DDS_CONFIGURATION.domain_tag.clone(),
@@ -189,13 +189,13 @@ impl DomainParticipantFactory {
         let participant_actor = spawn_actor(domain_participant);
         let participant_address = participant_actor.address();
         self.0.address().send_mail_and_await_reply_blocking(
-            dds_domain_participant_factory::add_participant::new(
+            domain_participant_factory_actor::add_participant::new(
                 participant_guid.into(),
                 participant_actor,
             ),
         )?;
         let domain_participant =
-            DomainParticipant::new(DomainParticipantNode::new(participant_address.clone()));
+            DomainParticipant::new(DdsDomainParticipant::new(participant_address.clone()));
 
         let participant_address_clone = participant_address.clone();
         THE_RUNTIME.spawn(async move {
@@ -210,7 +210,7 @@ impl DomainParticipantFactory {
             while let Some((_locator, message)) = metatraffic_multicast_transport.read().await {
                 let r = participant_address_clone
                     .send_mail_and_await_reply(
-                        dds_domain_participant::process_metatraffic_rtps_message::new(
+                        domain_participant_actor::process_metatraffic_rtps_message::new(
                             message,
                             participant_address_clone.clone(),
                         ),
@@ -222,7 +222,7 @@ impl DomainParticipantFactory {
 
                 let r = participant_address_clone
                     .send_mail_and_await_reply(
-                        dds_domain_participant::process_builtin_discovery::new(
+                        domain_participant_actor::process_builtin_discovery::new(
                             participant_address_clone.clone(),
                         ),
                     )
@@ -231,7 +231,7 @@ impl DomainParticipantFactory {
                     break;
                 }
                 let r = participant_address_clone
-                    .send_mail(dds_domain_participant::send_message::new())
+                    .send_mail(domain_participant_actor::send_message::new())
                     .await;
                 if r.is_err() {
                     break;
@@ -250,7 +250,7 @@ impl DomainParticipantFactory {
                 let r: DdsResult<()> = async {
                     participant_address_clone
                         .send_mail_and_await_reply(
-                            dds_domain_participant::process_metatraffic_rtps_message::new(
+                            domain_participant_actor::process_metatraffic_rtps_message::new(
                                 message,
                                 participant_address_clone.clone(),
                             ),
@@ -258,14 +258,14 @@ impl DomainParticipantFactory {
                         .await??;
                     participant_address_clone
                         .send_mail_and_await_reply(
-                            dds_domain_participant::process_builtin_discovery::new(
+                            domain_participant_actor::process_builtin_discovery::new(
                                 participant_address_clone.clone(),
                             ),
                         )
                         .await?;
 
                     participant_address_clone
-                        .send_mail(dds_domain_participant::send_message::new())
+                        .send_mail(domain_participant_actor::send_message::new())
                         .await?;
                     Ok(())
                 }
@@ -287,7 +287,7 @@ impl DomainParticipantFactory {
             while let Some((_locator, message)) = default_unicast_transport.read().await {
                 let r = participant_address_clone
                     .send_mail(
-                        dds_domain_participant::process_user_defined_rtps_message::new(
+                        domain_participant_actor::process_user_defined_rtps_message::new(
                             message,
                             participant_address_clone.clone(),
                         ),
@@ -303,7 +303,7 @@ impl DomainParticipantFactory {
         if self
             .0
             .address()
-            .send_mail_and_await_reply_blocking(dds_domain_participant_factory::get_qos::new())?
+            .send_mail_and_await_reply_blocking(domain_participant_factory_actor::get_qos::new())?
             .entity_factory
             .autoenable_created_entities
         {
@@ -320,13 +320,13 @@ impl DomainParticipantFactory {
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         let handle = participant.get_instance_handle()?;
         let participant_list = self.0.address().send_mail_and_await_reply_blocking(
-            dds_domain_participant_factory::get_participant_list::new(),
+            domain_participant_factory_actor::get_participant_list::new(),
         )?;
         let participant = participant_list
             .iter()
             .find(|x| {
                 if let Ok(h) = x.send_mail_and_await_reply_blocking(
-                    dds_domain_participant::get_instance_handle::new(),
+                    domain_participant_actor::get_instance_handle::new(),
                 ) {
                     h == handle
                 } else {
@@ -335,10 +335,11 @@ impl DomainParticipantFactory {
             })
             .ok_or(DdsError::BadParameter)?;
 
-        if participant.send_mail_and_await_reply_blocking(dds_domain_participant::is_empty::new())?
+        if participant
+            .send_mail_and_await_reply_blocking(domain_participant_actor::is_empty::new())?
         {
             self.0.address().send_mail_and_await_reply_blocking(
-                dds_domain_participant_factory::delete_participant::new(handle),
+                domain_participant_factory_actor::delete_participant::new(handle),
             )?;
             Ok(())
         } else {
@@ -366,21 +367,19 @@ impl DomainParticipantFactory {
             .0
             .address()
             .send_mail_and_await_reply_blocking(
-                dds_domain_participant_factory::get_participant_list::new(),
+                domain_participant_factory_actor::get_participant_list::new(),
             )?
             .iter()
             .find(|&a| {
-                if let Ok(id) =
-                    a.send_mail_and_await_reply_blocking(
-                        dds_domain_participant::get_domain_id::new(),
-                    )
-                {
+                if let Ok(id) = a.send_mail_and_await_reply_blocking(
+                    domain_participant_actor::get_domain_id::new(),
+                ) {
                     id == domain_id
                 } else {
                     false
                 }
             })
-            .map(|dp| DomainParticipant::new(DomainParticipantNode::new(dp.clone()))))
+            .map(|dp| DomainParticipant::new(DdsDomainParticipant::new(dp.clone()))))
     }
 
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created
@@ -395,7 +394,7 @@ impl DomainParticipantFactory {
         };
 
         self.0.address().send_mail_and_await_reply_blocking(
-            dds_domain_participant_factory::set_default_participant_qos::new(qos),
+            domain_participant_factory_actor::set_default_participant_qos::new(qos),
         )
     }
 
@@ -407,7 +406,7 @@ impl DomainParticipantFactory {
     #[tracing::instrument(skip(self))]
     pub fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
         self.0.address().send_mail_and_await_reply_blocking(
-            dds_domain_participant_factory::get_default_participant_qos::new(),
+            domain_participant_factory_actor::get_default_participant_qos::new(),
         )
     }
 
@@ -425,7 +424,7 @@ impl DomainParticipantFactory {
 
         self.0
             .address()
-            .send_mail_and_await_reply_blocking(dds_domain_participant_factory::set_qos::new(qos))
+            .send_mail_and_await_reply_blocking(domain_participant_factory_actor::set_qos::new(qos))
     }
 
     /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
@@ -433,7 +432,7 @@ impl DomainParticipantFactory {
     pub fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
         self.0
             .address()
-            .send_mail_and_await_reply_blocking(dds_domain_participant_factory::get_qos::new())
+            .send_mail_and_await_reply_blocking(domain_participant_factory_actor::get_qos::new())
     }
 }
 

@@ -10,21 +10,22 @@ use crate::{
     },
 };
 
-use super::dds_domain_participant::DdsDomainParticipant;
-pub struct DdsDomainParticipantFactory {
-    domain_participant_list: HashMap<InstanceHandle, Actor<DdsDomainParticipant>>,
+use super::domain_participant_actor::DomainParticipantActor;
+
+pub struct DomainParticipantFactoryActor {
+    domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
     domain_participant_counter: u32,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
 }
 
-impl Default for DdsDomainParticipantFactory {
+impl Default for DomainParticipantFactoryActor {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl DdsDomainParticipantFactory {
+impl DomainParticipantFactoryActor {
     pub fn new() -> Self {
         Self {
             domain_participant_list: HashMap::new(),
@@ -36,17 +37,17 @@ impl DdsDomainParticipantFactory {
 }
 
 #[actor_interface]
-impl DdsDomainParticipantFactory {
+impl DomainParticipantFactoryActor {
     async fn add_participant(
         &mut self,
         instance_handle: InstanceHandle,
-        participant: Actor<DdsDomainParticipant>,
+        participant: Actor<DomainParticipantActor>,
     ) {
         self.domain_participant_list
             .insert(instance_handle, participant);
     }
 
-    async fn get_participant_list(&self) -> Vec<ActorAddress<DdsDomainParticipant>> {
+    async fn get_participant_list(&self) -> Vec<ActorAddress<DomainParticipantActor>> {
         self.domain_participant_list
             .values()
             .map(|dp| dp.address())

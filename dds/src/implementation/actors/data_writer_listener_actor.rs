@@ -1,27 +1,27 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
-    implementation::dds::nodes::DataWriterNode,
+    implementation::dds::dds_data_writer::DdsDataWriter,
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
 
 use super::any_data_writer_listener::AnyDataWriterListener;
 
-pub struct DdsDataWriterListener {
+pub struct DataWriterListenerActor {
     listener: Box<dyn AnyDataWriterListener + Send + 'static>,
 }
 
-impl DdsDataWriterListener {
+impl DataWriterListenerActor {
     pub fn new(listener: Box<dyn AnyDataWriterListener + Send + 'static>) -> Self {
         Self { listener }
     }
 }
 
 #[actor_interface]
-impl DdsDataWriterListener {
+impl DataWriterListenerActor {
     async fn trigger_on_offered_incompatible_qos(
         &mut self,
-        the_writer: DataWriterNode,
+        the_writer: DdsDataWriter,
         status: OfferedIncompatibleQosStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -32,7 +32,7 @@ impl DdsDataWriterListener {
 
     async fn trigger_on_publication_matched(
         &mut self,
-        the_writer: DataWriterNode,
+        the_writer: DdsDataWriter,
         status: PublicationMatchedStatus,
     ) {
         tokio::task::block_in_place(|| {
