@@ -11,7 +11,7 @@ use crate::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
-        dds::nodes::DataWriterNode,
+        dds::dds_data_writer::DataWriterNode,
         rtps::{
             message_receiver::MessageReceiver,
             messages::{

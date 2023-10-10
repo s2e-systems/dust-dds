@@ -1,5 +1,5 @@
 use crate::{
-    implementation::dds::nodes::DataWriterNode,
+    implementation::dds::dds_data_writer::DataWriterNode,
     infrastructure::status::{
         LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
         PublicationMatchedStatus,

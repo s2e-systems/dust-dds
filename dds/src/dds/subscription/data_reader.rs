@@ -6,7 +6,7 @@ use crate::{
             publisher_actor, subscriber_actor,
         },
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-        dds::nodes::{DataReaderNode, TopicNode},
+        dds::{dds_data_reader::DataReaderNode, dds_topic::TopicNode},
         rtps::messages::submessage_elements::Data,
         utils::actor::ActorAddress,
     },

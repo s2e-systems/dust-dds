@@ -4,7 +4,7 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         actors::{data_writer_actor, domain_participant_actor, publisher_actor},
-        dds::nodes::{DataWriterNode, PublisherNode},
+        dds::{dds_publisher::PublisherNode, dds_data_writer::DataWriterNode},
     },
     infrastructure::{
         condition::StatusCondition,

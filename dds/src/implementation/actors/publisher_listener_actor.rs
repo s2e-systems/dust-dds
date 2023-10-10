@@ -1,7 +1,7 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
-    implementation::dds::nodes::DataWriterNode,
+    implementation::dds::dds_data_writer::DataWriterNode,
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
     publication::publisher_listener::PublisherListener,
 };

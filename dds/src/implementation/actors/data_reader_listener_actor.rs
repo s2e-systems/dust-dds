@@ -1,7 +1,7 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
-    implementation::dds::nodes::DataReaderNode,
+    implementation::dds::dds_data_reader::DataReaderNode,
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,

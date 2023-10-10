@@ -7,8 +7,8 @@ use crate::{
             data_writer_actor, domain_participant_actor, publisher_actor, subscriber_actor,
         },
         dds::{
-            dds_domain_participant::DomainParticipantNode,
-            nodes::{DataReaderNode, SubscriberNode},
+            dds_data_reader::DataReaderNode, dds_domain_participant::DomainParticipantNode,
+            dds_subscriber::SubscriberNode,
         },
         rtps::{
             endpoint::RtpsEndpoint,

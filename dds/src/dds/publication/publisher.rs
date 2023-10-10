@@ -6,8 +6,8 @@ use crate::{
             domain_participant_actor, publisher_actor,
         },
         dds::{
-            dds_domain_participant::DomainParticipantNode,
-            nodes::{DataWriterNode, PublisherNode},
+            dds_domain_participant::DomainParticipantNode, dds_publisher::PublisherNode,
+            dds_data_writer::DataWriterNode,
         },
         utils::actor::spawn_actor,
     },

@@ -2,7 +2,7 @@ use dust_dds_derive::actor_interface;
 
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
-    implementation::dds::nodes::{DataReaderNode, DataWriterNode},
+    implementation::dds::{dds_data_reader::DataReaderNode, dds_data_writer::DataWriterNode},
     infrastructure::status::{
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,

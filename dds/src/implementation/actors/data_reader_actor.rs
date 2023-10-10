@@ -20,7 +20,7 @@ use crate::{
                 STATUS_INFO_UNREGISTERED,
             },
         },
-        dds::nodes::{DataReaderNode, SubscriberNode},
+        dds::{dds_data_reader::DataReaderNode, dds_subscriber::SubscriberNode},
         rtps::{
             message_receiver::MessageReceiver,
             messages::{

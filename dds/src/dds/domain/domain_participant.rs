@@ -9,8 +9,8 @@ use crate::{
             publisher_actor, subscriber_actor, topic_actor,
         },
         dds::{
-            dds_domain_participant::DomainParticipantNode,
-            nodes::{PublisherNode, SubscriberNode, TopicNode},
+            dds_domain_participant::DomainParticipantNode, dds_publisher::PublisherNode,
+            dds_subscriber::SubscriberNode, dds_topic::TopicNode,
         },
         utils::actor::THE_RUNTIME,
     },

@@ -1,5 +1,5 @@
 use crate::{
-    implementation::dds::nodes::DataReaderNode,
+    implementation::dds::dds_data_reader::DataReaderNode,
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
