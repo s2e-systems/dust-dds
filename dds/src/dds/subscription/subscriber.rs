@@ -4,9 +4,10 @@ use crate::{
         actors::{
             data_reader_actor::{self, DataReaderActor},
             data_reader_listener_actor::DataReaderListenerActor,
-            domain_participant_actor, subscriber_actor,
+            domain_participant_actor::{self, DomainParticipantActor},
+            subscriber_actor::{self, SubscriberActor},
         },
-        dds::{dds_domain_participant::DdsDomainParticipant, dds_subscriber::DdsSubscriber},
+        dds::dds_domain_participant::DdsDomainParticipant,
         rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
@@ -14,7 +15,7 @@ use crate::{
                 EntityId, Guid, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
             },
         },
-        utils::actor::spawn_actor,
+        utils::actor::{spawn_actor, ActorAddress},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -40,15 +41,20 @@ use super::{
 /// A [`Subscriber`] acts on the behalf of one or several [`DataReader`] objects that are related to it. When it receives data (from the
 /// other parts of the system), it builds the list of concerned [`DataReader`] objects, and then indicates to the application that data is
 /// available, through its listener or by enabling related conditions.
-pub struct Subscriber(DdsSubscriber);
+pub struct Subscriber {
+    subscriber_address: ActorAddress<SubscriberActor>,
+    participant_address: ActorAddress<DomainParticipantActor>,
+}
 
 impl Subscriber {
-    pub(crate) fn new(subscriber: DdsSubscriber) -> Self {
-        Self(subscriber)
-    }
-
-    pub(crate) fn node(&self) -> &DdsSubscriber {
-        &self.0
+    pub(crate) fn new(
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    ) -> Self {
+        Self {
+            subscriber_address,
+            participant_address,
+        }
     }
 }
 
@@ -100,25 +106,20 @@ impl Subscriber {
         Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey + 'static,
     {
         let default_unicast_locator_list = self
-            .0
-            .participant_address()
+            .participant_address
             .send_mail_and_await_reply_blocking(
                 domain_participant_actor::get_default_unicast_locator_list::new(),
             )?;
         let default_multicast_locator_list = self
-            .0
-            .participant_address()
+            .participant_address
             .send_mail_and_await_reply_blocking(
                 domain_participant_actor::get_default_unicast_locator_list::new(),
             )?;
 
         let qos = match qos {
-            QosKind::Default => self
-                .0
-                .subscriber_address()
-                .send_mail_and_await_reply_blocking(
-                    subscriber_actor::get_default_datareader_qos::new(),
-                )?,
+            QosKind::Default => self.subscriber_address.send_mail_and_await_reply_blocking(
+                subscriber_actor::get_default_datareader_qos::new(),
+            )?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
@@ -130,14 +131,12 @@ impl Subscriber {
             false => USER_DEFINED_READER_NO_KEY,
         };
         let subscriber_guid = self
-            .0
-            .subscriber_address()
+            .subscriber_address
             .send_mail_and_await_reply_blocking(subscriber_actor::guid::new())?;
 
         let entity_key: [u8; 3] = [
             subscriber_guid.entity_id().entity_key()[0],
-            self.0
-                .subscriber_address()
+            self.subscriber_address
                 .send_mail_and_await_reply_blocking(subscriber_actor::get_unique_reader_id::new())?,
             0,
         ];
@@ -175,26 +174,21 @@ impl Subscriber {
 
         let reader_actor = spawn_actor(data_reader);
         let reader_address = reader_actor.address();
-        self.0
-            .subscriber_address()
-            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
-                guid.into(),
-                reader_actor,
-            ))?;
+        self.subscriber_address.send_mail_and_await_reply_blocking(
+            subscriber_actor::data_reader_add::new(guid.into(), reader_actor),
+        )?;
 
         let data_reader = DataReader::new(
             reader_address,
-            self.0.subscriber_address().clone(),
-            self.0.participant_address().clone(),
+            self.subscriber_address.clone(),
+            self.participant_address.clone(),
         );
 
         if self
-            .0
-            .subscriber_address()
+            .subscriber_address
             .send_mail_and_await_reply_blocking(subscriber_actor::is_enabled::new())?
             && self
-                .0
-                .subscriber_address()
+                .subscriber_address
                 .send_mail_and_await_reply_blocking(subscriber_actor::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
@@ -217,14 +211,11 @@ impl Subscriber {
             ));
         }
 
-        self.0
-            .subscriber_address()
-            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_delete::new(
-                reader_handle,
-            ))?;
+        self.subscriber_address.send_mail_and_await_reply_blocking(
+            subscriber_actor::data_reader_delete::new(reader_handle),
+        )?;
 
-        self.0
-            .participant_address()
+        self.participant_address
             .send_mail_and_await_reply_blocking(
                 domain_participant_actor::announce_deleted_data_reader::new(reader_handle),
             )?
@@ -238,16 +229,15 @@ impl Subscriber {
     #[tracing::instrument(skip(self))]
     pub fn lookup_datareader<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataReader<Foo>>> {
         Ok(self
-            .0
-            .subscriber_address()
+            .subscriber_address
             .send_mail_and_await_reply_blocking(subscriber_actor::lookup_datareader::new(
                 topic_name.to_string(),
             ))?
             .map(|reader_address| {
                 DataReader::new(
                     reader_address,
-                    self.0.subscriber_address().clone(),
-                    self.0.participant_address().clone(),
+                    self.subscriber_address.clone(),
+                    self.participant_address.clone(),
                 )
             }))
     }
@@ -265,7 +255,7 @@ impl Subscriber {
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         Ok(DomainParticipant::new(DdsDomainParticipant::new(
-            self.0.participant_address().clone(),
+            self.participant_address.clone(),
         )))
     }
 
@@ -294,11 +284,9 @@ impl Subscriber {
     /// reset back to the initial values the factory would use, that is the default value of [`DataReaderQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        self.0
-            .subscriber_address()
-            .send_mail_and_await_reply_blocking(
-                subscriber_actor::set_default_datareader_qos::new(qos),
-            )?
+        self.subscriber_address.send_mail_and_await_reply_blocking(
+            subscriber_actor::set_default_datareader_qos::new(qos),
+        )?
     }
 
     /// This operation retrieves the default value of the [`DataReaderQos`], that is, the qos policies which will be used for newly
@@ -307,8 +295,7 @@ impl Subscriber {
     /// [`Subscriber::get_default_datareader_qos`], or else, if the call was never made, the default values of [`DataReaderQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        self.0
-            .subscriber_address()
+        self.subscriber_address
             .send_mail_and_await_reply_blocking(subscriber_actor::get_default_datareader_qos::new())
     }
 
@@ -346,8 +333,7 @@ impl Subscriber {
     /// This operation allows access to the existing set of [`SubscriberQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
-        self.0
-            .subscriber_address()
+        self.subscriber_address
             .send_mail_and_await_reply_blocking(subscriber_actor::get_qos::new())
     }
 
@@ -363,12 +349,9 @@ impl Subscriber {
         a_listener: Option<Box<dyn SubscriberListener + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0
-            .subscriber_address()
-            .send_mail_and_await_reply_blocking(subscriber_actor::set_listener::new(
-                a_listener,
-                mask.to_vec(),
-            ))
+        self.subscriber_address.send_mail_and_await_reply_blocking(
+            subscriber_actor::set_listener::new(a_listener, mask.to_vec()),
+        )
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -376,8 +359,7 @@ impl Subscriber {
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.0
-            .subscriber_address()
+        self.subscriber_address
             .send_mail_and_await_reply_blocking(subscriber_actor::get_statuscondition::new())
             .map(StatusCondition::new)
     }
@@ -416,24 +398,20 @@ impl Subscriber {
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         if !self
-            .0
-            .subscriber_address()
+            .subscriber_address
             .send_mail_and_await_reply_blocking(subscriber_actor::is_enabled::new())?
         {
-            self.0
-                .subscriber_address()
+            self.subscriber_address
                 .send_mail_and_await_reply_blocking(subscriber_actor::enable::new())?;
 
             if self
-                .0
-                .subscriber_address()
+                .subscriber_address
                 .send_mail_and_await_reply_blocking(subscriber_actor::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
             {
                 for data_reader in self
-                    .0
-                    .subscriber_address()
+                    .subscriber_address
                     .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_list::new())?
                 {
                     data_reader
@@ -448,8 +426,7 @@ impl Subscriber {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0
-            .subscriber_address()
+        self.subscriber_address
             .send_mail_and_await_reply_blocking(subscriber_actor::get_instance_handle::new())
     }
 }

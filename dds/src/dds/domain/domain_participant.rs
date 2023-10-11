@@ -8,10 +8,7 @@ use crate::{
             domain_participant_actor::{self},
             publisher_actor, subscriber_actor, topic_actor,
         },
-        dds::{
-            dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher,
-            dds_subscriber::DdsSubscriber,
-        },
+        dds::{dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher},
         utils::actor::THE_RUNTIME,
     },
     infrastructure::{
@@ -179,10 +176,7 @@ impl DomainParticipant {
                 domain_participant_actor::create_subscriber::new(qos, a_listener, mask.to_vec()),
             )?;
 
-        let subscriber = Subscriber::new(DdsSubscriber::new(
-            subscriber_address,
-            self.0.participant_address().clone(),
-        ));
+        let subscriber = Subscriber::new(subscriber_address, self.0.participant_address().clone());
 
         if self
             .0
@@ -209,30 +203,9 @@ impl DomainParticipant {
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_subscriber))]
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        if self
-            .0
-            .participant_address()
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_guid::new())?
-            .prefix()
-            != a_subscriber
-                .node()
-                .subscriber_address()
-                .send_mail_and_await_reply_blocking(subscriber_actor::guid::new())?
-                .prefix()
-        {
+        if self.get_instance_handle()? != a_subscriber.get_participant()?.get_instance_handle()? {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
-            ));
-        }
-
-        if !a_subscriber
-            .node()
-            .subscriber_address()
-            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_list::new())?
-            .is_empty()
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Subscriber still contains data readers".to_string(),
             ));
         }
 
@@ -240,14 +213,9 @@ impl DomainParticipant {
             .participant_address()
             .send_mail_and_await_reply_blocking(
                 domain_participant_actor::delete_user_defined_subscriber::new(
-                    a_subscriber
-                        .node()
-                        .subscriber_address()
-                        .send_mail_and_await_reply_blocking(
-                            subscriber_actor::get_instance_handle::new(),
-                        )?,
+                    a_subscriber.get_instance_handle()?,
                 ),
-            )
+            )?
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
@@ -472,14 +440,14 @@ impl DomainParticipant {
     /// objects.
     #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        Ok(Subscriber::new(DdsSubscriber::new(
+        Ok(Subscriber::new(
             self.0
                 .participant_address()
                 .send_mail_and_await_reply_blocking(
                     domain_participant_actor::get_built_in_subscriber::new(),
                 )?,
             self.0.participant_address().clone(),
-        )))
+        ))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
@@ -654,7 +622,7 @@ impl DomainParticipant {
                             subscriber_actor::get_instance_handle::new(),
                         )?,
                     ),
-                )?;
+                )??;
         }
         for topic in self
             .0

@@ -638,8 +638,20 @@ impl DomainParticipantActor {
         counter
     }
 
-    async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(subscriber) = self.user_defined_subscriber_list.get(&handle) {
+            if subscriber
+                .send_mail_and_await_reply(subscriber_actor::is_empty::new())
+                .await
+            {
+                return Err(DdsError::PreconditionNotMet(
+                    "Subscriber still contains data readers".to_string(),
+                ));
+            }
+        }
+
         self.user_defined_subscriber_list.remove(&handle);
+        Ok(())
     }
 
     async fn create_unique_topic_id(&mut self) -> u8 {
