@@ -1063,6 +1063,31 @@ impl DomainParticipantActor {
         self.listener = listener.map(|l| spawn_actor(DomainParticipantListenerActor::new(l)));
         self.status_kind = status_kind;
     }
+
+    async fn announce_deleted_data_reader(&self, reader_handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(sedp_subscriptions_announcer) = self
+            .builtin_publisher
+            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
+                DCPS_SUBSCRIPTION.to_string(),
+            ))
+            .await
+        {
+            let timestamp = self.get_current_time().await;
+            let instance_serialized_key =
+                cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+                    .expect("Failed to serialize data");
+            sedp_subscriptions_announcer
+                .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
+                    instance_serialized_key,
+                    reader_handle,
+                    timestamp,
+                ))
+                .await?
+        } else {
+            Ok(())
+        }
+    }
 }
 
 impl DomainParticipantActor {

@@ -4,12 +4,9 @@ use crate::{
         actors::{
             data_reader_actor::{self, DataReaderActor},
             data_reader_listener_actor::DataReaderListenerActor,
-            data_writer_actor, domain_participant_actor, publisher_actor, subscriber_actor,
+            domain_participant_actor, subscriber_actor,
         },
-        dds::{
-            dds_data_reader::DdsDataReader, dds_domain_participant::DdsDomainParticipant,
-            dds_subscriber::DdsSubscriber,
-        },
+        dds::{dds_domain_participant::DdsDomainParticipant, dds_subscriber::DdsSubscriber},
         rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
@@ -185,11 +182,11 @@ impl Subscriber {
                 reader_actor,
             ))?;
 
-        let data_reader = DataReader::new(DdsDataReader::new(
+        let data_reader = DataReader::new(
             reader_address,
             self.0.subscriber_address().clone(),
             self.0.participant_address().clone(),
-        ));
+        );
 
         if self
             .0
@@ -213,75 +210,24 @@ impl Subscriber {
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_datareader))]
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
-        let reader_handle = a_datareader
-            .node()
-            .reader_address()
-            .send_mail_and_await_reply_blocking(data_reader_actor::get_instance_handle::new())?;
-        if self
-            .0
-            .subscriber_address()
-            .send_mail_and_await_reply_blocking(subscriber_actor::guid::new())?
-            != a_datareader
-                .node()
-                .subscriber_address()
-                .send_mail_and_await_reply_blocking(subscriber_actor::guid::new())?
-        {
+        let reader_handle = a_datareader.get_instance_handle()?;
+        if self.get_instance_handle()? != a_datareader.get_subscriber()?.get_instance_handle()? {
             return Err(DdsError::PreconditionNotMet(
                 "Data reader can only be deleted from its parent subscriber".to_string(),
             ));
         }
 
-        let reader_is_enabled = a_datareader
-            .node()
-            .reader_address()
-            .send_mail_and_await_reply_blocking(data_reader_actor::is_enabled::new())?;
         self.0
             .subscriber_address()
             .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_delete::new(
                 reader_handle,
             ))?;
 
-        if reader_is_enabled {
-            let instance_serialized_key =
-                cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
-                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-                    .expect("Failed to serialize data");
-
-            let timestamp = a_datareader
-                .node()
-                .participant_address()
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_current_time::new(),
-                )?;
-
-            let builtin_publisher = a_datareader
-                .node()
-                .participant_address()
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_builtin_publisher::new(),
-                )?;
-            let data_writer_list = builtin_publisher
-                .send_mail_and_await_reply_blocking(publisher_actor::data_writer_list::new())?;
-            for dw in data_writer_list {
-                if dw.send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
-                    == Ok("DiscoveredReaderData".to_string())
-                {
-                    dw.send_mail_and_await_reply_blocking(
-                        data_writer_actor::dispose_w_timestamp::new(
-                            instance_serialized_key,
-                            reader_handle,
-                            timestamp,
-                        ),
-                    )??;
-
-                    self.0
-                        .participant_address()
-                        .send_mail_blocking(domain_participant_actor::send_message::new())?;
-                    break;
-                }
-            }
-        }
-        Ok(())
+        self.0
+            .participant_address()
+            .send_mail_and_await_reply_blocking(
+                domain_participant_actor::announce_deleted_data_reader::new(reader_handle),
+            )?
     }
 
     /// This operation retrieves a previously created [`DataReader`] belonging to the [`Subscriber`] that is attached to a [`Topic`].
@@ -298,11 +244,11 @@ impl Subscriber {
                 topic_name.to_string(),
             ))?
             .map(|reader_address| {
-                DataReader::new(DdsDataReader::new(
+                DataReader::new(
                     reader_address,
                     self.0.subscriber_address().clone(),
                     self.0.participant_address().clone(),
-                ))
+                )
             }))
     }
 

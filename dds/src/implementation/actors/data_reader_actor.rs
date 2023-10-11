@@ -346,13 +346,10 @@ impl DataReaderActor {
             }
             _ => match self.listener.as_ref().map(|a| a.address()) {
                 Some(l) if self.status_kind.contains(&StatusKind::DataAvailable) => {
-                    let reader = DdsDataReader::new(
+                    l.send_mail(data_reader_listener_actor::trigger_on_data_available::new(
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
-                    );
-                    l.send_mail(data_reader_listener_actor::trigger_on_data_available::new(
-                        reader,
                     ))
                     .await?;
                 }
@@ -616,14 +613,12 @@ impl DataReaderActor {
             .await?;
         match self.listener.as_ref().map(|a| a.address()) {
             Some(l) if self.status_kind.contains(&StatusKind::SampleLost) => {
-                let reader = DdsDataReader::new(
+                let status = self.get_sample_lost_status();
+                l.send_mail(data_reader_listener_actor::trigger_on_sample_lost::new(
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
-                );
-                let status = self.get_sample_lost_status();
-                l.send_mail(data_reader_listener_actor::trigger_on_sample_lost::new(
-                    reader, status,
+                    status,
                 ))
                 .await?;
             }
@@ -686,15 +681,13 @@ impl DataReaderActor {
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         match self.listener.as_ref().map(|l| l.address()) {
             Some(l) if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
-                let reader = DdsDataReader::new(
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                );
                 let status = self.get_subscription_matched_status().await;
                 l.send_mail(
                     data_reader_listener_actor::trigger_on_subscription_matched::new(
-                        reader, status,
+                        data_reader_address,
+                        subscriber_address,
+                        participant_address,
+                        status,
                     ),
                 )
                 .await
@@ -768,13 +761,12 @@ impl DataReaderActor {
         match self.listener.as_ref().map(|a| a.address()) {
             Some(l) if self.status_kind.contains(&StatusKind::SampleRejected) => {
                 let status = self.get_sample_rejected_status();
-                let reader = DdsDataReader::new(
+
+                l.send_mail(data_reader_listener_actor::trigger_on_sample_rejected::new(
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
-                );
-                l.send_mail(data_reader_listener_actor::trigger_on_sample_rejected::new(
-                    reader, status,
+                    status,
                 ))
                 .await?;
             }
@@ -843,14 +835,13 @@ impl DataReaderActor {
                     .contains(&StatusKind::RequestedIncompatibleQos) =>
             {
                 let status = self.get_requested_incompatible_qos_status();
-                let reader = DdsDataReader::new(
-                    data_reader_address.clone(),
-                    subscriber_address.clone(),
-                    participant_address.clone(),
-                );
+
                 l.send_mail(
                     data_reader_listener_actor::trigger_on_requested_incompatible_qos::new(
-                        reader, status,
+                        data_reader_address.clone(),
+                        subscriber_address.clone(),
+                        participant_address.clone(),
+                        status,
                     ),
                 )
                 .await
@@ -1954,14 +1945,13 @@ impl DataReaderActor {
                         .contains(&StatusKind::RequestedDeadlineMissed) =>
                 {
                     let status = self.get_requested_deadline_missed_status();
-                    let reader = DdsDataReader::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                    );
+
                     l.send_mail(
                         data_reader_listener_actor::trigger_on_requested_deadline_missed::new(
-                            reader, status,
+                            data_reader_address.clone(),
+                            subscriber_address.clone(),
+                            participant_address.clone(),
+                            status,
                         ),
                     )
                     .await?;

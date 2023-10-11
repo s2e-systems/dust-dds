@@ -10,7 +10,7 @@ use crate::{
         },
         dds::{
             dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher,
-            dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
+            dds_subscriber::DdsSubscriber,
         },
         utils::actor::THE_RUNTIME,
     },
@@ -277,10 +277,7 @@ impl DomainParticipant {
                 mask.to_vec(),
             ))?;
 
-        let topic = Topic::new(DdsTopic::new(
-            topic_address,
-            self.0.participant_address().clone(),
-        ));
+        let topic = Topic::new(topic_address, self.0.participant_address().clone());
         if self
             .0
             .participant_address()
@@ -306,17 +303,7 @@ impl DomainParticipant {
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_topic))]
     pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
-        if self
-            .0
-            .participant_address()
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_guid::new())?
-            .prefix()
-            != a_topic
-                .node()
-                .topic_address()
-                .send_mail_and_await_reply_blocking(topic_actor::guid::new())?
-                .prefix()
-        {
+        if self.get_instance_handle()? != a_topic.get_participant()?.get_instance_handle()? {
             return Err(DdsError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant".to_string(),
             ));
@@ -333,17 +320,11 @@ impl DomainParticipant {
                 .send_mail_and_await_reply_blocking(publisher_actor::data_writer_list::new())?;
             for data_writer in data_writer_list {
                 if data_writer
-                    .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
-                    == a_topic
-                        .node()
-                        .topic_address()
-                        .send_mail_and_await_reply_blocking(topic_actor::get_type_name::new())
-                    && data_writer
-                        .send_mail_and_await_reply_blocking(data_writer_actor::get_topic_name::new())
-                        == a_topic
-                            .node()
-                            .topic_address()
-                            .send_mail_and_await_reply_blocking(topic_actor::get_name::new())
+                    .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?
+                    == a_topic.get_type_name()?
+                    && data_writer.send_mail_and_await_reply_blocking(
+                        data_writer_actor::get_topic_name::new(),
+                    )? == a_topic.get_name()?
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer".to_string(),
@@ -363,17 +344,11 @@ impl DomainParticipant {
                 .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_list::new())?;
             for data_reader in data_reader_list {
                 if data_reader
-                    .send_mail_and_await_reply_blocking(data_reader_actor::get_type_name::new())
-                    == a_topic
-                        .node()
-                        .topic_address()
-                        .send_mail_and_await_reply_blocking(topic_actor::get_type_name::new())
-                    && data_reader
-                        .send_mail_and_await_reply_blocking(data_reader_actor::get_topic_name::new())
-                        == a_topic
-                            .node()
-                            .topic_address()
-                            .send_mail_and_await_reply_blocking(topic_actor::get_name::new())
+                    .send_mail_and_await_reply_blocking(data_reader_actor::get_type_name::new())?
+                    == a_topic.get_type_name()?
+                    && data_reader.send_mail_and_await_reply_blocking(
+                        data_reader_actor::get_topic_name::new(),
+                    )? == a_topic.get_name()?
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data reader".to_string(),
@@ -385,10 +360,7 @@ impl DomainParticipant {
         self.0
             .participant_address()
             .send_mail_and_await_reply_blocking(domain_participant_actor::delete_topic::new(
-                a_topic
-                    .node()
-                    .topic_address()
-                    .send_mail_and_await_reply_blocking(topic_actor::get_instance_handle::new())?,
+                a_topic.get_instance_handle()?,
             ))
     }
 
@@ -418,10 +390,7 @@ impl DomainParticipant {
                 if topic.send_mail_and_await_reply_blocking(topic_actor::get_name::new())?
                     == topic_name
                 {
-                    return Ok(Topic::new(DdsTopic::new(
-                        topic,
-                        self.0.participant_address().clone(),
-                    )));
+                    return Ok(Topic::new(topic, self.0.participant_address().clone()));
                 }
             }
 
