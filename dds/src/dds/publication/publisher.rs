@@ -6,7 +6,6 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
         },
-        dds::dds_domain_participant::DdsDomainParticipant,
         utils::actor::{spawn_actor, ActorAddress},
     },
     infrastructure::{
@@ -251,9 +250,7 @@ impl Publisher {
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(DdsDomainParticipant::new(
-            self.participant_address.clone(),
-        )))
+        Ok(DomainParticipant::new(self.participant_address.clone()))
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.

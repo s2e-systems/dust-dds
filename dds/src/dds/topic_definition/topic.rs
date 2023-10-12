@@ -8,7 +8,6 @@ use crate::{
             topic_actor::{self, TopicActor},
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        dds::dds_domain_participant::DdsDomainParticipant,
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -79,9 +78,7 @@ impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(DdsDomainParticipant::new(
-            self.participant_address.clone(),
-        )))
+        Ok(DomainParticipant::new(self.participant_address.clone()))
     }
 
     /// The name of the type used to create the [`Topic`]

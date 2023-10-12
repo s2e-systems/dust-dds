@@ -7,7 +7,6 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor},
             subscriber_actor::{self, SubscriberActor},
         },
-        dds::dds_domain_participant::DdsDomainParticipant,
         rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
@@ -254,9 +253,7 @@ impl Subscriber {
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(DdsDomainParticipant::new(
-            self.participant_address.clone(),
-        )))
+        Ok(DomainParticipant::new(self.participant_address.clone()))
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
