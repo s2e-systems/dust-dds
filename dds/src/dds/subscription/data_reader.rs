@@ -147,7 +147,7 @@ impl<Foo> Clone for DataReader<Foo> {
             reader_address: self.reader_address.clone(),
             subscriber_address: self.subscriber_address.clone(),
             participant_address: self.participant_address.clone(),
-            phantom: self.phantom.clone(),
+            phantom: self.phantom,
         }
     }
 }

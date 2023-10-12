@@ -47,7 +47,7 @@ impl<Foo> Clone for DataWriter<Foo> {
             writer_address: self.writer_address.clone(),
             publisher_address: self.publisher_address.clone(),
             participant_address: self.participant_address.clone(),
-            phantom: self.phantom.clone(),
+            phantom: self.phantom,
         }
     }
 }
