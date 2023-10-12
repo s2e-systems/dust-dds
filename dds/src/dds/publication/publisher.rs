@@ -2,11 +2,12 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
-            data_writer_listener_actor::DataWriterListenerActor, domain_participant_actor,
-            publisher_actor,
+            data_writer_listener_actor::DataWriterListenerActor,
+            domain_participant_actor::{self, DomainParticipantActor},
+            publisher_actor::{self, PublisherActor},
         },
-        dds::{dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher},
-        utils::actor::spawn_actor,
+        dds::dds_domain_participant::DdsDomainParticipant,
+        utils::actor::{spawn_actor, ActorAddress},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -27,15 +28,20 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// data associated with one of its [`DataWriter`] objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
-pub struct Publisher(DdsPublisher);
+pub struct Publisher {
+    publisher_address: ActorAddress<PublisherActor>,
+    participant_address: ActorAddress<DomainParticipantActor>,
+}
 
 impl Publisher {
-    pub(crate) fn new(publisher: DdsPublisher) -> Self {
-        Self(publisher)
-    }
-
-    pub(crate) fn node(&self) -> &DdsPublisher {
-        &self.0
+    pub(crate) fn new(
+        publisher_address: ActorAddress<PublisherActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    ) -> Self {
+        Self {
+            publisher_address,
+            participant_address,
+        }
     }
 }
 
@@ -83,29 +89,24 @@ impl Publisher {
         Foo: DdsHasKey + DdsGetKey + serde::Serialize + Send + 'static,
     {
         let default_unicast_locator_list = self
-            .0
-            .participant_address()
+            .participant_address
             .send_mail_and_await_reply_blocking(
                 domain_participant_actor::get_default_unicast_locator_list::new(),
             )?;
         let default_multicast_locator_list = self
-            .0
-            .participant_address()
+            .participant_address
             .send_mail_and_await_reply_blocking(
                 domain_participant_actor::get_default_multicast_locator_list::new(),
             )?;
         let data_max_size_serialized = self
-            .0
-            .participant_address()
+            .participant_address
             .send_mail_and_await_reply_blocking(
                 domain_participant_actor::data_max_size_serialized::new(),
             )?;
 
         let listener = a_listener.map(|l| spawn_actor(DataWriterListenerActor::new(Box::new(l))));
-        let data_writer_address = self
-            .0
-            .publisher_address()
-            .send_mail_and_await_reply_blocking(publisher_actor::create_datawriter::new(
+        let data_writer_address = self.publisher_address.send_mail_and_await_reply_blocking(
+            publisher_actor::create_datawriter::new(
                 a_topic.get_type_name()?,
                 a_topic.get_name()?,
                 Foo::HAS_KEY,
@@ -115,21 +116,20 @@ impl Publisher {
                 mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
-            ))??;
+            ),
+        )??;
 
         let data_writer = DataWriter::new(
             data_writer_address,
-            self.0.publisher_address().clone(),
-            self.0.participant_address().clone(),
+            self.publisher_address.clone(),
+            self.participant_address.clone(),
         );
 
         if self
-            .0
-            .publisher_address()
+            .publisher_address
             .send_mail_and_await_reply_blocking(publisher_actor::is_enabled::new())?
             && self
-                .0
-                .publisher_address()
+                .publisher_address
                 .send_mail_and_await_reply_blocking(publisher_actor::get_qos::new())?
                 .entity_factory
                 .autoenable_created_entities
@@ -150,8 +150,7 @@ impl Publisher {
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
         let writer_handle = a_datawriter.get_instance_handle()?;
         if self
-            .0
-            .publisher_address()
+            .publisher_address
             .send_mail_and_await_reply_blocking(publisher_actor::get_instance_handle::new())?
             != a_datawriter.get_publisher()?.get_instance_handle()?
         {
@@ -160,14 +159,11 @@ impl Publisher {
             ));
         }
 
-        self.0
-            .publisher_address()
-            .send_mail_and_await_reply_blocking(publisher_actor::datawriter_delete::new(
-                writer_handle,
-            ))?;
+        self.publisher_address.send_mail_and_await_reply_blocking(
+            publisher_actor::datawriter_delete::new(writer_handle),
+        )?;
 
-        self.0
-            .participant_address()
+        self.participant_address
             .send_mail_and_await_reply_blocking(
                 domain_participant_actor::announce_deleted_data_writer::new(writer_handle),
             )?
@@ -180,16 +176,15 @@ impl Publisher {
     #[tracing::instrument(skip(self))]
     pub fn lookup_datawriter<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>> {
         Ok(self
-            .0
-            .publisher_address()
+            .publisher_address
             .send_mail_and_await_reply_blocking(publisher_actor::lookup_datawriter::new(
                 topic_name.to_string(),
             ))?
             .map(|dw| {
                 DataWriter::new(
                     dw,
-                    self.0.publisher_address().clone(),
-                    self.0.participant_address().clone(),
+                    self.publisher_address.clone(),
+                    self.participant_address.clone(),
                 )
             }))
     }
@@ -257,7 +252,7 @@ impl Publisher {
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         Ok(DomainParticipant::new(DdsDomainParticipant::new(
-            self.0.participant_address().clone(),
+            self.participant_address.clone(),
         )))
     }
 
@@ -281,23 +276,18 @@ impl Publisher {
     #[tracing::instrument(skip(self))]
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => self
-                .0
-                .publisher_address()
-                .send_mail_and_await_reply_blocking(
-                    publisher_actor::get_default_datawriter_qos::new(),
-                )?,
+            QosKind::Default => self.publisher_address.send_mail_and_await_reply_blocking(
+                publisher_actor::get_default_datawriter_qos::new(),
+            )?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
             }
         };
 
-        self.0
-            .publisher_address()
-            .send_mail_and_await_reply_blocking(publisher_actor::set_default_datawriter_qos::new(
-                qos,
-            ))
+        self.publisher_address.send_mail_and_await_reply_blocking(
+            publisher_actor::set_default_datawriter_qos::new(qos),
+        )
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created
@@ -306,8 +296,7 @@ impl Publisher {
     /// [`Publisher::set_default_datawriter_qos`], or else, if the call was never made, the default values of [`DataWriterQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        self.0
-            .publisher_address()
+        self.publisher_address
             .send_mail_and_await_reply_blocking(publisher_actor::get_default_datawriter_qos::new())
     }
 
@@ -349,8 +338,7 @@ impl Publisher {
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        self.0
-            .publisher_address()
+        self.publisher_address
             .send_mail_and_await_reply_blocking(publisher_actor::get_qos::new())
     }
 
@@ -366,12 +354,9 @@ impl Publisher {
         a_listener: Option<Box<dyn PublisherListener + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0
-            .publisher_address()
-            .send_mail_and_await_reply_blocking(publisher_actor::set_listener::new(
-                a_listener,
-                mask.to_vec(),
-            ))
+        self.publisher_address.send_mail_and_await_reply_blocking(
+            publisher_actor::set_listener::new(a_listener, mask.to_vec()),
+        )
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -415,16 +400,14 @@ impl Publisher {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        self.0
-            .publisher_address()
+        self.publisher_address
             .send_mail_and_await_reply_blocking(publisher_actor::enable::new())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0
-            .publisher_address()
+        self.publisher_address
             .send_mail_and_await_reply_blocking(publisher_actor::get_instance_handle::new())
     }
 }

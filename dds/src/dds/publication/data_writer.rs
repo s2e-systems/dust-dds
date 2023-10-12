@@ -9,7 +9,6 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
         },
-        dds::dds_publisher::DdsPublisher,
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -450,10 +449,10 @@ impl<Foo> DataWriter<Foo> {
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
-        Ok(Publisher::new(DdsPublisher::new(
+        Ok(Publisher::new(
             self.publisher_address.clone(),
             self.participant_address.clone(),
-        )))
+        ))
     }
 
     /// This operation manually asserts the liveliness of the [`DataWriter`]. This is used in combination with the

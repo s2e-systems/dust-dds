@@ -628,8 +628,20 @@ impl DomainParticipantActor {
         counter
     }
 
-    async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(p) = self.user_defined_publisher_list.get(&handle) {
+            if !p
+                .send_mail_and_await_reply(publisher_actor::data_writer_list::new())
+                .await
+                .is_empty()
+            {
+                return Err(DdsError::PreconditionNotMet(
+                    "Publisher still contains data writers".to_string(),
+                ));
+            }
+        }
         self.user_defined_publisher_list.remove(&handle);
+        Ok(())
     }
 
     async fn create_unique_subscriber_id(&mut self) -> u8 {

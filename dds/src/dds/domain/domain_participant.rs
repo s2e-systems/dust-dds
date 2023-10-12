@@ -8,7 +8,7 @@ use crate::{
             domain_participant_actor::{self},
             publisher_actor, subscriber_actor, topic_actor,
         },
-        dds::{dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher},
+        dds::dds_domain_participant::DdsDomainParticipant,
         utils::actor::THE_RUNTIME,
     },
     infrastructure::{
@@ -88,10 +88,7 @@ impl DomainParticipant {
                     domain_participant_actor::create_publisher::new(qos, a_listener, mask.to_vec()),
                 )?;
 
-        let publisher = Publisher::new(DdsPublisher::new(
-            publisher_address,
-            self.0.participant_address().clone(),
-        ));
+        let publisher = Publisher::new(publisher_address, self.0.participant_address().clone());
         if self
             .0
             .participant_address()
@@ -121,27 +118,13 @@ impl DomainParticipant {
         if self
             .0
             .participant_address()
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_guid::new())?
-            .prefix()
-            != a_publisher
-                .node()
-                .publisher_address()
-                .send_mail_and_await_reply_blocking(publisher_actor::guid::new())?
-                .prefix()
+            .send_mail_and_await_reply_blocking(
+                domain_participant_actor::get_instance_handle::new(),
+            )?
+            != a_publisher.get_participant()?.get_instance_handle()?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
-            ));
-        }
-
-        if !a_publisher
-            .node()
-            .publisher_address()
-            .send_mail_and_await_reply_blocking(publisher_actor::data_writer_list::new())?
-            .is_empty()
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Publisher still contains data writers".to_string(),
             ));
         }
 
@@ -151,7 +134,7 @@ impl DomainParticipant {
                 domain_participant_actor::delete_user_defined_publisher::new(
                     a_publisher.get_instance_handle()?,
                 ),
-            )
+            )?
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
@@ -594,7 +577,7 @@ impl DomainParticipant {
                             publisher_actor::get_instance_handle::new(),
                         )?,
                     ),
-                )?;
+                )??;
         }
         for subscriber in self
             .0
