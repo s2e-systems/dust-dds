@@ -1,9 +1,6 @@
 /// Classes related to the status conditions.
 pub mod condition;
 
-/// Trait related to the DDS entity.
-pub mod entity;
-
 /// Classes related to the error and return codes.
 pub mod error;
 
