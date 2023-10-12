@@ -526,7 +526,10 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
-        todo!()
+        Ok(Subscriber::new(
+            self.subscriber_address.clone(),
+            self.participant_address.clone(),
+        ))
     }
 
     /// This operation blocks the calling thread until either all “historical” data is received, or else the

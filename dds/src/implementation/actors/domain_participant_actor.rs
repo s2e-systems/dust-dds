@@ -652,7 +652,7 @@ impl DomainParticipantActor {
 
     async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if let Some(subscriber) = self.user_defined_subscriber_list.get(&handle) {
-            if subscriber
+            if !subscriber
                 .send_mail_and_await_reply(subscriber_actor::is_empty::new())
                 .await
             {
