@@ -628,8 +628,20 @@ impl DomainParticipantActor {
         counter
     }
 
-    async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(p) = self.user_defined_publisher_list.get(&handle) {
+            if !p
+                .send_mail_and_await_reply(publisher_actor::data_writer_list::new())
+                .await
+                .is_empty()
+            {
+                return Err(DdsError::PreconditionNotMet(
+                    "Publisher still contains data writers".to_string(),
+                ));
+            }
+        }
         self.user_defined_publisher_list.remove(&handle);
+        Ok(())
     }
 
     async fn create_unique_subscriber_id(&mut self) -> u8 {
@@ -638,8 +650,20 @@ impl DomainParticipantActor {
         counter
     }
 
-    async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(subscriber) = self.user_defined_subscriber_list.get(&handle) {
+            if !subscriber
+                .send_mail_and_await_reply(subscriber_actor::is_empty::new())
+                .await
+            {
+                return Err(DdsError::PreconditionNotMet(
+                    "Subscriber still contains data readers".to_string(),
+                ));
+            }
+        }
+
         self.user_defined_subscriber_list.remove(&handle);
+        Ok(())
     }
 
     async fn create_unique_topic_id(&mut self) -> u8 {
@@ -1018,6 +1042,31 @@ impl DomainParticipantActor {
         }
     }
 
+    async fn announce_deleted_data_writer(&self, writer_handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(sedp_publications_announcer) = self
+            .builtin_publisher
+            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
+                DCPS_PUBLICATION.to_string(),
+            ))
+            .await
+        {
+            let timestamp = self.get_current_time().await;
+            let instance_serialized_key =
+                cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+                    .expect("Failed to serialize data");
+            sedp_publications_announcer
+                .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
+                    instance_serialized_key,
+                    writer_handle,
+                    timestamp,
+                ))
+                .await?
+        } else {
+            Ok(())
+        }
+    }
+
     async fn process_builtin_discovery(
         &mut self,
         participant_address: ActorAddress<DomainParticipantActor>,
@@ -1037,6 +1086,31 @@ impl DomainParticipantActor {
     ) {
         self.listener = listener.map(|l| spawn_actor(DomainParticipantListenerActor::new(l)));
         self.status_kind = status_kind;
+    }
+
+    async fn announce_deleted_data_reader(&self, reader_handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(sedp_subscriptions_announcer) = self
+            .builtin_publisher
+            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
+                DCPS_SUBSCRIPTION.to_string(),
+            ))
+            .await
+        {
+            let timestamp = self.get_current_time().await;
+            let instance_serialized_key =
+                cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+                    .expect("Failed to serialize data");
+            sedp_subscriptions_announcer
+                .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
+                    instance_serialized_key,
+                    reader_handle,
+                    timestamp,
+                ))
+                .await?
+        } else {
+            Ok(())
+        }
     }
 }
 

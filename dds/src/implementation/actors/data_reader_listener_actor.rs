@@ -1,14 +1,17 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
-    implementation::dds::dds_data_reader::DdsDataReader,
+    implementation::utils::actor::ActorAddress,
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,
     },
 };
 
-use super::any_data_reader_listener::AnyDataReaderListener;
+use super::{
+    any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
+    domain_participant_actor::DomainParticipantActor, subscriber_actor::SubscriberActor,
+};
 
 pub struct DataReaderListenerActor {
     listener: Box<dyn AnyDataReaderListener + Send + 'static>,
@@ -22,52 +25,103 @@ impl DataReaderListenerActor {
 
 #[actor_interface]
 impl DataReaderListenerActor {
-    async fn trigger_on_data_available(&mut self, reader: DdsDataReader) {
-        tokio::task::block_in_place(|| self.listener.trigger_on_data_available(reader));
+    async fn trigger_on_data_available(
+        &mut self,
+        reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    ) {
+        tokio::task::block_in_place(|| {
+            self.listener.trigger_on_data_available(
+                reader_address,
+                subscriber_address,
+                participant_address,
+            )
+        });
     }
 
     async fn trigger_on_sample_rejected(
         &mut self,
-        reader: DdsDataReader,
+        reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         status: SampleRejectedStatus,
     ) {
-        tokio::task::block_in_place(|| self.listener.trigger_on_sample_rejected(reader, status));
+        tokio::task::block_in_place(|| {
+            self.listener.trigger_on_sample_rejected(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                status,
+            )
+        });
     }
 
-    async fn trigger_on_sample_lost(&mut self, reader: DdsDataReader, status: SampleLostStatus) {
-        tokio::task::block_in_place(|| self.listener.trigger_on_sample_lost(reader, status))
+    async fn trigger_on_sample_lost(
+        &mut self,
+        reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        status: SampleLostStatus,
+    ) {
+        tokio::task::block_in_place(|| {
+            self.listener.trigger_on_sample_lost(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                status,
+            )
+        })
     }
 
     async fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: DdsDataReader,
+        reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         status: RequestedIncompatibleQosStatus,
     ) {
         tokio::task::block_in_place(|| {
-            self.listener
-                .trigger_on_requested_incompatible_qos(reader, status)
+            self.listener.trigger_on_requested_incompatible_qos(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                status,
+            )
         });
     }
 
     async fn trigger_on_subscription_matched(
         &mut self,
-        reader: DdsDataReader,
+        reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         status: SubscriptionMatchedStatus,
     ) {
         tokio::task::block_in_place(|| {
-            self.listener
-                .trigger_on_subscription_matched(reader, status)
+            self.listener.trigger_on_subscription_matched(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                status,
+            )
         });
     }
 
     async fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: DdsDataReader,
+        reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         status: RequestedDeadlineMissedStatus,
     ) {
         tokio::task::block_in_place(|| {
-            self.listener
-                .trigger_on_requested_deadline_missed(reader, status)
+            self.listener.trigger_on_requested_deadline_missed(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                status,
+            )
         });
     }
 }

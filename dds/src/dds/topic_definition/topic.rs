@@ -4,10 +4,10 @@ use crate::{
         actors::{
             data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
-            publisher_actor, topic_actor,
+            publisher_actor,
+            topic_actor::{self, TopicActor},
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        dds::{dds_domain_participant::DdsDomainParticipant, dds_topic::DdsTopic},
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -28,15 +28,20 @@ use super::{
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
 #[derive(PartialEq, Eq)]
-pub struct Topic(DdsTopic);
+pub struct Topic {
+    topic_address: ActorAddress<TopicActor>,
+    participant_address: ActorAddress<DomainParticipantActor>,
+}
 
 impl Topic {
-    pub(crate) fn new(node: DdsTopic) -> Self {
-        Self(node)
-    }
-
-    pub(crate) fn node(&self) -> &DdsTopic {
-        &self.0
+    pub(crate) fn new(
+        topic_address: ActorAddress<TopicActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    ) -> Self {
+        Self {
+            topic_address,
+            participant_address,
+        }
     }
 }
 
@@ -63,8 +68,7 @@ impl Topic {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     #[tracing::instrument(skip(self))]
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        self.0
-            .topic_address()
+        self.topic_address
             .send_mail_and_await_reply_blocking(topic_actor::get_inconsistent_topic_status::new())?
     }
 }
@@ -74,24 +78,20 @@ impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(DdsDomainParticipant::new(
-            self.0.participant_address().clone(),
-        )))
+        Ok(DomainParticipant::new(self.participant_address.clone()))
     }
 
     /// The name of the type used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
     pub fn get_type_name(&self) -> DdsResult<String> {
-        self.0
-            .topic_address()
+        self.topic_address
             .send_mail_and_await_reply_blocking(topic_actor::get_type_name::new())
     }
 
     /// The name used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
     pub fn get_name(&self) -> DdsResult<String> {
-        self.0
-            .topic_address()
+        self.topic_address
             .send_mail_and_await_reply_blocking(topic_actor::get_name::new())
     }
 }
@@ -114,8 +114,7 @@ impl Topic {
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => self
-                .0
-                .participant_address()
+                .participant_address
                 .send_mail_and_await_reply_blocking(
                     domain_participant_actor::default_topic_qos::new(),
                 )?,
@@ -126,26 +125,22 @@ impl Topic {
         };
 
         if self
-            .0
-            .topic_address()
+            .topic_address
             .send_mail_and_await_reply_blocking(topic_actor::is_enabled::new())?
         {
-            self.0
-                .topic_address()
+            self.topic_address
                 .send_mail_and_await_reply_blocking(topic_actor::get_qos::new())?
                 .check_immutability(&qos)?
         }
 
-        self.0
-            .topic_address()
+        self.topic_address
             .send_mail_and_await_reply_blocking(topic_actor::set_qos::new(qos))
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        self.0
-            .topic_address()
+        self.topic_address
             .send_mail_and_await_reply_blocking(topic_actor::get_qos::new())
     }
 
@@ -154,8 +149,7 @@ impl Topic {
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.0
-            .topic_address()
+        self.topic_address
             .send_mail_and_await_reply_blocking(topic_actor::get_statuscondition::new())
             .map(StatusCondition::new)
     }
@@ -194,17 +188,15 @@ impl Topic {
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         if !self
-            .0
-            .topic_address()
+            .topic_address
             .send_mail_and_await_reply_blocking(topic_actor::is_enabled::new())?
         {
-            self.0
-                .topic_address()
+            self.topic_address
                 .send_mail_and_await_reply_blocking(topic_actor::enable::new())?;
 
             announce_topic(
-                self.0.participant_address(),
-                self.0.topic_address().send_mail_and_await_reply_blocking(
+                &self.participant_address,
+                self.topic_address.send_mail_and_await_reply_blocking(
                     topic_actor::as_discovered_topic_data::new(),
                 )?,
             )?;
@@ -216,8 +208,7 @@ impl Topic {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0
-            .topic_address()
+        self.topic_address
             .send_mail_and_await_reply_blocking(topic_actor::get_instance_handle::new())
     }
 
