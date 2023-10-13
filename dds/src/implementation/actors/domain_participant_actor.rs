@@ -1136,7 +1136,7 @@ impl DomainParticipantActor {
             {
                 for (spdp_data_sample, _) in spdp_data_sample_list {
                     match dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(
-                        spdp_data_sample.expect("Should contain data").as_ref(),
+                        &mut spdp_data_sample.expect("Should contain data").as_ref(),
                     ) {
                         Ok(discovered_participant_data) => {
                             self.process_discovered_participant_data(discovered_participant_data)
@@ -1506,7 +1506,7 @@ impl DomainParticipantActor {
                     match discovered_writer_sample_info.instance_state {
                         InstanceStateKind::Alive => {
                             match dds_deserialize_from_bytes::<DiscoveredWriterData>(
-                                discovered_writer_data
+                                &mut discovered_writer_data
                                     .expect("Should contain data")
                                     .as_ref(),
                             ) {
@@ -1705,7 +1705,7 @@ impl DomainParticipantActor {
                     match discovered_reader_sample_info.instance_state {
                         InstanceStateKind::Alive => {
                             match dds_deserialize_from_bytes::<DiscoveredReaderData>(
-                                discovered_reader_data
+                                &mut discovered_reader_data
                                     .expect("Should contain data")
                                     .as_ref(),
                             ) {
@@ -1920,7 +1920,7 @@ impl DomainParticipantActor {
                     match discovered_topic_sample_info.instance_state {
                         InstanceStateKind::Alive => {
                             match dds_deserialize_from_bytes::<DiscoveredTopicData>(
-                                discovered_topic_data.expect("Should contain data").as_ref(),
+                                &mut discovered_topic_data.expect("Should contain data").as_ref(),
                             ) {
                                 Ok(discovered_topic_data) => {
                                     self.add_matched_topic(discovered_topic_data).await;

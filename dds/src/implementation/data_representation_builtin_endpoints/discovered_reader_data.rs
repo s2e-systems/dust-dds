@@ -250,7 +250,7 @@ mod tests {
             ),
         };
 
-        let data = &[
+        let mut data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc2, // u8[3], u8
@@ -272,7 +272,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result = dds_deserialize_from_bytes::<DiscoveredReaderData>(data).unwrap();
+        let result = dds_deserialize_from_bytes::<DiscoveredReaderData>(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

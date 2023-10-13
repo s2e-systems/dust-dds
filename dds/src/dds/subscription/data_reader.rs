@@ -79,7 +79,7 @@ where
 {
     pub fn data(&'de self) -> Option<Foo> {
         match self.data.as_ref() {
-            Some(data) => dds_deserialize_from_bytes::<Foo>(data.as_ref()).ok(),
+            Some(data) => dds_deserialize_from_bytes::<Foo>(&mut data.as_ref()).ok(),
             None => None,
         }
     }
