@@ -5,7 +5,6 @@ use crate::{
             data_reader_actor::{
                 self, deserialize_data_to_key, DataReaderActor, InstanceHandleBuilder,
             },
-            data_reader_listener_actor::DataReaderListenerActor,
             domain_participant_actor::{self, DomainParticipantActor},
             subscriber_actor::{self, SubscriberActor},
         },
@@ -95,12 +94,12 @@ impl Subscriber {
     /// 2. Retrieve the default [`DataReaderQos`] qos by means of the [`Subscriber::get_default_datareader_qos`] operation.
     /// 3. Combine those two qos policies using the [`Subscriber::copy_from_topic_qos`] and selectively modify policies as desired and
     /// use the resulting [`DataReaderQos`] to construct the [`DataReader`].
-    #[tracing::instrument(skip(self, a_topic, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub fn create_datareader<Foo>(
         &self,
         a_topic: &Topic,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<Foo> + Send>>,
+        a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
@@ -162,7 +161,7 @@ impl Subscriber {
             false,
         );
 
-        let listener = a_listener.map(|l| spawn_actor(DataReaderListenerActor::new(Box::new(l))));
+        let listener = Box::new(a_listener);
         let status_kind = mask.to_vec();
         let data_reader = DataReaderActor::new(
             rtps_reader,
@@ -343,14 +342,14 @@ impl Subscriber {
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn SubscriberListener + Send + 'static>>,
+        a_listener: impl SubscriberListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.subscriber_address.send_mail_and_await_reply_blocking(
-            subscriber_actor::set_listener::new(a_listener, mask.to_vec()),
+            subscriber_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
         )
     }
 

@@ -1,7 +1,6 @@
 use crate::{
     implementation::{
         actors::{
-            any_data_reader_listener::AnyDataReaderListener,
             data_reader_actor::{self, DataReaderActor},
             data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
@@ -741,18 +740,14 @@ where
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataReaderListener<Foo> + Send>>,
+        a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::set_listener::new(
-                a_listener
-                    .map::<Box<dyn AnyDataReaderListener + Send + 'static>, _>(|l| Box::new(l)),
-                mask.to_vec(),
-            ),
+            data_reader_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
         )
     }
 }

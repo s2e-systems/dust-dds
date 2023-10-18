@@ -2,7 +2,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::NoListener,
+        listeners::{NoFooListener, NoListener},
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
@@ -36,7 +36,7 @@ fn main() {
     let domain_id = 0;
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -44,13 +44,13 @@ fn main() {
             "LargeDataTopic",
             "LargeData",
             QosKind::Default,
-            None,
+            NoListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -63,13 +63,13 @@ fn main() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoListener::new(),
+            NoFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -79,7 +79,12 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<Data>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<Data>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();

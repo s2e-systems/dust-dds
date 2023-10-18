@@ -15,7 +15,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
 ```rust
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
-        infrastructure::{listeners::NoListener, qos::QosKind, status::NO_STATUS},
+        infrastructure::{listeners::NoFooListener, qos::QosKind, status::NO_STATUS},
         topic_definition::type_support::DdsType,
     };
 
@@ -45,7 +45,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
             .unwrap();
 
         let writer = publisher
-            .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, NoListener::new(), NO_STATUS)
+            .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, NoFooListener::new(), NO_STATUS)
             .unwrap();
 
         let hello_world = HelloWorldType {
@@ -61,7 +61,7 @@ The subscriber side can be implemented as:
 ```rust
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
-        infrastructure::{listeners::NoListener, qos::QosKind, status::NO_STATUS},
+        infrastructure::{listeners::NoFooListener, qos::QosKind, status::NO_STATUS},
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         topic_definition::type_support::DdsType,
     };

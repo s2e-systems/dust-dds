@@ -63,7 +63,10 @@ pub trait AnyDataReaderListener {
     );
 }
 
-impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo> + Send> {
+impl<T> AnyDataReaderListener for T
+where
+    T: DataReaderListener,
+{
     fn trigger_on_data_available(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,

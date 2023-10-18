@@ -14,6 +14,7 @@ use crate::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
+        listeners::NoListener,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::{StatusKind, NO_STATUS},
         time::{Duration, Time},
@@ -77,18 +78,20 @@ impl DomainParticipant {
     /// means of the operation [`DomainParticipant::get_default_publisher_qos()`] and using the resulting QoS to create the [`Publisher`].
     /// The created [`Publisher`] belongs to the [`DomainParticipant`] that is its factory.
     /// In case of failure, the operation will return an error and no [`Publisher`] will be created.
-    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener + Send>>,
+        a_listener: impl PublisherListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher_address =
-            self.participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::create_publisher::new(qos, a_listener, mask.to_vec()),
-                )?;
+        let publisher_address = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::create_publisher::new(
+                qos,
+                Box::new(a_listener),
+                mask.to_vec(),
+            ))?;
 
         let publisher = Publisher::new(publisher_address, self.participant_address.clone());
         if self
@@ -143,17 +146,21 @@ impl DomainParticipant {
     /// [`Subscriber`].
     /// The created [`Subscriber`] belongs to the [`DomainParticipant`] that is its factory.
     /// In case of failure, the operation will return an error and no [`Subscriber`] will be created.
-    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener + Send>>,
+        a_listener: impl SubscriberListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
         let subscriber_address = self
             .participant_address
             .send_mail_and_await_reply_blocking(
-                domain_participant_actor::create_subscriber::new(qos, a_listener, mask.to_vec()),
+                domain_participant_actor::create_subscriber::new(
+                    qos,
+                    Box::new(a_listener),
+                    mask.to_vec(),
+                ),
             )?;
 
         let subscriber = Subscriber::new(subscriber_address, self.participant_address.clone());
@@ -202,13 +209,13 @@ impl DomainParticipant {
     /// operation [`DomainParticipant::get_default_topic_qos`] and using the resulting QoS to create the [`Topic`].
     /// The created [`Topic`] belongs to the [`DomainParticipant`] that is its factory.
     /// In case of failure, the operation will return an error and no [`Topic`] will be created.
-    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn create_topic(
         &self,
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener + Send>>,
+        a_listener: impl TopicListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<Topic> {
         let topic_address = self
@@ -217,7 +224,7 @@ impl DomainParticipant {
                 topic_name.to_string(),
                 type_name.to_string(),
                 qos,
-                a_listener,
+                Box::new(a_listener),
                 mask.to_vec(),
             ))?;
 
@@ -364,7 +371,7 @@ impl DomainParticipant {
                             topic_name,
                             discovered_topic_data.get_type_name(),
                             QosKind::Specific(qos),
-                            None,
+                            NoListener::new(),
                             NO_STATUS,
                         )?;
                         return Ok(topic);
@@ -801,14 +808,14 @@ impl DomainParticipant {
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
+        a_listener: impl DomainParticipantListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::set_listener::new(a_listener, mask.to_vec()),
+            domain_participant_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
         )
     }
 

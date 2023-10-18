@@ -47,7 +47,7 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
-        listeners::NoListener,
+        listeners::{NoFooListener, NoListener},
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
@@ -89,10 +89,7 @@ use super::{
     data_writer_actor::{self, DataWriterActor},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     publisher_actor::{self, PublisherActor},
-    publisher_listener_actor::PublisherListenerActor,
-    subscriber_actor,
-    subscriber_listener_actor::SubscriberListenerActor,
-    topic_actor,
+    subscriber_actor, topic_actor,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -152,7 +149,7 @@ pub struct DomainParticipantActor {
     ignored_topic_list: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
     udp_transport_write: Actor<UdpTransportWrite>,
-    listener: Option<Actor<DomainParticipantListenerActor>>,
+    listener: Actor<DomainParticipantListenerActor>,
     status_kind: Vec<StatusKind>,
 }
 
@@ -166,7 +163,7 @@ impl DomainParticipantActor {
         spdp_discovery_locator_list: &[Locator],
         data_max_size_serialized: usize,
         udp_transport_write: Actor<UdpTransportWrite>,
-        listener: Option<Actor<DomainParticipantListenerActor>>,
+        listener: Box<dyn DomainParticipantListener + Send>,
         status_kind: Vec<StatusKind>,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
@@ -229,7 +226,7 @@ impl DomainParticipantActor {
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
             spdp_reader_qos,
-            None,
+            Box::new(NoFooListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<SpdpDiscoveredParticipantData>(bytes)
@@ -257,7 +254,7 @@ impl DomainParticipantActor {
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
             sedp_reader_qos.clone(),
-            None,
+            Box::new(NoFooListener::<DiscoveredTopicData>::new()),
             vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<DiscoveredTopicData>(bytes)
@@ -271,7 +268,7 @@ impl DomainParticipantActor {
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
             sedp_reader_qos.clone(),
-            None,
+            Box::new(NoFooListener::<DiscoveredWriterData>::new()),
             vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<DiscoveredWriterData>(bytes)
@@ -285,7 +282,7 @@ impl DomainParticipantActor {
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
             sedp_reader_qos,
-            None,
+            Box::new(NoFooListener::<DiscoveredReaderData>::new()),
             vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<DiscoveredReaderData>(bytes)
@@ -298,7 +295,7 @@ impl DomainParticipantActor {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
-            None,
+            Box::new(NoListener::new()),
             vec![],
         ));
 
@@ -351,7 +348,7 @@ impl DomainParticipantActor {
             create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
-            Box::new(NoListener::<SpdpDiscoveredParticipantData>::new()),
+            Box::new(NoFooListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
             spdp_writer_qos,
         ));
@@ -387,7 +384,7 @@ impl DomainParticipantActor {
             create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
-            Box::new(NoListener::<DiscoveredTopicData>::new()),
+            Box::new(NoFooListener::<DiscoveredTopicData>::new()),
             vec![],
             sedp_writer_qos.clone(),
         );
@@ -399,7 +396,7 @@ impl DomainParticipantActor {
             create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
-            Box::new(NoListener::<DiscoveredWriterData>::new()),
+            Box::new(NoFooListener::<DiscoveredWriterData>::new()),
             vec![],
             sedp_writer_qos.clone(),
         );
@@ -411,7 +408,7 @@ impl DomainParticipantActor {
             create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
-            Box::new(NoListener::<DiscoveredReaderData>::new()),
+            Box::new(NoFooListener::<DiscoveredReaderData>::new()),
             vec![],
             sedp_writer_qos,
         );
@@ -424,7 +421,7 @@ impl DomainParticipantActor {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
-            None,
+            Box::new(NoListener::new()),
             vec![],
         ));
 
@@ -484,7 +481,7 @@ impl DomainParticipantActor {
             ignored_topic_list: HashSet::new(),
             data_max_size_serialized,
             udp_transport_write,
-            listener,
+            listener: spawn_actor(DomainParticipantListenerActor::new(listener)),
             status_kind,
         }
     }
@@ -495,7 +492,7 @@ impl DomainParticipantActor {
     async fn create_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener + Send>>,
+        a_listener: Box<dyn PublisherListener + Send>,
         mask: Vec<StatusKind>,
     ) -> ActorAddress<PublisherActor> {
         let publisher_qos = match qos {
@@ -506,9 +503,8 @@ impl DomainParticipantActor {
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let listener = a_listener.map(|l| spawn_actor(PublisherListenerActor::new(l)));
         let status_kind = mask.to_vec();
-        let publisher = PublisherActor::new(publisher_qos, rtps_group, listener, status_kind);
+        let publisher = PublisherActor::new(publisher_qos, rtps_group, a_listener, status_kind);
 
         let publisher_actor = spawn_actor(publisher);
         let publisher_address = publisher_actor.address();
@@ -521,7 +517,7 @@ impl DomainParticipantActor {
     async fn create_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener + Send>>,
+        a_listener: Box<dyn SubscriberListener + Send>,
         mask: Vec<StatusKind>,
     ) -> ActorAddress<SubscriberActor> {
         let subscriber_qos = match qos {
@@ -532,10 +528,9 @@ impl DomainParticipantActor {
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let listener = a_listener.map(|l| spawn_actor(SubscriberListenerActor::new(l)));
         let status_kind = mask.to_vec();
 
-        let subscriber = SubscriberActor::new(subscriber_qos, rtps_group, listener, status_kind);
+        let subscriber = SubscriberActor::new(subscriber_qos, rtps_group, a_listener, status_kind);
 
         let subscriber_actor = spawn_actor(subscriber);
         let subscriber_address = subscriber_actor.address();
@@ -551,7 +546,7 @@ impl DomainParticipantActor {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener + Send>>,
+        _a_listener: Box<dyn TopicListener + Send>,
         _mask: Vec<StatusKind>,
     ) -> ActorAddress<TopicActor> {
         let qos = match qos {
@@ -873,8 +868,8 @@ impl DomainParticipantActor {
         )
     }
 
-    async fn get_listener(&self) -> Option<ActorAddress<DomainParticipantListenerActor>> {
-        self.listener.as_ref().map(|l| l.address())
+    async fn get_listener(&self) -> ActorAddress<DomainParticipantListenerActor> {
+        self.listener.address()
     }
 
     async fn get_status_kind(&self) -> Vec<StatusKind> {
@@ -940,10 +935,7 @@ impl DomainParticipantActor {
         participant_address: ActorAddress<DomainParticipantActor>,
     ) -> DdsResult<()> {
         let reception_timestamp = self.get_current_time().await;
-        let participant_mask_listener = (
-            self.listener.as_ref().map(|l| l.address()),
-            self.status_kind.clone(),
-        );
+        let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         self.builtin_subscriber
             .send_mail_and_await_reply(subscriber_actor::process_rtps_message::new(
                 message.clone(),
@@ -966,10 +958,7 @@ impl DomainParticipantActor {
         message: RtpsMessageRead,
         participant_address: ActorAddress<DomainParticipantActor>,
     ) {
-        let participant_mask_listener = (
-            self.listener.as_ref().map(|a| a.address()),
-            self.status_kind.clone(),
-        );
+        let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         for user_defined_subscriber_address in self
             .user_defined_subscriber_list
             .values()
@@ -1091,10 +1080,10 @@ impl DomainParticipantActor {
 
     async fn set_listener(
         &mut self,
-        listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
+        listener: Box<dyn DomainParticipantListener + Send>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = listener.map(|l| spawn_actor(DomainParticipantListenerActor::new(l)));
+        self.listener = spawn_actor(DomainParticipantListenerActor::new(listener));
         self.status_kind = status_kind;
     }
 
@@ -1590,10 +1579,8 @@ impl DomainParticipantActor {
                     .to_vec();
                 for subscriber in self.user_defined_subscriber_list.values() {
                     let subscriber_address = subscriber.address();
-                    let participant_mask_listener = (
-                        self.listener.as_ref().map(|l| l.address()),
-                        self.status_kind.clone(),
-                    );
+                    let participant_mask_listener =
+                        (self.listener.address(), self.status_kind.clone());
                     subscriber
                         .send_mail_and_await_reply(subscriber_actor::add_matched_writer::new(
                             discovered_writer_data.clone(),
@@ -1672,10 +1659,7 @@ impl DomainParticipantActor {
     ) {
         for subscriber in self.user_defined_subscriber_list.values() {
             let subscriber_address = subscriber.address();
-            let participant_mask_listener = (
-                self.listener.as_ref().map(|l| l.address()),
-                self.status_kind.clone(),
-            );
+            let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
             subscriber
                 .send_mail_and_await_reply(subscriber_actor::remove_matched_writer::new(
                     discovered_writer_handle,
@@ -1796,7 +1780,7 @@ impl DomainParticipantActor {
 
                     let participant_publication_matched_listener =
                         if self.status_kind.contains(&StatusKind::PublicationMatched) {
-                            self.listener.as_ref().map(|l| l.address())
+                            Some(self.listener.address())
                         } else {
                             None
                         };
@@ -1804,7 +1788,7 @@ impl DomainParticipantActor {
                         .status_kind
                         .contains(&StatusKind::OfferedIncompatibleQos)
                     {
-                        self.listener.as_ref().map(|l| l.address())
+                        Some(self.listener.address())
                     } else {
                         None
                     };
@@ -1890,7 +1874,7 @@ impl DomainParticipantActor {
             let publisher_address = publisher.address();
             let participant_publication_matched_listener =
                 if self.status_kind.contains(&StatusKind::PublicationMatched) {
-                    self.listener.as_ref().map(|l| l.address())
+                    Some(self.listener.address())
                 } else {
                     None
                 };
