@@ -98,11 +98,11 @@ impl InstanceHandleBuilder {
     fn build_instance_handle(
         &self,
         change_kind: ChangeKind,
-        mut data: &[u8],
+        data: &[u8],
         inline_qos: &[Parameter],
     ) -> DdsResult<InstanceHandle> {
         Ok(match change_kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(&mut data)?.into(),
+            ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(data)?.into(),
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => match inline_qos

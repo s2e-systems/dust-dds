@@ -11,6 +11,7 @@ use crate::{
     topic_definition::topic_listener::TopicListener,
 };
 
+#[derive(Default)]
 pub struct NoListener();
 
 impl NoListener {
@@ -29,6 +30,12 @@ pub struct NoFooListener<Foo>(PhantomData<Foo>);
 impl<Foo> NoFooListener<Foo> {
     pub fn new() -> Self {
         Self(PhantomData)
+    }
+}
+
+impl<Foo> Default for NoFooListener<Foo> {
+    fn default() -> Self {
+        Self(Default::default())
     }
 }
 
