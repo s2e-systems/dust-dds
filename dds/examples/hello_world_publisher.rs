@@ -1,7 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::{NoFooListener, NoListener},
+        listeners::{NoOpFooListener, NoOpListener},
         qos::{DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -26,7 +26,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -34,13 +34,13 @@ fn main() {
             "HelloWorld",
             "HelloWorldType",
             QosKind::Default,
-            NoListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let writer_qos = DataWriterQos {
@@ -57,7 +57,7 @@ fn main() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoFooListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();

@@ -12,36 +12,36 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct NoListener();
+pub struct NoOpListener();
 
-impl NoListener {
+impl NoOpListener {
     pub fn new() -> Self {
         Self()
     }
 }
 
-impl DomainParticipantListener for NoListener {}
-impl PublisherListener for NoListener {}
-impl SubscriberListener for NoListener {}
-impl TopicListener for NoListener {}
+impl DomainParticipantListener for NoOpListener {}
+impl PublisherListener for NoOpListener {}
+impl SubscriberListener for NoOpListener {}
+impl TopicListener for NoOpListener {}
 
-pub struct NoFooListener<Foo>(PhantomData<Foo>);
+pub struct NoOpFooListener<Foo>(PhantomData<Foo>);
 
-impl<Foo> NoFooListener<Foo> {
+impl<Foo> NoOpFooListener<Foo> {
     pub fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<Foo> Default for NoFooListener<Foo> {
+impl<Foo> Default for NoOpFooListener<Foo> {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<Foo> DataReaderListener for NoFooListener<Foo> {
+impl<Foo> DataReaderListener for NoOpFooListener<Foo> {
     type Foo = Foo;
 }
-impl<Foo> DataWriterListener for NoFooListener<Foo> {
+impl<Foo> DataWriterListener for NoOpFooListener<Foo> {
     type Foo = Foo;
 }

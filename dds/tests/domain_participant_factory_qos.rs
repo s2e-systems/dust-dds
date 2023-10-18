@@ -3,7 +3,7 @@ use dust_dds::{
     infrastructure::{
         error::DdsError,
         instance::HANDLE_NIL,
-        listeners::NoListener,
+        listeners::NoOpListener,
         qos::{DomainParticipantFactoryQos, QosKind},
         qos_policy::EntityFactoryQosPolicy,
         status::NO_STATUS,
@@ -29,7 +29,7 @@ fn create_not_enabled_entities() {
         .unwrap();
 
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     // Call an operation that should return a NotEnabled error as a check the QoS is taken

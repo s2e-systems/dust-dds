@@ -6,7 +6,7 @@ use std::{
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::NoListener,
+        listeners::NoOpListener,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
     },
@@ -55,7 +55,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -63,13 +63,13 @@ fn main() {
             "BestEffortExampleTopic",
             "BestEffortExampleType",
             QosKind::Default,
-            NoListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let (sender, receiver) = sync_channel(0);
