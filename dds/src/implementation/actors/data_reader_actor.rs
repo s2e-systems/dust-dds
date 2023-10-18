@@ -61,7 +61,7 @@ use crate::{
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::{
-        dds_deserialize_from_bytes, dds_serialize_key, DdsGetKey, DdsHasKey, DdsRepresentation,
+        dds_deserialize_from_bytes, dds_serialize_key, DdsGetKey, DdsRepresentation,
         DdsSerializedKey,
     },
 };
@@ -76,24 +76,23 @@ use super::{
     subscriber_listener_actor::{self, SubscriberListenerActor},
 };
 
-struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
-
-impl InstanceHandleBuilder {
-    fn new<Foo>() -> Self
+pub fn deserialize_data_to_key<'a, Foo>(mut data: &'a [u8]) -> DdsResult<DdsSerializedKey>
     where
-        Foo: for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey,
-    {
-        fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> DdsResult<DdsSerializedKey>
-        where
-            Foo: for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey,
+    Foo: serde::Deserialize<'a> + DdsRepresentation + DdsGetKey + 'a,
         {
-            dds_serialize_key(&dds_deserialize_from_bytes::<Foo>(data).map_err(|e| {
+    dds_serialize_key(
+        &dds_deserialize_from_bytes::<Foo>(&mut data).map_err(|e| {
                 DdsError::Error(format!("Failed to deserialize data with error {:?}", e))
-            })?)
+        })?,
+    )
             .map_err(|e| DdsError::Error(format!("Failed to serialize key with error {:?}", e)))
         }
 
-        Self(deserialize_data_to_key::<Foo>)
+pub struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<DdsSerializedKey>);
+
+impl InstanceHandleBuilder {
+    pub fn new(instance_handle_fn: for<'a> fn(&'a [u8]) -> DdsResult<DdsSerializedKey>) -> Self {
+        Self(instance_handle_fn)
     }
 
     fn build_instance_handle(
@@ -258,18 +257,15 @@ pub struct DataReaderActor {
 }
 
 impl DataReaderActor {
-    pub fn new<Foo>(
+    pub fn new(
         rtps_reader: RtpsReader,
         type_name: String,
         topic_name: String,
         qos: DataReaderQos,
         listener: Option<Actor<DataReaderListenerActor>>,
         status_kind: Vec<StatusKind>,
-    ) -> Self
-    where
-        Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
-    {
-        let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
+        instance_handle_builder: InstanceHandleBuilder,
+    ) -> Self {
         let status_condition = spawn_actor(StatusConditionActor::default());
 
         DataReaderActor {

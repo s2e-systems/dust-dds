@@ -2,7 +2,9 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
-            data_reader_actor::{self, DataReaderActor},
+            data_reader_actor::{
+                self, deserialize_data_to_key, DataReaderActor, InstanceHandleBuilder,
+            },
             data_reader_listener_actor::DataReaderListenerActor,
             domain_participant_actor::{self, DomainParticipantActor},
             subscriber_actor::{self, SubscriberActor},
@@ -162,13 +164,14 @@ impl Subscriber {
 
         let listener = a_listener.map(|l| spawn_actor(DataReaderListenerActor::new(Box::new(l))));
         let status_kind = mask.to_vec();
-        let data_reader = DataReaderActor::new::<Foo>(
+        let data_reader = DataReaderActor::new(
             rtps_reader,
             a_topic.get_type_name()?,
             a_topic.get_name()?,
             qos,
             listener,
             status_kind,
+            InstanceHandleBuilder::new(|bytes| deserialize_data_to_key::<Foo>(bytes)),
         );
 
         let reader_actor = spawn_actor(data_reader);
