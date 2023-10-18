@@ -641,12 +641,7 @@ impl<Foo> DataWriter<Foo> {
         self.writer_address
             .send_mail_and_await_reply_blocking(data_writer_actor::get_instance_handle::new())
     }
-}
 
-impl<Foo> DataWriter<Foo>
-where
-    Foo: DdsHasKey + serde::Serialize + 'static,
-{
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.

@@ -84,7 +84,7 @@ impl Publisher {
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
-        Foo: DdsHasKey + DdsGetKey + serde::Serialize + Send + 'static,
+        Foo: DdsHasKey + DdsGetKey + serde::Serialize,
     {
         let default_unicast_locator_list = self
             .participant_address

@@ -23,7 +23,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         type_support::{
-            dds_deserialize_from_bytes, dds_serialize_key, dds_serialize_to_bytes, DdsHasKey,
+            dds_deserialize_from_bytes, dds_serialize_key, dds_serialize_to_bytes,
             DdsRepresentation,
         },
     },
@@ -730,10 +730,7 @@ impl<Foo> DataReader<Foo> {
     }
 }
 
-impl<Foo> DataReader<Foo>
-where
-    Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + 'static + Send,
-{
+impl<Foo> DataReader<Foo> {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
