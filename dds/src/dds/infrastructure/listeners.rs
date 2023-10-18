@@ -42,6 +42,7 @@ impl<Foo> Default for NoOpFooListener<Foo> {
 impl<Foo> DataReaderListener for NoOpFooListener<Foo> {
     type Foo = Foo;
 }
+
 impl<Foo> DataWriterListener for NoOpFooListener<Foo> {
     type Foo = Foo;
 }
