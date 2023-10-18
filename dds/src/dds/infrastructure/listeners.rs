@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     publication::{
@@ -9,11 +11,19 @@ use crate::{
     topic_definition::topic_listener::TopicListener,
 };
 
-pub struct NoListener;
+pub struct NoListener<Foo>(PhantomData<Foo>);
 
-impl DomainParticipantListener for NoListener {}
-impl PublisherListener for NoListener {}
-impl SubscriberListener for NoListener {}
-impl TopicListener for NoListener {}
-impl<Foo> DataReaderListener<Foo> for NoListener {}
-impl<Foo> DataWriterListener<Foo> for NoListener {}
+impl<Foo> NoListener<Foo> {
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<Foo> DomainParticipantListener for NoListener<Foo> {}
+impl<Foo> PublisherListener for NoListener<Foo> {}
+impl<Foo> SubscriberListener for NoListener<Foo> {}
+impl<Foo> TopicListener for NoListener<Foo> {}
+impl<Foo> DataReaderListener<Foo> for NoListener<Foo> {}
+impl<Foo> DataWriterListener for NoListener<Foo> {
+    type Foo = Foo;
+}

@@ -2,6 +2,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
+        listeners::NoListener,
         qos::{DataReaderQos, DataWriterQos, QosKind, TopicQos},
         qos_policy::{
             DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy,
@@ -73,7 +74,12 @@ fn large_data_should_be_fragmented() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -153,7 +159,12 @@ fn large_data_should_be_fragmented_reliable() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -229,7 +240,12 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
     };
 
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -317,7 +333,12 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
     };
 
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -400,7 +421,12 @@ fn samples_are_taken() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -484,7 +510,12 @@ fn read_only_unread_samples() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -587,7 +618,12 @@ fn read_next_sample() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -655,7 +691,12 @@ fn take_next_sample() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -723,7 +764,12 @@ fn each_key_sample_is_read() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -809,7 +855,12 @@ fn read_specific_instance() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -885,7 +936,12 @@ fn read_next_instance() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -991,7 +1047,12 @@ fn take_next_instance() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1097,7 +1158,12 @@ fn take_specific_instance() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1173,7 +1239,12 @@ fn take_specific_unknown_instance() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1253,7 +1324,12 @@ fn write_read_disposed_samples() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1332,7 +1408,12 @@ fn write_read_sample_view_state() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1480,7 +1561,12 @@ fn reader_with_minimum_time_separation_qos() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1583,7 +1669,12 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 2 };
@@ -1665,7 +1756,12 @@ fn volatile_writer_reader_receives_only_new_samples() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
@@ -1746,7 +1842,12 @@ fn write_read_unkeyed_topic() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1817,7 +1918,12 @@ fn data_reader_resource_limits() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1905,7 +2011,12 @@ fn data_reader_order_by_source_timestamp() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1987,7 +2098,12 @@ fn data_reader_publication_handle_sample_info() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -2060,7 +2176,12 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -2160,7 +2281,12 @@ fn write_read_unregistered_samples_are_also_disposed() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -2247,7 +2373,12 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 2 };
@@ -2358,7 +2489,7 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
     let writer_cond = writer.get_statuscondition().unwrap();
     writer_cond
@@ -2401,7 +2532,12 @@ fn reader_joining_after_writer_writes_many_samples() {
     };
 
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant

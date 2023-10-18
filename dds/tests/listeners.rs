@@ -4,6 +4,7 @@ use dust_dds::{
         domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::{
+        listeners::NoListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DeadlineQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, Length,
@@ -87,7 +88,12 @@ fn deadline_missed_listener() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -187,7 +193,12 @@ fn sample_rejected_listener() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -294,7 +305,12 @@ fn subscription_matched_listener() {
         ..Default::default()
     };
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -379,7 +395,12 @@ fn requested_incompatible_qos_listener() {
         ..Default::default()
     };
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -485,7 +506,12 @@ fn publication_matched_listener() {
     };
 
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let status = receiver
@@ -571,7 +597,12 @@ fn offered_incompatible_qos_listener() {
     };
 
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let status = receiver
@@ -616,7 +647,12 @@ fn on_data_available_listener() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -694,7 +730,12 @@ fn data_on_readers_listener() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
@@ -782,7 +823,12 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let (sender, data_on_readers_receiver) = std::sync::mpsc::sync_channel(1);
@@ -871,7 +917,12 @@ fn participant_deadline_missed_listener() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -971,7 +1022,12 @@ fn participant_sample_rejected_listener() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1080,7 +1136,12 @@ fn participant_subscription_matched_listener() {
         ..Default::default()
     };
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1165,7 +1226,12 @@ fn participant_requested_incompatible_qos_listener() {
         ..Default::default()
     };
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -1277,7 +1343,12 @@ fn publisher_publication_matched_listener() {
     };
 
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let status = receiver
@@ -1362,7 +1433,12 @@ fn publisher_offered_incompatible_qos_listener() {
     };
 
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let status = receiver
@@ -1409,7 +1485,12 @@ fn subscriber_deadline_missed_listener() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
@@ -1507,7 +1588,12 @@ fn subscriber_sample_rejected_listener() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
@@ -1612,7 +1698,12 @@ fn subscriber_subscription_matched_listener() {
         ..Default::default()
     };
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
@@ -1696,7 +1787,12 @@ fn subscriber_requested_incompatible_qos_listener() {
         ..Default::default()
     };
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
@@ -1739,7 +1835,8 @@ fn data_writer_publication_matched_listener() {
         sender: std::sync::mpsc::SyncSender<PublicationMatchedStatus>,
     }
 
-    impl DataWriterListener<MyData> for PublicationMatchedListener {
+    impl DataWriterListener for PublicationMatchedListener {
+        type Foo = MyData;
         fn on_publication_matched(
             &mut self,
             _the_reader: &DataWriter<MyData>,
@@ -1807,7 +1904,7 @@ fn data_writer_publication_matched_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(data_writer_qos),
-            Some(Box::new(writer_listener)),
+            writer_listener,
             &[StatusKind::PublicationMatched],
         )
         .unwrap();
@@ -1825,7 +1922,9 @@ fn data_writer_offered_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedIncompatibleQosStatus>,
     }
 
-    impl DataWriterListener<MyData> for OfferedIncompatibleQosListener {
+    impl DataWriterListener for OfferedIncompatibleQosListener {
+        type Foo = MyData;
+
         fn on_offered_incompatible_qos(
             &mut self,
             _the_reader: &DataWriter<MyData>,
@@ -1893,7 +1992,7 @@ fn data_writer_offered_incompatible_qos_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(data_writer_qos),
-            Some(Box::new(writer_listener)),
+            writer_listener,
             &[StatusKind::OfferedIncompatibleQos],
         )
         .unwrap();
@@ -1920,7 +2019,9 @@ fn non_sync_listener_should_be_accepted() {
     impl PublisherListener for NonSyncListener {}
     impl SubscriberListener for NonSyncListener {}
     impl TopicListener for NonSyncListener {}
-    impl<Foo> DataWriterListener<Foo> for NonSyncListener {}
+    impl DataWriterListener for NonSyncListener {
+        type Foo = MyData;
+    }
     impl<Foo> DataReaderListener<Foo> for NonSyncListener {}
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -1965,12 +2066,7 @@ fn non_sync_listener_should_be_accepted() {
         )
         .unwrap();
     let _data_writer = publisher
-        .create_datawriter::<MyData>(
-            &topic,
-            QosKind::Default,
-            Some(Box::new(NonSyncListener::new())),
-            NO_STATUS,
-        )
+        .create_datawriter::<MyData>(&topic, QosKind::Default, NonSyncListener::new(), NO_STATUS)
         .unwrap();
 
     // This test doesn't assert. If trait bounds are not correct compilation will fail.

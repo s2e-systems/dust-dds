@@ -43,7 +43,10 @@ pub trait AnyDataWriterListener {
     );
 }
 
-impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo> + Send> {
+impl<T> AnyDataWriterListener for T
+where
+    T: DataWriterListener,
+{
     fn trigger_on_liveliness_lost(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,

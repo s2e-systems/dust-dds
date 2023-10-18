@@ -6,7 +6,6 @@ use tracing::warn;
 
 use crate::{
     implementation::{
-        actors::data_writer_listener_actor::DataWriterListenerActor,
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
             endpoint::RtpsEndpoint,
@@ -33,6 +32,7 @@ use crate::{
 };
 
 use super::{
+    any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
     domain_participant_actor::DomainParticipantActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
@@ -80,7 +80,7 @@ impl PublisherActor {
         has_key: bool,
         data_max_size_serialized: usize,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Actor<DataWriterListenerActor>>,
+        a_listener: Box<dyn AnyDataWriterListener + Send>,
         mask: Vec<StatusKind>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,

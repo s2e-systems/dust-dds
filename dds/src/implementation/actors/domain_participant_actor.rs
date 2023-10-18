@@ -47,6 +47,7 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
+        listeners::NoListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
@@ -224,16 +225,16 @@ impl DomainParticipantActor {
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
         let spdp_builtin_participant_reader = spawn_actor(DataReaderActor::new(
-                create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
-                "SpdpDiscoveredParticipantData".to_string(),
-                String::from(DCPS_PARTICIPANT),
-                spdp_reader_qos,
-                None,
-                vec![],
+            create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
+            "SpdpDiscoveredParticipantData".to_string(),
+            String::from(DCPS_PARTICIPANT),
+            spdp_reader_qos,
+            None,
+            vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<SpdpDiscoveredParticipantData>(bytes)
             }),
-            ));
+        ));
 
         let sedp_reader_qos = DataReaderQos {
             durability: DurabilityQosPolicy {
@@ -266,30 +267,30 @@ impl DomainParticipantActor {
         let sedp_builtin_publications_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let sedp_builtin_publications_reader = spawn_actor(DataReaderActor::new(
-                create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
-                "DiscoveredWriterData".to_string(),
-                String::from(DCPS_PUBLICATION),
-                sedp_reader_qos.clone(),
-                None,
-                vec![],
+            create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
+            "DiscoveredWriterData".to_string(),
+            String::from(DCPS_PUBLICATION),
+            sedp_reader_qos.clone(),
+            None,
+            vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<DiscoveredWriterData>(bytes)
             }),
-            ));
+        ));
 
         let sedp_builtin_subscriptions_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let sedp_builtin_subscriptions_reader = spawn_actor(DataReaderActor::new(
-                create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
-                "DiscoveredReaderData".to_string(),
-                String::from(DCPS_SUBSCRIPTION),
-                sedp_reader_qos,
-                None,
-                vec![],
+            create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
+            "DiscoveredReaderData".to_string(),
+            String::from(DCPS_SUBSCRIPTION),
+            sedp_reader_qos,
+            None,
+            vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<DiscoveredReaderData>(bytes)
             }),
-            ));
+        ));
 
         let builtin_subscriber = spawn_actor(SubscriberActor::new(
             SubscriberQos::default(),
@@ -350,7 +351,7 @@ impl DomainParticipantActor {
             create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
-            None,
+            Box::new(NoListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
             spdp_writer_qos,
         ));
@@ -386,7 +387,7 @@ impl DomainParticipantActor {
             create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
-            None,
+            Box::new(NoListener::<DiscoveredTopicData>::new()),
             vec![],
             sedp_writer_qos.clone(),
         );
@@ -398,7 +399,7 @@ impl DomainParticipantActor {
             create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
-            None,
+            Box::new(NoListener::<DiscoveredWriterData>::new()),
             vec![],
             sedp_writer_qos.clone(),
         );
@@ -410,7 +411,7 @@ impl DomainParticipantActor {
             create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
-            None,
+            Box::new(NoListener::<DiscoveredReaderData>::new()),
             vec![],
             sedp_writer_qos,
         );

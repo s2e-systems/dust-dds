@@ -1,6 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listeners::NoListener,
         qos::{DataWriterQos, QosKind},
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
@@ -69,7 +70,7 @@ fn default_data_writer_qos() {
         .unwrap();
 
     let writer = publisher
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -110,16 +111,16 @@ fn different_writers_have_different_instance_handles() {
         .unwrap();
 
     let writer1_1 = publisher1
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoListener::new(), &[])
         .unwrap();
     let writer1_2 = publisher1
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoListener::new(), &[])
         .unwrap();
     let writer2_1 = publisher2
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoListener::new(), &[])
         .unwrap();
     let writer2_2 = publisher2
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoListener::new(), &[])
         .unwrap();
 
     assert_ne!(

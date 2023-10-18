@@ -2,6 +2,7 @@ use big_data::BigDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listeners::NoListener,
         qos::{DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -43,7 +44,12 @@ fn main() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter::<BigDataType>(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter::<BigDataType>(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let writer_cond = writer.get_statuscondition().unwrap();
     writer_cond

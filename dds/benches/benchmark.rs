@@ -2,6 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listeners::NoListener,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -34,7 +35,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -72,7 +73,7 @@ pub fn best_effort_read_only(c: &mut Criterion) {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -143,7 +144,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
     let writer_cond = writer.get_statuscondition().unwrap();
     writer_cond

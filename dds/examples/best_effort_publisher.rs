@@ -1,6 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listeners::NoListener,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -39,7 +40,7 @@ fn main() {
         .unwrap();
 
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
     let writer_cond = writer.get_statuscondition().unwrap();
     writer_cond

@@ -6,6 +6,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
+        listeners::NoListener,
         qos::{
             DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
             SubscriberQos, TopicQos,
@@ -176,7 +177,12 @@ fn not_allowed_to_delete_publisher_with_writer() {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _a_datawriter = publisher
-        .create_datawriter::<TestType>(&writer_topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<TestType>(
+            &writer_topic,
+            QosKind::Default,
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     assert_eq!(
@@ -254,7 +260,12 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _a_datawriter = publisher
-        .create_datawriter::<TestType>(&writer_topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<TestType>(
+            &writer_topic,
+            QosKind::Default,
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     assert_eq!(
@@ -280,7 +291,12 @@ fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let a_datawriter = publisher
-        .create_datawriter::<TestType>(&writer_topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<TestType>(
+            &writer_topic,
+            QosKind::Default,
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     publisher
         .delete_datawriter(&a_datawriter)
@@ -326,7 +342,12 @@ fn allowed_to_delete_topic_with_created_and_deleted_writer() {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let a_datawriter = publisher
-        .create_datawriter::<TestType>(&writer_topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<TestType>(
+            &writer_topic,
+            QosKind::Default,
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     publisher
         .delete_datawriter(&a_datawriter)
@@ -547,7 +568,7 @@ fn get_discovery_data_from_builtin_reader() {
                 },
                 ..Default::default()
             }),
-            None,
+            NoListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -688,7 +709,12 @@ fn ignore_publication() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
@@ -764,7 +790,12 @@ fn ignore_subscription() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     // Readers and writers from ignored participant should never match

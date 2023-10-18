@@ -1,6 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listeners::NoListener,
         qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind, UserDataQosPolicy},
         status::{StatusKind, NO_STATUS},
@@ -83,7 +84,7 @@ fn not_allowed_to_delete_participant_with_entities() {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _datawriter = publisher
-        .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<KeyedData>(&topic, QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
 
     assert!(domain_participant_factory
@@ -113,7 +114,7 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _datawriter = publisher
-        .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<KeyedData>(&topic, QosKind::Default, NoListener::new(), NO_STATUS)
         .unwrap();
 
     participant.delete_contained_entities().unwrap();
@@ -149,7 +150,12 @@ fn all_objects_are_dropped() {
             ..Default::default()
         };
         let writer = publisher
-            .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+            .create_datawriter(
+                &topic,
+                QosKind::Specific(writer_qos),
+                NoListener::new(),
+                NO_STATUS,
+            )
             .unwrap();
 
         let subscriber = participant
@@ -219,7 +225,12 @@ fn objects_are_correctly_dropped() {
                     .unwrap();
                 {
                     let _writer = publisher
-                        .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
+                        .create_datawriter::<KeyedData>(
+                            &topic,
+                            QosKind::Default,
+                            NoListener::new(),
+                            NO_STATUS,
+                        )
                         .unwrap();
                     {
                         let subscriber = participant
