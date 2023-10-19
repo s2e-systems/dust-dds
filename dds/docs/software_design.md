@@ -1,7 +1,7 @@
 # DustDDS: Software design document
 
 ## Introduction
-Data Distribution Services (DDS) is a middleware protocol and API standard for data-centric connectivity. The main goal of DDS is to share the right data at the right place at the right time, even between time-decoupled publishers and consumers. DustDDS is the [S2E Software Systems](https://www.s2e-systems.com) implementation of the [Data Distribution Services (DDS)](https://www.omg.org/omg-dds-portal/) and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) protocols using the [Rust programming language](https://www.rust-lang.org/).
+Data Distribution Services (DDS) is a middleware protocol and API standard for data-centric connectivity. The main goal of DDS is to share the right data at the right place at the right time, even between time-decoupled publishers and subscribers. DustDDS is the [S2E Software Systems](https://www.s2e-systems.com) implementation of the [Data Distribution Services (DDS)](https://www.omg.org/omg-dds-portal/) and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) protocols using the [Rust programming language](https://www.rust-lang.org/).
 
 This Software Design Document (SDD) outlines the architectural design, key design choices and trade-offs related to the development of DustDDS. This document is intended for those who are interested in the internal workings of DustDDS and to keep track of important design decisions during the development process. It is not meant as a documentation of actual functionality which is instead done in the source code itself using cargo docs. For more high-level information and usage examples please refer to the [README](../README.md).
 
@@ -24,7 +24,7 @@ In this section we describe the design decision and some trade-offs and technica
 
 ### DDS API layer
 
-The DDS API Layer in DustDDS adheres closely to the Object Management Group (OMG) DDS standard, which specifies DDS API methods as interfaces. In Rust, the natural mapping for such IDL interfaces would be traits. However, due to certain technical limitations, DustDDS implements the DDS API methods as inherent functions of objects. This choice stems from two key limitations:
+The DDS API Layer in DustDDS adheres closely to the Object Management Group (OMG) DDS standard, which specifies DDS API methods as interfaces. In Rust, the natural mapping for such IDL interfaces would be traits. However, due to certain technical limitations, DustDDS implements the DDS API methods as inherent functions of objects. This sections details some of the possibilities considered and the limitation and trade-off analysis.
 
 1. __Returning Opaque Types in Traits__
 Opaque types are types whose details are hidden from the user and are only accessible through a defined set of functions or methods. They do not require dynamic dispatch and it would therefore be a good choice for this type of API. Lets consider the following simplified FooDataWriter trait
@@ -82,3 +82,17 @@ trait DomainParticipant {
 This results in the error `error[E0038]: the trait Publisher cannot be made into an object. ... note: for a trait to be "object safe" it needs to allow building a vtable to allow the call to be resolvable dynamically;`
 
 Taking into account these constraints, at this point the decision is either to have a struct implementing the DDS API methods directly on have the trait return a mix of concrete types and trait objects.
+
+### Type support traits
+
+The DDS standard allows the user to communicate any data type of its choice so long as it provides the information necessary for the system to handle the data dissemination for that type. This includes information on how to serialize and deserialize the data as well as the necessary key definition that will allow the Service to distinguish different instances of the same type. We refer as Foo to any data type that can be transmitted over DDS. We have identified the following functionalities that needs to be provided by Foo to allow it to be transmitted:
+
+1. *Serialize data* - This is the operation that allows converting a specific instance of Foo into bytes to be possibly transmitted over the wire. This is represented by the `DdsSerialize` trait
+2. *Deserialize data* - This is the operation that allows converting the received bytes into Foo possibly borrowing bytes from the history cache. This is represented by the `DdsDeserialize<'de>` trait
+3. *Serialize key* - This is the operation that allows serialize the key fields of Foo into bytes to be possily transmitted over the wire (e.g. when unregistering or disposing an instance). This is represented by the `DdsSerializeKeyFields` trait.
+4. *Get key from Foo* - This is the operation that allows computing a key represent a specific instance of the type Foo. An instance is identified by its key fields so this operation is similar to serializing the key but the result is not intended to be transmitted over the wire so this operation is kept separate and independent. This is represented by the `DdsGetKeyFromFoo` trait.
+5. *Get key from serialized data* - This is the operation that allows retrieving the key from the serialized Foo. This is used to identify the instance a specific Data submessage with data refers to when received on the Data Reader side. This is represented by the `DdsGetKeyFromSerializedData` trait.
+6. *Get key from serialized key fields* - This is the operation that allows retrieving the key from the serialized Foo key fields. This is used to identify the instance a specific Data submessage with only key (e.g. for unregister or dispose) refers to when received on the Data Reader side. This is represented by the `DdsGetKeyFromSerializedKeyFields` trait.
+7. *Has key* - This is the operation that allows determining whether a type is Keyed or not. This is represented by the `DdsHasKey` trait.
+
+Any type Foo implementing these traits can be used to create a DataWriter<Foo> and DataReader<Foo> and have its information communicated using the DustDDS.
