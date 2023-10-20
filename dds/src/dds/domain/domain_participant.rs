@@ -24,7 +24,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{dds_serialize_key, dds_serialize_to_bytes},
+        type_support::{dds_serialize_key, DdsSerialize},
     },
 };
 
@@ -924,8 +924,9 @@ impl DomainParticipant {
                                         domain_participant_actor::as_spdp_discovered_participant_data::new(),
                                     )
                                     .await?;
-                                let serialized_data =
-                                    dds_serialize_to_bytes(&spdp_discovered_participant_data)?;
+                                let mut serialized_data = Vec::new();
+                                spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
+
                                 let timestamp = domain_participant_address
                                     .send_mail_and_await_reply(
                                         domain_participant_actor::get_current_time::new(),

@@ -25,8 +25,8 @@ use crate::{
     topic_definition::{
         topic::Topic,
         type_support::{
-            dds_serialize_key, dds_serialize_key_to_bytes, dds_serialize_to_bytes, DdsBorrowKeyHolder,
-            DdsHasKey, DdsRepresentation,
+            dds_serialize_key, dds_serialize_key_to_bytes, DdsBorrowKeyHolder, DdsHasKey,
+            DdsSerialize,
         },
     },
 };
@@ -89,7 +89,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsBorrowKeyHolder + DdsHasKey + DdsRepresentation + serde::Serialize,
+    Foo: DdsHasKey + DdsSerialize + DdsBorrowKeyHolder,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -300,7 +300,8 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let serialized_data = dds_serialize_to_bytes(data)?;
+        let mut serialized_data = Vec::new();
+        data.serialize_data(&mut serialized_data)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::write_w_timestamp::new(

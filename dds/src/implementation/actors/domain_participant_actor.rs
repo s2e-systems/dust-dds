@@ -67,7 +67,9 @@ use crate::{
     },
     topic_definition::{
         topic_listener::TopicListener,
-        type_support::{dds_deserialize_from_bytes, dds_serialize_key, dds_serialize_to_bytes},
+        type_support::{
+            dds_deserialize_from_bytes, dds_serialize_key,  DdsSerialize,
+        },
     },
     {
         builtin_topics::TopicBuiltinTopicData,
@@ -1024,7 +1026,9 @@ impl DomainParticipantActor {
             .await
         {
             let timestamp = self.get_current_time().await;
-            let serialized_data = dds_serialize_to_bytes(&discovered_writer_data)
+            let mut serialized_data = Vec::new();
+            discovered_writer_data
+                .serialize_data(&mut serialized_data)
                 .expect("Shouldn't fail to serialize builtin type");
             let instance_serialized_key = dds_serialize_key(&discovered_writer_data)
                 .expect("Shouldn't fail to serialize key of builtin type");

@@ -11,7 +11,7 @@ use crate::{
     },
     infrastructure::time::Duration,
     topic_definition::type_support::{
-        DdsBorrowKeyHolder, DdsHasKey, DdsRepresentation, DdsOwningKeyHolder, Representation,
+        DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, Representation,
     },
 };
 
@@ -265,7 +265,7 @@ mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos_policy::UserDataQosPolicy,
-        topic_definition::type_support::{dds_deserialize_from_bytes, dds_serialize_to_bytes},
+        topic_definition::type_support::{dds_deserialize_from_bytes, DdsSerialize},
     };
 
     #[test]
@@ -497,7 +497,8 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let result = dds_serialize_to_bytes(&data).unwrap();
+        let mut result = Vec::new();
+        data.serialize_data(&mut result).unwrap();
         assert_eq!(result, expected);
     }
 }

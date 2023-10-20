@@ -5,7 +5,7 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     topic_definition::type_support::{
-        DdsBorrowKeyHolder, DdsHasKey, DdsRepresentation, DdsOwningKeyHolder, Representation,
+        DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, Representation,
     },
 };
 
@@ -122,9 +122,7 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
-    use crate::topic_definition::type_support::{
-        dds_deserialize_from_bytes, dds_serialize_to_bytes,
-    };
+    use crate::topic_definition::type_support::dds_deserialize_from_bytes;
 
     use super::*;
 
@@ -188,7 +186,8 @@ mod tests {
             21, 22, 23, 0xc9, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let result = dds_serialize_to_bytes(&data).unwrap();
+        let mut result = Vec::new();
+        data.serialize_data(&mut result).unwrap();
         assert_eq!(result, expected);
     }
 

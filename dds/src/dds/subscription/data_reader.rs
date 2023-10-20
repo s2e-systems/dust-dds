@@ -22,7 +22,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{dds_serialize_key, dds_serialize_to_bytes, DdsDeserialize},
+        type_support::{dds_serialize_key, DdsDeserialize, DdsSerialize},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -749,7 +749,8 @@ fn announce_data_reader(
     domain_participant: &ActorAddress<DomainParticipantActor>,
     discovered_reader_data: DiscoveredReaderData,
 ) -> DdsResult<()> {
-    let serialized_data = dds_serialize_to_bytes(&discovered_reader_data)?;
+    let mut serialized_data = Vec::new();
+    discovered_reader_data.serialize_data(&mut serialized_data)?;
     let timestamp = domain_participant
         .send_mail_and_await_reply_blocking(domain_participant_actor::get_current_time::new())?;
 
