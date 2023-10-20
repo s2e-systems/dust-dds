@@ -7,7 +7,7 @@ use crate::{
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
         DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-        DdsRepresentation, DdsSerializedKey, Representation,
+        DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
     },
 };
 
@@ -113,7 +113,7 @@ impl DdsHasKey for DiscoveredReaderData {
 }
 
 impl DdsRepresentation for DiscoveredReaderData {
-    const REPRESENTATION: Representation = Representation::PlCdrLe;
+    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
 impl DdsGetKeyFromFoo for DiscoveredReaderData {

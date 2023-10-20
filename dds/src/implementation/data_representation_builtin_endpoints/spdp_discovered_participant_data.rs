@@ -12,7 +12,7 @@ use crate::{
     infrastructure::{error::DdsResult, time::Duration},
     topic_definition::type_support::{
         DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-        DdsRepresentation, DdsSerializedKey, Representation,
+        DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
     },
 };
 
@@ -245,7 +245,7 @@ impl DdsHasKey for SpdpDiscoveredParticipantData {
 }
 
 impl DdsRepresentation for SpdpDiscoveredParticipantData {
-    const REPRESENTATION: Representation = Representation::PlCdrLe;
+    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
 impl DdsGetKeyFromFoo for SpdpDiscoveredParticipantData {
