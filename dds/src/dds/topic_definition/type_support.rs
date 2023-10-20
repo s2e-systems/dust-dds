@@ -12,6 +12,31 @@ pub use dust_dds_derive::{
     DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, DdsType,
 };
 
+#[derive(Debug, PartialEq, Clone, Eq)]
+pub struct DdsSerializedKey(Vec<u8>);
+
+impl From<&[u8]> for DdsSerializedKey {
+    fn from(x: &[u8]) -> Self {
+        Self(x.to_vec())
+    }
+}
+
+impl From<Vec<u8>> for DdsSerializedKey {
+    fn from(x: Vec<u8>) -> Self {
+        Self(x)
+    }
+}
+
+impl AsRef<[u8]> for DdsSerializedKey {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
+pub trait DdsHasKey {
+    const HAS_KEY: bool;
+}
+
 pub trait DdsSerialize {
     fn serialize_data(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
@@ -38,9 +63,7 @@ pub trait DdsGetKeyFromSerializedKeyFields {
     ) -> DdsResult<DdsSerializedKey>;
 }
 
-pub trait DdsHasKey {
-    const HAS_KEY: bool;
-}
+pub trait DdsType: DdsRepresentation + DdsHasKey + DdsBorrowKeyHolder + DdsOwningKeyHolder {}
 
 pub enum Representation {
     CdrLe,
@@ -57,29 +80,6 @@ const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
-
-#[derive(Debug, PartialEq, Clone, Eq, serde::Serialize, serde::Deserialize)]
-pub struct DdsSerializedKey(Vec<u8>);
-
-impl From<&[u8]> for DdsSerializedKey {
-    fn from(x: &[u8]) -> Self {
-        Self(x.to_vec())
-    }
-}
-
-impl From<Vec<u8>> for DdsSerializedKey {
-    fn from(x: Vec<u8>) -> Self {
-        Self(x)
-    }
-}
-
-impl AsRef<[u8]> for DdsSerializedKey {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_slice()
-    }
-}
-
-pub trait DdsType: DdsRepresentation + DdsHasKey + DdsBorrowKeyHolder + DdsOwningKeyHolder {}
 
 pub trait DdsRepresentation {
     const REPRESENTATION: Representation;
@@ -378,4 +378,8 @@ where
     [T; N]: serde::Serialize + for<'de> serde::Deserialize<'de>,
 {
     type OwningKeyHolder = [T; N];
+}
+
+impl<'a, T> DdsOwningKeyHolder for &'a T {
+    type OwningKeyHolder = T;
 }
