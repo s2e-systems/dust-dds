@@ -61,7 +61,7 @@ use crate::{
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::{
-        dds_deserialize_from_bytes, dds_serialize_key, DdsGetKey, DdsHasKey, DdsRepresentation,
+        dds_deserialize_from_bytes, dds_serialize_key, DdsGetKey, DdsRepresentation,
         DdsSerializedKey,
     },
 };
@@ -76,34 +76,33 @@ use super::{
     subscriber_listener_actor::{self, SubscriberListenerActor},
 };
 
-struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
+pub fn deserialize_data_to_key<'a, Foo>(mut data: &'a [u8]) -> DdsResult<DdsSerializedKey>
+where
+    Foo: serde::Deserialize<'a> + DdsRepresentation + DdsGetKey + 'a,
+{
+    dds_serialize_key(
+        &dds_deserialize_from_bytes::<Foo>(&mut data).map_err(|e| {
+            DdsError::Error(format!("Failed to deserialize data with error {:?}", e))
+        })?,
+    )
+    .map_err(|e| DdsError::Error(format!("Failed to serialize key with error {:?}", e)))
+}
+
+pub struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<DdsSerializedKey>);
 
 impl InstanceHandleBuilder {
-    fn new<Foo>() -> Self
-    where
-        Foo: for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey,
-    {
-        fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> DdsResult<DdsSerializedKey>
-        where
-            Foo: for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey,
-        {
-            dds_serialize_key(&dds_deserialize_from_bytes::<Foo>(data).map_err(|e| {
-                DdsError::Error(format!("Failed to deserialize data with error {:?}", e))
-            })?)
-            .map_err(|e| DdsError::Error(format!("Failed to serialize key with error {:?}", e)))
-        }
-
-        Self(deserialize_data_to_key::<Foo>)
+    pub fn new(instance_handle_fn: for<'a> fn(&'a [u8]) -> DdsResult<DdsSerializedKey>) -> Self {
+        Self(instance_handle_fn)
     }
 
     fn build_instance_handle(
         &self,
         change_kind: ChangeKind,
-        mut data: &[u8],
+        data: &[u8],
         inline_qos: &[Parameter],
     ) -> DdsResult<InstanceHandle> {
         Ok(match change_kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(&mut data)?.into(),
+            ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(data)?.into(),
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => match inline_qos
@@ -252,25 +251,23 @@ pub struct DataReaderActor {
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<Actor<DataReaderListenerActor>>,
+    listener: Actor<DataReaderListenerActor>,
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, Instance>,
 }
 
 impl DataReaderActor {
-    pub fn new<Foo>(
+    pub fn new(
         rtps_reader: RtpsReader,
         type_name: String,
         topic_name: String,
         qos: DataReaderQos,
-        listener: Option<Actor<DataReaderListenerActor>>,
+        listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
-    ) -> Self
-    where
-        Foo: for<'de> serde::Deserialize<'de> + DdsHasKey + DdsGetKey + DdsRepresentation,
-    {
-        let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
+        instance_handle_builder: InstanceHandleBuilder,
+    ) -> Self {
         let status_condition = spawn_actor(StatusConditionActor::default());
+        let listener = spawn_actor(DataReaderListenerActor::new(listener));
 
         DataReaderActor {
             rtps_reader,
@@ -321,7 +318,7 @@ impl DataReaderActor {
         participant_address: &ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            Option<ActorAddress<SubscriberListenerActor>>,
+            ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -336,25 +333,21 @@ impl DataReaderActor {
                 StatusKind::DataAvailable,
             ))
             .await?;
-        match subscriber_listener_address {
-            Some(l) if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) => {
-                l.send_mail(subscriber_listener_actor::trigger_on_data_on_readers::new(
+        if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
+            subscriber_listener_address
+                .send_mail(subscriber_listener_actor::trigger_on_data_on_readers::new(
                     subscriber_address.clone(),
                     participant_address.clone(),
                 ))
                 .await?;
-            }
-            _ => match self.listener.as_ref().map(|a| a.address()) {
-                Some(l) if self.status_kind.contains(&StatusKind::DataAvailable) => {
-                    l.send_mail(data_reader_listener_actor::trigger_on_data_available::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                    ))
-                    .await?;
-                }
-                _ => (),
-            },
+        } else if self.status_kind.contains(&StatusKind::DataAvailable) {
+            self.listener
+                .send_mail(data_reader_listener_actor::trigger_on_data_available::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                ))
+                .await;
         }
         Ok(())
     }
@@ -370,12 +363,9 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(
-            Option<ActorAddress<SubscriberListenerActor>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -424,12 +414,9 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(
-            Option<ActorAddress<SubscriberListenerActor>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -596,11 +583,11 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            Option<ActorAddress<SubscriberListenerActor>>,
+            ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -611,45 +598,40 @@ impl DataReaderActor {
                 StatusKind::SampleLost,
             ))
             .await?;
-        match self.listener.as_ref().map(|a| a.address()) {
-            Some(l) if self.status_kind.contains(&StatusKind::SampleLost) => {
-                let status = self.get_sample_lost_status();
-                l.send_mail(data_reader_listener_actor::trigger_on_sample_lost::new(
+        if self.status_kind.contains(&StatusKind::SampleLost) {
+            let status = self.get_sample_lost_status();
+            self.listener
+                .send_mail(data_reader_listener_actor::trigger_on_sample_lost::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                    status,
+                ))
+                .await;
+        } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
+            let status = self.get_sample_lost_status();
+            subscriber_listener_address
+                .send_mail(subscriber_listener_actor::trigger_on_sample_lost::new(
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
                     status,
                 ))
                 .await?;
-            }
-            _ => match subscriber_listener_address {
-                Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleLost) => {
-                    let status = self.get_sample_lost_status();
-                    l.send_mail(subscriber_listener_actor::trigger_on_sample_lost::new(
+        } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
+            let status = self.get_sample_lost_status();
+            participant_listener_address
+                .send_mail(
+                    domain_participant_listener_actor::trigger_on_sample_lost::new(
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
                         status,
-                    ))
-                    .await?;
-                }
-                _ => match participant_listener_address {
-                    Some(l) if participant_listener_mask.contains(&StatusKind::SampleLost) => {
-                        let status = self.get_sample_lost_status();
-                        l.send_mail(
-                            domain_participant_listener_actor::trigger_on_sample_lost::new(
-                                data_reader_address.clone(),
-                                subscriber_address.clone(),
-                                participant_address.clone(),
-                                status,
-                            ),
-                        )
-                        .await?;
-                    }
-                    _ => (),
-                },
-            },
+                    ),
+                )
+                .await?;
         }
+
         Ok(())
     }
 
@@ -660,11 +642,11 @@ impl DataReaderActor {
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            Option<ActorAddress<SubscriberListenerActor>>,
+            ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) {
@@ -675,10 +657,10 @@ impl DataReaderActor {
             ))
             .await;
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
-        match self.listener.as_ref().map(|l| l.address()) {
-            Some(l) if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
-                let status = self.get_subscription_matched_status().await;
-                l.send_mail(
+        if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+            let status = self.get_subscription_matched_status().await;
+            self.listener
+                .send_mail(
                     data_reader_listener_actor::trigger_on_subscription_matched::new(
                         data_reader_address,
                         subscriber_address,
@@ -686,43 +668,34 @@ impl DataReaderActor {
                         status,
                     ),
                 )
+                .await;
+        } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+            let status = self.get_subscription_matched_status().await;
+            subscriber_listener_address
+                .send_mail(
+                    subscriber_listener_actor::trigger_on_subscription_matched::new(
+                        data_reader_address.clone(),
+                        subscriber_address.clone(),
+                        participant_address.clone(),
+                        status,
+                    ),
+                )
                 .await
-                .expect("Listener is guaranteed to exist");
-            }
-            _ => match subscriber_listener_address {
-                Some(l) if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) => {
-                    let status = self.get_subscription_matched_status().await;
-                    l.send_mail(
-                        subscriber_listener_actor::trigger_on_subscription_matched::new(
-                            data_reader_address.clone(),
-                            subscriber_address.clone(),
-                            participant_address.clone(),
-                            status,
-                        ),
-                    )
-                    .await
-                    .expect("Subscriber is guaranteed to exist");
-                }
-                _ => match participant_listener_address {
-                    Some(l)
-                        if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) =>
-                    {
-                        let status = self.get_subscription_matched_status().await;
-                        l.send_mail(
-                            domain_participant_listener_actor::trigger_on_subscription_matched::new(
-                                data_reader_address.clone(),
-                                subscriber_address.clone(),
-                                participant_address.clone(),
-                                status,
-                            ),
-                        )
-                        .await
-                        .expect("Participant is guaranteed to exist");
-                    }
-                    _ => (),
-                },
-            },
-        };
+                .expect("Subscriber is guaranteed to exist");
+        } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+            let status = self.get_subscription_matched_status().await;
+            participant_listener_address
+                .send_mail(
+                    domain_participant_listener_actor::trigger_on_subscription_matched::new(
+                        data_reader_address.clone(),
+                        subscriber_address.clone(),
+                        participant_address.clone(),
+                        status,
+                    ),
+                )
+                .await
+                .expect("Participant is guaranteed to exist");
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -734,11 +707,11 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            Option<ActorAddress<SubscriberListenerActor>>,
+            ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -750,47 +723,42 @@ impl DataReaderActor {
                 StatusKind::SampleRejected,
             ))
             .await?;
-        match self.listener.as_ref().map(|a| a.address()) {
-            Some(l) if self.status_kind.contains(&StatusKind::SampleRejected) => {
-                let status = self.get_sample_rejected_status();
+        if self.status_kind.contains(&StatusKind::SampleRejected) {
+            let status = self.get_sample_rejected_status();
 
-                l.send_mail(data_reader_listener_actor::trigger_on_sample_rejected::new(
+            self.listener
+                .send_mail(data_reader_listener_actor::trigger_on_sample_rejected::new(
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                    status,
+                ))
+                .await;
+        } else if subscriber_listener_mask.contains(&StatusKind::SampleRejected) {
+            let status = self.get_sample_rejected_status();
+
+            subscriber_listener_address
+                .send_mail(subscriber_listener_actor::trigger_on_sample_rejected::new(
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
                     status,
                 ))
                 .await?;
-            }
-            _ => match subscriber_listener_address {
-                Some(l) if subscriber_listener_mask.contains(&StatusKind::SampleRejected) => {
-                    let status = self.get_sample_rejected_status();
-
-                    l.send_mail(subscriber_listener_actor::trigger_on_sample_rejected::new(
+        } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
+            let status = self.get_sample_rejected_status();
+            participant_listener_address
+                .send_mail(
+                    domain_participant_listener_actor::trigger_on_sample_rejected::new(
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
                         status,
-                    ))
-                    .await?;
-                }
-                _ => match participant_listener_address {
-                    Some(l) if participant_listener_mask.contains(&StatusKind::SampleRejected) => {
-                        let status = self.get_sample_rejected_status();
-                        l.send_mail(
-                            domain_participant_listener_actor::trigger_on_sample_rejected::new(
-                                data_reader_address.clone(),
-                                subscriber_address.clone(),
-                                participant_address.clone(),
-                                status,
-                            ),
-                        )
-                        .await?;
-                    }
-                    _ => (),
-                },
-            },
+                    ),
+                )
+                .await?;
         }
+
         Ok(())
     }
 
@@ -801,11 +769,11 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            Option<ActorAddress<SubscriberListenerActor>>,
+            ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) {
@@ -817,15 +785,14 @@ impl DataReaderActor {
             ))
             .await;
 
-        match self.listener.as_ref().map(|a| a.address()) {
-            Some(l)
-                if self
-                    .status_kind
-                    .contains(&StatusKind::RequestedIncompatibleQos) =>
-            {
-                let status = self.get_requested_incompatible_qos_status();
+        if self
+            .status_kind
+            .contains(&StatusKind::RequestedIncompatibleQos)
+        {
+            let status = self.get_requested_incompatible_qos_status();
 
-                l.send_mail(
+            self.listener
+                .send_mail(
                     data_reader_listener_actor::trigger_on_requested_incompatible_qos::new(
                         data_reader_address.clone(),
                         subscriber_address.clone(),
@@ -833,39 +800,33 @@ impl DataReaderActor {
                         status,
                     ),
                 )
-                .await
-                .expect("Listener should exist");
-            }
-            _ => match subscriber_listener_address {
-                Some(l)
-                    if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) =>
-                {
-                    let status = self.get_requested_incompatible_qos_status();
-                    l.send_mail(
-                        subscriber_listener_actor::trigger_on_requested_incompatible_qos::new(
-                            data_reader_address.clone(),
-                            subscriber_address.clone(),
-                            participant_address.clone(),
-                            status,
-                        ),
-                    )
-                    .await
-                    .expect("Subscriber listener should exist");
-                }
-                _ => match participant_listener_address {
-                    Some(l)
-                        if participant_listener_mask
-                            .contains(&StatusKind::RequestedIncompatibleQos) =>
-                    {
-                        let status = self.get_requested_incompatible_qos_status();
-                        l.send_mail(domain_participant_listener_actor::trigger_on_requested_incompatible_qos::new(data_reader_address.clone(),
+                .await;
+        } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
+            let status = self.get_requested_incompatible_qos_status();
+            subscriber_listener_address
+                .send_mail(
+                    subscriber_listener_actor::trigger_on_requested_incompatible_qos::new(
+                        data_reader_address.clone(),
                         subscriber_address.clone(),
-                        participant_address.clone(), status)).await
-                            .expect("Participant listener should exist");
-                    }
-                    _ => (),
-                },
-            },
+                        participant_address.clone(),
+                        status,
+                    ),
+                )
+                .await
+                .expect("Subscriber listener should exist");
+        } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
+            let status = self.get_requested_incompatible_qos_status();
+            participant_listener_address
+                .send_mail(
+                    domain_participant_listener_actor::trigger_on_requested_incompatible_qos::new(
+                        data_reader_address.clone(),
+                        subscriber_address.clone(),
+                        participant_address.clone(),
+                        status,
+                    ),
+                )
+                .await
+                .expect("Participant listener should exist");
         }
     }
 
@@ -960,12 +921,9 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(
-            Option<ActorAddress<SubscriberListenerActor>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1048,12 +1006,9 @@ impl DataReaderActor {
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(
-            Option<ActorAddress<SubscriberListenerActor>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1664,12 +1619,9 @@ impl DataReaderActor {
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
         subscriber_qos: SubscriberQos,
-        subscriber_mask_listener: (
-            Option<ActorAddress<SubscriberListenerActor>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) {
@@ -1778,12 +1730,9 @@ impl DataReaderActor {
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        subscriber_mask_listener: (
-            Option<ActorAddress<SubscriberListenerActor>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) {
@@ -1822,12 +1771,9 @@ impl DataReaderActor {
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
         subscriber_status_condition: ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: (
-            Option<ActorAddress<SubscriberListenerActor>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1892,12 +1838,9 @@ impl DataReaderActor {
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        subscriber_mask_listener: (
-            Option<ActorAddress<SubscriberListenerActor>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1922,15 +1865,14 @@ impl DataReaderActor {
                     StatusKind::RequestedDeadlineMissed,
                 ))
                 .await?;
-            match self.listener.as_ref().map(|a| a.address()) {
-                Some(l)
-                    if self
-                        .status_kind
-                        .contains(&StatusKind::RequestedDeadlineMissed) =>
-                {
-                    let status = self.get_requested_deadline_missed_status();
+            if self
+                .status_kind
+                .contains(&StatusKind::RequestedDeadlineMissed)
+            {
+                let status = self.get_requested_deadline_missed_status();
 
-                    l.send_mail(
+                self.listener
+                    .send_mail(
                         data_reader_listener_actor::trigger_on_requested_deadline_missed::new(
                             data_reader_address.clone(),
                             subscriber_address.clone(),
@@ -1938,38 +1880,30 @@ impl DataReaderActor {
                             status,
                         ),
                     )
-                    .await?;
-                }
-                _ => match &subscriber_listener_address {
-                    Some(l)
-                        if subscriber_listener_mask
-                            .contains(&StatusKind::RequestedDeadlineMissed) =>
-                    {
-                        let status = self.get_requested_deadline_missed_status();
-                        l.send_mail(
-                            subscriber_listener_actor::trigger_on_requested_deadline_missed::new(
-                                data_reader_address.clone(),
-                                subscriber_address.clone(),
-                                participant_address.clone(),
-                                status,
-                            ),
-                        )
-                        .await?;
-                    }
-                    _ => match &participant_listener_address {
-                        Some(l)
-                            if participant_listener_mask
-                                .contains(&StatusKind::RequestedDeadlineMissed) =>
-                        {
-                            let status = self.get_requested_deadline_missed_status();
-                            l.send_mail(domain_participant_listener_actor::trigger_on_requested_deadline_missed::new(data_reader_address.clone(),
+                    .await;
+            } else if subscriber_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
+                let status = self.get_requested_deadline_missed_status();
+                subscriber_listener_address
+                    .send_mail(
+                        subscriber_listener_actor::trigger_on_requested_deadline_missed::new(
+                            data_reader_address.clone(),
                             subscriber_address.clone(),
-                            participant_address.clone(), status)).await
-                                ?;
-                        }
-                        _ => (),
-                    },
-                },
+                            participant_address.clone(),
+                            status,
+                        ),
+                    )
+                    .await?;
+            } else if participant_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
+                let status = self.get_requested_deadline_missed_status();
+                participant_listener_address.send_mail(
+                    domain_participant_listener_actor::trigger_on_requested_deadline_missed::new(
+                        data_reader_address.clone(),
+                        subscriber_address.clone(),
+                        participant_address.clone(),
+                        status,
+                    ),
+                )
+                .await?;
             }
         }
 
@@ -1990,10 +1924,10 @@ impl DataReaderActor {
 
     async fn set_listener(
         &mut self,
-        listener: Option<Box<dyn AnyDataReaderListener + Send + 'static>>,
+        listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = listener.map(|l| spawn_actor(DataReaderListenerActor::new(l)));
+        self.listener = spawn_actor(DataReaderListenerActor::new(listener));
         self.status_kind = status_kind;
     }
 }

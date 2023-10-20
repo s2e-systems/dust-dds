@@ -218,10 +218,10 @@ impl Topic {
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, _a_listener), fields(with_listener = _a_listener.is_some()))]
+    #[tracing::instrument(skip(self, _a_listener))]
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn TopicListener + Send>>,
+        _a_listener: impl TopicListener + Send + 'static,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()

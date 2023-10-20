@@ -43,7 +43,7 @@ pub struct SubscriberActor {
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<Actor<SubscriberListenerActor>>,
+    listener: Actor<SubscriberListenerActor>,
     status_kind: Vec<StatusKind>,
 }
 
@@ -51,10 +51,11 @@ impl SubscriberActor {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
-        listener: Option<Actor<SubscriberListenerActor>>,
+        listener: Box<dyn SubscriberListener + Send>,
         status_kind: Vec<StatusKind>,
     ) -> Self {
         let status_condition = spawn_actor(StatusConditionActor::default());
+        let listener = spawn_actor(SubscriberListenerActor::new(listener));
         SubscriberActor {
             qos,
             rtps_group,
@@ -168,8 +169,8 @@ impl SubscriberActor {
             .collect()
     }
 
-    async fn get_listener(&self) -> Option<ActorAddress<SubscriberListenerActor>> {
-        self.listener.as_ref().map(|l| l.address())
+    async fn get_listener(&self) -> ActorAddress<SubscriberListenerActor> {
+        self.listener.address()
     }
 
     async fn get_status_kind(&self) -> Vec<StatusKind> {
@@ -198,14 +199,11 @@ impl SubscriberActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_mask_listener: (
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        let subscriber_mask_listener = (
-            self.listener.as_ref().map(|a| a.address()),
-            self.status_kind.clone(),
-        );
+        let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
 
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
@@ -232,16 +230,13 @@ impl SubscriberActor {
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
         participant_mask_listener: (
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data().partition()) {
             for data_reader in self.data_reader_list.values() {
-                let subscriber_mask_listener = (
-                    self.listener.as_ref().map(|l| l.address()),
-                    self.status_kind.clone(),
-                );
+                let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
                 let data_reader_address = data_reader.address();
                 let subscriber_qos = self.qos.clone();
                 data_reader
@@ -267,16 +262,13 @@ impl SubscriberActor {
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
         participant_mask_listener: (
-            Option<ActorAddress<DomainParticipantListenerActor>>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
-            let subscriber_mask_listener = (
-                self.listener.as_ref().map(|l| l.address()),
-                self.status_kind.clone(),
-            );
+            let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
             data_reader
                 .send_mail_and_await_reply(data_reader_actor::remove_matched_writer::new(
                     discovered_writer_handle,
@@ -292,10 +284,10 @@ impl SubscriberActor {
 
     async fn set_listener(
         &mut self,
-        listener: Option<Box<dyn SubscriberListener + Send + 'static>>,
+        listener: Box<dyn SubscriberListener + Send>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = listener.map(|l| spawn_actor(SubscriberListenerActor::new(l)));
+        self.listener = spawn_actor(SubscriberListenerActor::new(listener));
         self.status_kind = status_kind;
     }
 }

@@ -320,7 +320,7 @@ mod tests {
             lease_duration,
         );
 
-        let data = &[
+        let mut data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId
@@ -384,7 +384,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result = dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(data).unwrap();
+        let result = dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 
