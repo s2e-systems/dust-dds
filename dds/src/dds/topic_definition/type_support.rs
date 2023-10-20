@@ -18,7 +18,7 @@ pub trait DdsDeserialize<'de>: Sized {
     fn deserialize_data(serialized_data: &mut &'de [u8]) -> DdsResult<Self>;
 }
 
-pub trait DdsSerializedKeyFields {
+pub trait DdsSerializeKeyFields {
     fn serialize_key_fields(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
 
@@ -137,6 +137,64 @@ where
             }
         };
         Ok(())
+    }
+}
+
+impl<'de, T> DdsDeserialize<'de> for T
+where
+    T: DdsRepresentation + serde::Deserialize<'de>,
+{
+    fn deserialize_data(serialized_data: &mut &'de [u8]) -> DdsResult<Self> {
+        match T::REPRESENTATION {
+            _ => {
+                let mut representation_identifier = [0u8, 0];
+                serialized_data
+                    .read_exact(&mut representation_identifier)
+                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
+
+                let mut representation_option = [0u8, 0];
+                serialized_data
+                    .read_exact(&mut representation_option)
+                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
+
+                match representation_identifier {
+                    CDR_BE => {
+                        let mut deserializer = cdr::Deserializer::<_, _, byteorder::BigEndian>::new(
+                            serialized_data,
+                            cdr::Infinite,
+                        );
+                        serde::Deserialize::deserialize(&mut deserializer)
+                            .map_err(|err| PreconditionNotMet(err.to_string()))
+                    }
+                    CDR_LE => {
+                        let mut deserializer =
+                            cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(
+                                serialized_data,
+                                cdr::Infinite,
+                            );
+                        serde::Deserialize::deserialize(&mut deserializer)
+                            .map_err(|err| PreconditionNotMet(err.to_string()))
+                    }
+                    PL_CDR_BE => {
+                        let mut deserializer =
+                            ParameterListDeserializer::<byteorder::BigEndian>::new(serialized_data);
+                        serde::Deserialize::deserialize(&mut deserializer)
+                            .map_err(|err| PreconditionNotMet(err.to_string()))
+                    }
+                    PL_CDR_LE => {
+                        let mut deserializer =
+                            ParameterListDeserializer::<byteorder::LittleEndian>::new(
+                                serialized_data,
+                            );
+                        serde::Deserialize::deserialize(&mut deserializer)
+                            .map_err(|err| PreconditionNotMet(err.to_string()))
+                    }
+                    _ => Err(PreconditionNotMet(
+                        "Illegal representation identifier".to_string(),
+                    )),
+                }
+            }
+        }
     }
 }
 
