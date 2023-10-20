@@ -1,7 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::{NoOpFooListener, NoOpListener},
+        listeners::{NoOpFooListener, NoOpFooListener},
         qos::{DataReaderQos, QosKind},
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
@@ -20,11 +20,11 @@ fn get_subscriber_parent_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let subscriber_parent_participant = subscriber.get_participant().unwrap();
@@ -40,7 +40,7 @@ fn default_data_reader_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -48,13 +48,13 @@ fn default_data_reader_qos() {
             "default_data_reader_qos",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let user_data = vec![1, 2, 3];
@@ -89,7 +89,7 @@ fn different_readers_have_different_instance_handles() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -97,17 +97,17 @@ fn different_readers_have_different_instance_handles() {
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber1 = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let subscriber2 = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let reader1_1 = subscriber1
@@ -142,7 +142,7 @@ fn data_reader_get_topicdescription() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -150,13 +150,13 @@ fn data_reader_get_topicdescription() {
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let reader = subscriber

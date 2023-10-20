@@ -1,7 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::{NoOpFooListener, NoOpListener},
+        listeners::{NoOpFooListener, NoOpFooListener},
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{PartitionQosPolicy, UserDataQosPolicy},
         status::{StatusKind, NO_STATUS},
@@ -21,7 +21,7 @@ struct UserType(i32);
 fn writer_discovers_reader_in_same_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -29,18 +29,18 @@ fn writer_discovers_reader_in_same_participant() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let publisher = dp
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let _data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
@@ -62,7 +62,7 @@ fn writer_discovers_reader_in_same_participant() {
 fn deleted_readers_are_disposed_from_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -70,18 +70,18 @@ fn deleted_readers_are_disposed_from_writer() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let publisher = dp
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
@@ -108,7 +108,7 @@ fn deleted_readers_are_disposed_from_writer() {
 fn updated_readers_are_announced_to_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -116,18 +116,18 @@ fn updated_readers_are_announced_to_writer() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let publisher = dp
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
@@ -166,7 +166,7 @@ fn updated_readers_are_announced_to_writer() {
 fn reader_discovers_writer_in_same_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -174,18 +174,18 @@ fn reader_discovers_writer_in_same_participant() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let publisher = dp
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let _data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
@@ -207,7 +207,7 @@ fn reader_discovers_writer_in_same_participant() {
 fn deleted_writers_are_disposed_from_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -215,18 +215,18 @@ fn deleted_writers_are_disposed_from_reader() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let publisher = dp
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
@@ -253,7 +253,7 @@ fn deleted_writers_are_disposed_from_reader() {
 fn updated_writers_are_announced_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -261,18 +261,18 @@ fn updated_writers_are_announced_to_reader() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let publisher = dp
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
@@ -313,38 +313,38 @@ fn two_participants_should_get_subscription_matched() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let dp1 = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let topic1 = dp1
         .create_topic(
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let publisher = dp1
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic1, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let dp2 = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let topic2 = dp2
         .create_topic(
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let subscriber = dp2
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let _data_reader = subscriber
@@ -369,10 +369,10 @@ fn participant_records_discovered_topics() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let participant2 = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic_names = ["Topic 1", "Topic 2"];
@@ -384,7 +384,7 @@ fn participant_records_discovered_topics() {
                     name,
                     "UserType",
                     QosKind::Default,
-                    NoOpListener::new(),
+                    NoOpFooListener::new(),
                     NO_STATUS,
                 )
                 .unwrap(),
@@ -419,7 +419,7 @@ fn participant_announces_updated_qos() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let mut qos = participant1.get_qos().unwrap();
@@ -445,7 +445,7 @@ fn participant_announces_updated_qos() {
 fn reader_discovers_disposed_writer_same_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -453,18 +453,18 @@ fn reader_discovers_disposed_writer_same_participant() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let publisher = dp
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
@@ -491,7 +491,7 @@ fn reader_discovers_disposed_writer_same_participant() {
 fn publisher_and_subscriber_different_partition_not_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -499,7 +499,7 @@ fn publisher_and_subscriber_different_partition_not_matched() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -512,7 +512,7 @@ fn publisher_and_subscriber_different_partition_not_matched() {
     let publisher = dp
         .create_publisher(
             QosKind::Specific(publisher_qos),
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -529,7 +529,7 @@ fn publisher_and_subscriber_different_partition_not_matched() {
     let subscriber = dp
         .create_subscriber(
             QosKind::Specific(subscriber_qos),
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -552,7 +552,7 @@ fn publisher_and_subscriber_different_partition_not_matched() {
 fn publisher_and_subscriber_regex_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -560,7 +560,7 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -573,7 +573,7 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
     let publisher = dp
         .create_publisher(
             QosKind::Specific(publisher_qos),
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -594,7 +594,7 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
     let subscriber = dp
         .create_subscriber(
             QosKind::Specific(subscriber_qos),
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -624,7 +624,7 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
 fn publisher_regex_and_subscriber_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -632,7 +632,7 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -645,7 +645,7 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
     let publisher = dp
         .create_publisher(
             QosKind::Specific(publisher_qos),
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -666,7 +666,7 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
     let subscriber = dp
         .create_subscriber(
             QosKind::Specific(subscriber_qos),
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -696,7 +696,7 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
 fn publisher_regex_and_subscriber_regex_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -704,7 +704,7 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -717,7 +717,7 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
     let publisher = dp
         .create_publisher(
             QosKind::Specific(publisher_qos),
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -738,7 +738,7 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
     let subscriber = dp
         .create_subscriber(
             QosKind::Specific(subscriber_qos),
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -768,7 +768,7 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
 fn writer_matched_to_already_existing_reader_with_matched_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -776,18 +776,18 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let publisher = dp
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let _data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
@@ -821,7 +821,7 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
 fn reader_matched_to_already_existing_writer_with_matched_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = dp
@@ -829,18 +829,18 @@ fn reader_matched_to_already_existing_writer_with_matched_reader() {
             "topic_name",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            NoOpFooListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let publisher = dp
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
     let _data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
@@ -877,11 +877,11 @@ fn participant_removed_after_lease_duration() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     let participant2 = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
         .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(5));

@@ -15,7 +15,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
 ```rust
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
-        infrastructure::{listeners::{NoOpFooListener, NoOpListener}, qos::QosKind, status::NO_STATUS},
+        infrastructure::{listeners::{NoOpFooListener, NoOpFooListener}, qos::QosKind, status::NO_STATUS},
         topic_definition::type_support::DdsType,
     };
 
@@ -33,15 +33,15 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
         let participant_factory = DomainParticipantFactory::get_instance();
 
         let participant = participant_factory
-            .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
             .unwrap();
 
         let topic = participant
-            .create_topic("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_topic("HelloWorld", "HelloWorldType", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
             .unwrap();
 
         let publisher = participant
-            .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
             .unwrap();
 
         let writer = publisher
@@ -61,7 +61,7 @@ The subscriber side can be implemented as:
 ```rust
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
-        infrastructure::{listeners::{NoOpFooListener, NoOpListener}, qos::QosKind, status::NO_STATUS},
+        infrastructure::{listeners::{NoOpFooListener, NoOpFooListener}, qos::QosKind, status::NO_STATUS},
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         topic_definition::type_support::DdsType,
     };
@@ -80,15 +80,15 @@ The subscriber side can be implemented as:
         let participant_factory = DomainParticipantFactory::get_instance();
 
         let participant = participant_factory
-            .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
             .unwrap();
 
         let topic = participant
-            .create_topic("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_topic("HelloWorld", "HelloWorldType", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
             .unwrap();
 
         let subscriber = participant
-            .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
             .unwrap();
 
         let reader = subscriber

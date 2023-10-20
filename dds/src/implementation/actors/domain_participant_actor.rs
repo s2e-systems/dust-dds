@@ -47,7 +47,7 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
-        listeners::{NoOpFooListener, NoOpListener},
+        listeners::{NoOpFooListener, NoOpFooListener},
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
@@ -295,7 +295,7 @@ impl DomainParticipantActor {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
-            Box::new(NoOpListener::new()),
+            Box::new(NoOpFooListener::new()),
             vec![],
         ));
 
@@ -421,7 +421,7 @@ impl DomainParticipantActor {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
-            Box::new(NoOpListener::new()),
+            Box::new(NoOpFooListener::new()),
             vec![],
         ));
 
