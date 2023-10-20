@@ -122,7 +122,7 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
-    use crate::topic_definition::type_support::dds_deserialize_from_bytes;
+    use crate::topic_definition::type_support::{dds_deserialize_from_bytes, DdsSerialize};
 
     use super::*;
 
