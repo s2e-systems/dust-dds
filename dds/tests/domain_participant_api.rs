@@ -6,7 +6,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
-        listeners::NoOpFooListener,
+        listeners::NoOpListener,
         qos::{
             DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
             SubscriberQos, TopicQos,
@@ -44,13 +44,13 @@ fn create_delete_publisher() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     assert_eq!(participant.delete_publisher(&publisher), Ok(()));
@@ -69,13 +69,13 @@ fn create_delete_subscriber() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
@@ -94,7 +94,7 @@ fn create_delete_topic() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -104,7 +104,7 @@ fn create_delete_topic() {
             "abc",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -125,7 +125,7 @@ fn not_allowed_to_delete_publisher_from_different_participant() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -133,13 +133,13 @@ fn not_allowed_to_delete_publisher_from_different_participant() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     assert_eq!(
         other_participant.delete_publisher(&publisher),
@@ -157,7 +157,7 @@ fn not_allowed_to_delete_subscriber_from_different_participant() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -165,13 +165,13 @@ fn not_allowed_to_delete_subscriber_from_different_participant() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     assert_eq!(
         other_participant.delete_subscriber(&subscriber),
@@ -189,7 +189,7 @@ fn not_allowed_to_delete_topic_from_different_participant() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -197,7 +197,7 @@ fn not_allowed_to_delete_topic_from_different_participant() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -207,7 +207,7 @@ fn not_allowed_to_delete_topic_from_different_participant() {
             "abc",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -227,7 +227,7 @@ fn not_allowed_to_delete_publisher_with_writer() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -237,18 +237,18 @@ fn not_allowed_to_delete_publisher_with_writer() {
             "Test",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .expect("Error creating topic");
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let _a_datawriter = publisher
         .create_datawriter::<TestType>(
             &writer_topic,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -269,7 +269,7 @@ fn not_allowed_to_delete_subscriber_with_reader() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -279,18 +279,18 @@ fn not_allowed_to_delete_subscriber_with_reader() {
             "Test",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .expect("Error creating topic");
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let _a_datareader = subscriber
         .create_datareader::<TestType>(
             &reader_topic,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -311,7 +311,7 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -321,18 +321,18 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
             "Test",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .expect("Error creating topic");
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let _a_datareader = subscriber
         .create_datareader::<TestType>(
             &reader_topic,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -353,7 +353,7 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -363,18 +363,18 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
             "Test",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .expect("Error creating topic");
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let _a_datawriter = publisher
         .create_datawriter::<TestType>(
             &writer_topic,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -395,7 +395,7 @@ fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -405,18 +405,18 @@ fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
             "Test",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .expect("Error creating topic");
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let a_datawriter = publisher
         .create_datawriter::<TestType>(
             &writer_topic,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -434,7 +434,7 @@ fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -444,18 +444,18 @@ fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
             "Test",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .expect("Error creating topic");
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let a_datareader = subscriber
         .create_datareader::<TestType>(
             &reader_topic,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -473,7 +473,7 @@ fn allowed_to_delete_topic_with_created_and_deleted_writer() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -483,18 +483,18 @@ fn allowed_to_delete_topic_with_created_and_deleted_writer() {
             "Test",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .expect("Error creating topic");
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let a_datawriter = publisher
         .create_datawriter::<TestType>(
             &writer_topic,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -512,7 +512,7 @@ fn allowed_to_delete_topic_with_created_and_deleted_reader() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -522,18 +522,18 @@ fn allowed_to_delete_topic_with_created_and_deleted_reader() {
             "Test",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .expect("Error creating topic");
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let a_datareader = subscriber
         .create_datareader::<TestType>(
             &reader_topic,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -551,7 +551,7 @@ fn default_publisher_qos() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -569,7 +569,7 @@ fn default_publisher_qos() {
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -591,7 +591,7 @@ fn default_subscriber_qos() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -609,7 +609,7 @@ fn default_subscriber_qos() {
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -631,7 +631,7 @@ fn default_topic_qos() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -653,7 +653,7 @@ fn default_topic_qos() {
             "default_topic_qos",
             "TestType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -678,7 +678,7 @@ fn builtin_reader_access() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -720,7 +720,7 @@ fn get_discovery_data_from_builtin_reader() {
                 },
                 ..Default::default()
             }),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -735,13 +735,13 @@ fn get_discovery_data_from_builtin_reader() {
                 },
                 ..Default::default()
             }),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let _data_writer = publisher
@@ -753,13 +753,13 @@ fn get_discovery_data_from_builtin_reader() {
                 },
                 ..Default::default()
             }),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let _data_reader = subscriber
@@ -771,7 +771,7 @@ fn get_discovery_data_from_builtin_reader() {
                 },
                 ..Default::default()
             }),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -879,7 +879,7 @@ fn ignore_publication() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -889,13 +889,13 @@ fn ignore_publication() {
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -908,13 +908,13 @@ fn ignore_publication() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -932,7 +932,7 @@ fn ignore_publication() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -957,7 +957,7 @@ fn ignore_subscription() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -967,17 +967,17 @@ fn ignore_subscription() {
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -990,7 +990,7 @@ fn ignore_subscription() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1010,7 +1010,7 @@ fn ignore_subscription() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1035,7 +1035,7 @@ fn ignore_participant() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1044,7 +1044,7 @@ fn ignore_participant() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();

@@ -11,33 +11,29 @@ use crate::{
     topic_definition::topic_listener::TopicListener,
 };
 
-pub struct NoOpFooListener<Foo = ()>(PhantomData<Foo>);
+pub struct NoOpListener<Foo = ()>(PhantomData<Foo>);
 
-impl<Foo> NoOpFooListener<Foo> {
-    pub fn new() -> Self {
+impl<Foo> NoOpListener<Foo> {
+    pub const fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<Foo> Default for NoOpFooListener<Foo> {
+impl<Foo> Default for NoOpListener<Foo> {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl DomainParticipantListener for NoOpFooListener {}
-impl PublisherListener for NoOpFooListener {}
-impl SubscriberListener for NoOpFooListener {}
-impl TopicListener for NoOpFooListener {}
+impl DomainParticipantListener for NoOpListener {}
+impl PublisherListener for NoOpListener {}
+impl SubscriberListener for NoOpListener {}
+impl TopicListener for NoOpListener {}
 
-impl<Foo> DataReaderListener for NoOpFooListener<Foo> {
+impl<Foo> DataReaderListener for NoOpListener<Foo> {
     type Foo = Foo;
 }
 
-impl<Foo> DataWriterListener for NoOpFooListener<Foo> {
-    type Foo = Foo;
-}
-
-impl<Foo> DataWriterListener for fn(&Foo) {
+impl<Foo> DataWriterListener for NoOpListener<Foo> {
     type Foo = Foo;
 }

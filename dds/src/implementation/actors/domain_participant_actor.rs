@@ -47,7 +47,7 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
-        listeners::NoOpFooListener,
+        listeners::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
@@ -226,7 +226,7 @@ impl DomainParticipantActor {
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
             spdp_reader_qos,
-            Box::new(NoOpFooListener::<SpdpDiscoveredParticipantData>::new()),
+            Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<SpdpDiscoveredParticipantData>(bytes)
@@ -254,7 +254,7 @@ impl DomainParticipantActor {
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
             sedp_reader_qos.clone(),
-            Box::new(NoOpFooListener::<DiscoveredTopicData>::new()),
+            Box::new(NoOpListener::<DiscoveredTopicData>::new()),
             vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<DiscoveredTopicData>(bytes)
@@ -268,7 +268,7 @@ impl DomainParticipantActor {
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
             sedp_reader_qos.clone(),
-            Box::new(NoOpFooListener::<DiscoveredWriterData>::new()),
+            Box::new(NoOpListener::<DiscoveredWriterData>::new()),
             vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<DiscoveredWriterData>(bytes)
@@ -282,7 +282,7 @@ impl DomainParticipantActor {
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
             sedp_reader_qos,
-            Box::new(NoOpFooListener::<DiscoveredReaderData>::new()),
+            Box::new(NoOpListener::<DiscoveredReaderData>::new()),
             vec![],
             InstanceHandleBuilder::new(|bytes| {
                 deserialize_data_to_key::<DiscoveredReaderData>(bytes)
@@ -295,7 +295,7 @@ impl DomainParticipantActor {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
-            Box::new(NoOpFooListener::new()),
+            Box::new(NoOpListener::new()),
             vec![],
         ));
 
@@ -348,7 +348,7 @@ impl DomainParticipantActor {
             create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
-            Box::new(NoOpFooListener::<SpdpDiscoveredParticipantData>::new()),
+            Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
             spdp_writer_qos,
         ));
@@ -384,7 +384,7 @@ impl DomainParticipantActor {
             create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
-            Box::new(NoOpFooListener::<DiscoveredTopicData>::new()),
+            Box::new(NoOpListener::<DiscoveredTopicData>::new()),
             vec![],
             sedp_writer_qos.clone(),
         );
@@ -396,7 +396,7 @@ impl DomainParticipantActor {
             create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
-            Box::new(NoOpFooListener::<DiscoveredWriterData>::new()),
+            Box::new(NoOpListener::<DiscoveredWriterData>::new()),
             vec![],
             sedp_writer_qos.clone(),
         );
@@ -408,7 +408,7 @@ impl DomainParticipantActor {
             create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
-            Box::new(NoOpFooListener::<DiscoveredReaderData>::new()),
+            Box::new(NoOpListener::<DiscoveredReaderData>::new()),
             vec![],
             sedp_writer_qos,
         );
@@ -421,7 +421,7 @@ impl DomainParticipantActor {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
-            Box::new(NoOpFooListener::new()),
+            Box::new(NoOpListener::new()),
             vec![],
         ));
 

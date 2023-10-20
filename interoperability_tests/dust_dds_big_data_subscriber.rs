@@ -1,7 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::NoOpFooListener,
+        listeners::NoOpListener,
         qos::{DataReaderQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -26,7 +26,7 @@ fn main() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -36,13 +36,13 @@ fn main() {
             "BigData",
             "BigDataType",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let reader_qos = DataReaderQos {
@@ -59,7 +59,7 @@ fn main() {
         .create_datareader::<big_data::BigDataType>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();

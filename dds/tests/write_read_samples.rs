@@ -2,7 +2,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
-        listeners::NoOpFooListener,
+        listeners::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind, TopicQos},
         qos_policy::{
             DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy,
@@ -53,7 +53,7 @@ fn large_data_should_be_fragmented() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -63,13 +63,13 @@ fn large_data_should_be_fragmented() {
             "LargeDataTopic",
             "LargeData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -82,13 +82,13 @@ fn large_data_should_be_fragmented() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -101,7 +101,7 @@ fn large_data_should_be_fragmented() {
         .create_datareader::<LargeData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -148,7 +148,7 @@ fn large_data_should_be_fragmented_reliable() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -158,13 +158,13 @@ fn large_data_should_be_fragmented_reliable() {
             "LargeDataTopic",
             "LargeData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -177,13 +177,13 @@ fn large_data_should_be_fragmented_reliable() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -196,7 +196,7 @@ fn large_data_should_be_fragmented_reliable() {
         .create_datareader::<LargeData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -238,7 +238,7 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -248,13 +248,13 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -274,13 +274,13 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
@@ -312,7 +312,7 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -347,7 +347,7 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -357,13 +357,13 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -383,13 +383,13 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
@@ -421,7 +421,7 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -458,7 +458,7 @@ fn samples_are_taken() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -468,13 +468,13 @@ fn samples_are_taken() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -487,13 +487,13 @@ fn samples_are_taken() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -506,7 +506,7 @@ fn samples_are_taken() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -563,7 +563,7 @@ fn read_only_unread_samples() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -573,13 +573,13 @@ fn read_only_unread_samples() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -592,13 +592,13 @@ fn read_only_unread_samples() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -611,7 +611,7 @@ fn read_only_unread_samples() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -687,7 +687,7 @@ fn read_next_sample() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -697,13 +697,13 @@ fn read_next_sample() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -716,13 +716,13 @@ fn read_next_sample() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -735,7 +735,7 @@ fn read_next_sample() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -776,7 +776,7 @@ fn take_next_sample() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -786,13 +786,13 @@ fn take_next_sample() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -805,13 +805,13 @@ fn take_next_sample() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -824,7 +824,7 @@ fn take_next_sample() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -865,7 +865,7 @@ fn each_key_sample_is_read() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -875,13 +875,13 @@ fn each_key_sample_is_read() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -894,13 +894,13 @@ fn each_key_sample_is_read() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -913,7 +913,7 @@ fn each_key_sample_is_read() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -972,7 +972,7 @@ fn read_specific_instance() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -982,13 +982,13 @@ fn read_specific_instance() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1001,13 +1001,13 @@ fn read_specific_instance() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1020,7 +1020,7 @@ fn read_specific_instance() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1069,7 +1069,7 @@ fn read_next_instance() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1079,13 +1079,13 @@ fn read_next_instance() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1098,13 +1098,13 @@ fn read_next_instance() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1117,7 +1117,7 @@ fn read_next_instance() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1196,7 +1196,7 @@ fn take_next_instance() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1206,13 +1206,13 @@ fn take_next_instance() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1225,13 +1225,13 @@ fn take_next_instance() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1244,7 +1244,7 @@ fn take_next_instance() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1323,7 +1323,7 @@ fn take_specific_instance() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1333,13 +1333,13 @@ fn take_specific_instance() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1352,13 +1352,13 @@ fn take_specific_instance() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1371,7 +1371,7 @@ fn take_specific_instance() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1420,7 +1420,7 @@ fn take_specific_unknown_instance() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1430,13 +1430,13 @@ fn take_specific_unknown_instance() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1449,13 +1449,13 @@ fn take_specific_unknown_instance() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1468,7 +1468,7 @@ fn take_specific_unknown_instance() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1518,7 +1518,7 @@ fn write_read_disposed_samples() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1528,13 +1528,13 @@ fn write_read_disposed_samples() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1550,13 +1550,13 @@ fn write_read_disposed_samples() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1573,7 +1573,7 @@ fn write_read_disposed_samples() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1621,7 +1621,7 @@ fn write_read_sample_view_state() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1631,13 +1631,13 @@ fn write_read_sample_view_state() {
             "OtherTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1650,13 +1650,13 @@ fn write_read_sample_view_state() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1669,7 +1669,7 @@ fn write_read_sample_view_state() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1724,7 +1724,7 @@ fn inconsistent_topic_status_condition() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1741,7 +1741,7 @@ fn inconsistent_topic_status_condition() {
             "Topic",
             "KeyedData",
             QosKind::Specific(best_effort_topic_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1768,7 +1768,7 @@ fn inconsistent_topic_status_condition() {
             "Topic",
             "KeyedData",
             QosKind::Specific(reliable_topic_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1792,7 +1792,7 @@ fn reader_with_minimum_time_separation_qos() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1802,13 +1802,13 @@ fn reader_with_minimum_time_separation_qos() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         history: HistoryQosPolicy {
@@ -1824,13 +1824,13 @@ fn reader_with_minimum_time_separation_qos() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         history: HistoryQosPolicy {
@@ -1849,7 +1849,7 @@ fn reader_with_minimum_time_separation_qos() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1913,7 +1913,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1923,13 +1923,13 @@ fn transient_local_writer_reader_wait_for_historical_data() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         durability: DurabilityQosPolicy {
@@ -1948,7 +1948,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -1958,7 +1958,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
     writer.write(&data2, None).unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         durability: DurabilityQosPolicy {
@@ -1981,7 +1981,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2016,7 +2016,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2026,13 +2026,13 @@ fn volatile_writer_reader_receives_only_new_samples() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         durability: DurabilityQosPolicy {
@@ -2051,7 +2051,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2060,7 +2060,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
     writer.write(&data1, None).unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         durability: DurabilityQosPolicy {
@@ -2079,7 +2079,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2118,7 +2118,7 @@ fn write_read_unkeyed_topic() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2128,13 +2128,13 @@ fn write_read_unkeyed_topic() {
             "write_read_unkeyed_topic",
             "UserData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -2147,13 +2147,13 @@ fn write_read_unkeyed_topic() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -2166,7 +2166,7 @@ fn write_read_unkeyed_topic() {
         .create_datareader::<UserData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2201,7 +2201,7 @@ fn data_reader_resource_limits() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2210,13 +2210,13 @@ fn data_reader_resource_limits() {
             "data_reader_resource_limits",
             "UserData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -2233,13 +2233,13 @@ fn data_reader_resource_limits() {
         .create_datawriter(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -2261,7 +2261,7 @@ fn data_reader_resource_limits() {
         .create_datareader::<UserData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2307,7 +2307,7 @@ fn data_reader_order_by_source_timestamp() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2316,13 +2316,13 @@ fn data_reader_order_by_source_timestamp() {
             "MyTopic",
             "UserData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -2342,13 +2342,13 @@ fn data_reader_order_by_source_timestamp() {
         .create_datawriter(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -2367,7 +2367,7 @@ fn data_reader_order_by_source_timestamp() {
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2415,7 +2415,7 @@ fn data_reader_publication_handle_sample_info() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2425,13 +2425,13 @@ fn data_reader_publication_handle_sample_info() {
             "MyTopic",
             "UserData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let writer_qos = DataWriterQos {
@@ -2445,13 +2445,13 @@ fn data_reader_publication_handle_sample_info() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let reader_qos = DataReaderQos {
@@ -2465,7 +2465,7 @@ fn data_reader_publication_handle_sample_info() {
         .create_datareader::<UserData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2504,7 +2504,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2514,13 +2514,13 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         durability: DurabilityQosPolicy {
@@ -2539,13 +2539,13 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         durability: DurabilityQosPolicy {
@@ -2564,7 +2564,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos.clone()),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2591,7 +2591,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2625,7 +2625,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2635,13 +2635,13 @@ fn write_read_unregistered_samples_are_also_disposed() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -2660,13 +2660,13 @@ fn write_read_unregistered_samples_are_also_disposed() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -2683,7 +2683,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2730,7 +2730,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2740,13 +2740,13 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         durability: DurabilityQosPolicy {
@@ -2768,7 +2768,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2782,7 +2782,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
         .unwrap(); // Never stale sample
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         durability: DurabilityQosPolicy {
@@ -2805,7 +2805,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2860,7 +2860,7 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2869,12 +2869,12 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
             "TestTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(0);
@@ -2895,10 +2895,10 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
         )
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_cond = writer.get_statuscondition().unwrap();
     writer_cond
@@ -2925,7 +2925,7 @@ fn reader_joining_after_writer_writes_many_samples() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
@@ -2935,13 +2935,13 @@ fn reader_joining_after_writer_writes_many_samples() {
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -2955,13 +2955,13 @@ fn reader_joining_after_writer_writes_many_samples() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     for value in 0..500 {
@@ -2980,7 +2980,7 @@ fn reader_joining_after_writer_writes_many_samples() {
         .create_datareader::<KeyedData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpFooListener::new(),
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();

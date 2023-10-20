@@ -14,7 +14,7 @@ use crate::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        listeners::NoOpFooListener,
+        listeners::NoOpListener,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::{StatusKind, NO_STATUS},
         time::{Duration, Time},
@@ -371,7 +371,7 @@ impl DomainParticipant {
                             topic_name,
                             discovered_topic_data.get_type_name(),
                             QosKind::Specific(qos),
-                            NoOpFooListener::new(),
+                            NoOpListener::new(),
                             NO_STATUS,
                         )?;
                         return Ok(topic);
