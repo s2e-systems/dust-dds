@@ -257,10 +257,6 @@ impl DdsGetKey for SpdpDiscoveredParticipantData {
 
 impl DdsSetKeyFields for SpdpDiscoveredParticipantData {
     type OwningKeyHolder = [u8; 16];
-
-    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
-        todo!()
-    }
 }
 
 #[cfg(test)]
@@ -384,7 +380,8 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result = dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(&mut data).unwrap();
+        let result =
+            dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 

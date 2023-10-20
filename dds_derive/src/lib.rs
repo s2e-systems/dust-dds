@@ -121,10 +121,6 @@ pub fn derive_dds_set_key_fields(input: TokenStream) -> TokenStream {
 
                         impl #impl_generics dust_dds::topic_definition::type_support::DdsSetKeyFields for #ident #type_generics #where_clause {
                             type OwningKeyHolder = OwningKeyHolder;
-
-                            fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
-                                #set_key_fields
-                            }
                         }
                     };
                 }
@@ -133,8 +129,6 @@ pub fn derive_dds_set_key_fields(input: TokenStream) -> TokenStream {
                 quote! {
                     impl #impl_generics dust_dds::topic_definition::type_support::DdsSetKeyFields for #ident #type_generics #where_clause {
                         type OwningKeyHolder = ();
-
-                        fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {}
                     }
                 }
             }

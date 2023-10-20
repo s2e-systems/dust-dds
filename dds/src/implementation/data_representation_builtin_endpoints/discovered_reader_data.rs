@@ -124,10 +124,6 @@ impl DdsGetKey for DiscoveredReaderData {
 
 impl DdsSetKeyFields for DiscoveredReaderData {
     type OwningKeyHolder = [u8; 16];
-
-    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
-        todo!()
-    }
 }
 
 #[cfg(test)]
