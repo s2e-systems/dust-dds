@@ -99,4 +99,61 @@ Any type Foo implementing these traits can be used to create a DataWriter<Foo> a
 
 ### Listeners
 
-TBD
+The DDS standard provides a listener mechanism which can be used to implement an event-based response system. Each DDS entity has a listener associated with it with the functionality described by a listener interface. According to the standard it is permitted to use ‘nil’ as the value of the listener. The ‘nil’ listener behaves as a Listener whose operations perform no action.
+
+This snippet gives the exploration of the design space for the listener interface implementation:
+
+```rust
+    pub trait AnyListener{}
+
+    pub trait GenericListener<Foo>{}
+
+    impl<Foo> AnyListener for Box<dyn GenericListener<Foo>> {}
+
+    pub trait AssociatedTypeListener{ type Foo;}
+
+    impl<Foo> AnyListener for Box<dyn AssociatedTypeListener<Foo=Foo>> {}
+
+    impl<T> AnyListener for T where T: AssociatedTypeListener{}
+
+    pub struct DataWriter {
+        listener: Option<Box<dyn AnyListener>>,
+    }
+
+    fn create_datawriter_with_box_generic<Foo>(listener: Option<Box<dyn GenericListener<Foo>>> ) -> DataWriter
+        where Foo:'static
+    {
+        DataWriter {listener: listener.map::<Box<dyn AnyListener>,_>(|l| Box::new(l))}
+    }
+
+    fn create_datawriter_with_box_associated_type<Foo>(listener: Option<Box<dyn AssociatedTypeListener<Foo=Foo>>> ) -> DataWriter
+        where Foo:'static
+    {
+        DataWriter {listener: listener.map::<Box<dyn AnyListener>,_>(|l| Box::new(l))}
+    }
+
+    // Not possible to box this because AnyListener can not be implemented "for <Foo>"
+    // fn create_datawriter_with_impl_generic<Foo>(listener: Option<impl GenericListener<Foo>> ) -> DataWriter
+    // {
+    //     DataWriter {listener: listener.map::<Box<dyn AnyListener>,_>(|l| Box::new(l))}
+    // }
+
+    // Only implementations which doesn't require a Foo: 'static
+    fn create_datawriter_with_option_impl_associated_type<Foo>(listener: Option<impl AssociatedTypeListener<Foo=Foo> + 'static> ) -> DataWriter
+    {
+        DataWriter {listener: listener.map::<Box<dyn AnyListener>,_>(|l| Box::new(l))}
+    }
+
+    fn create_datawriter_with_impl_associated_type<Foo>(listener: impl AssociatedTypeListener<Foo=Foo> + 'static ) -> DataWriter
+    {
+        DataWriter {listener: Some(Box::new(listener))}
+    }
+
+    fn main() {
+        // Uncomment for compilation error about type inference
+        // create_datawriter_with_option_impl_associated_type(None);
+
+
+        println!("Test compilation of different listener combos")
+    }
+```
