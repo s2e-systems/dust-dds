@@ -24,10 +24,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{
-            dds_serialize_key, dds_serialize_key_to_bytes, DdsBorrowKeyHolder, DdsHasKey,
-            DdsSerialize,
-        },
+        type_support::{DdsGetKeyFromFoo, DdsHasKey, DdsSerialize, DdsSerializeKeyFields},
     },
 };
 
@@ -89,7 +86,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsHasKey + DdsSerialize + DdsBorrowKeyHolder,
+    Foo: DdsHasKey + DdsSerialize + DdsSerializeKeyFields + DdsGetKeyFromFoo,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -210,11 +207,12 @@ where
                 }
             }?;
 
-            let instance_serialized_key = dds_serialize_key_to_bytes(instance)?;
+            let mut instance_serialized_key = Vec::new();
+            instance.serialize_key_fields(&mut instance_serialized_key)?;
 
             self.writer_address.send_mail_and_await_reply_blocking(
                 data_writer_actor::unregister_instance_w_timestamp::new(
-                    instance_serialized_key.as_ref().to_vec(),
+                    instance_serialized_key,
                     instance_handle,
                     timestamp,
                 ),
@@ -241,7 +239,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::lookup_instance::new(dds_serialize_key(instance)?),
+            data_writer_actor::lookup_instance::new(instance.get_key_from_foo()?.into()),
         )?
     }
 
@@ -306,7 +304,7 @@ where
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::write_w_timestamp::new(
                 serialized_data,
-                dds_serialize_key(data)?,
+                data.get_key_from_foo()?.into(),
                 handle,
                 timestamp,
             ),
@@ -378,11 +376,12 @@ where
             }
         }?;
 
-        let instance_serialized_key = dds_serialize_key_to_bytes(data)?;
+        let mut instance_serialized_key = Vec::new();
+        data.serialize_key_fields(&mut instance_serialized_key)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::dispose_w_timestamp::new(
-                instance_serialized_key.as_ref().to_vec(),
+                instance_serialized_key,
                 instance_handle,
                 timestamp,
             ),

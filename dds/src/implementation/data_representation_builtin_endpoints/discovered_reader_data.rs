@@ -4,8 +4,10 @@ use crate::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
+    infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, Representation,
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
+        DdsRepresentation, DdsSerializedKey, Representation,
     },
 };
 
@@ -114,16 +116,26 @@ impl DdsRepresentation for DiscoveredReaderData {
     const REPRESENTATION: Representation = Representation::PlCdrLe;
 }
 
-impl DdsBorrowKeyHolder for DiscoveredReaderData {
-    type BorrowedKeyHolder<'a> = [u8; 16];
-
-    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        self.subscription_builtin_topic_data.key().value
+impl DdsGetKeyFromFoo for DiscoveredReaderData {
+    fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {
+        Ok(self
+            .subscription_builtin_topic_data
+            .key()
+            .value
+            .to_vec()
+            .into())
     }
 }
 
-impl DdsOwningKeyHolder for DiscoveredReaderData {
-    type OwningKeyHolder = [u8; 16];
+impl DdsGetKeyFromSerializedData for DiscoveredReaderData {
+    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
+        Ok(Self::deserialize_data(&mut serialized_data)?
+            .subscription_builtin_topic_data
+            .key()
+            .value
+            .to_vec()
+            .into())
+    }
 }
 
 #[cfg(test)]
@@ -139,7 +151,7 @@ mod tests {
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{dds_deserialize_from_bytes, DdsSerialize};
+    use crate::topic_definition::type_support::{DdsDeserialize, DdsSerialize};
 
     #[test]
     fn serialize_all_default() {
@@ -267,7 +279,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result = dds_deserialize_from_bytes::<DiscoveredReaderData>(&mut data).unwrap();
+        let result = DiscoveredReaderData::deserialize_data(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

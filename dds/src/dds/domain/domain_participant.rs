@@ -24,7 +24,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{dds_serialize_key, DdsSerialize},
+        type_support::{DdsGetKeyFromFoo, DdsSerialize},
     },
 };
 
@@ -936,8 +936,8 @@ impl DomainParticipant {
                                     .send_mail_and_await_reply(
                                         data_writer_actor::write_w_timestamp::new(
                                             serialized_data,
-                                            dds_serialize_key(&spdp_discovered_participant_data)
-                                                .unwrap(),
+                                            spdp_discovered_participant_data.get_key_from_foo()
+                                                .unwrap().into(),
                                             None,
                                             timestamp,
                                         ),

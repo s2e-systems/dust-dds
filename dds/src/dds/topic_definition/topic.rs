@@ -21,7 +21,7 @@ use crate::{
 
 use super::{
     topic_listener::TopicListener,
-    type_support::{dds_serialize_key_to_bytes, DdsSerialize},
+    type_support::{DdsGetKeyFromFoo, DdsSerialize},
 };
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
@@ -248,7 +248,7 @@ fn announce_topic(
             data_writer.send_mail_and_await_reply_blocking(
                 data_writer_actor::write_w_timestamp::new(
                     serialized_data,
-                    dds_serialize_key_to_bytes(&discovered_topic_data)?,
+                    discovered_topic_data.get_key_from_foo()?,
                     None,
                     timestamp,
                 ),

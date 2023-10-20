@@ -60,10 +60,7 @@ use crate::{
         time::{DurationKind, Time},
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::{
-        dds_deserialize_from_bytes, dds_serialize_key, DdsBorrowKeyHolder, DdsRepresentation,
-        DdsSerializedKey,
-    },
+    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedKey},
 };
 
 use super::{
@@ -75,18 +72,6 @@ use super::{
     subscriber_actor::SubscriberActor,
     subscriber_listener_actor::{self, SubscriberListenerActor},
 };
-
-pub fn deserialize_data_to_key<'a, Foo>(mut data: &'a [u8]) -> DdsResult<DdsSerializedKey>
-where
-    Foo: serde::Deserialize<'a> + DdsRepresentation + DdsBorrowKeyHolder + 'a,
-{
-    dds_serialize_key(
-        &dds_deserialize_from_bytes::<Foo>(&mut data).map_err(|e| {
-            DdsError::Error(format!("Failed to deserialize data with error {:?}", e))
-        })?,
-    )
-    .map_err(|e| DdsError::Error(format!("Failed to serialize key with error {:?}", e)))
-}
 
 pub struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<DdsSerializedKey>);
 
@@ -1629,7 +1614,7 @@ impl DataReaderActor {
         if publication_builtin_topic_data.topic_name() == self.topic_name
             && publication_builtin_topic_data.get_type_name() == self.type_name
         {
-            let instance_handle = dds_serialize_key(&discovered_writer_data).unwrap().into();
+            let instance_handle = discovered_writer_data.get_key_from_foo().unwrap().into();
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &discovered_writer_data,

@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::Read;
 
 use crate::{
     implementation::parameter_list_serde::{
@@ -8,7 +8,9 @@ use crate::{
     infrastructure::error::{DdsError::PreconditionNotMet, DdsResult},
 };
 
-pub use dust_dds_derive::{DdsBorrowKeyHolder, DdsHasKey, DdsRepresentation, DdsOwningKeyHolder, DdsType};
+pub use dust_dds_derive::{
+    DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, DdsType,
+};
 
 pub trait DdsSerialize {
     fn serialize_data(&self, writer: impl std::io::Write) -> DdsResult<()>;
@@ -23,7 +25,7 @@ pub trait DdsSerializeKeyFields {
 }
 
 pub trait DdsGetKeyFromFoo {
-    fn get_key_from(&self) -> DdsResult<DdsSerializedKey>;
+    fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey>;
 }
 
 pub trait DdsGetKeyFromSerializedData {
@@ -206,7 +208,6 @@ pub trait DdsBorrowKeyHolder {
 impl<T> DdsSerializeKeyFields for T
 where
     T: DdsBorrowKeyHolder,
-    for<'a> T::BorrowedKeyHolder<'a>: serde::Serialize,
 {
     fn serialize_key_fields(&self, mut writer: impl std::io::Write) -> DdsResult<()> {
         writer
@@ -226,9 +227,8 @@ where
 impl<T> DdsGetKeyFromFoo for T
 where
     T: DdsBorrowKeyHolder,
-    for<'a> T::BorrowedKeyHolder<'a>: serde::Serialize,
 {
-    fn get_key_from(&self) -> DdsResult<DdsSerializedKey> {
+    fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {
         let mut writer = Vec::new();
         let mut serializer = cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
         let key = self.get_key();
@@ -380,78 +380,11 @@ where
     type OwningKeyHolder = [T; N];
 }
 
-pub fn dds_deserialize_from_bytes<'de, T>(data: &mut &'de [u8]) -> DdsResult<T>
-where
-    T: serde::Deserialize<'de> + DdsRepresentation,
-{
-    match T::REPRESENTATION {
-        _ => {
-            let mut representation_identifier = [0u8, 0];
-            data.read_exact(&mut representation_identifier)
-                .map_err(|err| PreconditionNotMet(err.to_string()))?;
-
-            let mut representation_option = [0u8, 0];
-            data.read_exact(&mut representation_option)
-                .map_err(|err| PreconditionNotMet(err.to_string()))?;
-
-            match representation_identifier {
-                CDR_BE => {
-                    let mut deserializer =
-                        cdr::Deserializer::<_, _, byteorder::BigEndian>::new(data, cdr::Infinite);
-                    serde::Deserialize::deserialize(&mut deserializer)
-                        .map_err(|err| PreconditionNotMet(err.to_string()))
-                }
-                CDR_LE => {
-                    let mut deserializer = cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(
-                        data,
-                        cdr::Infinite,
-                    );
-                    serde::Deserialize::deserialize(&mut deserializer)
-                        .map_err(|err| PreconditionNotMet(err.to_string()))
-                }
-                PL_CDR_BE => {
-                    let mut deserializer =
-                        ParameterListDeserializer::<byteorder::BigEndian>::new(data);
-                    serde::Deserialize::deserialize(&mut deserializer)
-                        .map_err(|err| PreconditionNotMet(err.to_string()))
-                }
-                PL_CDR_LE => {
-                    let mut deserializer =
-                        ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
-                    serde::Deserialize::deserialize(&mut deserializer)
-                        .map_err(|err| PreconditionNotMet(err.to_string()))
-                }
-                _ => Err(PreconditionNotMet(
-                    "Illegal representation identifier".to_string(),
-                )),
-            }
-        }
-    }
-}
-
 pub fn dds_serialize_key<T>(value: &T) -> DdsResult<DdsSerializedKey>
 where
     T: DdsBorrowKeyHolder,
 {
     let mut writer = vec![];
-    let mut serializer = cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
-    let key = value.get_key();
-    serde::Serialize::serialize(&key, &mut serializer)
-        .map_err(|err| PreconditionNotMet(err.to_string()))?;
-    Ok(writer.into())
-}
-
-pub fn dds_serialize_key_to_bytes<T>(value: &T) -> DdsResult<DdsSerializedKey>
-where
-    T: DdsBorrowKeyHolder,
-{
-    let mut writer = vec![];
-    writer
-        .write_all(&CDR_LE)
-        .map_err(|err| PreconditionNotMet(err.to_string()))?;
-    writer
-        .write_all(&REPRESENTATION_OPTIONS)
-        .map_err(|err| PreconditionNotMet(err.to_string()))?;
     let mut serializer = cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
     let key = value.get_key();
     serde::Serialize::serialize(&key, &mut serializer)
