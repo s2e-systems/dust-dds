@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{io::Read, marker::PhantomData};
 
 use crate::{
     implementation::parameter_list_serde::{
@@ -382,4 +382,19 @@ where
 
 impl<'a, T> DdsOwningKeyHolder for &'a T {
     type OwningKeyHolder = T;
+}
+
+pub struct IgnoredForDeserialize<T>(PhantomData<T>);
+
+impl<'de, T> serde::Deserialize<'de> for IgnoredForDeserialize<T>
+where
+    T: serde::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        T::deserialize(deserializer)?;
+        Ok(Self(PhantomData))
+    }
 }
