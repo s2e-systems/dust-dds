@@ -11,7 +11,7 @@ use crate::{
     },
     infrastructure::time::Duration,
     topic_definition::type_support::{
-        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, Representation,
+        DdsBorrowKeyHolder, DdsHasKey, DdsRepresentation, DdsOwningKeyHolder, Representation,
     },
 };
 
@@ -247,7 +247,7 @@ impl DdsRepresentation for SpdpDiscoveredParticipantData {
     const REPRESENTATION: Representation = Representation::PlCdrLe;
 }
 
-impl DdsGetKey for SpdpDiscoveredParticipantData {
+impl DdsBorrowKeyHolder for SpdpDiscoveredParticipantData {
     type BorrowedKeyHolder<'a> = [u8; 16];
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
@@ -255,7 +255,7 @@ impl DdsGetKey for SpdpDiscoveredParticipantData {
     }
 }
 
-impl DdsSetKeyFields for SpdpDiscoveredParticipantData {
+impl DdsOwningKeyHolder for SpdpDiscoveredParticipantData {
     type OwningKeyHolder = [u8; 16];
 }
 

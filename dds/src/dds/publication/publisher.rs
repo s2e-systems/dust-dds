@@ -17,7 +17,7 @@ use crate::{
     },
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
-    topic_definition::type_support::{DdsGetKey, DdsHasKey},
+    topic_definition::type_support::{DdsBorrowKeyHolder, DdsHasKey},
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
@@ -84,7 +84,7 @@ impl Publisher {
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
-        Foo: DdsHasKey + DdsGetKey + serde::Serialize,
+        Foo: DdsHasKey + DdsBorrowKeyHolder + serde::Serialize,
     {
         let default_unicast_locator_list = self
             .participant_address

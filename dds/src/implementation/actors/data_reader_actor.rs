@@ -61,7 +61,7 @@ use crate::{
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::{
-        dds_deserialize_from_bytes, dds_serialize_key, DdsGetKey, DdsRepresentation,
+        dds_deserialize_from_bytes, dds_serialize_key, DdsBorrowKeyHolder, DdsRepresentation,
         DdsSerializedKey,
     },
 };
@@ -78,7 +78,7 @@ use super::{
 
 pub fn deserialize_data_to_key<'a, Foo>(mut data: &'a [u8]) -> DdsResult<DdsSerializedKey>
 where
-    Foo: serde::Deserialize<'a> + DdsRepresentation + DdsGetKey + 'a,
+    Foo: serde::Deserialize<'a> + DdsRepresentation + DdsBorrowKeyHolder + 'a,
 {
     dds_serialize_key(
         &dds_deserialize_from_bytes::<Foo>(&mut data).map_err(|e| {

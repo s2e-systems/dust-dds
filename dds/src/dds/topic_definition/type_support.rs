@@ -8,7 +8,7 @@ use crate::{
     infrastructure::error::{DdsError::PreconditionNotMet, DdsResult},
 };
 
-pub use dust_dds_derive::{DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, DdsType};
+pub use dust_dds_derive::{DdsBorrowKeyHolder, DdsHasKey, DdsRepresentation, DdsOwningKeyHolder, DdsType};
 
 pub trait DdsSerialize {
     fn serialize_data(&self, writer: impl std::io::Write) -> DdsResult<()>;
@@ -77,7 +77,7 @@ impl AsRef<[u8]> for DdsSerializedKey {
     }
 }
 
-pub trait DdsType: DdsRepresentation + DdsHasKey + DdsGetKey + DdsSetKeyFields {}
+pub trait DdsType: DdsRepresentation + DdsHasKey + DdsBorrowKeyHolder + DdsOwningKeyHolder {}
 
 pub trait DdsRepresentation {
     const REPRESENTATION: Representation;
@@ -193,7 +193,7 @@ where
     }
 }
 
-pub trait DdsGetKey {
+pub trait DdsBorrowKeyHolder {
     // Serde trait bounds placed here since there is no easy way to express this bound
     // without specifying the lifetime 'a which makes the bounds on usage very complicated
     type BorrowedKeyHolder<'a>: serde::Serialize
@@ -205,7 +205,7 @@ pub trait DdsGetKey {
 
 impl<T> DdsSerializeKeyFields for T
 where
-    T: DdsGetKey,
+    T: DdsBorrowKeyHolder,
     for<'a> T::BorrowedKeyHolder<'a>: serde::Serialize,
 {
     fn serialize_key_fields(&self, mut writer: impl std::io::Write) -> DdsResult<()> {
@@ -225,7 +225,7 @@ where
 
 impl<T> DdsGetKeyFromFoo for T
 where
-    T: DdsGetKey,
+    T: DdsBorrowKeyHolder,
     for<'a> T::BorrowedKeyHolder<'a>: serde::Serialize,
 {
     fn get_key_from(&self) -> DdsResult<DdsSerializedKey> {
@@ -238,13 +238,13 @@ where
     }
 }
 
-pub trait DdsSetKeyFields {
+pub trait DdsOwningKeyHolder {
     type OwningKeyHolder;
 }
 
 impl<T> DdsGetKeyFromSerializedData for T
 where
-    T: DdsSetKeyFields + DdsRepresentation,
+    T: DdsOwningKeyHolder + DdsRepresentation,
     T::OwningKeyHolder: for<'de> serde::Deserialize<'de> + serde::Serialize,
 {
     fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
@@ -303,7 +303,7 @@ where
 
 macro_rules! implement_dds_get_key_for_built_in_type {
     ($t:ty) => {
-        impl DdsGetKey for $t {
+        impl DdsBorrowKeyHolder for $t {
             type BorrowedKeyHolder<'a> = $t;
 
             fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
@@ -311,7 +311,7 @@ macro_rules! implement_dds_get_key_for_built_in_type {
             }
         }
 
-        impl DdsSetKeyFields for $t {
+        impl DdsOwningKeyHolder for $t {
             type OwningKeyHolder = $t;
         }
     };
@@ -332,7 +332,7 @@ implement_dds_get_key_for_built_in_type!(isize);
 implement_dds_get_key_for_built_in_type!(f32);
 implement_dds_get_key_for_built_in_type!(f64);
 
-impl<T> DdsGetKey for Vec<T>
+impl<T> DdsBorrowKeyHolder for Vec<T>
 where
     T: serde::Serialize + for<'de> serde::Deserialize<'de>,
 {
@@ -343,14 +343,14 @@ where
     }
 }
 
-impl<T> DdsSetKeyFields for Vec<T>
+impl<T> DdsOwningKeyHolder for Vec<T>
 where
     T: serde::Serialize + for<'de> serde::Deserialize<'de>,
 {
     type OwningKeyHolder = Vec<T>;
 }
 
-impl DdsGetKey for String {
+impl DdsBorrowKeyHolder for String {
     type BorrowedKeyHolder<'a> = &'a str;
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
@@ -358,11 +358,11 @@ impl DdsGetKey for String {
     }
 }
 
-impl DdsSetKeyFields for String {
+impl DdsOwningKeyHolder for String {
     type OwningKeyHolder = String;
 }
 
-impl<const N: usize, T> DdsGetKey for [T; N]
+impl<const N: usize, T> DdsBorrowKeyHolder for [T; N]
 where
     [T; N]: serde::Serialize + for<'de> serde::Deserialize<'de>,
 {
@@ -373,7 +373,7 @@ where
     }
 }
 
-impl<const N: usize, T> DdsSetKeyFields for [T; N]
+impl<const N: usize, T> DdsOwningKeyHolder for [T; N]
 where
     [T; N]: serde::Serialize + for<'de> serde::Deserialize<'de>,
 {
@@ -488,7 +488,7 @@ where
 
 pub fn dds_serialize_key<T>(value: &T) -> DdsResult<DdsSerializedKey>
 where
-    T: DdsGetKey,
+    T: DdsBorrowKeyHolder,
 {
     let mut writer = vec![];
     let mut serializer = cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
@@ -500,7 +500,7 @@ where
 
 pub fn dds_serialize_key_to_bytes<T>(value: &T) -> DdsResult<DdsSerializedKey>
 where
-    T: DdsGetKey,
+    T: DdsBorrowKeyHolder,
 {
     let mut writer = vec![];
     writer

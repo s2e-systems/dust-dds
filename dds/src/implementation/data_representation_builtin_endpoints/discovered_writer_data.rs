@@ -5,7 +5,7 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     topic_definition::type_support::{
-        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, Representation,
+        DdsBorrowKeyHolder, DdsHasKey, DdsRepresentation, DdsOwningKeyHolder, Representation,
     },
 };
 
@@ -98,7 +98,7 @@ impl DdsRepresentation for DiscoveredWriterData {
     const REPRESENTATION: Representation = Representation::PlCdrLe;
 }
 
-impl DdsGetKey for DiscoveredWriterData {
+impl DdsBorrowKeyHolder for DiscoveredWriterData {
     type BorrowedKeyHolder<'a> = [u8; 16];
 
     fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
@@ -106,7 +106,7 @@ impl DdsGetKey for DiscoveredWriterData {
     }
 }
 
-impl DdsSetKeyFields for DiscoveredWriterData {
+impl DdsOwningKeyHolder for DiscoveredWriterData {
     type OwningKeyHolder = [u8; 16];
 }
 

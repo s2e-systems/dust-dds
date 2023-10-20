@@ -27,7 +27,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsGetKey, DdsHasKey, DdsRepresentation},
+        type_support::{DdsBorrowKeyHolder, DdsHasKey, DdsRepresentation},
     },
 };
 
@@ -103,7 +103,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey,
+        Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsBorrowKeyHolder,
     {
         let default_unicast_locator_list = self
             .participant_address
