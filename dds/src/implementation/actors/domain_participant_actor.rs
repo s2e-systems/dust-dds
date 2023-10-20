@@ -47,7 +47,7 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
-        listeners::{NoOpFooListener, NoOpFooListener},
+        listeners::NoOpFooListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,

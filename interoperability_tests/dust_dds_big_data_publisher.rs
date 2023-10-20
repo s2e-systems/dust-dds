@@ -2,7 +2,7 @@ use big_data::BigDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::{NoOpFooListener, NoOpFooListener},
+        listeners::NoOpFooListener,
         qos::{DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -22,7 +22,12 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant

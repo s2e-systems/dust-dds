@@ -1,7 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::{NoOpFooListener, NoOpFooListener},
+        listeners::NoOpFooListener,
         qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind, UserDataQosPolicy},
         status::{StatusKind, NO_STATUS},
@@ -40,7 +40,12 @@ fn default_participant_qos() {
         .unwrap();
 
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     domain_participant_factory
@@ -55,7 +60,12 @@ fn create_delete_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     assert!(domain_participant_factory
         .delete_participant(&participant)
@@ -67,7 +77,12 @@ fn not_allowed_to_delete_participant_with_entities() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
@@ -103,7 +118,12 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
@@ -144,7 +164,12 @@ fn all_objects_are_dropped() {
 
     {
         let participant = domain_participant_factory
-            .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+            .create_participant(
+                domain_id,
+                QosKind::Default,
+                NoOpFooListener::new(),
+                NO_STATUS,
+            )
             .unwrap();
 
         let topic = participant
@@ -236,7 +261,12 @@ fn objects_are_correctly_dropped() {
     let topic_name = "MyTopic";
     {
         let participant = domain_participant_factory
-            .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+            .create_participant(
+                domain_id,
+                QosKind::Default,
+                NoOpFooListener::new(),
+                NO_STATUS,
+            )
             .unwrap();
         {
             let topic = participant

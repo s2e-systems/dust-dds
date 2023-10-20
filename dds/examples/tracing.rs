@@ -2,7 +2,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::{NoOpFooListener, NoOpFooListener},
+        listeners::NoOpFooListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
@@ -36,7 +36,12 @@ fn main() {
     let domain_id = 0;
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant

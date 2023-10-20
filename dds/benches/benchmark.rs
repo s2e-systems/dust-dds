@@ -2,7 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::{NoOpFooListener, NoOpFooListener},
+        listeners::NoOpFooListener,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -26,7 +26,12 @@ struct KeyedData {
 pub fn best_effort_write_only(c: &mut Criterion) {
     let domain_id = 200;
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let topic = participant
         .create_topic(
@@ -70,7 +75,12 @@ pub fn best_effort_write_only(c: &mut Criterion) {
 pub fn best_effort_read_only(c: &mut Criterion) {
     let domain_id = 201;
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let topic = participant
         .create_topic(
@@ -132,7 +142,12 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     let domain_id = 202;
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let topic = participant
         .create_topic(

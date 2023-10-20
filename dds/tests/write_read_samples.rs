@@ -2,7 +2,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
-        listeners::{NoOpFooListener, NoOpFooListener},
+        listeners::NoOpFooListener,
         qos::{DataReaderQos, DataWriterQos, QosKind, TopicQos},
         qos_policy::{
             DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy,
@@ -50,7 +50,12 @@ fn large_data_should_be_fragmented() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
@@ -93,7 +98,12 @@ fn large_data_should_be_fragmented() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<LargeData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<LargeData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -135,7 +145,12 @@ fn large_data_should_be_fragmented_reliable() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
@@ -178,7 +193,12 @@ fn large_data_should_be_fragmented_reliable() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<LargeData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<LargeData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -215,11 +235,22 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -278,7 +309,12 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = reader.get_statuscondition().unwrap();
@@ -308,11 +344,22 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -371,7 +418,12 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = reader.get_statuscondition().unwrap();
@@ -403,11 +455,22 @@ fn samples_are_taken() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -440,7 +503,12 @@ fn samples_are_taken() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -492,11 +560,22 @@ fn read_only_unread_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -529,7 +608,12 @@ fn read_only_unread_samples() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -600,11 +684,22 @@ fn read_next_sample() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -637,7 +732,12 @@ fn read_next_sample() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -673,11 +773,22 @@ fn take_next_sample() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -710,7 +821,12 @@ fn take_next_sample() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -746,11 +862,22 @@ fn each_key_sample_is_read() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -783,7 +910,12 @@ fn each_key_sample_is_read() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -837,11 +969,22 @@ fn read_specific_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -874,7 +1017,12 @@ fn read_specific_instance() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -918,11 +1066,22 @@ fn read_next_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -955,7 +1114,12 @@ fn read_next_instance() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1029,11 +1193,22 @@ fn take_next_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1066,7 +1241,12 @@ fn take_next_instance() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1140,11 +1320,22 @@ fn take_specific_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1177,7 +1368,12 @@ fn take_specific_instance() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1221,11 +1417,22 @@ fn take_specific_unknown_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1258,7 +1465,12 @@ fn take_specific_unknown_instance() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1303,11 +1515,22 @@ fn write_read_disposed_samples() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1347,7 +1570,12 @@ fn write_read_disposed_samples() {
     };
 
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1390,11 +1618,22 @@ fn write_read_sample_view_state() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("OtherTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "OtherTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1427,7 +1666,12 @@ fn write_read_sample_view_state() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1477,7 +1721,12 @@ fn inconsistent_topic_status_condition() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let best_effort_topic_qos = TopicQos {
@@ -1540,11 +1789,22 @@ fn reader_with_minimum_time_separation_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1586,7 +1846,12 @@ fn reader_with_minimum_time_separation_qos() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1645,11 +1910,22 @@ fn transient_local_writer_reader_wait_for_historical_data() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1702,7 +1978,12 @@ fn transient_local_writer_reader_wait_for_historical_data() {
     };
 
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = reader.get_statuscondition().unwrap();
@@ -1732,11 +2013,22 @@ fn volatile_writer_reader_receives_only_new_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -1784,7 +2076,12 @@ fn volatile_writer_reader_receives_only_new_samples() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1818,7 +2115,12 @@ fn write_read_unkeyed_topic() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
@@ -1861,7 +2163,12 @@ fn write_read_unkeyed_topic() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<UserData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<UserData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1891,7 +2198,12 @@ fn data_reader_resource_limits() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let topic = participant
         .create_topic(
@@ -1946,7 +2258,12 @@ fn data_reader_resource_limits() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<UserData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<UserData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -1987,10 +2304,21 @@ fn data_reader_order_by_source_timestamp() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let topic = participant
-        .create_topic("MyTopic", "UserData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "UserData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -2036,7 +2364,12 @@ fn data_reader_order_by_source_timestamp() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -2079,11 +2412,22 @@ fn data_reader_publication_handle_sample_info() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "UserData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "UserData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -2118,7 +2462,12 @@ fn data_reader_publication_handle_sample_info() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<UserData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<UserData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -2152,11 +2501,22 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -2228,7 +2588,12 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .unwrap();
 
     let reader_new = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     // Wait for writer to match reader
@@ -2257,11 +2622,22 @@ fn write_read_unregistered_samples_are_also_disposed() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -2304,7 +2680,12 @@ fn write_read_unregistered_samples_are_also_disposed() {
     };
 
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -2346,11 +2727,22 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -2410,7 +2802,12 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
     };
 
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = reader.get_statuscondition().unwrap();
@@ -2460,10 +2857,21 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let topic = participant
-        .create_topic("TestTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "TestTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let subscriber = participant
         .create_subscriber(QosKind::Default, NoOpFooListener::new(), NO_STATUS)
@@ -2514,11 +2922,22 @@ fn reader_joining_after_writer_writes_many_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, NoOpFooListener::new(), NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -2558,7 +2977,12 @@ fn reader_joining_after_writer_writes_many_samples() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), NoOpFooListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpFooListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
