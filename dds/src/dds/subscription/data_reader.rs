@@ -1,7 +1,6 @@
 use crate::{
     implementation::{
         actors::{
-            any_data_reader_listener::AnyDataReaderListener,
             data_reader_actor::{self, DataReaderActor},
             data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
@@ -24,7 +23,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         type_support::{
-            dds_deserialize_from_bytes, dds_serialize_key, dds_serialize_to_bytes, DdsHasKey,
+            dds_deserialize_from_bytes, dds_serialize_key, dds_serialize_to_bytes,
             DdsRepresentation,
         },
     },
@@ -79,7 +78,7 @@ where
 {
     pub fn data(&'de self) -> Option<Foo> {
         match self.data.as_ref() {
-            Some(data) => dds_deserialize_from_bytes::<Foo>(data.as_ref()).ok(),
+            Some(data) => dds_deserialize_from_bytes::<Foo>(&mut data.as_ref()).ok(),
             None => None,
         }
     }
@@ -731,28 +730,21 @@ impl<Foo> DataReader<Foo> {
     }
 }
 
-impl<Foo> DataReader<Foo>
-where
-    Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + 'static + Send,
-{
+impl<Foo> DataReader<Foo> {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataReaderListener<Foo> + Send>>,
+        a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::set_listener::new(
-                a_listener
-                    .map::<Box<dyn AnyDataReaderListener + Send + 'static>, _>(|l| Box::new(l)),
-                mask.to_vec(),
-            ),
+            data_reader_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
         )
     }
 }

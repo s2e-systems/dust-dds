@@ -2,11 +2,10 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
-            data_writer_listener_actor::DataWriterListenerActor,
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
         },
-        utils::actor::{spawn_actor, ActorAddress},
+        utils::actor::ActorAddress,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -76,16 +75,16 @@ impl Publisher {
     /// 2. Retrieve the default [`DataWriterQos`] qos by means of the [`Publisher::get_default_datawriter_qos`] operation.
     /// 3. Combine those two qos policies using the [`Publisher::copy_from_topic_qos`] and selectively modify policies as desired and
     /// use the resulting [`DataWriterQos`] to construct the [`DataWriter`].
-    #[tracing::instrument(skip(self, a_topic, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub fn create_datawriter<Foo>(
         &self,
         a_topic: &Topic,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<Foo> + Send>>,
+        a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
-        Foo: DdsHasKey + DdsGetKey + serde::Serialize + Send + 'static,
+        Foo: DdsHasKey + DdsGetKey + serde::Serialize,
     {
         let default_unicast_locator_list = self
             .participant_address
@@ -103,7 +102,7 @@ impl Publisher {
                 domain_participant_actor::data_max_size_serialized::new(),
             )?;
 
-        let listener = a_listener.map(|l| spawn_actor(DataWriterListenerActor::new(Box::new(l))));
+        let listener = Box::new(a_listener);
         let data_writer_address = self.publisher_address.send_mail_and_await_reply_blocking(
             publisher_actor::create_datawriter::new(
                 a_topic.get_type_name()?,
@@ -345,14 +344,14 @@ impl Publisher {
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, a_listener), fields(with_listener=a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn PublisherListener + Send + 'static>>,
+        a_listener: impl PublisherListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.publisher_address.send_mail_and_await_reply_blocking(
-            publisher_actor::set_listener::new(a_listener, mask.to_vec()),
+            publisher_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
         )
     }
 

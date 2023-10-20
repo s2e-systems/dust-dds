@@ -5,24 +5,30 @@ use crate::infrastructure::status::{
 
 use super::data_writer::DataWriter;
 
-pub trait DataWriterListener<Foo> {
-    fn on_liveliness_lost(&mut self, _the_writer: &DataWriter<Foo>, _status: LivelinessLostStatus) {
+pub trait DataWriterListener {
+    type Foo;
+
+    fn on_liveliness_lost(
+        &mut self,
+        _the_writer: &DataWriter<Self::Foo>,
+        _status: LivelinessLostStatus,
+    ) {
     }
     fn on_offered_deadline_missed(
         &mut self,
-        _the_writer: &DataWriter<Foo>,
+        _the_writer: &DataWriter<Self::Foo>,
         _status: OfferedDeadlineMissedStatus,
     ) {
     }
     fn on_offered_incompatible_qos(
         &mut self,
-        _the_writer: &DataWriter<Foo>,
+        _the_writer: &DataWriter<Self::Foo>,
         _status: OfferedIncompatibleQosStatus,
     ) {
     }
     fn on_publication_matched(
         &mut self,
-        _the_writer: &DataWriter<Foo>,
+        _the_writer: &DataWriter<Self::Foo>,
         _status: PublicationMatchedStatus,
     ) {
     }

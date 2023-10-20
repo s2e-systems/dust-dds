@@ -219,7 +219,7 @@ pub struct DataWriterActor {
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<Actor<DataWriterListenerActor>>,
+    listener: Actor<DataWriterListenerActor>,
     status_kind: Vec<StatusKind>,
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
@@ -231,11 +231,12 @@ impl DataWriterActor {
         rtps_writer: RtpsWriter,
         type_name: String,
         topic_name: String,
-        listener: Option<Actor<DataWriterListenerActor>>,
+        listener: Box<dyn AnyDataWriterListener + Send>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
         let status_condition = spawn_actor(StatusConditionActor::default());
+        let listener = spawn_actor(DataWriterListenerActor::new(listener));
         DataWriterActor {
             rtps_writer,
             reader_locators: Vec::new(),
@@ -810,10 +811,10 @@ impl DataWriterActor {
 
     async fn set_listener(
         &mut self,
-        listener: Option<Box<dyn AnyDataWriterListener + Send + 'static>>,
+        listener: Box<dyn AnyDataWriterListener + Send>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = listener.map(|l| spawn_actor(DataWriterListenerActor::new(l)));
+        self.listener = spawn_actor(DataWriterListenerActor::new(listener));
         self.status_kind = status_kind;
     }
 }
@@ -1005,11 +1006,9 @@ impl DataWriterActor {
                 StatusKind::PublicationMatched,
             ))
             .await;
-        if self.listener.is_some() && self.status_kind.contains(&StatusKind::PublicationMatched) {
+        if self.status_kind.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
             self.listener
-                .as_ref()
-                .unwrap()
                 .send_mail(
                     data_writer_listener_actor::trigger_on_publication_matched::new(
                         data_writer_address,
@@ -1067,16 +1066,13 @@ impl DataWriterActor {
                 StatusKind::OfferedIncompatibleQos,
             ))
             .await;
-        if self.listener.is_some()
-            && self
-                .status_kind
-                .contains(&StatusKind::OfferedIncompatibleQos)
+        if self
+            .status_kind
+            .contains(&StatusKind::OfferedIncompatibleQos)
         {
             let status = self.get_offered_incompatible_qos_status().await;
 
             self.listener
-                .as_ref()
-                .unwrap()
                 .send_mail(
                     data_writer_listener_actor::trigger_on_offered_incompatible_qos::new(
                         data_writer_address,

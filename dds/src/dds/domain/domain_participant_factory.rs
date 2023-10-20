@@ -5,7 +5,6 @@ use crate::{
         actors::{
             domain_participant_actor::{self, DomainParticipantActor},
             domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
-            domain_participant_listener_actor::DomainParticipantListenerActor,
         },
         configuration::DustDdsConfiguration,
         rtps::{
@@ -63,12 +62,12 @@ impl DomainParticipantFactory {
     /// with the default DomainParticipant QoS set in the factory. The use of this value is equivalent to the application obtaining the
     /// default DomainParticipant QoS by means of the operation [`DomainParticipantFactory::get_default_participant_qos`] and using the resulting
     /// QoS to create the [`DomainParticipant`].
-    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn create_participant(
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send>>,
+        a_listener: impl DomainParticipantListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         let domain_participant_qos = match qos {
@@ -170,7 +169,7 @@ impl DomainParticipantFactory {
         );
         let participant_guid = rtps_participant.guid();
 
-        let listener = a_listener.map(|l| spawn_actor(DomainParticipantListenerActor::new(l)));
+        let listener = Box::new(a_listener);
         let status_kind = mask.to_vec();
 
         let domain_participant = DomainParticipantActor::new(

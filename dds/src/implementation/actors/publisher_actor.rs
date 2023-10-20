@@ -6,7 +6,6 @@ use tracing::warn;
 
 use crate::{
     implementation::{
-        actors::data_writer_listener_actor::DataWriterListenerActor,
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
             endpoint::RtpsEndpoint,
@@ -33,6 +32,7 @@ use crate::{
 };
 
 use super::{
+    any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
     domain_participant_actor::DomainParticipantActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
@@ -46,7 +46,7 @@ pub struct PublisherActor {
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
-    listener: Option<Actor<PublisherListenerActor>>,
+    listener: Actor<PublisherListenerActor>,
     status_kind: Vec<StatusKind>,
 }
 
@@ -54,7 +54,7 @@ impl PublisherActor {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        listener: Option<Actor<PublisherListenerActor>>,
+        listener: Box<dyn PublisherListener + Send>,
         status_kind: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -64,7 +64,7 @@ impl PublisherActor {
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
-            listener,
+            listener: spawn_actor(PublisherListenerActor::new(listener)),
             status_kind,
         }
     }
@@ -80,7 +80,7 @@ impl PublisherActor {
         has_key: bool,
         data_max_size_serialized: usize,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Actor<DataWriterListenerActor>>,
+        a_listener: Box<dyn AnyDataWriterListener + Send>,
         mask: Vec<StatusKind>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
@@ -217,8 +217,8 @@ impl PublisherActor {
         self.status_kind.clone()
     }
 
-    async fn get_listener(&self) -> Option<ActorAddress<PublisherListenerActor>> {
-        self.listener.as_ref().map(|l| l.address())
+    async fn get_listener(&self) -> ActorAddress<PublisherListenerActor> {
+        self.listener.address()
     }
 
     async fn get_qos(&self) -> PublisherQos {
@@ -284,7 +284,7 @@ impl PublisherActor {
                 let data_writer_address = data_writer.address();
                 let publisher_publication_matched_listener =
                     if self.status_kind.contains(&StatusKind::PublicationMatched) {
-                        self.listener.as_ref().map(|l| l.address())
+                        Some(self.listener.address())
                     } else {
                         None
                     };
@@ -292,7 +292,7 @@ impl PublisherActor {
                     .status_kind
                     .contains(&StatusKind::OfferedIncompatibleQos)
                 {
-                    self.listener.as_ref().map(|l| l.address())
+                    Some(self.listener.address())
                 } else {
                     None
                 };
@@ -328,7 +328,7 @@ impl PublisherActor {
             let data_writer_address = data_writer.address();
             let publisher_publication_matched_listener =
                 if self.status_kind.contains(&StatusKind::PublicationMatched) {
-                    self.listener.as_ref().map(|l| l.address())
+                    Some(self.listener.address())
                 } else {
                     None
                 };
@@ -347,10 +347,10 @@ impl PublisherActor {
 
     async fn set_listener(
         &mut self,
-        listener: Option<Box<dyn PublisherListener + Send + 'static>>,
+        listener: Box<dyn PublisherListener + Send>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = listener.map(|l| spawn_actor(PublisherListenerActor::new(l)));
+        self.listener = spawn_actor(PublisherListenerActor::new(listener));
         self.status_kind = status_kind;
     }
 }

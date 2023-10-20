@@ -1,6 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listeners::NoOpListener,
         qos::{DataWriterQos, QosKind},
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
@@ -19,11 +20,16 @@ fn get_publisher_parent_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let publisher_parent_participant = publisher.get_participant().unwrap();
@@ -39,7 +45,12 @@ fn default_data_writer_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
@@ -47,13 +58,13 @@ fn default_data_writer_qos() {
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
-            None,
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let user_data = vec![1, 2, 3];
@@ -69,7 +80,7 @@ fn default_data_writer_qos() {
         .unwrap();
 
     let writer = publisher
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -88,7 +99,12 @@ fn different_writers_have_different_instance_handles() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
@@ -96,30 +112,30 @@ fn different_writers_have_different_instance_handles() {
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
-            None,
+            NoOpListener::new(),
             NO_STATUS,
         )
         .unwrap();
 
     let publisher1 = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let publisher2 = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let writer1_1 = publisher1
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), &[])
         .unwrap();
     let writer1_2 = publisher1
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), &[])
         .unwrap();
     let writer2_1 = publisher2
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), &[])
         .unwrap();
     let writer2_2 = publisher2
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, &[])
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), &[])
         .unwrap();
 
     assert_ne!(

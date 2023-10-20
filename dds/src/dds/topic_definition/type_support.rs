@@ -264,7 +264,7 @@ where
     Ok(writer)
 }
 
-pub fn dds_deserialize_from_bytes<'de, T>(mut data: &'de [u8]) -> DdsResult<T>
+pub fn dds_deserialize_from_bytes<'de, T>(data: &mut &'de [u8]) -> DdsResult<T>
 where
     T: serde::Deserialize<'de> + DdsRepresentation,
 {

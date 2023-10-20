@@ -2,6 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listeners::NoOpListener,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -25,22 +26,33 @@ struct KeyedData {
 pub fn best_effort_write_only(c: &mut Criterion) {
     let domain_id = 200;
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let _reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -63,22 +75,33 @@ pub fn best_effort_write_only(c: &mut Criterion) {
 pub fn best_effort_read_only(c: &mut Criterion) {
     let domain_id = 201;
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let topic = participant
-        .create_topic("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -106,7 +129,8 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl DataReaderListener<KeyedData> for Listener {
+    impl DataReaderListener for Listener {
+        type Foo = KeyedData;
         fn on_data_available(&mut self, the_reader: &DataReader<KeyedData>) {
             the_reader
                 .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -118,32 +142,43 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     let domain_id = 202;
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let topic = participant
-        .create_topic("TestTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .create_topic(
+            "TestTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
 
-    let listener = Box::new(Listener { sender });
+    let listener = Listener { sender };
     let reader = subscriber
         .create_datareader(
             &topic,
             QosKind::Default,
-            Some(listener),
+            listener,
             &[StatusKind::DataAvailable],
         )
         .unwrap();
     let reader_cond = reader.get_statuscondition().unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer_cond = writer.get_statuscondition().unwrap();
     writer_cond

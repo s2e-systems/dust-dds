@@ -4,7 +4,6 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         actors::{
-            any_data_writer_listener::AnyDataWriterListener,
             data_writer_actor::{self, DataWriterActor},
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
@@ -642,29 +641,21 @@ impl<Foo> DataWriter<Foo> {
         self.writer_address
             .send_mail_and_await_reply_blocking(data_writer_actor::get_instance_handle::new())
     }
-}
 
-impl<Foo> DataWriter<Foo>
-where
-    Foo: DdsHasKey + serde::Serialize + 'static,
-{
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, a_listener), fields(with_listener = a_listener.is_some()))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataWriterListener<Foo> + Send>>,
+        a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::set_listener::new(
-                a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|l| Box::new(l)),
-                mask.to_vec(),
-            ),
+            data_writer_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
         )
     }
 }
