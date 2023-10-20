@@ -22,7 +22,7 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::{dds_serialize_key, DdsGetKeyFromFoo, DdsType},
+    topic_definition::type_support::{DdsGetKeyFromFoo, DdsType},
 };
 
 mod utils;
@@ -903,19 +903,19 @@ fn each_key_sample_is_read() {
     assert_eq!(samples[0].data().unwrap(), data1);
     assert_eq!(
         samples[0].sample_info().instance_handle,
-        dds_serialize_key(&data1).unwrap().into(),
+        data1.get_key_from_foo().unwrap().into(),
     );
 
     assert_eq!(samples[1].data().unwrap(), data2);
     assert_eq!(
         samples[1].sample_info().instance_handle,
-        dds_serialize_key(&data2).unwrap().into(),
+        data2.get_key_from_foo().unwrap().into(),
     );
 
     assert_eq!(samples[2].data().unwrap(), data3);
     assert_eq!(
         samples[2].sample_info().instance_handle,
-        dds_serialize_key(&data3).unwrap().into(),
+        data3.get_key_from_foo().unwrap().into(),
     );
 }
 
@@ -1000,7 +1000,7 @@ fn read_specific_instance() {
     let samples = reader
         .read_instance(
             3,
-            dds_serialize_key(&data1).unwrap().into(),
+            data1.get_key_from_foo().unwrap().into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1336,7 +1336,7 @@ fn take_specific_instance() {
     let samples = reader
         .take_instance(
             3,
-            dds_serialize_key(&data1).unwrap().into(),
+            data1.get_key_from_foo().unwrap().into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
