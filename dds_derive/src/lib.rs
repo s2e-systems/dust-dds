@@ -114,7 +114,7 @@ pub fn derive_dds_set_key_fields(input: TokenStream) -> TokenStream {
                 // Create the new structs and implementation inside a const to avoid name conflicts
                 quote! {
                     const _ : () = {
-                        #[derive(serde::Deserialize)]
+                        #[derive(serde::Serialize, serde::Deserialize)]
                         pub struct OwningKeyHolder {
                             #owning_key_holder_fields
                         }

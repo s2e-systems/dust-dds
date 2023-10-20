@@ -22,10 +22,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{
-            dds_deserialize_from_bytes, dds_serialize_key, dds_serialize_to_bytes,
-            DdsRepresentation,
-        },
+        type_support::{dds_serialize_key, dds_serialize_to_bytes, DdsDeserialize},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -74,11 +71,11 @@ impl<Foo> Sample<Foo> {
 
 impl<'de, Foo> Sample<Foo>
 where
-    Foo: serde::Deserialize<'de> + DdsRepresentation + 'de,
+    Foo: DdsDeserialize<'de>,
 {
     pub fn data(&'de self) -> Option<Foo> {
         match self.data.as_ref() {
-            Some(data) => dds_deserialize_from_bytes::<Foo>(&mut data.as_ref()).ok(),
+            Some(data) => Foo::deserialize_data(&mut data.as_ref()).ok(),
             None => None,
         }
     }
@@ -728,9 +725,7 @@ impl<Foo> DataReader<Foo> {
         self.reader_address
             .send_mail_and_await_reply_blocking(data_reader_actor::get_instance_handle::new())
     }
-}
 
-impl<Foo> DataReader<Foo> {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.

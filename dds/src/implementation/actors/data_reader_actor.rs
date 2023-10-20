@@ -91,7 +91,7 @@ where
 pub struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<DdsSerializedKey>);
 
 impl InstanceHandleBuilder {
-    pub fn new(instance_handle_fn: for<'a> fn(&'a [u8]) -> DdsResult<DdsSerializedKey>) -> Self {
+    pub fn new(instance_handle_fn: fn(&[u8]) -> DdsResult<DdsSerializedKey>) -> Self {
         Self(instance_handle_fn)
     }
 
