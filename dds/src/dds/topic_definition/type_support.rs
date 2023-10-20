@@ -10,6 +10,34 @@ use crate::{
 
 pub use dust_dds_derive::{DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, DdsType};
 
+pub trait DdsSerialize {
+    fn serialize_data(&self, writer: impl std::io::Write) -> DdsResult<()>;
+}
+
+pub trait DdsDeserialize<'de>: Sized {
+    fn deserialize_data(serialized_data: &mut &'de [u8]) -> DdsResult<Self>;
+}
+
+pub trait DdsSerializedKeyFields {
+    fn serialize_key_fields(&self, writer: impl std::io::Write) -> DdsResult<()>;
+}
+
+pub trait DdsGetKeyFromFoo {
+    fn get_key_from(&self) -> DdsResult<Vec<u8>>;
+}
+
+pub trait DdsGetKeyFromSerializedData {
+    fn get_key_from_serialized_data(serialized_data: &[u8]) -> DdsResult<Vec<u8>>;
+}
+
+pub trait DdsGetKeyFromSerializedKeyFields {
+    fn get_key_from_serialized_key_fields(serialized_key_fields: &[u8]) -> DdsResult<Vec<u8>>;
+}
+
+pub trait DdsHasKey {
+    const HAS_KEY: bool;
+}
+
 pub enum Representation {
     CdrLe,
     CdrBe,
@@ -49,10 +77,6 @@ impl AsRef<[u8]> for DdsSerializedKey {
 }
 
 pub trait DdsType: DdsRepresentation + DdsHasKey + DdsGetKey + DdsSetKeyFields {}
-
-pub trait DdsHasKey {
-    const HAS_KEY: bool;
-}
 
 pub trait DdsRepresentation {
     const REPRESENTATION: Representation;
