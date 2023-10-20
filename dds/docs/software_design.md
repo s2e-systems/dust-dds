@@ -95,7 +95,7 @@ The DDS standard allows the user to communicate any data type of its choice so l
 6. *Get key from serialized key fields* - This is the operation that allows retrieving the key from the serialized Foo key fields. This is used to identify the instance a specific Data submessage with only key (e.g. for unregister or dispose) refers to when received on the Data Reader side. This is represented by the `DdsGetKeyFromSerializedKeyFields` trait.
 7. *Has key* - This is the operation that allows determining whether a type is Keyed or not. This is represented by the `DdsHasKey` trait.
 
-Any type Foo implementing these traits can be used to create a DataWriter<Foo> and DataReader<Foo> and have its information communicated using the DustDDS.
+Any type Foo implementing these traits can be used to create a DataWriter<Foo> and DataReader<Foo> and have its information communicated using DustDDS.
 
 ### Listeners
 
