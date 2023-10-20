@@ -73,10 +73,10 @@ impl<'de, Foo> Sample<Foo>
 where
     Foo: DdsDeserialize<'de>,
 {
-    pub fn data(&'de self) -> Option<Foo> {
+    pub fn data(&'de self) -> DdsResult<Foo> {
         match self.data.as_ref() {
-            Some(data) => Foo::deserialize_data(&mut data.as_ref()).ok(),
-            None => None,
+            Some(data) => Ok(Foo::deserialize_data(&mut data.as_ref())?),
+            None => Err(DdsError::NoData),
         }
     }
 }

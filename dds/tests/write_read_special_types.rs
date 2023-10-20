@@ -1,4 +1,6 @@
 mod utils;
+use std::borrow::Cow;
+
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -21,7 +23,8 @@ fn foo_with_lifetime() {
     struct BorrowedData<'a> {
         #[key]
         id: u8,
-        value: &'a [u8],
+        #[serde(borrow)]
+        value: Cow<'a, [u8]>,
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -70,7 +73,7 @@ fn foo_with_lifetime() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<KeyedData>(
+        .create_datareader::<BorrowedData>(
             &topic,
             QosKind::Specific(reader_qos),
             NoOpListener::new(),
@@ -88,7 +91,11 @@ fn foo_with_lifetime() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let data = KeyedData { id: 1, value: 1 };
+    let data_vec = vec![1, 2, 3, 4];
+    let data = BorrowedData {
+        id: 1,
+        value: Cow::from(&data_vec),
+    };
 
     writer.write(&data, None).unwrap();
 
@@ -100,6 +107,6 @@ fn foo_with_lifetime() {
         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    assert_eq!(samples.len(), 3);
-    assert_eq!(samples[0].data(), Some(data1));
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data().unwrap(), data);
 }

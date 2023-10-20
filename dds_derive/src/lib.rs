@@ -43,7 +43,7 @@ pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
                 for key_field in key_fields {
                     let field_ident = &key_field.ident;
                     let field_type = &key_field.ty;
-                    borrowed_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsBorrowKeyHolder>::BorrowedKeyHolder<'a>,});
+                    borrowed_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsBorrowKeyHolder>::BorrowedKeyHolder<'__local>,});
                     borrowed_key_holder_field_assignment.extend(quote!{#field_ident: self.#field_ident.get_key(),});
 
                 }
@@ -53,12 +53,12 @@ pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
                 quote! {
                     const _ : () = {
                         #[derive(serde::Serialize)]
-                        pub struct BorrowedKeyHolder<'a> {
+                        pub struct BorrowedKeyHolder<'__local> {
                             #borrowed_key_holder_fields
                         }
 
                         impl #impl_generics dust_dds::topic_definition::type_support::DdsBorrowKeyHolder for #ident #type_generics #where_clause {
-                            type BorrowedKeyHolder<'a> = BorrowedKeyHolder<'a>;
+                            type BorrowedKeyHolder<'__local> = BorrowedKeyHolder<'__local> where Self: '__local;
 
                             fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
                                 BorrowedKeyHolder {
@@ -72,7 +72,7 @@ pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
             true => {
                 quote! {
                     impl #impl_generics dust_dds::topic_definition::type_support::DdsBorrowKeyHolder for #ident #type_generics #where_clause {
-                        type BorrowedKeyHolder<'a> = ();
+                        type BorrowedKeyHolder<'__local> = ();
 
                         fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {}
                     }
