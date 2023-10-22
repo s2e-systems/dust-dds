@@ -126,6 +126,8 @@ pub trait DdsGetKeyFromSerializedKeyFields {
 /// An example of a typical usage of derive is the following:
 ///
 /// ```rust
+///     use dust_dds::topic_definition::type_support::DdsType;
+///
 ///     #[derive(serde::Serialize, serde::Deserialize, DdsType)]
 ///     struct KeyedData {
 ///         #[key]
@@ -137,13 +139,16 @@ pub trait DdsGetKeyFromSerializedKeyFields {
 /// It is also possible to derive structs with a lifetime:
 ///
 /// ```rust
-/// #[derive(serde::Serialize, serde::Deserialize, DdsType)]
-/// struct BorrowedData<'a> {
-///     #[key]
-///     id: u8,
-///     #[serde(borrow)]
-///     value: Cow<'a, [u8]>,
-/// }
+///     use dust_dds::topic_definition::type_support::DdsType;
+///     use std::borrow::Cow;
+///
+///     #[derive(serde::Serialize, serde::Deserialize, DdsType)]
+///     struct BorrowedData<'a> {
+///         #[key]
+///         id: u8,
+///         #[serde(borrow)]
+///         value: Cow<'a, [u8]>,
+///     }
 /// ```
 ///
 pub trait DdsType: DdsRepresentation + DdsHasKey + DdsBorrowKeyHolder + DdsOwningKeyHolder {}
@@ -292,6 +297,8 @@ where
 /// To identify different instances of a type a key is used. This trait allows defining a key holder struct
 /// that can be related the underlying DdsType. For example, this type derivation:
 /// ```rust
+///     use dust_dds::topic_definition::type_support::DdsType;
+///
 ///     #[derive(serde::Serialize, serde::Deserialize, DdsType)]
 ///     struct KeyedData {
 ///         #[key]
@@ -325,6 +332,8 @@ pub trait DdsBorrowKeyHolder {
 /// To identify different instances of a type a key is used. This trait allows defining a key holder struct
 /// that can be related the underlying DdsType. For example, this type derivation:
 /// ```rust
+///     use dust_dds::topic_definition::type_support::DdsType;
+///
 ///     #[derive(serde::Serialize, serde::Deserialize, DdsType)]
 ///     struct KeyedData {
 ///         #[key]
