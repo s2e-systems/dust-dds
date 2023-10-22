@@ -937,7 +937,7 @@ impl DomainParticipant {
                                         data_writer_actor::write_w_timestamp::new(
                                             serialized_data,
                                             spdp_discovered_participant_data.get_key_from_foo()
-                                                .unwrap().into(),
+                                                .unwrap(),
                                             None,
                                             timestamp,
                                         ),

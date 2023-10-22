@@ -239,7 +239,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::lookup_instance::new(instance.get_key_from_foo()?.into()),
+            data_writer_actor::lookup_instance::new(instance.get_key_from_foo()?),
         )?
     }
 
@@ -304,7 +304,7 @@ where
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::write_w_timestamp::new(
                 serialized_data,
-                data.get_key_from_foo()?.into(),
+                data.get_key_from_foo()?,
                 handle,
                 timestamp,
             ),

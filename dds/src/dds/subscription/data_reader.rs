@@ -763,7 +763,7 @@ fn announce_data_reader(
         if dw.send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
             == Ok("DiscoveredReaderData".to_string())
         {
-            let instance_serialized_key = discovered_reader_data.get_key_from_foo()?.into();
+            let instance_serialized_key = discovered_reader_data.get_key_from_foo()?;
             dw.send_mail_and_await_reply_blocking(data_writer_actor::write_w_timestamp::new(
                 serialized_data,
                 instance_serialized_key,
