@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
-use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Field, FnArg, ItemImpl};
+use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Field, FnArg, Index, ItemImpl};
 
 #[proc_macro_derive(DdsHasKey, attributes(key))]
 pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
@@ -155,6 +155,46 @@ pub fn derive_dds_representation(input: TokenStream) -> TokenStream {
         }
     }else {
         quote_spanned! {input.span() => compile_error!("DdsRepresentation can only be derived for structs");}
+    }.into()
+}
+
+#[proc_macro_derive(NewDdsSerialize)]
+pub fn derive_new_dds_serialize(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    let mut field_serialization = quote!();
+
+    if let syn::Data::Struct(struct_data) = &input.data {
+        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+        let ident = input.ident;
+
+        let mut tuple_field_counter = 0;
+        for field in struct_data.fields.iter() {
+            match &field.ident {
+                Some(field_name) => {
+                    field_serialization.extend(quote!{self.#field_name.serialize(serializer);});
+                },
+                None => {
+                    let index = Index::from(tuple_field_counter);
+                    field_serialization.extend(
+                        quote!{self.#index.serialize(serializer)?;}
+                    );
+                    tuple_field_counter+=1;
+                },
+            }
+        }
+
+        quote! {
+            const _ : () = {
+                impl #impl_generics dust_dds::topic_definition::type_support::NewDdsSerialize for #ident #type_generics #where_clause {
+                    fn serialize(&self, serializer: &mut impl dust_dds::topic_definition::type_support::DdsSerializer) -> dust_dds::infrastructure::error::DdsResult<()> {
+                        #field_serialization
+                        Ok(())
+                    }
+                }
+            };
+        }
+    }else {
+        quote_spanned! {input.span() => compile_error!("NewDdsSerialize can only be derived for structs");}
     }.into()
 }
 

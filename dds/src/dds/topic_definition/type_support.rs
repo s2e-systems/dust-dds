@@ -30,7 +30,7 @@ use crate::{
 };
 
 pub use dust_dds_derive::{
-    DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, DdsType,
+    DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, DdsType, NewDdsSerialize,
 };
 
 /// The [`DdsSerializedKey`] represents the key associated with a specific instance of
