@@ -7,6 +7,7 @@ use crate::{
             data_writer_actor::{self, DataWriterActor},
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
+            topic_actor::{self, TopicActor},
         },
         utils::actor::ActorAddress,
     },
@@ -60,6 +61,29 @@ impl<Foo> DataWriter<Foo> {
             participant_address,
             phantom: PhantomData,
         }
+    }
+
+    fn topic_address(&self) -> ActorAddress<TopicActor> {
+        let user_defined_topic_list = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(
+                domain_participant_actor::get_user_defined_topic_list::new(),
+            )
+            .expect("should never fail");
+        for topic in user_defined_topic_list {
+            if topic.send_mail_and_await_reply_blocking(topic_actor::get_type_name::new())
+                == self
+                    .writer_address
+                    .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
+                && topic.send_mail_and_await_reply_blocking(topic_actor::get_name::new())
+                    == self
+                        .writer_address
+                        .send_mail_and_await_reply_blocking(data_writer_actor::get_topic_name::new())
+            {
+                return topic;
+            }
+        }
+        panic!("Should always exist");
     }
 }
 
@@ -442,7 +466,10 @@ impl<Foo> DataWriter<Foo> {
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     #[tracing::instrument(skip(self))]
     pub fn get_topic(&self) -> DdsResult<Topic> {
-        todo!()
+        Ok(Topic::new(
+            self.topic_address(),
+            self.participant_address.clone(),
+        ))
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.

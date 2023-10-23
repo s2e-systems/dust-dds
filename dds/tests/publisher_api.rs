@@ -20,12 +20,7 @@ fn get_publisher_parent_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -45,12 +40,7 @@ fn default_data_writer_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -99,12 +89,7 @@ fn different_writers_have_different_instance_handles() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -150,4 +135,33 @@ fn different_writers_have_different_instance_handles() {
         writer2_1.get_instance_handle(),
         writer2_2.get_instance_handle()
     );
+}
+
+#[test]
+fn data_writer_get_topic_should_return_same_topic_as_used_for_creation() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic(
+            "default_data_writer_qos",
+            "UserType",
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    let writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    assert!(writer.get_topic().unwrap() == topic);
 }
