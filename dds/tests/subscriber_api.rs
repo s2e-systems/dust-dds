@@ -153,7 +153,7 @@ fn different_readers_have_different_instance_handles() {
 }
 
 #[test]
-fn data_reader_get_topicdescription() {
+fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creation() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
