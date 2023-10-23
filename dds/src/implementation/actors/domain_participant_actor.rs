@@ -67,7 +67,9 @@ use crate::{
     },
     topic_definition::{
         topic_listener::TopicListener,
-        type_support::{dds_deserialize_from_bytes, dds_serialize_key, dds_serialize_to_bytes},
+        type_support::{
+            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsSerialize,
+        },
     },
     {
         builtin_topics::TopicBuiltinTopicData,
@@ -85,7 +87,7 @@ use std::{
 };
 
 use super::{
-    data_reader_actor::{self, deserialize_data_to_key, InstanceHandleBuilder},
+    data_reader_actor::{self, InstanceHandleBuilder},
     data_writer_actor::{self, DataWriterActor},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     publisher_actor::{self, PublisherActor},
@@ -228,9 +230,7 @@ impl DomainParticipantActor {
             spdp_reader_qos,
             Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
-            InstanceHandleBuilder::new(|bytes| {
-                deserialize_data_to_key::<SpdpDiscoveredParticipantData>(bytes)
-            }),
+            InstanceHandleBuilder::new(SpdpDiscoveredParticipantData::get_key_from_serialized_data),
         ));
 
         let sedp_reader_qos = DataReaderQos {
@@ -256,9 +256,7 @@ impl DomainParticipantActor {
             sedp_reader_qos.clone(),
             Box::new(NoOpListener::<DiscoveredTopicData>::new()),
             vec![],
-            InstanceHandleBuilder::new(|bytes| {
-                deserialize_data_to_key::<DiscoveredTopicData>(bytes)
-            }),
+            InstanceHandleBuilder::new(DiscoveredTopicData::get_key_from_serialized_data),
         ));
 
         let sedp_builtin_publications_reader_guid =
@@ -270,9 +268,7 @@ impl DomainParticipantActor {
             sedp_reader_qos.clone(),
             Box::new(NoOpListener::<DiscoveredWriterData>::new()),
             vec![],
-            InstanceHandleBuilder::new(|bytes| {
-                deserialize_data_to_key::<DiscoveredWriterData>(bytes)
-            }),
+            InstanceHandleBuilder::new(DiscoveredWriterData::get_key_from_serialized_data),
         ));
 
         let sedp_builtin_subscriptions_reader_guid =
@@ -284,9 +280,7 @@ impl DomainParticipantActor {
             sedp_reader_qos,
             Box::new(NoOpListener::<DiscoveredReaderData>::new()),
             vec![],
-            InstanceHandleBuilder::new(|bytes| {
-                deserialize_data_to_key::<DiscoveredReaderData>(bytes)
-            }),
+            InstanceHandleBuilder::new(DiscoveredReaderData::get_key_from_serialized_data),
         ));
 
         let builtin_subscriber = spawn_actor(SubscriberActor::new(
@@ -1024,9 +1018,12 @@ impl DomainParticipantActor {
             .await
         {
             let timestamp = self.get_current_time().await;
-            let serialized_data = dds_serialize_to_bytes(&discovered_writer_data)
+            let mut serialized_data = Vec::new();
+            discovered_writer_data
+                .serialize_data(&mut serialized_data)
                 .expect("Shouldn't fail to serialize builtin type");
-            let instance_serialized_key = dds_serialize_key(&discovered_writer_data)
+            let instance_serialized_key = discovered_writer_data
+                .get_key_from_foo()
                 .expect("Shouldn't fail to serialize key of builtin type");
             sedp_publications_announcer
                 .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
@@ -1134,7 +1131,7 @@ impl DomainParticipantActor {
                 .expect("Can not fail to send mail to builtin reader")
             {
                 for (spdp_data_sample, _) in spdp_data_sample_list {
-                    match dds_deserialize_from_bytes::<SpdpDiscoveredParticipantData>(
+                    match SpdpDiscoveredParticipantData::deserialize_data(
                         &mut spdp_data_sample.expect("Should contain data").as_ref(),
                     ) {
                         Ok(discovered_participant_data) => {
@@ -1504,7 +1501,7 @@ impl DomainParticipantActor {
                 {
                     match discovered_writer_sample_info.instance_state {
                         InstanceStateKind::Alive => {
-                            match dds_deserialize_from_bytes::<DiscoveredWriterData>(
+                            match DiscoveredWriterData::deserialize_data(
                                 &mut discovered_writer_data
                                     .expect("Should contain data")
                                     .as_ref(),
@@ -1698,7 +1695,7 @@ impl DomainParticipantActor {
                 {
                     match discovered_reader_sample_info.instance_state {
                         InstanceStateKind::Alive => {
-                            match dds_deserialize_from_bytes::<DiscoveredReaderData>(
+                            match DiscoveredReaderData::deserialize_data(
                                 &mut discovered_reader_data
                                     .expect("Should contain data")
                                     .as_ref(),
@@ -1913,7 +1910,7 @@ impl DomainParticipantActor {
                 {
                     match discovered_topic_sample_info.instance_state {
                         InstanceStateKind::Alive => {
-                            match dds_deserialize_from_bytes::<DiscoveredTopicData>(
+                            match DiscoveredTopicData::deserialize_data(
                                 &mut discovered_topic_data.expect("Should contain data").as_ref(),
                             ) {
                                 Ok(discovered_topic_data) => {

@@ -23,7 +23,7 @@ pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
     .into()
 }
 
-#[proc_macro_derive(DdsGetKey, attributes(key))]
+#[proc_macro_derive(DdsBorrowKeyHolder, attributes(key))]
 pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
 
@@ -43,7 +43,7 @@ pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
                 for key_field in key_fields {
                     let field_ident = &key_field.ident;
                     let field_type = &key_field.ty;
-                    borrowed_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsGetKey>::BorrowedKeyHolder<'a>,});
+                    borrowed_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsBorrowKeyHolder>::BorrowedKeyHolder<'__local>,});
                     borrowed_key_holder_field_assignment.extend(quote!{#field_ident: self.#field_ident.get_key(),});
 
                 }
@@ -53,12 +53,12 @@ pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
                 quote! {
                     const _ : () = {
                         #[derive(serde::Serialize)]
-                        pub struct BorrowedKeyHolder<'a> {
+                        pub struct BorrowedKeyHolder<'__local> {
                             #borrowed_key_holder_fields
                         }
 
-                        impl #impl_generics dust_dds::topic_definition::type_support::DdsGetKey for #ident #type_generics #where_clause {
-                            type BorrowedKeyHolder<'a> = BorrowedKeyHolder<'a>;
+                        impl #impl_generics dust_dds::topic_definition::type_support::DdsBorrowKeyHolder for #ident #type_generics #where_clause {
+                            type BorrowedKeyHolder<'__local> = BorrowedKeyHolder<'__local> where Self: '__local;
 
                             fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
                                 BorrowedKeyHolder {
@@ -71,8 +71,8 @@ pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
             },
             true => {
                 quote! {
-                    impl #impl_generics dust_dds::topic_definition::type_support::DdsGetKey for #ident #type_generics #where_clause {
-                        type BorrowedKeyHolder<'a> = ();
+                    impl #impl_generics dust_dds::topic_definition::type_support::DdsBorrowKeyHolder for #ident #type_generics #where_clause {
+                        type BorrowedKeyHolder<'__local> = ();
 
                         fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {}
                     }
@@ -80,12 +80,12 @@ pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
             }
         }
     } else {
-        quote_spanned! {input.span() => compile_error!("DdsGetKey can only be derived for structs");}
+        quote_spanned! {input.span() => compile_error!("DdsBorrowKeyHolder can only be derived for structs");}
     }
     .into()
 }
 
-#[proc_macro_derive(DdsSetKeyFields, attributes(key))]
+#[proc_macro_derive(DdsOwningKeyHolder, attributes(key))]
 pub fn derive_dds_set_key_fields(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
 
@@ -106,7 +106,7 @@ pub fn derive_dds_set_key_fields(input: TokenStream) -> TokenStream {
                     let field_ident = &key_field.ident;
                     let field_type = &key_field.ty;
 
-                    owning_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsSetKeyFields>::OwningKeyHolder,});
+                    owning_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsOwningKeyHolder>::OwningKeyHolder,});
                     set_key_fields.extend(quote!{ self.#field_ident.set_key_from_holder(key_holder.#field_ident);});
 
                 }
@@ -114,33 +114,27 @@ pub fn derive_dds_set_key_fields(input: TokenStream) -> TokenStream {
                 // Create the new structs and implementation inside a const to avoid name conflicts
                 quote! {
                     const _ : () = {
-                        #[derive(serde::Deserialize)]
+                        #[derive(serde::Serialize, serde::Deserialize)]
                         pub struct OwningKeyHolder {
                             #owning_key_holder_fields
                         }
 
-                        impl #impl_generics dust_dds::topic_definition::type_support::DdsSetKeyFields for #ident #type_generics #where_clause {
+                        impl #impl_generics dust_dds::topic_definition::type_support::DdsOwningKeyHolder for #ident #type_generics #where_clause {
                             type OwningKeyHolder = OwningKeyHolder;
-
-                            fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {
-                                #set_key_fields
-                            }
                         }
                     };
                 }
             },
             true => {
                 quote! {
-                    impl #impl_generics dust_dds::topic_definition::type_support::DdsSetKeyFields for #ident #type_generics #where_clause {
+                    impl #impl_generics dust_dds::topic_definition::type_support::DdsOwningKeyHolder for #ident #type_generics #where_clause {
                         type OwningKeyHolder = ();
-
-                        fn set_key_from_holder(&mut self, key_holder: Self::OwningKeyHolder) {}
                     }
                 }
             }
         }
     } else {
-        quote_spanned! {input.span() => compile_error!("DdsGetKey can only be derived for structs");}
+        quote_spanned! {input.span() => compile_error!("DdsBorrowKeyHolder can only be derived for structs");}
     }
     .into()
 }
@@ -155,8 +149,8 @@ pub fn derive_dds_representation(input: TokenStream) -> TokenStream {
 
         quote! {
             impl #impl_generics dust_dds::topic_definition::type_support::DdsRepresentation for #ident #type_generics #where_clause {
-                const REPRESENTATION: dust_dds::topic_definition::type_support::Representation
-                    = dust_dds::topic_definition::type_support::Representation::CdrLe;
+                const REPRESENTATION: dust_dds::topic_definition::type_support::RtpsRepresentation
+                    = dust_dds::topic_definition::type_support::RtpsRepresentation::CdrLe;
             }
         }
     }else {

@@ -22,7 +22,7 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::{dds_serialize_key, dds_serialize_key_to_bytes, DdsType},
+    topic_definition::type_support::{DdsGetKeyFromFoo, DdsType},
 };
 
 mod utils;
@@ -50,12 +50,7 @@ fn large_data_should_be_fragmented() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -137,7 +132,7 @@ fn large_data_should_be_fragmented() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data(), Some(data));
+    assert_eq!(samples[0].data().unwrap(), data);
 }
 
 #[test]
@@ -145,12 +140,7 @@ fn large_data_should_be_fragmented_reliable() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -227,7 +217,7 @@ fn large_data_should_be_fragmented_reliable() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data(), Some(data));
+    assert_eq!(samples[0].data().unwrap(), data);
 }
 
 #[test]
@@ -235,12 +225,7 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -336,7 +321,7 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data(), Some(data5));
+    assert_eq!(samples[0].data().unwrap(), data5);
 }
 
 #[test]
@@ -344,12 +329,7 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -445,9 +425,9 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
         .unwrap();
 
     assert_eq!(samples.len(), 3);
-    assert_eq!(samples[0].data(), Some(data3));
-    assert_eq!(samples[1].data(), Some(data4));
-    assert_eq!(samples[2].data(), Some(data5));
+    assert_eq!(samples[0].data().unwrap(), data3);
+    assert_eq!(samples[1].data().unwrap(), data4);
+    assert_eq!(samples[2].data().unwrap(), data5);
 }
 
 #[test]
@@ -455,12 +435,7 @@ fn samples_are_taken() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -546,13 +521,13 @@ fn samples_are_taken() {
         .unwrap();
 
     assert_eq!(samples1.len(), 3);
-    assert_eq!(samples1[0].data(), Some(data1));
-    assert_eq!(samples1[1].data(), Some(data2));
-    assert_eq!(samples1[2].data(), Some(data3));
+    assert_eq!(samples1[0].data().unwrap(), data1);
+    assert_eq!(samples1[1].data().unwrap(), data2);
+    assert_eq!(samples1[2].data().unwrap(), data3);
 
     assert_eq!(samples2.len(), 2);
-    assert_eq!(samples2[0].data(), Some(data4));
-    assert_eq!(samples2[1].data(), Some(data5));
+    assert_eq!(samples2[0].data().unwrap(), data4);
+    assert_eq!(samples2[1].data().unwrap(), data5);
 }
 
 #[test]
@@ -560,12 +535,7 @@ fn read_only_unread_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -668,13 +638,13 @@ fn read_only_unread_samples() {
     );
 
     assert_eq!(samples1.len(), 3);
-    assert_eq!(samples1[0].data(), Some(data1));
-    assert_eq!(samples1[1].data(), Some(data2));
-    assert_eq!(samples1[2].data(), Some(data3));
+    assert_eq!(samples1[0].data().unwrap(), data1);
+    assert_eq!(samples1[1].data().unwrap(), data2);
+    assert_eq!(samples1[2].data().unwrap(), data3);
 
     assert_eq!(samples2.len(), 2);
-    assert_eq!(samples2[0].data(), Some(data4));
-    assert_eq!(samples2[1].data(), Some(data5));
+    assert_eq!(samples2[0].data().unwrap(), data4);
+    assert_eq!(samples2[1].data().unwrap(), data5);
 
     assert_eq!(samples3, Err(DdsError::NoData));
 }
@@ -684,12 +654,7 @@ fn read_next_sample() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -762,9 +727,9 @@ fn read_next_sample() {
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    assert_eq!(reader.read_next_sample().unwrap().data(), Some(data1));
-    assert_eq!(reader.read_next_sample().unwrap().data(), Some(data2));
-    assert_eq!(reader.read_next_sample().unwrap().data(), Some(data3));
+    assert_eq!(reader.read_next_sample().unwrap().data().unwrap(), data1);
+    assert_eq!(reader.read_next_sample().unwrap().data().unwrap(), data2);
+    assert_eq!(reader.read_next_sample().unwrap().data().unwrap(), data3);
     assert_eq!(reader.read_next_sample(), Err(DdsError::NoData));
 }
 
@@ -773,12 +738,7 @@ fn take_next_sample() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -862,12 +822,7 @@ fn each_key_sample_is_read() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -948,19 +903,19 @@ fn each_key_sample_is_read() {
     assert_eq!(samples[0].data().unwrap(), data1);
     assert_eq!(
         samples[0].sample_info().instance_handle,
-        dds_serialize_key(&data1).unwrap().into(),
+        data1.get_key_from_foo().unwrap().into(),
     );
 
     assert_eq!(samples[1].data().unwrap(), data2);
     assert_eq!(
         samples[1].sample_info().instance_handle,
-        dds_serialize_key(&data2).unwrap().into(),
+        data2.get_key_from_foo().unwrap().into(),
     );
 
     assert_eq!(samples[2].data().unwrap(), data3);
     assert_eq!(
         samples[2].sample_info().instance_handle,
-        dds_serialize_key(&data3).unwrap().into(),
+        data3.get_key_from_foo().unwrap().into(),
     );
 }
 
@@ -969,12 +924,7 @@ fn read_specific_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -1050,7 +1000,7 @@ fn read_specific_instance() {
     let samples = reader
         .read_instance(
             3,
-            dds_serialize_key(&data1).unwrap().into(),
+            data1.get_key_from_foo().unwrap().into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1058,7 +1008,7 @@ fn read_specific_instance() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data(), Some(data1));
+    assert_eq!(samples[0].data().unwrap(), data1);
 }
 
 #[test]
@@ -1066,12 +1016,7 @@ fn read_next_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -1182,9 +1127,9 @@ fn read_next_instance() {
         ANY_INSTANCE_STATE,
     );
 
-    assert_eq!(samples1[0].data(), Some(data1));
-    assert_eq!(samples2[0].data(), Some(data2));
-    assert_eq!(samples3[0].data(), Some(data3));
+    assert_eq!(samples1[0].data().unwrap(), data1);
+    assert_eq!(samples2[0].data().unwrap(), data2);
+    assert_eq!(samples3[0].data().unwrap(), data3);
     assert_eq!(samples4, Err(DdsError::NoData));
 }
 
@@ -1193,12 +1138,7 @@ fn take_next_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -1309,9 +1249,9 @@ fn take_next_instance() {
         ANY_INSTANCE_STATE,
     );
 
-    assert_eq!(samples1[0].data(), Some(data1));
-    assert_eq!(samples2[0].data(), Some(data2));
-    assert_eq!(samples3[0].data(), Some(data3));
+    assert_eq!(samples1[0].data().unwrap(), data1);
+    assert_eq!(samples2[0].data().unwrap(), data2);
+    assert_eq!(samples3[0].data().unwrap(), data3);
     assert_eq!(samples4, Err(DdsError::NoData));
 }
 
@@ -1320,12 +1260,7 @@ fn take_specific_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -1401,7 +1336,7 @@ fn take_specific_instance() {
     let samples = reader
         .take_instance(
             3,
-            dds_serialize_key(&data1).unwrap().into(),
+            data1.get_key_from_foo().unwrap().into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1409,7 +1344,7 @@ fn take_specific_instance() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data(), Some(data1));
+    assert_eq!(samples[0].data().unwrap(), data1);
 }
 
 #[test]
@@ -1417,12 +1352,7 @@ fn take_specific_unknown_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -1498,7 +1428,8 @@ fn take_specific_unknown_instance() {
     assert_eq!(
         reader.take_instance(
             3,
-            dds_serialize_key_to_bytes(&KeyedData { id: 99, value: 20 })
+            KeyedData { id: 99, value: 20 }
+                .get_key_from_foo()
                 .unwrap()
                 .into(),
             ANY_SAMPLE_STATE,
@@ -1515,12 +1446,7 @@ fn write_read_disposed_samples() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -1618,12 +1544,7 @@ fn write_read_sample_view_state() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -1721,12 +1642,7 @@ fn inconsistent_topic_status_condition() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let best_effort_topic_qos = TopicQos {
@@ -1789,12 +1705,7 @@ fn reader_with_minimum_time_separation_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -1899,10 +1810,10 @@ fn reader_with_minimum_time_separation_qos() {
         .unwrap();
 
     assert_eq!(samples.len(), 4);
-    assert_eq!(samples[0].data(), Some(data1_1));
-    assert_eq!(samples[1].data(), Some(data1_3));
-    assert_eq!(samples[2].data(), Some(data2_1));
-    assert_eq!(samples[3].data(), Some(data2_3));
+    assert_eq!(samples[0].data().unwrap(), data1_1);
+    assert_eq!(samples[1].data().unwrap(), data1_3);
+    assert_eq!(samples[2].data().unwrap(), data2_1);
+    assert_eq!(samples[3].data().unwrap(), data2_3);
 }
 
 #[test]
@@ -1910,12 +1821,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -2004,8 +1910,8 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .unwrap();
 
     assert_eq!(samples.len(), 2);
-    assert_eq!(samples[0].data(), Some(data1));
-    assert_eq!(samples[1].data(), Some(data2));
+    assert_eq!(samples[0].data().unwrap(), data1);
+    assert_eq!(samples[1].data().unwrap(), data2);
 }
 
 #[test]
@@ -2013,12 +1919,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -2106,7 +2007,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data(), Some(data2));
+    assert_eq!(samples[0].data().unwrap(), data2);
 }
 
 #[test]
@@ -2115,12 +2016,7 @@ fn write_read_unkeyed_topic() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -2189,7 +2085,7 @@ fn write_read_unkeyed_topic() {
 
     let samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
 
-    assert_eq!(samples.unwrap()[0].data(), Some(UserData(8)));
+    assert_eq!(samples.unwrap()[0].data().unwrap(), UserData(8));
 }
 
 #[test]
@@ -2198,12 +2094,7 @@ fn data_reader_resource_limits() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic(
@@ -2304,12 +2195,7 @@ fn data_reader_order_by_source_timestamp() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic(
@@ -2364,7 +2250,7 @@ fn data_reader_order_by_source_timestamp() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(
+        .create_datareader::<UserData>(
             &topic,
             QosKind::Specific(reader_qos),
             NoOpListener::new(),
@@ -2401,9 +2287,9 @@ fn data_reader_order_by_source_timestamp() {
         .unwrap();
 
     assert_eq!(samples.len(), 3);
-    assert_eq!(samples[0].data(), Some(UserData(3)));
-    assert_eq!(samples[1].data(), Some(UserData(2)));
-    assert_eq!(samples[2].data(), Some(UserData(1)));
+    assert_eq!(samples[0].data().unwrap(), UserData(3));
+    assert_eq!(samples[1].data().unwrap(), UserData(2));
+    assert_eq!(samples[2].data().unwrap(), UserData(1));
 }
 
 #[test]
@@ -2412,12 +2298,7 @@ fn data_reader_publication_handle_sample_info() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -2501,12 +2382,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -2622,12 +2498,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -2727,12 +2598,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -2857,12 +2723,7 @@ fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic(
@@ -2922,12 +2783,7 @@ fn reader_joining_after_writer_writes_many_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant

@@ -22,10 +22,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{
-            dds_deserialize_from_bytes, dds_serialize_key, dds_serialize_to_bytes,
-            DdsRepresentation,
-        },
+        type_support::{DdsDeserialize, DdsGetKeyFromFoo, DdsSerialize},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -74,12 +71,12 @@ impl<Foo> Sample<Foo> {
 
 impl<'de, Foo> Sample<Foo>
 where
-    Foo: serde::Deserialize<'de> + DdsRepresentation + 'de,
+    Foo: DdsDeserialize<'de>,
 {
-    pub fn data(&'de self) -> Option<Foo> {
+    pub fn data(&'de self) -> DdsResult<Foo> {
         match self.data.as_ref() {
-            Some(data) => dds_deserialize_from_bytes::<Foo>(&mut data.as_ref()).ok(),
-            None => None,
+            Some(data) => Ok(Foo::deserialize_data(&mut data.as_ref())?),
+            None => Err(DdsError::NoData),
         }
     }
 }
@@ -728,9 +725,7 @@ impl<Foo> DataReader<Foo> {
         self.reader_address
             .send_mail_and_await_reply_blocking(data_reader_actor::get_instance_handle::new())
     }
-}
 
-impl<Foo> DataReader<Foo> {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
@@ -754,7 +749,8 @@ fn announce_data_reader(
     domain_participant: &ActorAddress<DomainParticipantActor>,
     discovered_reader_data: DiscoveredReaderData,
 ) -> DdsResult<()> {
-    let serialized_data = dds_serialize_to_bytes(&discovered_reader_data)?;
+    let mut serialized_data = Vec::new();
+    discovered_reader_data.serialize_data(&mut serialized_data)?;
     let timestamp = domain_participant
         .send_mail_and_await_reply_blocking(domain_participant_actor::get_current_time::new())?;
 
@@ -767,9 +763,10 @@ fn announce_data_reader(
         if dw.send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
             == Ok("DiscoveredReaderData".to_string())
         {
+            let instance_serialized_key = discovered_reader_data.get_key_from_foo()?;
             dw.send_mail_and_await_reply_blocking(data_writer_actor::write_w_timestamp::new(
                 serialized_data,
-                dds_serialize_key(&discovered_reader_data)?,
+                instance_serialized_key,
                 None,
                 timestamp,
             ))??;

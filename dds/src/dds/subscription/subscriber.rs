@@ -2,9 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
-            data_reader_actor::{
-                self, deserialize_data_to_key, DataReaderActor, InstanceHandleBuilder,
-            },
+            data_reader_actor::{self, DataReaderActor, InstanceHandleBuilder},
             domain_participant_actor::{self, DomainParticipantActor},
             subscriber_actor::{self, SubscriberActor},
         },
@@ -27,7 +25,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsGetKey, DdsHasKey, DdsRepresentation},
+        type_support::{DdsGetKeyFromSerializedData, DdsHasKey},
     },
 };
 
@@ -103,7 +101,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsHasKey + for<'de> serde::Deserialize<'de> + DdsRepresentation + DdsGetKey,
+        Foo: DdsGetKeyFromSerializedData + DdsHasKey,
     {
         let default_unicast_locator_list = self
             .participant_address
@@ -170,7 +168,7 @@ impl Subscriber {
             qos,
             listener,
             status_kind,
-            InstanceHandleBuilder::new(|bytes| deserialize_data_to_key::<Foo>(bytes)),
+            InstanceHandleBuilder::new(Foo::get_key_from_serialized_data),
         );
 
         let reader_actor = spawn_actor(data_reader);

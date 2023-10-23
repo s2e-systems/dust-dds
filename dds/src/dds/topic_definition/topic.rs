@@ -21,7 +21,7 @@ use crate::{
 
 use super::{
     topic_listener::TopicListener,
-    type_support::{dds_serialize_key_to_bytes, dds_serialize_to_bytes},
+    type_support::{DdsGetKeyFromFoo, DdsSerialize},
 };
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
@@ -232,7 +232,8 @@ fn announce_topic(
     domain_participant: &ActorAddress<DomainParticipantActor>,
     discovered_topic_data: DiscoveredTopicData,
 ) -> DdsResult<()> {
-    let serialized_data = dds_serialize_to_bytes(&discovered_topic_data)?;
+    let mut serialized_data = Vec::new();
+    discovered_topic_data.serialize_data(&mut serialized_data)?;
     let timestamp = domain_participant
         .send_mail_and_await_reply_blocking(domain_participant_actor::get_current_time::new())?;
     let builtin_publisher = domain_participant.send_mail_and_await_reply_blocking(
@@ -247,7 +248,7 @@ fn announce_topic(
             data_writer.send_mail_and_await_reply_blocking(
                 data_writer_actor::write_w_timestamp::new(
                     serialized_data,
-                    dds_serialize_key_to_bytes(&discovered_topic_data)?,
+                    discovered_topic_data.get_key_from_foo()?,
                     None,
                     timestamp,
                 ),

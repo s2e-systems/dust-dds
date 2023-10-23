@@ -36,12 +36,7 @@ fn main() {
     let domain_id = 0;
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -123,5 +118,5 @@ fn main() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data(), Some(data));
+    assert_eq!(samples[0].data().unwrap(), data);
 }

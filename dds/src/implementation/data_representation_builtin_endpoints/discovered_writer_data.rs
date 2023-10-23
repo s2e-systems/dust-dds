@@ -4,8 +4,10 @@ use crate::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
+    infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsGetKey, DdsHasKey, DdsRepresentation, DdsSetKeyFields, Representation,
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
+        DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
     },
 };
 
@@ -95,22 +97,23 @@ impl DdsHasKey for DiscoveredWriterData {
 }
 
 impl DdsRepresentation for DiscoveredWriterData {
-    const REPRESENTATION: Representation = Representation::PlCdrLe;
+    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
-impl DdsGetKey for DiscoveredWriterData {
-    type BorrowedKeyHolder<'a> = [u8; 16];
-
-    fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-        self.dds_publication_data.key().value
+impl DdsGetKeyFromFoo for DiscoveredWriterData {
+    fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {
+        Ok(self.dds_publication_data.key().value.to_vec().into())
     }
 }
 
-impl DdsSetKeyFields for DiscoveredWriterData {
-    type OwningKeyHolder = [u8; 16];
-
-    fn set_key_from_holder(&mut self, _key_holder: Self::OwningKeyHolder) {
-        todo!()
+impl DdsGetKeyFromSerializedData for DiscoveredWriterData {
+    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
+        Ok(Self::deserialize_data(&mut serialized_data)?
+            .dds_publication_data
+            .key()
+            .value
+            .to_vec()
+            .into())
     }
 }
 
@@ -126,9 +129,7 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
-    use crate::topic_definition::type_support::{
-        dds_deserialize_from_bytes, dds_serialize_to_bytes,
-    };
+    use crate::topic_definition::type_support::{DdsDeserialize, DdsSerialize};
 
     use super::*;
 
@@ -192,7 +193,8 @@ mod tests {
             21, 22, 23, 0xc9, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let result = dds_serialize_to_bytes(&data).unwrap();
+        let mut result = Vec::new();
+        data.serialize_data(&mut result).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -257,7 +259,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result = dds_deserialize_from_bytes::<DiscoveredWriterData>(&mut data).unwrap();
+        let result = DiscoveredWriterData::deserialize_data(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

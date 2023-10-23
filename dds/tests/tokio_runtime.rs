@@ -27,12 +27,7 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -114,5 +109,5 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data(), Some(data));
+    assert_eq!(samples[0].data().unwrap(), data);
 }
