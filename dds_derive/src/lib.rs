@@ -171,7 +171,7 @@ pub fn derive_new_dds_serialize(input: TokenStream) -> TokenStream {
         for field in struct_data.fields.iter() {
             match &field.ident {
                 Some(field_name) => {
-                    field_serialization.extend(quote!{self.#field_name.serialize(serializer);});
+                    field_serialization.extend(quote!{self.#field_name.serialize(serializer)?;});
                 },
                 None => {
                     let index = Index::from(tuple_field_counter);
