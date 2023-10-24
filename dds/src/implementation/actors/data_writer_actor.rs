@@ -55,7 +55,7 @@ use crate::{
         },
         time::DurationKind,
     },
-    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedKey},
+    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedData, DdsSerializedKey},
     {
         builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
@@ -558,7 +558,7 @@ impl DataWriterActor {
 
     async fn write_w_timestamp(
         &mut self,
-        serialized_data: Vec<u8>,
+        serialized_data: DdsSerializedData,
         instance_serialized_key: DdsSerializedKey,
         _handle: Option<InstanceHandle>,
         timestamp: Time,
@@ -569,7 +569,7 @@ impl DataWriterActor {
             .unwrap_or(HANDLE_NIL);
         let change = self.rtps_writer.new_change(
             ChangeKind::Alive,
-            serialized_data,
+            serialized_data.into(),
             ParameterList::empty(),
             handle,
             timestamp,

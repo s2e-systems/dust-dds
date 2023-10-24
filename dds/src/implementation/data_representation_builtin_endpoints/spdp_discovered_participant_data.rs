@@ -271,7 +271,7 @@ mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos_policy::UserDataQosPolicy,
-        topic_definition::type_support::{DdsDeserialize, DdsSerialize},
+        topic_definition::type_support::{DdsDeserialize, DdsSerializeData},
     };
 
     #[test]
@@ -502,8 +502,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let mut result = Vec::new();
-        data.serialize_data(&mut result).unwrap();
-        assert_eq!(result, expected);
+        let result = data.serialize_data().unwrap();
+        assert_eq!(result, expected.into());
     }
 }

@@ -68,7 +68,7 @@ use crate::{
     topic_definition::{
         topic_listener::TopicListener,
         type_support::{
-            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsSerialize,
+            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsSerializeData,
         },
     },
     {
@@ -1018,9 +1018,8 @@ impl DomainParticipantActor {
             .await
         {
             let timestamp = self.get_current_time().await;
-            let mut serialized_data = Vec::new();
-            discovered_writer_data
-                .serialize_data(&mut serialized_data)
+            let serialized_data = discovered_writer_data
+                .serialize_data()
                 .expect("Shouldn't fail to serialize builtin type");
             let instance_serialized_key = discovered_writer_data
                 .get_key_from_foo()
