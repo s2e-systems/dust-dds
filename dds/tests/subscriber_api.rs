@@ -6,13 +6,13 @@ use dust_dds::{
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
     },
-    topic_definition::type_support::{DdsType, NewDdsSerialize},
+    topic_definition::type_support::{DdsType, DdsSerialize},
 };
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(NewDdsSerialize, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(DdsSerialize, serde::Serialize, serde::Deserialize, DdsType)]
 struct UserType(i32);
 
 #[test]

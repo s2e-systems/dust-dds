@@ -31,14 +31,14 @@ use dust_dds::{
     },
     topic_definition::{
         topic_listener::TopicListener,
-        type_support::{DdsType, NewDdsSerialize},
+        type_support::{DdsType, DdsSerialize},
     },
 };
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, NewDdsSerialize, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(Debug, PartialEq, DdsSerialize, serde::Serialize, serde::Deserialize, DdsType)]
 struct MyData {
     #[key]
     id: u8,

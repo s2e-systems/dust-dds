@@ -158,8 +158,8 @@ pub fn derive_dds_representation(input: TokenStream) -> TokenStream {
     }.into()
 }
 
-#[proc_macro_derive(NewDdsSerialize)]
-pub fn derive_new_dds_serialize(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(DdsSerialize)]
+pub fn derive_dds_serialize(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     let mut field_serialization = quote!();
 
@@ -185,7 +185,7 @@ pub fn derive_new_dds_serialize(input: TokenStream) -> TokenStream {
 
         quote! {
             const _ : () = {
-                impl #impl_generics dust_dds::topic_definition::type_support::NewDdsSerialize for #ident #type_generics #where_clause {
+                impl #impl_generics dust_dds::topic_definition::type_support::DdsSerialize for #ident #type_generics #where_clause {
                     fn serialize(&self, serializer: &mut impl dust_dds::topic_definition::type_support::DdsSerializer) -> dust_dds::infrastructure::error::DdsResult<()> {
                         #field_serialization
                         Ok(())
@@ -194,7 +194,7 @@ pub fn derive_new_dds_serialize(input: TokenStream) -> TokenStream {
             };
         }
     }else {
-        quote_spanned! {input.span() => compile_error!("NewDdsSerialize can only be derived for structs");}
+        quote_spanned! {input.span() => compile_error!("DdsSerialize can only be derived for structs");}
     }.into()
 }
 

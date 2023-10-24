@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
-    topic_definition::type_support::{DdsSerializer, NewDdsSerialize},
+    topic_definition::type_support::{DdsSerializer, DdsSerialize},
 };
 use byteorder::{ByteOrder, WriteBytesExt};
 
@@ -163,7 +163,7 @@ where
         }
     }
 
-    fn serialize_seq(&mut self, v: &[impl NewDdsSerialize]) -> DdsResult<()> {
+    fn serialize_seq(&mut self, v: &[impl DdsSerialize]) -> DdsResult<()> {
         let l = v.len();
         if l > u32::MAX as usize {
             Err(DdsError::Error(format!(
@@ -180,7 +180,7 @@ where
         }
     }
 
-    fn serialize_array<const N: usize>(&mut self, v: &[impl NewDdsSerialize; N]) -> DdsResult<()> {
+    fn serialize_array<const N: usize>(&mut self, v: &[impl DdsSerialize; N]) -> DdsResult<()> {
         for e in v {
             e.serialize(self)?;
         }
@@ -197,7 +197,7 @@ mod tests {
     fn serialize_data<T, E>(v: &T) -> DdsResult<Vec<u8>>
     where
         E: ByteOrder,
-        T: NewDdsSerialize + ?Sized,
+        T: DdsSerialize + ?Sized,
     {
         let mut writer = Vec::new();
         let mut serializer = CdrSerializer::<_, E>::new(&mut writer);
