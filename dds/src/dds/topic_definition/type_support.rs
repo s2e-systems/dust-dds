@@ -627,6 +627,15 @@ where
     }
 }
 
+impl<const N: usize, T> NewDdsSerialize for [T; N]
+where
+    T: NewDdsSerialize,
+{
+    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
+        serializer.serialize_array(self)
+    }
+}
+
 impl<T> NewDdsSerialize for Vec<T>
 where
     T: NewDdsSerialize,
@@ -638,7 +647,7 @@ where
 
 impl<T> NewDdsSerialize for &'_ T
 where
-    T: NewDdsSerialize,
+    T: NewDdsSerialize + ?Sized,
 {
     fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
         T::serialize(*self, serializer)
@@ -647,7 +656,7 @@ where
 
 impl<T> NewDdsSerialize for &'_ mut T
 where
-    T: NewDdsSerialize,
+    T: NewDdsSerialize + ?Sized,
 {
     fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
         T::serialize(*self, serializer)
@@ -678,5 +687,5 @@ pub trait DdsSerializer {
     fn serialize_char(&mut self, v: char) -> DdsResult<()>;
     fn serialize_str(&mut self, v: &str) -> DdsResult<()>;
     fn serialize_seq(&mut self, v: &[impl NewDdsSerialize]) -> DdsResult<()>;
-    fn serialize_array<const N: usize>(&mut self, v: &[impl NewDdsSerialize; N]);
+    fn serialize_array<const N: usize>(&mut self, v: &[impl NewDdsSerialize; N]) -> DdsResult<()>;
 }
