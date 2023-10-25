@@ -46,7 +46,7 @@ where
         const PADDING: [u8; 8] = [0; 8];
         let alignment = std::mem::size_of::<T>();
         let rem_mask = alignment - 1; // mask like 0x0, 0x1, 0x3, 0x7
-        match (self.pos as usize) & rem_mask {
+        match (self.pos) & rem_mask {
             0 => Ok(()),
             n @ 1..=7 => {
                 let amt = alignment - n;

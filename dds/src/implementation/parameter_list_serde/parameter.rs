@@ -272,7 +272,7 @@ impl SizeChecker {
     }
 
     fn add_size(&mut self, size: usize) -> DdsResult<()> {
-        self.pos += size as usize;
+        self.pos += size;
         self.counter += size;
         Ok(())
     }
