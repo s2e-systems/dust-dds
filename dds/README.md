@@ -19,9 +19,9 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
         topic_definition::type_support::DdsType,
     };
 
-    use serde::{Deserialize, Serialize};
+    use serde::{Serialize};
 
-    #[derive(Deserialize, Serialize, DdsType)]
+    #[derive(Deserialize, DdsType)]
     struct HelloWorldType {
         #[key]
         id: u8,
@@ -66,9 +66,9 @@ The subscriber side can be implemented as:
         topic_definition::type_support::DdsType,
     };
 
-    use serde::{Deserialize, Serialize};
+    use serde::{Deserialize};
 
-    #[derive(Debug, Deserialize, Serialize, DdsType)]
+    #[derive(Debug, Deserialize, DdsType)]
     struct HelloWorldType {
         #[key]
         id: u8,
