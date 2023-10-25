@@ -1,7 +1,7 @@
 //! The traits necessary to make a type capable of being published and subscribed by the DDS middleware.
 //!
 //! To be able to publish and subscribe the information contained in a type using DustDDS,
-//! this type has to implement the following traits [`DdsHasKey`], [`DdsSerialize`], [`DdsDeserialize`],
+//! this type has to implement the following traits [`DdsHasKey`], [`CdrSerialize`], [`DdsDeserialize`],
 //! [`DdsSerializeKeyFields`], [`DdsGetKeyFromFoo`], [`DdsGetKeyFromSerializedData`] and
 //! [`DdsGetKeyFromSerializedKeyFields`]. Depending on the used functionality only a subset
 //! of these traits might need to be implemented.
@@ -30,7 +30,7 @@ use crate::{
 };
 
 pub use dust_dds_derive::{
-    DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, DdsSerialize, DdsType,
+    DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, CdrSerialize, DdsType,
 };
 
 /// The [`DdsSerializedData`] represents the serialized data of a type that can be
@@ -138,7 +138,7 @@ const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 /// This trait defines the representation to be used by the type when serializing and deserializing.
 ///
 /// When used in combination with [`serde::Serialize`] and [`serde::Deserialize`] a blanket implementation
-/// for the [`DdsSerialize`] and [`DdsDeserialize`] traits is provided that uses the Cdr serializer and
+/// for the [`DdsSerializeData`] and [`DdsDeserialize`] traits is provided that uses the Cdr serializer and
 /// is conformant with the CDR format as specified in the RTPS standard.
 pub trait DdsRepresentation {
     const REPRESENTATION: RtpsRepresentation;

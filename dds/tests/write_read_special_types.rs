@@ -12,7 +12,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::{cdr_type::DdsSerialize, type_support::DdsType},
+    topic_definition::{cdr_type::CdrSerialize, type_support::DdsType},
 };
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
@@ -20,7 +20,7 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 #[test]
 fn foo_with_lifetime_should_read_and_write() {
     #[derive(
-        Clone, Debug, PartialEq, DdsSerialize, serde::Serialize, serde::Deserialize, DdsType,
+        Clone, Debug, PartialEq, CdrSerialize, serde::Serialize, serde::Deserialize, DdsType,
     )]
     struct BorrowedData<'a> {
         #[key]

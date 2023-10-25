@@ -8,13 +8,13 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::{cdr_type::DdsSerialize, type_support::DdsType},
+    topic_definition::{cdr_type::CdrSerialize, type_support::DdsType},
 };
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(DdsSerialize, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(CdrSerialize, serde::Serialize, serde::Deserialize, DdsType)]
 struct UserType(i32);
 
 #[test]

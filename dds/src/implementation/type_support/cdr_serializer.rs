@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
-    topic_definition::cdr_type::{DdsSerialize, DdsSerializer},
+    topic_definition::cdr_type::{CdrSerializer, CdrSerialize},
 };
 use byteorder::{ByteOrder, WriteBytesExt};
 
@@ -12,13 +12,13 @@ impl From<std::io::Error> for DdsError {
     }
 }
 
-pub struct CdrSerializer<W, E> {
+pub struct CdrDataSerializer<W, E> {
     writer: W,
     pos: usize,
     phantom: PhantomData<E>,
 }
 
-impl<W, E> CdrSerializer<W, E>
+impl<W, E> CdrDataSerializer<W, E>
 where
     W: std::io::Write,
 {
@@ -58,7 +58,7 @@ where
     }
 }
 
-impl<W, E> DdsSerializer for CdrSerializer<W, E>
+impl<W, E> CdrSerializer for CdrDataSerializer<W, E>
 where
     W: std::io::Write,
     E: ByteOrder,
@@ -163,7 +163,7 @@ where
         }
     }
 
-    fn serialize_seq(&mut self, v: &[impl DdsSerialize]) -> DdsResult<()> {
+    fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> DdsResult<()> {
         let l = v.len();
         if l > u32::MAX as usize {
             Err(DdsError::Error(format!(
@@ -180,7 +180,7 @@ where
         }
     }
 
-    fn serialize_array<const N: usize>(&mut self, v: &[impl DdsSerialize; N]) -> DdsResult<()> {
+    fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> DdsResult<()> {
         for e in v {
             e.serialize(self)?;
         }
@@ -197,10 +197,10 @@ mod tests {
     fn serialize_data<T, E>(v: &T) -> DdsResult<Vec<u8>>
     where
         E: ByteOrder,
-        T: DdsSerialize + ?Sized,
+        T: CdrSerialize + ?Sized,
     {
         let mut writer = Vec::new();
-        let mut serializer = CdrSerializer::<_, E>::new(&mut writer);
+        let mut serializer = CdrDataSerializer::<_, E>::new(&mut writer);
         v.serialize(&mut serializer)?;
         Ok(writer)
     }
