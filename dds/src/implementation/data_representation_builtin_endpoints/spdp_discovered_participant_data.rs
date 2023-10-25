@@ -10,7 +10,7 @@ use crate::{
         },
     },
     infrastructure::{error::DdsResult, time::Duration},
-    topic_definition::type_support::{
+    topic_definition::type_support::dds_data::{
         DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
         DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
     },
@@ -269,9 +269,8 @@ impl DdsGetKeyFromSerializedData for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey,
-        infrastructure::qos_policy::UserDataQosPolicy,
-        topic_definition::type_support::{DdsDeserialize, DdsSerializeData},
+        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
+        topic_definition::type_support::dds_data::DdsSerializeData,
     };
 
     #[test]

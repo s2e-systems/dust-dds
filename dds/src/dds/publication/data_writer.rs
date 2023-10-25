@@ -25,7 +25,9 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsGetKeyFromFoo, DdsHasKey, DdsSerializeData, DdsSerializeKeyFields},
+        type_support::dds_data::{
+            DdsGetKeyFromFoo, DdsHasKey, DdsSerializeData, DdsSerializeKeyFields,
+        },
     },
 };
 

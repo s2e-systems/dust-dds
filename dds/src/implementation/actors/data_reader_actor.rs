@@ -60,7 +60,7 @@ use crate::{
         time::{DurationKind, Time},
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedKey},
+    topic_definition::type_support::dds_data::{DdsGetKeyFromFoo, DdsSerializedKey},
 };
 
 use super::{

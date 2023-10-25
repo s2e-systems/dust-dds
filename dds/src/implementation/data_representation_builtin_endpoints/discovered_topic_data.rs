@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{
+    topic_definition::type_support::dds_data::{
         DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
         DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
     },
@@ -60,7 +60,7 @@ mod tests {
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{DdsDeserialize, DdsSerializeData};
+    use crate::topic_definition::type_support::dds_data::DdsSerializeData;
 
     use super::*;
 

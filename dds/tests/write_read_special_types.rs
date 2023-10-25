@@ -12,7 +12,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::{DdsType, DdsSerialize},
+    topic_definition::type_support::{DdsType, serde::DdsSerialize},
 };
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;

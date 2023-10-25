@@ -67,7 +67,7 @@ use crate::{
     },
     topic_definition::{
         topic_listener::TopicListener,
-        type_support::{
+        type_support::dds_data::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsSerializeData,
         },
     },

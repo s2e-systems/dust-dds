@@ -6,7 +6,7 @@ use dust_dds::{
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
     },
-    topic_definition::type_support::{DdsType, DdsSerialize},
+    topic_definition::type_support::{serde::DdsSerialize, DdsType},
 };
 
 mod utils;
@@ -20,12 +20,7 @@ fn get_subscriber_parent_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let subscriber = participant
@@ -45,12 +40,7 @@ fn default_data_reader_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -99,12 +89,7 @@ fn different_readers_have_different_instance_handles() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -157,12 +142,7 @@ fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creatio
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant

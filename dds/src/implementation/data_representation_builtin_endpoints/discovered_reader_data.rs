@@ -5,7 +5,7 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{
+    topic_definition::type_support::dds_data::{
         DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
         DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
     },
@@ -141,17 +141,19 @@ impl DdsGetKeyFromSerializedData for DiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builtin_topics::BuiltInTopicKey;
-    use crate::implementation::rtps::types::{
-        BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
+    use crate::{
+        builtin_topics::BuiltInTopicKey,
+        implementation::rtps::types::{
+            BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
+        },
+        infrastructure::qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+            LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+            PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        },
+        topic_definition::type_support::dds_data::DdsSerializeData,
     };
-    use crate::infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-        LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-    };
-    use crate::topic_definition::type_support::{DdsDeserialize, DdsSerializeData};
 
     #[test]
     fn serialize_all_default() {

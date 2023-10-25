@@ -55,7 +55,9 @@ use crate::{
         },
         time::DurationKind,
     },
-    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedData, DdsSerializedKey},
+    topic_definition::type_support::dds_data::{
+        DdsGetKeyFromFoo, DdsSerializedData, DdsSerializedKey,
+    },
     {
         builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{

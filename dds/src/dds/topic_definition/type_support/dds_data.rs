@@ -30,7 +30,7 @@ use crate::{
 };
 
 pub use dust_dds_derive::{
-    DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, DdsType, DdsSerialize,
+    DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, DdsSerialize, DdsType,
 };
 
 /// The [`DdsSerializedData`] represents the serialized data of a type that can be
@@ -60,166 +60,6 @@ pub struct DdsSerializedData(Vec<u8>);
     derive_more::AsRef,
 )]
 pub struct DdsSerializedKey(Vec<u8>);
-
-pub trait DdsSerialize {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()>;
-}
-
-impl DdsSerialize for bool {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_bool(*self)
-    }
-}
-
-impl DdsSerialize for i8 {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_i8(*self)
-    }
-}
-
-impl DdsSerialize for i16 {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_i16(*self)
-    }
-}
-
-impl DdsSerialize for i32 {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_i32(*self)
-    }
-}
-
-impl DdsSerialize for i64 {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_i64(*self)
-    }
-}
-
-impl DdsSerialize for u8 {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_u8(*self)
-    }
-}
-
-impl DdsSerialize for u16 {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_u16(*self)
-    }
-}
-
-impl DdsSerialize for u32 {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_u32(*self)
-    }
-}
-
-impl DdsSerialize for u64 {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_u64(*self)
-    }
-}
-
-impl DdsSerialize for f32 {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_f32(*self)
-    }
-}
-
-impl DdsSerialize for f64 {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_f64(*self)
-    }
-}
-
-impl DdsSerialize for char {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_char(*self)
-    }
-}
-
-impl DdsSerialize for str {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_str(self)
-    }
-}
-
-impl DdsSerialize for String {
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_str(self)
-    }
-}
-
-impl<T> DdsSerialize for [T]
-where
-    T: DdsSerialize,
-{
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_seq(self)
-    }
-}
-
-impl<const N: usize, T> DdsSerialize for [T; N]
-where
-    T: DdsSerialize,
-{
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_array(self)
-    }
-}
-
-impl<T> DdsSerialize for Vec<T>
-where
-    T: DdsSerialize,
-{
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        serializer.serialize_seq(self)
-    }
-}
-
-impl<T> DdsSerialize for &'_ T
-where
-    T: DdsSerialize + ?Sized,
-{
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        T::serialize(*self, serializer)
-    }
-}
-
-impl<T> DdsSerialize for &'_ mut T
-where
-    T: DdsSerialize + ?Sized,
-{
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        T::serialize(*self, serializer)
-    }
-}
-
-impl<T> DdsSerialize for Box<T>
-where
-    T: DdsSerialize,
-{
-    fn serialize(&self, serializer: &mut impl DdsSerializer) -> DdsResult<()> {
-        self.as_ref().serialize(serializer)
-    }
-}
-
-pub trait DdsSerializer {
-    fn serialize_bool(&mut self, v: bool) -> DdsResult<()>;
-    fn serialize_i8(&mut self, v: i8) -> DdsResult<()>;
-    fn serialize_i16(&mut self, v: i16) -> DdsResult<()>;
-    fn serialize_i32(&mut self, v: i32) -> DdsResult<()>;
-    fn serialize_i64(&mut self, v: i64) -> DdsResult<()>;
-    fn serialize_u8(&mut self, v: u8) -> DdsResult<()>;
-    fn serialize_u16(&mut self, v: u16) -> DdsResult<()>;
-    fn serialize_u32(&mut self, v: u32) -> DdsResult<()>;
-    fn serialize_u64(&mut self, v: u64) -> DdsResult<()>;
-    fn serialize_f32(&mut self, v: f32) -> DdsResult<()>;
-    fn serialize_f64(&mut self, v: f64) -> DdsResult<()>;
-    fn serialize_char(&mut self, v: char) -> DdsResult<()>;
-    fn serialize_str(&mut self, v: &str) -> DdsResult<()>;
-    fn serialize_seq(&mut self, v: &[impl DdsSerialize]) -> DdsResult<()>;
-    fn serialize_array<const N: usize>(&mut self, v: &[impl DdsSerialize; N]) -> DdsResult<()>;
-}
 
 /// This trait indicates whether the associated type is keyed or not, i.e. if the middleware
 /// should manage different instances of the type.
@@ -277,47 +117,6 @@ pub trait DdsGetKeyFromSerializedKeyFields {
         serialized_key_fields: &[u8],
     ) -> DdsResult<DdsSerializedKey>;
 }
-
-/// This trait represent the group of traits that can be automatically derived when a type is to be transmitted using the format
-/// defined by RTPS to ensure interoperability between different implementations.
-///
-/// This is only a convinience trait to allow easily deriving the different traits. If the individual
-/// traits are manually implemented then this trait does not have to be implemented.
-///
-/// # Derivable
-/// This trait can be automatically derived. The generated trait uses by default a CdrLe
-/// representation and it determines whether the type is keyed or not depending on whether
-/// any field is marked `#[key]` or not.
-///
-/// An example of a typical usage of derive is the following:
-///
-/// ```rust
-///     use dust_dds::topic_definition::type_support::DdsType;
-///
-///     #[derive(serde::Serialize, serde::Deserialize, DdsType)]
-///     struct KeyedData {
-///         #[key]
-///         id: u8,
-///         value: u32,
-///     }
-/// ```
-///
-/// It is also possible to derive structs with a lifetime:
-///
-/// ```rust
-///     use dust_dds::topic_definition::type_support::DdsType;
-///     use std::borrow::Cow;
-///
-///     #[derive(serde::Serialize, serde::Deserialize, DdsType)]
-///     struct BorrowedData<'a> {
-///         #[key]
-///         id: u8,
-///         #[serde(borrow)]
-///         value: Cow<'a, [u8]>,
-///     }
-/// ```
-///
-pub trait DdsType: DdsRepresentation + DdsHasKey + DdsBorrowKeyHolder + DdsOwningKeyHolder {}
 
 /// Enumeration of the different representations defined by the RTPS standard and supported by DustDDS.
 pub enum RtpsRepresentation {
@@ -696,3 +495,44 @@ where
 {
     type OwningKeyHolder = T;
 }
+
+/// This trait represent the group of traits that can be automatically derived when a type is to be transmitted using the format
+/// defined by RTPS to ensure interoperability between different implementations.
+///
+/// This is only a convinience trait to allow easily deriving the different traits. If the individual
+/// traits are manually implemented then this trait does not have to be implemented.
+///
+/// # Derivable
+/// This trait can be automatically derived. The generated trait uses by default a CdrLe
+/// representation and it determines whether the type is keyed or not depending on whether
+/// any field is marked `#[key]` or not.
+///
+/// An example of a typical usage of derive is the following:
+///
+/// ```rust
+///     use dust_dds::topic_definition::type_support::DdsType;
+///
+///     #[derive(serde::Serialize, serde::Deserialize, DdsType)]
+///     struct KeyedData {
+///         #[key]
+///         id: u8,
+///         value: u32,
+///     }
+/// ```
+///
+/// It is also possible to derive structs with a lifetime:
+///
+/// ```rust
+///     use dust_dds::topic_definition::type_support::DdsType;
+///     use std::borrow::Cow;
+///
+///     #[derive(serde::Serialize, serde::Deserialize, DdsType)]
+///     struct BorrowedData<'a> {
+///         #[key]
+///         id: u8,
+///         #[serde(borrow)]
+///         value: Cow<'a, [u8]>,
+///     }
+/// ```
+///
+pub trait DdsType: DdsRepresentation + DdsHasKey + DdsBorrowKeyHolder + DdsOwningKeyHolder {}

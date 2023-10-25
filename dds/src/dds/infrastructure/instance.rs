@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::BuiltInTopicKey, implementation::rtps::types::Guid,
-    topic_definition::type_support::DdsSerializedKey,
+    topic_definition::type_support::dds_data::DdsSerializedKey,
 };
 
 /// Type for the instance handle representing an Entity

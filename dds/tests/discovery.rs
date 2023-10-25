@@ -8,7 +8,7 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::type_support::{DdsType, DdsSerialize},
+    topic_definition::type_support::{DdsType, serde::DdsSerialize},
 };
 
 mod utils;

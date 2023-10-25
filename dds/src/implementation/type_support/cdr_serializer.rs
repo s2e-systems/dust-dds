@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
-    topic_definition::type_support::{DdsSerializer, DdsSerialize},
+    topic_definition::type_support::serde::{DdsSerialize, DdsSerializer},
 };
 use byteorder::{ByteOrder, WriteBytesExt};
 

@@ -6,7 +6,7 @@ use dust_dds::{
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
     },
-    topic_definition::type_support::{DdsType, DdsSerialize},
+    topic_definition::type_support::{DdsType, serde::DdsSerialize},
 };
 
 mod utils;
