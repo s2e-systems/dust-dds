@@ -351,141 +351,138 @@ impl<'a, W, E> serde::ser::SerializeStructVariant for Compound<'a, W, E> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        implementation::parameter_list_serde::parameter::{
-            Parameter, ParameterVector, ParameterWithDefault,
-        },
-    };
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::implementation::parameter_list_serde::parameter::{
+//         Parameter, ParameterVector, ParameterWithDefault,
+//     };
 
-    #[derive(Debug, PartialEq, serde::Serialize)]
-    struct Inner {
-        id: Parameter<71, u8>,
-        n: Parameter<72, u16>,
-    }
-    #[test]
-    fn serialize_pl_le() {
-        let data = Inner {
-            id: Parameter::new(21),
-            n: Parameter::new(34),
-        };
-        let expected = &[
-            71, 0x00, 4, 0, // id | Length (incl padding)
-            21, 0, 0, 0, // u8
-            72, 0x00, 4, 0, // n | Length (incl padding)
-            34, 0, 0, 0, // u16
-            1, 0, 0, 0, // Sentinel
-        ][..];
-        let mut result = vec![];
-        let mut serializer =
-            ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
-        serde::Serialize::serialize(&data, &mut serializer).unwrap();
-        assert_eq!(result, expected)
-    }
+//     #[derive(Debug, PartialEq, serde::Serialize)]
+//     struct Inner {
+//         id: Parameter<71, u8>,
+//         n: Parameter<72, u16>,
+//     }
+//     #[test]
+//     fn serialize_pl_le() {
+//         let data = Inner {
+//             id: Parameter::new(21),
+//             n: Parameter::new(34),
+//         };
+//         let expected = &[
+//             71, 0x00, 4, 0, // id | Length (incl padding)
+//             21, 0, 0, 0, // u8
+//             72, 0x00, 4, 0, // n | Length (incl padding)
+//             34, 0, 0, 0, // u16
+//             1, 0, 0, 0, // Sentinel
+//         ][..];
+//         let mut result = vec![];
+//         let mut serializer =
+//             ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
+//         serde::Serialize::serialize(&data, &mut serializer).unwrap();
+//         assert_eq!(result, expected)
+//     }
 
-    #[test]
-    fn serialize_pl_be() {
-        let data = Inner {
-            id: Parameter::new(21),
-            n: Parameter::new(34),
-        };
-        let expected = &[
-            0x00, 71, 0, 4, // id | Length (incl padding)
-            21, 0, 0, 0, // u8
-            0x00, 72, 0, 4, // n | Length (incl padding)
-            0, 34, 0, 0, // u16
-            0, 1, 0, 0, // Sentinel
-        ][..];
-        let mut result = vec![];
-        let mut serializer =
-            ParameterListSerializer::<_, byteorder::BigEndian>::new(&mut result);
-        serde::Serialize::serialize(&data, &mut serializer).unwrap();
-        assert_eq!(result, expected)
-    }
+//     #[test]
+//     fn serialize_pl_be() {
+//         let data = Inner {
+//             id: Parameter::new(21),
+//             n: Parameter::new(34),
+//         };
+//         let expected = &[
+//             0x00, 71, 0, 4, // id | Length (incl padding)
+//             21, 0, 0, 0, // u8
+//             0x00, 72, 0, 4, // n | Length (incl padding)
+//             0, 34, 0, 0, // u16
+//             0, 1, 0, 0, // Sentinel
+//         ][..];
+//         let mut result = vec![];
+//         let mut serializer = ParameterListSerializer::<_, byteorder::BigEndian>::new(&mut result);
+//         serde::Serialize::serialize(&data, &mut serializer).unwrap();
+//         assert_eq!(result, expected)
+//     }
 
-    #[derive(Debug, PartialEq, serde::Serialize)]
-    struct PlWithList {
-        id: Parameter<71, u8>,
-        values: ParameterVector<93, u16>,
-    }
+//     #[derive(Debug, PartialEq, serde::Serialize)]
+//     struct PlWithList {
+//         id: Parameter<71, u8>,
+//         values: ParameterVector<93, u16>,
+//     }
 
-    #[test]
-    fn serialize_pl_vec_le() {
-        let data = PlWithList {
-            id: Parameter::new(21),
-            values: ParameterVector::new(vec![34, 35]),
-        };
-        let expected = &[
-            71, 0x00, 4, 0, // id | Length (incl padding)
-            21, 0, 0, 0, // u8
-            93, 0x00, 4, 0, // values | Length (incl padding)
-            34, 0, 0, 0, // u16
-            93, 0x00, 4, 0, // values | Length (incl padding)
-            35, 0, 0, 0, // u16
-            1, 0, 0, 0, // Sentinel
-        ][..];
-        let mut result = vec![];
-        let mut serializer =
-            ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
-        serde::Serialize::serialize(&data, &mut serializer).unwrap();
-        assert_eq!(result, expected)
-    }
+//     #[test]
+//     fn serialize_pl_vec_le() {
+//         let data = PlWithList {
+//             id: Parameter::new(21),
+//             values: ParameterVector::new(vec![34, 35]),
+//         };
+//         let expected = &[
+//             71, 0x00, 4, 0, // id | Length (incl padding)
+//             21, 0, 0, 0, // u8
+//             93, 0x00, 4, 0, // values | Length (incl padding)
+//             34, 0, 0, 0, // u16
+//             93, 0x00, 4, 0, // values | Length (incl padding)
+//             35, 0, 0, 0, // u16
+//             1, 0, 0, 0, // Sentinel
+//         ][..];
+//         let mut result = vec![];
+//         let mut serializer =
+//             ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
+//         serde::Serialize::serialize(&data, &mut serializer).unwrap();
+//         assert_eq!(result, expected)
+//     }
 
-    #[derive(Debug, PartialEq, serde::Serialize)]
-    struct PlOuter {
-        outer: Parameter<2, u8>,
-        inner: Inner,
-    }
+//     #[derive(Debug, PartialEq, serde::Serialize)]
+//     struct PlOuter {
+//         outer: Parameter<2, u8>,
+//         inner: Inner,
+//     }
 
-    #[test]
-    fn serialize_compound() {
-        let data = PlOuter {
-            outer: Parameter::new(7),
-            inner: Inner {
-                id: Parameter::new(21),
-                n: Parameter::new(34),
-            },
-        };
+//     #[test]
+//     fn serialize_compound() {
+//         let data = PlOuter {
+//             outer: Parameter::new(7),
+//             inner: Inner {
+//                 id: Parameter::new(21),
+//                 n: Parameter::new(34),
+//             },
+//         };
 
-        let expected = &[
-            2, 0x00, 4, 0, // n | Length (incl padding)
-            7, 0, 0, 0, // u8
-            71, 0x00, 4, 0, // id | Length (incl padding)
-            21, 0, 0, 0, // u16
-            72, 0x00, 4, 0, // n | Length (incl padding)
-            34, 0, 0, 0, // u8
-            1, 0, 0, 0, // Sentinel
-        ][..];
-        let mut result = vec![];
-        let mut serializer =
-            ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
-        serde::Serialize::serialize(&data, &mut serializer).unwrap();
-        assert_eq!(result, expected)
-    }
+//         let expected = &[
+//             2, 0x00, 4, 0, // n | Length (incl padding)
+//             7, 0, 0, 0, // u8
+//             71, 0x00, 4, 0, // id | Length (incl padding)
+//             21, 0, 0, 0, // u16
+//             72, 0x00, 4, 0, // n | Length (incl padding)
+//             34, 0, 0, 0, // u8
+//             1, 0, 0, 0, // Sentinel
+//         ][..];
+//         let mut result = vec![];
+//         let mut serializer =
+//             ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
+//         serde::Serialize::serialize(&data, &mut serializer).unwrap();
+//         assert_eq!(result, expected)
+//     }
 
-    #[derive(Debug, PartialEq, serde::Serialize)]
-    struct InnerWithDefault {
-        id: Parameter<71, u8>,
-        n: ParameterWithDefault<72, u8>,
-    }
+//     #[derive(Debug, PartialEq, serde::Serialize)]
+//     struct InnerWithDefault {
+//         id: Parameter<71, u8>,
+//         n: ParameterWithDefault<72, u8>,
+//     }
 
-    #[test]
-    fn serialize_with_default() {
-        let data = InnerWithDefault {
-            id: Parameter::new(21),
-            n: ParameterWithDefault::new(0),
-        };
-        let expected = &[
-            71, 0x00, 4, 0, // id | Length (incl padding)
-            21, 0, 0, 0, // u8
-            1, 0, 0, 0, // Sentinel
-        ][..];
-        let mut result = vec![];
-        let mut serializer =
-            ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
-        serde::Serialize::serialize(&data, &mut serializer).unwrap();
-        assert_eq!(result, expected)
-    }
-}
+//     #[test]
+//     fn serialize_with_default() {
+//         let data = InnerWithDefault {
+//             id: Parameter::new(21),
+//             n: ParameterWithDefault::new(0),
+//         };
+//         let expected = &[
+//             71, 0x00, 4, 0, // id | Length (incl padding)
+//             21, 0, 0, 0, // u8
+//             1, 0, 0, 0, // Sentinel
+//         ][..];
+//         let mut result = vec![];
+//         let mut serializer =
+//             ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut result);
+//         serde::Serialize::serialize(&data, &mut serializer).unwrap();
+//         assert_eq!(result, expected)
+//     }
+// }

@@ -5,9 +5,12 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-        DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+    topic_definition::{
+        cdr_type::{CdrRepresentation, CdrRepresentationKind, CdrSerialize, CdrSerializer},
+        type_support::{
+            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
+            DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+        },
     },
 };
 
@@ -25,7 +28,7 @@ pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
     Clone,
     derive_more::From,
     derive_more::AsRef,
-    serde::Serialize,
+    CdrSerialize,
     serde::Deserialize,
 )]
 struct ExpectsInlineQos(bool);
@@ -34,14 +37,25 @@ impl Default for ExpectsInlineQos {
         Self(DEFAULT_EXPECTS_INLINE_QOS)
     }
 }
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+
+#[derive(Debug, PartialEq, Eq, Clone, serde::Deserialize)]
 pub struct ReaderProxy {
-    #[serde(skip_serializing)]
     remote_reader_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
     remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
     unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
     multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
     expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
+}
+
+impl CdrSerialize for ReaderProxy {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+        // remote_reader_guid not serialized
+        self.remote_group_entity_id.serialize(serializer)?;
+        self.unicast_locator_list.serialize(serializer)?;
+        self.multicast_locator_list.serialize(serializer)?;
+        self.expects_inline_qos.serialize(serializer)?;
+        Ok(())
+    }
 }
 
 impl ReaderProxy {
@@ -82,7 +96,7 @@ impl ReaderProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
 pub struct DiscoveredReaderData {
     reader_proxy: ReaderProxy,
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
@@ -114,6 +128,10 @@ impl DdsHasKey for DiscoveredReaderData {
 
 impl DdsRepresentation for DiscoveredReaderData {
     const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
+}
+
+impl CdrRepresentation for DiscoveredReaderData {
+    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
 impl DdsGetKeyFromFoo for DiscoveredReaderData {

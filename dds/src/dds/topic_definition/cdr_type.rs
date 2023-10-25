@@ -22,6 +22,24 @@ pub trait CdrSerializer {
     fn serialize_str(&mut self, v: &str) -> DdsResult<()>;
     fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> DdsResult<()>;
     fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> DdsResult<()>;
+    fn serialize_unit(&mut self) -> DdsResult<()>;
+}
+
+/// Enumeration of the different representations defined by the RTPS standard and supported by DustDDS.
+pub enum CdrRepresentationKind {
+    CdrLe,
+    CdrBe,
+    PlCdrBe,
+    PlCdrLe,
+}
+
+/// This trait defines the representation to be used by the type when serializing and deserializing.
+///
+/// When used in combination with [`serde::Serialize`] and [`serde::Deserialize`] a blanket implementation
+/// for the [`DdsSerializeData`] and [`DdsDeserialize`] traits is provided that uses the Cdr serializer and
+/// is conformant with the CDR format as specified in the RTPS standard.
+pub trait CdrRepresentation {
+    const REPRESENTATION: CdrRepresentationKind;
 }
 
 impl CdrSerialize for bool {
@@ -159,5 +177,11 @@ where
 {
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
         self.as_ref().serialize(serializer)
+    }
+}
+
+impl CdrSerialize for () {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+        serializer.serialize_unit()
     }
 }

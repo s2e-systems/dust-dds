@@ -19,18 +19,15 @@
 //! derived using the respective proc macro.
 //!
 
-use std::io::{Read, Write};
+use std::io::Read;
 
 use crate::{
-    implementation::parameter_list_serde::{
-        serde_parameter_list_deserializer::ParameterListDeserializer,
-        serde_parameter_list_serializer::ParameterListSerializer,
-    },
+    implementation::parameter_list_serde::serde_parameter_list_deserializer::ParameterListDeserializer,
     infrastructure::error::{DdsError::PreconditionNotMet, DdsResult},
 };
 
 pub use dust_dds_derive::{
-    DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, CdrSerialize, DdsType,
+    CdrSerialize, DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, DdsType,
 };
 
 /// The [`DdsSerializedData`] represents the serialized data of a type that can be
@@ -142,66 +139,6 @@ const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 /// is conformant with the CDR format as specified in the RTPS standard.
 pub trait DdsRepresentation {
     const REPRESENTATION: RtpsRepresentation;
-}
-
-impl<T> DdsSerializeData for T
-where
-    T: serde::Serialize + DdsRepresentation,
-{
-    fn serialize_data(&self) -> DdsResult<DdsSerializedData> {
-        let mut writer = Vec::new();
-        match T::REPRESENTATION {
-            RtpsRepresentation::CdrLe => {
-                writer
-                    .write_all(&CDR_LE)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                let mut serializer =
-                    cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
-                serde::Serialize::serialize(self, &mut serializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-            }
-            RtpsRepresentation::CdrBe => {
-                writer
-                    .write_all(&CDR_BE)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                let mut serializer =
-                    cdr::ser::Serializer::<_, byteorder::BigEndian>::new(&mut writer);
-                serde::Serialize::serialize(self, &mut serializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-            }
-            RtpsRepresentation::PlCdrBe => {
-                writer
-                    .write_all(&PL_CDR_BE)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                let mut serializer =
-                    ParameterListSerializer::<_, byteorder::BigEndian>::new(&mut writer);
-                serde::Serialize::serialize(self, &mut serializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-            }
-            RtpsRepresentation::PlCdrLe => {
-                writer
-                    .write_all(&PL_CDR_LE)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-                let mut serializer =
-                    ParameterListSerializer::<_, byteorder::LittleEndian>::new(&mut writer);
-                serde::Serialize::serialize(self, &mut serializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))?;
-            }
-        };
-        Ok(writer.into())
-    }
 }
 
 impl<'de, T> DdsDeserialize<'de> for T
@@ -512,7 +449,7 @@ where
 /// ```rust
 ///     use dust_dds::topic_definition::type_support::DdsType;
 ///
-///     #[derive(serde::Serialize, serde::Deserialize, DdsType)]
+///     #[derive(serde::Deserialize, DdsType)]
 ///     struct KeyedData {
 ///         #[key]
 ///         id: u8,
@@ -526,13 +463,12 @@ where
 ///     use dust_dds::topic_definition::type_support::DdsType;
 ///     use std::borrow::Cow;
 ///
-///     #[derive(serde::Serialize, serde::Deserialize, DdsType)]
+///     #[derive(serde::Deserialize, DdsType)]
 ///     struct BorrowedData<'a> {
 ///         #[key]
 ///         id: u8,
-///         #[serde(borrow)]
 ///         value: Cow<'a, [u8]>,
 ///     }
 /// ```
 ///
-pub trait DdsType: DdsRepresentation + DdsHasKey + DdsBorrowKeyHolder + DdsOwningKeyHolder {}
+pub trait DdsType {}

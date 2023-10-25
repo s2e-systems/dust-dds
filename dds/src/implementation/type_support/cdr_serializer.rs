@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
-    topic_definition::cdr_type::{CdrSerializer, CdrSerialize},
+    topic_definition::cdr_type::{CdrSerialize, CdrSerializer},
 };
 use byteorder::{ByteOrder, WriteBytesExt};
 
@@ -184,6 +184,10 @@ where
         for e in v {
             e.serialize(self)?;
         }
+        Ok(())
+    }
+
+    fn serialize_unit(&mut self) -> DdsResult<()> {
         Ok(())
     }
 }

@@ -5,9 +5,12 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-        DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+    topic_definition::{
+        cdr_type::{CdrRepresentation, CdrRepresentationKind, CdrSerialize, CdrSerializer},
+        type_support::{
+            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
+            DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+        },
     },
 };
 
@@ -15,15 +18,24 @@ use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_ENDPOINT_GUID, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
     PID_UNICAST_LOCATOR,
 };
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Deserialize)]
 pub struct WriterProxy {
-    // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
-    #[serde(skip_serializing)]
     remote_writer_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
     remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
     unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
     multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
     data_max_size_serialized: ParameterWithDefault<PID_DATA_MAX_SIZE_SERIALIZED, i32>,
+}
+
+impl CdrSerialize for WriterProxy {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+        // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
+        self.remote_group_entity_id.serialize(serializer)?;
+        self.unicast_locator_list.serialize(serializer)?;
+        self.multicast_locator_list.serialize(serializer)?;
+        self.data_max_size_serialized.serialize(serializer)?;
+        Ok(())
+    }
 }
 
 impl WriterProxy {
@@ -64,7 +76,7 @@ impl WriterProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,
@@ -94,6 +106,10 @@ pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
 impl DdsHasKey for DiscoveredWriterData {
     const HAS_KEY: bool = true;
+}
+
+impl CdrRepresentation for DiscoveredWriterData {
+    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
 impl DdsRepresentation for DiscoveredWriterData {

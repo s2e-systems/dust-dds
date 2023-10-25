@@ -158,8 +158,27 @@ pub fn derive_dds_representation(input: TokenStream) -> TokenStream {
     }.into()
 }
 
+#[proc_macro_derive(CdrRepresentation)]
+pub fn derive_cdr_representation(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+
+    if let syn::Data::Struct(_) = &input.data {
+        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+        let ident = input.ident;
+
+        quote! {
+            impl #impl_generics dust_dds::topic_definition::cdr_type::CdrRepresentation for #ident #type_generics #where_clause {
+                const REPRESENTATION: dust_dds::topic_definition::cdr_type::CdrRepresentationKind
+                    = dust_dds::topic_definition::cdr_type::CdrRepresentationKind::CdrLe;
+            }
+        }
+    }else {
+        quote_spanned! {input.span() => compile_error!("CdrRepresentation can only be derived for structs");}
+    }.into()
+}
+
 #[proc_macro_derive(CdrSerialize)]
-pub fn derive_dds_serialize(input: TokenStream) -> TokenStream {
+pub fn derive_cdr_serialize(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     let mut field_serialization = quote!();
 
@@ -205,7 +224,9 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     output.extend(derive_dds_representation(input.clone()));
     output.extend(derive_dds_has_key(input.clone()));
     output.extend(derive_dds_get_key(input.clone()));
-    output.extend(derive_dds_set_key_fields(input));
+    output.extend(derive_dds_set_key_fields(input.clone()));
+    output.extend(derive_cdr_serialize(input.clone()));
+    output.extend(derive_cdr_representation(input));
 
     output
 }

@@ -1,15 +1,18 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-        DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+    topic_definition::{
+        cdr_type::{CdrRepresentation, CdrRepresentationKind, CdrSerialize},
+        type_support::{
+            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
+            DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+        },
     },
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
 pub struct DiscoveredTopicData {
     topic_builtin_topic_data: TopicBuiltinTopicData,
 }
@@ -28,6 +31,10 @@ impl DiscoveredTopicData {
 
 impl DdsHasKey for DiscoveredTopicData {
     const HAS_KEY: bool = true;
+}
+
+impl CdrRepresentation for DiscoveredTopicData {
+    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
 impl DdsRepresentation for DiscoveredTopicData {

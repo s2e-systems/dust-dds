@@ -38,6 +38,7 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::{self, UdpTransportWrite},
+        type_support::cdr_serializer::CdrDataSerializer,
         utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
@@ -55,8 +56,9 @@ use crate::{
         },
         time::DurationKind,
     },
-    topic_definition::type_support::{
-        DdsGetKeyFromFoo, DdsSerializedData, DdsSerializedKey,
+    topic_definition::{
+        cdr_type::CdrSerialize,
+        type_support::{DdsGetKeyFromFoo, DdsSerializedData, DdsSerializedKey},
     },
     {
         builtin_topics::SubscriptionBuiltinTopicData,
@@ -67,8 +69,8 @@ use crate::{
         },
     },
 };
+use byteorder::LittleEndian;
 use dust_dds_derive::actor_interface;
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
 use super::{
@@ -393,7 +395,7 @@ impl DataWriterActor {
 
         let mut serialized_status_info = Vec::new();
         let mut serializer =
-            cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+            CdrDataSerializer::<_, byteorder::LittleEndian>::new(&mut serialized_status_info);
         if self
             .qos
             .writer_data_lifecycle
@@ -452,8 +454,7 @@ impl DataWriterActor {
         }
 
         let mut serialized_status_info = Vec::new();
-        let mut serializer =
-            cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+        let mut serializer = CdrDataSerializer::<_, LittleEndian>::new(&mut serialized_status_info);
         STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
