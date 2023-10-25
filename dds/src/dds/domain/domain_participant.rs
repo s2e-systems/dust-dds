@@ -24,7 +24,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::dds_data::{DdsGetKeyFromFoo, DdsSerializeData},
+        type_support::{DdsGetKeyFromFoo, DdsSerializeData},
     },
 };
 

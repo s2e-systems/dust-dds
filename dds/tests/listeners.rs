@@ -30,8 +30,7 @@ use dust_dds::{
         subscriber_listener::SubscriberListener,
     },
     topic_definition::{
-        topic_listener::TopicListener,
-        type_support::{DdsType, serde::DdsSerialize},
+        cdr_type::DdsSerialize, topic_listener::TopicListener, type_support::DdsType,
     },
 };
 

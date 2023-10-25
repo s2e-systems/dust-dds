@@ -10,7 +10,7 @@ use crate::{
         },
     },
     infrastructure::{error::DdsResult, time::Duration},
-    topic_definition::type_support::dds_data::{
+    topic_definition::type_support::{
         DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
         DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
     },
@@ -270,7 +270,7 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        topic_definition::type_support::dds_data::DdsSerializeData,
+        topic_definition::type_support::DdsSerializeData,
     };
 
     #[test]

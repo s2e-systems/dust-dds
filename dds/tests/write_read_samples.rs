@@ -22,7 +22,10 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::{dds_data::DdsGetKeyFromFoo, serde::DdsSerialize, DdsType},
+    topic_definition::{
+        cdr_type::DdsSerialize,
+        type_support::{DdsGetKeyFromFoo, DdsType},
+    },
 };
 
 mod utils;

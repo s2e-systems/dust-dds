@@ -18,7 +18,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    topic_definition::type_support::dds_data::{DdsHasKey, DdsRepresentation, RtpsRepresentation},
+    topic_definition::type_support::{DdsHasKey, DdsRepresentation, RtpsRepresentation},
 };
 
 #[derive(

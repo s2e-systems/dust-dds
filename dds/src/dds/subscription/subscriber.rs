@@ -25,7 +25,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::dds_data::{DdsGetKeyFromSerializedData, DdsHasKey},
+        type_support::{DdsGetKeyFromSerializedData, DdsHasKey},
     },
 };
 

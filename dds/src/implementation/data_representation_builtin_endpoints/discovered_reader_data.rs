@@ -5,7 +5,7 @@ use crate::{
         rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
-    topic_definition::type_support::dds_data::{
+    topic_definition::type_support::{
         DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
         DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
     },
@@ -152,7 +152,7 @@ mod tests {
             PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
-        topic_definition::type_support::dds_data::DdsSerializeData,
+        topic_definition::type_support::DdsSerializeData,
     };
 
     #[test]
