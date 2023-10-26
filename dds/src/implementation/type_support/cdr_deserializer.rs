@@ -41,10 +41,8 @@ where
             0 => Ok(()),
             n @ 1..=7 => {
                 let amt = alignment - n;
-                self.reader.consume(amt);
-                self.reader
-                    .read_exact(&mut padding[..amt])
-                    .map_err(Into::into)
+                self.reader.read_exact(&mut padding[..amt])?;
+                Ok(())
             }
             _ => unreachable!(),
         }
@@ -132,7 +130,7 @@ where
     }
 
     fn deserialize_string(&mut self) -> DdsResult<String> {
-        let len: u32 = CdrDeserialize::deserialize(&mut *self)?;
+        let len: u32 = CdrDeserialize::deserialize(self)?;
         let mut buf = vec![0_u8; len as usize];
         self.reader.read_exact(&mut buf)?;
         buf.pop(); // removes a terminating null character
@@ -170,8 +168,8 @@ where
         let len: u32 = CdrDeserialize::deserialize(&mut *self)?;
         let start_pos = self.bytes.len() - self.reader.len();
         let end_pos = start_pos + len as usize;
-        if self.bytes.len() > end_pos {
-            let buf = &self.bytes[start_pos..=end_pos];
+        if self.bytes.len() >= end_pos {
+            let buf = &self.bytes[start_pos..end_pos];
             self.reader.consume(len as usize);
             Ok(buf)
         } else {
@@ -184,8 +182,8 @@ where
     fn deserialize_byte_array<const N: usize>(&mut self) -> DdsResult<&'de [u8; N]> {
         let start_pos = self.bytes.len() - self.reader.len();
         let end_pos = start_pos + N;
-        if self.bytes.len() > end_pos {
-            let buf = self.bytes[start_pos..=end_pos]
+        if self.bytes.len() >= end_pos {
+            let buf = self.bytes[start_pos..end_pos]
                 .try_into()
                 .expect("Slice length is guaranteed");
             self.reader.consume(N);
@@ -505,46 +503,88 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn serialize_string_sequence() {
-    //     let v = vec!["HOLA", "ADIOS", "HELLO", "BYE", "GOODBYE"];
-    //     assert_eq!(
-    //         deserialize_data::<_, BigEndian>(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x48, 0x4f, 0x4c, 0x41, 0x00, //
-    //             0x00, 0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x06, //
-    //             0x41, 0x44, 0x49, 0x4f, 0x53, 0x00, //
-    //             0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x06, //
-    //             0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x00, //
-    //             0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x04, //
-    //             0x42, 0x59, 0x45, 0x00, //
-    //             0x00, 0x00, 0x00, 0x08, //
-    //             0x47, 0x4f, 0x4f, 0x44, 0x42, 0x59, 0x45, 0x00,
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         deserialize_data::<_, LittleEndian>(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x48, 0x4f, 0x4c, 0x41, 0x00, //
-    //             0x00, 0x00, 0x00, //
-    //             0x06, 0x00, 0x00, 0x00, //
-    //             0x41, 0x44, 0x49, 0x4f, 0x53, 0x00, //
-    //             0x00, 0x00, //
-    //             0x06, 0x00, 0x00, 0x00, //
-    //             0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x00, //
-    //             0x00, 0x00, //
-    //             0x04, 0x00, 0x00, 0x00, //
-    //             0x42, 0x59, 0x45, 0x00, //
-    //             0x08, 0x00, 0x00, 0x00, //
-    //             0x47, 0x4f, 0x4f, 0x44, 0x42, 0x59, 0x45, 0x00,
-    //         ]
-    //     );
-    // }
+    #[test]
+    fn deserialize_string_sequence() {
+        let v = vec!["HOLA", "ADIOS", "HELLO", "BYE", "GOODBYE"];
+        assert_eq!(
+            deserialize_data::<Vec<String>, BigEndian>(&[
+                0x00, 0x00, 0x00, 0x05, //
+                0x00, 0x00, 0x00, 0x05, //
+                0x48, 0x4f, 0x4c, 0x41, 0x00, //
+                0x00, 0x00, 0x00, //
+                0x00, 0x00, 0x00, 0x06, //
+                0x41, 0x44, 0x49, 0x4f, 0x53, 0x00, //
+                0x00, 0x00, //
+                0x00, 0x00, 0x00, 0x06, //
+                0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x00, //
+                0x00, 0x00, //
+                0x00, 0x00, 0x00, 0x04, //
+                0x42, 0x59, 0x45, 0x00, //
+                0x00, 0x00, 0x00, 0x08, //
+                0x47, 0x4f, 0x4f, 0x44, 0x42, 0x59, 0x45, 0x00,
+            ])
+            .unwrap(),
+            v
+        );
+        assert_eq!(
+            deserialize_data::<Vec<String>, LittleEndian>(&[
+                0x05, 0x00, 0x00, 0x00, //
+                0x05, 0x00, 0x00, 0x00, //
+                0x48, 0x4f, 0x4c, 0x41, 0x00, //
+                0x00, 0x00, 0x00, //
+                0x06, 0x00, 0x00, 0x00, //
+                0x41, 0x44, 0x49, 0x4f, 0x53, 0x00, //
+                0x00, 0x00, //
+                0x06, 0x00, 0x00, 0x00, //
+                0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x00, //
+                0x00, 0x00, //
+                0x04, 0x00, 0x00, 0x00, //
+                0x42, 0x59, 0x45, 0x00, //
+                0x08, 0x00, 0x00, 0x00, //
+                0x47, 0x4f, 0x4f, 0x44, 0x42, 0x59, 0x45, 0x00,
+            ])
+            .unwrap(),
+            v
+        );
+    }
+
+    #[test]
+    fn deserialize_bytes() {
+        let v = &[1u8, 2, 3, 4, 5];
+        assert_eq!(
+            deserialize_data::<&[u8], BigEndian>(&[
+                0x00, 0x00, 0x00, 0x05, //
+                0x01, 0x02, 0x03, 0x04, 0x05 //
+            ])
+            .unwrap(),
+            v
+        );
+        assert_eq!(
+            deserialize_data::<&[u8], LittleEndian>(&[
+                0x05, 0x00, 0x00, 0x00, //
+                0x01, 0x02, 0x03, 0x04, 0x05 //
+            ])
+            .unwrap(),
+            v
+        );
+    }
+
+    #[test]
+    fn deserialize_byte_array() {
+        let v = &[1u8, 2, 3, 4, 5];
+        assert_eq!(
+            deserialize_data::<&[u8; 5], BigEndian>(&[
+                0x01, 0x02, 0x03, 0x04, 0x05 //
+            ])
+            .unwrap(),
+            v
+        );
+        assert_eq!(
+            deserialize_data::<&[u8; 5], LittleEndian>(&[
+                0x01, 0x02, 0x03, 0x04, 0x05 //
+            ])
+            .unwrap(),
+            v
+        );
+    }
 }

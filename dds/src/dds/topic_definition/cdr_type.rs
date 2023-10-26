@@ -319,6 +319,12 @@ impl<'de> CdrDeserialize<'de> for &'de [u8] {
     }
 }
 
+impl<'de, const N: usize> CdrDeserialize<'de> for &'de [u8; N] {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+        deserializer.deserialize_byte_array()
+    }
+}
+
 impl<'de> CdrDeserialize<'de> for () {
     fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
         deserializer.deserialize_unit()
