@@ -1,6 +1,6 @@
 use crate::infrastructure::error::DdsResult;
 
-pub use dust_dds_derive::CdrSerialize;
+pub use dust_dds_derive::{CdrDeserialize, CdrSerialize};
 
 pub trait CdrSerialize {
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()>;

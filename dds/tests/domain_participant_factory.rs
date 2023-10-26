@@ -9,13 +9,13 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::DdsType,
+    topic_definition::{cdr_type::CdrDeserialize, type_support::DdsType},
 };
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, serde::Deserialize, DdsType)]
+#[derive(Debug, PartialEq, serde::Deserialize, CdrDeserialize, DdsType)]
 struct KeyedData {
     #[key]
     id: u8,

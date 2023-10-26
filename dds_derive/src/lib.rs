@@ -217,6 +217,51 @@ pub fn derive_cdr_serialize(input: TokenStream) -> TokenStream {
     }.into()
 }
 
+#[proc_macro_derive(CdrDeserialize)]
+pub fn derive_cdr_deserialize(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    let mut struct_deserialization = quote!();
+
+    if let syn::Data::Struct(struct_data) = &input.data {
+        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+        let ident = input.ident;
+
+        match struct_data.fields.is_empty() {
+            true => struct_deserialization.extend(quote!{Self}),
+            false => {
+                let mut field_deserialization = quote!();
+                let is_tuple = struct_data.fields.iter().next().expect("Not empty").ident.is_none();
+                if is_tuple {
+                    for _ in struct_data.fields.iter() {
+                        field_deserialization.extend(quote!{dust_dds::topic_definition::cdr_type::CdrDeserialize::deserialize(deserializer)?,});
+                    }
+                    struct_deserialization.extend(quote!{Self(#field_deserialization)})
+                } else {
+                    for field in struct_data.fields.iter() {
+                        let field_name = field.ident.as_ref().expect("Is not a tuple");
+                        field_deserialization.extend(quote!{#field_name: dust_dds::topic_definition::cdr_type::CdrDeserialize::deserialize(deserializer)?,});
+                    }
+                    struct_deserialization.extend(quote!{Self{
+                        #field_deserialization
+                    }})
+                }
+            },
+        }
+
+        quote! {
+            const _ : () = {
+                impl<'__de> #impl_generics dust_dds::topic_definition::cdr_type::CdrDeserialize<'__de> for #ident #type_generics #where_clause {
+                    fn deserialize(deserializer: &mut impl dust_dds::topic_definition::cdr_type::CdrDeserializer<'__de>) -> dust_dds::infrastructure::error::DdsResult<Self> {
+                        Ok(#struct_deserialization)
+                    }
+                }
+            };
+        }
+    }else {
+        quote_spanned! {input.span() => compile_error!("CdrDeserialize can only be derived for structs");}
+    }.into()
+}
+
 #[proc_macro_derive(DdsType, attributes(key))]
 pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     let mut output = TokenStream::new();
