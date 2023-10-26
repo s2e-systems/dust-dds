@@ -1,4 +1,4 @@
-use dust_dds_derive::CdrSerialize;
+use dust_dds_derive::{CdrDeserialize, CdrSerialize};
 
 use crate::{
     implementation::{
@@ -20,18 +20,14 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    topic_definition::type_support::{DdsHasKey, DdsRepresentation, RtpsRepresentation},
+    topic_definition::{
+        cdr_type::{CdrRepresentation, CdrRepresentationKind},
+        type_support::{DdsHasKey, DdsRepresentation, RtpsRepresentation},
+    },
 };
 
 #[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    CdrSerialize,
-    serde::Deserialize,
-    derive_more::From,
-    derive_more::AsRef,
+    Debug, Clone, PartialEq, Eq, CdrSerialize, CdrDeserialize, derive_more::From, derive_more::AsRef,
 )]
 pub struct ReliabilityQosPolicyTopics(ReliabilityQosPolicy);
 impl Default for ReliabilityQosPolicyTopics {
@@ -40,7 +36,7 @@ impl Default for ReliabilityQosPolicyTopics {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, Default)]
 pub struct BuiltInTopicKey {
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
@@ -57,7 +53,7 @@ impl From<BuiltInTopicKey> for [u8; 16] {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct ParticipantBuiltinTopicData {
     key: Parameter<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
     user_data: ParameterWithDefault<PID_USER_DATA, UserDataQosPolicy>,
@@ -88,7 +84,11 @@ impl DdsRepresentation for ParticipantBuiltinTopicData {
     const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
+impl CdrRepresentation for ParticipantBuiltinTopicData {
+    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct TopicBuiltinTopicData {
     key: Parameter<PID_ENDPOINT_GUID, BuiltInTopicKey>,
     name: Parameter<PID_TOPIC_NAME, String>,
@@ -214,15 +214,12 @@ impl DdsRepresentation for TopicBuiltinTopicData {
     const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
+impl CdrRepresentation for TopicBuiltinTopicData {
+    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
+}
+
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    CdrSerialize,
-    serde::Deserialize,
-    derive_more::From,
-    derive_more::AsRef,
+    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, derive_more::From, derive_more::AsRef,
 )]
 struct ReliabilityQosPolicyDataWriter(ReliabilityQosPolicy);
 impl Default for ReliabilityQosPolicyDataWriter {
@@ -232,14 +229,7 @@ impl Default for ReliabilityQosPolicyDataWriter {
 }
 
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    CdrSerialize,
-    serde::Deserialize,
-    derive_more::From,
-    derive_more::AsRef,
+    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, derive_more::From, derive_more::AsRef,
 )]
 struct ReliabilityQosPolicyDataReader(ReliabilityQosPolicy);
 impl Default for ReliabilityQosPolicyDataReader {
@@ -248,7 +238,7 @@ impl Default for ReliabilityQosPolicyDataReader {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct PublicationBuiltinTopicData {
     key: Parameter<PID_ENDPOINT_GUID, BuiltInTopicKey>,
     // Default value is a deviation from the standard and is used for interoperability reasons:
@@ -389,7 +379,11 @@ impl DdsRepresentation for PublicationBuiltinTopicData {
     const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
+impl CdrRepresentation for PublicationBuiltinTopicData {
+    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct SubscriptionBuiltinTopicData {
     key: Parameter<PID_ENDPOINT_GUID, BuiltInTopicKey>,
     // Default value is a deviation from the standard and is used for interoperability reasons:
@@ -530,4 +524,8 @@ impl DdsHasKey for SubscriptionBuiltinTopicData {
 
 impl DdsRepresentation for SubscriptionBuiltinTopicData {
     const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
+}
+
+impl CdrRepresentation for SubscriptionBuiltinTopicData {
+    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }

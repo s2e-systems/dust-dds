@@ -6,7 +6,10 @@ use crate::{
     },
     infrastructure::error::DdsResult,
     topic_definition::{
-        cdr_type::{CdrRepresentation, CdrRepresentationKind, CdrSerialize, CdrSerializer},
+        cdr_type::{
+            CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind,
+            CdrSerialize, CdrSerializer,
+        },
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
             DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
@@ -18,7 +21,7 @@ use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_ENDPOINT_GUID, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
     PID_UNICAST_LOCATOR,
 };
-#[derive(Debug, PartialEq, Eq, Clone, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
     remote_writer_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
     remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
@@ -35,6 +38,12 @@ impl CdrSerialize for WriterProxy {
         self.multicast_locator_list.serialize(serializer)?;
         self.data_max_size_serialized.serialize(serializer)?;
         Ok(())
+    }
+}
+
+impl<'de> CdrDeserialize<'de> for WriterProxy {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+        todo!()
     }
 }
 
@@ -76,7 +85,7 @@ impl WriterProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,
@@ -123,8 +132,8 @@ impl DdsGetKeyFromFoo for DiscoveredWriterData {
 }
 
 impl DdsGetKeyFromSerializedData for DiscoveredWriterData {
-    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
-        Ok(Self::deserialize_data(&mut serialized_data)?
+    fn get_key_from_serialized_data(serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
+        Ok(Self::deserialize_data(serialized_data)?
             .dds_publication_data
             .key()
             .value

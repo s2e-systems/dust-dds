@@ -11,7 +11,10 @@ use crate::{
     },
     infrastructure::{error::DdsResult, time::Duration},
     topic_definition::{
-        cdr_type::{CdrRepresentation, CdrRepresentationKind, CdrSerialize, CdrSerializer},
+        cdr_type::{
+            CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind,
+            CdrSerialize, CdrSerializer,
+        },
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
             DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
@@ -29,14 +32,7 @@ use super::parameter_id_values::{
 };
 
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    derive_more::From,
-    derive_more::AsRef,
-    CdrSerialize,
-    serde::Deserialize,
+    Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, CdrSerialize, CdrDeserialize,
 )]
 struct DomainTag(String);
 impl Default for DomainTag {
@@ -45,14 +41,7 @@ impl Default for DomainTag {
     }
 }
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    derive_more::From,
-    derive_more::AsRef,
-    CdrSerialize,
-    serde::Deserialize,
+    Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, CdrSerialize, CdrDeserialize,
 )]
 struct ExpectsInlineQos(bool);
 impl Default for ExpectsInlineQos {
@@ -61,14 +50,7 @@ impl Default for ExpectsInlineQos {
     }
 }
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    derive_more::From,
-    derive_more::AsRef,
-    CdrSerialize,
-    serde::Deserialize,
+    Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, CdrSerialize, CdrDeserialize,
 )]
 struct LeaseDuration(Duration);
 impl Default for LeaseDuration {
@@ -87,20 +69,17 @@ impl CdrSerialize for DomainIdParameter {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for DomainIdParameter {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
+impl<'de> CdrDeserialize<'de> for DomainIdParameter {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
         // None should not happen since this is only deserialized if the
         // corresponding PID is found
-        Ok(Self(Some(serde::Deserialize::deserialize(deserializer)?)))
+        Ok(Self(Some(CdrDeserialize::deserialize(deserializer)?)))
     }
 }
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantProxy {
     domain_id: ParameterWithDefault<PID_DOMAIN_ID, DomainIdParameter>,
     domain_tag: ParameterWithDefault<PID_DOMAIN_TAG, DomainTag>,
@@ -137,6 +116,12 @@ impl CdrSerialize for ParticipantProxy {
         self.manual_liveliness_count.serialize(serializer)?;
         self.builtin_endpoint_qos.serialize(serializer)?;
         Ok(())
+    }
+}
+
+impl<'de> CdrDeserialize<'de> for ParticipantProxy {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+        todo!()
     }
 }
 
@@ -227,7 +212,7 @@ impl ParticipantProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,

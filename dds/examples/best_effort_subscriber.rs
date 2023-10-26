@@ -18,9 +18,7 @@ use dust_dds::{
     topic_definition::type_support::DdsType,
 };
 
-use serde::Deserialize;
-
-#[derive(Deserialize, DdsType, Debug)]
+#[derive(DdsType, Debug)]
 struct BestEffortExampleType {
     id: i32,
 }

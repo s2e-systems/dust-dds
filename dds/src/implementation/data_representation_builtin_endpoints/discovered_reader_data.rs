@@ -6,7 +6,10 @@ use crate::{
     },
     infrastructure::error::DdsResult,
     topic_definition::{
-        cdr_type::{CdrRepresentation, CdrRepresentationKind, CdrSerialize, CdrSerializer},
+        cdr_type::{
+            CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind,
+            CdrSerialize, CdrSerializer,
+        },
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
             DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
@@ -22,14 +25,7 @@ use super::parameter_id_values::{
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    derive_more::From,
-    derive_more::AsRef,
-    CdrSerialize,
-    serde::Deserialize,
+    Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, CdrSerialize, CdrDeserialize,
 )]
 struct ExpectsInlineQos(bool);
 impl Default for ExpectsInlineQos {
@@ -38,7 +34,7 @@ impl Default for ExpectsInlineQos {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
     remote_reader_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
     remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
@@ -55,6 +51,12 @@ impl CdrSerialize for ReaderProxy {
         self.multicast_locator_list.serialize(serializer)?;
         self.expects_inline_qos.serialize(serializer)?;
         Ok(())
+    }
+}
+
+impl<'de> CdrDeserialize<'de> for ReaderProxy {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+        todo!()
     }
 }
 
@@ -96,7 +98,7 @@ impl ReaderProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct DiscoveredReaderData {
     reader_proxy: ReaderProxy,
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,

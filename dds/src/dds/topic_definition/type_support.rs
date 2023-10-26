@@ -78,7 +78,7 @@ pub trait DdsSerializeData {
 /// This trait is typically used when reading the data from the samples from the DataReader.
 /// The `'de` lifetime of this trait is the lifetime of data that may be borrowed from the input when deserializing.
 pub trait DdsDeserialize<'de>: Sized {
-    fn deserialize_data(serialized_data: &mut &'de [u8]) -> DdsResult<Self>;
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self>;
 }
 
 /// This trait describes how the key information in the data structure can be serialized to a writer.
@@ -139,57 +139,6 @@ const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 /// is conformant with the CDR format as specified in the RTPS standard.
 pub trait DdsRepresentation {
     const REPRESENTATION: RtpsRepresentation;
-}
-
-impl<'de, T> DdsDeserialize<'de> for T
-where
-    T: DdsRepresentation + serde::Deserialize<'de>,
-{
-    fn deserialize_data(serialized_data: &mut &'de [u8]) -> DdsResult<Self> {
-        let mut representation_identifier = [0u8, 0];
-        serialized_data
-            .read_exact(&mut representation_identifier)
-            .map_err(|err| PreconditionNotMet(err.to_string()))?;
-
-        let mut representation_option = [0u8, 0];
-        serialized_data
-            .read_exact(&mut representation_option)
-            .map_err(|err| PreconditionNotMet(err.to_string()))?;
-
-        match representation_identifier {
-            CDR_BE => {
-                let mut deserializer = cdr::Deserializer::<_, _, byteorder::BigEndian>::new(
-                    serialized_data,
-                    cdr::Infinite,
-                );
-                serde::Deserialize::deserialize(&mut deserializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))
-            }
-            CDR_LE => {
-                let mut deserializer = cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(
-                    serialized_data,
-                    cdr::Infinite,
-                );
-                serde::Deserialize::deserialize(&mut deserializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))
-            }
-            PL_CDR_BE => {
-                let mut deserializer =
-                    ParameterListDeserializer::<byteorder::BigEndian>::new(serialized_data);
-                serde::Deserialize::deserialize(&mut deserializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))
-            }
-            PL_CDR_LE => {
-                let mut deserializer =
-                    ParameterListDeserializer::<byteorder::LittleEndian>::new(serialized_data);
-                serde::Deserialize::deserialize(&mut deserializer)
-                    .map_err(|err| PreconditionNotMet(err.to_string()))
-            }
-            _ => Err(PreconditionNotMet(
-                "Illegal representation identifier".to_string(),
-            )),
-        }
-    }
 }
 
 /// This trait defines the borrowed key holder struct which represents the key associated with type.
@@ -449,7 +398,7 @@ where
 /// ```rust
 ///     use dust_dds::topic_definition::type_support::DdsType;
 ///
-///     #[derive(serde::Deserialize, DdsType)]
+///     #[derive(DdsType)]
 ///     struct KeyedData {
 ///         #[key]
 ///         id: u8,
@@ -463,7 +412,7 @@ where
 ///     use dust_dds::topic_definition::type_support::DdsType;
 ///     use std::borrow::Cow;
 ///
-///     #[derive(serde::Deserialize, DdsType)]
+///     #[derive(DdsType)]
 ///     struct BorrowedData<'a> {
 ///         #[key]
 ///         id: u8,

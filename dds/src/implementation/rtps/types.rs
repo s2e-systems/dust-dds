@@ -1,4 +1,4 @@
-use crate::topic_definition::cdr_type::CdrSerialize;
+use crate::topic_definition::cdr_type::{CdrDeserialize, CdrSerialize};
 
 use super::messages::overall_structure::{WriteBytes, WriteEndianness};
 use byteorder::ByteOrder;
@@ -367,7 +367,7 @@ pub enum ReliabilityKind {
 /// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
 /// PROTOCOLVERSION_2_4
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
-#[derive(Clone, Copy, PartialEq, Eq, Debug, CdrSerialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, CdrSerialize, CdrDeserialize)]
 pub struct ProtocolVersion {
     major: Octet,
     minor: Octet,

@@ -26,10 +26,10 @@ use dust_dds::{
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(serde::Deserialize, DdsType)]
+#[derive(DdsType)]
 struct TestType(u8);
 
-#[derive(Debug, PartialEq, serde::Deserialize, DdsType)]
+#[derive(Debug, PartialEq, DdsType)]
 struct MyData {
     #[key]
     id: u8,

@@ -1,6 +1,10 @@
 use std::ops::Sub;
 
-use crate::topic_definition::cdr_type::{CdrSerialize, CdrSerializer};
+use crate::topic_definition::cdr_type::{
+    CdrDeserialize, CdrDeserializer, CdrSerialize, CdrSerializer,
+};
+
+use super::error::DdsResult;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum DurationKind {
@@ -10,56 +14,29 @@ pub enum DurationKind {
 
 const DURATION_INFINITE_SEC: i32 = 0x7fffffff;
 const DURATION_INFINITE_NSEC: u32 = 0xffffffff;
+const DURATION_INFINITE: Duration = Duration {
+    sec: DURATION_INFINITE_SEC,
+    nanosec: DURATION_INFINITE_NSEC,
+};
 
 impl CdrSerialize for DurationKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> super::error::DdsResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
         match self {
             DurationKind::Finite(d) => d,
-            DurationKind::Infinite => &Duration {
-                sec: DURATION_INFINITE_SEC,
-                nanosec: DURATION_INFINITE_NSEC,
-            },
+            DurationKind::Infinite => &DURATION_INFINITE,
         }
         .serialize(serializer)
     }
 }
 
-struct DurationKindVisitor;
-
-impl<'de> serde::de::Visitor<'de> for DurationKindVisitor {
-    type Value = DurationKind;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("DurationKind")
-    }
-
-    fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
-    where
-        V: serde::de::SeqAccess<'de>,
-    {
-        let sec = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let nanosec = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-
-        Ok(
-            if sec == DURATION_INFINITE_SEC && nanosec == DURATION_INFINITE_NSEC {
-                DurationKind::Infinite
-            } else {
-                DurationKind::Finite(Duration::new(sec, nanosec))
-            },
-        )
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for DurationKind {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_tuple(2, DurationKindVisitor)
+impl<'de> CdrDeserialize<'de> for DurationKind {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+        let duration: Duration = CdrDeserialize::deserialize(deserializer)?;
+        if duration == DURATION_INFINITE {
+            Ok(DurationKind::Infinite)
+        } else {
+            Ok(DurationKind::Finite(duration))
+        }
     }
 }
 
@@ -78,7 +55,7 @@ impl PartialOrd<DurationKind> for DurationKind {
     }
 }
 
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, CdrSerialize, serde::Deserialize)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, CdrSerialize, CdrDeserialize)]
 pub struct Duration {
     sec: i32,
     nanosec: u32,

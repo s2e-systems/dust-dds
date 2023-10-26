@@ -271,6 +271,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     output.extend(derive_dds_get_key(input.clone()));
     output.extend(derive_dds_set_key_fields(input.clone()));
     output.extend(derive_cdr_serialize(input.clone()));
+    output.extend(derive_cdr_deserialize(input.clone()));
     output.extend(derive_cdr_representation(input));
 
     output

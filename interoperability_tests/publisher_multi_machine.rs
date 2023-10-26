@@ -14,9 +14,7 @@ use dust_dds::{
     topic_definition::type_support::DdsType,
 };
 
-use serde::Deserialize;
-
-#[derive(Deserialize, DdsType)]
+#[derive(DdsType)]
 struct HelloWorldType {
     #[key]
     id: u8,

@@ -2,7 +2,7 @@ use crate::{
     builtin_topics::TopicBuiltinTopicData,
     infrastructure::error::DdsResult,
     topic_definition::{
-        cdr_type::{CdrRepresentation, CdrRepresentationKind, CdrSerialize},
+        cdr_type::{CdrDeserialize, CdrRepresentation, CdrRepresentationKind, CdrSerialize},
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
             DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
@@ -12,7 +12,7 @@ use crate::{
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct DiscoveredTopicData {
     topic_builtin_topic_data: TopicBuiltinTopicData,
 }

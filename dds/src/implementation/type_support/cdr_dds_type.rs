@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 
 use crate::{
     implementation::{
@@ -7,12 +7,12 @@ use crate::{
     },
     infrastructure::error::{DdsError, DdsResult},
     topic_definition::{
-        cdr_type::{CdrRepresentation, CdrRepresentationKind, CdrSerialize},
-        type_support::{DdsSerializeData, DdsSerializedData},
+        cdr_type::{CdrDeserialize, CdrRepresentation, CdrRepresentationKind, CdrSerialize},
+        type_support::{DdsDeserialize, DdsSerializeData, DdsSerializedData},
     },
 };
 
-use super::cdr_serializer::CdrDataSerializer;
+use super::{cdr_deserializer::CdrDataDeserializer, cdr_serializer::CdrDataSerializer};
 
 type RepresentationIdentifier = [u8; 2];
 type RepresentationOptions = [u8; 2];
@@ -77,5 +77,40 @@ where
             }
         };
         Ok(writer.into())
+    }
+}
+
+impl<'de, T> DdsDeserialize<'de> for T
+where
+    T: CdrDeserialize<'de> + CdrRepresentation,
+{
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
+        let mut data_reader = serialized_data;
+        let mut representation_identifier = [0u8, 0];
+        data_reader
+            .read_exact(&mut representation_identifier)
+            .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
+
+        let mut representation_option = [0u8, 0];
+        data_reader
+            .read_exact(&mut representation_option)
+            .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
+
+        match representation_identifier {
+            CDR_BE | PL_CDR_BE => {
+                let mut deserializer =
+                    CdrDataDeserializer::<byteorder::BigEndian>::new(data_reader);
+                CdrDeserialize::deserialize(&mut deserializer)
+            }
+            CDR_LE | PL_CDR_LE => {
+                let mut deserializer =
+                    CdrDataDeserializer::<byteorder::LittleEndian>::new(data_reader);
+                CdrDeserialize::deserialize(&mut deserializer)
+            }
+
+            _ => Err(DdsError::Error(
+                "Illegal representation identifier".to_string(),
+            )),
+        }
     }
 }

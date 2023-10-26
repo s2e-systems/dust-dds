@@ -14,7 +14,7 @@ use dust_dds::{
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(serde::Deserialize, DdsType)]
+#[derive(DdsType)]
 struct UserType(i32);
 
 #[test]

@@ -40,6 +40,7 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
+        type_support::cdr_deserializer::CdrDataDeserializer,
         utils::actor::{spawn_actor, Actor, ActorAddress},
     },
     infrastructure::{
@@ -60,7 +61,10 @@ use crate::{
         time::{DurationKind, Time},
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedKey},
+    topic_definition::{
+        cdr_type::CdrDeserialize,
+        type_support::{DdsGetKeyFromFoo, DdsSerializedKey},
+    },
 };
 
 use super::{
@@ -831,9 +835,9 @@ impl DataReaderActor {
                 .find(|&x| x.parameter_id() == PID_STATUS_INFO)
             {
                 let mut deserializer =
-                    cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
+                    CdrDataDeserializer::<byteorder::LittleEndian>::new(p.value());
                 let status_info: StatusInfo =
-                    serde::Deserialize::deserialize(&mut deserializer).unwrap();
+                    CdrDeserialize::deserialize(&mut deserializer).unwrap();
                 match status_info {
                     STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
                     STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),

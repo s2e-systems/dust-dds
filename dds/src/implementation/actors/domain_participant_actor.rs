@@ -1045,18 +1045,19 @@ impl DomainParticipantActor {
             ))
             .await
         {
-            let timestamp = self.get_current_time().await;
-            let instance_serialized_key =
-                cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
-                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-                    .expect("Failed to serialize data");
-            sedp_publications_announcer
-                .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
-                    instance_serialized_key,
-                    writer_handle,
-                    timestamp,
-                ))
-                .await?
+            todo!()
+            // let timestamp = self.get_current_time().await;
+            // let instance_serialized_key =
+            //     cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
+            //         .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+            //         .expect("Failed to serialize data");
+            // sedp_publications_announcer
+            //     .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
+            //         instance_serialized_key,
+            //         writer_handle,
+            //         timestamp,
+            //     ))
+            //     .await?
         } else {
             Ok(())
         }
@@ -1091,18 +1092,19 @@ impl DomainParticipantActor {
             ))
             .await
         {
-            let timestamp = self.get_current_time().await;
-            let instance_serialized_key =
-                cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
-                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-                    .expect("Failed to serialize data");
-            sedp_subscriptions_announcer
-                .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
-                    instance_serialized_key,
-                    reader_handle,
-                    timestamp,
-                ))
-                .await?
+            todo!()
+            // let timestamp = self.get_current_time().await;
+            // let instance_serialized_key =
+            //     cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
+            //         .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+            //         .expect("Failed to serialize data");
+            // sedp_subscriptions_announcer
+            //     .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
+            //         instance_serialized_key,
+            //         reader_handle,
+            //         timestamp,
+            //     ))
+            //     .await?
         } else {
             Ok(())
         }

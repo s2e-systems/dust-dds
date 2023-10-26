@@ -15,7 +15,7 @@ use dust_dds::{
 use tracing::Level;
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
 
-#[derive(Debug, PartialEq, serde::Deserialize, DdsType)]
+#[derive(Debug, PartialEq, DdsType)]
 struct Data {
     #[key]
     id: u8,

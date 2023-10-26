@@ -1,10 +1,8 @@
-use serde::de::{self, Error};
-use std::{self, marker::PhantomData};
-
-use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
-use crate::implementation::rtps::messages::types::ParameterId;
-use crate::infrastructure::error::DdsResult;
-use crate::topic_definition::cdr_type::{CdrSerialize, CdrSerializer};
+use crate::{
+    implementation::rtps::messages::types::ParameterId,
+    infrastructure::error::DdsResult,
+    topic_definition::cdr_type::{CdrDeserialize, CdrDeserializer, CdrSerialize, CdrSerializer},
+};
 
 #[derive(
     Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, derive_more::Constructor,
@@ -99,149 +97,161 @@ where
     }
 }
 
-impl<'de, const PID: ParameterId, T> serde::Deserialize<'de> for Parameter<PID, T>
+impl<'de, const PID: ParameterId, T> CdrDeserialize<'de> for Parameter<PID, T>
 where
-    T: serde::Deserialize<'de>,
+    T: CdrDeserialize<'de>,
 {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct Visitor<'de, const PID: ParameterId, T>
-        where
-            T: serde::Deserialize<'de>,
-        {
-            marker: PhantomData<Parameter<PID, T>>,
-            lifetime: PhantomData<&'de ()>,
-        }
-        impl<'de, const PID: ParameterId, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
-        where
-            T: serde::Deserialize<'de>,
-        {
-            type Value = Parameter<PID, T>;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("struct Parameter")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: de::MapAccess<'de>,
-            {
-                while let Some(key) = map.next_key::<ParameterId>()? {
-                    if key == PID {
-                        return Ok(Parameter(map.next_value()?));
-                    } else if key == PID_SENTINEL {
-                        break;
-                    }
-                }
-                Err(A::Error::custom(format!("PID {} not found", PID)))
-            }
-        }
-        deserializer.deserialize_newtype_struct(
-            "Parameter",
-            Visitor {
-                marker: PhantomData::<Parameter<PID, T>>,
-                lifetime: PhantomData,
-            },
-        )
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+        todo!()
     }
+
+    // fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    // where
+    //     D: serde::Deserializer<'de>,
+    // {
+    //     struct Visitor<'de, const PID: ParameterId, T>
+    //     where
+    //         T: serde::Deserialize<'de>,
+    //     {
+    //         marker: PhantomData<Parameter<PID, T>>,
+    //         lifetime: PhantomData<&'de ()>,
+    //     }
+    //     impl<'de, const PID: ParameterId, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
+    //     where
+    //         T: serde::Deserialize<'de>,
+    //     {
+    //         type Value = Parameter<PID, T>;
+    //         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    //             formatter.write_str("struct Parameter")
+    //         }
+
+    //         fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+    //         where
+    //             A: de::MapAccess<'de>,
+    //         {
+    //             while let Some(key) = map.next_key::<ParameterId>()? {
+    //                 if key == PID {
+    //                     return Ok(Parameter(map.next_value()?));
+    //                 } else if key == PID_SENTINEL {
+    //                     break;
+    //                 }
+    //             }
+    //             Err(A::Error::custom(format!("PID {} not found", PID)))
+    //         }
+    //     }
+    //     deserializer.deserialize_newtype_struct(
+    //         "Parameter",
+    //         Visitor {
+    //             marker: PhantomData::<Parameter<PID, T>>,
+    //             lifetime: PhantomData,
+    //         },
+    //     )
+    // }
 }
 
-impl<'de, const PID: ParameterId, T> serde::Deserialize<'de> for ParameterWithDefault<PID, T>
+impl<'de, const PID: ParameterId, T> CdrDeserialize<'de> for ParameterWithDefault<PID, T>
 where
-    T: serde::Deserialize<'de> + Default,
+    T: CdrDeserialize<'de> + Default,
 {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct Visitor<'de, const PID: ParameterId, T>
-        where
-            T: serde::Deserialize<'de>,
-        {
-            marker: PhantomData<ParameterWithDefault<PID, T>>,
-            lifetime: PhantomData<&'de ()>,
-        }
-        impl<'de, const PID: ParameterId, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
-        where
-            T: serde::Deserialize<'de> + Default,
-        {
-            type Value = ParameterWithDefault<PID, T>;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("struct ParameterWithDefault")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: de::MapAccess<'de>,
-            {
-                while let Some(key) = map.next_key::<ParameterId>()? {
-                    if key == PID {
-                        return Ok(ParameterWithDefault(map.next_value()?));
-                    } else if key == PID_SENTINEL {
-                        break;
-                    }
-                }
-                Ok(ParameterWithDefault(T::default()))
-            }
-        }
-        deserializer.deserialize_newtype_struct(
-            "ParameterWithDefault",
-            Visitor {
-                marker: PhantomData::<ParameterWithDefault<PID, T>>,
-                lifetime: PhantomData,
-            },
-        )
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+        todo!()
     }
+
+    // fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    // where
+    //     D: serde::Deserializer<'de>,
+    // {
+    //     struct Visitor<'de, const PID: ParameterId, T>
+    //     where
+    //         T: serde::Deserialize<'de>,
+    //     {
+    //         marker: PhantomData<ParameterWithDefault<PID, T>>,
+    //         lifetime: PhantomData<&'de ()>,
+    //     }
+    //     impl<'de, const PID: ParameterId, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
+    //     where
+    //         T: serde::Deserialize<'de> + Default,
+    //     {
+    //         type Value = ParameterWithDefault<PID, T>;
+    //         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    //             formatter.write_str("struct ParameterWithDefault")
+    //         }
+
+    //         fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+    //         where
+    //             A: de::MapAccess<'de>,
+    //         {
+    //             while let Some(key) = map.next_key::<ParameterId>()? {
+    //                 if key == PID {
+    //                     return Ok(ParameterWithDefault(map.next_value()?));
+    //                 } else if key == PID_SENTINEL {
+    //                     break;
+    //                 }
+    //             }
+    //             Ok(ParameterWithDefault(T::default()))
+    //         }
+    //     }
+    //     deserializer.deserialize_newtype_struct(
+    //         "ParameterWithDefault",
+    //         Visitor {
+    //             marker: PhantomData::<ParameterWithDefault<PID, T>>,
+    //             lifetime: PhantomData,
+    //         },
+    //     )
+    // }
 }
 
-impl<'de, const PID: ParameterId, T> serde::Deserialize<'de> for ParameterVector<PID, T>
+impl<'de, const PID: ParameterId, T> CdrDeserialize<'de> for ParameterVector<PID, T>
 where
-    T: serde::Deserialize<'de>,
+    T: CdrDeserialize<'de>,
 {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct Visitor<'de, const PID: ParameterId, T>
-        where
-            T: serde::Deserialize<'de>,
-        {
-            marker: PhantomData<ParameterVector<PID, T>>,
-            lifetime: PhantomData<&'de ()>,
-        }
-        impl<'de, const PID: ParameterId, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
-        where
-            T: serde::Deserialize<'de>,
-        {
-            type Value = ParameterVector<PID, T>;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("struct ParameterVector")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: de::MapAccess<'de>,
-            {
-                let mut values = vec![];
-                while let Some(key) = map.next_key::<ParameterId>()? {
-                    if key == PID {
-                        values.push(map.next_value()?);
-                    } else if key == PID_SENTINEL {
-                        break;
-                    }
-                }
-                Ok(ParameterVector(values))
-            }
-        }
-        deserializer.deserialize_newtype_struct(
-            "ParameterVector",
-            Visitor {
-                marker: PhantomData::<ParameterVector<PID, T>>,
-                lifetime: PhantomData,
-            },
-        )
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+        todo!()
     }
+
+    // fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    // where
+    //     D: serde::Deserializer<'de>,
+    // {
+    //     struct Visitor<'de, const PID: ParameterId, T>
+    //     where
+    //         T: serde::Deserialize<'de>,
+    //     {
+    //         marker: PhantomData<ParameterVector<PID, T>>,
+    //         lifetime: PhantomData<&'de ()>,
+    //     }
+    //     impl<'de, const PID: ParameterId, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
+    //     where
+    //         T: serde::Deserialize<'de>,
+    //     {
+    //         type Value = ParameterVector<PID, T>;
+    //         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    //             formatter.write_str("struct ParameterVector")
+    //         }
+
+    //         fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+    //         where
+    //             A: de::MapAccess<'de>,
+    //         {
+    //             let mut values = vec![];
+    //             while let Some(key) = map.next_key::<ParameterId>()? {
+    //                 if key == PID {
+    //                     values.push(map.next_value()?);
+    //                 } else if key == PID_SENTINEL {
+    //                     break;
+    //                 }
+    //             }
+    //             Ok(ParameterVector(values))
+    //         }
+    //     }
+    //     deserializer.deserialize_newtype_struct(
+    //         "ParameterVector",
+    //         Visitor {
+    //             marker: PhantomData::<ParameterVector<PID, T>>,
+    //             lifetime: PhantomData,
+    //         },
+    //     )
+    // }
 }
 
 struct SizeChecker {
@@ -548,395 +558,4 @@ mod tests {
         let v = [true, false, true, false, true];
         assert_eq!(serialize_data_size(&v).unwrap(), 5);
     }
-
-    // #[test]
-    // fn serialize_string_array() {
-    //     let v = ["HOLA", "ADIOS", "HELLO", "BYE", "GOODBYE"];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x48, 0x4f, 0x4c, 0x41, 0x00, //
-    //             0x00, 0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x06, //
-    //             0x41, 0x44, 0x49, 0x4f, 0x53, 0x00, //
-    //             0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x06, //
-    //             0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x00, //
-    //             0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x04, //
-    //             0x42, 0x59, 0x45, 0x00, //
-    //             0x00, 0x00, 0x00, 0x08, //
-    //             0x47, 0x4f, 0x4f, 0x44, 0x42, 0x59, 0x45, 0x00,
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x48, 0x4f, 0x4c, 0x41, 0x00, //
-    //             0x00, 0x00, 0x00, //
-    //             0x06, 0x00, 0x00, 0x00, //
-    //             0x41, 0x44, 0x49, 0x4f, 0x53, 0x00, //
-    //             0x00, 0x00, //
-    //             0x06, 0x00, 0x00, 0x00, //
-    //             0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x00, //
-    //             0x00, 0x00, //
-    //             0x04, 0x00, 0x00, 0x00, //
-    //             0x42, 0x59, 0x45, 0x00, //
-    //             0x08, 0x00, 0x00, 0x00, //
-    //             0x47, 0x4f, 0x4f, 0x44, 0x42, 0x59, 0x45, 0x00,
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_octet_sequence() {
-    //     let v = vec![1u8, 2, 3, 4, 5];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x01, 0x02, 0x03, 0x04, 0x05
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x01, 0x02, 0x03, 0x04, 0x05
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_char_sequence() {
-    //     let v = vec!['A', 'B', 'C', 'D', 'E'];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x41, 0x42, 0x43, 0x44, 0x45
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x41, 0x42, 0x43, 0x44, 0x45
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_ushort_sequence() {
-    //     let v = vec![65500u16, 65501, 65502, 65503, 65504];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0xff, 0xdc, //
-    //             0xff, 0xdd, //
-    //             0xff, 0xde, //
-    //             0xff, 0xdf, //
-    //             0xff, 0xe0
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0xdc, 0xff, //
-    //             0xdd, 0xff, //
-    //             0xde, 0xff, //
-    //             0xdf, 0xff, //
-    //             0xe0, 0xff
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_short_sequence() {
-    //     let v = vec![-32700i16, -32701, -32702, -32703, -32704];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x80, 0x44, //
-    //             0x80, 0x43, //
-    //             0x80, 0x42, //
-    //             0x80, 0x41, //
-    //             0x80, 0x40
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x44, 0x80, //
-    //             0x43, 0x80, //
-    //             0x42, 0x80, //
-    //             0x41, 0x80, //
-    //             0x40, 0x80
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_ulong_sequence() {
-    //     let v = vec![
-    //         4294967200u32,
-    //         4294967201,
-    //         4294967202,
-    //         4294967203,
-    //         4294967204,
-    //     ];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0xff, 0xff, 0xff, 0xa0, //
-    //             0xff, 0xff, 0xff, 0xa1, //
-    //             0xff, 0xff, 0xff, 0xa2, //
-    //             0xff, 0xff, 0xff, 0xa3, //
-    //             0xff, 0xff, 0xff, 0xa4,
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0xa0, 0xff, 0xff, 0xff, //
-    //             0xa1, 0xff, 0xff, 0xff, //
-    //             0xa2, 0xff, 0xff, 0xff, //
-    //             0xa3, 0xff, 0xff, 0xff, //
-    //             0xa4, 0xff, 0xff, 0xff,
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_long_sequence() {
-    //     let v = vec![
-    //         -2147483600,
-    //         -2147483601,
-    //         -2147483602,
-    //         -2147483603,
-    //         -2147483604,
-    //     ];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x80, 0x00, 0x00, 0x30, //
-    //             0x80, 0x00, 0x00, 0x2f, //
-    //             0x80, 0x00, 0x00, 0x2e, //
-    //             0x80, 0x00, 0x00, 0x2d, //
-    //             0x80, 0x00, 0x00, 0x2c,
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x30, 0x00, 0x00, 0x80, //
-    //             0x2f, 0x00, 0x00, 0x80, //
-    //             0x2e, 0x00, 0x00, 0x80, //
-    //             0x2d, 0x00, 0x00, 0x80, //
-    //             0x2c, 0x00, 0x00, 0x80,
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_ulonglong_sequence() {
-    //     let v = vec![
-    //         18446744073709551600u64,
-    //         18446744073709551601,
-    //         18446744073709551602,
-    //         18446744073709551603,
-    //         18446744073709551604,
-    //     ];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x00, 0x00, 0x00, 0x00, //
-    //             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf0, //
-    //             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf1, //
-    //             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf2, //
-    //             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf3, //
-    //             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf4,
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x00, //
-    //             0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, //
-    //             0xf1, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, //
-    //             0xf2, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, //
-    //             0xf3, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, //
-    //             0xf4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_longlong_sequence() {
-    //     let v = vec![
-    //         -9223372036800i64,
-    //         -9223372036801,
-    //         -9223372036802,
-    //         -9223372036803,
-    //         -9223372036804,
-    //     ];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x00, 0x00, 0x00, 0x00, //
-    //             0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x40, //
-    //             0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x3f, //
-    //             0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x3e, //
-    //             0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x3d, //
-    //             0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x3c,
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x00, //
-    //             0x40, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff, //
-    //             0x3f, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff, //
-    //             0x3e, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff, //
-    //             0x3d, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff, //
-    //             0x3c, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff,
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_float_sequence() {
-    //     let f = std::f32::MIN_POSITIVE;
-
-    //     let v = vec![f, f + 1., f + 2., f + 3., f + 4.];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x00, 0x80, 0x00, 0x00, //
-    //             0x3f, 0x80, 0x00, 0x00, //
-    //             0x40, 0x00, 0x00, 0x00, //
-    //             0x40, 0x40, 0x00, 0x00, //
-    //             0x40, 0x80, 0x00, 0x00,
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x00, 0x00, 0x80, 0x00, //
-    //             0x00, 0x00, 0x80, 0x3f, //
-    //             0x00, 0x00, 0x00, 0x40, //
-    //             0x00, 0x00, 0x40, 0x40, //
-    //             0x00, 0x00, 0x80, 0x40,
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_double_sequence() {
-    //     let f = std::f64::MIN_POSITIVE;
-
-    //     let v = vec![f, f + 1., f + 2., f + 3., f + 4.];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x00, 0x00, 0x00, 0x00, //
-    //             0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
-    //             0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
-    //             0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
-    //             0x40, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
-    //             0x40, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, //
-    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f, //
-    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, //
-    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x40, //
-    //             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x40,
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_bool_sequence() {
-    //     let v = vec![true, false, true, false, true];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x01, 0x00, 0x01, 0x00, 0x01
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x01, 0x00, 0x01, 0x00, 0x01
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_string_sequence() {
-    //     let v = vec!["HOLA", "ADIOS", "HELLO", "BYE", "GOODBYE"];
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x00, 0x00, 0x00, 0x05, //
-    //             0x48, 0x4f, 0x4c, 0x41, 0x00, //
-    //             0x00, 0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x06, //
-    //             0x41, 0x44, 0x49, 0x4f, 0x53, 0x00, //
-    //             0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x06, //
-    //             0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x00, //
-    //             0x00, 0x00, //
-    //             0x00, 0x00, 0x00, 0x04, //
-    //             0x42, 0x59, 0x45, 0x00, //
-    //             0x00, 0x00, 0x00, 0x08, //
-    //             0x47, 0x4f, 0x4f, 0x44, 0x42, 0x59, 0x45, 0x00,
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_data_size(&v).unwrap(),
-    //         vec![
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x05, 0x00, 0x00, 0x00, //
-    //             0x48, 0x4f, 0x4c, 0x41, 0x00, //
-    //             0x00, 0x00, 0x00, //
-    //             0x06, 0x00, 0x00, 0x00, //
-    //             0x41, 0x44, 0x49, 0x4f, 0x53, 0x00, //
-    //             0x00, 0x00, //
-    //             0x06, 0x00, 0x00, 0x00, //
-    //             0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x00, //
-    //             0x00, 0x00, //
-    //             0x04, 0x00, 0x00, 0x00, //
-    //             0x42, 0x59, 0x45, 0x00, //
-    //             0x08, 0x00, 0x00, 0x00, //
-    //             0x47, 0x4f, 0x4f, 0x44, 0x42, 0x59, 0x45, 0x00,
-    //         ]
-    //     );
-    // }
 }

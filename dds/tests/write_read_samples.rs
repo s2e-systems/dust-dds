@@ -28,17 +28,17 @@ use dust_dds::{
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(Debug, PartialEq, DdsType)]
 struct UserData(u8);
 
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, DdsType)]
+#[derive(Clone, Debug, PartialEq, DdsType)]
 struct KeyedData {
     #[key]
     id: u8,
     value: u32,
 }
 
-#[derive(Debug, PartialEq, serde::Deserialize, DdsType)]
+#[derive(Debug, PartialEq, DdsType)]
 struct LargeData {
     #[key]
     id: u8,
