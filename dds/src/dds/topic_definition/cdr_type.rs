@@ -42,10 +42,15 @@ pub trait CdrDeserializer<'de> {
     fn deserialize_f32(&mut self) -> DdsResult<f32>;
     fn deserialize_f64(&mut self) -> DdsResult<f64>;
     fn deserialize_char(&mut self) -> DdsResult<char>;
-    fn deserialize_str(&mut self) -> DdsResult<String>;
-    fn deserialize_seq<T>(&mut self) -> DdsResult<Vec<T>>;
-    fn deserialize_array<const N: usize, T>(&mut self) -> DdsResult<[T; N]>;
+    fn deserialize_string(&mut self) -> DdsResult<String>;
+    fn deserialize_seq<T>(&mut self) -> DdsResult<Vec<T>>
+    where
+        T: CdrDeserialize<'de>;
+    fn deserialize_array<const N: usize, T>(&mut self) -> DdsResult<[T; N]>
+    where
+        T: CdrDeserialize<'de>;
     fn deserialize_bytes(&mut self) -> DdsResult<&'de [u8]>;
+    fn deserialize_byte_array<const N: usize>(&mut self) -> DdsResult<&'de [u8; N]>;
     fn deserialize_unit(&mut self) -> DdsResult<()>;
 }
 
@@ -286,7 +291,7 @@ impl<'de> CdrDeserialize<'de> for char {
 
 impl<'de> CdrDeserialize<'de> for String {
     fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
-        deserializer.deserialize_str()
+        deserializer.deserialize_string()
     }
 }
 
