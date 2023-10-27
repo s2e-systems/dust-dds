@@ -40,7 +40,7 @@ where
                 writer
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer = Cdr1Serializer::<byteorder::LittleEndian>::new(&mut writer);
+                let mut serializer = Cdr1Serializer::new(&mut writer, CdrEndianness::LittleEndian);
                 self.serialize(&mut serializer)?;
             }
             CdrRepresentationKind::CdrBe => {
@@ -50,7 +50,7 @@ where
                 writer
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer = Cdr1Serializer::<byteorder::BigEndian>::new(&mut writer);
+                let mut serializer = Cdr1Serializer::new(&mut writer, CdrEndianness::BigEndian);
                 self.serialize(&mut serializer)?;
             }
             CdrRepresentationKind::PlCdrBe => {
@@ -61,7 +61,7 @@ where
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
 
-                let mut serializer = Cdr1Serializer::<byteorder::BigEndian>::new(&mut writer);
+                let mut serializer = Cdr1Serializer::new(&mut writer, CdrEndianness::BigEndian);
                 self.serialize(&mut serializer)?;
                 Parameter::<PID_SENTINEL, ()>::new(()).serialize(&mut serializer)?;
             }
@@ -72,7 +72,7 @@ where
                 writer
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer = Cdr1Serializer::<byteorder::LittleEndian>::new(&mut writer);
+                let mut serializer = Cdr1Serializer::new(&mut writer, CdrEndianness::LittleEndian);
                 self.serialize(&mut serializer)?;
                 Parameter::<PID_SENTINEL, ()>::new(()).serialize(&mut serializer)?;
             }

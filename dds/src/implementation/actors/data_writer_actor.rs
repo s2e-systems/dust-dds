@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
-    cdr::{cdr1_serializer::Cdr1Serializer, serialize::CdrSerialize},
+    cdr::{cdr1_serializer::Cdr1Serializer, endianness::CdrEndianness, serialize::CdrSerialize},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -66,7 +66,6 @@ use crate::{
         },
     },
 };
-use byteorder::LittleEndian;
 use dust_dds_derive::actor_interface;
 use std::collections::{HashMap, HashSet};
 
@@ -392,7 +391,7 @@ impl DataWriterActor {
 
         let mut serialized_status_info = Vec::new();
         let mut serializer =
-            Cdr1Serializer::<byteorder::LittleEndian>::new(&mut serialized_status_info);
+            Cdr1Serializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
         if self
             .qos
             .writer_data_lifecycle
@@ -451,7 +450,8 @@ impl DataWriterActor {
         }
 
         let mut serialized_status_info = Vec::new();
-        let mut serializer = Cdr1Serializer::<LittleEndian>::new(&mut serialized_status_info);
+        let mut serializer =
+            Cdr1Serializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
         STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
