@@ -1,28 +1,24 @@
 use std::{
     convert::TryInto,
     io::{BufRead, Read},
-    marker::PhantomData,
 };
-
-use byteorder::{ByteOrder, ReadBytesExt};
 
 use crate::cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult};
 
-pub struct CdrDataDeserializer<'de, E> {
+use super::endianness::CdrEndianness;
+
+pub struct Cdr1Deserializer<'de> {
     bytes: &'de [u8],
     reader: &'de [u8],
-    phantom: PhantomData<E>,
+    endianness: CdrEndianness,
 }
 
-impl<'de, E> CdrDataDeserializer<'de, E>
-where
-    E: ByteOrder,
-{
-    pub fn new(reader: &'de [u8]) -> Self {
+impl<'de> Cdr1Deserializer<'de> {
+    pub fn new(reader: &'de [u8], endianness: CdrEndianness) -> Self {
         Self {
             bytes: reader,
             reader,
-            phantom: PhantomData,
+            endianness,
         }
     }
 
@@ -46,10 +42,7 @@ where
     }
 }
 
-impl<'de, E> CdrDeserializer<'de> for CdrDataDeserializer<'de, E>
-where
-    E: ByteOrder,
-{
+impl<'de> CdrDeserializer<'de> for Cdr1Deserializer<'de> {
     fn deserialize_bool(&mut self) -> CdrResult<bool> {
         let value: u8 = CdrDeserialize::deserialize(self)?;
         match value {
@@ -64,52 +57,102 @@ where
 
     fn deserialize_i8(&mut self) -> CdrResult<i8> {
         self.read_padding_of::<i8>()?;
-        Ok(self.reader.read_i8()?)
+        let mut bytes = [0; 1];
+        self.reader.read(&mut bytes)?;
+        match self.endianness {
+            CdrEndianness::LittleEndian => Ok(i8::from_le_bytes(bytes)),
+            CdrEndianness::BigEndian => Ok(i8::from_be_bytes(bytes)),
+        }
     }
 
     fn deserialize_i16(&mut self) -> CdrResult<i16> {
         self.read_padding_of::<i16>()?;
-        Ok(self.reader.read_i16::<E>()?)
+        let mut bytes = [0; 2];
+        self.reader.read(&mut bytes)?;
+        match self.endianness {
+            CdrEndianness::LittleEndian => Ok(i16::from_le_bytes(bytes)),
+            CdrEndianness::BigEndian => Ok(i16::from_be_bytes(bytes)),
+        }
     }
 
     fn deserialize_i32(&mut self) -> CdrResult<i32> {
         self.read_padding_of::<i32>()?;
-        Ok(self.reader.read_i32::<E>()?)
+        let mut bytes = [0; 4];
+        self.reader.read(&mut bytes)?;
+        match self.endianness {
+            CdrEndianness::LittleEndian => Ok(i32::from_le_bytes(bytes)),
+            CdrEndianness::BigEndian => Ok(i32::from_be_bytes(bytes)),
+        }
     }
 
     fn deserialize_i64(&mut self) -> CdrResult<i64> {
         self.read_padding_of::<i64>()?;
-        Ok(self.reader.read_i64::<E>()?)
+        let mut bytes = [0; 8];
+        self.reader.read(&mut bytes)?;
+        match self.endianness {
+            CdrEndianness::LittleEndian => Ok(i64::from_le_bytes(bytes)),
+            CdrEndianness::BigEndian => Ok(i64::from_be_bytes(bytes)),
+        }
     }
 
     fn deserialize_u8(&mut self) -> CdrResult<u8> {
         self.read_padding_of::<u8>()?;
-        Ok(self.reader.read_u8()?)
+        let mut bytes = [0; 1];
+        self.reader.read(&mut bytes)?;
+        match self.endianness {
+            CdrEndianness::LittleEndian => Ok(u8::from_le_bytes(bytes)),
+            CdrEndianness::BigEndian => Ok(u8::from_be_bytes(bytes)),
+        }
     }
 
     fn deserialize_u16(&mut self) -> CdrResult<u16> {
         self.read_padding_of::<u16>()?;
-        Ok(self.reader.read_u16::<E>()?)
+        let mut bytes = [0; 2];
+        self.reader.read(&mut bytes)?;
+        match self.endianness {
+            CdrEndianness::LittleEndian => Ok(u16::from_le_bytes(bytes)),
+            CdrEndianness::BigEndian => Ok(u16::from_be_bytes(bytes)),
+        }
     }
 
     fn deserialize_u32(&mut self) -> CdrResult<u32> {
         self.read_padding_of::<u32>()?;
-        Ok(self.reader.read_u32::<E>()?)
+        let mut bytes = [0; 4];
+        self.reader.read(&mut bytes)?;
+        match self.endianness {
+            CdrEndianness::LittleEndian => Ok(u32::from_le_bytes(bytes)),
+            CdrEndianness::BigEndian => Ok(u32::from_be_bytes(bytes)),
+        }
     }
 
     fn deserialize_u64(&mut self) -> CdrResult<u64> {
         self.read_padding_of::<u64>()?;
-        Ok(self.reader.read_u64::<E>()?)
+        let mut bytes = [0; 8];
+        self.reader.read(&mut bytes)?;
+        match self.endianness {
+            CdrEndianness::LittleEndian => Ok(u64::from_le_bytes(bytes)),
+            CdrEndianness::BigEndian => Ok(u64::from_be_bytes(bytes)),
+        }
     }
 
     fn deserialize_f32(&mut self) -> CdrResult<f32> {
         self.read_padding_of::<f32>()?;
-        Ok(self.reader.read_f32::<E>()?)
+        let mut bytes = [0; 4];
+        self.reader.read(&mut bytes)?;
+        match self.endianness {
+            CdrEndianness::LittleEndian => Ok(f32::from_le_bytes(bytes)),
+            CdrEndianness::BigEndian => Ok(f32::from_be_bytes(bytes)),
+        }
     }
 
     fn deserialize_f64(&mut self) -> CdrResult<f64> {
         self.read_padding_of::<f64>()?;
-        Ok(self.reader.read_f64::<E>()?)
+        let mut bytes = [0; 8];
+        self.reader.read(&mut bytes)?;
+        match self.endianness {
+            CdrEndianness::LittleEndian => Ok(f64::from_le_bytes(bytes)),
+            CdrEndianness::BigEndian => Ok(f64::from_be_bytes(bytes)),
+        }
     }
 
     fn deserialize_char(&mut self) -> CdrResult<char> {
@@ -205,31 +248,36 @@ where
 
 #[cfg(test)]
 mod tests {
-    use byteorder::{BigEndian, LittleEndian};
-
     use super::*;
 
-    fn deserialize_data<'de, T, E>(bytes: &'de [u8]) -> CdrResult<T>
+    fn deserialize_be<'de, T>(bytes: &'de [u8]) -> CdrResult<T>
     where
-        E: ByteOrder,
         T: CdrDeserialize<'de> + ?Sized,
     {
-        let mut deserializer = CdrDataDeserializer::<E>::new(bytes);
+        let mut deserializer = Cdr1Deserializer::new(bytes, CdrEndianness::BigEndian);
+        Ok(T::deserialize(&mut deserializer)?)
+    }
+
+    fn deserialize_le<'de, T>(bytes: &'de [u8]) -> CdrResult<T>
+    where
+        T: CdrDeserialize<'de> + ?Sized,
+    {
+        let mut deserializer = Cdr1Deserializer::new(bytes, CdrEndianness::LittleEndian);
         Ok(T::deserialize(&mut deserializer)?)
     }
 
     #[test]
     fn deserialize_octet() {
         let v = 32u8;
-        assert_eq!(deserialize_data::<u8, BigEndian>(&[0x20]).unwrap(), v);
-        assert_eq!(deserialize_data::<u8, LittleEndian>(&[0x20]).unwrap(), v);
+        assert_eq!(deserialize_be::<u8>(&[0x20]).unwrap(), v);
+        assert_eq!(deserialize_le::<u8>(&[0x20]).unwrap(), v);
     }
 
     #[test]
     fn deserialize_char() {
         let v = 'Z';
-        assert_eq!(deserialize_data::<char, BigEndian>(&[0x5a]).unwrap(), v);
-        assert_eq!(deserialize_data::<char, LittleEndian>(&[0x5a]).unwrap(), v);
+        assert_eq!(deserialize_be::<char>(&[0x5a]).unwrap(), v);
+        assert_eq!(deserialize_le::<char>(&[0x5a]).unwrap(), v);
     }
 
     #[test]
@@ -237,75 +285,47 @@ mod tests {
         let v = '😞';
         let mut buf = [0; 4];
         v.encode_utf8(&mut buf);
-        assert!(deserialize_data::<char, BigEndian>(&buf).is_err());
-        assert!(deserialize_data::<char, LittleEndian>(&buf).is_err());
+        assert!(deserialize_be::<char>(&buf).is_err());
+        assert!(deserialize_le::<char>(&buf).is_err());
     }
 
     #[test]
     fn deserialize_ushort() {
         let v = 65500u16;
-        assert_eq!(
-            deserialize_data::<u16, BigEndian>(&[0xff, 0xdc]).unwrap(),
-            v
-        );
-        assert_eq!(
-            deserialize_data::<u16, LittleEndian>(&[0xdc, 0xff]).unwrap(),
-            v
-        );
+        assert_eq!(deserialize_be::<u16>(&[0xff, 0xdc]).unwrap(), v);
+        assert_eq!(deserialize_le::<u16>(&[0xdc, 0xff]).unwrap(), v);
     }
 
     #[test]
     fn deserialize_short() {
         let v = -32700i16;
-        assert_eq!(
-            deserialize_data::<i16, BigEndian>(&[0x80, 0x44]).unwrap(),
-            v
-        );
-        assert_eq!(
-            deserialize_data::<i16, LittleEndian>(&[0x44, 0x80]).unwrap(),
-            v
-        );
+        assert_eq!(deserialize_be::<i16>(&[0x80, 0x44]).unwrap(), v);
+        assert_eq!(deserialize_le::<i16>(&[0x44, 0x80]).unwrap(), v);
     }
 
     #[test]
     fn deserialize_ulong() {
         let v = 4294967200u32;
-        assert_eq!(
-            deserialize_data::<u32, BigEndian>(&[0xff, 0xff, 0xff, 0xa0]).unwrap(),
-            v
-        );
-        assert_eq!(
-            deserialize_data::<u32, LittleEndian>(&[0xa0, 0xff, 0xff, 0xff]).unwrap(),
-            v
-        );
+        assert_eq!(deserialize_be::<u32>(&[0xff, 0xff, 0xff, 0xa0]).unwrap(), v);
+        assert_eq!(deserialize_le::<u32>(&[0xa0, 0xff, 0xff, 0xff]).unwrap(), v);
     }
 
     #[test]
     fn deserialize_long() {
         let v = -2147483600i32;
-        assert_eq!(
-            deserialize_data::<i32, BigEndian>(&[0x80, 0x00, 0x00, 0x30]).unwrap(),
-            v
-        );
-        assert_eq!(
-            deserialize_data::<i32, LittleEndian>(&[0x30, 0x00, 0x00, 0x80]).unwrap(),
-            v
-        );
+        assert_eq!(deserialize_be::<i32>(&[0x80, 0x00, 0x00, 0x30]).unwrap(), v);
+        assert_eq!(deserialize_le::<i32>(&[0x30, 0x00, 0x00, 0x80]).unwrap(), v);
     }
 
     #[test]
     fn deserialize_ulonglong() {
         let v = 18446744073709551600u64;
         assert_eq!(
-            deserialize_data::<u64, BigEndian>(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf0])
-                .unwrap(),
+            deserialize_be::<u64>(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf0]).unwrap(),
             v
         );
         assert_eq!(
-            deserialize_data::<u64, LittleEndian>(&[
-                0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-            ])
-            .unwrap(),
+            deserialize_le::<u64>(&[0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]).unwrap(),
             v
         );
     }
@@ -314,15 +334,11 @@ mod tests {
     fn deserialize_longlong() {
         let v = -9223372036800i64;
         assert_eq!(
-            deserialize_data::<i64, BigEndian>(&[0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x40])
-                .unwrap(),
+            deserialize_be::<i64>(&[0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x40]).unwrap(),
             v
         );
         assert_eq!(
-            deserialize_data::<i64, LittleEndian>(&[
-                0x40, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff
-            ])
-            .unwrap(),
+            deserialize_le::<i64>(&[0x40, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff]).unwrap(),
             v
         );
     }
@@ -330,29 +346,19 @@ mod tests {
     #[test]
     fn deserialize_float() {
         let v = std::f32::MIN_POSITIVE;
-        assert_eq!(
-            deserialize_data::<f32, BigEndian>(&[0x00, 0x80, 0x00, 0x00]).unwrap(),
-            v
-        );
-        assert_eq!(
-            deserialize_data::<f32, LittleEndian>(&[0x00, 0x00, 0x80, 0x00]).unwrap(),
-            v
-        );
+        assert_eq!(deserialize_be::<f32>(&[0x00, 0x80, 0x00, 0x00]).unwrap(), v);
+        assert_eq!(deserialize_le::<f32>(&[0x00, 0x00, 0x80, 0x00]).unwrap(), v);
     }
 
     #[test]
     fn deserialize_double() {
         let v = std::f64::MIN_POSITIVE;
         assert_eq!(
-            deserialize_data::<f64, BigEndian>(&[0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
-                .unwrap(),
+            deserialize_be::<f64>(&[0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]).unwrap(),
             v
         );
         assert_eq!(
-            deserialize_data::<f64, LittleEndian>(&[
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00
-            ])
-            .unwrap(),
+            deserialize_le::<f64>(&[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00]).unwrap(),
             v
         );
     }
@@ -360,16 +366,16 @@ mod tests {
     #[test]
     fn deserialize_bool() {
         let v = true;
-        assert_eq!(deserialize_data::<bool, BigEndian>(&[0x01]).unwrap(), v);
-        assert_eq!(deserialize_data::<bool, LittleEndian>(&[0x01]).unwrap(), v);
-        assert!(deserialize_data::<bool, LittleEndian>(&[0x05]).is_err());
+        assert_eq!(deserialize_be::<bool>(&[0x01]).unwrap(), v);
+        assert_eq!(deserialize_le::<bool>(&[0x01]).unwrap(), v);
+        assert!(deserialize_le::<bool>(&[0x05]).is_err());
     }
 
     #[test]
     fn deserialize_string() {
         let v = "Hola a todos, esto es un test";
         assert_eq!(
-            deserialize_data::<String, BigEndian>(&[
+            deserialize_be::<String>(&[
                 0x00, 0x00, 0x00, 0x1e, 0x48, 0x6f, 0x6c, 0x61, 0x20, 0x61, 0x20, 0x74, 0x6f, 0x64,
                 0x6f, 0x73, 0x2c, 0x20, 0x65, 0x73, 0x74, 0x6f, 0x20, 0x65, 0x73, 0x20, 0x75, 0x6e,
                 0x20, 0x74, 0x65, 0x73, 0x74, 0x00,
@@ -378,7 +384,7 @@ mod tests {
             v
         );
         assert_eq!(
-            deserialize_data::<String, LittleEndian>(&[
+            deserialize_le::<String>(&[
                 0x1e, 0x00, 0x00, 0x00, 0x48, 0x6f, 0x6c, 0x61, 0x20, 0x61, 0x20, 0x74, 0x6f, 0x64,
                 0x6f, 0x73, 0x2c, 0x20, 0x65, 0x73, 0x74, 0x6f, 0x20, 0x65, 0x73, 0x20, 0x75, 0x6e,
                 0x20, 0x74, 0x65, 0x73, 0x74, 0x00,
@@ -391,19 +397,19 @@ mod tests {
     #[test]
     fn deserialize_wstring() {
         let v = "みなさんこんにちは。これはテストです。";
-        assert!(deserialize_data::<String, BigEndian>(v.as_bytes()).is_err());
-        assert!(deserialize_data::<String, LittleEndian>(v.as_bytes()).is_err());
+        assert!(deserialize_be::<String>(v.as_bytes()).is_err());
+        assert!(deserialize_le::<String>(v.as_bytes()).is_err());
     }
 
     #[test]
     fn deserialize_empty_string() {
         let v = "";
         assert_eq!(
-            deserialize_data::<String, BigEndian>(&[0x00, 0x00, 0x00, 0x01, 0x00]).unwrap(),
+            deserialize_be::<String>(&[0x00, 0x00, 0x00, 0x01, 0x00]).unwrap(),
             v
         );
         assert_eq!(
-            deserialize_data::<String, LittleEndian>(&[0x01, 0x00, 0x00, 0x00, 0x00]).unwrap(),
+            deserialize_le::<String>(&[0x01, 0x00, 0x00, 0x00, 0x00]).unwrap(),
             v
         );
     }
@@ -412,11 +418,11 @@ mod tests {
     fn deserialize_octet_array() {
         let v = [1u8, 2, 3, 4, 5];
         assert_eq!(
-            deserialize_data::<[u8; 5], BigEndian>(&[0x01, 0x02, 0x03, 0x04, 0x05]).unwrap(),
+            deserialize_be::<[u8; 5]>(&[0x01, 0x02, 0x03, 0x04, 0x05]).unwrap(),
             v
         );
         assert_eq!(
-            deserialize_data::<[u8; 5], LittleEndian>(&[0x01, 0x02, 0x03, 0x04, 0x05]).unwrap(),
+            deserialize_le::<[u8; 5]>(&[0x01, 0x02, 0x03, 0x04, 0x05]).unwrap(),
             v
         );
     }
@@ -425,11 +431,11 @@ mod tests {
     fn deserialize_char_array() {
         let v = ['A', 'B', 'C', 'D', 'E'];
         assert_eq!(
-            deserialize_data::<[char; 5], BigEndian>(&[0x41, 0x42, 0x43, 0x44, 0x45]).unwrap(),
+            deserialize_be::<[char; 5]>(&[0x41, 0x42, 0x43, 0x44, 0x45]).unwrap(),
             v
         );
         assert_eq!(
-            deserialize_data::<[char; 5], LittleEndian>(&[0x41, 0x42, 0x43, 0x44, 0x45]).unwrap(),
+            deserialize_le::<[char; 5]>(&[0x41, 0x42, 0x43, 0x44, 0x45]).unwrap(),
             v
         );
     }
@@ -438,7 +444,7 @@ mod tests {
     fn deserialize_string_array() {
         let v = ["HOLA", "ADIOS", "HELLO", "BYE", "GOODBYE"];
         assert_eq!(
-            deserialize_data::<[String; 5], BigEndian>(&[
+            deserialize_be::<[String; 5]>(&[
                 0x00, 0x00, 0x00, 0x05, //
                 0x48, 0x4f, 0x4c, 0x41, 0x00, //
                 0x00, 0x00, 0x00, //
@@ -457,7 +463,7 @@ mod tests {
             v
         );
         assert_eq!(
-            deserialize_data::<[String; 5], LittleEndian>(&[
+            deserialize_le::<[String; 5]>(&[
                 0x05, 0x00, 0x00, 0x00, //
                 0x48, 0x4f, 0x4c, 0x41, 0x00, //
                 0x00, 0x00, 0x00, //
@@ -481,7 +487,7 @@ mod tests {
     fn deserialize_ushort_sequence() {
         let v = vec![65500u16, 65501, 65502, 65503, 65504];
         assert_eq!(
-            deserialize_data::<Vec<u16>, BigEndian>(&[
+            deserialize_be::<Vec<u16>>(&[
                 0x00, 0x00, 0x00, 0x05, //
                 0xff, 0xdc, //
                 0xff, 0xdd, //
@@ -493,7 +499,7 @@ mod tests {
             v
         );
         assert_eq!(
-            deserialize_data::<Vec<u16>, LittleEndian>(&[
+            deserialize_le::<Vec<u16>>(&[
                 0x05, 0x00, 0x00, 0x00, //
                 0xdc, 0xff, //
                 0xdd, 0xff, //
@@ -510,7 +516,7 @@ mod tests {
     fn deserialize_string_sequence() {
         let v = vec!["HOLA", "ADIOS", "HELLO", "BYE", "GOODBYE"];
         assert_eq!(
-            deserialize_data::<Vec<String>, BigEndian>(&[
+            deserialize_be::<Vec<String>>(&[
                 0x00, 0x00, 0x00, 0x05, //
                 0x00, 0x00, 0x00, 0x05, //
                 0x48, 0x4f, 0x4c, 0x41, 0x00, //
@@ -530,7 +536,7 @@ mod tests {
             v
         );
         assert_eq!(
-            deserialize_data::<Vec<String>, LittleEndian>(&[
+            deserialize_le::<Vec<String>>(&[
                 0x05, 0x00, 0x00, 0x00, //
                 0x05, 0x00, 0x00, 0x00, //
                 0x48, 0x4f, 0x4c, 0x41, 0x00, //
@@ -555,7 +561,7 @@ mod tests {
     fn deserialize_bytes() {
         let v = &[1u8, 2, 3, 4, 5];
         assert_eq!(
-            deserialize_data::<&[u8], BigEndian>(&[
+            deserialize_be::<&[u8]>(&[
                 0x00, 0x00, 0x00, 0x05, //
                 0x01, 0x02, 0x03, 0x04, 0x05 //
             ])
@@ -563,7 +569,7 @@ mod tests {
             v
         );
         assert_eq!(
-            deserialize_data::<&[u8], LittleEndian>(&[
+            deserialize_le::<&[u8]>(&[
                 0x05, 0x00, 0x00, 0x00, //
                 0x01, 0x02, 0x03, 0x04, 0x05 //
             ])
@@ -576,14 +582,14 @@ mod tests {
     fn deserialize_byte_array() {
         let v = &[1u8, 2, 3, 4, 5];
         assert_eq!(
-            deserialize_data::<&[u8; 5], BigEndian>(&[
+            deserialize_be::<&[u8; 5]>(&[
                 0x01, 0x02, 0x03, 0x04, 0x05 //
             ])
             .unwrap(),
             v
         );
         assert_eq!(
-            deserialize_data::<&[u8; 5], LittleEndian>(&[
+            deserialize_le::<&[u8; 5]>(&[
                 0x01, 0x02, 0x03, 0x04, 0x05 //
             ])
             .unwrap(),

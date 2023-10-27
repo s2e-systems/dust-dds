@@ -3,13 +3,13 @@ use std::marker::PhantomData;
 use crate::cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer};
 use byteorder::{ByteOrder, WriteBytesExt};
 
-pub struct CdrDataSerializer<W, E> {
+pub struct Cdr1Serializer<W, E> {
     writer: W,
     pos: usize,
     phantom: PhantomData<E>,
 }
 
-impl<W, E> CdrDataSerializer<W, E>
+impl<W, E> Cdr1Serializer<W, E>
 where
     W: std::io::Write,
 {
@@ -49,7 +49,7 @@ where
     }
 }
 
-impl<W, E> CdrSerializer for CdrDataSerializer<W, E>
+impl<W, E> CdrSerializer for Cdr1Serializer<W, E>
 where
     W: std::io::Write,
     E: ByteOrder,
@@ -199,7 +199,7 @@ mod tests {
         T: CdrSerialize + ?Sized,
     {
         let mut writer = Vec::new();
-        let mut serializer = CdrDataSerializer::<_, E>::new(&mut writer);
+        let mut serializer = Cdr1Serializer::<_, E>::new(&mut writer);
         v.serialize(&mut serializer)?;
         Ok(writer)
     }

@@ -2,7 +2,10 @@ use std::io::{Read, Write};
 
 use crate::{
     cdr::{
+        cdr1_deserializer::Cdr1Deserializer,
+        cdr1_serializer::Cdr1Serializer,
         deserialize::CdrDeserialize,
+        endianness::CdrEndianness,
         representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
     },
@@ -13,8 +16,6 @@ use crate::{
     infrastructure::error::{DdsError, DdsResult},
     topic_definition::type_support::{DdsDeserialize, DdsSerializeData, DdsSerializedData},
 };
-
-use super::{cdr_deserializer::CdrDataDeserializer, cdr_serializer::CdrDataSerializer};
 
 type RepresentationIdentifier = [u8; 2];
 type RepresentationOptions = [u8; 2];
@@ -39,8 +40,7 @@ where
                 writer
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer =
-                    CdrDataSerializer::<_, byteorder::LittleEndian>::new(&mut writer);
+                let mut serializer = Cdr1Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
                 self.serialize(&mut serializer)?;
             }
             CdrRepresentationKind::CdrBe => {
@@ -50,7 +50,7 @@ where
                 writer
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer = CdrDataSerializer::<_, byteorder::BigEndian>::new(&mut writer);
+                let mut serializer = Cdr1Serializer::<_, byteorder::BigEndian>::new(&mut writer);
                 self.serialize(&mut serializer)?;
             }
             CdrRepresentationKind::PlCdrBe => {
@@ -61,7 +61,7 @@ where
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
 
-                let mut serializer = CdrDataSerializer::<_, byteorder::BigEndian>::new(&mut writer);
+                let mut serializer = Cdr1Serializer::<_, byteorder::BigEndian>::new(&mut writer);
                 self.serialize(&mut serializer)?;
                 Parameter::<PID_SENTINEL, ()>::new(()).serialize(&mut serializer)?;
             }
@@ -72,8 +72,7 @@ where
                 writer
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer =
-                    CdrDataSerializer::<_, byteorder::LittleEndian>::new(&mut writer);
+                let mut serializer = Cdr1Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
                 self.serialize(&mut serializer)?;
                 Parameter::<PID_SENTINEL, ()>::new(()).serialize(&mut serializer)?;
             }
@@ -100,23 +99,21 @@ where
 
         match representation_identifier {
             CDR_BE => {
-                let mut deserializer =
-                    CdrDataDeserializer::<byteorder::BigEndian>::new(data_reader);
+                let mut deserializer = Cdr1Deserializer::new(data_reader, CdrEndianness::BigEndian);
                 Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
             PL_CDR_BE => {
-                let mut deserializer =
-                    CdrDataDeserializer::<byteorder::BigEndian>::new(data_reader);
+                let mut deserializer = Cdr1Deserializer::new(data_reader, CdrEndianness::BigEndian);
                 Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
             CDR_LE => {
                 let mut deserializer =
-                    CdrDataDeserializer::<byteorder::LittleEndian>::new(data_reader);
+                    Cdr1Deserializer::new(data_reader, CdrEndianness::LittleEndian);
                 Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
             PL_CDR_LE => {
                 let mut deserializer =
-                    CdrDataDeserializer::<byteorder::LittleEndian>::new(data_reader);
+                    Cdr1Deserializer::new(data_reader, CdrEndianness::LittleEndian);
                 Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
 

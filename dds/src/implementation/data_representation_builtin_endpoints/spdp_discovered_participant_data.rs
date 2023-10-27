@@ -138,7 +138,7 @@ impl ParameterListSerialize for ParticipantProxy {
         serializer.write_with_default(PID_DOMAIN_TAG, &self.domain_tag, &Default::default())?;
         serializer.write(PID_PROTOCOL_VERSION, &self.protocol_version)?;
         // guid_prefix omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
-        serializer.write(PID_VENDORID, &self.vendor_id);
+        serializer.write(PID_VENDORID, &self.vendor_id)?;
         serializer.write(PID_EXPECTS_INLINE_QOS, &self.expects_inline_qos)?;
         for l in &self.metatraffic_unicast_locator_list {
             serializer.write(PID_METATRAFFIC_UNICAST_LOCATOR, l)?;
