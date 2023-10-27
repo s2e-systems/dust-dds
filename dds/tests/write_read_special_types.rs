@@ -17,6 +17,7 @@ use dust_dds::{
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[test]
+#[ignore = "New derive not yet supporting lifetimes"]
 fn foo_with_lifetime_should_read_and_write() {
     todo!()
     // #[derive(Clone, Debug, PartialEq, DdsType)]
