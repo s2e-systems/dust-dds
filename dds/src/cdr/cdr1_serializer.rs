@@ -1,19 +1,16 @@
-use std::marker::PhantomData;
+use std::{io::Write, marker::PhantomData};
 
 use crate::cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer};
 use byteorder::{ByteOrder, WriteBytesExt};
 
-pub struct Cdr1Serializer<W, E> {
-    writer: W,
+pub struct Cdr1Serializer<'s, E> {
+    writer: &'s mut Vec<u8>,
     pos: usize,
     phantom: PhantomData<E>,
 }
 
-impl<W, E> Cdr1Serializer<W, E>
-where
-    W: std::io::Write,
-{
-    pub fn new(writer: W) -> Self {
+impl<'s, E> Cdr1Serializer<'s, E> {
+    pub fn new(writer: &'s mut Vec<u8>) -> Self {
         Self {
             writer,
             pos: 0,
@@ -49,9 +46,8 @@ where
     }
 }
 
-impl<W, E> CdrSerializer for Cdr1Serializer<W, E>
+impl<E> CdrSerializer for Cdr1Serializer<'_, E>
 where
-    W: std::io::Write,
     E: ByteOrder,
 {
     fn serialize_bool(&mut self, v: bool) -> CdrResult<()> {
@@ -199,7 +195,7 @@ mod tests {
         T: CdrSerialize + ?Sized,
     {
         let mut writer = Vec::new();
-        let mut serializer = Cdr1Serializer::<_, E>::new(&mut writer);
+        let mut serializer = Cdr1Serializer::<E>::new(&mut writer);
         v.serialize(&mut serializer)?;
         Ok(writer)
     }

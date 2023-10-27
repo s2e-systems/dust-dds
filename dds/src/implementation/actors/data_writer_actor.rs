@@ -392,7 +392,7 @@ impl DataWriterActor {
 
         let mut serialized_status_info = Vec::new();
         let mut serializer =
-            Cdr1Serializer::<_, byteorder::LittleEndian>::new(&mut serialized_status_info);
+            Cdr1Serializer::<byteorder::LittleEndian>::new(&mut serialized_status_info);
         if self
             .qos
             .writer_data_lifecycle
@@ -451,7 +451,7 @@ impl DataWriterActor {
         }
 
         let mut serialized_status_info = Vec::new();
-        let mut serializer = Cdr1Serializer::<_, LittleEndian>::new(&mut serialized_status_info);
+        let mut serializer = Cdr1Serializer::<LittleEndian>::new(&mut serialized_status_info);
         STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
