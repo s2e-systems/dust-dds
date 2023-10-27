@@ -1,15 +1,13 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
+    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
     implementation::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
     topic_definition::{
-        cdr_type::{
-            CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind,
-            CdrSerialize, CdrSerializer,
-        },
+        cdr_type::{CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind},
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
             DdsSerializedKey,
@@ -44,7 +42,7 @@ pub struct ReaderProxy {
 }
 
 impl CdrSerialize for ReaderProxy {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
         // remote_reader_guid not serialized
         self.remote_group_entity_id.serialize(serializer)?;
         self.unicast_locator_list.serialize(serializer)?;

@@ -1,4 +1,4 @@
-use crate::topic_definition::cdr_type::{CdrDeserialize, CdrSerialize};
+use crate::{cdr::serialize::CdrSerialize, topic_definition::cdr_type::CdrDeserialize};
 
 use super::messages::overall_structure::{WriteBytes, WriteEndianness};
 use byteorder::ByteOrder;

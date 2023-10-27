@@ -1,7 +1,8 @@
 use crate::{
+    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
     implementation::rtps::messages::types::ParameterId,
     infrastructure::error::DdsResult,
-    topic_definition::cdr_type::{CdrDeserialize, CdrDeserializer, CdrSerialize, CdrSerializer},
+    topic_definition::cdr_type::{CdrDeserialize, CdrDeserializer},
 };
 
 #[derive(
@@ -23,7 +24,7 @@ impl<const PID: ParameterId, T> CdrSerialize for Parameter<PID, T>
 where
     T: CdrSerialize,
 {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
         let length_without_padding = calc_serialized_data_size(&self.0)? as i16;
         let padding_length = (4 - length_without_padding) & 3;
         let length = length_without_padding + padding_length;
@@ -45,7 +46,7 @@ impl<const PID: ParameterId, T> CdrSerialize for ParameterWithDefault<PID, T>
 where
     T: CdrSerialize + Default + PartialEq,
 {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
         if self.0 == T::default() {
             Ok(())
         } else {
@@ -72,7 +73,7 @@ impl<const PID: ParameterId, T> CdrSerialize for ParameterVector<PID, T>
 where
     T: CdrSerialize,
 {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
         if self.0.is_empty() {
             Ok(())
         } else {
@@ -268,7 +269,7 @@ impl SizeChecker {
         self.counter
     }
 
-    fn add_padding_of<T>(&mut self) -> DdsResult<()> {
+    fn add_padding_of<T>(&mut self) -> CdrResult<()> {
         let alignment = std::mem::size_of::<T>();
         let rem_mask = alignment - 1; // mask like 0x0, 0x1, 0x3, 0x7
         match self.pos & rem_mask {
@@ -281,73 +282,73 @@ impl SizeChecker {
         }
     }
 
-    fn add_size(&mut self, size: usize) -> DdsResult<()> {
+    fn add_size(&mut self, size: usize) -> CdrResult<()> {
         self.pos += size;
         self.counter += size;
         Ok(())
     }
 
-    fn add_value<T>(&mut self, _v: T) -> DdsResult<()> {
+    fn add_value<T>(&mut self, _v: T) -> CdrResult<()> {
         self.add_padding_of::<T>()?;
         self.add_size(std::mem::size_of::<T>())
     }
 }
 
 impl CdrSerializer for SizeChecker {
-    fn serialize_bool(&mut self, v: bool) -> DdsResult<()> {
+    fn serialize_bool(&mut self, v: bool) -> CdrResult<()> {
         self.add_value(v as u8)
     }
 
-    fn serialize_i8(&mut self, v: i8) -> DdsResult<()> {
+    fn serialize_i8(&mut self, v: i8) -> CdrResult<()> {
         self.add_value(v)
     }
 
-    fn serialize_i16(&mut self, v: i16) -> DdsResult<()> {
+    fn serialize_i16(&mut self, v: i16) -> CdrResult<()> {
         self.add_value(v)
     }
 
-    fn serialize_i32(&mut self, v: i32) -> DdsResult<()> {
+    fn serialize_i32(&mut self, v: i32) -> CdrResult<()> {
         self.add_value(v)
     }
 
-    fn serialize_i64(&mut self, v: i64) -> DdsResult<()> {
+    fn serialize_i64(&mut self, v: i64) -> CdrResult<()> {
         self.add_value(v)
     }
 
-    fn serialize_u8(&mut self, v: u8) -> DdsResult<()> {
+    fn serialize_u8(&mut self, v: u8) -> CdrResult<()> {
         self.add_value(v)
     }
 
-    fn serialize_u16(&mut self, v: u16) -> DdsResult<()> {
+    fn serialize_u16(&mut self, v: u16) -> CdrResult<()> {
         self.add_value(v)
     }
 
-    fn serialize_u32(&mut self, v: u32) -> DdsResult<()> {
+    fn serialize_u32(&mut self, v: u32) -> CdrResult<()> {
         self.add_value(v)
     }
 
-    fn serialize_u64(&mut self, v: u64) -> DdsResult<()> {
+    fn serialize_u64(&mut self, v: u64) -> CdrResult<()> {
         self.add_value(v)
     }
 
-    fn serialize_f32(&mut self, v: f32) -> DdsResult<()> {
+    fn serialize_f32(&mut self, v: f32) -> CdrResult<()> {
         self.add_value(v)
     }
 
-    fn serialize_f64(&mut self, v: f64) -> DdsResult<()> {
+    fn serialize_f64(&mut self, v: f64) -> CdrResult<()> {
         self.add_value(v)
     }
 
-    fn serialize_char(&mut self, _v: char) -> DdsResult<()> {
+    fn serialize_char(&mut self, _v: char) -> CdrResult<()> {
         self.add_size(1)
     }
 
-    fn serialize_str(&mut self, v: &str) -> DdsResult<()> {
+    fn serialize_str(&mut self, v: &str) -> CdrResult<()> {
         self.add_value(0_u32)?;
         self.add_size(v.len() + 1) // adds the length 1 of a terminating character
     }
 
-    fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> DdsResult<()> {
+    fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> CdrResult<()> {
         let len = v.len() as u32;
         self.add_value(len)?;
         for element in v {
@@ -356,19 +357,19 @@ impl CdrSerializer for SizeChecker {
         Ok(())
     }
 
-    fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> DdsResult<()> {
+    fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> CdrResult<()> {
         for element in v {
             element.serialize(self)?;
         }
         Ok(())
     }
 
-    fn serialize_unit(&mut self) -> DdsResult<()> {
+    fn serialize_unit(&mut self) -> CdrResult<()> {
         Ok(())
     }
 }
 
-fn calc_serialized_data_size(value: &impl CdrSerialize) -> DdsResult<usize> {
+fn calc_serialized_data_size(value: &impl CdrSerialize) -> CdrResult<usize> {
     let mut size_checker = SizeChecker::new();
     value.serialize(&mut size_checker)?;
     Ok(size_checker.size())
@@ -378,7 +379,7 @@ fn calc_serialized_data_size(value: &impl CdrSerialize) -> DdsResult<usize> {
 mod tests {
     use super::*;
 
-    fn serialize_data_size<T>(v: &T) -> DdsResult<usize>
+    fn serialize_data_size<T>(v: &T) -> CdrResult<usize>
     where
         T: CdrSerialize + ?Sized,
     {

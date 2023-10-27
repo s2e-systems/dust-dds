@@ -1,13 +1,14 @@
 use std::io::{Read, Write};
 
 use crate::{
+    cdr::serialize::CdrSerialize,
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
         parameter_list_serde::parameter::Parameter,
     },
     infrastructure::error::{DdsError, DdsResult},
     topic_definition::{
-        cdr_type::{CdrDeserialize, CdrRepresentation, CdrRepresentationKind, CdrSerialize},
+        cdr_type::{CdrDeserialize, CdrRepresentation, CdrRepresentationKind},
         type_support::{DdsDeserialize, DdsSerializeData, DdsSerializedData},
     },
 };

@@ -1,8 +1,9 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
+    cdr::serialize::CdrSerialize,
     infrastructure::error::DdsResult,
     topic_definition::{
-        cdr_type::{CdrDeserialize, CdrRepresentation, CdrRepresentationKind, CdrSerialize},
+        cdr_type::{CdrDeserialize, CdrRepresentation, CdrRepresentationKind},
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
             DdsSerializedKey,
@@ -36,7 +37,6 @@ impl DdsHasKey for DiscoveredTopicData {
 impl CdrRepresentation for DiscoveredTopicData {
     const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
-
 
 impl DdsGetKeyFromFoo for DiscoveredTopicData {
     fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {

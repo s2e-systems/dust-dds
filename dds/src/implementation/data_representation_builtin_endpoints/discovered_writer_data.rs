@@ -1,15 +1,13 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
+    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
     implementation::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
     topic_definition::{
-        cdr_type::{
-            CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind,
-            CdrSerialize, CdrSerializer,
-        },
+        cdr_type::{CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind},
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
             DdsSerializedKey,
@@ -31,7 +29,7 @@ pub struct WriterProxy {
 }
 
 impl CdrSerialize for WriterProxy {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
         // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
         self.remote_group_entity_id.serialize(serializer)?;
         self.unicast_locator_list.serialize(serializer)?;
@@ -120,7 +118,6 @@ impl DdsHasKey for DiscoveredWriterData {
 impl CdrRepresentation for DiscoveredWriterData {
     const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
-
 
 impl DdsGetKeyFromFoo for DiscoveredWriterData {
     fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {

@@ -1,5 +1,6 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
+    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
     domain::domain_participant_factory::DomainId,
     implementation::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
@@ -11,10 +12,7 @@ use crate::{
     },
     infrastructure::{error::DdsResult, time::Duration},
     topic_definition::{
-        cdr_type::{
-            CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind,
-            CdrSerialize, CdrSerializer,
-        },
+        cdr_type::{CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind},
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
             DdsSerializedKey,
@@ -62,7 +60,7 @@ impl Default for LeaseDuration {
 #[derive(Default, Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef)]
 struct DomainIdParameter(Option<DomainId>);
 impl CdrSerialize for DomainIdParameter {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
         self.0
             .expect("Default DomainId not supposed to be serialized")
             .serialize(serializer)
@@ -99,7 +97,7 @@ pub struct ParticipantProxy {
 }
 
 impl CdrSerialize for ParticipantProxy {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
         self.domain_id.serialize(serializer)?;
         self.domain_tag.serialize(serializer)?;
         self.protocol_version.serialize(serializer)?;

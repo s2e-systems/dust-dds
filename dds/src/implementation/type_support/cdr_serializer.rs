@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
 use crate::{
-    infrastructure::error::{DdsError, DdsResult},
-    topic_definition::cdr_type::{CdrSerialize, CdrSerializer},
+    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
+    infrastructure::error::DdsError,
 };
 use byteorder::{ByteOrder, WriteBytesExt};
 
@@ -34,13 +34,13 @@ where
         self.pos += size;
     }
 
-    fn set_pos_of<T>(&mut self) -> DdsResult<()> {
+    fn set_pos_of<T>(&mut self) -> CdrResult<()> {
         self.write_padding_of::<T>()?;
         self.add_pos(std::mem::size_of::<T>());
         Ok(())
     }
 
-    fn write_padding_of<T>(&mut self) -> DdsResult<()> {
+    fn write_padding_of<T>(&mut self) -> CdrResult<()> {
         // Calculate the required padding to align with 1-byte, 2-byte, 4-byte, 8-byte boundaries.
         // Instead of using the slow modulo operation '%', the faster bit-masking is used
         const PADDING: [u8; 8] = [0; 8];
@@ -63,75 +63,78 @@ where
     W: std::io::Write,
     E: ByteOrder,
 {
-    fn serialize_bool(&mut self, v: bool) -> DdsResult<()> {
+    fn serialize_bool(&mut self, v: bool) -> CdrResult<()> {
         self.set_pos_of::<u8>()?;
         self.writer.write_u8(v as u8)?;
         Ok(())
     }
 
-    fn serialize_i8(&mut self, v: i8) -> DdsResult<()> {
+    fn serialize_i8(&mut self, v: i8) -> CdrResult<()> {
         self.set_pos_of::<i8>()?;
         self.writer.write_i8(v)?;
         Ok(())
     }
 
-    fn serialize_i16(&mut self, v: i16) -> DdsResult<()> {
+    fn serialize_i16(&mut self, v: i16) -> CdrResult<()> {
         self.set_pos_of::<i16>()?;
         self.writer.write_i16::<E>(v)?;
         Ok(())
     }
 
-    fn serialize_i32(&mut self, v: i32) -> DdsResult<()> {
+    fn serialize_i32(&mut self, v: i32) -> CdrResult<()> {
         self.set_pos_of::<i32>()?;
         self.writer.write_i32::<E>(v)?;
         Ok(())
     }
 
-    fn serialize_i64(&mut self, v: i64) -> DdsResult<()> {
+    fn serialize_i64(&mut self, v: i64) -> CdrResult<()> {
         self.set_pos_of::<i64>()?;
         self.writer.write_i64::<E>(v)?;
         Ok(())
     }
 
-    fn serialize_u8(&mut self, v: u8) -> DdsResult<()> {
+    fn serialize_u8(&mut self, v: u8) -> CdrResult<()> {
         self.set_pos_of::<u8>()?;
         self.writer.write_u8(v)?;
         Ok(())
     }
 
-    fn serialize_u16(&mut self, v: u16) -> DdsResult<()> {
+    fn serialize_u16(&mut self, v: u16) -> CdrResult<()> {
         self.set_pos_of::<u16>()?;
         self.writer.write_u16::<E>(v)?;
         Ok(())
     }
 
-    fn serialize_u32(&mut self, v: u32) -> DdsResult<()> {
+    fn serialize_u32(&mut self, v: u32) -> CdrResult<()> {
         self.set_pos_of::<u32>()?;
         self.writer.write_u32::<E>(v)?;
         Ok(())
     }
 
-    fn serialize_u64(&mut self, v: u64) -> DdsResult<()> {
+    fn serialize_u64(&mut self, v: u64) -> CdrResult<()> {
         self.set_pos_of::<u64>()?;
         self.writer.write_u64::<E>(v)?;
         Ok(())
     }
 
-    fn serialize_f32(&mut self, v: f32) -> DdsResult<()> {
+    fn serialize_f32(&mut self, v: f32) -> CdrResult<()> {
         self.set_pos_of::<f32>()?;
         self.writer.write_f32::<E>(v)?;
         Ok(())
     }
 
-    fn serialize_f64(&mut self, v: f64) -> DdsResult<()> {
+    fn serialize_f64(&mut self, v: f64) -> CdrResult<()> {
         self.set_pos_of::<f64>()?;
         self.writer.write_f64::<E>(v)?;
         Ok(())
     }
 
-    fn serialize_char(&mut self, v: char) -> DdsResult<()> {
+    fn serialize_char(&mut self, v: char) -> CdrResult<()> {
         if !v.is_ascii() {
-            Err(DdsError::Error(format!("Invalid character: {}", v)))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid character: {}", v),
+            ))
         } else {
             let mut buf = [0u8; 1];
             v.encode_utf8(&mut buf);
@@ -141,18 +144,20 @@ where
         }
     }
 
-    fn serialize_str(&mut self, v: &str) -> DdsResult<()> {
+    fn serialize_str(&mut self, v: &str) -> CdrResult<()> {
         if !v.is_ascii() {
-            Err(DdsError::Error(format!("Invalid string: {}", v)))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid string: {}", v),
+            ))
         } else {
             let terminating_char = [0u8];
             let l = v.len() + terminating_char.len();
             if l > u32::MAX as usize {
-                Err(DdsError::Error(format!(
-                    "String too long. String size {}, maximum {}",
-                    l,
-                    u32::MAX,
-                )))
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("String too long. String size {}, maximum {}", l, u32::MAX,),
+                ))
             } else {
                 self.serialize_u32(l as u32)?;
                 self.add_pos(l);
@@ -163,14 +168,13 @@ where
         }
     }
 
-    fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> DdsResult<()> {
+    fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> CdrResult<()> {
         let l = v.len();
         if l > u32::MAX as usize {
-            Err(DdsError::Error(format!(
-                "String too long. String size {}, maximum {}",
-                l,
-                u32::MAX,
-            )))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("String too long. String size {}, maximum {}", l, u32::MAX,),
+            ))
         } else {
             self.serialize_u32(l as u32)?;
             for e in v {
@@ -180,14 +184,14 @@ where
         }
     }
 
-    fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> DdsResult<()> {
+    fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> CdrResult<()> {
         for e in v {
             e.serialize(self)?;
         }
         Ok(())
     }
 
-    fn serialize_unit(&mut self) -> DdsResult<()> {
+    fn serialize_unit(&mut self) -> CdrResult<()> {
         Ok(())
     }
 }
@@ -198,7 +202,7 @@ mod tests {
 
     use super::*;
 
-    fn serialize_data<T, E>(v: &T) -> DdsResult<Vec<u8>>
+    fn serialize_data<T, E>(v: &T) -> CdrResult<Vec<u8>>
     where
         E: ByteOrder,
         T: CdrSerialize + ?Sized,

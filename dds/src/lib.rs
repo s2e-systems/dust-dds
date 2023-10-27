@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![doc = include_str!("../schema/schema.md")]
 #[forbid(unsafe_code)]
+pub mod cdr;
 mod dds;
 pub use dds::*;
 mod implementation;

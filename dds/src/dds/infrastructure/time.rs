@@ -1,7 +1,8 @@
 use std::ops::Sub;
 
-use crate::topic_definition::cdr_type::{
-    CdrDeserialize, CdrDeserializer, CdrSerialize, CdrSerializer,
+use crate::{
+    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
+    topic_definition::cdr_type::{CdrDeserialize, CdrDeserializer},
 };
 
 use super::error::DdsResult;
@@ -20,7 +21,7 @@ const DURATION_INFINITE: Duration = Duration {
 };
 
 impl CdrSerialize for DurationKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> DdsResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
         match self {
             DurationKind::Finite(d) => d,
             DurationKind::Infinite => &DURATION_INFINITE,

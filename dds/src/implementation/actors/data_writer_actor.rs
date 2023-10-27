@@ -1,5 +1,6 @@
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
+    cdr::serialize::CdrSerialize,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -56,10 +57,7 @@ use crate::{
         },
         time::DurationKind,
     },
-    topic_definition::{
-        cdr_type::CdrSerialize,
-        type_support::{DdsGetKeyFromFoo, DdsSerializedData, DdsSerializedKey},
-    },
+    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedData, DdsSerializedKey},
     {
         builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
