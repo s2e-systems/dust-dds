@@ -1,3 +1,7 @@
+mod attribute_helpers;
+mod has_key;
+
+use has_key::expand_has_key;
 use proc_macro::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Field, FnArg, Index, ItemImpl};
@@ -5,22 +9,9 @@ use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Field, FnArg, Index,
 #[proc_macro_derive(DdsHasKey, attributes(key))]
 pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
-
-    if let syn::Data::Struct(struct_data) = &input.data {
-        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-        let ident = input.ident;
-
-        let has_key = struct_data.fields.iter().any(field_has_key_attribute);
-
-        quote! {
-            impl #impl_generics dust_dds::topic_definition::type_support::DdsHasKey for #ident #type_generics #where_clause {
-                const HAS_KEY: bool = #has_key;
-            }
-        }
-    } else {
-        quote_spanned!{input.span() => compile_error!("DdsHasKey can only be derived for structs");}
-    }
-    .into()
+    expand_has_key(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
 #[proc_macro_derive(DdsBorrowKeyHolder, attributes(key))]
