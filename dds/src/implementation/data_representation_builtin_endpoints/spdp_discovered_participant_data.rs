@@ -66,7 +66,7 @@ impl Default for LeaseDuration {
 #[derive(Default, Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef)]
 struct DomainIdParameter(Option<DomainId>);
 impl CdrSerialize for DomainIdParameter {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
         self.0
             .expect("Default DomainId not supposed to be serialized")
             .serialize(serializer)
@@ -103,7 +103,7 @@ pub struct ParticipantProxy {
 }
 
 impl CdrSerialize for ParticipantProxy {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
         self.domain_id.serialize(serializer)?;
         self.domain_tag.serialize(serializer)?;
         self.protocol_version.serialize(serializer)?;

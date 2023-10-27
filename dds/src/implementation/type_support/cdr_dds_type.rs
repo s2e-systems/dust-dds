@@ -3,11 +3,11 @@ use std::io::{Read, Write};
 use crate::{
     cdr::{
         cdr1_deserializer::Cdr1Deserializer,
-        cdr1_serializer::Cdr1Serializer,
         deserialize::CdrDeserialize,
         endianness::CdrEndianness,
         representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
+        serializer::CdrSerializer,
     },
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
@@ -40,7 +40,7 @@ where
                 writer
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer = Cdr1Serializer::new(&mut writer, CdrEndianness::LittleEndian);
+                let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
                 self.serialize(&mut serializer)?;
             }
             CdrRepresentationKind::CdrBe => {
@@ -50,7 +50,7 @@ where
                 writer
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer = Cdr1Serializer::new(&mut writer, CdrEndianness::BigEndian);
+                let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
                 self.serialize(&mut serializer)?;
             }
             CdrRepresentationKind::PlCdrBe => {
@@ -61,7 +61,7 @@ where
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
 
-                let mut serializer = Cdr1Serializer::new(&mut writer, CdrEndianness::BigEndian);
+                let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
                 self.serialize(&mut serializer)?;
                 Parameter::<PID_SENTINEL, ()>::new(()).serialize(&mut serializer)?;
             }
@@ -72,7 +72,7 @@ where
                 writer
                     .write_all(&REPRESENTATION_OPTIONS)
                     .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer = Cdr1Serializer::new(&mut writer, CdrEndianness::LittleEndian);
+                let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
                 self.serialize(&mut serializer)?;
                 Parameter::<PID_SENTINEL, ()>::new(()).serialize(&mut serializer)?;
             }

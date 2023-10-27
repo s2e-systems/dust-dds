@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
-    cdr::{cdr1_serializer::Cdr1Serializer, endianness::CdrEndianness, serialize::CdrSerialize},
+    cdr::{endianness::CdrEndianness, serialize::CdrSerialize, serializer::CdrSerializer},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -391,7 +391,7 @@ impl DataWriterActor {
 
         let mut serialized_status_info = Vec::new();
         let mut serializer =
-            Cdr1Serializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
+            CdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
         if self
             .qos
             .writer_data_lifecycle
@@ -451,7 +451,7 @@ impl DataWriterActor {
 
         let mut serialized_status_info = Vec::new();
         let mut serializer =
-            Cdr1Serializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
+            CdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
         STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
         let inline_qos = ParameterList::new(vec![Parameter::new(

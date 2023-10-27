@@ -45,7 +45,7 @@ pub struct ReaderProxy {
 }
 
 impl CdrSerialize for ReaderProxy {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
         // remote_reader_guid not serialized
         self.remote_group_entity_id.serialize(serializer)?;
         self.unicast_locator_list.serialize(serializer)?;

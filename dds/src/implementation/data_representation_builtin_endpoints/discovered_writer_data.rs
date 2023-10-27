@@ -32,7 +32,7 @@ pub struct WriterProxy {
 }
 
 impl CdrSerialize for WriterProxy {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
         // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
         self.remote_group_entity_id.serialize(serializer)?;
         self.unicast_locator_list.serialize(serializer)?;
