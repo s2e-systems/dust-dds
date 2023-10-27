@@ -4,21 +4,19 @@ use crate::{
         deserialize::CdrDeserialize,
         deserializer::CdrDeserializer,
         error::CdrResult,
-        parameter_list::ParameterList,
-        parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_deserializer::ParameterListDeserilizer,
         representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
     domain::domain_participant_factory::DomainId,
-    implementation::{
-        parameter_list_serde::parameter::Parameter,
-        rtps::{
-            discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-            messages::types::Count,
-            types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
+    implementation::rtps::{
+        discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+        messages::types::Count,
+        parameter_list::{
+            parameter_list_deserialize::ParameterListDeserialize,
+            parameter_list_deserializer::ParameterListDeserializer,
         },
+        types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
     infrastructure::{error::DdsResult, time::Duration},
     topic_definition::type_support::{
@@ -123,9 +121,15 @@ impl CdrSerialize for ParticipantProxy {
     }
 }
 
+impl<'de> CdrDeserialize<'de> for ParticipantProxy {
+    fn deserialize(_deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+        todo!()
+    }
+}
+
 impl<'de> ParameterListDeserialize<'de> for ParticipantProxy {
     fn deserialize(
-        pl_deserializer: &mut impl ParameterListDeserilizer<'de>,
+        pl_deserializer: &mut impl ParameterListDeserializer<'de>,
     ) -> Result<Self, std::io::Error> {
         Ok(Self {
             domain_id: pl_deserializer.get_with_default(PID_DOMAIN_ID, Default::default())?,
@@ -147,48 +151,6 @@ impl<'de> ParameterListDeserialize<'de> for ParticipantProxy {
                 .get_with_default(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Default::default())?,
             builtin_endpoint_qos: pl_deserializer
                 .get_with_default(PID_BUILTIN_ENDPOINT_QOS, Default::default())?,
-        })
-    }
-}
-
-impl<'de> CdrDeserialize<'de> for ParticipantProxy {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
-        let parameter_list: ParameterList = CdrDeserialize::deserialize(deserializer)?;
-
-        let domain_id = parameter_list.get_with_default(PID_DOMAIN_ID, Default::default())?;
-        let domain_tag = parameter_list.get_with_default(PID_DOMAIN_TAG, Default::default())?;
-        let protocol_version = parameter_list.get(PID_PROTOCOL_VERSION)?;
-        let guid_prefix = parameter_list.get(PID_PARTICIPANT_GUID)?;
-        let vendor_id = parameter_list.get(PID_VENDORID)?;
-        let expects_inline_qos =
-            parameter_list.get_with_default(PID_EXPECTS_INLINE_QOS, Default::default())?;
-        let metatraffic_unicast_locator_list =
-            parameter_list.get_all(PID_METATRAFFIC_UNICAST_LOCATOR)?;
-        let metatraffic_multicast_locator_list =
-            parameter_list.get_all(PID_METATRAFFIC_MULTICAST_LOCATOR)?;
-        let default_unicast_locator_list = parameter_list.get_all(PID_DEFAULT_UNICAST_LOCATOR)?;
-        let default_multicast_locator_list =
-            parameter_list.get_all(PID_DEFAULT_MULTICAST_LOCATOR)?;
-        let available_builtin_endpoints = parameter_list.get(PID_BUILTIN_ENDPOINT_SET)?;
-        let manual_liveliness_count = parameter_list
-            .get_with_default(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Default::default())?;
-        let builtin_endpoint_qos =
-            parameter_list.get_with_default(PID_BUILTIN_ENDPOINT_QOS, Default::default())?;
-
-        Ok(Self {
-            domain_id,
-            domain_tag,
-            protocol_version,
-            guid_prefix,
-            vendor_id,
-            expects_inline_qos,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            available_builtin_endpoints,
-            manual_liveliness_count,
-            builtin_endpoint_qos,
         })
     }
 }
@@ -289,7 +251,7 @@ pub struct SpdpDiscoveredParticipantData {
 
 impl<'de> ParameterListDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(
-        pl_deserializer: &mut impl ParameterListDeserilizer<'de>,
+        pl_deserializer: &mut impl ParameterListDeserializer<'de>,
     ) -> Result<Self, std::io::Error> {
         Ok(Self {
             dds_participant_data: ParameterListDeserialize::deserialize(pl_deserializer)?,
@@ -322,7 +284,7 @@ impl SpdpDiscoveredParticipantData {
     }
 
     pub fn _lease_duration(&self) -> &Duration {
-        self.lease_duration.as_ref().as_ref()
+        self.lease_duration.as_ref()
     }
 }
 

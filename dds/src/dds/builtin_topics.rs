@@ -1,8 +1,6 @@
 use crate::{
     cdr::{
         deserialize::CdrDeserialize,
-        parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_deserializer::ParameterListDeserilizer,
         representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
     },
@@ -15,6 +13,10 @@ use crate::{
             PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
         },
         parameter_list_serde::parameter::{Parameter, ParameterWithDefault},
+        rtps::parameter_list::{
+            parameter_list_deserialize::ParameterListDeserialize,
+            parameter_list_deserializer::ParameterListDeserializer,
+        },
     },
     infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -63,7 +65,7 @@ pub struct ParticipantBuiltinTopicData {
 
 impl<'de> ParameterListDeserialize<'de> for ParticipantBuiltinTopicData {
     fn deserialize(
-        pl_deserializer: &mut impl ParameterListDeserilizer<'de>,
+        pl_deserializer: &mut impl ParameterListDeserializer<'de>,
     ) -> Result<Self, std::io::Error> {
         Ok(Self {
             key: pl_deserializer.get(PID_PARTICIPANT_GUID)?,

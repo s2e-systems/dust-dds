@@ -1,6 +1,6 @@
-use super::deserialize::CdrDeserialize;
+use crate::cdr::deserialize::CdrDeserialize;
 
-pub trait ParameterListDeserilizer<'de> {
+pub trait ParameterListDeserializer<'de> {
     fn get<T>(&self, id: i16) -> Result<T, std::io::Error>
     where
         T: CdrDeserialize<'de>;

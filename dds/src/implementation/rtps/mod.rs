@@ -4,6 +4,7 @@ pub mod entity;
 pub mod group;
 pub mod message_receiver;
 pub mod messages;
+pub mod parameter_list;
 pub mod participant;
 pub mod reader;
 pub mod reader_history_cache;
