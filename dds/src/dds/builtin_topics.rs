@@ -64,7 +64,7 @@ pub struct ParticipantBuiltinTopicData {
 
 impl<'de> ParameterListDeserialize<'de> for ParticipantBuiltinTopicData {
     fn deserialize(
-        pl_deserializer: &mut impl ParameterListDeserializer<'de>,
+        pl_deserializer: &mut ParameterListDeserializer<'de>,
     ) -> Result<Self, std::io::Error> {
         Ok(Self {
             key: pl_deserializer.read(PID_PARTICIPANT_GUID)?,

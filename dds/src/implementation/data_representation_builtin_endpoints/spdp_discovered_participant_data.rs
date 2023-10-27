@@ -128,10 +128,7 @@ impl<'de> CdrDeserialize<'de> for ParticipantProxy {
 }
 
 impl ParameterListSerialize for ParticipantProxy {
-    fn serialize(
-        &self,
-        serializer: &mut impl ParameterListSerializer,
-    ) -> Result<(), std::io::Error> {
+    fn serialize(&self, serializer: &mut ParameterListSerializer) -> Result<(), std::io::Error> {
         serializer.write_with_default(PID_DOMAIN_ID, &self.domain_id, &Default::default())?;
         serializer.write_with_default(PID_DOMAIN_TAG, &self.domain_tag, &Default::default())?;
         serializer.write(PID_PROTOCOL_VERSION, &self.protocol_version)?;
@@ -168,7 +165,7 @@ impl ParameterListSerialize for ParticipantProxy {
 
 impl<'de> ParameterListDeserialize<'de> for ParticipantProxy {
     fn deserialize(
-        pl_deserializer: &mut impl ParameterListDeserializer<'de>,
+        pl_deserializer: &mut ParameterListDeserializer<'de>,
     ) -> Result<Self, std::io::Error> {
         Ok(Self {
             domain_id: pl_deserializer.read_with_default(PID_DOMAIN_ID, Default::default())?,
@@ -290,7 +287,7 @@ pub struct SpdpDiscoveredParticipantData {
 
 impl<'de> ParameterListDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(
-        pl_deserializer: &mut impl ParameterListDeserializer<'de>,
+        pl_deserializer: &mut ParameterListDeserializer<'de>,
     ) -> Result<Self, std::io::Error> {
         Ok(Self {
             dds_participant_data: ParameterListDeserialize::deserialize(pl_deserializer)?,

@@ -1,11 +1,24 @@
 use crate::cdr::serialize::CdrSerialize;
 
-pub trait ParameterListSerializer {
-    fn write<T>(&self, id: i16, value: &T) -> Result<(), std::io::Error>
-    where
-        T: CdrSerialize;
+pub struct ParameterListSerializer {}
 
-    fn write_with_default<T>(&self, id: i16, value: &T, default: &T) -> Result<(), std::io::Error>
+impl ParameterListSerializer {
+    pub fn write<T>(&self, id: i16, value: &T) -> Result<(), std::io::Error>
     where
-        T: CdrSerialize;
+        T: CdrSerialize,
+    {
+        todo!()
+    }
+
+    pub fn write_with_default<T>(
+        &self,
+        id: i16,
+        value: &T,
+        default: &T,
+    ) -> Result<(), std::io::Error>
+    where
+        T: CdrSerialize,
+    {
+        todo!()
+    }
 }
