@@ -15,6 +15,8 @@ use crate::{
         parameter_list::{
             parameter_list_deserialize::ParameterListDeserialize,
             parameter_list_deserializer::ParameterListDeserializer,
+            parameter_list_serialize::ParameterListSerialize,
+            parameter_list_serializer::ParameterListSerializer,
         },
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
@@ -124,6 +126,45 @@ impl CdrSerialize for ParticipantProxy {
 impl<'de> CdrDeserialize<'de> for ParticipantProxy {
     fn deserialize(_deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
+    }
+}
+
+impl ParameterListSerialize for ParticipantProxy {
+    fn serialize(
+        &self,
+        serializer: &mut impl ParameterListSerializer,
+    ) -> Result<(), std::io::Error> {
+        serializer.write_with_default(PID_DOMAIN_ID, &self.domain_id, &Default::default())?;
+        serializer.write_with_default(PID_DOMAIN_TAG, &self.domain_tag, &Default::default())?;
+        serializer.write(PID_PROTOCOL_VERSION, &self.protocol_version)?;
+        // guid_prefix omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
+        serializer.write(PID_VENDORID, &self.vendor_id);
+        serializer.write(PID_EXPECTS_INLINE_QOS, &self.expects_inline_qos)?;
+        for l in &self.metatraffic_unicast_locator_list {
+            serializer.write(PID_METATRAFFIC_UNICAST_LOCATOR, l)?;
+        }
+        for l in &self.metatraffic_multicast_locator_list {
+            serializer.write(PID_METATRAFFIC_MULTICAST_LOCATOR, l)?;
+        }
+        for l in &self.default_unicast_locator_list {
+            serializer.write(PID_DEFAULT_UNICAST_LOCATOR, l)?;
+        }
+        for l in &self.default_multicast_locator_list {
+            serializer.write(PID_DEFAULT_MULTICAST_LOCATOR, l)?;
+        }
+        serializer.write(PID_BUILTIN_ENDPOINT_SET, &self.available_builtin_endpoints)?;
+        serializer.write_with_default(
+            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+            &self.manual_liveliness_count,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_BUILTIN_ENDPOINT_QOS,
+            &self.builtin_endpoint_qos,
+            &Default::default(),
+        )?;
+
+        Ok(())
     }
 }
 

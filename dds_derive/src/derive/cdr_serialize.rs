@@ -15,11 +15,11 @@ pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
                 match &field.ident {
                     Some(field_name) => {
                         field_serialization
-                            .extend(quote! {self.#field_name.serialize(serializer)?;});
+                            .extend(quote! {dust_dds::cdr::serialize::CdrSerialize::serialize(&self.#field_name, serializer)?;});
                     }
                     None => {
                         let index = Index::from(tuple_field_counter);
-                        field_serialization.extend(quote! {self.#index.serialize(serializer)?;});
+                        field_serialization.extend(quote! {dust_dds::cdr::serialize::CdrSerialize::serialize(&self.#index, serializer)?;});
                         tuple_field_counter += 1;
                     }
                 }
