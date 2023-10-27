@@ -1,6 +1,8 @@
 mod attribute_helpers;
+mod get_key;
 mod has_key;
 
+use get_key::expand_get_key;
 use has_key::expand_has_key;
 use proc_macro::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
@@ -17,63 +19,9 @@ pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(DdsBorrowKeyHolder, attributes(key))]
 pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
-
-    if let syn::Data::Struct(struct_data) = &input.data {
-        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-        let ident = input.ident;
-
-        // Collect all the key fields
-        let key_fields: Vec<&Field> = struct_data.fields.iter().filter(|&f|field_has_key_attribute(f)).collect();
-
-        match key_fields.is_empty() {
-            false => {
-
-                let mut borrowed_key_holder_fields = quote!{};
-                let mut borrowed_key_holder_field_assignment = quote!{};
-
-                for key_field in key_fields {
-                    let field_ident = &key_field.ident;
-                    let field_type = &key_field.ty;
-                    borrowed_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsBorrowKeyHolder>::BorrowedKeyHolder<'__local>,});
-                    borrowed_key_holder_field_assignment.extend(quote!{#field_ident: self.#field_ident.get_key(),});
-
-                }
-
-
-                // Create the new structs and implementation inside a const to avoid name conflicts
-                quote! {
-                    const _ : () = {
-                        #[derive(serde::Serialize)]
-                        pub struct BorrowedKeyHolder<'__local> {
-                            #borrowed_key_holder_fields
-                        }
-
-                        impl #impl_generics dust_dds::topic_definition::type_support::DdsBorrowKeyHolder for #ident #type_generics #where_clause {
-                            type BorrowedKeyHolder<'__local> = BorrowedKeyHolder<'__local> where Self: '__local;
-
-                            fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-                                BorrowedKeyHolder {
-                                    #borrowed_key_holder_field_assignment
-                                }
-                            }
-                        }
-                    };
-                }
-            },
-            true => {
-                quote! {
-                    impl #impl_generics dust_dds::topic_definition::type_support::DdsBorrowKeyHolder for #ident #type_generics #where_clause {
-                        type BorrowedKeyHolder<'__local> = ();
-
-                        fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {}
-                    }
-                }
-            }
-        }
-    } else {
-        quote_spanned! {input.span() => compile_error!("DdsBorrowKeyHolder can only be derived for structs");}
-    }
-    .into()
+    expand_get_key(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
 #[proc_macro_derive(DdsOwningKeyHolder, attributes(key))]
