@@ -74,7 +74,7 @@ impl CdrSerialize for DomainIdParameter {
 }
 
 impl<'de> CdrDeserialize<'de> for DomainIdParameter {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
         // None should not happen since this is only deserialized if the
         // corresponding PID is found
         Ok(Self(Some(CdrDeserialize::deserialize(deserializer)?)))
@@ -124,7 +124,7 @@ impl CdrSerialize for ParticipantProxy {
 }
 
 impl<'de> CdrDeserialize<'de> for ParticipantProxy {
-    fn deserialize(_deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(_deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 }

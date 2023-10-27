@@ -56,7 +56,7 @@ impl CdrSerialize for ReaderProxy {
 }
 
 impl<'de> CdrDeserialize<'de> for ReaderProxy {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 }

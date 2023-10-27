@@ -40,7 +40,7 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
             Ok(quote! {
                     impl<'__de> #impl_generics dust_dds::cdr::deserialize::CdrDeserialize<'__de> for #ident #type_generics #where_clause {
-                        fn deserialize(deserializer: &mut impl dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
+                        fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
                             Ok(#struct_deserialization)
                         }
                     }

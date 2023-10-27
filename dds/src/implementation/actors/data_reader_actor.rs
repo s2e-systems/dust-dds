@@ -8,9 +8,7 @@ use tracing::debug;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    cdr::{
-        cdr1_deserializer::Cdr1Deserializer, deserialize::CdrDeserialize, endianness::CdrEndianness,
-    },
+    cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer, endianness::CdrEndianness},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -833,8 +831,7 @@ impl DataReaderActor {
                 .iter()
                 .find(|&x| x.parameter_id() == PID_STATUS_INFO)
             {
-                let mut deserializer =
-                    Cdr1Deserializer::new(p.value(), CdrEndianness::LittleEndian);
+                let mut deserializer = CdrDeserializer::new(p.value(), CdrEndianness::LittleEndian);
                 let status_info: StatusInfo =
                     CdrDeserialize::deserialize(&mut deserializer).unwrap();
                 match status_info {

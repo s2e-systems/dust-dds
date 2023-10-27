@@ -29,7 +29,7 @@ impl CdrSerialize for DurationKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DurationKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
         let duration: Duration = CdrDeserialize::deserialize(deserializer)?;
         if duration == DURATION_INFINITE {
             Ok(DurationKind::Infinite)

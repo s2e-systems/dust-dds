@@ -43,7 +43,7 @@ impl CdrSerialize for WriterProxy {
 }
 
 impl<'de> CdrDeserialize<'de> for WriterProxy {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 }

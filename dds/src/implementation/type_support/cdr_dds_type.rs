@@ -2,8 +2,8 @@ use std::io::{Read, Write};
 
 use crate::{
     cdr::{
-        cdr1_deserializer::Cdr1Deserializer,
         deserialize::CdrDeserialize,
+        deserializer::CdrDeserializer,
         endianness::CdrEndianness,
         representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
@@ -99,21 +99,21 @@ where
 
         match representation_identifier {
             CDR_BE => {
-                let mut deserializer = Cdr1Deserializer::new(data_reader, CdrEndianness::BigEndian);
+                let mut deserializer = CdrDeserializer::new(data_reader, CdrEndianness::BigEndian);
                 Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
             PL_CDR_BE => {
-                let mut deserializer = Cdr1Deserializer::new(data_reader, CdrEndianness::BigEndian);
+                let mut deserializer = CdrDeserializer::new(data_reader, CdrEndianness::BigEndian);
                 Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
             CDR_LE => {
                 let mut deserializer =
-                    Cdr1Deserializer::new(data_reader, CdrEndianness::LittleEndian);
+                    CdrDeserializer::new(data_reader, CdrEndianness::LittleEndian);
                 Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
             PL_CDR_LE => {
                 let mut deserializer =
-                    Cdr1Deserializer::new(data_reader, CdrEndianness::LittleEndian);
+                    CdrDeserializer::new(data_reader, CdrEndianness::LittleEndian);
                 Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
 

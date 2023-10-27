@@ -103,7 +103,7 @@ impl<'de, const PID: ParameterId, T> CdrDeserialize<'de> for Parameter<PID, T>
 where
     T: CdrDeserialize<'de>,
 {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 
@@ -155,7 +155,7 @@ impl<'de, const PID: ParameterId, T> CdrDeserialize<'de> for ParameterWithDefaul
 where
     T: CdrDeserialize<'de> + Default,
 {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 
@@ -207,7 +207,7 @@ impl<'de, const PID: ParameterId, T> CdrDeserialize<'de> for ParameterVector<PID
 where
     T: CdrDeserialize<'de>,
 {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 
