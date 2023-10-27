@@ -132,25 +132,25 @@ impl<'de> ParameterListDeserialize<'de> for ParticipantProxy {
         pl_deserializer: &mut impl ParameterListDeserializer<'de>,
     ) -> Result<Self, std::io::Error> {
         Ok(Self {
-            domain_id: pl_deserializer.get_with_default(PID_DOMAIN_ID, Default::default())?,
-            domain_tag: pl_deserializer.get_with_default(PID_DOMAIN_TAG, Default::default())?,
-            protocol_version: pl_deserializer.get(PID_PROTOCOL_VERSION)?,
-            guid_prefix: pl_deserializer.get(PID_PARTICIPANT_GUID)?,
-            vendor_id: pl_deserializer.get(PID_VENDORID)?,
+            domain_id: pl_deserializer.read_with_default(PID_DOMAIN_ID, Default::default())?,
+            domain_tag: pl_deserializer.read_with_default(PID_DOMAIN_TAG, Default::default())?,
+            protocol_version: pl_deserializer.read(PID_PROTOCOL_VERSION)?,
+            guid_prefix: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
+            vendor_id: pl_deserializer.read(PID_VENDORID)?,
             expects_inline_qos: pl_deserializer
-                .get_with_default(PID_EXPECTS_INLINE_QOS, Default::default())?,
+                .read_with_default(PID_EXPECTS_INLINE_QOS, Default::default())?,
             metatraffic_unicast_locator_list: pl_deserializer
-                .get_all(PID_METATRAFFIC_UNICAST_LOCATOR)?,
+                .read_all(PID_METATRAFFIC_UNICAST_LOCATOR)?,
             metatraffic_multicast_locator_list: pl_deserializer
-                .get_all(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
-            default_unicast_locator_list: pl_deserializer.get_all(PID_DEFAULT_UNICAST_LOCATOR)?,
+                .read_all(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
+            default_unicast_locator_list: pl_deserializer.read_all(PID_DEFAULT_UNICAST_LOCATOR)?,
             default_multicast_locator_list: pl_deserializer
-                .get_all(PID_DEFAULT_MULTICAST_LOCATOR)?,
-            available_builtin_endpoints: pl_deserializer.get(PID_BUILTIN_ENDPOINT_SET)?,
+                .read_all(PID_DEFAULT_MULTICAST_LOCATOR)?,
+            available_builtin_endpoints: pl_deserializer.read(PID_BUILTIN_ENDPOINT_SET)?,
             manual_liveliness_count: pl_deserializer
-                .get_with_default(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Default::default())?,
+                .read_with_default(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Default::default())?,
             builtin_endpoint_qos: pl_deserializer
-                .get_with_default(PID_BUILTIN_ENDPOINT_QOS, Default::default())?,
+                .read_with_default(PID_BUILTIN_ENDPOINT_QOS, Default::default())?,
         })
     }
 }
@@ -257,7 +257,7 @@ impl<'de> ParameterListDeserialize<'de> for SpdpDiscoveredParticipantData {
             dds_participant_data: ParameterListDeserialize::deserialize(pl_deserializer)?,
             participant_proxy: ParameterListDeserialize::deserialize(pl_deserializer)?,
             lease_duration: pl_deserializer
-                .get_with_default(PID_PARTICIPANT_LEASE_DURATION, Default::default())?,
+                .read_with_default(PID_PARTICIPANT_LEASE_DURATION, Default::default())?,
         })
     }
 }

@@ -68,8 +68,8 @@ impl<'de> ParameterListDeserialize<'de> for ParticipantBuiltinTopicData {
         pl_deserializer: &mut impl ParameterListDeserializer<'de>,
     ) -> Result<Self, std::io::Error> {
         Ok(Self {
-            key: pl_deserializer.get(PID_PARTICIPANT_GUID)?,
-            user_data: pl_deserializer.get_with_default(PID_USER_DATA, Default::default())?,
+            key: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
+            user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
         })
     }
 }
