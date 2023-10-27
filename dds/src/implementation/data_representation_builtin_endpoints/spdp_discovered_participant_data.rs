@@ -17,7 +17,7 @@ use crate::{
         },
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-            DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+            DdsSerializedKey,
         },
     },
 };
@@ -251,10 +251,6 @@ impl DdsHasKey for SpdpDiscoveredParticipantData {
 
 impl CdrRepresentation for SpdpDiscoveredParticipantData {
     const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
-}
-
-impl DdsRepresentation for SpdpDiscoveredParticipantData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
 impl DdsGetKeyFromFoo for SpdpDiscoveredParticipantData {

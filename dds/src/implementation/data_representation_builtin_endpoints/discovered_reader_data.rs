@@ -12,7 +12,7 @@ use crate::{
         },
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-            DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+            DdsSerializedKey,
         },
     },
 };
@@ -126,10 +126,6 @@ impl DiscoveredReaderData {
 
 impl DdsHasKey for DiscoveredReaderData {
     const HAS_KEY: bool = true;
-}
-
-impl DdsRepresentation for DiscoveredReaderData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
 impl CdrRepresentation for DiscoveredReaderData {

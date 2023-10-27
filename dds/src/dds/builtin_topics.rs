@@ -22,7 +22,7 @@ use crate::{
     },
     topic_definition::{
         cdr_type::{CdrRepresentation, CdrRepresentationKind},
-        type_support::{DdsHasKey, DdsRepresentation, RtpsRepresentation},
+        type_support::{DdsHasKey},
     },
 };
 
@@ -78,10 +78,6 @@ impl ParticipantBuiltinTopicData {
 
 impl DdsHasKey for ParticipantBuiltinTopicData {
     const HAS_KEY: bool = true;
-}
-
-impl DdsRepresentation for ParticipantBuiltinTopicData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
 impl CdrRepresentation for ParticipantBuiltinTopicData {
@@ -208,10 +204,6 @@ impl TopicBuiltinTopicData {
 
 impl DdsHasKey for TopicBuiltinTopicData {
     const HAS_KEY: bool = true;
-}
-
-impl DdsRepresentation for TopicBuiltinTopicData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
 impl CdrRepresentation for TopicBuiltinTopicData {
@@ -375,10 +367,6 @@ impl DdsHasKey for PublicationBuiltinTopicData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsRepresentation for PublicationBuiltinTopicData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
-}
-
 impl CdrRepresentation for PublicationBuiltinTopicData {
     const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
@@ -520,10 +508,6 @@ impl SubscriptionBuiltinTopicData {
 
 impl DdsHasKey for SubscriptionBuiltinTopicData {
     const HAS_KEY: bool = true;
-}
-
-impl DdsRepresentation for SubscriptionBuiltinTopicData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
 }
 
 impl CdrRepresentation for SubscriptionBuiltinTopicData {

@@ -4,7 +4,7 @@ use syn::{DeriveInput, Field, Result};
 
 use crate::attribute_helpers::field_has_key_attribute;
 
-pub fn expand_get_key(input: &DeriveInput) -> Result<TokenStream> {
+pub fn expand_dds_borrow_key_holder(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         syn::Data::Struct(data_struct) => {
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();

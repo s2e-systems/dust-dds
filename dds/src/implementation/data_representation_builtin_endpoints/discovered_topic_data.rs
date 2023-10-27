@@ -5,7 +5,7 @@ use crate::{
         cdr_type::{CdrDeserialize, CdrRepresentation, CdrRepresentationKind, CdrSerialize},
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-            DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+            DdsSerializedKey,
         },
     },
 };
@@ -37,9 +37,6 @@ impl CdrRepresentation for DiscoveredTopicData {
     const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
-impl DdsRepresentation for DiscoveredTopicData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
-}
 
 impl DdsGetKeyFromFoo for DiscoveredTopicData {
     fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {

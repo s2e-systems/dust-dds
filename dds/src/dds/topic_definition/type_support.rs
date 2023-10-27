@@ -10,7 +10,7 @@
 //! DustDDS it is the most common use case that a type must be transmitted using the format
 //! defined by RTPS to ensure interoperability between different implementations.
 //! For this common scenario DustDDS provides a set of traits which are simpler to implement
-//! and which provide blanket implementations for the traits above. These are [`DdsRepresentation`],
+//! and which provide blanket implementations for the traits above. These are
 //! [`DdsBorrowKeyHolder`] and [`DdsOwningKeyHolder`] in combination with
 //! [`serde::Serialize`] and [`serde::Deserialize`].
 //!
@@ -27,7 +27,7 @@ use crate::{
 };
 
 pub use dust_dds_derive::{
-    CdrSerialize, DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsRepresentation, DdsType,
+    CdrSerialize, DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsType,
 };
 
 /// The [`DdsSerializedData`] represents the serialized data of a type that can be
@@ -115,14 +115,6 @@ pub trait DdsGetKeyFromSerializedKeyFields {
     ) -> DdsResult<DdsSerializedKey>;
 }
 
-/// Enumeration of the different representations defined by the RTPS standard and supported by DustDDS.
-pub enum RtpsRepresentation {
-    CdrLe,
-    CdrBe,
-    PlCdrBe,
-    PlCdrLe,
-}
-
 type RepresentationIdentifier = [u8; 2];
 type RepresentationOptions = [u8; 2];
 
@@ -137,9 +129,6 @@ const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 /// When used in combination with [`serde::Serialize`] and [`serde::Deserialize`] a blanket implementation
 /// for the [`DdsSerializeData`] and [`DdsDeserialize`] traits is provided that uses the Cdr serializer and
 /// is conformant with the CDR format as specified in the RTPS standard.
-pub trait DdsRepresentation {
-    const REPRESENTATION: RtpsRepresentation;
-}
 
 /// This trait defines the borrowed key holder struct which represents the key associated with type.
 ///
@@ -239,7 +228,7 @@ where
 
 impl<T> DdsGetKeyFromSerializedData for T
 where
-    T: DdsOwningKeyHolder + DdsRepresentation,
+    T: DdsOwningKeyHolder,
     T::OwningKeyHolder: for<'de> serde::Deserialize<'de> + serde::Serialize,
 {
     fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {

@@ -12,7 +12,7 @@ use crate::{
         },
         type_support::{
             DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-            DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+            DdsSerializedKey,
         },
     },
 };
@@ -121,9 +121,6 @@ impl CdrRepresentation for DiscoveredWriterData {
     const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
-impl DdsRepresentation for DiscoveredWriterData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
-}
 
 impl DdsGetKeyFromFoo for DiscoveredWriterData {
     fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {
