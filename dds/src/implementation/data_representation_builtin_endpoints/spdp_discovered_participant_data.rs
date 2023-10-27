@@ -4,13 +4,16 @@ use crate::{
         deserialize::CdrDeserialize,
         deserializer::CdrDeserializer,
         error::CdrResult,
+        parameter_list::ParameterList,
+        parameter_list_deserialize::ParameterListDeserialize,
+        parameter_list_deserializer::ParameterListDeserilizer,
         representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
+        parameter_list_serde::parameter::Parameter,
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             messages::types::Count,
@@ -82,21 +85,21 @@ pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantProxy {
-    domain_id: ParameterWithDefault<PID_DOMAIN_ID, DomainIdParameter>,
-    domain_tag: ParameterWithDefault<PID_DOMAIN_TAG, DomainTag>,
-    protocol_version: Parameter<PID_PROTOCOL_VERSION, ProtocolVersion>,
-    guid_prefix: Parameter<PID_PARTICIPANT_GUID, GuidPrefix>,
-    vendor_id: Parameter<PID_VENDORID, VendorId>,
-    expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
-    metatraffic_unicast_locator_list: ParameterVector<PID_METATRAFFIC_UNICAST_LOCATOR, Locator>,
-    metatraffic_multicast_locator_list: ParameterVector<PID_METATRAFFIC_MULTICAST_LOCATOR, Locator>,
-    default_unicast_locator_list: ParameterVector<PID_DEFAULT_UNICAST_LOCATOR, Locator>,
-    default_multicast_locator_list: ParameterVector<PID_DEFAULT_MULTICAST_LOCATOR, Locator>,
-    available_builtin_endpoints: Parameter<PID_BUILTIN_ENDPOINT_SET, BuiltinEndpointSet>,
+    domain_id: DomainIdParameter, //ParameterWithDefault<PID_DOMAIN_ID, DomainIdParameter>,
+    domain_tag: DomainTag,        //ParameterWithDefault<PID_DOMAIN_TAG, DomainTag>,
+    protocol_version: ProtocolVersion, //Parameter<PID_PROTOCOL_VERSION, ProtocolVersion>
+    guid_prefix: GuidPrefix,      //Parameter<PID_PARTICIPANT_GUID, GuidPrefix>
+    vendor_id: VendorId,          //  Parameter<PID_VENDORID, VendorId>
+    expects_inline_qos: ExpectsInlineQos, //ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
+    metatraffic_unicast_locator_list: Vec<Locator>, //ParameterVector<PID_METATRAFFIC_UNICAST_LOCATOR, Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>, //ParameterVector<PID_METATRAFFIC_MULTICAST_LOCATOR, Locator>,
+    default_unicast_locator_list: Vec<Locator>, // ParameterVector<PID_DEFAULT_UNICAST_LOCATOR, Locator>,
+    default_multicast_locator_list: Vec<Locator>, //ParameterVector<PID_DEFAULT_MULTICAST_LOCATOR, Locator>,
+    available_builtin_endpoints: BuiltinEndpointSet, //Parameter<PID_BUILTIN_ENDPOINT_SET, BuiltinEndpointSet>,
     // Default value is a deviation from the standard and is used for interoperability reasons:
-    manual_liveliness_count: ParameterWithDefault<PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Count>,
+    manual_liveliness_count: Count, //ParameterWithDefault<PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Count>,
     // Default value is a deviation from the standard and is used for interoperability reasons:
-    builtin_endpoint_qos: ParameterWithDefault<PID_BUILTIN_ENDPOINT_QOS, BuiltinEndpointQos>,
+    builtin_endpoint_qos: BuiltinEndpointQos, //ParameterWithDefault<PID_BUILTIN_ENDPOINT_QOS, BuiltinEndpointQos>,
 }
 
 impl CdrSerialize for ParticipantProxy {
@@ -120,9 +123,73 @@ impl CdrSerialize for ParticipantProxy {
     }
 }
 
+impl<'de> ParameterListDeserialize<'de> for ParticipantProxy {
+    fn deserialize(
+        pl_deserializer: &mut impl ParameterListDeserilizer<'de>,
+    ) -> Result<Self, std::io::Error> {
+        Ok(Self {
+            domain_id: pl_deserializer.get_with_default(PID_DOMAIN_ID, Default::default())?,
+            domain_tag: pl_deserializer.get_with_default(PID_DOMAIN_TAG, Default::default())?,
+            protocol_version: pl_deserializer.get(PID_PROTOCOL_VERSION)?,
+            guid_prefix: pl_deserializer.get(PID_PARTICIPANT_GUID)?,
+            vendor_id: pl_deserializer.get(PID_VENDORID)?,
+            expects_inline_qos: pl_deserializer
+                .get_with_default(PID_EXPECTS_INLINE_QOS, Default::default())?,
+            metatraffic_unicast_locator_list: pl_deserializer
+                .get_all(PID_METATRAFFIC_UNICAST_LOCATOR)?,
+            metatraffic_multicast_locator_list: pl_deserializer
+                .get_all(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
+            default_unicast_locator_list: pl_deserializer.get_all(PID_DEFAULT_UNICAST_LOCATOR)?,
+            default_multicast_locator_list: pl_deserializer
+                .get_all(PID_DEFAULT_MULTICAST_LOCATOR)?,
+            available_builtin_endpoints: pl_deserializer.get(PID_BUILTIN_ENDPOINT_SET)?,
+            manual_liveliness_count: pl_deserializer
+                .get_with_default(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Default::default())?,
+            builtin_endpoint_qos: pl_deserializer
+                .get_with_default(PID_BUILTIN_ENDPOINT_QOS, Default::default())?,
+        })
+    }
+}
+
 impl<'de> CdrDeserialize<'de> for ParticipantProxy {
     fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
-        todo!()
+        let parameter_list: ParameterList = CdrDeserialize::deserialize(deserializer)?;
+
+        let domain_id = parameter_list.get_with_default(PID_DOMAIN_ID, Default::default())?;
+        let domain_tag = parameter_list.get_with_default(PID_DOMAIN_TAG, Default::default())?;
+        let protocol_version = parameter_list.get(PID_PROTOCOL_VERSION)?;
+        let guid_prefix = parameter_list.get(PID_PARTICIPANT_GUID)?;
+        let vendor_id = parameter_list.get(PID_VENDORID)?;
+        let expects_inline_qos =
+            parameter_list.get_with_default(PID_EXPECTS_INLINE_QOS, Default::default())?;
+        let metatraffic_unicast_locator_list =
+            parameter_list.get_all(PID_METATRAFFIC_UNICAST_LOCATOR)?;
+        let metatraffic_multicast_locator_list =
+            parameter_list.get_all(PID_METATRAFFIC_MULTICAST_LOCATOR)?;
+        let default_unicast_locator_list = parameter_list.get_all(PID_DEFAULT_UNICAST_LOCATOR)?;
+        let default_multicast_locator_list =
+            parameter_list.get_all(PID_DEFAULT_MULTICAST_LOCATOR)?;
+        let available_builtin_endpoints = parameter_list.get(PID_BUILTIN_ENDPOINT_SET)?;
+        let manual_liveliness_count = parameter_list
+            .get_with_default(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Default::default())?;
+        let builtin_endpoint_qos =
+            parameter_list.get_with_default(PID_BUILTIN_ENDPOINT_QOS, Default::default())?;
+
+        Ok(Self {
+            domain_id,
+            domain_tag,
+            protocol_version,
+            guid_prefix,
+            vendor_id,
+            expects_inline_qos,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            available_builtin_endpoints,
+            manual_liveliness_count,
+            builtin_endpoint_qos,
+        })
     }
 }
 
@@ -161,7 +228,7 @@ impl ParticipantProxy {
     }
 
     pub fn domain_id(&self) -> Option<DomainId> {
-        *self.domain_id.as_ref().as_ref()
+        self.domain_id.as_ref().clone()
     }
 
     pub fn domain_tag(&self) -> &str {
@@ -169,19 +236,19 @@ impl ParticipantProxy {
     }
 
     pub fn _protocol_version(&self) -> ProtocolVersion {
-        *self.protocol_version.as_ref()
+        self.protocol_version
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
-        *self.guid_prefix.as_ref()
+        self.guid_prefix
     }
 
     pub fn _vendor_id(&self) -> VendorId {
-        *self.vendor_id.as_ref()
+        self.vendor_id
     }
 
     pub fn _expects_inline_qos(&self) -> bool {
-        *self.expects_inline_qos.as_ref().as_ref()
+        *self.expects_inline_qos.as_ref()
     }
 
     pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
@@ -201,15 +268,15 @@ impl ParticipantProxy {
     }
 
     pub fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
-        *self.available_builtin_endpoints.as_ref()
+        self.available_builtin_endpoints
     }
 
     pub fn _manual_liveliness_count(&self) -> Count {
-        *self.manual_liveliness_count.as_ref()
+        self.manual_liveliness_count
     }
 
     pub fn _builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
-        *self.builtin_endpoint_qos.as_ref()
+        self.builtin_endpoint_qos
     }
 }
 
@@ -217,7 +284,20 @@ impl ParticipantProxy {
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
-    lease_duration: Parameter<PID_PARTICIPANT_LEASE_DURATION, LeaseDuration>,
+    lease_duration: LeaseDuration,
+}
+
+impl<'de> ParameterListDeserialize<'de> for SpdpDiscoveredParticipantData {
+    fn deserialize(
+        pl_deserializer: &mut impl ParameterListDeserilizer<'de>,
+    ) -> Result<Self, std::io::Error> {
+        Ok(Self {
+            dds_participant_data: ParameterListDeserialize::deserialize(pl_deserializer)?,
+            participant_proxy: ParameterListDeserialize::deserialize(pl_deserializer)?,
+            lease_duration: pl_deserializer
+                .get_with_default(PID_PARTICIPANT_LEASE_DURATION, Default::default())?,
+        })
+    }
 }
 
 impl SpdpDiscoveredParticipantData {

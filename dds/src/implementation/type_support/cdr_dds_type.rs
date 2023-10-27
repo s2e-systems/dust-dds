@@ -99,12 +99,22 @@ where
             .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
 
         match representation_identifier {
-            CDR_BE | PL_CDR_BE => {
+            CDR_BE => {
                 let mut deserializer =
                     CdrDataDeserializer::<byteorder::BigEndian>::new(data_reader);
                 Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
-            CDR_LE | PL_CDR_LE => {
+            PL_CDR_BE => {
+                let mut deserializer =
+                    CdrDataDeserializer::<byteorder::BigEndian>::new(data_reader);
+                Ok(CdrDeserialize::deserialize(&mut deserializer)?)
+            }
+            CDR_LE => {
+                let mut deserializer =
+                    CdrDataDeserializer::<byteorder::LittleEndian>::new(data_reader);
+                Ok(CdrDeserialize::deserialize(&mut deserializer)?)
+            }
+            PL_CDR_LE => {
                 let mut deserializer =
                     CdrDataDeserializer::<byteorder::LittleEndian>::new(data_reader);
                 Ok(CdrDeserialize::deserialize(&mut deserializer)?)

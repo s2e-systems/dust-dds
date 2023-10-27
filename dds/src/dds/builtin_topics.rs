@@ -1,6 +1,8 @@
 use crate::{
     cdr::{
         deserialize::CdrDeserialize,
+        parameter_list_deserialize::ParameterListDeserialize,
+        parameter_list_deserializer::ParameterListDeserilizer,
         representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
     },
@@ -55,8 +57,19 @@ impl From<BuiltInTopicKey> for [u8; 16] {
 
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct ParticipantBuiltinTopicData {
-    key: Parameter<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
-    user_data: ParameterWithDefault<PID_USER_DATA, UserDataQosPolicy>,
+    key: BuiltInTopicKey,
+    user_data: UserDataQosPolicy,
+}
+
+impl<'de> ParameterListDeserialize<'de> for ParticipantBuiltinTopicData {
+    fn deserialize(
+        pl_deserializer: &mut impl ParameterListDeserilizer<'de>,
+    ) -> Result<Self, std::io::Error> {
+        Ok(Self {
+            key: pl_deserializer.get(PID_PARTICIPANT_GUID)?,
+            user_data: pl_deserializer.get_with_default(PID_USER_DATA, Default::default())?,
+        })
+    }
 }
 
 impl ParticipantBuiltinTopicData {
@@ -68,11 +81,11 @@ impl ParticipantBuiltinTopicData {
     }
 
     pub fn key(&self) -> &BuiltInTopicKey {
-        self.key.as_ref()
+        &self.key
     }
 
     pub fn user_data(&self) -> &UserDataQosPolicy {
-        self.user_data.as_ref()
+        &self.user_data
     }
 }
 
