@@ -13,10 +13,6 @@ use crate::{
             PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
         },
         parameter_list_serde::parameter::{Parameter, ParameterWithDefault},
-        rtps::parameter_list::{
-            parameter_list_deserialize::ParameterListDeserialize,
-            parameter_list_deserializer::ParameterListDeserializer,
-        },
     },
     infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -26,6 +22,9 @@ use crate::{
         TransportPriorityQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+    },
+    parameter_list::{
+        deserialize::ParameterListDeserialize, deserializer::ParameterListDeserializer,
     },
     topic_definition::type_support::DdsHasKey,
 };

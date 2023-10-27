@@ -12,15 +12,13 @@ use crate::{
     implementation::rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,
-        parameter_list::{
-            parameter_list_deserialize::ParameterListDeserialize,
-            parameter_list_deserializer::ParameterListDeserializer,
-            parameter_list_serialize::ParameterListSerialize,
-            parameter_list_serializer::ParameterListSerializer,
-        },
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
     infrastructure::{error::DdsResult, time::Duration},
+    parameter_list::{
+        deserialize::ParameterListDeserialize, deserializer::ParameterListDeserializer,
+        serialize::ParameterListSerialize, serializer::ParameterListSerializer,
+    },
     topic_definition::type_support::{
         DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializedKey,
     },

@@ -1,4 +1,4 @@
-use super::parameter_list_deserializer::ParameterListDeserializer;
+use super::deserializer::ParameterListDeserializer;
 
 pub trait ParameterListDeserialize<'de>: Sized {
     fn deserialize(

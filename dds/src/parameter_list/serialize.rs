@@ -1,4 +1,4 @@
-use super::parameter_list_serializer::ParameterListSerializer;
+use super::serializer::ParameterListSerializer;
 
 pub trait ParameterListSerialize {
     fn serialize(
