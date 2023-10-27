@@ -1,11 +1,9 @@
 use std::ops::Sub;
 
-use crate::{
-    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
-    topic_definition::cdr_type::{CdrDeserialize, CdrDeserializer},
+use crate::cdr::{
+    deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
+    serialize::CdrSerialize, serializer::CdrSerializer,
 };
-
-use super::error::DdsResult;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum DurationKind {
@@ -31,7 +29,7 @@ impl CdrSerialize for DurationKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DurationKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let duration: Duration = CdrDeserialize::deserialize(deserializer)?;
         if duration == DURATION_INFINITE {
             Ok(DurationKind::Infinite)

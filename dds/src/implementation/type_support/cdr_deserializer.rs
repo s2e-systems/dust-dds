@@ -6,10 +6,7 @@ use std::{
 
 use byteorder::{ByteOrder, ReadBytesExt};
 
-use crate::{
-    infrastructure::error::{DdsError, DdsResult},
-    topic_definition::cdr_type::{CdrDeserialize, CdrDeserializer},
-};
+use crate::cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult};
 
 pub struct CdrDataDeserializer<'de, E> {
     bytes: &'de [u8],
@@ -29,7 +26,7 @@ where
         }
     }
 
-    fn read_padding_of<T>(&mut self) -> DdsResult<()> {
+    fn read_padding_of<T>(&mut self) -> CdrResult<()> {
         // Calculate the required padding to align with 1-byte, 2-byte, 4-byte, 8-byte
         // boundaries Instead of using the slow modulo operation '%', the faster
         // bit-masking is used
@@ -53,92 +50,96 @@ impl<'de, E> CdrDeserializer<'de> for CdrDataDeserializer<'de, E>
 where
     E: ByteOrder,
 {
-    fn deserialize_bool(&mut self) -> DdsResult<bool> {
+    fn deserialize_bool(&mut self) -> CdrResult<bool> {
         let value: u8 = CdrDeserialize::deserialize(self)?;
         match value {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(DdsError::Error(format!(
-                "Invalid bool encoding. Value {}",
-                value
-            ))),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid bool encoding. Value {}", value),
+            )),
         }
     }
 
-    fn deserialize_i8(&mut self) -> DdsResult<i8> {
+    fn deserialize_i8(&mut self) -> CdrResult<i8> {
         self.read_padding_of::<i8>()?;
         Ok(self.reader.read_i8()?)
     }
 
-    fn deserialize_i16(&mut self) -> DdsResult<i16> {
+    fn deserialize_i16(&mut self) -> CdrResult<i16> {
         self.read_padding_of::<i16>()?;
         Ok(self.reader.read_i16::<E>()?)
     }
 
-    fn deserialize_i32(&mut self) -> DdsResult<i32> {
+    fn deserialize_i32(&mut self) -> CdrResult<i32> {
         self.read_padding_of::<i32>()?;
         Ok(self.reader.read_i32::<E>()?)
     }
 
-    fn deserialize_i64(&mut self) -> DdsResult<i64> {
+    fn deserialize_i64(&mut self) -> CdrResult<i64> {
         self.read_padding_of::<i64>()?;
         Ok(self.reader.read_i64::<E>()?)
     }
 
-    fn deserialize_u8(&mut self) -> DdsResult<u8> {
+    fn deserialize_u8(&mut self) -> CdrResult<u8> {
         self.read_padding_of::<u8>()?;
         Ok(self.reader.read_u8()?)
     }
 
-    fn deserialize_u16(&mut self) -> DdsResult<u16> {
+    fn deserialize_u16(&mut self) -> CdrResult<u16> {
         self.read_padding_of::<u16>()?;
         Ok(self.reader.read_u16::<E>()?)
     }
 
-    fn deserialize_u32(&mut self) -> DdsResult<u32> {
+    fn deserialize_u32(&mut self) -> CdrResult<u32> {
         self.read_padding_of::<u32>()?;
         Ok(self.reader.read_u32::<E>()?)
     }
 
-    fn deserialize_u64(&mut self) -> DdsResult<u64> {
+    fn deserialize_u64(&mut self) -> CdrResult<u64> {
         self.read_padding_of::<u64>()?;
         Ok(self.reader.read_u64::<E>()?)
     }
 
-    fn deserialize_f32(&mut self) -> DdsResult<f32> {
+    fn deserialize_f32(&mut self) -> CdrResult<f32> {
         self.read_padding_of::<f32>()?;
         Ok(self.reader.read_f32::<E>()?)
     }
 
-    fn deserialize_f64(&mut self) -> DdsResult<f64> {
+    fn deserialize_f64(&mut self) -> CdrResult<f64> {
         self.read_padding_of::<f64>()?;
         Ok(self.reader.read_f64::<E>()?)
     }
 
-    fn deserialize_char(&mut self) -> DdsResult<char> {
+    fn deserialize_char(&mut self) -> CdrResult<char> {
         let value: u8 = CdrDeserialize::deserialize(self)?;
         // CDR only accepts ascii characters.
         // The encoding length must be 1 which in UTF-8 is represented by a 0 on the MSB
         if value & 0b1000_0000 == 0 {
             Ok(value as char)
         } else {
-            Err(DdsError::Error(format!(
-                "Invalid bool encoding. Value {}",
-                value
-            )))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid bool encoding. Value {}", value),
+            ))
         }
     }
 
-    fn deserialize_string(&mut self) -> DdsResult<String> {
+    fn deserialize_string(&mut self) -> CdrResult<String> {
         let len: u32 = CdrDeserialize::deserialize(self)?;
         let mut buf = vec![0_u8; len as usize];
         self.reader.read_exact(&mut buf)?;
         buf.pop(); // removes a terminating null character
-        String::from_utf8(buf)
-            .map_err(|e| DdsError::Error(format!("InvalidUtf8Encoding: {}", e.utf8_error())))
+        String::from_utf8(buf).map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("InvalidUtf8Encoding: {}", e.utf8_error()),
+            )
+        })
     }
 
-    fn deserialize_seq<T>(&mut self) -> DdsResult<Vec<T>>
+    fn deserialize_seq<T>(&mut self) -> CdrResult<Vec<T>>
     where
         T: CdrDeserialize<'de>,
     {
@@ -150,7 +151,7 @@ where
         Ok(seq)
     }
 
-    fn deserialize_array<const N: usize, T>(&mut self) -> DdsResult<[T; N]>
+    fn deserialize_array<const N: usize, T>(&mut self) -> CdrResult<[T; N]>
     where
         T: CdrDeserialize<'de>,
     {
@@ -164,7 +165,7 @@ where
             .expect("Must convert due to for loop succeeding"))
     }
 
-    fn deserialize_bytes(&mut self) -> DdsResult<&'de [u8]> {
+    fn deserialize_bytes(&mut self) -> CdrResult<&'de [u8]> {
         let len: u32 = CdrDeserialize::deserialize(&mut *self)?;
         let start_pos = self.bytes.len() - self.reader.len();
         let end_pos = start_pos + len as usize;
@@ -173,13 +174,14 @@ where
             self.reader.consume(len as usize);
             Ok(buf)
         } else {
-            Err(DdsError::Error(format!(
-                "Byte array too small for received length"
-            )))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Byte array too small for received length"),
+            ))
         }
     }
 
-    fn deserialize_byte_array<const N: usize>(&mut self) -> DdsResult<&'de [u8; N]> {
+    fn deserialize_byte_array<const N: usize>(&mut self) -> CdrResult<&'de [u8; N]> {
         let start_pos = self.bytes.len() - self.reader.len();
         let end_pos = start_pos + N;
         if self.bytes.len() >= end_pos {
@@ -189,13 +191,14 @@ where
             self.reader.consume(N);
             Ok(buf)
         } else {
-            Err(DdsError::Error(format!(
-                "Byte array too small for received length"
-            )))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Byte array too small for received length"),
+            ))
         }
     }
 
-    fn deserialize_unit(&mut self) -> DdsResult<()> {
+    fn deserialize_unit(&mut self) -> CdrResult<()> {
         Ok(())
     }
 }
@@ -206,7 +209,7 @@ mod tests {
 
     use super::*;
 
-    fn deserialize_data<'de, T, E>(bytes: &'de [u8]) -> DdsResult<T>
+    fn deserialize_data<'de, T, E>(bytes: &'de [u8]) -> CdrResult<T>
     where
         E: ByteOrder,
         T: CdrDeserialize<'de> + ?Sized,

@@ -1,12 +1,12 @@
 use core::cmp::Ordering;
 
 use crate::{
-    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
+    cdr::{
+        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
+        serialize::CdrSerialize, serializer::CdrSerializer,
+    },
     infrastructure::time::{Duration, DurationKind, DURATION_ZERO},
-    topic_definition::cdr_type::{CdrDeserialize, CdrDeserializer},
 };
-
-use super::error::{DdsError, DdsResult};
 
 pub type QosPolicyId = i32;
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -26,15 +26,15 @@ impl CdrSerialize for Length {
 }
 
 impl<'de> CdrDeserialize<'de> for Length {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let value: i32 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             LENGTH_UNLIMITED => Ok(Length::Unlimited),
             0..=i32::MAX => Ok(Length::Limited(value as u32)),
-            _ => Err(DdsError::Error(format!(
-                "Invalid value for Length {}",
-                value
-            ))),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid value for Length {}", value),
+            )),
         }
     }
 }
@@ -267,15 +267,15 @@ impl CdrSerialize for DurabilityQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DurabilityQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(DurabilityQosPolicyKind::Volatile),
             1 => Ok(DurabilityQosPolicyKind::TransientLocal),
-            _ => Err(DdsError::Error(format!(
-                "Invalid value for DurabilityQosPolicyKind {}",
-                value
-            ))),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid value for DurabilityQosPolicyKind {}", value),
+            )),
         }
     }
 }
@@ -344,15 +344,18 @@ impl CdrSerialize for PresentationQosPolicyAccessScopeKind {
 }
 
 impl<'de> CdrDeserialize<'de> for PresentationQosPolicyAccessScopeKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(PresentationQosPolicyAccessScopeKind::Instance),
             1 => Ok(PresentationQosPolicyAccessScopeKind::Topic),
-            _ => Err(DdsError::Error(format!(
-                "Invalid value for PresentationQosPolicyAccessScopeKind {}",
-                value
-            ))),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Invalid value for PresentationQosPolicyAccessScopeKind {}",
+                    value
+                ),
+            )),
         }
     }
 }
@@ -504,14 +507,14 @@ impl CdrSerialize for OwnershipQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for OwnershipQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(OwnershipQosPolicyKind::Shared),
-            _ => Err(DdsError::Error(format!(
-                "Invalid value for OwnershipQosPolicyKind {}",
-                value
-            ))),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid value for OwnershipQosPolicyKind {}", value),
+            )),
         }
     }
 }
@@ -563,16 +566,16 @@ impl CdrSerialize for LivelinessQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for LivelinessQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(LivelinessQosPolicyKind::Automatic),
             1 => Ok(LivelinessQosPolicyKind::ManualByParticipant),
             2 => Ok(LivelinessQosPolicyKind::ManualByTopic),
-            _ => Err(DdsError::Error(format!(
-                "Invalid value for LivelinessQosPolicyKind {}",
-                value
-            ))),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid value for LivelinessQosPolicyKind {}", value),
+            )),
         }
     }
 }
@@ -738,15 +741,15 @@ impl CdrSerialize for ReliabilityQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for ReliabilityQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let value: i32 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             BEST_EFFORT => Ok(ReliabilityQosPolicyKind::BestEffort),
             RELIABLE => Ok(ReliabilityQosPolicyKind::Reliable),
-            _ => Err(DdsError::Error(format!(
-                "Invalid value for ReliabilityQosPolicyKind {}",
-                value
-            ))),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid value for ReliabilityQosPolicyKind {}", value),
+            )),
         }
     }
 }
@@ -839,15 +842,15 @@ impl CdrSerialize for DestinationOrderQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DestinationOrderQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(DestinationOrderQosPolicyKind::ByReceptionTimestamp),
             1 => Ok(DestinationOrderQosPolicyKind::BySourceTimestamp),
-            _ => Err(DdsError::Error(format!(
-                "Invalid value for DestinationOrderQosPolicyKind {}",
-                value
-            ))),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid value for DestinationOrderQosPolicyKind {}", value),
+            )),
         }
     }
 }
@@ -920,16 +923,16 @@ impl CdrSerialize for HistoryQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for HistoryQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let kind: u8 = CdrDeserialize::deserialize(deserializer)?;
         let depth: i32 = CdrDeserialize::deserialize(deserializer)?;
         match kind {
             0 => Ok(HistoryQosPolicyKind::KeepLast(depth)),
             1 => Ok(HistoryQosPolicyKind::KeepAll),
-            _ => Err(DdsError::Error(format!(
-                "Invalid kind value for HistoryQosPolicyKind {}",
-                kind
-            ))),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Invalid kind value for HistoryQosPolicyKind {}", kind),
+            )),
         }
     }
 }

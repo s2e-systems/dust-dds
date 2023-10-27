@@ -9,9 +9,9 @@ pub fn expand_cdr_representation(input: &DeriveInput) -> Result<TokenStream> {
             let ident = &input.ident;
 
             Ok(quote! {
-                impl #impl_generics dust_dds::topic_definition::cdr_type::CdrRepresentation for #ident #type_generics #where_clause {
-                    const REPRESENTATION: dust_dds::topic_definition::cdr_type::CdrRepresentationKind
-                        = dust_dds::topic_definition::cdr_type::CdrRepresentationKind::CdrLe;
+                impl #impl_generics dust_dds::cdr::representation::CdrRepresentation for #ident #type_generics #where_clause {
+                    const REPRESENTATION: dust_dds::cdr::representation::CdrRepresentationKind
+                        = dust_dds::cdr::representation::CdrRepresentationKind::CdrLe;
                 }
             })
         }

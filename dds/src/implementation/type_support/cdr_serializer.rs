@@ -1,16 +1,7 @@
 use std::marker::PhantomData;
 
-use crate::{
-    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
-    infrastructure::error::DdsError,
-};
+use crate::cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer};
 use byteorder::{ByteOrder, WriteBytesExt};
-
-impl From<std::io::Error> for DdsError {
-    fn from(value: std::io::Error) -> Self {
-        DdsError::Error(value.to_string())
-    }
-}
 
 pub struct CdrDataSerializer<W, E> {
     writer: W,

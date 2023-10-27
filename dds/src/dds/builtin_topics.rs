@@ -1,6 +1,9 @@
-use dust_dds_derive::{CdrDeserialize, CdrSerialize};
-
 use crate::{
+    cdr::{
+        deserialize::CdrDeserialize,
+        representation::{CdrRepresentation, CdrRepresentationKind},
+        serialize::CdrSerialize,
+    },
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::{
             PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA,
@@ -20,10 +23,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    topic_definition::{
-        cdr_type::{CdrRepresentation, CdrRepresentationKind},
-        type_support::{DdsHasKey},
-    },
+    topic_definition::type_support::DdsHasKey,
 };
 
 #[derive(

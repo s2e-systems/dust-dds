@@ -1,17 +1,20 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
+    cdr::{
+        deserialize::CdrDeserialize,
+        deserializer::CdrDeserializer,
+        error::CdrResult,
+        representation::{CdrRepresentation, CdrRepresentationKind},
+        serialize::CdrSerialize,
+        serializer::CdrSerializer,
+    },
     implementation::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
         rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::error::DdsResult,
-    topic_definition::{
-        cdr_type::{CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind},
-        type_support::{
-            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-            DdsSerializedKey,
-        },
+    topic_definition::type_support::{
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializedKey,
     },
 };
 
@@ -53,7 +56,7 @@ impl CdrSerialize for ReaderProxy {
 }
 
 impl<'de> CdrDeserialize<'de> for ReaderProxy {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 }

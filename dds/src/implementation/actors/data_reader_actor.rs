@@ -8,6 +8,7 @@ use tracing::debug;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
+    cdr::deserialize::CdrDeserialize,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -61,10 +62,7 @@ use crate::{
         time::{DurationKind, Time},
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::{
-        cdr_type::CdrDeserialize,
-        type_support::{DdsGetKeyFromFoo, DdsSerializedKey},
-    },
+    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedKey},
 };
 
 use super::{

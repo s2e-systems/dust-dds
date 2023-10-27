@@ -23,13 +23,13 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                         .is_none();
                     if is_tuple {
                         for _ in data_struct.fields.iter() {
-                            field_deserialization.extend(quote!{dust_dds::topic_definition::cdr_type::CdrDeserialize::deserialize(deserializer)?,});
+                            field_deserialization.extend(quote!{dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,});
                         }
                         struct_deserialization.extend(quote! {Self(#field_deserialization)})
                     } else {
                         for field in data_struct.fields.iter() {
                             let field_name = field.ident.as_ref().expect("Is not a tuple");
-                            field_deserialization.extend(quote!{#field_name: dust_dds::topic_definition::cdr_type::CdrDeserialize::deserialize(deserializer)?,});
+                            field_deserialization.extend(quote!{#field_name: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,});
                         }
                         struct_deserialization.extend(quote! {Self{
                             #field_deserialization
@@ -39,8 +39,8 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             Ok(quote! {
-                    impl<'__de> #impl_generics dust_dds::topic_definition::cdr_type::CdrDeserialize<'__de> for #ident #type_generics #where_clause {
-                        fn deserialize(deserializer: &mut impl dust_dds::topic_definition::cdr_type::CdrDeserializer<'__de>) -> dust_dds::infrastructure::error::DdsResult<Self> {
+                    impl<'__de> #impl_generics dust_dds::cdr::deserialize::CdrDeserialize<'__de> for #ident #type_generics #where_clause {
+                        fn deserialize(deserializer: &mut impl dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
                             Ok(#struct_deserialization)
                         }
                     }
@@ -82,11 +82,11 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de> dust_dds::topic_definition::cdr_type::CdrDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: &mut impl dust_dds::topic_definition::cdr_type::CdrDeserializer<'__de>) -> dust_dds::infrastructure::error::DdsResult<Self> {
+            impl<'__de> dust_dds::cdr::deserialize::CdrDeserialize<'__de> for MyData {
+                fn deserialize(deserializer: &mut impl dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::DdsResult<Self> {
                     Ok(Self {
-                        x: dust_dds::topic_definition::cdr_type::CdrDeserialize::deserialize(deserializer)?,
-                        y: dust_dds::topic_definition::cdr_type::CdrDeserialize::deserialize(deserializer)?,
+                        x: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
+                        y: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
                     })
                 }
             }
@@ -116,10 +116,10 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(expand_cdr_deserialize(&input).unwrap()).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de, 'a> dust_dds::topic_definition::cdr_type::CdrDeserialize<'__de> for BorrowedData<'a> where '__de:'a {
-                fn deserialize(deserializer: &mut impl dust_dds::topic_definition::cdr_type::CdrDeserializer<'__de>) -> dust_dds::infrastructure::error::DdsResult<Self> {
+            impl<'__de, 'a> dust_dds::cdr::deserialize::CdrDeserialize<'__de> for BorrowedData<'a> where '__de:'a {
+                fn deserialize(deserializer: &mut impl dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
                     Ok(Self {
-                        data: dust_dds::topic_definition::cdr_type::CdrDeserialize::deserialize(deserializer),
+                        data: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
                     })
                 }
             }

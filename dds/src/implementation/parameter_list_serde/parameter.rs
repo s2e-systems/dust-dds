@@ -1,8 +1,9 @@
 use crate::{
-    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
+    cdr::{
+        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
+        serialize::CdrSerialize, serializer::CdrSerializer,
+    },
     implementation::rtps::messages::types::ParameterId,
-    infrastructure::error::DdsResult,
-    topic_definition::cdr_type::{CdrDeserialize, CdrDeserializer},
 };
 
 #[derive(
@@ -102,7 +103,7 @@ impl<'de, const PID: ParameterId, T> CdrDeserialize<'de> for Parameter<PID, T>
 where
     T: CdrDeserialize<'de>,
 {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 
@@ -154,7 +155,7 @@ impl<'de, const PID: ParameterId, T> CdrDeserialize<'de> for ParameterWithDefaul
 where
     T: CdrDeserialize<'de> + Default,
 {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 
@@ -206,7 +207,7 @@ impl<'de, const PID: ParameterId, T> CdrDeserialize<'de> for ParameterVector<PID
 where
     T: CdrDeserialize<'de>,
 {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 

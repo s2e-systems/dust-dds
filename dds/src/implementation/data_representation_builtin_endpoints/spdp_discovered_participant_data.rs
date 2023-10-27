@@ -1,6 +1,13 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
-    cdr::{error::CdrResult, serialize::CdrSerialize, serializer::CdrSerializer},
+    cdr::{
+        deserialize::CdrDeserialize,
+        deserializer::CdrDeserializer,
+        error::CdrResult,
+        representation::{CdrRepresentation, CdrRepresentationKind},
+        serialize::CdrSerialize,
+        serializer::CdrSerializer,
+    },
     domain::domain_participant_factory::DomainId,
     implementation::{
         parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
@@ -11,12 +18,8 @@ use crate::{
         },
     },
     infrastructure::{error::DdsResult, time::Duration},
-    topic_definition::{
-        cdr_type::{CdrDeserialize, CdrDeserializer, CdrRepresentation, CdrRepresentationKind},
-        type_support::{
-            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-            DdsSerializedKey,
-        },
+    topic_definition::type_support::{
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializedKey,
     },
 };
 
@@ -68,7 +71,7 @@ impl CdrSerialize for DomainIdParameter {
 }
 
 impl<'de> CdrDeserialize<'de> for DomainIdParameter {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         // None should not happen since this is only deserialized if the
         // corresponding PID is found
         Ok(Self(Some(CdrDeserialize::deserialize(deserializer)?)))
@@ -118,7 +121,7 @@ impl CdrSerialize for ParticipantProxy {
 }
 
 impl<'de> CdrDeserialize<'de> for ParticipantProxy {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> DdsResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         todo!()
     }
 }

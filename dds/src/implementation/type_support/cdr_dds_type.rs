@@ -1,16 +1,17 @@
 use std::io::{Read, Write};
 
 use crate::{
-    cdr::serialize::CdrSerialize,
+    cdr::{
+        deserialize::CdrDeserialize,
+        representation::{CdrRepresentation, CdrRepresentationKind},
+        serialize::CdrSerialize,
+    },
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
         parameter_list_serde::parameter::Parameter,
     },
     infrastructure::error::{DdsError, DdsResult},
-    topic_definition::{
-        cdr_type::{CdrDeserialize, CdrRepresentation, CdrRepresentationKind},
-        type_support::{DdsDeserialize, DdsSerializeData, DdsSerializedData},
-    },
+    topic_definition::type_support::{DdsDeserialize, DdsSerializeData, DdsSerializedData},
 };
 
 use super::{cdr_deserializer::CdrDataDeserializer, cdr_serializer::CdrDataSerializer};
@@ -101,12 +102,12 @@ where
             CDR_BE | PL_CDR_BE => {
                 let mut deserializer =
                     CdrDataDeserializer::<byteorder::BigEndian>::new(data_reader);
-                CdrDeserialize::deserialize(&mut deserializer)
+                Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
             CDR_LE | PL_CDR_LE => {
                 let mut deserializer =
                     CdrDataDeserializer::<byteorder::LittleEndian>::new(data_reader);
-                CdrDeserialize::deserialize(&mut deserializer)
+                Ok(CdrDeserialize::deserialize(&mut deserializer)?)
             }
 
             _ => Err(DdsError::Error(

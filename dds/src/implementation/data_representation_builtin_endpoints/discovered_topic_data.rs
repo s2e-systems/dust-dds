@@ -1,13 +1,13 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    cdr::serialize::CdrSerialize,
+    cdr::{
+        deserialize::CdrDeserialize,
+        representation::{CdrRepresentation, CdrRepresentationKind},
+        serialize::CdrSerialize,
+    },
     infrastructure::error::DdsResult,
-    topic_definition::{
-        cdr_type::{CdrDeserialize, CdrRepresentation, CdrRepresentationKind},
-        type_support::{
-            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-            DdsSerializedKey,
-        },
+    topic_definition::type_support::{
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializedKey,
     },
 };
 
