@@ -1,3 +1,4 @@
+use proc_macro2::Span;
 use syn::{spanned::Spanned, DataStruct, Field};
 
 pub fn field_has_key_attribute(field: &Field) -> bool {
@@ -55,4 +56,27 @@ pub fn get_parameter_default_attribute(field: &Field) -> syn::Result<Option<syn:
     })?;
 
     Ok(value)
+}
+
+pub fn get_parameter_serialize_elements(field: &Field) -> syn::Result<bool> {
+    let parameter_attribute = field
+        .attrs
+        .iter()
+        .find(|a| a.path().is_ident("parameter"))
+        .ok_or(syn::Error::new(
+            field.span(),
+            "Field missing #[parameter] attribute",
+        ))?;
+    let mut value = syn::LitBool::new(false, Span::call_site());
+    parameter_attribute.parse_nested_meta(|meta| {
+        if meta.path.is_ident("serialize_elements") {
+            value = meta.value()?.parse()?;
+        } else {
+            // Ignore the tokens after the =
+            let _: syn::Expr = meta.value()?.parse()?;
+        }
+        Ok(())
+    })?;
+
+    Ok(value.value())
 }

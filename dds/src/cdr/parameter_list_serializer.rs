@@ -57,6 +57,20 @@ impl ParameterListSerializer<'_> {
         }
         Ok(())
     }
+
+    pub fn write_list_elements<T>(
+        &mut self,
+        id: i16,
+        value_list: &[T],
+    ) -> Result<(), std::io::Error>
+    where
+        T: CdrSerialize + PartialEq,
+    {
+        for value in value_list {
+            self.write(id, value)?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

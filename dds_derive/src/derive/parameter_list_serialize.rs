@@ -2,7 +2,9 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{DeriveInput, Index, Result};
 
-use crate::attribute_helpers::{get_parameter_default_attribute, get_parameter_id_attribute};
+use crate::attribute_helpers::{
+    get_parameter_default_attribute, get_parameter_id_attribute, get_parameter_serialize_elements,
+};
 
 pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
@@ -11,28 +13,43 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
             let ident = &input.ident;
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
 
-            // Each field must have an attribute #[parameter(id = 231)]
             for (field_index, field) in data_struct.fields.iter().enumerate() {
                 let id = get_parameter_id_attribute(field)?;
-                let default_value = get_parameter_default_attribute(field)?;
-                match (&field.ident, default_value) {
-                    (Some(field_name), None) => field_serialization.extend(quote! {
-                        serializer.write(#id, &self.#field_name)?;
-                    }),
-                    (Some(field_name), Some(default)) => field_serialization.extend(quote! {
-                        serializer.write_with_default(#id, &self.#field_name, #default)?;
-                    }),
-                    (None, None) => {
-                        let index = Index::from(field_index);
-                        field_serialization.extend(quote! {
-                            serializer.write(#id, &self.#index)?;
-                        })
+                let serialize_elements = get_parameter_serialize_elements(field)?;
+
+                if !serialize_elements {
+                    let default_value = get_parameter_default_attribute(field)?;
+                    match (&field.ident, default_value) {
+                        (Some(field_name), None) => field_serialization.extend(quote! {
+                            serializer.write(#id, &self.#field_name)?;
+                        }),
+                        (Some(field_name), Some(default)) => field_serialization.extend(quote! {
+                            serializer.write_with_default(#id, &self.#field_name, #default)?;
+                        }),
+                        (None, None) => {
+                            let index = Index::from(field_index);
+                            field_serialization.extend(quote! {
+                                serializer.write(#id, &self.#index)?;
+                            })
+                        }
+                        (None, Some(default)) => {
+                            let index = Index::from(field_index);
+                            field_serialization.extend(quote! {
+                                serializer.write_with_default(#id, &self.#index, #default)?;
+                            })
+                        }
                     }
-                    (None, Some(default)) => {
-                        let index = Index::from(field_index);
-                        field_serialization.extend(quote! {
-                            serializer.write_with_default(#id, &self.#index, #default)?;
-                        })
+                } else {
+                    match &field.ident {
+                        Some(field_name) => field_serialization.extend(quote! {
+                            serializer.write_list_elements(#id, &self.#field_name)?;
+                        }),
+                        None => {
+                            let index = Index::from(field_index);
+                            field_serialization.extend(quote! {
+                                serializer.write_list_elements(#id, &self.#index)?;
+                            })
+                        }
                     }
                 }
             }
