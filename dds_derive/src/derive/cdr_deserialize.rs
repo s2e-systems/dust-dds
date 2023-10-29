@@ -1,4 +1,4 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{DeriveInput, Result};
 
@@ -6,7 +6,16 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         syn::Data::Struct(data_struct) => {
             let mut struct_deserialization = quote!();
-            let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+            let (_, type_generics, where_clause) = input.generics.split_for_impl();
+
+            // Append the '__de lifetime to the impl generics of the struct
+            let mut generics = input.generics.clone();
+            generics.params = Some(syn::GenericParam::Lifetime(syn::LifetimeParam::new(
+                syn::Lifetime::new("'__de", Span::call_site()),
+            )))
+            .into_iter()
+            .chain(generics.params)
+            .collect();
 
             let ident = &input.ident;
 
@@ -39,7 +48,7 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             Ok(quote! {
-                    impl<'__de> #impl_generics dust_dds::cdr::deserialize::CdrDeserialize<'__de> for #ident #type_generics #where_clause {
+                    impl #generics dust_dds::cdr::deserialize::CdrDeserialize<'__de> for #ident #type_generics #where_clause {
                         fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
                             Ok(#struct_deserialization)
                         }
@@ -59,6 +68,7 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
 #[cfg(test)]
 mod tests {
+    use quote::ToTokens;
     use syn::ItemImpl;
 
     use super::*;
@@ -100,7 +110,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Lifetimes not yet handled"]
     fn struct_with_lifetime() {
         let input = syn::parse2::<DeriveInput>(
             "
@@ -116,8 +125,8 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(expand_cdr_deserialize(&input).unwrap()).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de, 'a> dust_dds::cdr::deserialize::CdrDeserialize<'__de> for BorrowedData<'a> where '__de:'a {
-                fn deserialize(deserializer: &mut impl dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
+            impl<'__de, 'a> dust_dds::cdr::deserialize::CdrDeserialize<'__de> for BorrowedData<'a> where '__de: 'a{
+                fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
                     Ok(Self {
                         data: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
                     })
@@ -129,6 +138,12 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(result, expected);
+        assert_eq!(
+            result,
+            expected,
+            "\n\n L: {} \n\n R: {}",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
     }
 }
