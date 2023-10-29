@@ -2,9 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{DeriveInput, Index, Result};
 
-use crate::attribute_helpers::{
-    get_parameter_default_attribute, get_parameter_id_attribute, get_parameter_serialize_elements,
-};
+use crate::attribute_helpers::get_parameter_attributes;
 
 pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
@@ -14,11 +12,9 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
 
             for (field_index, field) in data_struct.fields.iter().enumerate() {
-                let id = get_parameter_id_attribute(field)?;
-                let serialize_elements = get_parameter_serialize_elements(field)?;
+                let (id, default_value, serialize_elements) = get_parameter_attributes(field)?;
 
                 if !serialize_elements {
-                    let default_value = get_parameter_default_attribute(field)?;
                     match (&field.ident, default_value) {
                         (Some(field_name), None) => field_serialization.extend(quote! {
                             serializer.write(#id, &self.#field_name)?;

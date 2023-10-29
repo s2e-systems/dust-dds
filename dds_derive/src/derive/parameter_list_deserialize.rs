@@ -2,9 +2,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{DeriveInput, Result};
 
-use crate::attribute_helpers::{
-    get_parameter_default_attribute, get_parameter_id_attribute, get_parameter_serialize_elements,
-};
+use crate::attribute_helpers::get_parameter_attributes;
 
 pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
@@ -35,9 +33,8 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
                         .ident
                         .is_none();
                     for field in data_struct.fields.iter() {
-                        let id = get_parameter_id_attribute(field)?;
-                        let default_value = get_parameter_default_attribute(field)?;
-                        let read_all_elements = get_parameter_serialize_elements(field)?;
+                        let (id, default_value, read_all_elements) =
+                            get_parameter_attributes(field)?;
                         if is_tuple {
                             if read_all_elements {
                                 field_deserialization
