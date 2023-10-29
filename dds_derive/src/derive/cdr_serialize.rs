@@ -10,17 +10,15 @@ pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
             let ident = &input.ident;
 
-            let mut tuple_field_counter = 0;
-            for field in data_struct.fields.iter() {
+            for (field_index, field) in data_struct.fields.iter().enumerate() {
                 match &field.ident {
                     Some(field_name) => {
                         field_serialization
                             .extend(quote! {dust_dds::cdr::serialize::CdrSerialize::serialize(&self.#field_name, serializer)?;});
                     }
                     None => {
-                        let index = Index::from(tuple_field_counter);
+                        let index = Index::from(field_index);
                         field_serialization.extend(quote! {dust_dds::cdr::serialize::CdrSerialize::serialize(&self.#index, serializer)?;});
-                        tuple_field_counter += 1;
                     }
                 }
             }
