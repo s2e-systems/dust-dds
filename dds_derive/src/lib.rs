@@ -5,6 +5,7 @@ use derive::{
     cdr_deserialize::expand_cdr_deserialize, cdr_representation::expand_cdr_representation,
     cdr_serialize::expand_cdr_serialize, dds_borrow_key_holder::expand_dds_borrow_key_holder,
     dds_has_key::expand_has_key, dds_owning_key_holder::expand_dds_owning_key_holder,
+    parameter_list_deserialize::expand_parameter_list_deserialize,
     parameter_list_serialize::expand_parameter_list_serialize,
 };
 use proc_macro::TokenStream;
@@ -63,6 +64,14 @@ pub fn derive_cdr_deserialize(input: TokenStream) -> TokenStream {
 pub fn derive_parameter_list_serialize(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     expand_parameter_list_serialize(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(ParameterListDeserialize)]
+pub fn derive_parameter_list_deserialize(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_parameter_list_deserialize(&input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
