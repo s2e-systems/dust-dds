@@ -68,7 +68,7 @@ pub fn derive_parameter_list_serialize(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(ParameterListDeserialize)]
+#[proc_macro_derive(ParameterListDeserialize, attributes(parameter))]
 pub fn derive_parameter_list_deserialize(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     expand_parameter_list_deserialize(&input)

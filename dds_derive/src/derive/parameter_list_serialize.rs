@@ -20,7 +20,7 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
                             serializer.write(#id, &self.#field_name)?;
                         }),
                         (Some(field_name), Some(default)) => field_serialization.extend(quote! {
-                            serializer.write_with_default(#id, &self.#field_name, #default)?;
+                            serializer.write_with_default(#id, &self.#field_name, & #default)?;
                         }),
                         (None, None) => {
                             let index = Index::from(field_index);
@@ -31,7 +31,7 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
                         (None, Some(default)) => {
                             let index = Index::from(field_index);
                             field_serialization.extend(quote! {
-                                serializer.write_with_default(#id, &self.#index, #default)?;
+                                serializer.write_with_default(#id, &self.#index, & #default)?;
                             })
                         }
                     }

@@ -1,3 +1,5 @@
+use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
+
 use crate::{
     cdr::{
         deserialize::CdrDeserialize,
@@ -24,16 +26,6 @@ use crate::{
     },
     topic_definition::type_support::DdsHasKey,
 };
-
-#[derive(
-    Debug, Clone, PartialEq, Eq, CdrSerialize, CdrDeserialize, derive_more::From, derive_more::AsRef,
-)]
-pub struct ReliabilityQosPolicyTopics(ReliabilityQosPolicy);
-impl Default for ReliabilityQosPolicyTopics {
-    fn default() -> Self {
-        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, Default)]
 pub struct BuiltInTopicKey {
@@ -71,10 +63,7 @@ impl<'de> ParameterListDeserialize<'de> for ParticipantBuiltinTopicData {
 
 impl ParticipantBuiltinTopicData {
     pub fn new(key: BuiltInTopicKey, user_data: UserDataQosPolicy) -> Self {
-        Self {
-            key: key,
-            user_data: user_data,
-        }
+        Self { key, user_data }
     }
 
     pub fn key(&self) -> &BuiltInTopicKey {
@@ -94,23 +83,47 @@ impl CdrRepresentation for ParticipantBuiltinTopicData {
     const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    ParameterListSerialize,
+    ParameterListDeserialize,
+    CdrSerialize,
+    CdrDeserialize,
+)]
 pub struct TopicBuiltinTopicData {
-    key: BuiltInTopicKey,            //Parameter<PID_ENDPOINT_GUID, BuiltInTopicKey>,
-    name: String,                    //Parameter<PID_TOPIC_NAME, String>,
-    type_name: String,               //Parameter<PID_TYPE_NAME, String>,
-    durability: DurabilityQosPolicy, //ParameterWithDefault<PID_DURABILITY, DurabilityQosPolicy>,
-    deadline: DeadlineQosPolicy,     //ParameterWithDefault<PID_DEADLINE, DeadlineQosPolicy>,
-    latency_budget: LatencyBudgetQosPolicy, //ParameterWithDefault<PID_LATENCY_BUDGET, LatencyBudgetQosPolicy>,
-    liveliness: LivelinessQosPolicy, //ParameterWithDefault<PID_LIVELINESS, LivelinessQosPolicy>,
-    reliability: ReliabilityQosPolicy, //ParameterWithDefault<PID_RELIABILITY, ReliabilityQosPolicyTopics>,
-    transport_priority: TransportPriorityQosPolicy, //ParameterWithDefault<PID_TRANSPORT_PRIORITY, TransportPriorityQosPolicy>,
-    lifespan: LifespanQosPolicy, //ParameterWithDefault<PID_LIFESPAN, LifespanQosPolicy>,
-    destination_order: DestinationOrderQosPolicy, //ParameterWithDefault<PID_DESTINATION_ORDER, DestinationOrderQosPolicy>,
-    history: HistoryQosPolicy, //ParameterWithDefault<PID_HISTORY, HistoryQosPolicy>,
-    resource_limits: ResourceLimitsQosPolicy, //ParameterWithDefault<PID_RESOURCE_LIMITS, ResourceLimitsQosPolicy>,
-    ownership: OwnershipQosPolicy, //ParameterWithDefault<PID_OWNERSHIP, OwnershipQosPolicy>,
-    topic_data: TopicDataQosPolicy, // ParameterWithDefault<PID_TOPIC_DATA, TopicDataQosPolicy>,
+    #[parameter(id = PID_ENDPOINT_GUID)]
+    key: BuiltInTopicKey,
+    #[parameter(id = PID_TOPIC_NAME)]
+    name: String,
+    #[parameter(id = PID_TYPE_NAME)]
+    type_name: String,
+    #[parameter(id = PID_DURABILITY, default=Default::default())]
+    durability: DurabilityQosPolicy,
+    #[parameter(id = PID_DEADLINE, default=Default::default())]
+    deadline: DeadlineQosPolicy,
+    #[parameter(id = PID_LATENCY_BUDGET, default=Default::default())]
+    latency_budget: LatencyBudgetQosPolicy,
+    #[parameter(id = PID_LIVELINESS, default=Default::default())]
+    liveliness: LivelinessQosPolicy,
+    #[parameter(id = PID_RELIABILITY, default=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
+    reliability: ReliabilityQosPolicy,
+    #[parameter(id = PID_TRANSPORT_PRIORITY, default=Default::default())]
+    transport_priority: TransportPriorityQosPolicy,
+    #[parameter(id = PID_LIFESPAN, default=Default::default())]
+    lifespan: LifespanQosPolicy,
+    #[parameter(id = PID_DESTINATION_ORDER, default=Default::default())]
+    destination_order: DestinationOrderQosPolicy,
+    #[parameter(id = PID_HISTORY, default=Default::default())]
+    history: HistoryQosPolicy,
+    #[parameter(id = PID_RESOURCE_LIMITS, default=Default::default())]
+    resource_limits: ResourceLimitsQosPolicy,
+    #[parameter(id = PID_OWNERSHIP, default=Default::default())]
+    ownership: OwnershipQosPolicy,
+    #[parameter(id = PID_TOPIC_DATA, default=Default::default())]
+    topic_data: TopicDataQosPolicy,
 }
 
 impl TopicBuiltinTopicData {
@@ -221,45 +234,51 @@ impl CdrRepresentation for TopicBuiltinTopicData {
 }
 
 #[derive(
-    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, derive_more::From, derive_more::AsRef,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    ParameterListSerialize,
+    ParameterListDeserialize,
+    CdrSerialize,
+    CdrDeserialize,
 )]
-struct ReliabilityQosPolicyDataWriter(ReliabilityQosPolicy);
-impl Default for ReliabilityQosPolicyDataWriter {
-    fn default() -> Self {
-        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)
-    }
-}
-
-#[derive(
-    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, derive_more::From, derive_more::AsRef,
-)]
-struct ReliabilityQosPolicyDataReader(ReliabilityQosPolicy);
-impl Default for ReliabilityQosPolicyDataReader {
-    fn default() -> Self {
-        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct PublicationBuiltinTopicData {
-    key: BuiltInTopicKey, //Parameter<PID_ENDPOINT_GUID, BuiltInTopicKey>,
+    #[parameter(id = PID_ENDPOINT_GUID)]
+    key: BuiltInTopicKey,
     // Default value is a deviation from the standard and is used for interoperability reasons:
-    participant_key: BuiltInTopicKey, //ParameterWithDefault<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
-    topic_name: String,               //Parameter<PID_TOPIC_NAME, String>,
-    type_name: String,                //Parameter<PID_TYPE_NAME, String>,
-    durability: DurabilityQosPolicy,  //ParameterWithDefault<PID_DURABILITY, DurabilityQosPolicy>,
-    deadline: DeadlineQosPolicy,      //ParameterWithDefault<PID_DEADLINE, DeadlineQosPolicy>,
-    latency_budget: LatencyBudgetQosPolicy, //ParameterWithDefault<PID_LATENCY_BUDGET, LatencyBudgetQosPolicy>,
-    liveliness: LivelinessQosPolicy, //ParameterWithDefault<PID_LIVELINESS, LivelinessQosPolicy>,
-    reliability: ReliabilityQosPolicyDataWriter, //ParameterWithDefault<PID_RELIABILITY, ReliabilityQosPolicyDataWriter>,
-    lifespan: LifespanQosPolicy, //ParameterWithDefault<PID_LIFESPAN, LifespanQosPolicy>,
-    user_data: UserDataQosPolicy, //ParameterWithDefault<PID_USER_DATA, UserDataQosPolicy>,
-    ownership: OwnershipQosPolicy, //ParameterWithDefault<PID_OWNERSHIP, OwnershipQosPolicy>,
-    destination_order: DestinationOrderQosPolicy, //ParameterWithDefault<PID_DESTINATION_ORDER, DestinationOrderQosPolicy>,
-    presentation: PresentationQosPolicy, //ParameterWithDefault<PID_PRESENTATION, PresentationQosPolicy>,
-    partition: PartitionQosPolicy,       //ParameterWithDefault<PID_PARTITION, PartitionQosPolicy>,
-    topic_data: TopicDataQosPolicy,      //ParameterWithDefault<PID_TOPIC_DATA, TopicDataQosPolicy>,
-    group_data: GroupDataQosPolicy,      //ParameterWithDefault<PID_GROUP_DATA, GroupDataQosPolicy>,
+    #[parameter(id = PID_PARTICIPANT_GUID, default=BuiltInTopicKey::default())]
+    participant_key: BuiltInTopicKey,
+    #[parameter(id = PID_TOPIC_NAME)]
+    topic_name: String,
+    #[parameter(id = PID_TYPE_NAME)]
+    type_name: String,
+    #[parameter(id = PID_DURABILITY, default=Default::default())]
+    durability: DurabilityQosPolicy,
+    #[parameter(id = PID_DEADLINE, default=Default::default())]
+    deadline: DeadlineQosPolicy,
+    #[parameter(id = PID_LATENCY_BUDGET, default=Default::default())]
+    latency_budget: LatencyBudgetQosPolicy,
+    #[parameter(id = PID_LIVELINESS, default=Default::default())]
+    liveliness: LivelinessQosPolicy,
+    #[parameter(id = PID_RELIABILITY, default=DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)]
+    reliability: ReliabilityQosPolicy,
+    #[parameter(id = PID_LIFESPAN, default=Default::default())]
+    lifespan: LifespanQosPolicy,
+    #[parameter(id = PID_USER_DATA, default=Default::default())]
+    user_data: UserDataQosPolicy,
+    #[parameter(id = PID_OWNERSHIP, default=Default::default())]
+    ownership: OwnershipQosPolicy,
+    #[parameter(id = PID_DESTINATION_ORDER, default=Default::default())]
+    destination_order: DestinationOrderQosPolicy,
+    #[parameter(id = PID_PRESENTATION, default=Default::default())]
+    presentation: PresentationQosPolicy,
+    #[parameter(id = PID_PARTITION, default=Default::default())]
+    partition: PartitionQosPolicy,
+    #[parameter(id = PID_TOPIC_DATA, default=Default::default())]
+    topic_data: TopicDataQosPolicy,
+    #[parameter(id = PID_GROUP_DATA, default=Default::default())]
+    group_data: GroupDataQosPolicy,
 }
 
 impl PublicationBuiltinTopicData {
@@ -284,23 +303,23 @@ impl PublicationBuiltinTopicData {
         group_data: GroupDataQosPolicy,
     ) -> Self {
         Self {
-            key: key,
-            participant_key: participant_key,
-            topic_name: topic_name,
-            type_name: type_name,
-            durability: durability,
-            deadline: deadline,
-            latency_budget: latency_budget,
-            liveliness: liveliness,
-            reliability: ReliabilityQosPolicyDataWriter::from(reliability),
-            lifespan: lifespan,
-            user_data: user_data,
-            ownership: ownership,
-            destination_order: destination_order,
-            presentation: presentation,
-            partition: partition,
-            topic_data: topic_data,
-            group_data: group_data,
+            key,
+            participant_key,
+            topic_name,
+            type_name,
+            durability,
+            deadline,
+            latency_budget,
+            liveliness,
+            reliability,
+            lifespan,
+            user_data,
+            ownership,
+            destination_order,
+            presentation,
+            partition,
+            topic_data,
+            group_data,
         }
     }
 
@@ -337,7 +356,7 @@ impl PublicationBuiltinTopicData {
     }
 
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
-        self.reliability.as_ref()
+        &self.reliability
     }
 
     pub fn lifespan(&self) -> &LifespanQosPolicy {
@@ -381,28 +400,52 @@ impl CdrRepresentation for PublicationBuiltinTopicData {
     const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    ParameterListSerialize,
+    ParameterListDeserialize,
+    CdrSerialize,
+    CdrDeserialize,
+)]
 pub struct SubscriptionBuiltinTopicData {
-    key: BuiltInTopicKey, //Parameter<PID_ENDPOINT_GUID, BuiltInTopicKey>,
+    #[parameter(id = PID_ENDPOINT_GUID)]
+    key: BuiltInTopicKey,
     // Default value is a deviation from the standard and is used for interoperability reasons:
+    #[parameter(id = PID_ENDPOINT_GUID, default = BuiltInTopicKey::default())]
     participant_key: BuiltInTopicKey, //ParameterWithDefault<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
-    topic_name: String,               //Parameter<PID_TOPIC_NAME, String>,
-    type_name: String,                //Parameter<PID_TYPE_NAME, String>,
-
-    durability: DurabilityQosPolicy, //ParameterWithDefault<PID_DURABILITY, DurabilityQosPolicy>,
-    deadline: DeadlineQosPolicy,     //ParameterWithDefault<PID_DEADLINE, DeadlineQosPolicy>,
-    latency_budget: LatencyBudgetQosPolicy, //ParameterWithDefault<PID_LATENCY_BUDGET, LatencyBudgetQosPolicy>,
-    liveliness: LivelinessQosPolicy, //ParameterWithDefault<PID_LIVELINESS, LivelinessQosPolicy>,
-    reliability: ReliabilityQosPolicy, //ParameterWithDefault<PID_RELIABILITY, ReliabilityQosPolicyDataReader>,
-    ownership: OwnershipQosPolicy,     //ParameterWithDefault<PID_OWNERSHIP, OwnershipQosPolicy>,
-    destination_order: DestinationOrderQosPolicy, //ParameterWithDefault<PID_DESTINATION_ORDER, DestinationOrderQosPolicy>,
-    user_data: UserDataQosPolicy, //ParameterWithDefault<PID_USER_DATA, UserDataQosPolicy>,
-    time_based_filter: TimeBasedFilterQosPolicy, //ParameterWithDefault<PID_TIME_BASED_FILTER, TimeBasedFilterQosPolicy>,
-
-    presentation: PresentationQosPolicy, //ParameterWithDefault<PID_PRESENTATION, PresentationQosPolicy>,
-    partition: PartitionQosPolicy,       //ParameterWithDefault<PID_PARTITION, PartitionQosPolicy>,
-    topic_data: TopicDataQosPolicy, // ParameterWithDefault<PID_TOPIC_DATA, TopicDataQosPolicy>,
-    group_data: GroupDataQosPolicy, //ParameterWithDefault<PID_GROUP_DATA, GroupDataQosPolicy>,
+    #[parameter(id = PID_TOPIC_NAME)]
+    topic_name: String,
+    #[parameter(id = PID_TYPE_NAME)]
+    type_name: String,
+    #[parameter(id = PID_DURABILITY, default = Default::default())]
+    durability: DurabilityQosPolicy,
+    #[parameter(id = PID_DEADLINE, default = Default::default())]
+    deadline: DeadlineQosPolicy,
+    #[parameter(id = PID_LATENCY_BUDGET, default = Default::default())]
+    latency_budget: LatencyBudgetQosPolicy,
+    #[parameter(id = PID_LIVELINESS, default = Default::default())]
+    liveliness: LivelinessQosPolicy,
+    #[parameter(id = PID_RELIABILITY, default = DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
+    reliability: ReliabilityQosPolicy,
+    #[parameter(id = PID_OWNERSHIP, default = Default::default())]
+    ownership: OwnershipQosPolicy,
+    #[parameter(id = PID_DESTINATION_ORDER, default = Default::default())]
+    destination_order: DestinationOrderQosPolicy,
+    #[parameter(id = PID_USER_DATA, default = Default::default())]
+    user_data: UserDataQosPolicy,
+    #[parameter(id = PID_TIME_BASED_FILTER, default = Default::default())]
+    time_based_filter: TimeBasedFilterQosPolicy,
+    #[parameter(id = PID_PRESENTATION, default = Default::default())]
+    presentation: PresentationQosPolicy,
+    #[parameter(id = PID_PARTITION, default = Default::default())]
+    partition: PartitionQosPolicy,
+    #[parameter(id = PID_TOPIC_DATA, default = Default::default())]
+    topic_data: TopicDataQosPolicy,
+    #[parameter(id = PID_GROUP_DATA, default = Default::default())]
+    group_data: GroupDataQosPolicy,
 }
 
 impl SubscriptionBuiltinTopicData {

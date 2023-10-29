@@ -10,7 +10,9 @@ pub fn struct_has_key(data_struct: &DataStruct) -> bool {
 }
 
 // Get parameter attributes. Returns (id, Option<default>, serialize_elements)
-pub fn get_parameter_attributes(field: &Field) -> syn::Result<(syn::Expr, Option<syn::Expr>, bool)> {
+pub fn get_parameter_attributes(
+    field: &Field,
+) -> syn::Result<(syn::Expr, Option<syn::Expr>, bool)> {
     let parameter_attribute = field
         .attrs
         .iter()
@@ -36,7 +38,7 @@ pub fn get_parameter_attributes(field: &Field) -> syn::Result<(syn::Expr, Option
             Err(syn::Error::new(
                 meta.path.span(),
                 format!(
-                    "Unexpected element {}",
+                    "Unexpected element {}. Valid options are \"id\", \"default\" and \"serialize_elements\".",
                     meta.path.into_token_stream().to_string(),
                 ),
             ))

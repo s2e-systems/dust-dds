@@ -1,3 +1,5 @@
+use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
+
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     cdr::{
@@ -22,23 +24,18 @@ use super::parameter_id_values::{
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
-#[derive(
-    Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, CdrSerialize, CdrDeserialize,
-)]
-struct ExpectsInlineQos(bool);
-impl Default for ExpectsInlineQos {
-    fn default() -> Self {
-        Self(DEFAULT_EXPECTS_INLINE_QOS)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
 pub struct ReaderProxy {
-    remote_reader_guid: Guid,             //Parameter<PID_ENDPOINT_GUID, Guid>,
-    remote_group_entity_id: EntityId,     //ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
-    unicast_locator_list: Vec<Locator>,   //ParameterVector<PID_UNICAST_LOCATOR, Locator>,
-    multicast_locator_list: Vec<Locator>, //ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
-    expects_inline_qos: ExpectsInlineQos, //ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
+    #[parameter(id = PID_ENDPOINT_GUID)]
+    remote_reader_guid: Guid,
+    #[parameter(id = PID_GROUP_ENTITYID, default=Default::default())]
+    remote_group_entity_id: EntityId,
+    #[parameter(id = PID_UNICAST_LOCATOR, serialize_elements)]
+    unicast_locator_list: Vec<Locator>,
+    #[parameter(id = PID_MULTICAST_LOCATOR, serialize_elements)]
+    multicast_locator_list: Vec<Locator>,
+    #[parameter(id = PID_EXPECTS_INLINE_QOS, default=DEFAULT_EXPECTS_INLINE_QOS)]
+    expects_inline_qos: bool,
 }
 
 impl CdrSerialize for ReaderProxy {
@@ -67,11 +64,11 @@ impl ReaderProxy {
         expects_inline_qos: bool,
     ) -> Self {
         Self {
-            remote_reader_guid: remote_reader_guid.into(),
-            remote_group_entity_id: remote_group_entity_id.into(),
-            unicast_locator_list: unicast_locator_list.into(),
-            multicast_locator_list: multicast_locator_list.into(),
-            expects_inline_qos: ExpectsInlineQos::from(expects_inline_qos).into(),
+            remote_reader_guid,
+            remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            expects_inline_qos,
         }
     }
 
@@ -92,7 +89,7 @@ impl ReaderProxy {
     }
 
     pub fn expects_inline_qos(&self) -> bool {
-        *self.expects_inline_qos.as_ref()
+        self.expects_inline_qos
     }
 }
 

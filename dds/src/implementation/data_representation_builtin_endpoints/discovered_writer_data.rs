@@ -1,3 +1,5 @@
+use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
+
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     cdr::{
@@ -19,13 +21,18 @@ use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_ENDPOINT_GUID, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
     PID_UNICAST_LOCATOR,
 };
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
 pub struct WriterProxy {
-    remote_writer_guid: Guid,             //Parameter<PID_ENDPOINT_GUID, Guid>,
-    remote_group_entity_id: EntityId,     //ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
-    unicast_locator_list: Vec<Locator>,   //ParameterVector<PID_UNICAST_LOCATOR, Locator>,
-    multicast_locator_list: Vec<Locator>, //ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
-    data_max_size_serialized: i32,        //ParameterWithDefault<PID_DATA_MAX_SIZE_SERIALIZED, i32>,
+    #[parameter(id = PID_ENDPOINT_GUID)]
+    remote_writer_guid: Guid,
+    #[parameter(id = PID_GROUP_ENTITYID, default=Default::default())]
+    remote_group_entity_id: EntityId,
+    #[parameter(id = PID_UNICAST_LOCATOR, serialize_elements)]
+    unicast_locator_list: Vec<Locator>,
+    #[parameter(id = PID_MULTICAST_LOCATOR, serialize_elements)]
+    multicast_locator_list: Vec<Locator>,
+    #[parameter(id = PID_DATA_MAX_SIZE_SERIALIZED, default=Default::default())]
+    data_max_size_serialized: i32,
 }
 
 impl CdrSerialize for WriterProxy {
@@ -54,11 +61,11 @@ impl WriterProxy {
         data_max_size_serialized: Option<i32>,
     ) -> Self {
         Self {
-            remote_writer_guid: remote_writer_guid.into(),
-            remote_group_entity_id: remote_group_entity_id.into(),
-            unicast_locator_list: unicast_locator_list.into(),
-            multicast_locator_list: multicast_locator_list.into(),
-            data_max_size_serialized: data_max_size_serialized.unwrap_or_default().into(),
+            remote_writer_guid,
+            remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            data_max_size_serialized: data_max_size_serialized.unwrap_or_default(),
         }
     }
 
