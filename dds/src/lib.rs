@@ -1,11 +1,9 @@
 #![doc = include_str!("../README.md")]
 #![doc = include_str!("../schema/schema.md")]
 #[forbid(unsafe_code)]
-/// Module containing the traits and classes needed to represent types in the standard CDR format
+/// Module containing the traits and classes needed to represent types in the formats defined in the RTPS standard
 pub mod cdr;
 mod dds;
-/// Module containing the traits and classes needed to represent types in the standard ParameterList format
-pub mod parameter_list;
 pub use dds::*;
 mod implementation;
 

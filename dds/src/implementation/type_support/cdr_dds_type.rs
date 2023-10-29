@@ -5,12 +5,12 @@ use crate::{
         deserialize::CdrDeserialize,
         deserializer::CdrDeserializer,
         endianness::CdrEndianness,
+        parameter_list_serializer::ParameterListSerializer,
         representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
     infrastructure::error::{DdsError, DdsResult},
-    parameter_list::parameter_list_serializer::ParameterListSerializer,
     topic_definition::type_support::{DdsDeserialize, DdsSerializeData, DdsSerializedData},
 };
 

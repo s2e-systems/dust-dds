@@ -127,7 +127,7 @@ impl<'de> ParameterListDeserializer<'de> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parameter_list::parameter_list_deserialize::ParameterListDeserialize;
+    use crate::cdr::parameter_list_deserialize::ParameterListDeserialize;
 
     use super::*;
 

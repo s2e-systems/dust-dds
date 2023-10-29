@@ -61,7 +61,7 @@ impl ParameterListSerializer<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parameter_list::parameter_list_serialize::ParameterListSerialize;
+    use crate::cdr::parameter_list_serialize::ParameterListSerialize;
 
     use super::*;
 

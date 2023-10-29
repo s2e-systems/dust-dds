@@ -1,6 +1,8 @@
 use crate::{
     cdr::{
         deserialize::CdrDeserialize,
+        parameter_list_deserialize::ParameterListDeserialize,
+        parameter_list_deserializer::ParameterListDeserializer,
         representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
     },
@@ -19,9 +21,6 @@ use crate::{
         TransportPriorityQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-    },
-    parameter_list::{
-        parameter_list_deserialize::ParameterListDeserialize, parameter_list_deserializer::ParameterListDeserializer,
     },
     topic_definition::type_support::DdsHasKey,
 };
