@@ -21,7 +21,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
     parameter_list::{
-        deserialize::ParameterListDeserialize, deserializer::ParameterListDeserializer,
+        parameter_list_deserialize::ParameterListDeserialize, parameter_list_deserializer::ParameterListDeserializer,
     },
     topic_definition::type_support::DdsHasKey,
 };

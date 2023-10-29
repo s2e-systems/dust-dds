@@ -10,7 +10,7 @@ use crate::{
         serializer::CdrSerializer,
     },
     infrastructure::error::{DdsError, DdsResult},
-    parameter_list::serializer::ParameterListSerializer,
+    parameter_list::parameter_list_serializer::ParameterListSerializer,
     topic_definition::type_support::{DdsDeserialize, DdsSerializeData, DdsSerializedData},
 };
 
