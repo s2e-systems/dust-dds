@@ -9,11 +9,8 @@ use crate::{
         serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
-    implementation::{
-        data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-        parameter_list_serde::parameter::Parameter,
-    },
     infrastructure::error::{DdsError, DdsResult},
+    parameter_list::serializer::ParameterListSerializer,
     topic_definition::type_support::{DdsDeserialize, DdsSerializeData, DdsSerializedData},
 };
 
@@ -31,53 +28,54 @@ where
     T: CdrSerialize + CdrRepresentation,
 {
     fn serialize_data(&self) -> DdsResult<DdsSerializedData> {
-        let mut writer = Vec::new();
-        match T::REPRESENTATION {
-            CdrRepresentationKind::CdrLe => {
-                writer
-                    .write_all(&CDR_LE)
-                    .map_err(|err| DdsError::Error(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
-                self.serialize(&mut serializer)?;
-            }
-            CdrRepresentationKind::CdrBe => {
-                writer
-                    .write_all(&CDR_BE)
-                    .map_err(|err| DdsError::Error(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
-                self.serialize(&mut serializer)?;
-            }
-            CdrRepresentationKind::PlCdrBe => {
-                writer
-                    .write_all(&PL_CDR_BE)
-                    .map_err(|err| DdsError::Error(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| DdsError::Error(err.to_string()))?;
+        // let mut writer = Vec::new();
+        // match T::REPRESENTATION {
+        //     CdrRepresentationKind::CdrLe => {
+        //         writer
+        //             .write_all(&CDR_LE)
+        //             .map_err(|err| DdsError::Error(err.to_string()))?;
+        //         writer
+        //             .write_all(&REPRESENTATION_OPTIONS)
+        //             .map_err(|err| DdsError::Error(err.to_string()))?;
+        //         let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
+        //         self.serialize(&mut serializer)?;
+        //     }
+        //     CdrRepresentationKind::CdrBe => {
+        //         writer
+        //             .write_all(&CDR_BE)
+        //             .map_err(|err| DdsError::Error(err.to_string()))?;
+        //         writer
+        //             .write_all(&REPRESENTATION_OPTIONS)
+        //             .map_err(|err| DdsError::Error(err.to_string()))?;
+        //         let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
+        //         self.serialize(&mut serializer)?;
+        //     }
+        //     CdrRepresentationKind::PlCdrBe => {
+        //         writer
+        //             .write_all(&PL_CDR_BE)
+        //             .map_err(|err| DdsError::Error(err.to_string()))?;
+        //         writer
+        //             .write_all(&REPRESENTATION_OPTIONS)
+        //             .map_err(|err| DdsError::Error(err.to_string()))?;
 
-                let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
-                self.serialize(&mut serializer)?;
-                Parameter::<PID_SENTINEL, ()>::new(()).serialize(&mut serializer)?;
-            }
-            CdrRepresentationKind::PlCdrLe => {
-                writer
-                    .write_all(&PL_CDR_LE)
-                    .map_err(|err| DdsError::Error(err.to_string()))?;
-                writer
-                    .write_all(&REPRESENTATION_OPTIONS)
-                    .map_err(|err| DdsError::Error(err.to_string()))?;
-                let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
-                self.serialize(&mut serializer)?;
-                Parameter::<PID_SENTINEL, ()>::new(()).serialize(&mut serializer)?;
-            }
-        };
-        Ok(writer.into())
+        //         let mut serializer =
+        //             ParameterListSerializer::new(&mut writer, CdrEndianness::BigEndian);
+        //         self.serialize(&mut serializer)?;
+        //     }
+        //     CdrRepresentationKind::PlCdrLe => {
+        //         writer
+        //             .write_all(&PL_CDR_LE)
+        //             .map_err(|err| DdsError::Error(err.to_string()))?;
+        //         writer
+        //             .write_all(&REPRESENTATION_OPTIONS)
+        //             .map_err(|err| DdsError::Error(err.to_string()))?;
+        //         let mut serializer =
+        //             ParameterListSerializer::new(&mut writer, CdrEndianness::LittleEndian);
+        //         self.serialize(&mut serializer)?;
+        //     }
+        // };
+        // Ok(writer.into())
+        todo!()
     }
 }
 

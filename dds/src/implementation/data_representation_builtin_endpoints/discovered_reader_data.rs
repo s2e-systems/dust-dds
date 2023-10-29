@@ -8,10 +8,7 @@ use crate::{
         serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
-    implementation::{
-        parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
-        rtps::types::{EntityId, Guid, Locator},
-    },
+    implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
         DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializedKey,
@@ -37,11 +34,11 @@ impl Default for ExpectsInlineQos {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
-    remote_reader_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
-    remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
-    unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
-    multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
-    expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
+    remote_reader_guid: Guid,             //Parameter<PID_ENDPOINT_GUID, Guid>,
+    remote_group_entity_id: EntityId,     //ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
+    unicast_locator_list: Vec<Locator>,   //ParameterVector<PID_UNICAST_LOCATOR, Locator>,
+    multicast_locator_list: Vec<Locator>, //ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
+    expects_inline_qos: ExpectsInlineQos, //ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
 }
 
 impl CdrSerialize for ReaderProxy {
@@ -79,11 +76,11 @@ impl ReaderProxy {
     }
 
     pub fn remote_reader_guid(&self) -> Guid {
-        *self.remote_reader_guid.as_ref()
+        self.remote_reader_guid
     }
 
     pub fn remote_group_entity_id(&self) -> EntityId {
-        *self.remote_group_entity_id.as_ref()
+        self.remote_group_entity_id
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
@@ -95,7 +92,7 @@ impl ReaderProxy {
     }
 
     pub fn expects_inline_qos(&self) -> bool {
-        *self.expects_inline_qos.as_ref().as_ref()
+        *self.expects_inline_qos.as_ref()
     }
 }
 

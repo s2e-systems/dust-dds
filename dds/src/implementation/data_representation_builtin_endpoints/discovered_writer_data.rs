@@ -8,10 +8,7 @@ use crate::{
         serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
-    implementation::{
-        parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
-        rtps::types::{EntityId, Guid, Locator},
-    },
+    implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
         DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializedKey,
@@ -24,11 +21,11 @@ use super::parameter_id_values::{
 };
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
-    remote_writer_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
-    remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
-    unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
-    multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
-    data_max_size_serialized: ParameterWithDefault<PID_DATA_MAX_SIZE_SERIALIZED, i32>,
+    remote_writer_guid: Guid,             //Parameter<PID_ENDPOINT_GUID, Guid>,
+    remote_group_entity_id: EntityId,     //ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
+    unicast_locator_list: Vec<Locator>,   //ParameterVector<PID_UNICAST_LOCATOR, Locator>,
+    multicast_locator_list: Vec<Locator>, //ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
+    data_max_size_serialized: i32,        //ParameterWithDefault<PID_DATA_MAX_SIZE_SERIALIZED, i32>,
 }
 
 impl CdrSerialize for WriterProxy {
@@ -66,11 +63,11 @@ impl WriterProxy {
     }
 
     pub fn remote_writer_guid(&self) -> Guid {
-        *self.remote_writer_guid.as_ref()
+        self.remote_writer_guid
     }
 
     pub fn remote_group_entity_id(&self) -> EntityId {
-        *self.remote_group_entity_id.as_ref()
+        self.remote_group_entity_id
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
@@ -82,7 +79,7 @@ impl WriterProxy {
     }
 
     pub fn data_max_size_serialized(&self) -> Option<i32> {
-        Some(*self.data_max_size_serialized.as_ref())
+        Some(self.data_max_size_serialized)
     }
 }
 
