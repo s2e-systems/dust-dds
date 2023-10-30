@@ -2,11 +2,8 @@ use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
 
 use crate::{
     cdr::{
-        deserialize::CdrDeserialize,
-        parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_deserializer::ParameterListDeserializer,
-        representation::{CdrRepresentation, CdrRepresentationKind},
-        serialize::CdrSerialize,
+        deserialize::CdrDeserialize, parameter_list_deserialize::ParameterListDeserialize,
+        parameter_list_deserializer::ParameterListDeserializer, serialize::CdrSerialize,
     },
     implementation::data_representation_builtin_endpoints::parameter_id_values::{
         PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA,
@@ -77,10 +74,6 @@ impl ParticipantBuiltinTopicData {
 
 impl DdsHasKey for ParticipantBuiltinTopicData {
     const HAS_KEY: bool = true;
-}
-
-impl CdrRepresentation for ParticipantBuiltinTopicData {
-    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
 #[derive(
@@ -227,10 +220,6 @@ impl TopicBuiltinTopicData {
 
 impl DdsHasKey for TopicBuiltinTopicData {
     const HAS_KEY: bool = true;
-}
-
-impl CdrRepresentation for TopicBuiltinTopicData {
-    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
 #[derive(
@@ -396,10 +385,6 @@ impl DdsHasKey for PublicationBuiltinTopicData {
     const HAS_KEY: bool = true;
 }
 
-impl CdrRepresentation for PublicationBuiltinTopicData {
-    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
-}
-
 #[derive(
     Debug,
     PartialEq,
@@ -561,8 +546,4 @@ impl SubscriptionBuiltinTopicData {
 
 impl DdsHasKey for SubscriptionBuiltinTopicData {
     const HAS_KEY: bool = true;
-}
-
-impl CdrRepresentation for SubscriptionBuiltinTopicData {
-    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }

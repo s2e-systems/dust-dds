@@ -8,7 +8,6 @@ use crate::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serialize::ParameterListSerialize,
         parameter_list_serializer::ParameterListSerializer,
-        representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
@@ -318,10 +317,6 @@ impl SpdpDiscoveredParticipantData {
 
 impl DdsHasKey for SpdpDiscoveredParticipantData {
     const HAS_KEY: bool = true;
-}
-
-impl CdrRepresentation for SpdpDiscoveredParticipantData {
-    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
 impl DdsGetKeyFromFoo for SpdpDiscoveredParticipantData {

@@ -2,47 +2,16 @@ mod attribute_helpers;
 mod derive;
 
 use derive::{
-    cdr_deserialize::expand_cdr_deserialize, cdr_representation::expand_cdr_representation,
-    cdr_serialize::expand_cdr_serialize, dds_borrow_key_holder::expand_dds_borrow_key_holder,
-    dds_has_key::expand_has_key, dds_owning_key_holder::expand_dds_owning_key_holder,
+    cdr_deserialize::expand_cdr_deserialize, cdr_serialize::expand_cdr_serialize,
+    dds_borrow_key_holder::expand_dds_borrow_key_holder, dds_has_key::expand_has_key,
+    dds_owning_key_holder::expand_dds_owning_key_holder,
+    dds_serialize_data::expand_dds_serialize_data,
     parameter_list_deserialize::expand_parameter_list_deserialize,
     parameter_list_serialize::expand_parameter_list_serialize,
 };
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DeriveInput, FnArg, ItemImpl};
-
-#[proc_macro_derive(DdsHasKey, attributes(key))]
-pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_has_key(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_derive(DdsBorrowKeyHolder, attributes(key))]
-pub fn derive_dds_borrow_key_holder(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_dds_borrow_key_holder(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_derive(DdsOwningKeyHolder, attributes(key))]
-pub fn derive_dds_owning_key_holder(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_dds_owning_key_holder(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_derive(CdrRepresentation)]
-pub fn derive_cdr_representation(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_cdr_representation(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
 
 #[proc_macro_derive(CdrSerialize)]
 pub fn derive_cdr_serialize(input: TokenStream) -> TokenStream {
@@ -76,16 +45,48 @@ pub fn derive_parameter_list_deserialize(input: TokenStream) -> TokenStream {
         .into()
 }
 
+#[proc_macro_derive(DdsSerializeData, attributes(key))]
+pub fn derive_dds_serialize_data(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_dds_serialize_data(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(DdsHasKey, attributes(key))]
+pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_has_key(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(DdsBorrowKeyHolder, attributes(key))]
+pub fn derive_dds_borrow_key_holder(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_dds_borrow_key_holder(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(DdsOwningKeyHolder, attributes(key))]
+pub fn derive_dds_owning_key_holder(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_dds_owning_key_holder(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
 #[proc_macro_derive(DdsType, attributes(key))]
 pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     let mut output = TokenStream::new();
 
-    output.extend(derive_dds_has_key(input.clone()));
-    output.extend(derive_dds_borrow_key_holder(input.clone()));
-    output.extend(derive_dds_owning_key_holder(input.clone()));
     output.extend(derive_cdr_serialize(input.clone()));
     output.extend(derive_cdr_deserialize(input.clone()));
-    output.extend(derive_cdr_representation(input));
+    output.extend(derive_dds_serialize_data(input.clone()));
+    output.extend(derive_dds_has_key(input.clone()));
+    output.extend(derive_dds_borrow_key_holder(input.clone()));
+    output.extend(derive_dds_owning_key_holder(input));
 
     output
 }

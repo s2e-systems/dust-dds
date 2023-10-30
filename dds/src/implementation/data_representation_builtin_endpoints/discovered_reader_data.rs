@@ -3,17 +3,14 @@ use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     cdr::{
-        deserialize::CdrDeserialize,
-        deserializer::CdrDeserializer,
-        error::CdrResult,
-        representation::{CdrRepresentation, CdrRepresentationKind},
-        serialize::CdrSerialize,
-        serializer::CdrSerializer,
+        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
+        serialize::CdrSerialize, serializer::CdrSerializer,
     },
     implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializedKey,
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializeData,
+        DdsSerializedKey,
     },
 };
 
@@ -36,23 +33,6 @@ pub struct ReaderProxy {
     multicast_locator_list: Vec<Locator>,
     #[parameter(id = PID_EXPECTS_INLINE_QOS, default=DEFAULT_EXPECTS_INLINE_QOS)]
     expects_inline_qos: bool,
-}
-
-impl CdrSerialize for ReaderProxy {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
-        // remote_reader_guid not serialized
-        self.remote_group_entity_id.serialize(serializer)?;
-        self.unicast_locator_list.serialize(serializer)?;
-        self.multicast_locator_list.serialize(serializer)?;
-        self.expects_inline_qos.serialize(serializer)?;
-        Ok(())
-    }
-}
-
-impl<'de> CdrDeserialize<'de> for ReaderProxy {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
-        todo!()
-    }
 }
 
 impl ReaderProxy {
@@ -121,10 +101,6 @@ impl DiscoveredReaderData {
 
 impl DdsHasKey for DiscoveredReaderData {
     const HAS_KEY: bool = true;
-}
-
-impl CdrRepresentation for DiscoveredReaderData {
-    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
 impl DdsGetKeyFromFoo for DiscoveredReaderData {

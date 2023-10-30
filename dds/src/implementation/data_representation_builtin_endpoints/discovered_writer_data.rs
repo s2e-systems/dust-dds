@@ -6,7 +6,6 @@ use crate::{
         deserialize::CdrDeserialize,
         deserializer::CdrDeserializer,
         error::CdrResult,
-        representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
@@ -120,10 +119,6 @@ pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
 impl DdsHasKey for DiscoveredWriterData {
     const HAS_KEY: bool = true;
-}
-
-impl CdrRepresentation for DiscoveredWriterData {
-    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
 impl DdsGetKeyFromFoo for DiscoveredWriterData {

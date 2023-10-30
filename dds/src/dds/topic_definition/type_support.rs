@@ -21,9 +21,7 @@
 
 use crate::infrastructure::error::{DdsError::PreconditionNotMet, DdsResult};
 
-pub use dust_dds_derive::{
-    CdrSerialize, DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsType,
-};
+pub use dust_dds_derive::{DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsType};
 
 /// The [`DdsSerializedData`] represents the serialized data of a type that can be
 /// published and subscribed over DDS.

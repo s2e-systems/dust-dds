@@ -2,12 +2,8 @@ use std::io::{Read, Write};
 
 use crate::{
     cdr::{
-        deserialize::CdrDeserialize,
-        deserializer::CdrDeserializer,
-        endianness::CdrEndianness,
-        parameter_list_serializer::ParameterListSerializer,
-        representation::{CdrRepresentation, CdrRepresentationKind},
-        serialize::CdrSerialize,
+        deserialize::CdrDeserialize, deserializer::CdrDeserializer, endianness::CdrEndianness,
+        parameter_list_serializer::ParameterListSerializer, serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
     infrastructure::error::{DdsError, DdsResult},
@@ -23,65 +19,9 @@ const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
-impl<T> DdsSerializeData for T
-where
-    T: CdrSerialize + CdrRepresentation,
-{
-    fn serialize_data(&self) -> DdsResult<DdsSerializedData> {
-        // let mut writer = Vec::new();
-        // match T::REPRESENTATION {
-        //     CdrRepresentationKind::CdrLe => {
-        //         writer
-        //             .write_all(&CDR_LE)
-        //             .map_err(|err| DdsError::Error(err.to_string()))?;
-        //         writer
-        //             .write_all(&REPRESENTATION_OPTIONS)
-        //             .map_err(|err| DdsError::Error(err.to_string()))?;
-        //         let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
-        //         self.serialize(&mut serializer)?;
-        //     }
-        //     CdrRepresentationKind::CdrBe => {
-        //         writer
-        //             .write_all(&CDR_BE)
-        //             .map_err(|err| DdsError::Error(err.to_string()))?;
-        //         writer
-        //             .write_all(&REPRESENTATION_OPTIONS)
-        //             .map_err(|err| DdsError::Error(err.to_string()))?;
-        //         let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
-        //         self.serialize(&mut serializer)?;
-        //     }
-        //     CdrRepresentationKind::PlCdrBe => {
-        //         writer
-        //             .write_all(&PL_CDR_BE)
-        //             .map_err(|err| DdsError::Error(err.to_string()))?;
-        //         writer
-        //             .write_all(&REPRESENTATION_OPTIONS)
-        //             .map_err(|err| DdsError::Error(err.to_string()))?;
-
-        //         let mut serializer =
-        //             ParameterListSerializer::new(&mut writer, CdrEndianness::BigEndian);
-        //         self.serialize(&mut serializer)?;
-        //     }
-        //     CdrRepresentationKind::PlCdrLe => {
-        //         writer
-        //             .write_all(&PL_CDR_LE)
-        //             .map_err(|err| DdsError::Error(err.to_string()))?;
-        //         writer
-        //             .write_all(&REPRESENTATION_OPTIONS)
-        //             .map_err(|err| DdsError::Error(err.to_string()))?;
-        //         let mut serializer =
-        //             ParameterListSerializer::new(&mut writer, CdrEndianness::LittleEndian);
-        //         self.serialize(&mut serializer)?;
-        //     }
-        // };
-        // Ok(writer.into())
-        todo!()
-    }
-}
-
 impl<'de, T> DdsDeserialize<'de> for T
 where
-    T: CdrDeserialize<'de> + CdrRepresentation,
+    T: CdrDeserialize<'de>,
 {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
         let mut data_reader = serialized_data;

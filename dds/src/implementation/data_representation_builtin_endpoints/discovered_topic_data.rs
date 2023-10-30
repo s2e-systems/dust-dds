@@ -2,7 +2,6 @@ use crate::{
     builtin_topics::TopicBuiltinTopicData,
     cdr::{
         deserialize::CdrDeserialize,
-        representation::{CdrRepresentation, CdrRepresentationKind},
         serialize::CdrSerialize,
     },
     infrastructure::error::DdsResult,
@@ -32,10 +31,6 @@ impl DiscoveredTopicData {
 
 impl DdsHasKey for DiscoveredTopicData {
     const HAS_KEY: bool = true;
-}
-
-impl CdrRepresentation for DiscoveredTopicData {
-    const REPRESENTATION: CdrRepresentationKind = CdrRepresentationKind::PlCdrLe;
 }
 
 impl DdsGetKeyFromFoo for DiscoveredTopicData {

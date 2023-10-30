@@ -2,16 +2,17 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{DeriveInput, Result};
 
-pub fn expand_cdr_representation(input: &DeriveInput) -> Result<TokenStream> {
+pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
-        syn::Data::Struct(_data_struct) => {
+        syn::Data::Struct(data_struct) => {
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
             let ident = &input.ident;
 
             Ok(quote! {
-                impl #impl_generics dust_dds::cdr::representation::CdrRepresentation for #ident #type_generics #where_clause {
-                    const REPRESENTATION: dust_dds::cdr::representation::CdrRepresentationKind
-                        = dust_dds::cdr::representation::CdrRepresentationKind::CdrLe;
+                impl #impl_generics dust_dds::topic_definition::type_support::DdsSerializeData for #ident #type_generics #where_clause {
+                    fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<dust_dds::topic_definition::type_support::DdsSerializedData> {
+                        todo!()
+                    }
                 }
             })
         }
