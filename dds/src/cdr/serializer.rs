@@ -49,12 +49,7 @@ impl<'s> CdrSerializer<'s> {
 
 impl CdrSerializer<'_> {
     pub fn serialize_bool(&mut self, v: bool) -> CdrResult<()> {
-        self.set_pos_of::<u8>()?;
-        match self.endianness {
-            CdrEndianness::LittleEndian | CdrEndianness::BigEndian => {
-                self.writer.write_all(&[v as u8])
-            }
-        }
+        self.serialize_u8(v as u8)
     }
 
     pub fn serialize_i8(&mut self, v: i8) -> CdrResult<()> {

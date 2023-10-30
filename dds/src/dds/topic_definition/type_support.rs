@@ -23,20 +23,6 @@ use crate::infrastructure::error::{DdsError::PreconditionNotMet, DdsResult};
 
 pub use dust_dds_derive::{DdsBorrowKeyHolder, DdsHasKey, DdsOwningKeyHolder, DdsType};
 
-/// The [`DdsSerializedData`] represents the serialized data of a type that can be
-/// published and subscribed over DDS.
-#[derive(
-    Debug,
-    PartialEq,
-    Clone,
-    Eq,
-    derive_more::Constructor,
-    derive_more::From,
-    derive_more::Into,
-    derive_more::AsRef,
-)]
-pub struct DdsSerializedData(Vec<u8>);
-
 /// The [`DdsSerializedKey`] represents the key associated with a specific instance of
 /// a type that can be published and subscribed over DDS.
 #[derive(
@@ -63,7 +49,7 @@ pub trait DdsHasKey {
 /// `serializedData` element of the Data submessage when transmitting information about
 /// a published sample.
 pub trait DdsSerializeData {
-    fn serialize_data(&self) -> DdsResult<DdsSerializedData>;
+    fn serialize_data(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
 
 /// This trait describes how the bytes can be deserialize to construct the data structure.

@@ -73,7 +73,8 @@ impl ReaderProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, DdsSerializeData, CdrSerialize, CdrDeserialize)]
+#[dust_dds(format = CDR_LE)]
 pub struct DiscoveredReaderData {
     reader_proxy: ReaderProxy,
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,

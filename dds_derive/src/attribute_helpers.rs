@@ -54,3 +54,7 @@ pub fn get_parameter_attributes(
         serialize_elements,
     ))
 }
+
+pub fn get_dds_container_attributes() -> () {
+    todo!()
+}
