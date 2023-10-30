@@ -51,29 +51,29 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let format = get_format(input)?;
             let serialize_function = match format {
                 Format::CdrLe => quote! {
-                    dust_dds::cdr::representation::serialize_rtps_cdr(
+                    dust_dds::topic_definition::type_support::serialize_rtps_cdr(
                         self,
                         writer,
                         dust_dds::cdr::endianness::CdrEndianness::LittleEndian,
-                )?;},
+                )},
                 Format::CdrBe => quote! {
-                    dust_dds::cdr::representation::serialize_rtps_cdr(
+                    dust_dds::topic_definition::type_support::serialize_rtps_cdr(
                         self,
                         writer,
                         dust_dds::cdr::endianness::CdrEndianness::BigEndian,
-                )?;},
+                )},
                 Format::PlCdrLe => quote! {
-                    dust_dds::cdr::representation::serialize_rtps_cdr_pl(
+                    dust_dds::topic_definition::type_support::serialize_rtps_cdr_pl(
                         self,
                         writer,
                         dust_dds::cdr::endianness::CdrEndianness::LittleEndian,
-                )?;},
+                )},
                 Format::PlCdrBe => quote! {
-                    dust_dds::cdr::representation::serialize_rtps_cdr_pl(
+                    dust_dds::topic_definition::type_support::serialize_rtps_cdr_pl(
                         self,
                         writer,
                         dust_dds::cdr::endianness::CdrEndianness::BigEndian,
-                )?;},
+                )},
             };
 
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
@@ -83,7 +83,6 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
                 impl #impl_generics dust_dds::topic_definition::type_support::DdsSerialize for #ident #type_generics #where_clause {
                     fn serialize_data(&self, writer: &mut Vec<u8>) -> dust_dds::infrastructure::error::DdsResult<()> {
                         #serialize_function
-                        Ok(())
                     }
                 }
             })

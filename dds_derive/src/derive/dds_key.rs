@@ -61,29 +61,16 @@ pub fn expand_dds_serialize_key(input: &DeriveInput) -> Result<TokenStream> {
 
                     // Create the new structs and implementation inside a const to avoid name conflicts
                     Ok(quote! {
-                        const _ : () = {
-                            #[derive(serde::Serialize)]
-                            pub struct BorrowedKeyHolder<'__local> {
-                                #borrowed_key_holder_fields
+                        impl #impl_generics dust_dds::topic_definition::type_support::DdsSerializeKey for #ident #type_generics #where_clause {
+                            fn serialize_key(&self, writer: impl std::io::Write) -> dust_dds::infrastructure::error::DdsResult<()> {
+                                todo!()
                             }
-
-                            impl #impl_generics dust_dds::topic_definition::type_support::DdsBorrowKeyHolder for #ident #type_generics #where_clause {
-                                type BorrowedKeyHolder<'__local> = BorrowedKeyHolder<'__local> where Self: '__local;
-
-                                fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-                                    BorrowedKeyHolder {
-                                        #borrowed_key_holder_field_assignment
-                                    }
-                                }
-                            }
-                        };
+                        }
                     })
                 }
                 true => Ok(quote! {
-                    impl #impl_generics dust_dds::topic_definition::type_support::DdsBorrowKeyHolder for #ident #type_generics #where_clause {
-                        type BorrowedKeyHolder<'__local> = ();
-
-                        fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {}
+                    impl #impl_generics dust_dds::topic_definition::type_support::DdsSerializeKey for #ident #type_generics #where_clause {
+                        fn serialize_key(&self, writer: impl std::io::Write) -> dust_dds::infrastructure::error::DdsResult<()> {}
                     }
                 }),
             }
@@ -110,7 +97,7 @@ mod tests {
         let input = syn::parse2::<DeriveInput>(
             "
             struct WithKey {
-                #[key]
+                #[dust_dds(key)]
                 id: u8
             }
         "
