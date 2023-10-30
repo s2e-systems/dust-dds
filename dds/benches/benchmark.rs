@@ -18,7 +18,7 @@ use dust_dds::{
 
 #[derive(Clone, Debug, PartialEq, DdsType)]
 struct KeyedData {
-    #[key]
+    #[dust_dds(key)]
     id: u8,
     value: u8,
 }

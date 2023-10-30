@@ -114,7 +114,7 @@ pub trait DdsGetKeyFromSerializedKeyFields {
 /// # Derivable
 /// This trait can be automatically derived. The generated trait uses by default a CdrLe
 /// representation and it determines whether the type is keyed or not depending on whether
-/// any field is marked `#[key]` or not.
+/// any field is marked `#[dust_dds(key)]` or not.
 ///
 /// An example of a typical usage of derive is the following:
 ///
@@ -123,7 +123,7 @@ pub trait DdsGetKeyFromSerializedKeyFields {
 ///
 ///     #[derive(DdsType)]
 ///     struct KeyedData {
-///         #[key]
+///         #[dust_dds(key)]
 ///         id: u8,
 ///         value: u32,
 ///     }
@@ -137,7 +137,7 @@ pub trait DdsGetKeyFromSerializedKeyFields {
 ///
 ///     #[derive(DdsType)]
 ///     struct BorrowedData<'a> {
-///         #[key]
+///         #[dust_dds(key)]
 ///         id: u8,
 ///         value: Cow<'a, [u8]>,
 ///     }

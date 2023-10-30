@@ -5,8 +5,8 @@ pub struct Point {
 }
 #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
 pub struct ChessSquare {
-    #[key] pub column: char,
-    #[key] pub line: u16,
+    #[dust_dds(key)] pub column: char,
+    #[dust_dds(key)] pub line: u16,
 }
 #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
 pub struct HelloWorld {

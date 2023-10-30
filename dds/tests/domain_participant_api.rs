@@ -31,7 +31,7 @@ struct TestType(u8);
 
 #[derive(Debug, PartialEq, DdsType)]
 struct MyData {
-    #[key]
+    #[dust_dds(key)]
     id: u8,
     value: u8,
 }

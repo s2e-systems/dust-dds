@@ -40,7 +40,7 @@ pub fn type_spec(t: idl::Type) -> String {
 }
 
 pub fn struct_member(member: idl::StructMember) -> String {
-    let key_tag = if member.is_key { "#[key] " } else { "" };
+    let key_tag = if member.is_key { "#[dust_dds(key)] " } else { "" };
     format!(
         "{}pub {}: {}",
         key_tag,

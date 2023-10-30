@@ -37,7 +37,7 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[derive(Debug, PartialEq, DdsType)]
 struct MyData {
-    #[key]
+    #[dust_dds(key)]
     id: u8,
     value: u8,
 }

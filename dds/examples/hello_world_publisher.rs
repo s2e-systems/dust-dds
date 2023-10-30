@@ -17,7 +17,7 @@ use dust_dds::{
 
 #[derive(DdsType, Debug)]
 struct HelloWorldType {
-    #[key]
+    #[dust_dds(key)]
     id: u8,
     msg: String,
 }

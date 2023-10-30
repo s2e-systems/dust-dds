@@ -22,7 +22,7 @@ fn foo_with_lifetime_should_read_and_write() {
     todo!()
     // #[derive(Clone, Debug, PartialEq, DdsType)]
     // struct BorrowedData<'a> {
-    //     #[key]
+    //     #[dust_dds(key)]
     //     id: u8,
     //     value: &'a [u8],
     // }
@@ -115,10 +115,10 @@ fn foo_with_lifetime_should_read_and_write() {
 fn foo_with_non_consecutive_key_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     struct NonConsecutiveKey {
-        #[key]
+        #[dust_dds(key)]
         id: u32,
         value: Vec<u8>,
-        #[key]
+        #[dust_dds(key)]
         another_id: u64,
     }
 

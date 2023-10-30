@@ -24,14 +24,12 @@ pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             Ok(quote! {
-                const _ : () = {
-                    impl #impl_generics dust_dds::cdr::serialize::CdrSerialize for #ident #type_generics #where_clause {
-                        fn serialize(&self, serializer: &mut dust_dds::cdr::serializer::CdrSerializer) -> dust_dds::cdr::error::CdrResult<()> {
-                            #field_serialization
-                            Ok(())
-                        }
+                impl #impl_generics dust_dds::cdr::serialize::CdrSerialize for #ident #type_generics #where_clause {
+                    fn serialize(&self, serializer: &mut dust_dds::cdr::serializer::CdrSerializer) -> dust_dds::cdr::error::CdrResult<()> {
+                        #field_serialization
+                        Ok(())
                     }
-                };
+                }
             })
         }
         syn::Data::Enum(data_enum) => Err(syn::Error::new(

@@ -264,7 +264,7 @@ where
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         todo!()
         // self.writer_address.send_mail_and_await_reply_blocking(
-        //     data_writer_actor::lookup_instance::new(instance.get_key_from_foo()?),
+        //     data_writer_actor::lookup_instance::new(instance.get_instance_handle()?),
         // )?
     }
 
@@ -330,7 +330,7 @@ where
         // self.writer_address.send_mail_and_await_reply_blocking(
         //     data_writer_actor::write_w_timestamp::new(
         //         serialized_data,
-        //         data.get_key_from_foo()?,
+        //         data.get_instance_handle()?,
         //         handle,
         //         timestamp,
         //     ),
