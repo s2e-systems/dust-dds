@@ -4,8 +4,7 @@ mod derive;
 use derive::{
     cdr_deserialize::expand_cdr_deserialize,
     cdr_serialize::expand_cdr_serialize,
-    dds_borrow_key_holder::expand_dds_borrow_key_holder,
-    dds_has_key::expand_has_key,
+    dds_key::{expand_dds_serialize_key, expand_has_key},
     dds_owning_key_holder::expand_dds_owning_key_holder,
     dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
     parameter_list_deserialize::expand_parameter_list_deserialize,
@@ -63,7 +62,7 @@ pub fn derive_dds_deserialize_data(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(DdsHasKey, attributes(key))]
+#[proc_macro_derive(DdsHasKey, attributes(dust_dds))]
 pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     expand_has_key(&input)
@@ -71,10 +70,10 @@ pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(DdsBorrowKeyHolder, attributes(key))]
-pub fn derive_dds_borrow_key_holder(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(DdsSerializeKey, attributes(dust_dds))]
+pub fn derive_dds_serialize_key(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
-    expand_dds_borrow_key_holder(&input)
+    expand_dds_serialize_key(&input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -96,7 +95,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     output.extend(derive_dds_serialize_data(input.clone()));
     output.extend(derive_dds_deserialize_data(input.clone()));
     output.extend(derive_dds_has_key(input.clone()));
-    output.extend(derive_dds_borrow_key_holder(input.clone()));
+    output.extend(derive_dds_serialize_key(input.clone()));
     output.extend(derive_dds_owning_key_holder(input));
 
     output
