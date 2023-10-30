@@ -1,19 +1,45 @@
 use proc_macro2::TokenStream;
-use quote::quote;
-use syn::{DataStruct, DeriveInput, Field, Result};
+use quote::{quote, ToTokens};
+use syn::{spanned::Spanned, DataStruct, DeriveInput, Field, Result};
 
-fn field_has_key_attribute(field: &Field) -> bool {
-    field.attrs.iter().any(|attr| attr.path().is_ident("key"))
+fn field_has_key_attribute(field: &Field) -> syn::Result<bool> {
+    let mut has_key = false;
+    if let Some(dust_dds_attribute) = field
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("dust_dds"))
+    {
+        dust_dds_attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("key") {
+                has_key = true;
+                Ok(())
+            } else {
+                Err(syn::Error::new(
+                    meta.path.span(),
+                    format!(
+                        "Unexpected element {}. Valid options are \"key\"",
+                        meta.path.into_token_stream().to_string(),
+                    ),
+                ))
+            }
+        })?;
+    }
+    Ok(has_key)
 }
 
-fn struct_has_key(data_struct: &DataStruct) -> bool {
-    data_struct.fields.iter().any(field_has_key_attribute)
+fn struct_has_key(data_struct: &DataStruct) -> Result<bool> {
+    for field in data_struct.fields.iter() {
+        if field_has_key_attribute(field)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 pub fn expand_has_key(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         syn::Data::Struct(data_struct) => {
-            let has_key = struct_has_key(data_struct);
+            let has_key = struct_has_key(data_struct)?;
             let ident = &input.ident;
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
             Ok(quote!(
@@ -39,41 +65,47 @@ pub fn expand_dds_serialize_key(input: &DeriveInput) -> Result<TokenStream> {
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
             let ident = &input.ident;
 
-            // Collect all the key fields
-            let key_fields: Vec<&Field> = data_struct
-                .fields
-                .iter()
-                .filter(|&f| field_has_key_attribute(f))
-                .collect();
+            let has_key = struct_has_key(data_struct)?;
 
-            match key_fields.is_empty() {
-                false => {
+            let serialize_key_body = match has_key {
+                true => {
                     let mut borrowed_key_holder_fields = quote! {};
                     let mut borrowed_key_holder_field_assignment = quote! {};
 
-                    for key_field in key_fields {
-                        let field_ident = &key_field.ident;
-                        let field_type = &key_field.ty;
-                        borrowed_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsBorrowKeyHolder>::BorrowedKeyHolder<'__local>,});
-                        borrowed_key_holder_field_assignment
-                            .extend(quote! {#field_ident: self.#field_ident.get_key(),});
+                    for field in data_struct.fields.iter() {
+                        if field_has_key_attribute(field)? {
+                            let field_ident = &field.ident;
+                            let field_type = &field.ty;
+                            borrowed_key_holder_fields
+                                .extend(quote! {#field_ident: &'__borrowed #field_type});
+                            borrowed_key_holder_field_assignment
+                                .extend(quote! {#field_ident: &self.#field_ident,});
+                        }
                     }
 
-                    // Create the new structs and implementation inside a const to avoid name conflicts
-                    Ok(quote! {
-                        impl #impl_generics dust_dds::topic_definition::type_support::DdsSerializeKey for #ident #type_generics #where_clause {
-                            fn serialize_key(&self, writer: impl std::io::Write) -> dust_dds::infrastructure::error::DdsResult<()> {
-                                todo!()
-                            }
+                    quote! {
+                        #[allow(non_camel_case_types)]
+                        struct __borrowed_key_holder<'__borrowed> {
+                            #borrowed_key_holder_fields
                         }
-                    })
-                }
-                true => Ok(quote! {
-                    impl #impl_generics dust_dds::topic_definition::type_support::DdsSerializeKey for #ident #type_generics #where_clause {
-                        fn serialize_key(&self, writer: impl std::io::Write) -> dust_dds::infrastructure::error::DdsResult<()> {}
+
+                        dust_dds::topic_definition::type_support::serialize_rtps_cdr(
+                            &__borrowed_key_holder{
+                                #borrowed_key_holder_field_assignment
+                            },
+                            writer,
+                            dust_dds::cdr::endianness::CdrEndianness::LittleEndian)
                     }
-                }),
-            }
+                }
+                false => quote! {Ok(())},
+            };
+            Ok(quote! {
+                impl #impl_generics dust_dds::topic_definition::type_support::DdsSerializeKey for #ident #type_generics #where_clause {
+                    fn serialize_key(&self, writer: &mut Vec<u8>) -> dust_dds::infrastructure::error::DdsResult<()> {
+                        #serialize_key_body
+                    }
+                }
+            })
         }
         syn::Data::Enum(data_enum) => Err(syn::Error::new(
             data_enum.enum_token.span,
@@ -93,7 +125,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn struct_with_key() {
+    fn struct_with_key_field_should_be_has_key_true() {
         let input = syn::parse2::<DeriveInput>(
             "
             struct WithKey {
@@ -121,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn struct_without_key() {
+    fn struct_without_key_field_should_be_has_key_false() {
         let input = syn::parse2::<DeriveInput>(
             "
             struct WithoutKey {

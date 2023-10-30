@@ -77,7 +77,7 @@ pub fn derive_dds_serialize_key(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(DdsType, attributes(key))]
+#[proc_macro_derive(DdsType, attributes(dust_dds))]
 pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     let mut output = TokenStream::new();
 

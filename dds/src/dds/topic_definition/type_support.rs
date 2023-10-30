@@ -73,7 +73,7 @@ pub trait DdsDeserialize<'de>: Sized {
 /// The information created by this trait is typically visible on the `serializedData` element
 /// of the Data submessage when transmitting information about a disposed or unregistered sample.
 pub trait DdsSerializeKey {
-    fn serialize_key(&self, writer: impl std::io::Write) -> DdsResult<()>;
+    fn serialize_key(&self, writer: &mut Vec<u8>) -> DdsResult<()>;
 }
 
 /// This trait defines how the unique key information can be generated from a given instance of a type.

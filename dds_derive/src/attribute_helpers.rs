@@ -1,13 +1,5 @@
 use quote::ToTokens;
-use syn::{spanned::Spanned, Attribute, DataStruct, Field};
-
-pub fn field_has_key_attribute(field: &Field) -> bool {
-    field.attrs.iter().any(|attr| attr.path().is_ident("key"))
-}
-
-pub fn struct_has_key(data_struct: &DataStruct) -> bool {
-    data_struct.fields.iter().any(field_has_key_attribute)
-}
+use syn::{spanned::Spanned, Attribute};
 
 // Get parameter attributes. Returns (id, Option<default>, serialize_elements)
 pub fn get_parameter_attributes(
