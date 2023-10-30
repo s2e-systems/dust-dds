@@ -12,38 +12,55 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
 
             for (field_index, field) in data_struct.fields.iter().enumerate() {
-                let (id, default_value, serialize_elements) = get_parameter_attributes(field)?;
+                if let Some(parameter_attribute) =
+                    field.attrs.iter().find(|a| a.path().is_ident("parameter"))
+                {
+                    let (id, default_value, serialize_elements) =
+                        get_parameter_attributes(parameter_attribute)?;
 
-                if !serialize_elements {
-                    match (&field.ident, default_value) {
-                        (Some(field_name), None) => field_serialization.extend(quote! {
-                            serializer.write(#id, &self.#field_name)?;
-                        }),
-                        (Some(field_name), Some(default)) => field_serialization.extend(quote! {
-                            serializer.write_with_default(#id, &self.#field_name, & #default)?;
-                        }),
-                        (None, None) => {
-                            let index = Index::from(field_index);
-                            field_serialization.extend(quote! {
-                                serializer.write(#id, &self.#index)?;
-                            })
+                    if !serialize_elements {
+                        match (&field.ident, default_value) {
+                            (Some(field_name), None) => field_serialization.extend(quote! {
+                                serializer.write(#id, &self.#field_name)?;
+                            }),
+                            (Some(field_name), Some(default)) => field_serialization.extend(quote! {
+                                serializer.write_with_default(#id, &self.#field_name, & #default)?;
+                            }),
+                            (None, None) => {
+                                let index = Index::from(field_index);
+                                field_serialization.extend(quote! {
+                                    serializer.write(#id, &self.#index)?;
+                                })
+                            }
+                            (None, Some(default)) => {
+                                let index = Index::from(field_index);
+                                field_serialization.extend(quote! {
+                                    serializer.write_with_default(#id, &self.#index, & #default)?;
+                                })
+                            }
                         }
-                        (None, Some(default)) => {
-                            let index = Index::from(field_index);
-                            field_serialization.extend(quote! {
-                                serializer.write_with_default(#id, &self.#index, & #default)?;
-                            })
+                    } else {
+                        match &field.ident {
+                            Some(field_name) => field_serialization.extend(quote! {
+                                serializer.write_list_elements(#id, &self.#field_name)?;
+                            }),
+                            None => {
+                                let index = Index::from(field_index);
+                                field_serialization.extend(quote! {
+                                    serializer.write_list_elements(#id, &self.#index)?;
+                                })
+                            }
                         }
                     }
                 } else {
                     match &field.ident {
                         Some(field_name) => field_serialization.extend(quote! {
-                            serializer.write_list_elements(#id, &self.#field_name)?;
+                            dust_dds::cdr::parameter_list_serialize::ParameterListSerialize::serialize(&self.#field_name, serializer)?;
                         }),
                         None => {
                             let index = Index::from(field_index);
                             field_serialization.extend(quote! {
-                                serializer.write_list_elements(#id, &self.#index)?;
+                                dust_dds::cdr::parameter_list_serialize::ParameterListSerialize::serialize(&self.#index, serializer)?;
                             })
                         }
                     }
@@ -147,8 +164,8 @@ mod tests {
                 fn serialize(&self, serializer: &mut dust_dds::cdr::parameter_list_serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
                     serializer.write(1, &self.index)?;
                     serializer.write(PID_DATA, &self.data)?;
-                    serializer.write_with_default(3, &self.name, \"\")?;
-                    serializer.write_with_default(4, &self.x, Default::default())?;
+                    serializer.write_with_default(3, &self.name, &\"\")?;
+                    serializer.write_with_default(4, &self.x, &Default::default())?;
                     Ok(())
                 }
             }

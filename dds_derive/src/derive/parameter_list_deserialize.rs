@@ -33,30 +33,35 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
                         .ident
                         .is_none();
                     for field in data_struct.fields.iter() {
-                        let (id, default_value, read_all_elements) =
-                            get_parameter_attributes(field)?;
-                        if is_tuple {
-                            if read_all_elements {
-                                field_deserialization
-                                    .extend(quote! {pl_deserializer.read_all(#id)?, });
-                            } else {
-                                match default_value {
+                        if let Some(parameter_attribute) =
+                            field.attrs.iter().find(|a| a.path().is_ident("parameter"))
+                        {
+                            let (id, default_value, read_all_elements) =
+                                get_parameter_attributes(parameter_attribute)?;
+                            if is_tuple {
+                                if read_all_elements {
+                                    field_deserialization
+                                        .extend(quote! {pl_deserializer.read_all(#id)?, });
+                                } else {
+                                    match default_value {
                                     Some(default) => field_deserialization.extend(quote!{pl_deserializer.read_with_default(#id, #default)?, }),
                                     None => field_deserialization.extend(quote!{pl_deserializer.read(#id)?, }),
                                 }
-                            }
-                        } else {
-                            let field_name =
-                                field.ident.as_ref().expect("Should have named fields");
-                            if read_all_elements {
-                                field_deserialization
-                                    .extend(quote! {#field_name: pl_deserializer.read_all(#id)?,});
+                                }
                             } else {
-                                match default_value {
+                                let field_name =
+                                    field.ident.as_ref().expect("Should have named fields");
+                                if read_all_elements {
+                                    field_deserialization.extend(
+                                        quote! {#field_name: pl_deserializer.read_all(#id)?,},
+                                    );
+                                } else {
+                                    match default_value {
                                     Some(default) => field_deserialization
                                     .extend(quote! {#field_name: pl_deserializer.read_with_default(#id, #default)?,}),
                                     None => field_deserialization
                                     .extend(quote! {#field_name: pl_deserializer.read(#id)?,}),
+                                }
                                 }
                             }
                         }

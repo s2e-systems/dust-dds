@@ -1,5 +1,5 @@
 use quote::ToTokens;
-use syn::{spanned::Spanned, DataStruct, Field};
+use syn::{spanned::Spanned, Attribute, DataStruct, Field};
 
 pub fn field_has_key_attribute(field: &Field) -> bool {
     field.attrs.iter().any(|attr| attr.path().is_ident("key"))
@@ -11,16 +11,8 @@ pub fn struct_has_key(data_struct: &DataStruct) -> bool {
 
 // Get parameter attributes. Returns (id, Option<default>, serialize_elements)
 pub fn get_parameter_attributes(
-    field: &Field,
+    parameter_attribute: &Attribute,
 ) -> syn::Result<(syn::Expr, Option<syn::Expr>, bool)> {
-    let parameter_attribute = field
-        .attrs
-        .iter()
-        .find(|a| a.path().is_ident("parameter"))
-        .ok_or(syn::Error::new(
-            field.span(),
-            "Field missing #[parameter] attribute",
-        ))?;
     let mut id: Option<syn::Expr> = None;
     let mut default: Option<syn::Expr> = None;
     let mut serialize_elements = false;
@@ -53,8 +45,4 @@ pub fn get_parameter_attributes(
         default,
         serialize_elements,
     ))
-}
-
-pub fn get_dds_container_attributes() -> () {
-    todo!()
 }
