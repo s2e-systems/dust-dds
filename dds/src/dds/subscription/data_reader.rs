@@ -22,7 +22,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{DdsDeserialize, DdsGetKeyFromFoo, DdsSerialize},
+        type_support::{DdsDeserialize, DdsInstanceHandle, DdsSerialize},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -763,13 +763,14 @@ fn announce_data_reader(
         if dw.send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
             == Ok("DiscoveredReaderData".to_string())
         {
-            let instance_serialized_key = discovered_reader_data.get_key_from_foo()?;
-            dw.send_mail_and_await_reply_blocking(data_writer_actor::write_w_timestamp::new(
-                serialized_data,
-                instance_serialized_key,
-                None,
-                timestamp,
-            ))??;
+            todo!();
+            // let instance_serialized_key = discovered_reader_data.get_key_from_foo()?;
+            // dw.send_mail_and_await_reply_blocking(data_writer_actor::write_w_timestamp::new(
+            //     serialized_data,
+            //     instance_serialized_key,
+            //     None,
+            //     timestamp,
+            // ))??;
 
             domain_participant.send_mail_blocking(domain_participant_actor::send_message::new())?;
             break;

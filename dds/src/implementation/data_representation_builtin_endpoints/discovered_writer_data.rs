@@ -7,10 +7,9 @@ use crate::{
         serialize::CdrSerialize, serializer::CdrSerializer,
     },
     implementation::rtps::types::{EntityId, Guid, Locator},
-    infrastructure::error::DdsResult,
+    infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerialize,
-        DdsSerializedKey,
+        DdsDeserialize, DdsGetHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
     },
 };
 
@@ -129,21 +128,20 @@ impl DdsHasKey for DiscoveredWriterData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsGetKeyFromFoo for DiscoveredWriterData {
-    fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {
-        Ok(self.dds_publication_data.key().value.to_vec().into())
+impl DdsInstanceHandle for DiscoveredWriterData {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        Ok(self.dds_publication_data.key().value.as_ref().into())
     }
 }
 
-impl DdsGetKeyFromSerializedData for DiscoveredWriterData {
-    fn get_key_from_serialized_data(serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
-        todo!()
-        // Ok(Self::deserialize_data(serialized_data)?
-        //     .dds_publication_data
-        //     .key()
-        //     .value
-        //     .to_vec()
-        //     .into())
+impl DdsGetHandleFromSerializedData for DiscoveredWriterData {
+    fn get_key_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
+        Ok(Self::deserialize_data(serialized_data)?
+            .dds_publication_data
+            .key()
+            .value
+            .as_ref()
+            .into())
     }
 }
 

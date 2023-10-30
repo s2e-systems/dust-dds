@@ -1,7 +1,4 @@
-use crate::{
-    builtin_topics::BuiltInTopicKey, implementation::rtps::types::Guid,
-    topic_definition::type_support::DdsSerializedKey,
-};
+use crate::{builtin_topics::BuiltInTopicKey, implementation::rtps::types::Guid};
 
 /// Type for the instance handle representing an Entity
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, derive_more::Constructor)]
@@ -22,15 +19,14 @@ impl AsRef<[u8]> for InstanceHandle {
     }
 }
 
-impl From<DdsSerializedKey> for InstanceHandle {
-    fn from(x: DdsSerializedKey) -> Self {
-        let data = x.as_ref();
-        let handle = if data.len() <= 16 {
+impl From<&[u8]> for InstanceHandle {
+    fn from(x: &[u8]) -> Self {
+        let handle = if x.len() <= 16 {
             let mut h = [0; 16];
-            h[..data.len()].clone_from_slice(data);
+            h[..x.len()].clone_from_slice(x);
             h
         } else {
-            <[u8; 16]>::from(md5::compute(data))
+            <[u8; 16]>::from(md5::compute(x))
         };
         Self(handle)
     }

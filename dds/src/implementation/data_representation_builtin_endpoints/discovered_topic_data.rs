@@ -4,10 +4,9 @@ use crate::{
         parameter_list_deserialize::ParameterListDeserialize,
         parameter_list_serialize::ParameterListSerialize,
     },
-    infrastructure::error::DdsResult,
+    infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerialize,
-        DdsSerializedKey,
+        DdsDeserialize, DdsGetHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
     },
 };
 
@@ -44,14 +43,14 @@ impl DdsHasKey for DiscoveredTopicData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsGetKeyFromFoo for DiscoveredTopicData {
-    fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {
-        Ok(self.topic_builtin_topic_data.key().value.to_vec().into())
+impl DdsInstanceHandle for DiscoveredTopicData {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        Ok(self.topic_builtin_topic_data.key().value.as_ref().into())
     }
 }
 
-impl DdsGetKeyFromSerializedData for DiscoveredTopicData {
-    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
+impl DdsGetHandleFromSerializedData for DiscoveredTopicData {
+    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
         todo!()
     }
 }

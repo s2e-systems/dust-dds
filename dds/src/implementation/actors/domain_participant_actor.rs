@@ -68,7 +68,7 @@ use crate::{
     topic_definition::{
         topic_listener::TopicListener,
         type_support::{
-            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsSerialize,
+            DdsDeserialize, DdsGetHandleFromSerializedData, DdsInstanceHandle, DdsSerialize,
         },
     },
     {
@@ -1023,18 +1023,19 @@ impl DomainParticipantActor {
                 .serialize_data(&mut serialized_data)
                 .expect("Shouldn't fail to serialize builtin type");
             let instance_serialized_key = discovered_writer_data
-                .get_key_from_foo()
+                .get_instance_handle()
                 .expect("Shouldn't fail to serialize key of builtin type");
-            sedp_publications_announcer
-                .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
-                    serialized_data,
-                    instance_serialized_key,
-                    None,
-                    timestamp,
-                ))
-                .await
-                .expect("Shouldn't fail to send to built-in data writer")
-                .expect("Shouldn't fail to write to built-in data writer");
+            todo!()
+            // sedp_publications_announcer
+            //     .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
+            //         serialized_data,
+            //         instance_serialized_key,
+            //         None,
+            //         timestamp,
+            //     ))
+            //     .await
+            //     .expect("Shouldn't fail to send to built-in data writer")
+            //     .expect("Shouldn't fail to write to built-in data writer");
         }
     }
 

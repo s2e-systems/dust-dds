@@ -25,7 +25,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsGetKeyFromFoo, DdsHasKey, DdsSerialize, DdsSerializeKey},
+        type_support::{DdsHasKey, DdsInstanceHandle, DdsSerialize, DdsSerializeKey},
     },
 };
 
@@ -110,7 +110,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsHasKey + DdsSerialize + DdsSerializeKey + DdsGetKeyFromFoo,
+    Foo: DdsHasKey + DdsSerialize + DdsSerializeKey + DdsInstanceHandle,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -262,9 +262,10 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::lookup_instance::new(instance.get_key_from_foo()?),
-        )?
+        todo!()
+        // self.writer_address.send_mail_and_await_reply_blocking(
+        //     data_writer_actor::lookup_instance::new(instance.get_key_from_foo()?),
+        // )?
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -325,14 +326,15 @@ where
         let mut serialized_data = Vec::new();
         data.serialize_data(&mut serialized_data)?;
 
-        self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::write_w_timestamp::new(
-                serialized_data,
-                data.get_key_from_foo()?,
-                handle,
-                timestamp,
-            ),
-        )??;
+        todo!();
+        // self.writer_address.send_mail_and_await_reply_blocking(
+        //     data_writer_actor::write_w_timestamp::new(
+        //         serialized_data,
+        //         data.get_key_from_foo()?,
+        //         handle,
+        //         timestamp,
+        //     ),
+        // )??;
 
         self.participant_address
             .send_mail_blocking(domain_participant_actor::send_message::new())?;

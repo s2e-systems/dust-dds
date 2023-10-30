@@ -61,7 +61,7 @@ use crate::{
         time::{DurationKind, Time},
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedKey},
+    topic_definition::type_support::DdsInstanceHandle,
 };
 
 use super::{
@@ -74,10 +74,10 @@ use super::{
     subscriber_listener_actor::{self, SubscriberListenerActor},
 };
 
-pub struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<DdsSerializedKey>);
+pub struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<InstanceHandle>);
 
 impl InstanceHandleBuilder {
-    pub fn new(instance_handle_fn: fn(&[u8]) -> DdsResult<DdsSerializedKey>) -> Self {
+    pub fn new(instance_handle_fn: fn(&[u8]) -> DdsResult<InstanceHandle>) -> Self {
         Self(instance_handle_fn)
     }
 
@@ -88,15 +88,15 @@ impl InstanceHandleBuilder {
         inline_qos: &[Parameter],
     ) -> DdsResult<InstanceHandle> {
         Ok(match change_kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(data)?.into(),
+            ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(data)?,
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => match inline_qos
                 .iter()
                 .find(|&x| x.parameter_id() == PID_KEY_HASH)
             {
-                Some(p) => InstanceHandle::new(p.value().try_into().unwrap()),
-                None => DdsSerializedKey::from(data[4..].to_vec()).into(),
+                Some(p) => p.value().into(),
+                None => data[4..].into(),
             },
         })
     }
@@ -1614,7 +1614,7 @@ impl DataReaderActor {
         if publication_builtin_topic_data.topic_name() == self.topic_name
             && publication_builtin_topic_data.get_type_name() == self.type_name
         {
-            let instance_handle = discovered_writer_data.get_key_from_foo().unwrap().into();
+            let instance_handle = discovered_writer_data.get_instance_handle().unwrap().into();
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &discovered_writer_data,

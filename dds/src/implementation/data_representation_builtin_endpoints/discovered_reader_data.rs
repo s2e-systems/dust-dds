@@ -5,10 +5,9 @@ use crate::{
         parameter_list_serialize::ParameterListSerialize,
     },
     implementation::rtps::types::{EntityId, Guid, Locator},
-    infrastructure::error::DdsResult,
+    infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerialize,
-        DdsSerializedKey,
+        DdsDeserialize, DdsGetHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
     },
 };
 
@@ -111,24 +110,24 @@ impl DdsHasKey for DiscoveredReaderData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsGetKeyFromFoo for DiscoveredReaderData {
-    fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {
+impl DdsInstanceHandle for DiscoveredReaderData {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(self
             .subscription_builtin_topic_data
             .key()
             .value
-            .to_vec()
+            .as_ref()
             .into())
     }
 }
 
-impl DdsGetKeyFromSerializedData for DiscoveredReaderData {
-    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
+impl DdsGetHandleFromSerializedData for DiscoveredReaderData {
+    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
         Ok(Self::deserialize_data(&mut serialized_data)?
             .subscription_builtin_topic_data
             .key()
             .value
-            .to_vec()
+            .as_ref()
             .into())
     }
 }

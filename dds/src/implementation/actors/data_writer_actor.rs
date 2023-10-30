@@ -56,7 +56,7 @@ use crate::{
         },
         time::DurationKind,
     },
-    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedKey},
+    topic_definition::type_support::{DdsInstanceHandle, DdsSerializedKey},
     {
         builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
@@ -366,7 +366,7 @@ impl DataWriterActor {
             return Err(DdsError::NotEnabled);
         }
 
-        let instance_handle = instance_serialized_key.clone().into();
+        let instance_handle = todo!(); //instance_serialized_key.clone().into();
 
         if !self.registered_instance_list.contains_key(&instance_handle) {
             if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
@@ -428,7 +428,7 @@ impl DataWriterActor {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
-        let instance_handle = instance_serialized_key.into();
+        let instance_handle = todo!(); //instance_serialized_key.into();
 
         Ok(
             if self.registered_instance_list.contains_key(&instance_handle) {
@@ -618,7 +618,7 @@ impl DataWriterActor {
                 discovered_reader_data.subscription_builtin_topic_data(),
                 &publisher_qos,
             );
-            let instance_handle = discovered_reader_data.get_key_from_foo().unwrap().into();
+            let instance_handle = discovered_reader_data.get_instance_handle().unwrap().into();
 
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_reader_data

@@ -21,7 +21,7 @@ use crate::{
 
 use super::{
     topic_listener::TopicListener,
-    type_support::{DdsGetKeyFromFoo, DdsSerialize},
+    type_support::{DdsInstanceHandle, DdsSerialize},
 };
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
@@ -245,14 +245,15 @@ fn announce_topic(
         if data_writer.send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
             == Ok("DiscoveredTopicData".to_string())
         {
-            data_writer.send_mail_and_await_reply_blocking(
-                data_writer_actor::write_w_timestamp::new(
-                    serialized_data,
-                    discovered_topic_data.get_key_from_foo()?,
-                    None,
-                    timestamp,
-                ),
-            )??;
+            todo!();
+            // data_writer.send_mail_and_await_reply_blocking(
+            //     data_writer_actor::write_w_timestamp::new(
+            //         serialized_data,
+            //         discovered_topic_data.get_instance_handle()?,
+            //         None,
+            //         timestamp,
+            //     ),
+            // )??;
 
             domain_participant.send_mail_blocking(domain_participant_actor::send_message::new())?;
             break;
