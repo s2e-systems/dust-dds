@@ -21,7 +21,7 @@ use crate::{
 
 use super::{
     topic_listener::TopicListener,
-    type_support::{DdsGetKeyFromFoo, DdsSerializeData},
+    type_support::{DdsGetKeyFromFoo, DdsSerialize},
 };
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes

@@ -6,7 +6,7 @@ use crate::{
     },
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializeData,
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerialize,
         DdsSerializedKey,
     },
 };
@@ -18,7 +18,7 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
     PartialEq,
     Eq,
     Clone,
-    DdsSerializeData,
+    DdsSerialize,
     DdsDeserialize,
     ParameterListSerialize,
     ParameterListDeserialize,
@@ -65,7 +65,7 @@ mod tests {
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::DdsSerializeData;
+    use crate::topic_definition::type_support::DdsSerialize;
 
     use super::*;
 

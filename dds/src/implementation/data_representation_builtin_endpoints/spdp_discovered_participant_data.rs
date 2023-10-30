@@ -14,7 +14,7 @@ use crate::{
     },
     infrastructure::{error::DdsResult, time::Duration},
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializeData,
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerialize,
         DdsSerializedKey,
     },
 };
@@ -182,7 +182,7 @@ impl ParticipantProxy {
     PartialEq,
     Eq,
     Clone,
-    DdsSerializeData,
+    DdsSerialize,
     DdsDeserialize,
     ParameterListSerialize,
     ParameterListDeserialize,
@@ -247,7 +247,7 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        topic_definition::type_support::DdsSerializeData,
+        topic_definition::type_support::DdsSerialize,
     };
 
     #[test]

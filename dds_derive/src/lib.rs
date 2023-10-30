@@ -47,7 +47,7 @@ pub fn derive_parameter_list_deserialize(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(DdsSerializeData, attributes(dust_dds))]
+#[proc_macro_derive(DdsSerialize, attributes(dust_dds))]
 pub fn derive_dds_serialize_data(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     expand_dds_serialize_data(&input)

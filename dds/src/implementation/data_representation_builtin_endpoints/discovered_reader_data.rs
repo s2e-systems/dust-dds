@@ -7,7 +7,7 @@ use crate::{
     implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializeData,
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerialize,
         DdsSerializedKey,
     },
 };
@@ -76,7 +76,7 @@ impl ReaderProxy {
     PartialEq,
     Eq,
     Clone,
-    DdsSerializeData,
+    DdsSerialize,
     DdsDeserialize,
     ParameterListSerialize,
     ParameterListDeserialize,
@@ -147,7 +147,7 @@ mod tests {
             PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
-        topic_definition::type_support::DdsSerializeData,
+        topic_definition::type_support::DdsSerialize,
     };
 
     #[test]

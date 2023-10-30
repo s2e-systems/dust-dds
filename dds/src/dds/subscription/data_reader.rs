@@ -22,7 +22,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{DdsDeserialize, DdsGetKeyFromFoo, DdsSerializeData},
+        type_support::{DdsDeserialize, DdsGetKeyFromFoo, DdsSerialize},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,

@@ -80,7 +80,7 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let ident = &input.ident;
 
             Ok(quote! {
-                impl #impl_generics dust_dds::topic_definition::type_support::DdsSerializeData for #ident #type_generics #where_clause {
+                impl #impl_generics dust_dds::topic_definition::type_support::DdsSerialize for #ident #type_generics #where_clause {
                     fn serialize_data(&self, writer: &mut Vec<u8>) -> dust_dds::infrastructure::error::DdsResult<()> {
                         #serialize_function
                         Ok(())

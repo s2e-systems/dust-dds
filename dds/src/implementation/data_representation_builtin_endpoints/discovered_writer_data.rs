@@ -9,7 +9,7 @@ use crate::{
     implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializeData,
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerialize,
         DdsSerializedKey,
     },
 };
@@ -94,7 +94,7 @@ impl WriterProxy {
     Clone,
     ParameterListSerialize,
     ParameterListDeserialize,
-    DdsSerializeData,
+    DdsSerialize,
     DdsDeserialize,
 )]
 #[dust_dds(format = "PL_CDR_LE")]
@@ -159,7 +159,7 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
-    use crate::topic_definition::type_support::DdsSerializeData;
+    use crate::topic_definition::type_support::DdsSerialize;
 
     use super::*;
 
