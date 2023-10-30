@@ -1,9 +1,9 @@
-use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
+use dust_dds_derive::DdsDeserialize;
 
 use crate::{
     cdr::{
         deserialize::CdrDeserialize, parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_deserializer::ParameterListDeserializer, serialize::CdrSerialize,
+        parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
     },
     implementation::data_representation_builtin_endpoints::parameter_id_values::{
         PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA,
@@ -41,21 +41,14 @@ impl From<BuiltInTopicKey> for [u8; 16] {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(
+    Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
+)]
 pub struct ParticipantBuiltinTopicData {
+    #[parameter(id = PID_PARTICIPANT_GUID)]
     key: BuiltInTopicKey,
+    #[parameter(id = PID_USER_DATA, default = Default::default())]
     user_data: UserDataQosPolicy,
-}
-
-impl<'de> ParameterListDeserialize<'de> for ParticipantBuiltinTopicData {
-    fn deserialize(
-        pl_deserializer: &mut ParameterListDeserializer<'de>,
-    ) -> Result<Self, std::io::Error> {
-        Ok(Self {
-            key: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
-            user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
-        })
-    }
 }
 
 impl ParticipantBuiltinTopicData {
@@ -77,14 +70,7 @@ impl DdsHasKey for ParticipantBuiltinTopicData {
 }
 
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    ParameterListSerialize,
-    ParameterListDeserialize,
-    CdrSerialize,
-    CdrDeserialize,
+    Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
 pub struct TopicBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
@@ -223,14 +209,7 @@ impl DdsHasKey for TopicBuiltinTopicData {
 }
 
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    ParameterListSerialize,
-    ParameterListDeserialize,
-    CdrSerialize,
-    CdrDeserialize,
+    Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
 pub struct PublicationBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
@@ -386,14 +365,7 @@ impl DdsHasKey for PublicationBuiltinTopicData {
 }
 
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    ParameterListSerialize,
-    ParameterListDeserialize,
-    CdrSerialize,
-    CdrDeserialize,
+    Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
 pub struct SubscriptionBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]

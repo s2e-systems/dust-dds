@@ -1,10 +1,8 @@
-use dust_dds_derive::{DdsSerializeData, ParameterListDeserialize, ParameterListSerialize};
-
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     cdr::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
-        serialize::CdrSerialize, serializer::CdrSerializer,
+        parameter_list_deserialize::ParameterListDeserialize,
+        parameter_list_serialize::ParameterListSerialize,
     },
     implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::error::DdsResult,
@@ -73,7 +71,16 @@ impl ReaderProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, DdsSerializeData, ParameterListSerialize, CdrDeserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    DdsSerializeData,
+    DdsDeserialize,
+    ParameterListSerialize,
+    ParameterListDeserialize,
+)]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredReaderData {
     reader_proxy: ReaderProxy,

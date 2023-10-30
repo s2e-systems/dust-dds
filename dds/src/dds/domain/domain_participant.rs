@@ -924,7 +924,8 @@ impl DomainParticipant {
                                         domain_participant_actor::as_spdp_discovered_participant_data::new(),
                                     )
                                     .await?;
-                                let serialized_data = spdp_discovered_participant_data.serialize_data()?;
+                                let mut serialized_data = Vec::new();
+                                spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
 
                                 let timestamp = domain_participant_address
                                     .send_mail_and_await_reply(

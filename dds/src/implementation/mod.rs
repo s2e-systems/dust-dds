@@ -4,5 +4,4 @@ pub mod data_representation_builtin_endpoints;
 pub mod data_representation_inline_qos;
 pub mod rtps;
 pub mod rtps_udp_psm;
-pub mod type_support;
 pub mod utils;

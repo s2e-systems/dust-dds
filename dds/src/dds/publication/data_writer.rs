@@ -25,9 +25,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{
-            DdsGetKeyFromFoo, DdsHasKey, DdsSerializeData, DdsSerializeKeyFields,
-        },
+        type_support::{DdsGetKeyFromFoo, DdsHasKey, DdsSerializeData, DdsSerializeKeyFields},
     },
 };
 
@@ -324,7 +322,8 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let serialized_data = data.serialize_data()?;
+        let mut serialized_data = Vec::new();
+        data.serialize_data(&mut serialized_data)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::write_w_timestamp::new(

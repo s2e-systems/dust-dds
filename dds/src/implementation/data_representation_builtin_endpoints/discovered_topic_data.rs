@@ -1,18 +1,29 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     cdr::{
-        deserialize::CdrDeserialize,
-        serialize::CdrSerialize,
+        parameter_list_deserialize::ParameterListDeserialize,
+        parameter_list_serialize::ParameterListSerialize,
     },
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializedKey,
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializeData,
+        DdsSerializedKey,
     },
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    DdsSerializeData,
+    DdsDeserialize,
+    ParameterListSerialize,
+    ParameterListDeserialize,
+)]
+#[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredTopicData {
     topic_builtin_topic_data: TopicBuiltinTopicData,
 }
@@ -41,12 +52,7 @@ impl DdsGetKeyFromFoo for DiscoveredTopicData {
 
 impl DdsGetKeyFromSerializedData for DiscoveredTopicData {
     fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
-        Ok(Self::deserialize_data(&mut serialized_data)?
-            .topic_builtin_topic_data
-            .key()
-            .value
-            .to_vec()
-            .into())
+        todo!()
     }
 }
 
@@ -102,8 +108,9 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let result = data.serialize_data().unwrap();
-        assert_eq!(result, expected.into());
+        let mut result = Vec::new();
+        data.serialize_data(&mut result).unwrap();
+        assert_eq!(result, expected);
     }
 
     #[test]

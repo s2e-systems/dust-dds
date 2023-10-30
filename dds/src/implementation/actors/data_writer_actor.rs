@@ -56,7 +56,7 @@ use crate::{
         },
         time::DurationKind,
     },
-    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedData, DdsSerializedKey},
+    topic_definition::type_support::{DdsGetKeyFromFoo, DdsSerializedKey},
     {
         builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
@@ -558,7 +558,7 @@ impl DataWriterActor {
 
     async fn write_w_timestamp(
         &mut self,
-        serialized_data: DdsSerializedData,
+        serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
         _handle: Option<InstanceHandle>,
         timestamp: Time,

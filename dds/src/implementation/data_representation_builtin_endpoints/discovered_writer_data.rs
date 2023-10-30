@@ -3,16 +3,14 @@ use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     cdr::{
-        deserialize::CdrDeserialize,
-        deserializer::CdrDeserializer,
-        error::CdrResult,
-        serialize::CdrSerialize,
-        serializer::CdrSerializer,
+        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
+        serialize::CdrSerialize, serializer::CdrSerializer,
     },
     implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializedKey,
+        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey, DdsSerializeData,
+        DdsSerializedKey,
     },
 };
 
@@ -89,7 +87,17 @@ impl WriterProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    ParameterListSerialize,
+    ParameterListDeserialize,
+    DdsSerializeData,
+    DdsDeserialize,
+)]
+#[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,
@@ -129,12 +137,13 @@ impl DdsGetKeyFromFoo for DiscoveredWriterData {
 
 impl DdsGetKeyFromSerializedData for DiscoveredWriterData {
     fn get_key_from_serialized_data(serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
-        Ok(Self::deserialize_data(serialized_data)?
-            .dds_publication_data
-            .key()
-            .value
-            .to_vec()
-            .into())
+        todo!()
+        // Ok(Self::deserialize_data(serialized_data)?
+        //     .dds_publication_data
+        //     .key()
+        //     .value
+        //     .to_vec()
+        //     .into())
     }
 }
 
@@ -214,8 +223,9 @@ mod tests {
             21, 22, 23, 0xc9, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let result = data.serialize_data().unwrap();
-        assert_eq!(result, expected.into());
+        let mut result = Vec::new();
+        data.serialize_data(&mut result).unwrap();
+        assert_eq!(result, expected);
     }
 
     #[test]

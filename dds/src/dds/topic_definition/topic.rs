@@ -232,7 +232,8 @@ fn announce_topic(
     domain_participant: &ActorAddress<DomainParticipantActor>,
     discovered_topic_data: DiscoveredTopicData,
 ) -> DdsResult<()> {
-    let serialized_data = discovered_topic_data.serialize_data()?;
+    let mut serialized_data = Vec::new();
+    discovered_topic_data.serialize_data(&mut serialized_data)?;
     let timestamp = domain_participant
         .send_mail_and_await_reply_blocking(domain_participant_actor::get_current_time::new())?;
     let builtin_publisher = domain_participant.send_mail_and_await_reply_blocking(

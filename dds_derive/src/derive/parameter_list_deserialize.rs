@@ -58,11 +58,19 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
                                 } else {
                                     match default_value {
                                     Some(default) => field_deserialization
-                                    .extend(quote! {#field_name: pl_deserializer.read_with_default(#id, #default)?,}),
+                                        .extend(quote! {#field_name: pl_deserializer.read_with_default(#id, #default)?,}),
                                     None => field_deserialization
-                                    .extend(quote! {#field_name: pl_deserializer.read(#id)?,}),
+                                        .extend(quote! {#field_name: pl_deserializer.read(#id)?,}),
+                                    }
                                 }
-                                }
+                            }
+                        } else {
+                            if is_tuple {
+                                field_deserialization.extend(quote!{dust_dds::cdr::parameter_list_deserialize::ParameterListDeserialize::deserialize(pl_deserializer)?,});
+                            } else {
+                                let field_name =
+                                    field.ident.as_ref().expect("Should have named fields");
+                                field_deserialization.extend(quote!{#field_name: dust_dds::cdr::parameter_list_deserialize::ParameterListDeserialize::deserialize(pl_deserializer)?,});
                             }
                         }
                     }
