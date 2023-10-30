@@ -14,7 +14,7 @@ use crate::{
     },
     infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
+        DdsDeserialize, DdsInstanceHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
     },
 };
 
@@ -230,8 +230,8 @@ impl DdsInstanceHandle for SpdpDiscoveredParticipantData {
     }
 }
 
-impl DdsGetHandleFromSerializedData for SpdpDiscoveredParticipantData {
-    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
+impl DdsInstanceHandleFromSerializedData for SpdpDiscoveredParticipantData {
+    fn get_handle_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
         Ok(Self::deserialize_data(&mut serialized_data)?
             .dds_participant_data
             .key()

@@ -9,7 +9,7 @@ use crate::{
     implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
+        DdsDeserialize, DdsInstanceHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
     },
 };
 
@@ -134,8 +134,8 @@ impl DdsInstanceHandle for DiscoveredWriterData {
     }
 }
 
-impl DdsGetHandleFromSerializedData for DiscoveredWriterData {
-    fn get_key_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
+impl DdsInstanceHandleFromSerializedData for DiscoveredWriterData {
+    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
         Ok(Self::deserialize_data(serialized_data)?
             .dds_publication_data
             .key()

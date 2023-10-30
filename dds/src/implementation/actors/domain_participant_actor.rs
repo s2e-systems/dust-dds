@@ -68,7 +68,7 @@ use crate::{
     topic_definition::{
         topic_listener::TopicListener,
         type_support::{
-            DdsDeserialize, DdsGetHandleFromSerializedData, DdsInstanceHandle, DdsSerialize,
+            DdsDeserialize, DdsInstanceHandleFromSerializedData, DdsInstanceHandle, DdsSerialize,
         },
     },
     {
@@ -230,7 +230,7 @@ impl DomainParticipantActor {
             spdp_reader_qos,
             Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
-            InstanceHandleBuilder::new(SpdpDiscoveredParticipantData::get_key_from_serialized_data),
+            InstanceHandleBuilder::new(SpdpDiscoveredParticipantData::get_handle_from_serialized_data),
         ));
 
         let sedp_reader_qos = DataReaderQos {
@@ -256,7 +256,7 @@ impl DomainParticipantActor {
             sedp_reader_qos.clone(),
             Box::new(NoOpListener::<DiscoveredTopicData>::new()),
             vec![],
-            InstanceHandleBuilder::new(DiscoveredTopicData::get_key_from_serialized_data),
+            InstanceHandleBuilder::new(DiscoveredTopicData::get_handle_from_serialized_data),
         ));
 
         let sedp_builtin_publications_reader_guid =
@@ -268,7 +268,7 @@ impl DomainParticipantActor {
             sedp_reader_qos.clone(),
             Box::new(NoOpListener::<DiscoveredWriterData>::new()),
             vec![],
-            InstanceHandleBuilder::new(DiscoveredWriterData::get_key_from_serialized_data),
+            InstanceHandleBuilder::new(DiscoveredWriterData::get_handle_from_serialized_data),
         ));
 
         let sedp_builtin_subscriptions_reader_guid =
@@ -280,7 +280,7 @@ impl DomainParticipantActor {
             sedp_reader_qos,
             Box::new(NoOpListener::<DiscoveredReaderData>::new()),
             vec![],
-            InstanceHandleBuilder::new(DiscoveredReaderData::get_key_from_serialized_data),
+            InstanceHandleBuilder::new(DiscoveredReaderData::get_handle_from_serialized_data),
         ));
 
         let builtin_subscriber = spawn_actor(SubscriberActor::new(

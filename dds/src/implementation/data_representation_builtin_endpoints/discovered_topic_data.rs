@@ -6,7 +6,7 @@ use crate::{
     },
     infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
+        DdsDeserialize, DdsInstanceHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
     },
 };
 
@@ -49,8 +49,8 @@ impl DdsInstanceHandle for DiscoveredTopicData {
     }
 }
 
-impl DdsGetHandleFromSerializedData for DiscoveredTopicData {
-    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
+impl DdsInstanceHandleFromSerializedData for DiscoveredTopicData {
+    fn get_handle_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
         todo!()
     }
 }

@@ -25,7 +25,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsGetHandleFromSerializedData, DdsHasKey},
+        type_support::{DdsInstanceHandleFromSerializedData, DdsHasKey},
     },
 };
 
@@ -101,7 +101,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsGetHandleFromSerializedData + DdsHasKey,
+        Foo: DdsInstanceHandleFromSerializedData + DdsHasKey,
     {
         let default_unicast_locator_list = self
             .participant_address
@@ -168,7 +168,7 @@ impl Subscriber {
             qos,
             listener,
             status_kind,
-            InstanceHandleBuilder::new(Foo::get_key_from_serialized_data),
+            InstanceHandleBuilder::new(Foo::get_handle_from_serialized_data),
         );
 
         let reader_actor = spawn_actor(data_reader);

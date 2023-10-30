@@ -118,6 +118,14 @@ pub fn expand_dds_serialize_key(input: &DeriveInput) -> Result<TokenStream> {
     }
 }
 
+pub fn expand_dds_instance_handle(input: &DeriveInput) -> Result<TokenStream> {
+    todo!()
+}
+
+pub fn expand_dds_instance_handle_from_serialized_data(input: &DeriveInput) -> Result<TokenStream> {
+    todo!()
+}
+
 #[cfg(test)]
 mod tests {
     use syn::ItemImpl;
