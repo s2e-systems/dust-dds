@@ -1,5 +1,4 @@
 use dust_dds::{
-    cdr::endianness::CdrEndianness,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         listeners::NoOpListener,

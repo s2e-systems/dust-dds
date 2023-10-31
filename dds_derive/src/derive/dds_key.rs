@@ -185,52 +185,18 @@ pub fn expand_dds_instance_handle(input: &DeriveInput) -> Result<TokenStream> {
 
 pub fn expand_dds_instance_handle_from_serialized_data(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
-        syn::Data::Struct(data_struct) => {
+        syn::Data::Struct(_data_struct) => {
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
             let ident = &input.ident;
 
-            // let has_key = struct_has_key(data_struct)?;
-
-            // let serialize_key_body = match has_key {
-            //     true => {
-            //         let mut borrowed_key_holder_fields = quote! {};
-            //         let mut borrowed_key_holder_field_assignment = quote! {};
-
-            //         for field in data_struct.fields.iter() {
-            //             if field_has_key_attribute(field)? {
-            //                 let field_ident = &field.ident;
-            //                 let field_type = &field.ty;
-            //                 borrowed_key_holder_fields
-            //                     .extend(quote! {#field_ident: &'__borrowed #field_type});
-            //                 borrowed_key_holder_field_assignment
-            //                     .extend(quote! {#field_ident: &self.#field_ident,});
-            //             }
-            //         }
-
-            //         quote! {
-            //             #[allow(non_camel_case_types)]
-            //             struct __borrowed_key_holder<'__borrowed> {
-            //                 #borrowed_key_holder_fields
-            //             }
-
-            //             let mut writer = Vec::new();
-            //             let mut serializer = CdrSerializer::new(&mut writer, dust_dds::cdr::endianness::CdrEndianness::BigEndian);
-            //             dust_dds::cdr::serialize::CdrSerialize::serialize(
-            //                 &__borrowed_key_holder{
-            //                     #borrowed_key_holder_field_assignment
-            //                 },
-            //                 &mut serializer)?;
-            //             Ok(writer.as_ref().into())
-            //         }
-            //     }
-            //     false => quote! {Ok(&[0;16].into())},
-            // };
             Ok(quote! {
                 impl #impl_generics dust_dds::topic_definition::type_support::DdsInstanceHandleFromSerializedData for #ident #type_generics #where_clause {
                     fn get_handle_from_serialized_data(serialized_data: &[u8]) -> dust_dds::infrastructure::error::DdsResult<
                         dust_dds::infrastructure::instance::InstanceHandle
                     > {
-                        todo!()
+                        dust_dds::topic_definition::type_support::DdsInstanceHandle::get_instance_handle(
+                            &<Self as dust_dds::topic_definition::type_support::DdsDeserialize>::deserialize_data(serialized_data)?
+                        )
                     }
                 }
             })
