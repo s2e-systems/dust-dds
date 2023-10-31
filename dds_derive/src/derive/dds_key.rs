@@ -18,7 +18,7 @@ fn field_has_key_attribute(field: &Field) -> syn::Result<bool> {
                     meta.path.span(),
                     format!(
                         "Unexpected element {}. Valid options are \"key\"",
-                        meta.path.into_token_stream().to_string(),
+                        meta.path.into_token_stream(),
                     ),
                 ))
             }

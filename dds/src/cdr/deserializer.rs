@@ -58,7 +58,7 @@ impl<'de> CdrDeserializer<'de> {
     pub fn deserialize_i8(&mut self) -> CdrResult<i8> {
         self.read_padding_of::<i8>()?;
         let mut bytes = [0; 1];
-        self.reader.read(&mut bytes)?;
+        self.reader.read_exact(&mut bytes)?;
         match self.endianness {
             CdrEndianness::LittleEndian => Ok(i8::from_le_bytes(bytes)),
             CdrEndianness::BigEndian => Ok(i8::from_be_bytes(bytes)),
@@ -68,7 +68,7 @@ impl<'de> CdrDeserializer<'de> {
     pub fn deserialize_i16(&mut self) -> CdrResult<i16> {
         self.read_padding_of::<i16>()?;
         let mut bytes = [0; 2];
-        self.reader.read(&mut bytes)?;
+        self.reader.read_exact(&mut bytes)?;
         match self.endianness {
             CdrEndianness::LittleEndian => Ok(i16::from_le_bytes(bytes)),
             CdrEndianness::BigEndian => Ok(i16::from_be_bytes(bytes)),
@@ -78,7 +78,7 @@ impl<'de> CdrDeserializer<'de> {
     pub fn deserialize_i32(&mut self) -> CdrResult<i32> {
         self.read_padding_of::<i32>()?;
         let mut bytes = [0; 4];
-        self.reader.read(&mut bytes)?;
+        self.reader.read_exact(&mut bytes)?;
         match self.endianness {
             CdrEndianness::LittleEndian => Ok(i32::from_le_bytes(bytes)),
             CdrEndianness::BigEndian => Ok(i32::from_be_bytes(bytes)),
@@ -88,7 +88,7 @@ impl<'de> CdrDeserializer<'de> {
     pub fn deserialize_i64(&mut self) -> CdrResult<i64> {
         self.read_padding_of::<i64>()?;
         let mut bytes = [0; 8];
-        self.reader.read(&mut bytes)?;
+        self.reader.read_exact(&mut bytes)?;
         match self.endianness {
             CdrEndianness::LittleEndian => Ok(i64::from_le_bytes(bytes)),
             CdrEndianness::BigEndian => Ok(i64::from_be_bytes(bytes)),
@@ -98,7 +98,7 @@ impl<'de> CdrDeserializer<'de> {
     pub fn deserialize_u8(&mut self) -> CdrResult<u8> {
         self.read_padding_of::<u8>()?;
         let mut bytes = [0; 1];
-        self.reader.read(&mut bytes)?;
+        self.reader.read_exact(&mut bytes)?;
         match self.endianness {
             CdrEndianness::LittleEndian => Ok(u8::from_le_bytes(bytes)),
             CdrEndianness::BigEndian => Ok(u8::from_be_bytes(bytes)),
@@ -108,7 +108,7 @@ impl<'de> CdrDeserializer<'de> {
     pub fn deserialize_u16(&mut self) -> CdrResult<u16> {
         self.read_padding_of::<u16>()?;
         let mut bytes = [0; 2];
-        self.reader.read(&mut bytes)?;
+        self.reader.read_exact(&mut bytes)?;
         match self.endianness {
             CdrEndianness::LittleEndian => Ok(u16::from_le_bytes(bytes)),
             CdrEndianness::BigEndian => Ok(u16::from_be_bytes(bytes)),
@@ -118,7 +118,7 @@ impl<'de> CdrDeserializer<'de> {
     pub fn deserialize_u32(&mut self) -> CdrResult<u32> {
         self.read_padding_of::<u32>()?;
         let mut bytes = [0; 4];
-        self.reader.read(&mut bytes)?;
+        self.reader.read_exact(&mut bytes)?;
         match self.endianness {
             CdrEndianness::LittleEndian => Ok(u32::from_le_bytes(bytes)),
             CdrEndianness::BigEndian => Ok(u32::from_be_bytes(bytes)),
@@ -128,7 +128,7 @@ impl<'de> CdrDeserializer<'de> {
     pub fn deserialize_u64(&mut self) -> CdrResult<u64> {
         self.read_padding_of::<u64>()?;
         let mut bytes = [0; 8];
-        self.reader.read(&mut bytes)?;
+        self.reader.read_exact(&mut bytes)?;
         match self.endianness {
             CdrEndianness::LittleEndian => Ok(u64::from_le_bytes(bytes)),
             CdrEndianness::BigEndian => Ok(u64::from_be_bytes(bytes)),
@@ -138,7 +138,7 @@ impl<'de> CdrDeserializer<'de> {
     pub fn deserialize_f32(&mut self) -> CdrResult<f32> {
         self.read_padding_of::<f32>()?;
         let mut bytes = [0; 4];
-        self.reader.read(&mut bytes)?;
+        self.reader.read_exact(&mut bytes)?;
         match self.endianness {
             CdrEndianness::LittleEndian => Ok(f32::from_le_bytes(bytes)),
             CdrEndianness::BigEndian => Ok(f32::from_be_bytes(bytes)),
@@ -148,7 +148,7 @@ impl<'de> CdrDeserializer<'de> {
     pub fn deserialize_f64(&mut self) -> CdrResult<f64> {
         self.read_padding_of::<f64>()?;
         let mut bytes = [0; 8];
-        self.reader.read(&mut bytes)?;
+        self.reader.read_exact(&mut bytes)?;
         match self.endianness {
             CdrEndianness::LittleEndian => Ok(f64::from_le_bytes(bytes)),
             CdrEndianness::BigEndian => Ok(f64::from_be_bytes(bytes)),
@@ -219,7 +219,7 @@ impl<'de> CdrDeserializer<'de> {
         } else {
             Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Byte array too small for received length"),
+                "Byte array too small for received length".to_string(),
             ))
         }
     }
@@ -236,7 +236,7 @@ impl<'de> CdrDeserializer<'de> {
         } else {
             Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Byte array too small for received length"),
+                "Byte array too small for received length".to_string(),
             ))
         }
     }

@@ -1611,7 +1611,7 @@ impl DataReaderActor {
         if publication_builtin_topic_data.topic_name() == self.topic_name
             && publication_builtin_topic_data.get_type_name() == self.type_name
         {
-            let instance_handle = discovered_writer_data.get_instance_handle().unwrap().into();
+            let instance_handle = discovered_writer_data.get_instance_handle().unwrap();
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &discovered_writer_data,

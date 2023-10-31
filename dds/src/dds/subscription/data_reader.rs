@@ -75,7 +75,7 @@ where
 {
     pub fn data(&'de self) -> DdsResult<Foo> {
         match self.data.as_ref() {
-            Some(data) => Ok(Foo::deserialize_data(&mut data.as_ref())?),
+            Some(data) => Ok(Foo::deserialize_data(data.as_ref())?),
             None => Err(DdsError::NoData),
         }
     }

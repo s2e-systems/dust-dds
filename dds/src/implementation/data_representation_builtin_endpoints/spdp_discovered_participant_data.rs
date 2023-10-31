@@ -14,7 +14,8 @@ use crate::{
     },
     infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},
     topic_definition::type_support::{
-        DdsDeserialize, DdsInstanceHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
+        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
+        DdsSerialize,
     },
 };
 
@@ -107,24 +108,24 @@ impl ParticipantProxy {
         builtin_endpoint_qos: BuiltinEndpointQos,
     ) -> Self {
         Self {
-            domain_id: DomainIdParameter::from(domain_id).into(),
-            domain_tag: DomainTag::from(domain_tag).into(),
-            protocol_version: protocol_version.into(),
-            guid_prefix: guid_prefix.into(),
-            vendor_id: vendor_id.into(),
+            domain_id: DomainIdParameter::from(domain_id),
+            domain_tag: DomainTag::from(domain_tag),
+            protocol_version,
+            guid_prefix,
+            vendor_id,
             expects_inline_qos,
-            metatraffic_unicast_locator_list: metatraffic_unicast_locator_list.into(),
-            metatraffic_multicast_locator_list: metatraffic_multicast_locator_list.into(),
-            default_unicast_locator_list: default_unicast_locator_list.into(),
-            default_multicast_locator_list: default_multicast_locator_list.into(),
-            available_builtin_endpoints: available_builtin_endpoints.into(),
-            manual_liveliness_count: manual_liveliness_count.into(),
-            builtin_endpoint_qos: builtin_endpoint_qos.into(),
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            available_builtin_endpoints,
+            manual_liveliness_count,
+            builtin_endpoint_qos,
         }
     }
 
     pub fn domain_id(&self) -> Option<DomainId> {
-        self.domain_id.as_ref().clone()
+        *self.domain_id.as_ref()
     }
 
     pub fn domain_tag(&self) -> &str {
@@ -231,8 +232,8 @@ impl DdsInstanceHandle for SpdpDiscoveredParticipantData {
 }
 
 impl DdsInstanceHandleFromSerializedData for SpdpDiscoveredParticipantData {
-    fn get_handle_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
-        Ok(Self::deserialize_data(&mut serialized_data)?
+    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
+        Ok(Self::deserialize_data(serialized_data)?
             .dds_participant_data
             .key()
             .value

@@ -27,7 +27,7 @@ fn get_parameter_attributes(
                 meta.path.span(),
                 format!(
                     r#"Unexpected element {}. Valid options are "id", "default", "collection", "skip_serialize"."#,
-                    meta.path.into_token_stream().to_string(),
+                    meta.path.into_token_stream(),
                 ),
             ))
         }
@@ -190,14 +190,12 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
                                     }
                                 }
                             }
+                        } else if is_tuple {
+                            field_deserialization.extend(quote!{dust_dds::cdr::parameter_list_deserialize::ParameterListDeserialize::deserialize(pl_deserializer)?,});
                         } else {
-                            if is_tuple {
-                                field_deserialization.extend(quote!{dust_dds::cdr::parameter_list_deserialize::ParameterListDeserialize::deserialize(pl_deserializer)?,});
-                            } else {
-                                let field_name =
-                                    field.ident.as_ref().expect("Should have named fields");
-                                field_deserialization.extend(quote!{#field_name: dust_dds::cdr::parameter_list_deserialize::ParameterListDeserialize::deserialize(pl_deserializer)?,});
-                            }
+                            let field_name =
+                                field.ident.as_ref().expect("Should have named fields");
+                            field_deserialization.extend(quote!{#field_name: dust_dds::cdr::parameter_list_deserialize::ParameterListDeserialize::deserialize(pl_deserializer)?,});
                         }
                     }
 

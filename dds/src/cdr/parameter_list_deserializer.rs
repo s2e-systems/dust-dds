@@ -48,16 +48,14 @@ impl<'a, 'de> ParameterIterator<'a, 'de> {
         if self.reader.len() < length {
             Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
-                format!("Not enough data to get parameter length"),
+                "Not enough data to get parameter length".to_string(),
             ))
+        } else if id == PID_SENTINEL {
+            Ok(None)
         } else {
-            if id == PID_SENTINEL {
-                Ok(None)
-            } else {
-                let data = &self.reader[..length];
-                self.reader.consume(length);
-                Ok(Some(Parameter { id, data }))
-            }
+            let data = &self.reader[..length];
+            self.reader.consume(length);
+            Ok(Some(Parameter { id, data }))
         }
     }
 }

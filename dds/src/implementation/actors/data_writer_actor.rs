@@ -565,7 +565,7 @@ impl DataWriterActor {
             .unwrap_or(HANDLE_NIL);
         let change = self.rtps_writer.new_change(
             ChangeKind::Alive,
-            serialized_data.into(),
+            serialized_data,
             ParameterList::empty(),
             handle,
             timestamp,
@@ -614,7 +614,7 @@ impl DataWriterActor {
                 discovered_reader_data.subscription_builtin_topic_data(),
                 &publisher_qos,
             );
-            let instance_handle = discovered_reader_data.get_instance_handle().unwrap().into();
+            let instance_handle = discovered_reader_data.get_instance_handle().unwrap();
 
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_reader_data

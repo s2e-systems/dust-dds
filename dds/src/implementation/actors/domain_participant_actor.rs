@@ -1106,7 +1106,8 @@ impl DomainParticipantActor {
                 reader_handle.as_ref(),
                 &mut instance_serialized_key,
                 CdrEndianness::LittleEndian,
-            ).expect("Failed to serialize data");
+            )
+            .expect("Failed to serialize data");
             sedp_subscriptions_announcer
                 .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
                     instance_serialized_key,
@@ -1142,7 +1143,7 @@ impl DomainParticipantActor {
             {
                 for (spdp_data_sample, _) in spdp_data_sample_list {
                     match SpdpDiscoveredParticipantData::deserialize_data(
-                        &mut spdp_data_sample.expect("Should contain data").as_ref(),
+                        spdp_data_sample.expect("Should contain data").as_ref(),
                     ) {
                         Ok(discovered_participant_data) => {
                             self.process_discovered_participant_data(discovered_participant_data)
@@ -1512,7 +1513,7 @@ impl DomainParticipantActor {
                     match discovered_writer_sample_info.instance_state {
                         InstanceStateKind::Alive => {
                             match DiscoveredWriterData::deserialize_data(
-                                &mut discovered_writer_data
+                                discovered_writer_data
                                     .expect("Should contain data")
                                     .as_ref(),
                             ) {
@@ -1706,7 +1707,7 @@ impl DomainParticipantActor {
                     match discovered_reader_sample_info.instance_state {
                         InstanceStateKind::Alive => {
                             match DiscoveredReaderData::deserialize_data(
-                                &mut discovered_reader_data
+                                discovered_reader_data
                                     .expect("Should contain data")
                                     .as_ref(),
                             ) {
@@ -1921,7 +1922,7 @@ impl DomainParticipantActor {
                     match discovered_topic_sample_info.instance_state {
                         InstanceStateKind::Alive => {
                             match DiscoveredTopicData::deserialize_data(
-                                &mut discovered_topic_data.expect("Should contain data").as_ref(),
+                                discovered_topic_data.expect("Should contain data").as_ref(),
                             ) {
                                 Ok(discovered_topic_data) => {
                                     self.add_matched_topic(discovered_topic_data).await;

@@ -123,8 +123,8 @@ impl DdsInstanceHandle for DiscoveredReaderData {
 }
 
 impl DdsInstanceHandleFromSerializedData for DiscoveredReaderData {
-    fn get_handle_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
-        Ok(Self::deserialize_data(&mut serialized_data)?
+    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
+        Ok(Self::deserialize_data(serialized_data)?
             .subscription_builtin_topic_data
             .key()
             .value
