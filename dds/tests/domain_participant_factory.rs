@@ -1,5 +1,4 @@
 use dust_dds::{
-    cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         listeners::NoOpListener,

@@ -102,7 +102,6 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         syn::Data::Struct(_data_struct) => {
             let format = get_format(input)?;
-
             let (_, type_generics, where_clause) = input.generics.split_for_impl();
 
             // Append the '__de lifetime to the impl generics of the struct
@@ -116,10 +115,21 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
 
             let ident = &input.ident;
 
+            let deserialize_function = match format {
+                Format::CdrLe | Format::CdrBe => {
+                    quote! {
+                        dust_dds::topic_definition::type_support::deserialize_rtps_cdr(&mut serialized_data)
+                    }
+                }
+                Format::PlCdrLe | Format::PlCdrBe => quote! {
+                    dust_dds::topic_definition::type_support::deserialize_rtps_cdr_pl(&mut serialized_data)
+                },
+            };
+
             Ok(quote! {
                 impl #generics dust_dds::topic_definition::type_support::DdsDeserialize<'__de> for #ident #type_generics #where_clause {
-                    fn deserialize_data(serialized_data: &'__de [u8]) -> dust_dds::infrastructure::error::DdsResult<Self> {
-                        todo!()
+                    fn deserialize_data(mut serialized_data: &'__de [u8]) -> dust_dds::infrastructure::error::DdsResult<Self> {
+                        #deserialize_function
                     }
                 }
             })

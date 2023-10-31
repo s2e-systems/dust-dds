@@ -44,6 +44,7 @@ impl From<BuiltInTopicKey> for [u8; 16] {
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
+#[dust_dds(format = "PL_CDR_LE")]
 pub struct ParticipantBuiltinTopicData {
     #[parameter(id = PID_PARTICIPANT_GUID)]
     key: BuiltInTopicKey,
@@ -72,6 +73,7 @@ impl DdsHasKey for ParticipantBuiltinTopicData {
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
+#[dust_dds(format = "PL_CDR_LE")]
 pub struct TopicBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
     key: BuiltInTopicKey,
@@ -211,6 +213,7 @@ impl DdsHasKey for TopicBuiltinTopicData {
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
+#[dust_dds(format = "PL_CDR_LE")]
 pub struct PublicationBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
     key: BuiltInTopicKey,
@@ -367,6 +370,7 @@ impl DdsHasKey for PublicationBuiltinTopicData {
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
+#[dust_dds(format = "PL_CDR_LE")]
 pub struct SubscriptionBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
     key: BuiltInTopicKey,
