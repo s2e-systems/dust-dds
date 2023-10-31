@@ -6,7 +6,8 @@ use crate::{
     },
     infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsInstanceHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
+        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
+        DdsSerialize,
     },
 };
 

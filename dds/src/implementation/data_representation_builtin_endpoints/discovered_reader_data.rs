@@ -7,7 +7,8 @@ use crate::{
     implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsInstanceHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
+        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
+        DdsSerialize,
     },
 };
 
@@ -20,13 +21,13 @@ pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
 #[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
 pub struct ReaderProxy {
-    #[parameter(id = PID_ENDPOINT_GUID)]
+    #[parameter(id = PID_ENDPOINT_GUID, skip_serialize)]
     remote_reader_guid: Guid,
     #[parameter(id = PID_GROUP_ENTITYID, default=Default::default())]
     remote_group_entity_id: EntityId,
-    #[parameter(id = PID_UNICAST_LOCATOR, serialize_elements)]
+    #[parameter(id = PID_UNICAST_LOCATOR, collection)]
     unicast_locator_list: Vec<Locator>,
-    #[parameter(id = PID_MULTICAST_LOCATOR, serialize_elements)]
+    #[parameter(id = PID_MULTICAST_LOCATOR, collection)]
     multicast_locator_list: Vec<Locator>,
     #[parameter(id = PID_EXPECTS_INLINE_QOS, default=DEFAULT_EXPECTS_INLINE_QOS)]
     expects_inline_qos: bool,

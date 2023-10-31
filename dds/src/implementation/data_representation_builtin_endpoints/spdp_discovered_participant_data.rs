@@ -71,13 +71,13 @@ pub struct ParticipantProxy {
     vendor_id: VendorId,
     #[parameter(id=PID_EXPECTS_INLINE_QOS, default=DEFAULT_EXPECTS_INLINE_QOS)]
     expects_inline_qos: bool,
-    #[parameter(id=PID_METATRAFFIC_UNICAST_LOCATOR, serialize_elements)]
+    #[parameter(id=PID_METATRAFFIC_UNICAST_LOCATOR, collection)]
     metatraffic_unicast_locator_list: Vec<Locator>,
-    #[parameter(id=PID_METATRAFFIC_MULTICAST_LOCATOR, serialize_elements)]
+    #[parameter(id=PID_METATRAFFIC_MULTICAST_LOCATOR, collection)]
     metatraffic_multicast_locator_list: Vec<Locator>,
-    #[parameter(id=PID_DEFAULT_UNICAST_LOCATOR, serialize_elements)]
+    #[parameter(id=PID_DEFAULT_UNICAST_LOCATOR, collection)]
     default_unicast_locator_list: Vec<Locator>,
-    #[parameter(id=PID_DEFAULT_MULTICAST_LOCATOR, serialize_elements)]
+    #[parameter(id=PID_DEFAULT_MULTICAST_LOCATOR, collection)]
     default_multicast_locator_list: Vec<Locator>,
     #[parameter(id=PID_BUILTIN_ENDPOINT_SET)]
     available_builtin_endpoints: BuiltinEndpointSet,

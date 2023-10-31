@@ -19,33 +19,16 @@ use super::parameter_id_values::{
 };
 #[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
 pub struct WriterProxy {
-    #[parameter(id = PID_ENDPOINT_GUID)]
+    #[parameter(id = PID_ENDPOINT_GUID,)]
     remote_writer_guid: Guid,
     #[parameter(id = PID_GROUP_ENTITYID, default=Default::default())]
     remote_group_entity_id: EntityId,
-    #[parameter(id = PID_UNICAST_LOCATOR, serialize_elements)]
+    #[parameter(id = PID_UNICAST_LOCATOR, collection)]
     unicast_locator_list: Vec<Locator>,
-    #[parameter(id = PID_MULTICAST_LOCATOR, serialize_elements)]
+    #[parameter(id = PID_MULTICAST_LOCATOR, collection)]
     multicast_locator_list: Vec<Locator>,
     #[parameter(id = PID_DATA_MAX_SIZE_SERIALIZED, default=Default::default())]
     data_max_size_serialized: i32,
-}
-
-impl CdrSerialize for WriterProxy {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
-        // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
-        self.remote_group_entity_id.serialize(serializer)?;
-        self.unicast_locator_list.serialize(serializer)?;
-        self.multicast_locator_list.serialize(serializer)?;
-        self.data_max_size_serialized.serialize(serializer)?;
-        Ok(())
-    }
-}
-
-impl<'de> CdrDeserialize<'de> for WriterProxy {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
-        todo!()
-    }
 }
 
 impl WriterProxy {

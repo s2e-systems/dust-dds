@@ -17,10 +17,23 @@ use dust_dds::{
     },
     topic_definition::type_support::DdsType,
 };
+use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
 
-#[derive(DdsType, Debug)]
+#[derive(DdsType, Debug, ParameterListSerialize, ParameterListDeserialize)]
+#[dust_dds(format = "PL_CDR_LE")]
 struct BestEffortExampleType {
+    #[parameter(id = 1)]
     id: i32,
+}
+
+impl<'__de> dust_dds::topic_definition::type_support::DdsDeserialize<'__de>
+    for BestEffortExampleType
+{
+    fn deserialize_data(
+        mut serialized_data: &'__de [u8],
+    ) -> dust_dds::infrastructure::error::DdsResult<Self> {
+        dust_dds::topic_definition::type_support::deserialize_rtps(&mut serialized_data)
+    }
 }
 
 struct Listener {

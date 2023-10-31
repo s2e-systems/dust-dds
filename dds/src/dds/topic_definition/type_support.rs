@@ -190,6 +190,47 @@ pub fn serialize_rtps_cdr_pl(
     Ok(())
 }
 
+pub fn deserialize_rtps<'de, T>(serialized_data: &mut &'de [u8]) -> DdsResult<T>
+where
+    T: CdrDeserialize<'de> + ParameterListDeserialize<'de>,
+{
+    let mut representation_identifier = [0u8, 0];
+    serialized_data
+        .read_exact(&mut representation_identifier)
+        .map_err(|err| DdsError::Error(err.to_string()))?;
+
+    let mut representation_option = [0u8, 0];
+    serialized_data
+        .read_exact(&mut representation_option)
+        .map_err(|err| DdsError::Error(err.to_string()))?;
+
+    let value = match representation_identifier {
+        CDR_BE => {
+            let mut deserializer = CdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
+            Ok(CdrDeserialize::deserialize(&mut deserializer)?)
+        }
+        CDR_LE => {
+            let mut deserializer =
+                CdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+            Ok(CdrDeserialize::deserialize(&mut deserializer)?)
+        }
+        PL_CDR_BE => {
+            let mut deserializer =
+                ParameterListDeserializer::new(serialized_data, CdrEndianness::BigEndian);
+            Ok(ParameterListDeserialize::deserialize(&mut deserializer)?)
+        }
+        PL_CDR_LE => {
+            let mut deserializer =
+                ParameterListDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+            Ok(ParameterListDeserialize::deserialize(&mut deserializer)?)
+        }
+        _ => Err(DdsError::Error(
+            "Unknownn representation identifier".to_string(),
+        )),
+    }?;
+    Ok(value)
+}
+
 pub fn deserialize_rtps_cdr<'de, T>(serialized_data: &mut &'de [u8]) -> DdsResult<T>
 where
     T: CdrDeserialize<'de>,
