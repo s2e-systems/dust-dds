@@ -93,12 +93,11 @@ mod tests {
         .unwrap();
 
         let output_token_stream = expand_cdr_deserialize(&input).unwrap();
-        println!("{:?}", output_token_stream.to_string());
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
             impl<'__de> dust_dds::cdr::deserialize::CdrDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: &mut impl dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::DdsResult<Self> {
+                fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
                     Ok(Self {
                         x: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
                         y: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
@@ -111,7 +110,13 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(result, expected);
+        assert_eq!(
+            result,
+            expected,
+            "\n R: {:?} \n \n L: {:?} \n ",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
     }
 
     #[test]
