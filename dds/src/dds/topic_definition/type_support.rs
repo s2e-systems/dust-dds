@@ -30,6 +30,7 @@ use crate::{
         parameter_list_serializer::ParameterListSerializer, serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
+    implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -187,6 +188,7 @@ pub fn serialize_rtps_cdr_pl(
     writer.write_all(&REPRESENTATION_OPTIONS)?;
     let mut serializer = ParameterListSerializer::new(writer, endianness);
     ParameterListSerialize::serialize(value, &mut serializer)?;
+    serializer.write(PID_SENTINEL, &())?;
     Ok(())
 }
 

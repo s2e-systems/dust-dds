@@ -375,7 +375,7 @@ pub struct SubscriptionBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
     key: BuiltInTopicKey,
     // Default value is a deviation from the standard and is used for interoperability reasons:
-    #[parameter(id = PID_ENDPOINT_GUID, default = BuiltInTopicKey::default())]
+    #[parameter(id = PID_PARTICIPANT_GUID, default = BuiltInTopicKey::default())]
     participant_key: BuiltInTopicKey, //ParameterWithDefault<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
     #[parameter(id = PID_TOPIC_NAME)]
     topic_name: String,

@@ -51,8 +51,13 @@ impl DdsInstanceHandle for DiscoveredTopicData {
 }
 
 impl DdsInstanceHandleFromSerializedData for DiscoveredTopicData {
-    fn get_handle_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
-        todo!()
+    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
+        Ok(Self::deserialize_data(serialized_data)?
+            .topic_builtin_topic_data
+            .key()
+            .value
+            .as_ref()
+            .into())
     }
 }
 

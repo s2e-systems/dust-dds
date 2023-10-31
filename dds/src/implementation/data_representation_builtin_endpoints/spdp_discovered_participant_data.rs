@@ -65,7 +65,7 @@ pub struct ParticipantProxy {
     domain_tag: DomainTag,
     #[parameter(id=PID_PROTOCOL_VERSION)]
     protocol_version: ProtocolVersion,
-    #[parameter(id=PID_PARTICIPANT_GUID)]
+    #[parameter(id=PID_PARTICIPANT_GUID, skip_serialize)]
     guid_prefix: GuidPrefix,
     #[parameter(id=PID_VENDORID)]
     vendor_id: VendorId,

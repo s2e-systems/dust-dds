@@ -2,14 +2,11 @@ use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
 
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    cdr::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
-        serialize::CdrSerialize, serializer::CdrSerializer,
-    },
     implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsInstanceHandleFromSerializedData, DdsHasKey, DdsInstanceHandle, DdsSerialize,
+        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
+        DdsSerialize,
     },
 };
 
@@ -19,7 +16,7 @@ use super::parameter_id_values::{
 };
 #[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
 pub struct WriterProxy {
-    #[parameter(id = PID_ENDPOINT_GUID,)]
+    #[parameter(id = PID_ENDPOINT_GUID, skip_serialize)]
     remote_writer_guid: Guid,
     #[parameter(id = PID_GROUP_ENTITYID, default=Default::default())]
     remote_group_entity_id: EntityId,
