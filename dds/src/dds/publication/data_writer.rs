@@ -262,10 +262,9 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        todo!()
-        // self.writer_address.send_mail_and_await_reply_blocking(
-        //     data_writer_actor::lookup_instance::new(instance.get_instance_handle()?),
-        // )?
+        self.writer_address.send_mail_and_await_reply_blocking(
+            data_writer_actor::lookup_instance::new(instance.get_instance_handle()?),
+        )?
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -326,15 +325,14 @@ where
         let mut serialized_data = Vec::new();
         data.serialize_data(&mut serialized_data)?;
 
-        todo!();
-        // self.writer_address.send_mail_and_await_reply_blocking(
-        //     data_writer_actor::write_w_timestamp::new(
-        //         serialized_data,
-        //         data.get_instance_handle()?,
-        //         handle,
-        //         timestamp,
-        //     ),
-        // )??;
+        self.writer_address.send_mail_and_await_reply_blocking(
+            data_writer_actor::write_w_timestamp::new(
+                serialized_data,
+                data.get_instance_handle()?,
+                handle,
+                timestamp,
+            ),
+        )??;
 
         self.participant_address
             .send_mail_blocking(domain_participant_actor::send_message::new())?;

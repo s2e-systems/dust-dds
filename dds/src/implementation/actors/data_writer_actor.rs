@@ -56,7 +56,7 @@ use crate::{
         },
         time::DurationKind,
     },
-    topic_definition::type_support::{DdsInstanceHandle, DdsSerializedKey},
+    topic_definition::type_support::DdsInstanceHandle,
     {
         builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
@@ -223,7 +223,7 @@ pub struct DataWriterActor {
     status_kind: Vec<StatusKind>,
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
-    registered_instance_list: HashMap<InstanceHandle, DdsSerializedKey>,
+    registered_instance_list: HashSet<InstanceHandle>,
 }
 
 impl DataWriterActor {
@@ -251,7 +251,7 @@ impl DataWriterActor {
             status_kind,
             writer_cache: WriterHistoryCache::new(),
             qos,
-            registered_instance_list: HashMap::new(),
+            registered_instance_list: HashSet::new(),
         }
     }
 
@@ -359,19 +359,16 @@ impl DataWriterActor {
 
     async fn register_instance_w_timestamp(
         &mut self,
-        instance_serialized_key: DdsSerializedKey,
+        instance_handle: InstanceHandle,
         _timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        let instance_handle = todo!(); //instance_serialized_key.clone().into();
-
-        if !self.registered_instance_list.contains_key(&instance_handle) {
+        if !self.registered_instance_list.contains(&instance_handle) {
             if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
-                self.registered_instance_list
-                    .insert(instance_handle, instance_serialized_key);
+                self.registered_instance_list.insert(instance_handle);
             } else {
                 return Err(DdsError::OutOfResources);
             }
@@ -423,15 +420,14 @@ impl DataWriterActor {
 
     async fn lookup_instance(
         &self,
-        instance_serialized_key: DdsSerializedKey,
+        instance_handle: InstanceHandle,
     ) -> DdsResult<Option<InstanceHandle>> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
-        let instance_handle = todo!(); //instance_serialized_key.into();
 
         Ok(
-            if self.registered_instance_list.contains_key(&instance_handle) {
+            if self.registered_instance_list.contains(&instance_handle) {
                 Some(instance_handle)
             } else {
                 None
@@ -559,12 +555,12 @@ impl DataWriterActor {
     async fn write_w_timestamp(
         &mut self,
         serialized_data: Vec<u8>,
-        instance_serialized_key: DdsSerializedKey,
+        instance_handle: InstanceHandle,
         _handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
         let handle = self
-            .register_instance_w_timestamp(instance_serialized_key, timestamp)
+            .register_instance_w_timestamp(instance_handle, timestamp)
             .await?
             .unwrap_or(HANDLE_NIL);
         let change = self.rtps_writer.new_change(

@@ -932,18 +932,18 @@ impl DomainParticipant {
                                         domain_participant_actor::get_current_time::new(),
                                     )
                                     .await?;
-                                todo!();
-                                // data_writer
-                                //     .send_mail_and_await_reply(
-                                //         data_writer_actor::write_w_timestamp::new(
-                                //             serialized_data,
-                                //             spdp_discovered_participant_data.get_instance_handle()
-                                //                 .unwrap(),
-                                //             None,
-                                //             timestamp,
-                                //         ),
-                                //     )
-                                //     .await??;
+
+                                data_writer
+                                    .send_mail_and_await_reply(
+                                        data_writer_actor::write_w_timestamp::new(
+                                            serialized_data,
+                                            spdp_discovered_participant_data.get_instance_handle()
+                                                .unwrap(),
+                                            None,
+                                            timestamp,
+                                        ),
+                                    )
+                                    .await??;
 
 
                                 domain_participant_address.send_mail(domain_participant_actor::send_message::new()).await?;

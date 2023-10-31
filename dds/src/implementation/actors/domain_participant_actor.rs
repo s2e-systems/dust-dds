@@ -3,6 +3,7 @@ use tracing::warn;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    cdr::endianness::CdrEndianness,
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -68,7 +69,8 @@ use crate::{
     topic_definition::{
         topic_listener::TopicListener,
         type_support::{
-            DdsDeserialize, DdsInstanceHandleFromSerializedData, DdsInstanceHandle, DdsSerialize,
+            serialize_rtps_cdr, DdsDeserialize, DdsInstanceHandle,
+            DdsInstanceHandleFromSerializedData, DdsSerialize,
         },
     },
     {
@@ -230,7 +232,9 @@ impl DomainParticipantActor {
             spdp_reader_qos,
             Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
-            InstanceHandleBuilder::new(SpdpDiscoveredParticipantData::get_handle_from_serialized_data),
+            InstanceHandleBuilder::new(
+                SpdpDiscoveredParticipantData::get_handle_from_serialized_data,
+            ),
         ));
 
         let sedp_reader_qos = DataReaderQos {
@@ -1022,20 +1026,19 @@ impl DomainParticipantActor {
             discovered_writer_data
                 .serialize_data(&mut serialized_data)
                 .expect("Shouldn't fail to serialize builtin type");
-            let instance_serialized_key = discovered_writer_data
+            let instance_handle = discovered_writer_data
                 .get_instance_handle()
                 .expect("Shouldn't fail to serialize key of builtin type");
-            todo!()
-            // sedp_publications_announcer
-            //     .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
-            //         serialized_data,
-            //         instance_serialized_key,
-            //         None,
-            //         timestamp,
-            //     ))
-            //     .await
-            //     .expect("Shouldn't fail to send to built-in data writer")
-            //     .expect("Shouldn't fail to write to built-in data writer");
+            sedp_publications_announcer
+                .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
+                    serialized_data,
+                    instance_handle,
+                    None,
+                    timestamp,
+                ))
+                .await
+                .expect("Shouldn't fail to send to built-in data writer")
+                .expect("Shouldn't fail to write to built-in data writer");
         }
     }
 
@@ -1047,19 +1050,22 @@ impl DomainParticipantActor {
             ))
             .await
         {
-            todo!()
-            // let timestamp = self.get_current_time().await;
-            // let instance_serialized_key =
-            //     cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
-            //         .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-            //         .expect("Failed to serialize data");
-            // sedp_publications_announcer
-            //     .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
-            //         instance_serialized_key,
-            //         writer_handle,
-            //         timestamp,
-            //     ))
-            //     .await?
+            let timestamp = self.get_current_time().await;
+            let mut instance_serialized_key = Vec::new();
+            serialize_rtps_cdr(
+                writer_handle.as_ref(),
+                &mut instance_serialized_key,
+                CdrEndianness::LittleEndian,
+            )
+            .expect("Failed to serialize data");
+
+            sedp_publications_announcer
+                .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
+                    instance_serialized_key,
+                    writer_handle,
+                    timestamp,
+                ))
+                .await?
         } else {
             Ok(())
         }
@@ -1094,19 +1100,20 @@ impl DomainParticipantActor {
             ))
             .await
         {
-            todo!()
-            // let timestamp = self.get_current_time().await;
-            // let instance_serialized_key =
-            //     cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
-            //         .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-            //         .expect("Failed to serialize data");
-            // sedp_subscriptions_announcer
-            //     .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
-            //         instance_serialized_key,
-            //         reader_handle,
-            //         timestamp,
-            //     ))
-            //     .await?
+            let timestamp = self.get_current_time().await;
+            let mut instance_serialized_key = Vec::new();
+            serialize_rtps_cdr(
+                reader_handle.as_ref(),
+                &mut instance_serialized_key,
+                CdrEndianness::LittleEndian,
+            ).expect("Failed to serialize data");
+            sedp_subscriptions_announcer
+                .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
+                    instance_serialized_key,
+                    reader_handle,
+                    timestamp,
+                ))
+                .await?
         } else {
             Ok(())
         }

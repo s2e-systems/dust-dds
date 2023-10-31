@@ -13,8 +13,8 @@ impl Default for InstanceHandle {
 /// Special constant value representing a 'nil' [`InstanceHandle`]
 pub const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);
 
-impl AsRef<[u8]> for InstanceHandle {
-    fn as_ref(&self) -> &[u8] {
+impl AsRef<[u8; 16]> for InstanceHandle {
+    fn as_ref(&self) -> &[u8; 16] {
         &self.0
     }
 }
