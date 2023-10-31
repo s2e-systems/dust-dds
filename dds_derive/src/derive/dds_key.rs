@@ -195,7 +195,7 @@ pub fn expand_dds_instance_handle_from_serialized_data(input: &DeriveInput) -> R
                         dust_dds::infrastructure::instance::InstanceHandle
                     > {
                         dust_dds::topic_definition::type_support::DdsInstanceHandle::get_instance_handle(
-                            &<Self as dust_dds::topic_definition::type_support::DdsDeserialize>::deserialize_data(serialized_data)?
+                            &<#ident as dust_dds::topic_definition::type_support::DdsDeserialize>::deserialize_data(serialized_data)?
                         )
                     }
                 }

@@ -8,14 +8,19 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             let mut struct_deserialization = quote!();
             let (_, type_generics, where_clause) = input.generics.split_for_impl();
 
+            // Create a '__de lifetime bound to all the lifetimes of the struct
+            let mut de_lifetime_param =
+                syn::LifetimeParam::new(syn::Lifetime::new("'__de", Span::call_site()));
+            for struct_lifetime in input.generics.lifetimes().cloned() {
+                de_lifetime_param.bounds.push(struct_lifetime.lifetime);
+            }
+
             // Append the '__de lifetime to the impl generics of the struct
             let mut generics = input.generics.clone();
-            generics.params = Some(syn::GenericParam::Lifetime(syn::LifetimeParam::new(
-                syn::Lifetime::new("'__de", Span::call_site()),
-            )))
-            .into_iter()
-            .chain(generics.params)
-            .collect();
+            generics.params = Some(syn::GenericParam::Lifetime(de_lifetime_param))
+                .into_iter()
+                .chain(generics.params)
+                .collect();
 
             let ident = &input.ident;
 
@@ -125,7 +130,7 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(expand_cdr_deserialize(&input).unwrap()).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de, 'a> dust_dds::cdr::deserialize::CdrDeserialize<'__de> for BorrowedData<'a> where '__de: 'a{
+            impl<'__de : 'a, 'a> dust_dds::cdr::deserialize::CdrDeserialize<'__de> for BorrowedData<'a> {
                 fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
                     Ok(Self {
                         data: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
