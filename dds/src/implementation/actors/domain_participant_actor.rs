@@ -69,7 +69,7 @@ use crate::{
     topic_definition::{
         topic_listener::TopicListener,
         type_support::{
-            serialize_rtps_cdr, DdsDeserialize, DdsInstanceHandle,
+            serialize_rtps_classic_cdr, DdsDeserialize, DdsInstanceHandle,
             DdsInstanceHandleFromSerializedData, DdsSerialize,
         },
     },
@@ -1052,7 +1052,7 @@ impl DomainParticipantActor {
         {
             let timestamp = self.get_current_time().await;
             let mut instance_serialized_key = Vec::new();
-            serialize_rtps_cdr(
+            serialize_rtps_classic_cdr(
                 writer_handle.as_ref(),
                 &mut instance_serialized_key,
                 CdrEndianness::LittleEndian,
@@ -1102,7 +1102,7 @@ impl DomainParticipantActor {
         {
             let timestamp = self.get_current_time().await;
             let mut instance_serialized_key = Vec::new();
-            serialize_rtps_cdr(
+            serialize_rtps_classic_cdr(
                 reader_handle.as_ref(),
                 &mut instance_serialized_key,
                 CdrEndianness::LittleEndian,

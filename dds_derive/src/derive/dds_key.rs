@@ -90,7 +90,7 @@ pub fn expand_dds_serialize_key(input: &DeriveInput) -> Result<TokenStream> {
                             #borrowed_key_holder_fields
                         }
 
-                        dust_dds::topic_definition::type_support::serialize_rtps_cdr(
+                        dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr(
                             &__borrowed_key_holder{
                                 #borrowed_key_holder_field_assignment
                             },

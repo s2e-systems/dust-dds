@@ -51,13 +51,13 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let format = get_format(input)?;
             let serialize_function = match format {
                 Format::CdrLe => quote! {
-                    dust_dds::topic_definition::type_support::serialize_rtps_cdr(
+                    dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr(
                         self,
                         writer,
                         dust_dds::cdr::endianness::CdrEndianness::LittleEndian,
                 )},
                 Format::CdrBe => quote! {
-                    dust_dds::topic_definition::type_support::serialize_rtps_cdr(
+                    dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr(
                         self,
                         writer,
                         dust_dds::cdr::endianness::CdrEndianness::BigEndian,
@@ -123,7 +123,7 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let deserialize_function = match format {
                 Format::CdrLe | Format::CdrBe => {
                     quote! {
-                        dust_dds::topic_definition::type_support::deserialize_rtps_cdr(&mut serialized_data)
+                        dust_dds::topic_definition::type_support::deserialize_rtps_classic_cdr(&mut serialized_data)
                     }
                 }
                 Format::PlCdrLe | Format::PlCdrBe => quote! {
