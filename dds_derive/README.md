@@ -10,9 +10,8 @@ A typical user DDS type will look like this:
 
 ```rust
 use dust_dds::topic_definition::type_support::{DdsType}
-use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, DdsType)]
+#[derive(DdsType)]
 struct HelloWorldType {
     #[dust_dds(key)]
     id: u8,
