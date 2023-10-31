@@ -14,11 +14,9 @@ use dust_dds::{
     topic_definition::type_support::DdsType,
 };
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Deserialize, Serialize, DdsType)]
+#[derive(DdsType)]
 struct HelloWorldType {
-    #[key]
+    #[dust_dds(key)]
     id: u8,
     msg: String,
 }
@@ -28,12 +26,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant

@@ -1,13 +1,14 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::{
-        parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
-        rtps::types::{EntityId, Guid, Locator},
+    cdr::{
+        parameter_list_deserialize::ParameterListDeserialize,
+        parameter_list_serialize::ParameterListSerialize,
     },
-    infrastructure::error::DdsResult,
+    implementation::rtps::types::{EntityId, Guid, Locator},
+    infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-        DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
+        DdsSerialize,
     },
 };
 
@@ -18,30 +19,18 @@ use super::parameter_id_values::{
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    derive_more::From,
-    derive_more::AsRef,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-struct ExpectsInlineQos(bool);
-impl Default for ExpectsInlineQos {
-    fn default() -> Self {
-        Self(DEFAULT_EXPECTS_INLINE_QOS)
-    }
-}
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
 pub struct ReaderProxy {
-    #[serde(skip_serializing)]
-    remote_reader_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
-    remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
-    unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
-    multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
-    expects_inline_qos: ParameterWithDefault<PID_EXPECTS_INLINE_QOS, ExpectsInlineQos>,
+    #[parameter(id = PID_ENDPOINT_GUID, skip_serialize)]
+    remote_reader_guid: Guid,
+    #[parameter(id = PID_GROUP_ENTITYID, default=Default::default())]
+    remote_group_entity_id: EntityId,
+    #[parameter(id = PID_UNICAST_LOCATOR, collection)]
+    unicast_locator_list: Vec<Locator>,
+    #[parameter(id = PID_MULTICAST_LOCATOR, collection)]
+    multicast_locator_list: Vec<Locator>,
+    #[parameter(id = PID_EXPECTS_INLINE_QOS, default=DEFAULT_EXPECTS_INLINE_QOS)]
+    expects_inline_qos: bool,
 }
 
 impl ReaderProxy {
@@ -53,20 +42,20 @@ impl ReaderProxy {
         expects_inline_qos: bool,
     ) -> Self {
         Self {
-            remote_reader_guid: remote_reader_guid.into(),
-            remote_group_entity_id: remote_group_entity_id.into(),
-            unicast_locator_list: unicast_locator_list.into(),
-            multicast_locator_list: multicast_locator_list.into(),
-            expects_inline_qos: ExpectsInlineQos::from(expects_inline_qos).into(),
+            remote_reader_guid,
+            remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            expects_inline_qos,
         }
     }
 
     pub fn remote_reader_guid(&self) -> Guid {
-        *self.remote_reader_guid.as_ref()
+        self.remote_reader_guid
     }
 
     pub fn remote_group_entity_id(&self) -> EntityId {
-        *self.remote_group_entity_id.as_ref()
+        self.remote_group_entity_id
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
@@ -78,11 +67,21 @@ impl ReaderProxy {
     }
 
     pub fn expects_inline_qos(&self) -> bool {
-        *self.expects_inline_qos.as_ref().as_ref()
+        self.expects_inline_qos
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    DdsSerialize,
+    DdsDeserialize,
+    ParameterListSerialize,
+    ParameterListDeserialize,
+)]
+#[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredReaderData {
     reader_proxy: ReaderProxy,
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
@@ -112,28 +111,24 @@ impl DdsHasKey for DiscoveredReaderData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsRepresentation for DiscoveredReaderData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
-}
-
-impl DdsGetKeyFromFoo for DiscoveredReaderData {
-    fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {
+impl DdsInstanceHandle for DiscoveredReaderData {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(self
             .subscription_builtin_topic_data
             .key()
             .value
-            .to_vec()
+            .as_ref()
             .into())
     }
 }
 
-impl DdsGetKeyFromSerializedData for DiscoveredReaderData {
-    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
-        Ok(Self::deserialize_data(&mut serialized_data)?
+impl DdsInstanceHandleFromSerializedData for DiscoveredReaderData {
+    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
+        Ok(Self::deserialize_data(serialized_data)?
             .subscription_builtin_topic_data
             .key()
             .value
-            .to_vec()
+            .as_ref()
             .into())
     }
 }
@@ -141,17 +136,19 @@ impl DdsGetKeyFromSerializedData for DiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builtin_topics::BuiltInTopicKey;
-    use crate::implementation::rtps::types::{
-        BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
+    use crate::{
+        builtin_topics::BuiltInTopicKey,
+        implementation::rtps::types::{
+            BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
+        },
+        infrastructure::qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+            LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+            PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        },
+        topic_definition::type_support::DdsSerialize,
     };
-    use crate::infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-        LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-    };
-    use crate::topic_definition::type_support::{DdsDeserialize, DdsSerialize};
 
     #[test]
     fn serialize_all_default() {

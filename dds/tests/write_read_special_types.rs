@@ -1,5 +1,4 @@
 mod utils;
-use std::borrow::Cow;
 
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
@@ -19,12 +18,11 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[test]
 fn foo_with_lifetime_should_read_and_write() {
-    #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+    #[derive(Clone, Debug, PartialEq, DdsType)]
     struct BorrowedData<'a> {
-        #[key]
+        #[dust_dds(key)]
         id: u8,
-        #[serde(borrow)]
-        value: Cow<'a, [u8]>,
+        value: &'a [u8],
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -94,7 +92,7 @@ fn foo_with_lifetime_should_read_and_write() {
     let data_vec = vec![1, 2, 3, 4];
     let data = BorrowedData {
         id: 1,
-        value: Cow::from(&data_vec),
+        value: &data_vec,
     };
 
     writer.write(&data, None).unwrap();
@@ -113,12 +111,12 @@ fn foo_with_lifetime_should_read_and_write() {
 
 #[test]
 fn foo_with_non_consecutive_key_should_read_and_write() {
-    #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+    #[derive(Clone, Debug, PartialEq, DdsType)]
     struct NonConsecutiveKey {
-        #[key]
+        #[dust_dds(key)]
         id: u32,
         value: Vec<u8>,
-        #[key]
+        #[dust_dds(key)]
         another_id: u64,
     }
 

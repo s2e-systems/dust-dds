@@ -35,6 +35,12 @@ pub enum DdsError {
     IllegalOperation,
 }
 
+impl From<std::io::Error> for DdsError {
+    fn from(value: std::io::Error) -> Self {
+        DdsError::Error(value.to_string())
+    }
+}
+
 /// Return code representing the different errors
 pub type ReturnCode = i32;
 

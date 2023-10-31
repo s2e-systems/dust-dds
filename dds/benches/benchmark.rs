@@ -16,9 +16,9 @@ use dust_dds::{
     topic_definition::type_support::DdsType,
 };
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(Clone, Debug, PartialEq, DdsType)]
 struct KeyedData {
-    #[key]
+    #[dust_dds(key)]
     id: u8,
     value: u8,
 }
@@ -26,12 +26,7 @@ struct KeyedData {
 pub fn best_effort_write_only(c: &mut Criterion) {
     let domain_id = 200;
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic(
@@ -75,12 +70,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
 pub fn best_effort_read_only(c: &mut Criterion) {
     let domain_id = 201;
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic(
@@ -142,12 +132,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     let domain_id = 202;
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic(

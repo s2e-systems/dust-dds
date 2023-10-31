@@ -1,13 +1,12 @@
+use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
+
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    implementation::{
-        parameter_list_serde::parameter::{Parameter, ParameterVector, ParameterWithDefault},
-        rtps::types::{EntityId, Guid, Locator},
-    },
-    infrastructure::error::DdsResult,
+    implementation::rtps::types::{EntityId, Guid, Locator},
+    infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-        DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
+        DdsSerialize,
     },
 };
 
@@ -15,15 +14,18 @@ use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_ENDPOINT_GUID, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
     PID_UNICAST_LOCATOR,
 };
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
 pub struct WriterProxy {
-    // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
-    #[serde(skip_serializing)]
-    remote_writer_guid: Parameter<PID_ENDPOINT_GUID, Guid>,
-    remote_group_entity_id: ParameterWithDefault<PID_GROUP_ENTITYID, EntityId>,
-    unicast_locator_list: ParameterVector<PID_UNICAST_LOCATOR, Locator>,
-    multicast_locator_list: ParameterVector<PID_MULTICAST_LOCATOR, Locator>,
-    data_max_size_serialized: ParameterWithDefault<PID_DATA_MAX_SIZE_SERIALIZED, i32>,
+    #[parameter(id = PID_ENDPOINT_GUID, skip_serialize)]
+    remote_writer_guid: Guid,
+    #[parameter(id = PID_GROUP_ENTITYID, default=Default::default())]
+    remote_group_entity_id: EntityId,
+    #[parameter(id = PID_UNICAST_LOCATOR, collection)]
+    unicast_locator_list: Vec<Locator>,
+    #[parameter(id = PID_MULTICAST_LOCATOR, collection)]
+    multicast_locator_list: Vec<Locator>,
+    #[parameter(id = PID_DATA_MAX_SIZE_SERIALIZED, default=Default::default())]
+    data_max_size_serialized: i32,
 }
 
 impl WriterProxy {
@@ -35,20 +37,20 @@ impl WriterProxy {
         data_max_size_serialized: Option<i32>,
     ) -> Self {
         Self {
-            remote_writer_guid: remote_writer_guid.into(),
-            remote_group_entity_id: remote_group_entity_id.into(),
-            unicast_locator_list: unicast_locator_list.into(),
-            multicast_locator_list: multicast_locator_list.into(),
-            data_max_size_serialized: data_max_size_serialized.unwrap_or_default().into(),
+            remote_writer_guid,
+            remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            data_max_size_serialized: data_max_size_serialized.unwrap_or_default(),
         }
     }
 
     pub fn remote_writer_guid(&self) -> Guid {
-        *self.remote_writer_guid.as_ref()
+        self.remote_writer_guid
     }
 
     pub fn remote_group_entity_id(&self) -> EntityId {
-        *self.remote_group_entity_id.as_ref()
+        self.remote_group_entity_id
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
@@ -60,11 +62,21 @@ impl WriterProxy {
     }
 
     pub fn data_max_size_serialized(&self) -> Option<i32> {
-        Some(*self.data_max_size_serialized.as_ref())
+        Some(self.data_max_size_serialized)
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    ParameterListSerialize,
+    ParameterListDeserialize,
+    DdsSerialize,
+    DdsDeserialize,
+)]
+#[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,
@@ -96,23 +108,19 @@ impl DdsHasKey for DiscoveredWriterData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsRepresentation for DiscoveredWriterData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
-}
-
-impl DdsGetKeyFromFoo for DiscoveredWriterData {
-    fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {
-        Ok(self.dds_publication_data.key().value.to_vec().into())
+impl DdsInstanceHandle for DiscoveredWriterData {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        Ok(self.dds_publication_data.key().value.as_ref().into())
     }
 }
 
-impl DdsGetKeyFromSerializedData for DiscoveredWriterData {
-    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
-        Ok(Self::deserialize_data(&mut serialized_data)?
+impl DdsInstanceHandleFromSerializedData for DiscoveredWriterData {
+    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
+        Ok(Self::deserialize_data(serialized_data)?
             .dds_publication_data
             .key()
             .value
-            .to_vec()
+            .as_ref()
             .into())
     }
 }
@@ -129,7 +137,7 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
-    use crate::topic_definition::type_support::{DdsDeserialize, DdsSerialize};
+    use crate::topic_definition::type_support::DdsSerialize;
 
     use super::*;
 

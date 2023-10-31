@@ -40,7 +40,7 @@ pub fn type_spec(t: idl::Type) -> String {
 }
 
 pub fn struct_member(member: idl::StructMember) -> String {
-    let key_tag = if member.is_key { "#[key] " } else { "" };
+    let key_tag = if member.is_key { "#[dust_dds(key)] " } else { "" };
     format!(
         "{}pub {}: {}",
         key_tag,
@@ -51,7 +51,7 @@ pub fn struct_member(member: idl::StructMember) -> String {
 
 pub fn struct_def(def: idl::Struct) -> impl Iterator<Item = String> {
     [
-        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsType)]\n".to_string(),
+        "#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\n".to_string(),
         format!("pub struct {} {{\n", def.name),
     ]
         .into_iter()
@@ -65,7 +65,7 @@ pub fn struct_def(def: idl::Struct) -> impl Iterator<Item = String> {
 
 pub fn enum_def(def: idl::Enum) -> impl Iterator<Item = String> {
     [
-        "#[derive(Debug, serde::Deserialize, serde::Serialize)]\n".to_string(),
+        "#[derive(Debug)]\n".to_string(),
         format!("pub enum {} {{\n", def.name),
     ]
     .into_iter()
@@ -128,7 +128,7 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsType)]\n",
+                "#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\n",
                 "pub struct Toto {\n",
                 "    pub a: i64,\n",
                 "    pub b: char,\n",
@@ -152,7 +152,7 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(Debug, serde::Deserialize, serde::Serialize)]\n",
+                "#[derive(Debug)]\n",
                 "pub enum Suit {\n",
                 "    Spades,\n",
                 "    Hearts,\n",
@@ -189,12 +189,12 @@ mod tests {
             .collect::<Vec<String>>(),
             vec![
                 "mod M {\n",
-                "    #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsType)]\n",
+                "    #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\n",
                 "    pub struct A {\n",
                 "        pub a: i16,\n",
                 "    }\n",
                 "    mod N {\n",
-                "        #[derive(Debug, serde::Deserialize, serde::Serialize)]\n",
+                "        #[derive(Debug)]\n",
                 "        pub enum B {\n",
                 "            C,\n",
                 "            D,\n",

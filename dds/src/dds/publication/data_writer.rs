@@ -25,7 +25,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsGetKeyFromFoo, DdsHasKey, DdsSerialize, DdsSerializeKeyFields},
+        type_support::{DdsHasKey, DdsInstanceHandle, DdsSerialize, DdsSerializeKey},
     },
 };
 
@@ -110,7 +110,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsHasKey + DdsSerialize + DdsSerializeKeyFields + DdsGetKeyFromFoo,
+    Foo: DdsHasKey + DdsSerialize + DdsSerializeKey + DdsInstanceHandle,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -232,7 +232,7 @@ where
             }?;
 
             let mut instance_serialized_key = Vec::new();
-            instance.serialize_key_fields(&mut instance_serialized_key)?;
+            instance.serialize_key(&mut instance_serialized_key)?;
 
             self.writer_address.send_mail_and_await_reply_blocking(
                 data_writer_actor::unregister_instance_w_timestamp::new(
@@ -263,7 +263,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::lookup_instance::new(instance.get_key_from_foo()?),
+            data_writer_actor::lookup_instance::new(instance.get_instance_handle()?),
         )?
     }
 
@@ -328,7 +328,7 @@ where
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::write_w_timestamp::new(
                 serialized_data,
-                data.get_key_from_foo()?,
+                data.get_instance_handle()?,
                 handle,
                 timestamp,
             ),
@@ -401,7 +401,7 @@ where
         }?;
 
         let mut instance_serialized_key = Vec::new();
-        data.serialize_key_fields(&mut instance_serialized_key)?;
+        data.serialize_key(&mut instance_serialized_key)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::dispose_w_timestamp::new(

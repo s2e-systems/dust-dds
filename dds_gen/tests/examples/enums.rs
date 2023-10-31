@@ -1,11 +1,11 @@
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug)]
 pub enum Suits {
     Spades,
     Hearts,
     Diamonds,
     Clubs,
 }
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug)]
 pub enum Direction {
     North,
     East,

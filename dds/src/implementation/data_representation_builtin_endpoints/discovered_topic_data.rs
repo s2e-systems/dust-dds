@@ -1,15 +1,29 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    infrastructure::error::DdsResult,
+    cdr::{
+        parameter_list_deserialize::ParameterListDeserialize,
+        parameter_list_serialize::ParameterListSerialize,
+    },
+    infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{
-        DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsHasKey,
-        DdsRepresentation, DdsSerializedKey, RtpsRepresentation,
+        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
+        DdsSerialize,
     },
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    DdsSerialize,
+    DdsDeserialize,
+    ParameterListSerialize,
+    ParameterListDeserialize,
+)]
+#[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredTopicData {
     topic_builtin_topic_data: TopicBuiltinTopicData,
 }
@@ -30,23 +44,19 @@ impl DdsHasKey for DiscoveredTopicData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsRepresentation for DiscoveredTopicData {
-    const REPRESENTATION: RtpsRepresentation = RtpsRepresentation::PlCdrLe;
-}
-
-impl DdsGetKeyFromFoo for DiscoveredTopicData {
-    fn get_key_from_foo(&self) -> DdsResult<DdsSerializedKey> {
-        Ok(self.topic_builtin_topic_data.key().value.to_vec().into())
+impl DdsInstanceHandle for DiscoveredTopicData {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        Ok(self.topic_builtin_topic_data.key().value.as_ref().into())
     }
 }
 
-impl DdsGetKeyFromSerializedData for DiscoveredTopicData {
-    fn get_key_from_serialized_data(mut serialized_data: &[u8]) -> DdsResult<DdsSerializedKey> {
-        Ok(Self::deserialize_data(&mut serialized_data)?
+impl DdsInstanceHandleFromSerializedData for DiscoveredTopicData {
+    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
+        Ok(Self::deserialize_data(serialized_data)?
             .topic_builtin_topic_data
             .key()
             .value
-            .to_vec()
+            .as_ref()
             .into())
     }
 }
@@ -60,7 +70,7 @@ mod tests {
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::{DdsDeserialize, DdsSerialize};
+    use crate::topic_definition::type_support::DdsSerialize;
 
     use super::*;
 

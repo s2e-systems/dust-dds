@@ -1,177 +1,113 @@
-use proc_macro::TokenStream;
-use quote::{quote, quote_spanned, ToTokens};
-use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Field, FnArg, ItemImpl};
+mod derive;
 
-#[proc_macro_derive(DdsHasKey, attributes(key))]
+use derive::{
+    cdr_deserialize::expand_cdr_deserialize,
+    cdr_serialize::expand_cdr_serialize,
+    dds_key::{
+        expand_dds_instance_handle, expand_dds_instance_handle_from_serialized_data,
+        expand_dds_serialize_key, expand_has_key,
+    },
+    dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
+    parameter_list::{expand_parameter_list_deserialize, expand_parameter_list_serialize},
+};
+use proc_macro::TokenStream;
+use quote::{quote, ToTokens};
+use syn::{parse_macro_input, DeriveInput, FnArg, ItemImpl};
+
+#[proc_macro_derive(CdrSerialize)]
+pub fn derive_cdr_serialize(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_cdr_serialize(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(CdrDeserialize)]
+pub fn derive_cdr_deserialize(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_cdr_deserialize(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(ParameterListSerialize, attributes(parameter))]
+pub fn derive_parameter_list_serialize(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_parameter_list_serialize(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(ParameterListDeserialize, attributes(parameter))]
+pub fn derive_parameter_list_deserialize(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_parameter_list_deserialize(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(DdsSerialize, attributes(dust_dds))]
+pub fn derive_dds_serialize(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_dds_serialize_data(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(DdsDeserialize, attributes(dust_dds))]
+pub fn derive_dds_deserialize(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_dds_deserialize_data(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(DdsHasKey, attributes(dust_dds))]
 pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
-
-    if let syn::Data::Struct(struct_data) = &input.data {
-        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-        let ident = input.ident;
-
-        let has_key = struct_data.fields.iter().any(field_has_key_attribute);
-
-        quote! {
-            impl #impl_generics dust_dds::topic_definition::type_support::DdsHasKey for #ident #type_generics #where_clause {
-                const HAS_KEY: bool = #has_key;
-            }
-        }
-    } else {
-        quote_spanned!{input.span() => compile_error!("DdsHasKey can only be derived for structs");}
-    }
-    .into()
+    expand_has_key(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
-#[proc_macro_derive(DdsBorrowKeyHolder, attributes(key))]
-pub fn derive_dds_get_key(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(DdsSerializeKey, attributes(dust_dds))]
+pub fn derive_dds_serialize_key(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
-
-    if let syn::Data::Struct(struct_data) = &input.data {
-        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-        let ident = input.ident;
-
-        // Collect all the key fields
-        let key_fields: Vec<&Field> = struct_data.fields.iter().filter(|&f|field_has_key_attribute(f)).collect();
-
-        match key_fields.is_empty() {
-            false => {
-
-                let mut borrowed_key_holder_fields = quote!{};
-                let mut borrowed_key_holder_field_assignment = quote!{};
-
-                for key_field in key_fields {
-                    let field_ident = &key_field.ident;
-                    let field_type = &key_field.ty;
-                    borrowed_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsBorrowKeyHolder>::BorrowedKeyHolder<'__local>,});
-                    borrowed_key_holder_field_assignment.extend(quote!{#field_ident: self.#field_ident.get_key(),});
-
-                }
-
-
-                // Create the new structs and implementation inside a const to avoid name conflicts
-                quote! {
-                    const _ : () = {
-                        #[derive(serde::Serialize)]
-                        pub struct BorrowedKeyHolder<'__local> {
-                            #borrowed_key_holder_fields
-                        }
-
-                        impl #impl_generics dust_dds::topic_definition::type_support::DdsBorrowKeyHolder for #ident #type_generics #where_clause {
-                            type BorrowedKeyHolder<'__local> = BorrowedKeyHolder<'__local> where Self: '__local;
-
-                            fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {
-                                BorrowedKeyHolder {
-                                    #borrowed_key_holder_field_assignment
-                                }
-                            }
-                        }
-                    };
-                }
-            },
-            true => {
-                quote! {
-                    impl #impl_generics dust_dds::topic_definition::type_support::DdsBorrowKeyHolder for #ident #type_generics #where_clause {
-                        type BorrowedKeyHolder<'__local> = ();
-
-                        fn get_key(&self) -> Self::BorrowedKeyHolder<'_> {}
-                    }
-                }
-            }
-        }
-    } else {
-        quote_spanned! {input.span() => compile_error!("DdsBorrowKeyHolder can only be derived for structs");}
-    }
-    .into()
+    expand_dds_serialize_key(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
-#[proc_macro_derive(DdsOwningKeyHolder, attributes(key))]
-pub fn derive_dds_set_key_fields(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(DdsInstanceHandle, attributes(dust_dds))]
+pub fn derive_dds_instance_handle(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
-
-    if let syn::Data::Struct(struct_data) = &input.data {
-        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-        let ident = input.ident;
-
-        // Collect all the key fields
-        let key_fields: Vec<&Field> = struct_data.fields.iter().filter(|&f|field_has_key_attribute(f)).collect();
-
-        match key_fields.is_empty() {
-            false => {
-
-                let mut owning_key_holder_fields = quote!{};
-                let mut set_key_fields = quote!{};
-
-                for key_field in key_fields {
-                    let field_ident = &key_field.ident;
-                    let field_type = &key_field.ty;
-
-                    owning_key_holder_fields.extend(quote!{#field_ident: <#field_type as dust_dds::topic_definition::type_support::DdsOwningKeyHolder>::OwningKeyHolder,});
-                    set_key_fields.extend(quote!{ self.#field_ident.set_key_from_holder(key_holder.#field_ident);});
-
-                }
-
-                // Create the new structs and implementation inside a const to avoid name conflicts
-                quote! {
-                    const _ : () = {
-                        #[derive(serde::Serialize, serde::Deserialize)]
-                        pub struct OwningKeyHolder {
-                            #owning_key_holder_fields
-                        }
-
-                        impl #impl_generics dust_dds::topic_definition::type_support::DdsOwningKeyHolder for #ident #type_generics #where_clause {
-                            type OwningKeyHolder = OwningKeyHolder;
-                        }
-                    };
-                }
-            },
-            true => {
-                quote! {
-                    impl #impl_generics dust_dds::topic_definition::type_support::DdsOwningKeyHolder for #ident #type_generics #where_clause {
-                        type OwningKeyHolder = ();
-                    }
-                }
-            }
-        }
-    } else {
-        quote_spanned! {input.span() => compile_error!("DdsBorrowKeyHolder can only be derived for structs");}
-    }
-    .into()
+    expand_dds_instance_handle(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
-#[proc_macro_derive(DdsRepresentation, attributes(key))]
-pub fn derive_dds_representation(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(DdsInstanceHandleFromSerializedData, attributes(dust_dds))]
+pub fn derive_dds_instance_handle_from_serialized_data(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
-
-    if let syn::Data::Struct(_) = &input.data {
-        let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-        let ident = input.ident;
-
-        quote! {
-            impl #impl_generics dust_dds::topic_definition::type_support::DdsRepresentation for #ident #type_generics #where_clause {
-                const REPRESENTATION: dust_dds::topic_definition::type_support::RtpsRepresentation
-                    = dust_dds::topic_definition::type_support::RtpsRepresentation::CdrLe;
-            }
-        }
-    }else {
-        quote_spanned! {input.span() => compile_error!("DdsRepresentation can only be derived for structs");}
-    }.into()
+    expand_dds_instance_handle_from_serialized_data(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
-#[proc_macro_derive(DdsType, attributes(key))]
+#[proc_macro_derive(DdsType, attributes(dust_dds))]
 pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     let mut output = TokenStream::new();
 
-    output.extend(derive_dds_representation(input.clone()));
+    output.extend(derive_cdr_serialize(input.clone()));
+    output.extend(derive_cdr_deserialize(input.clone()));
+    output.extend(derive_dds_serialize(input.clone()));
+    output.extend(derive_dds_deserialize(input.clone()));
     output.extend(derive_dds_has_key(input.clone()));
-    output.extend(derive_dds_get_key(input.clone()));
-    output.extend(derive_dds_set_key_fields(input));
+    output.extend(derive_dds_serialize_key(input.clone()));
+    output.extend(derive_dds_instance_handle(input.clone()));
+    output.extend(derive_dds_instance_handle_from_serialized_data(input));
 
     output
-}
-
-fn field_has_key_attribute(field: &Field) -> bool {
-    field.attrs.iter().any(|attr| attr.path().is_ident("key"))
 }
 
 /// Attribute macro to generate the actor interface from

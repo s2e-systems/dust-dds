@@ -3,6 +3,7 @@ use tracing::warn;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    cdr::endianness::CdrEndianness,
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -68,7 +69,8 @@ use crate::{
     topic_definition::{
         topic_listener::TopicListener,
         type_support::{
-            DdsDeserialize, DdsGetKeyFromFoo, DdsGetKeyFromSerializedData, DdsSerialize,
+            serialize_rtps_classic_cdr, DdsDeserialize, DdsInstanceHandle,
+            DdsInstanceHandleFromSerializedData, DdsSerialize,
         },
     },
     {
@@ -230,7 +232,9 @@ impl DomainParticipantActor {
             spdp_reader_qos,
             Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
-            InstanceHandleBuilder::new(SpdpDiscoveredParticipantData::get_key_from_serialized_data),
+            InstanceHandleBuilder::new(
+                SpdpDiscoveredParticipantData::get_handle_from_serialized_data,
+            ),
         ));
 
         let sedp_reader_qos = DataReaderQos {
@@ -256,7 +260,7 @@ impl DomainParticipantActor {
             sedp_reader_qos.clone(),
             Box::new(NoOpListener::<DiscoveredTopicData>::new()),
             vec![],
-            InstanceHandleBuilder::new(DiscoveredTopicData::get_key_from_serialized_data),
+            InstanceHandleBuilder::new(DiscoveredTopicData::get_handle_from_serialized_data),
         ));
 
         let sedp_builtin_publications_reader_guid =
@@ -268,7 +272,7 @@ impl DomainParticipantActor {
             sedp_reader_qos.clone(),
             Box::new(NoOpListener::<DiscoveredWriterData>::new()),
             vec![],
-            InstanceHandleBuilder::new(DiscoveredWriterData::get_key_from_serialized_data),
+            InstanceHandleBuilder::new(DiscoveredWriterData::get_handle_from_serialized_data),
         ));
 
         let sedp_builtin_subscriptions_reader_guid =
@@ -280,7 +284,7 @@ impl DomainParticipantActor {
             sedp_reader_qos,
             Box::new(NoOpListener::<DiscoveredReaderData>::new()),
             vec![],
-            InstanceHandleBuilder::new(DiscoveredReaderData::get_key_from_serialized_data),
+            InstanceHandleBuilder::new(DiscoveredReaderData::get_handle_from_serialized_data),
         ));
 
         let builtin_subscriber = spawn_actor(SubscriberActor::new(
@@ -1022,13 +1026,13 @@ impl DomainParticipantActor {
             discovered_writer_data
                 .serialize_data(&mut serialized_data)
                 .expect("Shouldn't fail to serialize builtin type");
-            let instance_serialized_key = discovered_writer_data
-                .get_key_from_foo()
+            let instance_handle = discovered_writer_data
+                .get_instance_handle()
                 .expect("Shouldn't fail to serialize key of builtin type");
             sedp_publications_announcer
                 .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
                     serialized_data,
-                    instance_serialized_key,
+                    instance_handle,
                     None,
                     timestamp,
                 ))
@@ -1047,10 +1051,14 @@ impl DomainParticipantActor {
             .await
         {
             let timestamp = self.get_current_time().await;
-            let instance_serialized_key =
-                cdr::serialize::<_, _, cdr::CdrLe>(&writer_handle, cdr::Infinite)
-                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-                    .expect("Failed to serialize data");
+            let mut instance_serialized_key = Vec::new();
+            serialize_rtps_classic_cdr(
+                writer_handle.as_ref(),
+                &mut instance_serialized_key,
+                CdrEndianness::LittleEndian,
+            )
+            .expect("Failed to serialize data");
+
             sedp_publications_announcer
                 .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
                     instance_serialized_key,
@@ -1093,10 +1101,13 @@ impl DomainParticipantActor {
             .await
         {
             let timestamp = self.get_current_time().await;
-            let instance_serialized_key =
-                cdr::serialize::<_, _, cdr::CdrLe>(&reader_handle, cdr::Infinite)
-                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-                    .expect("Failed to serialize data");
+            let mut instance_serialized_key = Vec::new();
+            serialize_rtps_classic_cdr(
+                reader_handle.as_ref(),
+                &mut instance_serialized_key,
+                CdrEndianness::LittleEndian,
+            )
+            .expect("Failed to serialize data");
             sedp_subscriptions_announcer
                 .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
                     instance_serialized_key,
@@ -1132,7 +1143,7 @@ impl DomainParticipantActor {
             {
                 for (spdp_data_sample, _) in spdp_data_sample_list {
                     match SpdpDiscoveredParticipantData::deserialize_data(
-                        &mut spdp_data_sample.expect("Should contain data").as_ref(),
+                        spdp_data_sample.expect("Should contain data").as_ref(),
                     ) {
                         Ok(discovered_participant_data) => {
                             self.process_discovered_participant_data(discovered_participant_data)
@@ -1502,7 +1513,7 @@ impl DomainParticipantActor {
                     match discovered_writer_sample_info.instance_state {
                         InstanceStateKind::Alive => {
                             match DiscoveredWriterData::deserialize_data(
-                                &mut discovered_writer_data
+                                discovered_writer_data
                                     .expect("Should contain data")
                                     .as_ref(),
                             ) {
@@ -1696,7 +1707,7 @@ impl DomainParticipantActor {
                     match discovered_reader_sample_info.instance_state {
                         InstanceStateKind::Alive => {
                             match DiscoveredReaderData::deserialize_data(
-                                &mut discovered_reader_data
+                                discovered_reader_data
                                     .expect("Should contain data")
                                     .as_ref(),
                             ) {
@@ -1911,7 +1922,7 @@ impl DomainParticipantActor {
                     match discovered_topic_sample_info.instance_state {
                         InstanceStateKind::Alive => {
                             match DiscoveredTopicData::deserialize_data(
-                                &mut discovered_topic_data.expect("Should contain data").as_ref(),
+                                discovered_topic_data.expect("Should contain data").as_ref(),
                             ) {
                                 Ok(discovered_topic_data) => {
                                     self.add_matched_topic(discovered_topic_data).await;

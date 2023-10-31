@@ -22,25 +22,25 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::{DdsGetKeyFromFoo, DdsType},
+    topic_definition::type_support::{DdsInstanceHandle, DdsType},
 };
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(Debug, PartialEq, DdsType)]
 struct UserData(u8);
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(Clone, Debug, PartialEq, DdsType)]
 struct KeyedData {
-    #[key]
+    #[dust_dds(key)]
     id: u8,
     value: u32,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(Debug, PartialEq, DdsType)]
 struct LargeData {
-    #[key]
+    #[dust_dds(key)]
     id: u8,
     value: Vec<u8>,
 }
@@ -903,19 +903,19 @@ fn each_key_sample_is_read() {
     assert_eq!(samples[0].data().unwrap(), data1);
     assert_eq!(
         samples[0].sample_info().instance_handle,
-        data1.get_key_from_foo().unwrap().into(),
+        data1.get_instance_handle().unwrap().into(),
     );
 
     assert_eq!(samples[1].data().unwrap(), data2);
     assert_eq!(
         samples[1].sample_info().instance_handle,
-        data2.get_key_from_foo().unwrap().into(),
+        data2.get_instance_handle().unwrap().into(),
     );
 
     assert_eq!(samples[2].data().unwrap(), data3);
     assert_eq!(
         samples[2].sample_info().instance_handle,
-        data3.get_key_from_foo().unwrap().into(),
+        data3.get_instance_handle().unwrap().into(),
     );
 }
 
@@ -1000,7 +1000,7 @@ fn read_specific_instance() {
     let samples = reader
         .read_instance(
             3,
-            data1.get_key_from_foo().unwrap().into(),
+            data1.get_instance_handle().unwrap().into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1336,7 +1336,7 @@ fn take_specific_instance() {
     let samples = reader
         .take_instance(
             3,
-            data1.get_key_from_foo().unwrap().into(),
+            data1.get_instance_handle().unwrap().into(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1429,7 +1429,7 @@ fn take_specific_unknown_instance() {
         reader.take_instance(
             3,
             KeyedData { id: 99, value: 20 }
-                .get_key_from_foo()
+                .get_instance_handle()
                 .unwrap()
                 .into(),
             ANY_SAMPLE_STATE,

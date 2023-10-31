@@ -1,22 +1,7 @@
-use crate::{
-    builtin_topics::BuiltInTopicKey, implementation::rtps::types::Guid,
-    topic_definition::type_support::DdsSerializedKey,
-};
+use crate::{builtin_topics::BuiltInTopicKey, implementation::rtps::types::Guid};
 
 /// Type for the instance handle representing an Entity
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    Hash,
-    PartialOrd,
-    Ord,
-    derive_more::Constructor,
-    serde::Serialize,
-    serde::Deserialize,
-)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, derive_more::Constructor)]
 pub struct InstanceHandle([u8; 16]);
 
 impl Default for InstanceHandle {
@@ -28,21 +13,20 @@ impl Default for InstanceHandle {
 /// Special constant value representing a 'nil' [`InstanceHandle`]
 pub const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);
 
-impl AsRef<[u8]> for InstanceHandle {
-    fn as_ref(&self) -> &[u8] {
+impl AsRef<[u8; 16]> for InstanceHandle {
+    fn as_ref(&self) -> &[u8; 16] {
         &self.0
     }
 }
 
-impl From<DdsSerializedKey> for InstanceHandle {
-    fn from(x: DdsSerializedKey) -> Self {
-        let data = x.as_ref();
-        let handle = if data.len() <= 16 {
+impl From<&[u8]> for InstanceHandle {
+    fn from(x: &[u8]) -> Self {
+        let handle = if x.len() <= 16 {
             let mut h = [0; 16];
-            h[..data.len()].clone_from_slice(data);
+            h[..x.len()].clone_from_slice(x);
             h
         } else {
-            <[u8; 16]>::from(md5::compute(data))
+            <[u8; 16]>::from(md5::compute(x))
         };
         Self(handle)
     }

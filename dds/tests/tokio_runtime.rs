@@ -15,9 +15,9 @@ use dust_dds::{
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType)]
+#[derive(Debug, PartialEq, DdsType)]
 struct UserData {
-    #[key]
+    #[dust_dds(key)]
     id: u8,
     value: Vec<u8>,
 }

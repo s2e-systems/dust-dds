@@ -22,7 +22,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{DdsDeserialize, DdsGetKeyFromFoo, DdsSerialize},
+        type_support::{DdsDeserialize, DdsInstanceHandle, DdsSerialize},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -75,7 +75,7 @@ where
 {
     pub fn data(&'de self) -> DdsResult<Foo> {
         match self.data.as_ref() {
-            Some(data) => Ok(Foo::deserialize_data(&mut data.as_ref())?),
+            Some(data) => Ok(Foo::deserialize_data(data.as_ref())?),
             None => Err(DdsError::NoData),
         }
     }
@@ -763,10 +763,10 @@ fn announce_data_reader(
         if dw.send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
             == Ok("DiscoveredReaderData".to_string())
         {
-            let instance_serialized_key = discovered_reader_data.get_key_from_foo()?;
+            let instance_handle = discovered_reader_data.get_instance_handle()?;
             dw.send_mail_and_await_reply_blocking(data_writer_actor::write_w_timestamp::new(
                 serialized_data,
-                instance_serialized_key,
+                instance_handle,
                 None,
                 timestamp,
             ))??;
