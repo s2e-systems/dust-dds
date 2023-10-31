@@ -34,10 +34,9 @@ fn get_parameter_attributes(
     })?;
 
     Ok((
-        id.ok_or(syn::Error::new(
-            parameter_attribute.span(),
-            "\"id\" attribute not found",
-        ))?,
+        id.ok_or_else(|| {
+            syn::Error::new(parameter_attribute.span(), "\"id\" attribute not found")
+        })?,
         default,
         collection,
         skip_serialize,
