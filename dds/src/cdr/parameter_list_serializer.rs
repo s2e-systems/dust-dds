@@ -4,8 +4,6 @@ use crate::cdr::{
 
 pub use dust_dds_derive::ParameterListDeserialize;
 
-use super::serializer::CdrSerializer;
-
 pub trait ParameterListSerializer {
     fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
     where
@@ -55,12 +53,19 @@ where
         if length > u16::MAX as usize {
             Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)))
         } else {
-            let mut data = Vec::new();
-            let mut serializer = ClassicCdrSerializer::new(&mut data, self.endianness);
-            serializer.serialize_i16(id)?;
-            serializer.serialize_u16(length as u16)?;
+            match self.endianness {
+                CdrEndianness::LittleEndian => {
+                    self.writer.write_all(&id.to_le_bytes())?;
+                    self.writer.write_all(&(length as u16).to_le_bytes())?;
+                }
 
-            self.writer.write_all(&data)?;
+                CdrEndianness::BigEndian => {
+                    self.writer.write_all(&id.to_be_bytes())?;
+                    self.writer.write_all(&(length as u16).to_be_bytes())?;
+                }
+            }
+
+            self.writer.write_all(&mut data)?;
 
             match padding_length {
                 1 => self.writer.write_all(&[0u8; 1])?,

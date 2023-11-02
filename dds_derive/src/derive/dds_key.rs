@@ -102,7 +102,7 @@ pub fn expand_dds_serialize_key(input: &DeriveInput) -> Result<TokenStream> {
             };
             Ok(quote! {
                 impl #impl_generics dust_dds::topic_definition::type_support::DdsSerializeKey for #ident #type_generics #where_clause {
-                    fn serialize_key(&self, writer: &mut Vec<u8>) -> dust_dds::infrastructure::error::DdsResult<()> {
+                    fn serialize_key(&self, writer: impl std::io::Write) -> dust_dds::infrastructure::error::DdsResult<()> {
                         #serialize_key_body
                     }
                 }
