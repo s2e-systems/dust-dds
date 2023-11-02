@@ -4,6 +4,40 @@ use crate::cdr::{error::CdrResult, serialize::CdrSerialize};
 
 use super::endianness::CdrEndianness;
 
+pub trait CdrSerializer {
+    fn serialize_bool(&mut self, v: bool) -> CdrResult<()>;
+
+    fn serialize_i8(&mut self, v: i8) -> CdrResult<()>;
+
+    fn serialize_i16(&mut self, v: i16) -> CdrResult<()>;
+
+    fn serialize_i32(&mut self, v: i32) -> CdrResult<()>;
+
+    fn serialize_i64(&mut self, v: i64) -> CdrResult<()>;
+
+    fn serialize_u8(&mut self, v: u8) -> CdrResult<()>;
+
+    fn serialize_u16(&mut self, v: u16) -> CdrResult<()>;
+
+    fn serialize_u32(&mut self, v: u32) -> CdrResult<()>;
+
+    fn serialize_u64(&mut self, v: u64) -> CdrResult<()>;
+
+    fn serialize_f32(&mut self, v: f32) -> CdrResult<()>;
+
+    fn serialize_f64(&mut self, v: f64) -> CdrResult<()>;
+
+    fn serialize_char(&mut self, v: char) -> CdrResult<()>;
+
+    fn serialize_str(&mut self, v: &str) -> CdrResult<()>;
+
+    fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> CdrResult<()>;
+
+    fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> CdrResult<()>;
+
+    fn serialize_unit(&mut self) -> CdrResult<()>;
+}
+
 pub struct ClassicCdrSerializer<'s> {
     writer: &'s mut Vec<u8>,
     pos: usize,
@@ -47,12 +81,12 @@ impl<'s> ClassicCdrSerializer<'s> {
     }
 }
 
-impl ClassicCdrSerializer<'_> {
-    pub fn serialize_bool(&mut self, v: bool) -> CdrResult<()> {
+impl CdrSerializer for ClassicCdrSerializer<'_> {
+    fn serialize_bool(&mut self, v: bool) -> CdrResult<()> {
         self.serialize_u8(v as u8)
     }
 
-    pub fn serialize_i8(&mut self, v: i8) -> CdrResult<()> {
+    fn serialize_i8(&mut self, v: i8) -> CdrResult<()> {
         self.set_pos_of::<i8>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -60,7 +94,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_i16(&mut self, v: i16) -> CdrResult<()> {
+    fn serialize_i16(&mut self, v: i16) -> CdrResult<()> {
         self.set_pos_of::<i16>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -68,7 +102,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_i32(&mut self, v: i32) -> CdrResult<()> {
+    fn serialize_i32(&mut self, v: i32) -> CdrResult<()> {
         self.set_pos_of::<i32>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -76,7 +110,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_i64(&mut self, v: i64) -> CdrResult<()> {
+    fn serialize_i64(&mut self, v: i64) -> CdrResult<()> {
         self.set_pos_of::<i64>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -84,7 +118,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_u8(&mut self, v: u8) -> CdrResult<()> {
+    fn serialize_u8(&mut self, v: u8) -> CdrResult<()> {
         self.set_pos_of::<u8>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -92,7 +126,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_u16(&mut self, v: u16) -> CdrResult<()> {
+    fn serialize_u16(&mut self, v: u16) -> CdrResult<()> {
         self.set_pos_of::<u16>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -100,7 +134,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_u32(&mut self, v: u32) -> CdrResult<()> {
+    fn serialize_u32(&mut self, v: u32) -> CdrResult<()> {
         self.set_pos_of::<u32>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -108,7 +142,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_u64(&mut self, v: u64) -> CdrResult<()> {
+    fn serialize_u64(&mut self, v: u64) -> CdrResult<()> {
         self.set_pos_of::<u64>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -116,7 +150,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_f32(&mut self, v: f32) -> CdrResult<()> {
+    fn serialize_f32(&mut self, v: f32) -> CdrResult<()> {
         self.set_pos_of::<f32>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -124,7 +158,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_f64(&mut self, v: f64) -> CdrResult<()> {
+    fn serialize_f64(&mut self, v: f64) -> CdrResult<()> {
         self.set_pos_of::<f64>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -132,7 +166,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_char(&mut self, v: char) -> CdrResult<()> {
+    fn serialize_char(&mut self, v: char) -> CdrResult<()> {
         if !v.is_ascii() {
             Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -147,7 +181,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_str(&mut self, v: &str) -> CdrResult<()> {
+    fn serialize_str(&mut self, v: &str) -> CdrResult<()> {
         if !v.is_ascii() {
             Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -171,7 +205,7 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> CdrResult<()> {
+    fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> CdrResult<()> {
         let l = v.len();
         if l > u32::MAX as usize {
             Err(std::io::Error::new(
@@ -187,14 +221,14 @@ impl ClassicCdrSerializer<'_> {
         }
     }
 
-    pub fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> CdrResult<()> {
+    fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> CdrResult<()> {
         for e in v {
             e.serialize(self)?;
         }
         Ok(())
     }
 
-    pub fn serialize_unit(&mut self) -> CdrResult<()> {
+    fn serialize_unit(&mut self) -> CdrResult<()> {
         Ok(())
     }
 }

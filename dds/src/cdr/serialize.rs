@@ -1,6 +1,9 @@
 pub use dust_dds_derive::CdrSerialize;
 
-use super::{error::CdrResult, serializer::ClassicCdrSerializer};
+use super::{
+    error::CdrResult,
+    serializer::{CdrSerializer, ClassicCdrSerializer},
+};
 
 pub trait CdrSerialize {
     fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()>;

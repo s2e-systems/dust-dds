@@ -1,6 +1,10 @@
-use crate::cdr::{endianness::CdrEndianness, serialize::CdrSerialize, serializer::ClassicCdrSerializer};
+use crate::cdr::{
+    endianness::CdrEndianness, serialize::CdrSerialize, serializer::ClassicCdrSerializer,
+};
 
 pub use dust_dds_derive::ParameterListDeserialize;
+
+use super::serializer::CdrSerializer;
 
 pub struct ParameterListSerializer<'s> {
     writer: &'s mut Vec<u8>,

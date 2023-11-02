@@ -2,8 +2,11 @@ use core::cmp::Ordering;
 
 use crate::{
     cdr::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
-        serialize::CdrSerialize, serializer::ClassicCdrSerializer,
+        deserialize::CdrDeserialize,
+        deserializer::CdrDeserializer,
+        error::CdrResult,
+        serialize::CdrSerialize,
+        serializer::{CdrSerializer, ClassicCdrSerializer},
     },
     infrastructure::time::{Duration, DurationKind, DURATION_ZERO},
 };
