@@ -6,6 +6,25 @@ pub use dust_dds_derive::ParameterListDeserialize;
 
 use super::serializer::CdrSerializer;
 
+pub trait ParameterListSerializer {
+    fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
+    where
+        T: CdrSerialize;
+
+    fn write_with_default<T>(
+        &mut self,
+        id: i16,
+        value: &T,
+        default: &T,
+    ) -> Result<(), std::io::Error>
+    where
+        T: CdrSerialize + PartialEq;
+
+    fn write_collection<T>(&mut self, id: i16, value_list: &[T]) -> Result<(), std::io::Error>
+    where
+        T: CdrSerialize;
+}
+
 pub struct ParameterListCdrSerializer<'s> {
     writer: &'s mut Vec<u8>,
     endianness: CdrEndianness,
@@ -64,13 +83,9 @@ impl ParameterListCdrSerializer<'_> {
         Ok(())
     }
 
-    pub fn write_collection<T>(
-        &mut self,
-        id: i16,
-        value_list: &[T],
-    ) -> Result<(), std::io::Error>
+    pub fn write_collection<T>(&mut self, id: i16, value_list: &[T]) -> Result<(), std::io::Error>
     where
-        T: CdrSerialize + PartialEq,
+        T: CdrSerialize,
     {
         for value in value_list {
             self.write(id, value)?;
@@ -90,7 +105,8 @@ mod tests {
         T: ParameterListSerialize,
     {
         let mut writer = Vec::new();
-        let mut serializer = ParameterListCdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
+        let mut serializer =
+            ParameterListCdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
         v.serialize(&mut serializer)?;
         Ok(writer)
     }
