@@ -257,8 +257,8 @@ mod tests {
             "
             impl dust_dds::cdr::parameter_list_serialize::ParameterListSerialize for ParameterListStruct {
                 fn serialize(&self, serializer: &mut impl dust_dds::cdr::parameter_list_serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
-                    dust_dds::cdr::parameter_list_serialize::ParameterListSerialize::write(serializer, 1, &self.index)?;
-                    dust_dds::cdr::parameter_list_serialize::ParameterListSerialize::write(serializer, PID_DATA, &self.data)?;
+                    dust_dds::cdr::parameter_list_serializer::ParameterListSerializer::write(serializer, 1, &self.index)?;
+                    dust_dds::cdr::parameter_list_serializer::ParameterListSerializer::write(serializer, PID_DATA, &self.data)?;
                     Ok(())
                 }
             }
@@ -303,10 +303,10 @@ mod tests {
             "
             impl dust_dds::cdr::parameter_list_serialize::ParameterListSerialize for ParameterListStructDefault {
                 fn serialize(&self, serializer: &mut impl dust_dds::cdr::parameter_list_serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
-                    dust_dds::cdr::parameter_list_serialize::ParameterListSerialize::write(serializer, 1, &self.index)?;
-                    dust_dds::cdr::parameter_list_serialize::ParameterListSerialize::write(serializer, PID_DATA, &self.data)?;
-                    dust_dds::cdr::parameter_list_serialize::ParameterListSerialize::write_with_default(serializer, 3, &self.name, &\"\")?;
-                    dust_dds::cdr::parameter_list_serialize::ParameterListSerialize::write_with_default(serializer, 4, &self.x, &Default::default())?;
+                    dust_dds::cdr::parameter_list_serializer::ParameterListSerializer::write(serializer, 1, &self.index)?;
+                    dust_dds::cdr::parameter_list_serializer::ParameterListSerializer::write(serializer, PID_DATA, &self.data)?;
+                    dust_dds::cdr::parameter_list_serializer::ParameterListSerializer::write_with_default(serializer, 3, &self.name, &\"\")?;
+                    dust_dds::cdr::parameter_list_serializer::ParameterListSerializer::write_with_default(serializer, 4, &self.x, &Default::default())?;
                     Ok(())
                 }
             }
