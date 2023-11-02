@@ -110,7 +110,7 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
 
             Ok(quote! {
                 impl #impl_generics dust_dds::cdr::parameter_list_serialize::ParameterListSerialize for #ident #type_generics #where_clause {
-                    fn serialize(&self, serializer: &mut dust_dds::cdr::parameter_list_serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
+                    fn serialize(&self, serializer: &mut dust_dds::cdr::parameter_list_serializer::ParameterListCdrSerializer) -> Result<(), std::io::Error> {
                         #field_serialization
                         Ok(())
                     }
@@ -256,7 +256,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl dust_dds::cdr::parameter_list_serialize::ParameterListSerialize for ParameterListStruct {
-                fn serialize(&self, serializer: &mut dust_dds::cdr::parameter_list_serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
+                fn serialize(&self, serializer: &mut dust_dds::cdr::parameter_list_serializer::ParameterListCdrSerializer) -> Result<(), std::io::Error> {
                     serializer.write(1, &self.index)?;
                     serializer.write(PID_DATA, &self.data)?;
                     Ok(())
@@ -302,7 +302,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl dust_dds::cdr::parameter_list_serialize::ParameterListSerialize for ParameterListStructDefault {
-                fn serialize(&self, serializer: &mut dust_dds::cdr::parameter_list_serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
+                fn serialize(&self, serializer: &mut dust_dds::cdr::parameter_list_serializer::ParameterListCdrSerializer) -> Result<(), std::io::Error> {
                     serializer.write(1, &self.index)?;
                     serializer.write(PID_DATA, &self.data)?;
                     serializer.write_with_default(3, &self.name, &\"\")?;

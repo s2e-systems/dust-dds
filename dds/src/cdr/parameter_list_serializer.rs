@@ -6,18 +6,18 @@ pub use dust_dds_derive::ParameterListDeserialize;
 
 use super::serializer::CdrSerializer;
 
-pub struct ParameterListSerializer<'s> {
+pub struct ParameterListCdrSerializer<'s> {
     writer: &'s mut Vec<u8>,
     endianness: CdrEndianness,
 }
 
-impl<'s> ParameterListSerializer<'s> {
+impl<'s> ParameterListCdrSerializer<'s> {
     pub fn new(writer: &'s mut Vec<u8>, endianness: CdrEndianness) -> Self {
         Self { writer, endianness }
     }
 }
 
-impl ParameterListSerializer<'_> {
+impl ParameterListCdrSerializer<'_> {
     pub fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
     where
         T: CdrSerialize,
@@ -90,7 +90,7 @@ mod tests {
         T: ParameterListSerialize,
     {
         let mut writer = Vec::new();
-        let mut serializer = ParameterListSerializer::new(&mut writer, CdrEndianness::LittleEndian);
+        let mut serializer = ParameterListCdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
         v.serialize(&mut serializer)?;
         Ok(writer)
     }
@@ -100,7 +100,7 @@ mod tests {
         T: ParameterListSerialize,
     {
         let mut writer = Vec::new();
-        let mut serializer = ParameterListSerializer::new(&mut writer, CdrEndianness::BigEndian);
+        let mut serializer = ParameterListCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
         v.serialize(&mut serializer)?;
         Ok(writer)
     }
@@ -116,7 +116,7 @@ mod tests {
         impl ParameterListSerialize for ParameterListWithoutDefaults {
             fn serialize(
                 &self,
-                serializer: &mut ParameterListSerializer,
+                serializer: &mut ParameterListCdrSerializer,
             ) -> Result<(), std::io::Error> {
                 serializer.write(1, &self.a)?;
                 serializer.write(2, &self.b)?;
