@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// # Dust DDS Configuration
 /// The environment DUST_DDS_CONFIGURATION variable can be set
 /// as a json to modify the default configuration.
