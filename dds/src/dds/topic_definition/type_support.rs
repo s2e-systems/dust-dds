@@ -4,7 +4,7 @@ use crate::{
     cdr::{
         deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
         parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_deserializer::ParameterListDeserializer,
+        parameter_list_deserializer::ParameterListCdrDeserializer,
         parameter_list_serialize::ParameterListSerialize,
         parameter_list_serializer::ParameterListSerializer, serialize::CdrSerialize,
         serializer::ClassicCdrSerializer,
@@ -209,12 +209,12 @@ where
         }
         PL_CDR_BE => {
             let mut deserializer =
-                ParameterListDeserializer::new(serialized_data, CdrEndianness::BigEndian);
+                ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
             Ok(ParameterListDeserialize::deserialize(&mut deserializer)?)
         }
         PL_CDR_LE => {
             let mut deserializer =
-                ParameterListDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+                ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
             Ok(ParameterListDeserialize::deserialize(&mut deserializer)?)
         }
         _ => Err(DdsError::Error(
@@ -274,11 +274,11 @@ where
         .map_err(|err| DdsError::Error(err.to_string()))?;
 
     let mut deserializer = match representation_identifier {
-        PL_CDR_BE => Ok(ParameterListDeserializer::new(
+        PL_CDR_BE => Ok(ParameterListCdrDeserializer::new(
             serialized_data,
             CdrEndianness::BigEndian,
         )),
-        PL_CDR_LE => Ok(ParameterListDeserializer::new(
+        PL_CDR_LE => Ok(ParameterListCdrDeserializer::new(
             serialized_data,
             CdrEndianness::LittleEndian,
         )),

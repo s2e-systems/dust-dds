@@ -165,7 +165,7 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
                             if is_tuple {
                                 if collection {
                                     field_deserialization
-                                        .extend(quote! {pl_deserializer.read_all(#id)?, });
+                                        .extend(quote! {pl_deserializer.read_collection(#id)?, });
                                 } else {
                                     match default_value {
                                             Some(default) => field_deserialization.extend(quote!{pl_deserializer.read_with_default(#id, #default)?, }),
@@ -178,7 +178,7 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
 
                                 if collection {
                                     field_deserialization.extend(
-                                        quote! {#field_name: pl_deserializer.read_all(#id)?,},
+                                        quote! {#field_name: pl_deserializer.read_collection(#id)?,},
                                     );
                                 } else {
                                     match default_value {
@@ -211,7 +211,7 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
 
             Ok(quote! {
                     impl #generics dust_dds::cdr::parameter_list_deserialize::ParameterListDeserialize<'__de> for #ident #type_generics #where_clause {
-                        fn deserialize(pl_deserializer: &mut dust_dds::cdr::parameter_list_deserializer::ParameterListDeserializer<'__de>) -> Result<Self, std::io::Error> {
+                        fn deserialize(pl_deserializer: &mut dust_dds::cdr::parameter_list_deserializer::ParameterListCdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
                             Ok(#struct_deserialization)
                         }
                     }
