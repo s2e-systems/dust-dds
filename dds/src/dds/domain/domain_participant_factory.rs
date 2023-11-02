@@ -99,13 +99,8 @@ impl DomainParticipantFactory {
             instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
         ];
 
-        let interface_address_list = get_interface_address_list(
-            THE_DDS_CONFIGURATION
-                .lock()
-                .unwrap()
-                .interface_name
-                .as_ref(),
-        );
+        let interface_address_list =
+            get_interface_address_list(THE_DDS_CONFIGURATION.lock().unwrap().interface_name());
 
         let default_unicast_socket =
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).map_err(
@@ -174,10 +169,10 @@ impl DomainParticipantFactory {
         let domain_participant = DomainParticipantActor::new(
             rtps_participant,
             domain_id,
-            THE_DDS_CONFIGURATION.lock().unwrap().domain_tag.clone(),
+            THE_DDS_CONFIGURATION.lock().unwrap().domain_tag().to_string(),
             domain_participant_qos,
             &spdp_discovery_locator_list,
-            THE_DDS_CONFIGURATION.lock().unwrap().fragment_size,
+            THE_DDS_CONFIGURATION.lock().unwrap().fragment_size(),
             udp_transport_write,
             listener,
             status_kind,
