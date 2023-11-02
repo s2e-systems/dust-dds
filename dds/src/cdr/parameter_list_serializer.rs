@@ -65,7 +65,7 @@ where
                 }
             }
 
-            self.writer.write_all(&mut data)?;
+            self.writer.write_all(&data)?;
 
             match padding_length {
                 1 => self.writer.write_all(&[0u8; 1])?,
