@@ -165,11 +165,11 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
                             if is_tuple {
                                 if collection {
                                     field_deserialization
-                                        .extend(quote! {pl_deserializer.read_collection(#id)?, });
+                                        .extend(quote! {dust_dds::cdr::parameter_list_deserializer::ParameterListDeserializer::read_collection(pl_deserializer, #id)?, });
                                 } else {
                                     match default_value {
-                                            Some(default) => field_deserialization.extend(quote!{pl_deserializer.read_with_default(#id, #default)?, }),
-                                            None => field_deserialization.extend(quote!{pl_deserializer.read(#id)?, }),
+                                            Some(default) => field_deserialization.extend(quote!{dust_dds::cdr::parameter_list_deserializer::ParameterListDeserializer::read_with_default(pl_deserializer, #id, #default)?, }),
+                                            None => field_deserialization.extend(quote!{dust_dds::cdr::parameter_list_deserializer::ParameterListDeserializer::read(pl_deserializer, #id)?, }),
                                         }
                                 }
                             } else {
@@ -178,14 +178,14 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
 
                                 if collection {
                                     field_deserialization.extend(
-                                        quote! {#field_name: pl_deserializer.read_collection(#id)?,},
+                                        quote! {#field_name: dust_dds::cdr::parameter_list_deserializer::ParameterListDeserializer::read_collection(pl_deserializer, #id)?,},
                                     );
                                 } else {
                                     match default_value {
                                     Some(default) => field_deserialization
-                                        .extend(quote! {#field_name: pl_deserializer.read_with_default(#id, #default)?,}),
+                                        .extend(quote! {#field_name: dust_dds::cdr::parameter_list_deserializer::ParameterListDeserializer::read_with_default(pl_deserializer, #id, #default)?,}),
                                     None => field_deserialization
-                                        .extend(quote! {#field_name: pl_deserializer.read(#id)?,}),
+                                        .extend(quote! {#field_name: dust_dds::cdr::parameter_list_deserializer::ParameterListDeserializer::read(pl_deserializer, #id)?,}),
                                     }
                                 }
                             }
@@ -211,7 +211,7 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
 
             Ok(quote! {
                     impl #generics dust_dds::cdr::parameter_list_deserialize::ParameterListDeserialize<'__de> for #ident #type_generics #where_clause {
-                        fn deserialize(pl_deserializer: &mut dust_dds::cdr::parameter_list_deserializer::ParameterListCdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
+                        fn deserialize(pl_deserializer: &mut impl dust_dds::cdr::parameter_list_deserializer::ParameterListDeserializer<'__de>) -> Result<Self, std::io::Error> {
                             Ok(#struct_deserialization)
                         }
                     }

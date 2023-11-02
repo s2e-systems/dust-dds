@@ -86,8 +86,10 @@ impl<'de> ParameterListCdrDeserializer<'de> {
     pub fn new(bytes: &'de [u8], endianness: CdrEndianness) -> Self {
         Self { bytes, endianness }
     }
+}
 
-    pub fn read<T>(&self, id: i16) -> Result<T, std::io::Error>
+impl<'de> ParameterListDeserializer<'de> for ParameterListCdrDeserializer<'de> {
+    fn read<T>(&self, id: i16) -> Result<T, std::io::Error>
     where
         T: CdrDeserialize<'de>,
     {
@@ -105,7 +107,7 @@ impl<'de> ParameterListCdrDeserializer<'de> {
         ))
     }
 
-    pub fn read_with_default<T>(&self, id: i16, default: T) -> Result<T, std::io::Error>
+    fn read_with_default<T>(&self, id: i16, default: T) -> Result<T, std::io::Error>
     where
         T: CdrDeserialize<'de>,
     {
@@ -120,7 +122,7 @@ impl<'de> ParameterListCdrDeserializer<'de> {
         Ok(default)
     }
 
-    pub fn read_collection<T>(&self, id: i16) -> Result<Vec<T>, std::io::Error>
+    fn read_collection<T>(&self, id: i16) -> Result<Vec<T>, std::io::Error>
     where
         T: CdrDeserialize<'de>,
     {
@@ -172,7 +174,7 @@ mod tests {
 
         impl<'de> ParameterListDeserialize<'de> for OneParamData {
             fn deserialize(
-                pl_deserializer: &mut ParameterListCdrDeserializer<'de>,
+                pl_deserializer: &mut impl ParameterListDeserializer<'de>,
             ) -> Result<Self, std::io::Error> {
                 let value = pl_deserializer.read(71)?;
                 Ok(Self { value })
