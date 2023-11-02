@@ -1,9 +1,8 @@
 use crate::serialized_payload::{
-    endianness::CdrEndianness, parameter_list_serializer::ParameterListSerializer,
-    serialize::CdrSerialize,
+    parameter_list_serializer::ParameterListSerializer, serialize::CdrSerialize,
 };
 
-use super::cdr_serializer::ClassicCdrSerializer;
+use super::{cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness};
 
 pub struct ParameterListCdrSerializer<W> {
     writer: W,

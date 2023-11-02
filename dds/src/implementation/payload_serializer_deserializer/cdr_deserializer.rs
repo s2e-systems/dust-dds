@@ -4,9 +4,10 @@ use std::{
 };
 
 use crate::serialized_payload::{
-    deserialize::CdrDeserialize, deserializer::CdrDeserializer, endianness::CdrEndianness,
-    error::CdrResult,
+    deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
 };
+
+use super::endianness::CdrEndianness;
 
 pub struct ClassicCdrDeserializer<'de> {
     bytes: &'de [u8],

@@ -3,12 +3,11 @@ use std::io::{BufRead, Read};
 use crate::{
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     serialized_payload::{
-        deserialize::CdrDeserialize, endianness::CdrEndianness,
-        parameter_list_deserializer::ParameterListDeserializer,
+        deserialize::CdrDeserialize, parameter_list_deserializer::ParameterListDeserializer,
     },
 };
 
-use super::cdr_deserializer::ClassicCdrDeserializer;
+use super::{cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness};
 
 struct Parameter<'de> {
     id: i16,

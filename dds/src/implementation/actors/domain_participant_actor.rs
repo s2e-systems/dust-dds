@@ -3,7 +3,6 @@ use tracing::warn;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
-    serialized_payload::endianness::CdrEndianness,
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -69,7 +68,7 @@ use crate::{
     topic_definition::{
         topic_listener::TopicListener,
         type_support::{
-            serialize_rtps_classic_cdr, DdsDeserialize, DdsInstanceHandle,
+            serialize_rtps_classic_cdr_le, DdsDeserialize, DdsInstanceHandle,
             DdsInstanceHandleFromSerializedData, DdsSerialize,
         },
     },
@@ -1052,12 +1051,8 @@ impl DomainParticipantActor {
         {
             let timestamp = self.get_current_time().await;
             let mut instance_serialized_key = Vec::new();
-            serialize_rtps_classic_cdr(
-                writer_handle.as_ref(),
-                &mut instance_serialized_key,
-                CdrEndianness::LittleEndian,
-            )
-            .expect("Failed to serialize data");
+            serialize_rtps_classic_cdr_le(writer_handle.as_ref(), &mut instance_serialized_key)
+                .expect("Failed to serialize data");
 
             sedp_publications_announcer
                 .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
@@ -1102,12 +1097,8 @@ impl DomainParticipantActor {
         {
             let timestamp = self.get_current_time().await;
             let mut instance_serialized_key = Vec::new();
-            serialize_rtps_classic_cdr(
-                reader_handle.as_ref(),
-                &mut instance_serialized_key,
-                CdrEndianness::LittleEndian,
-            )
-            .expect("Failed to serialize data");
+            serialize_rtps_classic_cdr_le(reader_handle.as_ref(), &mut instance_serialized_key)
+                .expect("Failed to serialize data");
             sedp_subscriptions_announcer
                 .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
                     instance_serialized_key,

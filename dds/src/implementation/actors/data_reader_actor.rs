@@ -17,7 +17,9 @@ use crate::{
                 STATUS_INFO_UNREGISTERED,
             },
         },
-        payload_serializer_deserializer::cdr_deserializer::ClassicCdrDeserializer,
+        payload_serializer_deserializer::{
+            cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
+        },
         rtps::{
             message_receiver::MessageReceiver,
             messages::{
@@ -57,7 +59,7 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    serialized_payload::{deserialize::CdrDeserialize, endianness::CdrEndianness},
+    serialized_payload::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsInstanceHandle,
 };
