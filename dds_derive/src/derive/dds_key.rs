@@ -151,12 +151,12 @@ pub fn expand_dds_instance_handle(input: &DeriveInput) -> Result<TokenStream> {
                         }
 
                         let mut writer = Vec::new();
-                        let mut serializer = dust_dds::serialized_payload::serializer::ClassicCdrSerializer::new(&mut writer, dust_dds::serialized_payload::endianness::CdrEndianness::BigEndian);
-                        dust_dds::serialized_payload::serialize::CdrSerialize::serialize(
-                            &__borrowed_key_holder{
-                                #borrowed_key_holder_field_assignment
-                            },
-                            &mut serializer)?;
+                        dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr(
+                        &__borrowed_key_holder{
+                            #borrowed_key_holder_field_assignment
+                        },
+                        &mut writer,
+                        dust_dds::serialized_payload::endianness::CdrEndianness::BigEndian)?;
                         Ok(dust_dds::infrastructure::instance::InstanceHandle::from(writer.as_ref()))
                     }
                 }

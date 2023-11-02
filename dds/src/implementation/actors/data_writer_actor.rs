@@ -1,6 +1,5 @@
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
-    serialized_payload::{endianness::CdrEndianness, serialize::CdrSerialize, serializer::ClassicCdrSerializer},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -12,6 +11,7 @@ use crate::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
+        payload_serializer_deserializer::cdr_serializer::ClassicCdrSerializer,
         rtps::{
             message_receiver::MessageReceiver,
             messages::{
@@ -56,6 +56,7 @@ use crate::{
         },
         time::DurationKind,
     },
+    serialized_payload::{endianness::CdrEndianness, serialize::CdrSerialize},
     topic_definition::type_support::DdsInstanceHandle,
     {
         builtin_topics::SubscriptionBuiltinTopicData,

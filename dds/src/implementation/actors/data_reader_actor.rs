@@ -5,7 +5,6 @@ use tracing::debug;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    serialized_payload::{deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer, endianness::CdrEndianness},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -18,6 +17,7 @@ use crate::{
                 STATUS_INFO_UNREGISTERED,
             },
         },
+        payload_serializer_deserializer::cdr_deserializer::ClassicCdrDeserializer,
         rtps::{
             message_receiver::MessageReceiver,
             messages::{
@@ -57,6 +57,7 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
+    serialized_payload::{deserialize::CdrDeserialize, endianness::CdrEndianness},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsInstanceHandle,
 };
@@ -828,7 +829,8 @@ impl DataReaderActor {
                 .iter()
                 .find(|&x| x.parameter_id() == PID_STATUS_INFO)
             {
-                let mut deserializer = ClassicCdrDeserializer::new(p.value(), CdrEndianness::LittleEndian);
+                let mut deserializer =
+                    ClassicCdrDeserializer::new(p.value(), CdrEndianness::LittleEndian);
                 let status_info: StatusInfo =
                     CdrDeserialize::deserialize(&mut deserializer).unwrap();
                 match status_info {
