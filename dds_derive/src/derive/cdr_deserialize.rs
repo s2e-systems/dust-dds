@@ -54,7 +54,7 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
             Ok(quote! {
                     impl #generics dust_dds::cdr::deserialize::CdrDeserialize<'__de> for #ident #type_generics #where_clause {
-                        fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
+                        fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::ClassicCdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
                             Ok(#struct_deserialization)
                         }
                     }
@@ -97,7 +97,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl<'__de> dust_dds::cdr::deserialize::CdrDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
+                fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::ClassicCdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
                     Ok(Self {
                         x: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
                         y: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
@@ -136,7 +136,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl<'__de : 'a, 'a> dust_dds::cdr::deserialize::CdrDeserialize<'__de> for BorrowedData<'a> {
-                fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::CdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
+                fn deserialize(deserializer: &mut dust_dds::cdr::deserializer::ClassicCdrDeserializer<'__de>) -> dust_dds::cdr::error::CdrResult<Self> {
                     Ok(Self {
                         data: dust_dds::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
                     })

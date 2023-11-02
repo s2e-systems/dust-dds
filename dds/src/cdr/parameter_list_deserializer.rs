@@ -1,7 +1,7 @@
 use std::io::{BufRead, Read};
 
 use crate::{
-    cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer, endianness::CdrEndianness},
+    cdr::{deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer, endianness::CdrEndianness},
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
 };
 
@@ -78,7 +78,7 @@ impl<'de> ParameterListDeserializer<'de> {
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
             if p.id() == id {
-                return T::deserialize(&mut CdrDeserializer::new(p.data(), self.endianness));
+                return T::deserialize(&mut ClassicCdrDeserializer::new(p.data(), self.endianness));
             }
         }
 
@@ -96,7 +96,7 @@ impl<'de> ParameterListDeserializer<'de> {
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
             if p.id() == id {
-                return T::deserialize(&mut CdrDeserializer::new(p.data(), self.endianness));
+                return T::deserialize(&mut ClassicCdrDeserializer::new(p.data(), self.endianness));
             }
         }
 
@@ -112,7 +112,7 @@ impl<'de> ParameterListDeserializer<'de> {
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
             if p.id() == id {
-                parameter_values.push(T::deserialize(&mut CdrDeserializer::new(
+                parameter_values.push(T::deserialize(&mut ClassicCdrDeserializer::new(
                     p.data(),
                     self.endianness,
                 ))?);

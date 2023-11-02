@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 
 use crate::{
     cdr::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, endianness::CdrEndianness,
+        deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
         parameter_list_deserialize::ParameterListDeserialize,
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serialize::ParameterListSerialize,
@@ -199,12 +199,12 @@ where
 
     let value = match representation_identifier {
         CDR_BE => {
-            let mut deserializer = CdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
+            let mut deserializer = ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
         }
         CDR_LE => {
             let mut deserializer =
-                CdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
         }
         PL_CDR_BE => {
@@ -241,11 +241,11 @@ where
         .map_err(|err| DdsError::Error(err.to_string()))?;
 
     let mut deserializer = match representation_identifier {
-        CDR_BE => Ok(CdrDeserializer::new(
+        CDR_BE => Ok(ClassicCdrDeserializer::new(
             serialized_data,
             CdrEndianness::BigEndian,
         )),
-        CDR_LE => Ok(CdrDeserializer::new(
+        CDR_LE => Ok(ClassicCdrDeserializer::new(
             serialized_data,
             CdrEndianness::LittleEndian,
         )),

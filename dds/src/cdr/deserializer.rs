@@ -7,13 +7,55 @@ use crate::cdr::{deserialize::CdrDeserialize, error::CdrResult};
 
 use super::endianness::CdrEndianness;
 
-pub struct CdrDeserializer<'de> {
+pub trait CdrDeserializer<'de> {
+    fn deserialize_bool(&mut self) -> CdrResult<bool>;
+
+    fn deserialize_i8(&mut self) -> CdrResult<i8>;
+
+    fn deserialize_i16(&mut self) -> CdrResult<i16>;
+
+    fn deserialize_i32(&mut self) -> CdrResult<i32>;
+
+    fn deserialize_i64(&mut self) -> CdrResult<i64>;
+
+    fn deserialize_u8(&mut self) -> CdrResult<u8>;
+
+    fn deserialize_u16(&mut self) -> CdrResult<u16>;
+
+    fn deserialize_u32(&mut self) -> CdrResult<u32>;
+
+    fn deserialize_u64(&mut self) -> CdrResult<u64>;
+
+    fn deserialize_f32(&mut self) -> CdrResult<f32>;
+
+    fn deserialize_f64(&mut self) -> CdrResult<f64>;
+
+    fn deserialize_char(&mut self) -> CdrResult<char>;
+
+    fn deserialize_string(&mut self) -> CdrResult<String>;
+
+    fn deserialize_seq<T>(&mut self) -> CdrResult<Vec<T>>
+    where
+        T: CdrDeserialize<'de>;
+
+    fn deserialize_array<const N: usize, T>(&mut self) -> CdrResult<[T; N]>
+    where
+        T: CdrDeserialize<'de>;
+
+    fn deserialize_bytes(&mut self) -> CdrResult<&'de [u8]>;
+
+    fn deserialize_byte_array<const N: usize>(&mut self) -> CdrResult<&'de [u8; N]>;
+
+    fn deserialize_unit(&mut self) -> CdrResult<()>;
+}
+
+pub struct ClassicCdrDeserializer<'de> {
     bytes: &'de [u8],
     reader: &'de [u8],
     endianness: CdrEndianness,
 }
 
-impl<'de> CdrDeserializer<'de> {
+impl<'de> ClassicCdrDeserializer<'de> {
     pub fn new(reader: &'de [u8], endianness: CdrEndianness) -> Self {
         Self {
             bytes: reader,
@@ -42,8 +84,8 @@ impl<'de> CdrDeserializer<'de> {
     }
 }
 
-impl<'de> CdrDeserializer<'de> {
-    pub fn deserialize_bool(&mut self) -> CdrResult<bool> {
+impl<'de> CdrDeserializer<'de> for ClassicCdrDeserializer<'de> {
+    fn deserialize_bool(&mut self) -> CdrResult<bool> {
         let value: u8 = CdrDeserialize::deserialize(self)?;
         match value {
             0 => Ok(false),
@@ -55,7 +97,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_i8(&mut self) -> CdrResult<i8> {
+    fn deserialize_i8(&mut self) -> CdrResult<i8> {
         self.read_padding_of::<i8>()?;
         let mut bytes = [0; 1];
         self.reader.read_exact(&mut bytes)?;
@@ -65,7 +107,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_i16(&mut self) -> CdrResult<i16> {
+    fn deserialize_i16(&mut self) -> CdrResult<i16> {
         self.read_padding_of::<i16>()?;
         let mut bytes = [0; 2];
         self.reader.read_exact(&mut bytes)?;
@@ -75,7 +117,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_i32(&mut self) -> CdrResult<i32> {
+    fn deserialize_i32(&mut self) -> CdrResult<i32> {
         self.read_padding_of::<i32>()?;
         let mut bytes = [0; 4];
         self.reader.read_exact(&mut bytes)?;
@@ -85,7 +127,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_i64(&mut self) -> CdrResult<i64> {
+    fn deserialize_i64(&mut self) -> CdrResult<i64> {
         self.read_padding_of::<i64>()?;
         let mut bytes = [0; 8];
         self.reader.read_exact(&mut bytes)?;
@@ -95,7 +137,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_u8(&mut self) -> CdrResult<u8> {
+    fn deserialize_u8(&mut self) -> CdrResult<u8> {
         self.read_padding_of::<u8>()?;
         let mut bytes = [0; 1];
         self.reader.read_exact(&mut bytes)?;
@@ -105,7 +147,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_u16(&mut self) -> CdrResult<u16> {
+    fn deserialize_u16(&mut self) -> CdrResult<u16> {
         self.read_padding_of::<u16>()?;
         let mut bytes = [0; 2];
         self.reader.read_exact(&mut bytes)?;
@@ -115,7 +157,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_u32(&mut self) -> CdrResult<u32> {
+    fn deserialize_u32(&mut self) -> CdrResult<u32> {
         self.read_padding_of::<u32>()?;
         let mut bytes = [0; 4];
         self.reader.read_exact(&mut bytes)?;
@@ -125,7 +167,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_u64(&mut self) -> CdrResult<u64> {
+    fn deserialize_u64(&mut self) -> CdrResult<u64> {
         self.read_padding_of::<u64>()?;
         let mut bytes = [0; 8];
         self.reader.read_exact(&mut bytes)?;
@@ -135,7 +177,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_f32(&mut self) -> CdrResult<f32> {
+    fn deserialize_f32(&mut self) -> CdrResult<f32> {
         self.read_padding_of::<f32>()?;
         let mut bytes = [0; 4];
         self.reader.read_exact(&mut bytes)?;
@@ -145,7 +187,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_f64(&mut self) -> CdrResult<f64> {
+    fn deserialize_f64(&mut self) -> CdrResult<f64> {
         self.read_padding_of::<f64>()?;
         let mut bytes = [0; 8];
         self.reader.read_exact(&mut bytes)?;
@@ -155,7 +197,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_char(&mut self) -> CdrResult<char> {
+    fn deserialize_char(&mut self) -> CdrResult<char> {
         let value: u8 = CdrDeserialize::deserialize(self)?;
         // CDR only accepts ascii characters.
         // The encoding length must be 1 which in UTF-8 is represented by a 0 on the MSB
@@ -169,7 +211,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_string(&mut self) -> CdrResult<String> {
+    fn deserialize_string(&mut self) -> CdrResult<String> {
         let len: u32 = CdrDeserialize::deserialize(self)?;
         let mut buf = vec![0_u8; len as usize];
         self.reader.read_exact(&mut buf)?;
@@ -182,7 +224,7 @@ impl<'de> CdrDeserializer<'de> {
         })
     }
 
-    pub fn deserialize_seq<T>(&mut self) -> CdrResult<Vec<T>>
+    fn deserialize_seq<T>(&mut self) -> CdrResult<Vec<T>>
     where
         T: CdrDeserialize<'de>,
     {
@@ -194,7 +236,7 @@ impl<'de> CdrDeserializer<'de> {
         Ok(seq)
     }
 
-    pub fn deserialize_array<const N: usize, T>(&mut self) -> CdrResult<[T; N]>
+    fn deserialize_array<const N: usize, T>(&mut self) -> CdrResult<[T; N]>
     where
         T: CdrDeserialize<'de>,
     {
@@ -208,7 +250,7 @@ impl<'de> CdrDeserializer<'de> {
             .expect("Must convert due to for loop succeeding"))
     }
 
-    pub fn deserialize_bytes(&mut self) -> CdrResult<&'de [u8]> {
+    fn deserialize_bytes(&mut self) -> CdrResult<&'de [u8]> {
         let len: u32 = CdrDeserialize::deserialize(&mut *self)?;
         let start_pos = self.bytes.len() - self.reader.len();
         let end_pos = start_pos + len as usize;
@@ -224,7 +266,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_byte_array<const N: usize>(&mut self) -> CdrResult<&'de [u8; N]> {
+    fn deserialize_byte_array<const N: usize>(&mut self) -> CdrResult<&'de [u8; N]> {
         let start_pos = self.bytes.len() - self.reader.len();
         let end_pos = start_pos + N;
         if self.bytes.len() >= end_pos {
@@ -241,7 +283,7 @@ impl<'de> CdrDeserializer<'de> {
         }
     }
 
-    pub fn deserialize_unit(&mut self) -> CdrResult<()> {
+    fn deserialize_unit(&mut self) -> CdrResult<()> {
         Ok(())
     }
 }
@@ -254,7 +296,7 @@ mod tests {
     where
         T: CdrDeserialize<'de> + ?Sized,
     {
-        let mut deserializer = CdrDeserializer::new(bytes, CdrEndianness::BigEndian);
+        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::BigEndian);
         Ok(T::deserialize(&mut deserializer)?)
     }
 
@@ -262,7 +304,7 @@ mod tests {
     where
         T: CdrDeserialize<'de> + ?Sized,
     {
-        let mut deserializer = CdrDeserializer::new(bytes, CdrEndianness::LittleEndian);
+        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::LittleEndian);
         Ok(T::deserialize(&mut deserializer)?)
     }
 

@@ -2,7 +2,7 @@ use core::cmp::Ordering;
 
 use crate::{
     cdr::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
+        deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer, error::CdrResult,
         serialize::CdrSerialize, serializer::CdrSerializer,
     },
     infrastructure::time::{Duration, DurationKind, DURATION_ZERO},
@@ -26,7 +26,7 @@ impl CdrSerialize for Length {
 }
 
 impl<'de> CdrDeserialize<'de> for Length {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut ClassicCdrDeserializer<'de>) -> CdrResult<Self> {
         let value: i32 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             LENGTH_UNLIMITED => Ok(Length::Unlimited),
@@ -267,7 +267,7 @@ impl CdrSerialize for DurabilityQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DurabilityQosPolicyKind {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut ClassicCdrDeserializer<'de>) -> CdrResult<Self> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(DurabilityQosPolicyKind::Volatile),
@@ -344,7 +344,7 @@ impl CdrSerialize for PresentationQosPolicyAccessScopeKind {
 }
 
 impl<'de> CdrDeserialize<'de> for PresentationQosPolicyAccessScopeKind {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut ClassicCdrDeserializer<'de>) -> CdrResult<Self> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(PresentationQosPolicyAccessScopeKind::Instance),
@@ -507,7 +507,7 @@ impl CdrSerialize for OwnershipQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for OwnershipQosPolicyKind {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut ClassicCdrDeserializer<'de>) -> CdrResult<Self> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(OwnershipQosPolicyKind::Shared),
@@ -566,7 +566,7 @@ impl CdrSerialize for LivelinessQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for LivelinessQosPolicyKind {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut ClassicCdrDeserializer<'de>) -> CdrResult<Self> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(LivelinessQosPolicyKind::Automatic),
@@ -741,7 +741,7 @@ impl CdrSerialize for ReliabilityQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for ReliabilityQosPolicyKind {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut ClassicCdrDeserializer<'de>) -> CdrResult<Self> {
         let value: i32 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             BEST_EFFORT => Ok(ReliabilityQosPolicyKind::BestEffort),
@@ -842,7 +842,7 @@ impl CdrSerialize for DestinationOrderQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DestinationOrderQosPolicyKind {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut ClassicCdrDeserializer<'de>) -> CdrResult<Self> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(DestinationOrderQosPolicyKind::ByReceptionTimestamp),
@@ -923,7 +923,7 @@ impl CdrSerialize for HistoryQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for HistoryQosPolicyKind {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut ClassicCdrDeserializer<'de>) -> CdrResult<Self> {
         let kind: u8 = CdrDeserialize::deserialize(deserializer)?;
         let depth: i32 = CdrDeserialize::deserialize(deserializer)?;
         match kind {
