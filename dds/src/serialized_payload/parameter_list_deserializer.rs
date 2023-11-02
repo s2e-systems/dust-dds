@@ -1,7 +1,7 @@
 use std::io::{BufRead, Read};
 
 use crate::{
-    cdr::{
+    serialized_payload::{
         deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer,
         endianness::CdrEndianness,
     },
@@ -144,7 +144,7 @@ impl<'de> ParameterListDeserializer<'de> for ParameterListCdrDeserializer<'de> {
 
 #[cfg(test)]
 mod tests {
-    use crate::cdr::parameter_list_deserialize::ParameterListDeserialize;
+    use crate::serialized_payload::parameter_list_deserialize::ParameterListDeserialize;
 
     use super::*;
 

@@ -14,18 +14,18 @@ pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
                 match &field.ident {
                     Some(field_name) => {
                         field_serialization
-                            .extend(quote! {dust_dds::cdr::serialize::CdrSerialize::serialize(&self.#field_name, serializer)?;});
+                            .extend(quote! {dust_dds::serialized_payload::serialize::CdrSerialize::serialize(&self.#field_name, serializer)?;});
                     }
                     None => {
                         let index = Index::from(field_index);
-                        field_serialization.extend(quote! {dust_dds::cdr::serialize::CdrSerialize::serialize(&self.#index, serializer)?;});
+                        field_serialization.extend(quote! {dust_dds::serialized_payload::serialize::CdrSerialize::serialize(&self.#index, serializer)?;});
                     }
                 }
             }
 
             Ok(quote! {
-                impl #impl_generics dust_dds::cdr::serialize::CdrSerialize for #ident #type_generics #where_clause {
-                    fn serialize(&self, serializer: &mut impl dust_dds::cdr::serializer::CdrSerializer) -> dust_dds::cdr::error::CdrResult<()> {
+                impl #impl_generics dust_dds::serialized_payload::serialize::CdrSerialize for #ident #type_generics #where_clause {
+                    fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::serializer::CdrSerializer) -> dust_dds::serialized_payload::error::CdrResult<()> {
                         #field_serialization
                         Ok(())
                     }

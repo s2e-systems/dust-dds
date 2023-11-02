@@ -1,4 +1,4 @@
-use crate::cdr::{
+use crate::serialized_payload::{
     endianness::CdrEndianness, serialize::CdrSerialize, serializer::ClassicCdrSerializer,
 };
 
@@ -105,7 +105,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::cdr::parameter_list_serialize::ParameterListSerialize;
+    use crate::serialized_payload::parameter_list_serialize::ParameterListSerialize;
 
     use super::*;
 

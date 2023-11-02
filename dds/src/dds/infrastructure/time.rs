@@ -1,6 +1,6 @@
 use std::ops::Sub;
 
-use crate::cdr::{
+use crate::serialized_payload::{
     deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
     serialize::CdrSerialize, serializer::CdrSerializer,
 };

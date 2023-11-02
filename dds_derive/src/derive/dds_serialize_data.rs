@@ -54,25 +54,25 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
                     dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr(
                         self,
                         writer,
-                        dust_dds::cdr::endianness::CdrEndianness::LittleEndian,
+                        dust_dds::serialized_payload::endianness::CdrEndianness::LittleEndian,
                 )},
                 Format::CdrBe => quote! {
                     dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr(
                         self,
                         writer,
-                        dust_dds::cdr::endianness::CdrEndianness::BigEndian,
+                        dust_dds::serialized_payload::endianness::CdrEndianness::BigEndian,
                 )},
                 Format::PlCdrLe => quote! {
                     dust_dds::topic_definition::type_support::serialize_rtps_cdr_pl(
                         self,
                         writer,
-                        dust_dds::cdr::endianness::CdrEndianness::LittleEndian,
+                        dust_dds::serialized_payload::endianness::CdrEndianness::LittleEndian,
                 )},
                 Format::PlCdrBe => quote! {
                     dust_dds::topic_definition::type_support::serialize_rtps_cdr_pl(
                         self,
                         writer,
-                        dust_dds::cdr::endianness::CdrEndianness::BigEndian,
+                        dust_dds::serialized_payload::endianness::CdrEndianness::BigEndian,
                 )},
             };
 

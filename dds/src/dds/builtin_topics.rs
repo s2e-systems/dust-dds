@@ -1,7 +1,7 @@
 use dust_dds_derive::DdsDeserialize;
 
 use crate::{
-    cdr::{
+    serialized_payload::{
         deserialize::CdrDeserialize, parameter_list_deserialize::ParameterListDeserialize,
         parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
     },

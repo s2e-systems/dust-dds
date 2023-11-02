@@ -1,4 +1,4 @@
-use crate::cdr::{error::CdrResult, serialize::CdrSerialize};
+use crate::serialized_payload::{error::CdrResult, serialize::CdrSerialize};
 
 use super::endianness::CdrEndianness;
 

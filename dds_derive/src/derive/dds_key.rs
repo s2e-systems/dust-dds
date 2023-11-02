@@ -85,7 +85,7 @@ pub fn expand_dds_serialize_key(input: &DeriveInput) -> Result<TokenStream> {
 
                     quote! {
                         #[allow(non_camel_case_types)]
-                        #[derive(dust_dds::cdr::serialize::CdrSerialize)]
+                        #[derive(dust_dds::serialized_payload::serialize::CdrSerialize)]
                         struct __borrowed_key_holder<'__borrowed> {
                             #borrowed_key_holder_fields
                         }
@@ -95,7 +95,7 @@ pub fn expand_dds_serialize_key(input: &DeriveInput) -> Result<TokenStream> {
                                 #borrowed_key_holder_field_assignment
                             },
                             writer,
-                            dust_dds::cdr::endianness::CdrEndianness::LittleEndian)
+                            dust_dds::serialized_payload::endianness::CdrEndianness::LittleEndian)
                     }
                 }
                 false => quote! {Ok(())},
@@ -145,14 +145,14 @@ pub fn expand_dds_instance_handle(input: &DeriveInput) -> Result<TokenStream> {
 
                     quote! {
                         #[allow(non_camel_case_types)]
-                        #[derive(dust_dds::cdr::serialize::CdrSerialize)]
+                        #[derive(dust_dds::serialized_payload::serialize::CdrSerialize)]
                         struct __borrowed_key_holder<'__borrowed> {
                             #borrowed_key_holder_fields
                         }
 
                         let mut writer = Vec::new();
-                        let mut serializer = dust_dds::cdr::serializer::ClassicCdrSerializer::new(&mut writer, dust_dds::cdr::endianness::CdrEndianness::BigEndian);
-                        dust_dds::cdr::serialize::CdrSerialize::serialize(
+                        let mut serializer = dust_dds::serialized_payload::serializer::ClassicCdrSerializer::new(&mut writer, dust_dds::serialized_payload::endianness::CdrEndianness::BigEndian);
+                        dust_dds::serialized_payload::serialize::CdrSerialize::serialize(
                             &__borrowed_key_holder{
                                 #borrowed_key_holder_field_assignment
                             },

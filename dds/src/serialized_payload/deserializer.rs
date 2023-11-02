@@ -3,7 +3,7 @@ use std::{
     io::{BufRead, Read},
 };
 
-use crate::cdr::{deserialize::CdrDeserialize, error::CdrResult};
+use crate::serialized_payload::{deserialize::CdrDeserialize, error::CdrResult};
 
 use super::endianness::CdrEndianness;
 

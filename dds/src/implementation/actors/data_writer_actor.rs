@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
-    cdr::{endianness::CdrEndianness, serialize::CdrSerialize, serializer::ClassicCdrSerializer},
+    serialized_payload::{endianness::CdrEndianness, serialize::CdrSerialize, serializer::ClassicCdrSerializer},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,

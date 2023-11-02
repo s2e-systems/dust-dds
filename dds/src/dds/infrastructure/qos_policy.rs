@@ -1,7 +1,7 @@
 use core::cmp::Ordering;
 
 use crate::{
-    cdr::{
+    serialized_payload::{
         deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
         serialize::CdrSerialize, serializer::CdrSerializer,
     },

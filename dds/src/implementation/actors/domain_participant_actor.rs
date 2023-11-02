@@ -3,7 +3,7 @@ use tracing::warn;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
-    cdr::endianness::CdrEndianness,
+    serialized_payload::endianness::CdrEndianness,
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,

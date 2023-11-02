@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use crate::{
-    cdr::{
+    serialized_payload::{
         deserialize::CdrDeserialize,
         deserializer::ClassicCdrDeserializer,
         endianness::CdrEndianness,

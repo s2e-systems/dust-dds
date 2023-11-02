@@ -5,7 +5,7 @@ use tracing::debug;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    cdr::{deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer, endianness::CdrEndianness},
+    serialized_payload::{deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer, endianness::CdrEndianness},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},

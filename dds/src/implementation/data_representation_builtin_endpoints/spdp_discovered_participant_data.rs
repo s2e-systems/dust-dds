@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
-    cdr::{
+    serialized_payload::{
         deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
         parameter_list_deserialize::ParameterListDeserialize,
         parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,

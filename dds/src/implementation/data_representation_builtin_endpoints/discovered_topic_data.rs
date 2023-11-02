@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    cdr::{
+    serialized_payload::{
         parameter_list_deserialize::ParameterListDeserialize,
         parameter_list_serialize::ParameterListSerialize,
     },
