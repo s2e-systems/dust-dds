@@ -25,18 +25,21 @@ pub trait ParameterListSerializer {
         T: CdrSerialize;
 }
 
-pub struct ParameterListCdrSerializer<'s> {
-    writer: &'s mut Vec<u8>,
+pub struct ParameterListCdrSerializer<W> {
+    writer: W,
     endianness: CdrEndianness,
 }
 
-impl<'s> ParameterListCdrSerializer<'s> {
-    pub fn new(writer: &'s mut Vec<u8>, endianness: CdrEndianness) -> Self {
+impl<W> ParameterListCdrSerializer<W> {
+    pub fn new(writer: W, endianness: CdrEndianness) -> Self {
         Self { writer, endianness }
     }
 }
 
-impl ParameterListSerializer for ParameterListCdrSerializer<'_> {
+impl<W> ParameterListSerializer for ParameterListCdrSerializer<W>
+where
+    W: std::io::Write,
+{
     fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
     where
         T: CdrSerialize,
@@ -52,17 +55,18 @@ impl ParameterListSerializer for ParameterListCdrSerializer<'_> {
         if length > u16::MAX as usize {
             Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)))
         } else {
-            let mut serializer = ClassicCdrSerializer::new(self.writer, self.endianness);
+            let mut data = Vec::new();
+            let mut serializer = ClassicCdrSerializer::new(&mut data, self.endianness);
             serializer.serialize_i16(id)?;
             serializer.serialize_u16(length as u16)?;
 
-            self.writer.append(&mut data);
+            self.writer.write_all(&data)?;
 
             match padding_length {
-                1 => self.writer.extend_from_slice(&[0u8; 1]),
-                2 => self.writer.extend_from_slice(&[0u8; 2]),
-                3 => self.writer.extend_from_slice(&[0u8; 3]),
-                _ => self.writer.extend_from_slice(&[0u8; 0]),
+                1 => self.writer.write_all(&[0u8; 1])?,
+                2 => self.writer.write_all(&[0u8; 2])?,
+                3 => self.writer.write_all(&[0u8; 3])?,
+                _ => self.writer.write_all(&[0u8; 0])?,
             }
             Ok(())
         }

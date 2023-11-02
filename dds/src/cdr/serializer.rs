@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use crate::cdr::{error::CdrResult, serialize::CdrSerialize};
 
 use super::endianness::CdrEndianness;
@@ -38,14 +36,17 @@ pub trait CdrSerializer {
     fn serialize_unit(&mut self) -> CdrResult<()>;
 }
 
-pub struct ClassicCdrSerializer<'s> {
-    writer: &'s mut Vec<u8>,
+pub struct ClassicCdrSerializer<W> {
+    writer: W,
     pos: usize,
     endianness: CdrEndianness,
 }
 
-impl<'s> ClassicCdrSerializer<'s> {
-    pub fn new(writer: &'s mut Vec<u8>, endianness: CdrEndianness) -> Self {
+impl<W> ClassicCdrSerializer<W>
+where
+    W: std::io::Write,
+{
+    pub fn new(writer: W, endianness: CdrEndianness) -> Self {
         Self {
             writer,
             pos: 0,
@@ -81,7 +82,10 @@ impl<'s> ClassicCdrSerializer<'s> {
     }
 }
 
-impl CdrSerializer for ClassicCdrSerializer<'_> {
+impl<W> CdrSerializer for ClassicCdrSerializer<W>
+where
+    W: std::io::Write,
+{
     fn serialize_bool(&mut self, v: bool) -> CdrResult<()> {
         self.serialize_u8(v as u8)
     }

@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::Read;
 
 use crate::{
     cdr::{
@@ -46,7 +46,7 @@ pub trait DdsHasKey {
 /// The format to be used for serializing can be selected by applying the '#[dust_dds(format = ...)]' attribute to the container.
 /// Available format options are "CDR_LE", "CDR_BE", "PL_CDR_LE" and "PL_CDR_BE".
 pub trait DdsSerialize {
-    fn serialize_data(&self, writer: &mut Vec<u8>) -> DdsResult<()>;
+    fn serialize_data(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
 
 /// This trait describes how the bytes can be deserialize to construct the data structure.
@@ -73,7 +73,7 @@ pub trait DdsDeserialize<'de>: Sized {
 /// This trait can be automatically derived if the key fields of the struct implement `CdrSerialize`.
 /// The derive always uses the CDR_LE format for serializing the key
 pub trait DdsSerializeKey {
-    fn serialize_key(&self, writer: &mut Vec<u8>) -> DdsResult<()>;
+    fn serialize_key(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
 
 /// This trait defines how the unique instance handle can be generated from a given instance of a type.
@@ -153,7 +153,7 @@ const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 /// This is a helper function to serialize a type implementing [`CdrSerialize`] using the RTPS defined classic CDR representation.
 pub fn serialize_rtps_classic_cdr(
     value: &impl CdrSerialize,
-    writer: &mut Vec<u8>,
+    mut writer: impl std::io::Write,
     endianness: CdrEndianness,
 ) -> DdsResult<()> {
     match endianness {
@@ -169,7 +169,7 @@ pub fn serialize_rtps_classic_cdr(
 /// This is a helper function to serialize a type implementing [`ParameterListSerialize`] using the RTPS defined CDR Parameter List representation.
 pub fn serialize_rtps_cdr_pl(
     value: &impl ParameterListSerialize,
-    writer: &mut Vec<u8>,
+    mut writer: impl std::io::Write,
     endianness: CdrEndianness,
 ) -> DdsResult<()> {
     match endianness {
