@@ -64,7 +64,7 @@ impl ParameterListCdrSerializer<'_> {
         Ok(())
     }
 
-    pub fn write_list_elements<T>(
+    pub fn write_collection<T>(
         &mut self,
         id: i16,
         value_list: &[T],

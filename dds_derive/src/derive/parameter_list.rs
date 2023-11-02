@@ -82,12 +82,12 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
                         } else {
                             match &field.ident {
                                 Some(field_name) => field_serialization.extend(quote! {
-                                    serializer.write_list_elements(#id, &self.#field_name)?;
+                                    serializer.write_collection(#id, &self.#field_name)?;
                                 }),
                                 None => {
                                     let index = Index::from(field_index);
                                     field_serialization.extend(quote! {
-                                        serializer.write_list_elements(#id, &self.#index)?;
+                                        serializer.write_collection(#id, &self.#index)?;
                                     })
                                 }
                             }
