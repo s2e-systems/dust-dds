@@ -20,3 +20,5 @@ pub mod subscription;
 /// Contains the [`Topic`](crate::topic_definition::topic::Topic) class as well as its listener trait, and more generally, all that is needed
 /// by the application to define topics and attach qos policies.
 pub mod topic_definition;
+
+pub mod configuration;

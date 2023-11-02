@@ -1,12 +1,12 @@
 use super::domain_participant::DomainParticipant;
 use crate::{
+    configuration::DustDdsConfiguration,
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         actors::{
             domain_participant_actor::{self, DomainParticipantActor},
             domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
         },
-        configuration::DustDdsConfiguration,
         rtps::{
             participant::RtpsParticipant,
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -20,15 +20,10 @@ use crate::{
         status::StatusKind,
     },
 };
-use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-use schemars::schema_for;
 use socket2::Socket;
-use std::{
-    net::{Ipv4Addr, SocketAddr},
-    str::FromStr,
-};
+use std::net::{Ipv4Addr, SocketAddr};
 use tracing::warn;
 
 pub type DomainId = i32;
@@ -41,12 +36,8 @@ lazy_static! {
         DomainParticipantFactory(participant_factory_actor)
     };
 
-    static ref THE_DDS_CONFIGURATION: DustDdsConfiguration =
-        if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION") {
-            configuration_try_from_str(configuration_json.as_str()).unwrap()
-        } else {
-            DustDdsConfiguration::default()
-        };
+    static ref THE_DDS_CONFIGURATION: DustDdsConfiguration = DustDdsConfiguration::default();
+
 }
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
@@ -434,23 +425,6 @@ impl DomainParticipantFactory {
     }
 }
 
-fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfiguration, String> {
-    let root_schema = schema_for!(DustDdsConfiguration);
-    let json_schema_str =
-        serde_json::to_string(&root_schema).expect("Json schema could not be created");
-
-    let schema = serde_json::value::Value::from_str(json_schema_str.as_str())
-        .expect("Json schema not valid");
-    let compiled_schema = JSONSchema::compile(&schema).expect("Json schema could not be compiled");
-
-    let instance =
-        serde_json::value::Value::from_str(configuration_json).map_err(|e| e.to_string())?;
-    compiled_schema
-        .validate(&instance)
-        .map_err(|errors| errors.map(|e| e.to_string()).collect::<String>())?;
-    serde_json::from_value(instance).map_err(|e| e.to_string())
-}
-
 type LocatorAddress = [u8; 16];
 // As of 9.6.1.4.1  Default multicast address
 const DEFAULT_MULTICAST_LOCATOR_ADDRESS: LocatorAddress =
@@ -518,25 +492,4 @@ fn get_multicast_socket(
     socket.set_multicast_loop_v4(true)?;
 
     tokio::net::UdpSocket::from_std(socket.into())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn from_configuration_json() {
-        let configuration = configuration_try_from_str(
-            r#"{"domain_tag" : "from_configuration_json", "interface_name": "Wi-Fi"}"#,
-        )
-        .unwrap();
-        assert_eq!(
-            configuration,
-            DustDdsConfiguration {
-                domain_tag: "from_configuration_json".to_string(),
-                interface_name: Some("Wi-Fi".to_string()),
-                fragment_size: 1344
-            }
-        );
-    }
 }

@@ -1,8 +1,4 @@
-use schemars::JsonSchema;
-use serde::Deserialize;
-
-#[derive(Deserialize, JsonSchema, Debug, PartialEq, Eq)]
-#[serde(default)]
+#[derive(Debug, PartialEq, Eq)]
 /// # Dust DDS Configuration
 /// The environment DUST_DDS_CONFIGURATION variable can be set
 /// as a json to modify the default configuration.
@@ -16,7 +12,6 @@ pub struct DustDdsConfiguration {
     pub interface_name: Option<String>,
     /// # Fragment size
     /// Data is fragmented into max size of this
-    #[schemars(range(min = 8))]
     pub fragment_size: usize,
 }
 
