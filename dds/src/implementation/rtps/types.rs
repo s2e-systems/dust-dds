@@ -1,4 +1,4 @@
-use crate::serialized_payload::{deserialize::CdrDeserialize, serialize::CdrSerialize};
+use crate::serialized_payload::{cdr::deserialize::CdrDeserialize, serialize::CdrSerialize};
 
 use super::messages::overall_structure::{WriteBytes, WriteEndianness};
 use byteorder::ByteOrder;

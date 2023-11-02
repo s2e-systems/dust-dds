@@ -1,7 +1,7 @@
 use std::ops::Sub;
 
 use crate::serialized_payload::{
-    deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
+    cdr::deserialize::CdrDeserialize, cdr::deserializer::CdrDeserializer, error::CdrResult,
     serialize::CdrSerialize, serializer::CdrSerializer,
 };
 

@@ -37,13 +37,13 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                         .is_none();
                     if is_tuple {
                         for _ in data_struct.fields.iter() {
-                            field_deserialization.extend(quote!{dust_dds::serialized_payload::deserialize::CdrDeserialize::deserialize(deserializer)?,});
+                            field_deserialization.extend(quote!{dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,});
                         }
                         struct_deserialization.extend(quote! {Self(#field_deserialization)})
                     } else {
                         for field in data_struct.fields.iter() {
                             let field_name = field.ident.as_ref().expect("Is not a tuple");
-                            field_deserialization.extend(quote!{#field_name: dust_dds::serialized_payload::deserialize::CdrDeserialize::deserialize(deserializer)?,});
+                            field_deserialization.extend(quote!{#field_name: dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,});
                         }
                         struct_deserialization.extend(quote! {Self{
                             #field_deserialization
@@ -53,8 +53,8 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             Ok(quote! {
-                    impl #generics dust_dds::serialized_payload::deserialize::CdrDeserialize<'__de> for #ident #type_generics #where_clause {
-                        fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::deserializer::CdrDeserializer<'__de>) -> dust_dds::serialized_payload::error::CdrResult<Self> {
+                    impl #generics dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize<'__de> for #ident #type_generics #where_clause {
+                        fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
                             Ok(#struct_deserialization)
                         }
                     }

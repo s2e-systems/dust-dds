@@ -1,11 +1,5 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
-    serialized_payload::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
-        parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
-        serializer::CdrSerializer,
-    },
     domain::domain_participant_factory::DomainId,
     implementation::rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
@@ -13,6 +7,12 @@ use crate::{
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
     infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},
+    serialized_payload::{
+        cdr::deserialize::CdrDeserialize, cdr::deserializer::CdrDeserializer, error::CdrResult,
+        parameter_list_deserialize::ParameterListDeserialize,
+        parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
+        serializer::CdrSerializer,
+    },
     topic_definition::type_support::{
         DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
         DdsSerialize,

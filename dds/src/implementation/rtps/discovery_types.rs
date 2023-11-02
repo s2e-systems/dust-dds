@@ -1,7 +1,7 @@
 // This file implements the types that appear in the built-in topic messages
 // using the mapping described in 9.3.2 Mapping of the Types that Appear Within Submessages or Built-in Topic Data
 
-use crate::serialized_payload::{deserialize::CdrDeserialize, serialize::CdrSerialize};
+use crate::serialized_payload::{cdr::deserialize::CdrDeserialize, serialize::CdrSerialize};
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, CdrSerialize, CdrDeserialize)]
 pub struct BuiltinEndpointSet(pub u32);

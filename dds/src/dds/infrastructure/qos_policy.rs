@@ -1,11 +1,11 @@
 use core::cmp::Ordering;
 
 use crate::{
+    infrastructure::time::{Duration, DurationKind, DURATION_ZERO},
     serialized_payload::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
+        cdr::deserialize::CdrDeserialize, cdr::deserializer::CdrDeserializer, error::CdrResult,
         serialize::CdrSerialize, serializer::CdrSerializer,
     },
-    infrastructure::time::{Duration, DurationKind, DURATION_ZERO},
 };
 
 pub type QosPolicyId = i32;

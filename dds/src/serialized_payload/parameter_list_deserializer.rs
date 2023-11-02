@@ -1,4 +1,4 @@
-use crate::serialized_payload::deserialize::CdrDeserialize;
+use crate::serialized_payload::cdr::deserialize::CdrDeserialize;
 
 pub trait ParameterListDeserializer<'de> {
     fn read<T>(&self, id: i16) -> Result<T, std::io::Error>

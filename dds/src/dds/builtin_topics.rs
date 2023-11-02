@@ -1,10 +1,6 @@
 use dust_dds_derive::DdsDeserialize;
 
 use crate::{
-    serialized_payload::{
-        deserialize::CdrDeserialize, parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
-    },
     implementation::data_representation_builtin_endpoints::parameter_id_values::{
         PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA,
         PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP,
@@ -20,6 +16,10 @@ use crate::{
         TransportPriorityQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+    },
+    serialized_payload::{
+        cdr::deserialize::CdrDeserialize, parameter_list_deserialize::ParameterListDeserialize,
+        parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
     },
     topic_definition::type_support::DdsHasKey,
 };

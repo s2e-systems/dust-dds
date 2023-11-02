@@ -59,7 +59,7 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    serialized_payload::deserialize::CdrDeserialize,
+    serialized_payload::cdr::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsInstanceHandle,
 };
