@@ -1,13 +1,16 @@
-use std::io::{Read, Write};
+use std::io::Read;
 
 use crate::{
     cdr::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, endianness::CdrEndianness,
+        deserialize::CdrDeserialize,
+        deserializer::ClassicCdrDeserializer,
+        endianness::CdrEndianness,
         parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_deserializer::ParameterListDeserializer,
+        parameter_list_deserializer::ParameterListCdrDeserializer,
         parameter_list_serialize::ParameterListSerialize,
-        parameter_list_serializer::ParameterListSerializer, serialize::CdrSerialize,
-        serializer::CdrSerializer,
+        parameter_list_serializer::{ParameterListCdrSerializer, ParameterListSerializer},
+        serialize::CdrSerialize,
+        serializer::ClassicCdrSerializer,
     },
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     infrastructure::{
@@ -43,7 +46,7 @@ pub trait DdsHasKey {
 /// The format to be used for serializing can be selected by applying the '#[dust_dds(format = ...)]' attribute to the container.
 /// Available format options are "CDR_LE", "CDR_BE", "PL_CDR_LE" and "PL_CDR_BE".
 pub trait DdsSerialize {
-    fn serialize_data(&self, writer: &mut Vec<u8>) -> DdsResult<()>;
+    fn serialize_data(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
 
 /// This trait describes how the bytes can be deserialize to construct the data structure.
@@ -70,7 +73,7 @@ pub trait DdsDeserialize<'de>: Sized {
 /// This trait can be automatically derived if the key fields of the struct implement `CdrSerialize`.
 /// The derive always uses the CDR_LE format for serializing the key
 pub trait DdsSerializeKey {
-    fn serialize_key(&self, writer: &mut Vec<u8>) -> DdsResult<()>;
+    fn serialize_key(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
 
 /// This trait defines how the unique instance handle can be generated from a given instance of a type.
@@ -150,7 +153,7 @@ const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 /// This is a helper function to serialize a type implementing [`CdrSerialize`] using the RTPS defined classic CDR representation.
 pub fn serialize_rtps_classic_cdr(
     value: &impl CdrSerialize,
-    writer: &mut Vec<u8>,
+    mut writer: impl std::io::Write,
     endianness: CdrEndianness,
 ) -> DdsResult<()> {
     match endianness {
@@ -158,7 +161,7 @@ pub fn serialize_rtps_classic_cdr(
         CdrEndianness::BigEndian => writer.write_all(&CDR_BE)?,
     }
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = CdrSerializer::new(writer, endianness);
+    let mut serializer = ClassicCdrSerializer::new(writer, endianness);
     CdrSerialize::serialize(value, &mut serializer)?;
     Ok(())
 }
@@ -166,7 +169,7 @@ pub fn serialize_rtps_classic_cdr(
 /// This is a helper function to serialize a type implementing [`ParameterListSerialize`] using the RTPS defined CDR Parameter List representation.
 pub fn serialize_rtps_cdr_pl(
     value: &impl ParameterListSerialize,
-    writer: &mut Vec<u8>,
+    mut writer: impl std::io::Write,
     endianness: CdrEndianness,
 ) -> DdsResult<()> {
     match endianness {
@@ -174,7 +177,7 @@ pub fn serialize_rtps_cdr_pl(
         CdrEndianness::BigEndian => writer.write_all(&PL_CDR_BE)?,
     }
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = ParameterListSerializer::new(writer, endianness);
+    let mut serializer = ParameterListCdrSerializer::new(writer, endianness);
     ParameterListSerialize::serialize(value, &mut serializer)?;
     serializer.write(PID_SENTINEL, &())?;
     Ok(())
@@ -199,22 +202,23 @@ where
 
     let value = match representation_identifier {
         CDR_BE => {
-            let mut deserializer = CdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
+            let mut deserializer =
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
         }
         CDR_LE => {
             let mut deserializer =
-                CdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
         }
         PL_CDR_BE => {
             let mut deserializer =
-                ParameterListDeserializer::new(serialized_data, CdrEndianness::BigEndian);
+                ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
             Ok(ParameterListDeserialize::deserialize(&mut deserializer)?)
         }
         PL_CDR_LE => {
             let mut deserializer =
-                ParameterListDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+                ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
             Ok(ParameterListDeserialize::deserialize(&mut deserializer)?)
         }
         _ => Err(DdsError::Error(
@@ -241,11 +245,11 @@ where
         .map_err(|err| DdsError::Error(err.to_string()))?;
 
     let mut deserializer = match representation_identifier {
-        CDR_BE => Ok(CdrDeserializer::new(
+        CDR_BE => Ok(ClassicCdrDeserializer::new(
             serialized_data,
             CdrEndianness::BigEndian,
         )),
-        CDR_LE => Ok(CdrDeserializer::new(
+        CDR_LE => Ok(ClassicCdrDeserializer::new(
             serialized_data,
             CdrEndianness::LittleEndian,
         )),
@@ -274,11 +278,11 @@ where
         .map_err(|err| DdsError::Error(err.to_string()))?;
 
     let mut deserializer = match representation_identifier {
-        PL_CDR_BE => Ok(ParameterListDeserializer::new(
+        PL_CDR_BE => Ok(ParameterListCdrDeserializer::new(
             serialized_data,
             CdrEndianness::BigEndian,
         )),
-        PL_CDR_LE => Ok(ParameterListDeserializer::new(
+        PL_CDR_LE => Ok(ParameterListCdrDeserializer::new(
             serialized_data,
             CdrEndianness::LittleEndian,
         )),

@@ -1,9 +1,26 @@
 use std::io::{BufRead, Read};
 
 use crate::{
-    cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer, endianness::CdrEndianness},
+    cdr::{
+        deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer,
+        endianness::CdrEndianness,
+    },
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
 };
+
+pub trait ParameterListDeserializer<'de> {
+    fn read<T>(&self, id: i16) -> Result<T, std::io::Error>
+    where
+        T: CdrDeserialize<'de>;
+
+    fn read_with_default<T>(&self, id: i16, default: T) -> Result<T, std::io::Error>
+    where
+        T: CdrDeserialize<'de>;
+
+    fn read_collection<T>(&self, id: i16) -> Result<Vec<T>, std::io::Error>
+    where
+        T: CdrDeserialize<'de>;
+}
 
 struct Parameter<'de> {
     id: i16,
@@ -60,17 +77,19 @@ impl<'a, 'de> ParameterIterator<'a, 'de> {
     }
 }
 
-pub struct ParameterListDeserializer<'de> {
+pub struct ParameterListCdrDeserializer<'de> {
     bytes: &'de [u8],
     endianness: CdrEndianness,
 }
 
-impl<'de> ParameterListDeserializer<'de> {
+impl<'de> ParameterListCdrDeserializer<'de> {
     pub fn new(bytes: &'de [u8], endianness: CdrEndianness) -> Self {
         Self { bytes, endianness }
     }
+}
 
-    pub fn read<T>(&self, id: i16) -> Result<T, std::io::Error>
+impl<'de> ParameterListDeserializer<'de> for ParameterListCdrDeserializer<'de> {
+    fn read<T>(&self, id: i16) -> Result<T, std::io::Error>
     where
         T: CdrDeserialize<'de>,
     {
@@ -78,7 +97,7 @@ impl<'de> ParameterListDeserializer<'de> {
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
             if p.id() == id {
-                return T::deserialize(&mut CdrDeserializer::new(p.data(), self.endianness));
+                return T::deserialize(&mut ClassicCdrDeserializer::new(p.data(), self.endianness));
             }
         }
 
@@ -88,7 +107,7 @@ impl<'de> ParameterListDeserializer<'de> {
         ))
     }
 
-    pub fn read_with_default<T>(&self, id: i16, default: T) -> Result<T, std::io::Error>
+    fn read_with_default<T>(&self, id: i16, default: T) -> Result<T, std::io::Error>
     where
         T: CdrDeserialize<'de>,
     {
@@ -96,14 +115,14 @@ impl<'de> ParameterListDeserializer<'de> {
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
             if p.id() == id {
-                return T::deserialize(&mut CdrDeserializer::new(p.data(), self.endianness));
+                return T::deserialize(&mut ClassicCdrDeserializer::new(p.data(), self.endianness));
             }
         }
 
         Ok(default)
     }
 
-    pub fn read_all<T>(&self, id: i16) -> Result<Vec<T>, std::io::Error>
+    fn read_collection<T>(&self, id: i16) -> Result<Vec<T>, std::io::Error>
     where
         T: CdrDeserialize<'de>,
     {
@@ -112,7 +131,7 @@ impl<'de> ParameterListDeserializer<'de> {
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
             if p.id() == id {
-                parameter_values.push(T::deserialize(&mut CdrDeserializer::new(
+                parameter_values.push(T::deserialize(&mut ClassicCdrDeserializer::new(
                     p.data(),
                     self.endianness,
                 ))?);
@@ -133,7 +152,7 @@ mod tests {
     where
         T: ParameterListDeserialize<'de>,
     {
-        let mut pl_deserializer = ParameterListDeserializer::new(data, CdrEndianness::BigEndian);
+        let mut pl_deserializer = ParameterListCdrDeserializer::new(data, CdrEndianness::BigEndian);
         ParameterListDeserialize::deserialize(&mut pl_deserializer)
     }
 
@@ -141,7 +160,8 @@ mod tests {
     where
         T: ParameterListDeserialize<'de>,
     {
-        let mut pl_deserializer = ParameterListDeserializer::new(data, CdrEndianness::LittleEndian);
+        let mut pl_deserializer =
+            ParameterListCdrDeserializer::new(data, CdrEndianness::LittleEndian);
         ParameterListDeserialize::deserialize(&mut pl_deserializer)
     }
 
@@ -154,7 +174,7 @@ mod tests {
 
         impl<'de> ParameterListDeserialize<'de> for OneParamData {
             fn deserialize(
-                pl_deserializer: &mut ParameterListDeserializer<'de>,
+                pl_deserializer: &mut impl ParameterListDeserializer<'de>,
             ) -> Result<Self, std::io::Error> {
                 let value = pl_deserializer.read(71)?;
                 Ok(Self { value })

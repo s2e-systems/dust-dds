@@ -102,7 +102,7 @@ pub fn expand_dds_serialize_key(input: &DeriveInput) -> Result<TokenStream> {
             };
             Ok(quote! {
                 impl #impl_generics dust_dds::topic_definition::type_support::DdsSerializeKey for #ident #type_generics #where_clause {
-                    fn serialize_key(&self, writer: &mut Vec<u8>) -> dust_dds::infrastructure::error::DdsResult<()> {
+                    fn serialize_key(&self, writer: impl std::io::Write) -> dust_dds::infrastructure::error::DdsResult<()> {
                         #serialize_key_body
                     }
                 }
@@ -151,7 +151,7 @@ pub fn expand_dds_instance_handle(input: &DeriveInput) -> Result<TokenStream> {
                         }
 
                         let mut writer = Vec::new();
-                        let mut serializer = dust_dds::cdr::serializer::CdrSerializer::new(&mut writer, dust_dds::cdr::endianness::CdrEndianness::BigEndian);
+                        let mut serializer = dust_dds::cdr::serializer::ClassicCdrSerializer::new(&mut writer, dust_dds::cdr::endianness::CdrEndianness::BigEndian);
                         dust_dds::cdr::serialize::CdrSerialize::serialize(
                             &__borrowed_key_holder{
                                 #borrowed_key_holder_field_assignment

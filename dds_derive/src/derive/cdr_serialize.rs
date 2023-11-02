@@ -25,7 +25,7 @@ pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
 
             Ok(quote! {
                 impl #impl_generics dust_dds::cdr::serialize::CdrSerialize for #ident #type_generics #where_clause {
-                    fn serialize(&self, serializer: &mut dust_dds::cdr::serializer::CdrSerializer) -> dust_dds::cdr::error::CdrResult<()> {
+                    fn serialize(&self, serializer: &mut impl dust_dds::cdr::serializer::CdrSerializer) -> dust_dds::cdr::error::CdrResult<()> {
                         #field_serialization
                         Ok(())
                     }

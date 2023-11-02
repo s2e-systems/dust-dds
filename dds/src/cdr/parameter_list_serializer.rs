@@ -1,25 +1,49 @@
-use crate::cdr::{endianness::CdrEndianness, serialize::CdrSerialize, serializer::CdrSerializer};
+use crate::cdr::{
+    endianness::CdrEndianness, serialize::CdrSerialize, serializer::ClassicCdrSerializer,
+};
 
 pub use dust_dds_derive::ParameterListDeserialize;
 
-pub struct ParameterListSerializer<'s> {
-    writer: &'s mut Vec<u8>,
+pub trait ParameterListSerializer {
+    fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
+    where
+        T: CdrSerialize;
+
+    fn write_with_default<T>(
+        &mut self,
+        id: i16,
+        value: &T,
+        default: &T,
+    ) -> Result<(), std::io::Error>
+    where
+        T: CdrSerialize + PartialEq;
+
+    fn write_collection<T>(&mut self, id: i16, value_list: &[T]) -> Result<(), std::io::Error>
+    where
+        T: CdrSerialize;
+}
+
+pub struct ParameterListCdrSerializer<W> {
+    writer: W,
     endianness: CdrEndianness,
 }
 
-impl<'s> ParameterListSerializer<'s> {
-    pub fn new(writer: &'s mut Vec<u8>, endianness: CdrEndianness) -> Self {
+impl<W> ParameterListCdrSerializer<W> {
+    pub fn new(writer: W, endianness: CdrEndianness) -> Self {
         Self { writer, endianness }
     }
 }
 
-impl ParameterListSerializer<'_> {
-    pub fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
+impl<W> ParameterListSerializer for ParameterListCdrSerializer<W>
+where
+    W: std::io::Write,
+{
+    fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
     where
         T: CdrSerialize,
     {
         let mut data = Vec::new();
-        let mut data_serializer = CdrSerializer::new(&mut data, self.endianness);
+        let mut data_serializer = ClassicCdrSerializer::new(&mut data, self.endianness);
         value.serialize(&mut data_serializer)?;
 
         let length_without_padding = data.len();
@@ -29,23 +53,31 @@ impl ParameterListSerializer<'_> {
         if length > u16::MAX as usize {
             Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)))
         } else {
-            let mut serializer = CdrSerializer::new(self.writer, self.endianness);
-            serializer.serialize_i16(id)?;
-            serializer.serialize_u16(length as u16)?;
+            match self.endianness {
+                CdrEndianness::LittleEndian => {
+                    self.writer.write_all(&id.to_le_bytes())?;
+                    self.writer.write_all(&(length as u16).to_le_bytes())?;
+                }
 
-            self.writer.append(&mut data);
+                CdrEndianness::BigEndian => {
+                    self.writer.write_all(&id.to_be_bytes())?;
+                    self.writer.write_all(&(length as u16).to_be_bytes())?;
+                }
+            }
+
+            self.writer.write_all(&data)?;
 
             match padding_length {
-                1 => self.writer.extend_from_slice(&[0u8; 1]),
-                2 => self.writer.extend_from_slice(&[0u8; 2]),
-                3 => self.writer.extend_from_slice(&[0u8; 3]),
-                _ => self.writer.extend_from_slice(&[0u8; 0]),
+                1 => self.writer.write_all(&[0u8; 1])?,
+                2 => self.writer.write_all(&[0u8; 2])?,
+                3 => self.writer.write_all(&[0u8; 3])?,
+                _ => self.writer.write_all(&[0u8; 0])?,
             }
             Ok(())
         }
     }
 
-    pub fn write_with_default<T>(
+    fn write_with_default<T>(
         &mut self,
         id: i16,
         value: &T,
@@ -60,13 +92,9 @@ impl ParameterListSerializer<'_> {
         Ok(())
     }
 
-    pub fn write_list_elements<T>(
-        &mut self,
-        id: i16,
-        value_list: &[T],
-    ) -> Result<(), std::io::Error>
+    fn write_collection<T>(&mut self, id: i16, value_list: &[T]) -> Result<(), std::io::Error>
     where
-        T: CdrSerialize + PartialEq,
+        T: CdrSerialize,
     {
         for value in value_list {
             self.write(id, value)?;
@@ -86,7 +114,8 @@ mod tests {
         T: ParameterListSerialize,
     {
         let mut writer = Vec::new();
-        let mut serializer = ParameterListSerializer::new(&mut writer, CdrEndianness::LittleEndian);
+        let mut serializer =
+            ParameterListCdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
         v.serialize(&mut serializer)?;
         Ok(writer)
     }
@@ -96,7 +125,7 @@ mod tests {
         T: ParameterListSerialize,
     {
         let mut writer = Vec::new();
-        let mut serializer = ParameterListSerializer::new(&mut writer, CdrEndianness::BigEndian);
+        let mut serializer = ParameterListCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
         v.serialize(&mut serializer)?;
         Ok(writer)
     }
@@ -112,7 +141,7 @@ mod tests {
         impl ParameterListSerialize for ParameterListWithoutDefaults {
             fn serialize(
                 &self,
-                serializer: &mut ParameterListSerializer,
+                serializer: &mut impl ParameterListSerializer,
             ) -> Result<(), std::io::Error> {
                 serializer.write(1, &self.a)?;
                 serializer.write(2, &self.b)?;

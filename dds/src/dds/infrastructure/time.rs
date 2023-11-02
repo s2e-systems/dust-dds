@@ -19,7 +19,7 @@ const DURATION_INFINITE: Duration = Duration {
 };
 
 impl CdrSerialize for DurationKind {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
         match self {
             DurationKind::Finite(d) => d,
             DurationKind::Infinite => &DURATION_INFINITE,
@@ -29,7 +29,7 @@ impl CdrSerialize for DurationKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DurationKind {
-    fn deserialize(deserializer: &mut CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let duration: Duration = CdrDeserialize::deserialize(deserializer)?;
         if duration == DURATION_INFINITE {
             Ok(DurationKind::Infinite)
