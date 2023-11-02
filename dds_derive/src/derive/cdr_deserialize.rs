@@ -96,11 +96,11 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de> dust_dds::serialized_payload::deserialize::CdrDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::deserializer::CdrDeserializer<'__de>) -> dust_dds::serialized_payload::error::CdrResult<Self> {
+            impl<'__de> dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize<'__de> for MyData {
+                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
                     Ok(Self {
-                        x: dust_dds::serialized_payload::deserialize::CdrDeserialize::deserialize(deserializer)?,
-                        y: dust_dds::serialized_payload::deserialize::CdrDeserialize::deserialize(deserializer)?,
+                        x: dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
+                        y: dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
                     })
                 }
             }
@@ -135,10 +135,10 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(expand_cdr_deserialize(&input).unwrap()).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de : 'a, 'a> dust_dds::serialized_payload::deserialize::CdrDeserialize<'__de> for BorrowedData<'a> {
-                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::deserializer::CdrDeserializer<'__de>) -> dust_dds::serialized_payload::error::CdrResult<Self> {
+            impl<'__de : 'a, 'a> dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize<'__de> for BorrowedData<'a> {
+                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
                     Ok(Self {
-                        data: dust_dds::serialized_payload::deserialize::CdrDeserialize::deserialize(deserializer)?,
+                        data: dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
                     })
                 }
             }
