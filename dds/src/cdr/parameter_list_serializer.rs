@@ -36,8 +36,8 @@ impl<'s> ParameterListCdrSerializer<'s> {
     }
 }
 
-impl ParameterListCdrSerializer<'_> {
-    pub fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
+impl ParameterListSerializer for ParameterListCdrSerializer<'_> {
+    fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
     where
         T: CdrSerialize,
     {
@@ -68,7 +68,7 @@ impl ParameterListCdrSerializer<'_> {
         }
     }
 
-    pub fn write_with_default<T>(
+    fn write_with_default<T>(
         &mut self,
         id: i16,
         value: &T,
@@ -83,7 +83,7 @@ impl ParameterListCdrSerializer<'_> {
         Ok(())
     }
 
-    pub fn write_collection<T>(&mut self, id: i16, value_list: &[T]) -> Result<(), std::io::Error>
+    fn write_collection<T>(&mut self, id: i16, value_list: &[T]) -> Result<(), std::io::Error>
     where
         T: CdrSerialize,
     {
@@ -132,7 +132,7 @@ mod tests {
         impl ParameterListSerialize for ParameterListWithoutDefaults {
             fn serialize(
                 &self,
-                serializer: &mut ParameterListCdrSerializer,
+                serializer: &mut impl ParameterListSerializer,
             ) -> Result<(), std::io::Error> {
                 serializer.write(1, &self.a)?;
                 serializer.write(2, &self.b)?;

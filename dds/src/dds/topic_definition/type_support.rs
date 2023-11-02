@@ -2,11 +2,14 @@ use std::io::{Read, Write};
 
 use crate::{
     cdr::{
-        deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
+        deserialize::CdrDeserialize,
+        deserializer::ClassicCdrDeserializer,
+        endianness::CdrEndianness,
         parameter_list_deserialize::ParameterListDeserialize,
         parameter_list_deserializer::ParameterListCdrDeserializer,
         parameter_list_serialize::ParameterListSerialize,
-        parameter_list_serializer::ParameterListCdrSerializer, serialize::CdrSerialize,
+        parameter_list_serializer::{ParameterListCdrSerializer, ParameterListSerializer},
+        serialize::CdrSerialize,
         serializer::ClassicCdrSerializer,
     },
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
@@ -199,7 +202,8 @@ where
 
     let value = match representation_identifier {
         CDR_BE => {
-            let mut deserializer = ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
+            let mut deserializer =
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
         }
         CDR_LE => {
