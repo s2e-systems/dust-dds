@@ -4,13 +4,13 @@ use crate::cdr::{error::CdrResult, serialize::CdrSerialize};
 
 use super::endianness::CdrEndianness;
 
-pub struct CdrSerializer<'s> {
+pub struct ClassicCdrSerializer<'s> {
     writer: &'s mut Vec<u8>,
     pos: usize,
     endianness: CdrEndianness,
 }
 
-impl<'s> CdrSerializer<'s> {
+impl<'s> ClassicCdrSerializer<'s> {
     pub fn new(writer: &'s mut Vec<u8>, endianness: CdrEndianness) -> Self {
         Self {
             writer,
@@ -47,7 +47,7 @@ impl<'s> CdrSerializer<'s> {
     }
 }
 
-impl CdrSerializer<'_> {
+impl ClassicCdrSerializer<'_> {
     pub fn serialize_bool(&mut self, v: bool) -> CdrResult<()> {
         self.serialize_u8(v as u8)
     }
@@ -208,7 +208,7 @@ mod tests {
         T: CdrSerialize + ?Sized,
     {
         let mut writer = Vec::new();
-        let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
+        let mut serializer = ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
         v.serialize(&mut serializer)?;
         Ok(writer)
     }
@@ -218,7 +218,7 @@ mod tests {
         T: CdrSerialize + ?Sized,
     {
         let mut writer = Vec::new();
-        let mut serializer = CdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
+        let mut serializer = ClassicCdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
         v.serialize(&mut serializer)?;
         Ok(writer)
     }

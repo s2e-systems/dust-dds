@@ -2,7 +2,7 @@ use std::ops::Sub;
 
 use crate::cdr::{
     deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
-    serialize::CdrSerialize, serializer::CdrSerializer,
+    serialize::CdrSerialize, serializer::ClassicCdrSerializer,
 };
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -19,7 +19,7 @@ const DURATION_INFINITE: Duration = Duration {
 };
 
 impl CdrSerialize for DurationKind {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()> {
         match self {
             DurationKind::Finite(d) => d,
             DurationKind::Infinite => &DURATION_INFINITE,

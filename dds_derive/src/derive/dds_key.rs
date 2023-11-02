@@ -151,7 +151,7 @@ pub fn expand_dds_instance_handle(input: &DeriveInput) -> Result<TokenStream> {
                         }
 
                         let mut writer = Vec::new();
-                        let mut serializer = dust_dds::cdr::serializer::CdrSerializer::new(&mut writer, dust_dds::cdr::endianness::CdrEndianness::BigEndian);
+                        let mut serializer = dust_dds::cdr::serializer::ClassicCdrSerializer::new(&mut writer, dust_dds::cdr::endianness::CdrEndianness::BigEndian);
                         dust_dds::cdr::serialize::CdrSerialize::serialize(
                             &__borrowed_key_holder{
                                 #borrowed_key_holder_field_assignment

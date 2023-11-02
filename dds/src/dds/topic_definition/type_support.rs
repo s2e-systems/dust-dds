@@ -7,7 +7,7 @@ use crate::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serialize::ParameterListSerialize,
         parameter_list_serializer::ParameterListSerializer, serialize::CdrSerialize,
-        serializer::CdrSerializer,
+        serializer::ClassicCdrSerializer,
     },
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     infrastructure::{
@@ -158,7 +158,7 @@ pub fn serialize_rtps_classic_cdr(
         CdrEndianness::BigEndian => writer.write_all(&CDR_BE)?,
     }
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = CdrSerializer::new(writer, endianness);
+    let mut serializer = ClassicCdrSerializer::new(writer, endianness);
     CdrSerialize::serialize(value, &mut serializer)?;
     Ok(())
 }

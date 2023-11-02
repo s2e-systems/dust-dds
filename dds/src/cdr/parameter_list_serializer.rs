@@ -1,4 +1,4 @@
-use crate::cdr::{endianness::CdrEndianness, serialize::CdrSerialize, serializer::CdrSerializer};
+use crate::cdr::{endianness::CdrEndianness, serialize::CdrSerialize, serializer::ClassicCdrSerializer};
 
 pub use dust_dds_derive::ParameterListDeserialize;
 
@@ -19,7 +19,7 @@ impl ParameterListSerializer<'_> {
         T: CdrSerialize,
     {
         let mut data = Vec::new();
-        let mut data_serializer = CdrSerializer::new(&mut data, self.endianness);
+        let mut data_serializer = ClassicCdrSerializer::new(&mut data, self.endianness);
         value.serialize(&mut data_serializer)?;
 
         let length_without_padding = data.len();
@@ -29,7 +29,7 @@ impl ParameterListSerializer<'_> {
         if length > u16::MAX as usize {
             Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)))
         } else {
-            let mut serializer = CdrSerializer::new(self.writer, self.endianness);
+            let mut serializer = ClassicCdrSerializer::new(self.writer, self.endianness);
             serializer.serialize_i16(id)?;
             serializer.serialize_u16(length as u16)?;
 

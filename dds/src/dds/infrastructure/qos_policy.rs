@@ -3,7 +3,7 @@ use core::cmp::Ordering;
 use crate::{
     cdr::{
         deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
-        serialize::CdrSerialize, serializer::CdrSerializer,
+        serialize::CdrSerialize, serializer::ClassicCdrSerializer,
     },
     infrastructure::time::{Duration, DurationKind, DURATION_ZERO},
 };
@@ -17,7 +17,7 @@ pub enum Length {
 
 const LENGTH_UNLIMITED: i32 = -1;
 impl CdrSerialize for Length {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()> {
         match self {
             Length::Unlimited => serializer.serialize_i32(LENGTH_UNLIMITED),
             Length::Limited(l) => serializer.serialize_u32(*l),
@@ -257,7 +257,7 @@ pub enum DurabilityQosPolicyKind {
 }
 
 impl CdrSerialize for DurabilityQosPolicyKind {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()> {
         match self {
             DurabilityQosPolicyKind::Volatile => 0u8,
             DurabilityQosPolicyKind::TransientLocal => 1,
@@ -334,7 +334,7 @@ pub enum PresentationQosPolicyAccessScopeKind {
 }
 
 impl CdrSerialize for PresentationQosPolicyAccessScopeKind {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()> {
         match self {
             PresentationQosPolicyAccessScopeKind::Instance => 0u8,
             PresentationQosPolicyAccessScopeKind::Topic => 1,
@@ -498,7 +498,7 @@ pub enum OwnershipQosPolicyKind {
 }
 
 impl CdrSerialize for OwnershipQosPolicyKind {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()> {
         match self {
             OwnershipQosPolicyKind::Shared => 0u8,
         }
@@ -555,7 +555,7 @@ pub enum LivelinessQosPolicyKind {
 }
 
 impl CdrSerialize for LivelinessQosPolicyKind {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()> {
         match self {
             LivelinessQosPolicyKind::Automatic => 0u8,
             LivelinessQosPolicyKind::ManualByParticipant => 1,
@@ -731,7 +731,7 @@ const BEST_EFFORT: i32 = 1;
 const RELIABLE: i32 = 2;
 
 impl CdrSerialize for ReliabilityQosPolicyKind {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()> {
         match self {
             ReliabilityQosPolicyKind::BestEffort => BEST_EFFORT,
             ReliabilityQosPolicyKind::Reliable => RELIABLE,
@@ -832,7 +832,7 @@ pub enum DestinationOrderQosPolicyKind {
 }
 
 impl CdrSerialize for DestinationOrderQosPolicyKind {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()> {
         match self {
             DestinationOrderQosPolicyKind::ByReceptionTimestamp => 0u8,
             DestinationOrderQosPolicyKind::BySourceTimestamp => 1,
@@ -908,7 +908,7 @@ pub enum HistoryQosPolicyKind {
 }
 
 impl CdrSerialize for HistoryQosPolicyKind {
-    fn serialize(&self, serializer: &mut CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()> {
         match self {
             HistoryQosPolicyKind::KeepLast(depth) => {
                 serializer.serialize_u8(0)?;
