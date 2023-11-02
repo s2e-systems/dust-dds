@@ -1,4 +1,4 @@
-use crate::serialized_payload::serialize::CdrSerialize;
+use crate::serialized_payload::cdr::serialize::CdrSerialize;
 
 pub use dust_dds_derive::ParameterListDeserialize;
 

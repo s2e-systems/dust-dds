@@ -61,33 +61,33 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
                         if !collection {
                             match (&field.ident, default_value) {
                             (Some(field_name), None) => field_serialization.extend(quote! {
-                                dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write(serializer, #id, &self.#field_name)?;
+                                dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, #id, &self.#field_name)?;
                             }),
                             (Some(field_name), Some(default)) => field_serialization.extend(quote! {
-                                dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write_with_default(serializer, #id, &self.#field_name, & #default)?;
+                                dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_with_default(serializer, #id, &self.#field_name, & #default)?;
                             }),
                             (None, None) => {
                                 let index = Index::from(field_index);
                                 field_serialization.extend(quote! {
-                                    dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write(serializer, #id, &self.#index)?;
+                                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, #id, &self.#index)?;
                                 })
                             }
                             (None, Some(default)) => {
                                 let index = Index::from(field_index);
                                 field_serialization.extend(quote! {
-                                    dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write_with_default(serializer, #id, &self.#index, & #default)?;
+                                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_with_default(serializer, #id, &self.#index, & #default)?;
                                 })
                             }
                         }
                         } else {
                             match &field.ident {
                                 Some(field_name) => field_serialization.extend(quote! {
-                                    dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write_collection(serializer, #id, &self.#field_name)?;
+                                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_collection(serializer, #id, &self.#field_name)?;
                                 }),
                                 None => {
                                     let index = Index::from(field_index);
                                     field_serialization.extend(quote! {
-                                        dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write_collection(serializer, #id, &self.#index)?;
+                                        dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_collection(serializer, #id, &self.#index)?;
                                     })
                                 }
                             }
@@ -96,12 +96,12 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
                 } else {
                     match &field.ident {
                         Some(field_name) => field_serialization.extend(quote! {
-                            dust_dds::serialized_payload::parameter_list_serialize::ParameterListSerialize::serialize(&self.#field_name, serializer)?;
+                            dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize::serialize(&self.#field_name, serializer)?;
                         }),
                         None => {
                             let index = Index::from(field_index);
                             field_serialization.extend(quote! {
-                                dust_dds::serialized_payload::parameter_list_serialize::ParameterListSerialize::serialize(&self.#index, serializer)?;
+                                dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize::serialize(&self.#index, serializer)?;
                             })
                         }
                     }
@@ -109,8 +109,8 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
             }
 
             Ok(quote! {
-                impl #impl_generics dust_dds::serialized_payload::parameter_list_serialize::ParameterListSerialize for #ident #type_generics #where_clause {
-                    fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
+                impl #impl_generics dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize for #ident #type_generics #where_clause {
+                    fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
                         #field_serialization
                         Ok(())
                     }
@@ -165,11 +165,11 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
                             if is_tuple {
                                 if collection {
                                     field_deserialization
-                                        .extend(quote! {dust_dds::serialized_payload::parameter_list_deserializer::ParameterListDeserializer::read_collection(pl_deserializer, #id)?, });
+                                        .extend(quote! {dust_dds::serialized_payload::parameter_list::deserializer::ParameterListDeserializer::read_collection(pl_deserializer, #id)?, });
                                 } else {
                                     match default_value {
-                                            Some(default) => field_deserialization.extend(quote!{dust_dds::serialized_payload::parameter_list_deserializer::ParameterListDeserializer::read_with_default(pl_deserializer, #id, #default)?, }),
-                                            None => field_deserialization.extend(quote!{dust_dds::serialized_payload::parameter_list_deserializer::ParameterListDeserializer::read(pl_deserializer, #id)?, }),
+                                            Some(default) => field_deserialization.extend(quote!{dust_dds::serialized_payload::parameter_list::deserializer::ParameterListDeserializer::read_with_default(pl_deserializer, #id, #default)?, }),
+                                            None => field_deserialization.extend(quote!{dust_dds::serialized_payload::parameter_list::deserializer::ParameterListDeserializer::read(pl_deserializer, #id)?, }),
                                         }
                                 }
                             } else {
@@ -178,23 +178,23 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
 
                                 if collection {
                                     field_deserialization.extend(
-                                        quote! {#field_name: dust_dds::serialized_payload::parameter_list_deserializer::ParameterListDeserializer::read_collection(pl_deserializer, #id)?,},
+                                        quote! {#field_name: dust_dds::serialized_payload::parameter_list::deserializer::ParameterListDeserializer::read_collection(pl_deserializer, #id)?,},
                                     );
                                 } else {
                                     match default_value {
                                     Some(default) => field_deserialization
-                                        .extend(quote! {#field_name: dust_dds::serialized_payload::parameter_list_deserializer::ParameterListDeserializer::read_with_default(pl_deserializer, #id, #default)?,}),
+                                        .extend(quote! {#field_name: dust_dds::serialized_payload::parameter_list::deserializer::ParameterListDeserializer::read_with_default(pl_deserializer, #id, #default)?,}),
                                     None => field_deserialization
-                                        .extend(quote! {#field_name: dust_dds::serialized_payload::parameter_list_deserializer::ParameterListDeserializer::read(pl_deserializer, #id)?,}),
+                                        .extend(quote! {#field_name: dust_dds::serialized_payload::parameter_list::deserializer::ParameterListDeserializer::read(pl_deserializer, #id)?,}),
                                     }
                                 }
                             }
                         } else if is_tuple {
-                            field_deserialization.extend(quote!{dust_dds::serialized_payload::parameter_list_deserialize::ParameterListDeserialize::deserialize(pl_deserializer)?,});
+                            field_deserialization.extend(quote!{dust_dds::serialized_payload::parameter_list::deserialize::ParameterListDeserialize::deserialize(pl_deserializer)?,});
                         } else {
                             let field_name =
                                 field.ident.as_ref().expect("Should have named fields");
-                            field_deserialization.extend(quote!{#field_name: dust_dds::serialized_payload::parameter_list_deserialize::ParameterListDeserialize::deserialize(pl_deserializer)?,});
+                            field_deserialization.extend(quote!{#field_name: dust_dds::serialized_payload::parameter_list::deserialize::ParameterListDeserialize::deserialize(pl_deserializer)?,});
                         }
                     }
 
@@ -210,8 +210,8 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
             }
 
             Ok(quote! {
-                    impl #generics dust_dds::serialized_payload::parameter_list_deserialize::ParameterListDeserialize<'__de> for #ident #type_generics #where_clause {
-                        fn deserialize(pl_deserializer: &mut impl dust_dds::serialized_payload::parameter_list_deserializer::ParameterListDeserializer<'__de>) -> Result<Self, std::io::Error> {
+                    impl #generics dust_dds::serialized_payload::parameter_list::deserialize::ParameterListDeserialize<'__de> for #ident #type_generics #where_clause {
+                        fn deserialize(pl_deserializer: &mut impl dust_dds::serialized_payload::parameter_list::deserializer::ParameterListDeserializer<'__de>) -> Result<Self, std::io::Error> {
                             Ok(#struct_deserialization)
                         }
                     }
@@ -255,10 +255,10 @@ mod tests {
             syn::parse2::<ItemImpl>(expand_parameter_list_serialize(&input).unwrap()).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl dust_dds::serialized_payload::parameter_list_serialize::ParameterListSerialize for ParameterListStruct {
-                fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
-                    dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write(serializer, 1, &self.index)?;
-                    dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write(serializer, PID_DATA, &self.data)?;
+            impl dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize for ParameterListStruct {
+                fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
+                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, 1, &self.index)?;
+                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, PID_DATA, &self.data)?;
                     Ok(())
                 }
             }
@@ -301,12 +301,12 @@ mod tests {
             syn::parse2::<ItemImpl>(expand_parameter_list_serialize(&input).unwrap()).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl dust_dds::serialized_payload::parameter_list_serialize::ParameterListSerialize for ParameterListStructDefault {
-                fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
-                    dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write(serializer, 1, &self.index)?;
-                    dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write(serializer, PID_DATA, &self.data)?;
-                    dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write_with_default(serializer, 3, &self.name, &\"\")?;
-                    dust_dds::serialized_payload::parameter_list_serializer::ParameterListSerializer::write_with_default(serializer, 4, &self.x, &Default::default())?;
+            impl dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize for ParameterListStructDefault {
+                fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
+                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, 1, &self.index)?;
+                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, PID_DATA, &self.data)?;
+                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_with_default(serializer, 3, &self.name, &\"\")?;
+                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_with_default(serializer, 4, &self.x, &Default::default())?;
                     Ok(())
                 }
             }

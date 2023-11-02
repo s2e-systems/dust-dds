@@ -1,5 +1,5 @@
 use crate::serialized_payload::{
-    parameter_list_serializer::ParameterListSerializer, serialize::CdrSerialize,
+    cdr::serialize::CdrSerialize, parameter_list::serializer::ParameterListSerializer,
 };
 
 use super::{cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness};
@@ -86,7 +86,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::serialized_payload::parameter_list_serialize::ParameterListSerialize;
+    use crate::serialized_payload::parameter_list::serialize::ParameterListSerialize;
 
     use super::*;
 

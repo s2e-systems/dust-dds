@@ -1,8 +1,8 @@
 use std::ops::Sub;
 
-use crate::serialized_payload::{
-    cdr::deserialize::CdrDeserialize, cdr::deserializer::CdrDeserializer, error::CdrResult,
-    serialize::CdrSerialize, serializer::CdrSerializer,
+use crate::serialized_payload::cdr::{
+    deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
+    serializer::CdrSerializer,
 };
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -19,7 +19,7 @@ const DURATION_INFINITE: Duration = Duration {
 };
 
 impl CdrSerialize for DurationKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             DurationKind::Finite(d) => d,
             DurationKind::Infinite => &DURATION_INFINITE,
@@ -29,7 +29,7 @@ impl CdrSerialize for DurationKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DurationKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let duration: Duration = CdrDeserialize::deserialize(deserializer)?;
         if duration == DURATION_INFINITE {
             Ok(DurationKind::Infinite)

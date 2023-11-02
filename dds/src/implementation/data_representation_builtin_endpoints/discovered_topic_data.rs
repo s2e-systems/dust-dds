@@ -1,10 +1,9 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    serialized_payload::{
-        parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_serialize::ParameterListSerialize,
-    },
     infrastructure::{error::DdsResult, instance::InstanceHandle},
+    serialized_payload::parameter_list::{
+        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
+    },
     topic_definition::type_support::{
         DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
         DdsSerialize,

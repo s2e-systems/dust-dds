@@ -58,7 +58,7 @@ use crate::{
         },
         time::DurationKind,
     },
-    serialized_payload::serialize::CdrSerialize,
+    serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsInstanceHandle,
     {
         builtin_topics::SubscriptionBuiltinTopicData,

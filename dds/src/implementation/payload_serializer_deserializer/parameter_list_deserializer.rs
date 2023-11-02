@@ -3,7 +3,7 @@ use std::io::{BufRead, Read};
 use crate::{
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     serialized_payload::{
-        cdr::deserialize::CdrDeserialize, parameter_list_deserializer::ParameterListDeserializer,
+        cdr::deserialize::CdrDeserialize, parameter_list::deserializer::ParameterListDeserializer,
     },
 };
 
@@ -131,7 +131,7 @@ impl<'de> ParameterListDeserializer<'de> for ParameterListCdrDeserializer<'de> {
 
 #[cfg(test)]
 mod tests {
-    use crate::serialized_payload::parameter_list_deserialize::ParameterListDeserialize;
+    use crate::serialized_payload::parameter_list::deserialize::ParameterListDeserialize;
 
     use super::*;
 

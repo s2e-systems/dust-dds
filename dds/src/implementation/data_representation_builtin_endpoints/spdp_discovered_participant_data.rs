@@ -8,10 +8,13 @@ use crate::{
     },
     infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},
     serialized_payload::{
-        cdr::deserialize::CdrDeserialize, cdr::deserializer::CdrDeserializer, error::CdrResult,
-        parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
-        serializer::CdrSerializer,
+        cdr::{
+            deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
+            serializer::CdrSerializer,
+        },
+        parameter_list::{
+            deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
+        },
     },
     topic_definition::type_support::{
         DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
@@ -40,7 +43,7 @@ impl Default for DomainTag {
 #[derive(Default, Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef)]
 struct DomainIdParameter(Option<DomainId>);
 impl CdrSerialize for DomainIdParameter {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         self.0
             .expect("Default DomainId not supposed to be serialized")
             .serialize(serializer)
@@ -48,7 +51,7 @@ impl CdrSerialize for DomainIdParameter {
 }
 
 impl<'de> CdrDeserialize<'de> for DomainIdParameter {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         // None should not happen since this is only deserialized if the
         // corresponding PID is found
         Ok(Self(Some(CdrDeserialize::deserialize(deserializer)?)))

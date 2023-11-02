@@ -18,8 +18,10 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
     serialized_payload::{
-        cdr::deserialize::CdrDeserialize, parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
+        cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
+        parameter_list::{
+            deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
+        },
     },
     topic_definition::type_support::DdsHasKey,
 };

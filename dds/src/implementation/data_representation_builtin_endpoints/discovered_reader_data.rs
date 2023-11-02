@@ -1,11 +1,10 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    serialized_payload::{
-        parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_serialize::ParameterListSerialize,
-    },
     implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::{error::DdsResult, instance::InstanceHandle},
+    serialized_payload::parameter_list::{
+        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
+    },
     topic_definition::type_support::{
         DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
         DdsSerialize,

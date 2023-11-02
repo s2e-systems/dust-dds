@@ -85,7 +85,7 @@ pub fn expand_dds_serialize_key(input: &DeriveInput) -> Result<TokenStream> {
 
                     quote! {
                         #[allow(non_camel_case_types)]
-                        #[derive(dust_dds::serialized_payload::serialize::CdrSerialize)]
+                        #[derive(dust_dds::serialized_payload::cdr::serialize::CdrSerialize)]
                         struct __borrowed_key_holder<'__borrowed> {
                             #borrowed_key_holder_fields
                         }
@@ -144,7 +144,7 @@ pub fn expand_dds_instance_handle(input: &DeriveInput) -> Result<TokenStream> {
 
                     quote! {
                         #[allow(non_camel_case_types)]
-                        #[derive(dust_dds::serialized_payload::serialize::CdrSerialize)]
+                        #[derive(dust_dds::serialized_payload::cdr::serialize::CdrSerialize)]
                         struct __borrowed_key_holder<'__borrowed> {
                             #borrowed_key_holder_fields
                         }
