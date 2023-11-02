@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     cdr::{
-        deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer, error::CdrResult,
+        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
         parameter_list_deserialize::ParameterListDeserialize,
         parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
         serializer::CdrSerializer,
@@ -48,7 +48,7 @@ impl CdrSerialize for DomainIdParameter {
 }
 
 impl<'de> CdrDeserialize<'de> for DomainIdParameter {
-    fn deserialize(deserializer: &mut ClassicCdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         // None should not happen since this is only deserialized if the
         // corresponding PID is found
         Ok(Self(Some(CdrDeserialize::deserialize(deserializer)?)))

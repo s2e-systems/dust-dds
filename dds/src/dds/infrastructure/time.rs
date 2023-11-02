@@ -1,7 +1,7 @@
 use std::ops::Sub;
 
 use crate::cdr::{
-    deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer, error::CdrResult,
+    deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
     serialize::CdrSerialize, serializer::CdrSerializer,
 };
 
@@ -29,7 +29,7 @@ impl CdrSerialize for DurationKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DurationKind {
-    fn deserialize(deserializer: &mut ClassicCdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
         let duration: Duration = CdrDeserialize::deserialize(deserializer)?;
         if duration == DURATION_INFINITE {
             Ok(DurationKind::Infinite)
