@@ -4,7 +4,7 @@ use crate::{
         deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
         parameter_list_deserialize::ParameterListDeserialize,
         parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
-        serializer::ClassicCdrSerializer,
+        serializer::CdrSerializer,
     },
     domain::domain_participant_factory::DomainId,
     implementation::rtps::{
@@ -40,7 +40,7 @@ impl Default for DomainTag {
 #[derive(Default, Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef)]
 struct DomainIdParameter(Option<DomainId>);
 impl CdrSerialize for DomainIdParameter {
-    fn serialize(&self, serializer: &mut ClassicCdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
         self.0
             .expect("Default DomainId not supposed to be serialized")
             .serialize(serializer)
