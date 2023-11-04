@@ -126,49 +126,66 @@ pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
 
             let has_key = struct_has_key(data_struct)?;
 
-            let serialize_key_body = match has_key {
+            let (key_holder_struct_definition, key_holder_struct_construction) = match has_key {
                 true => {
-                    let mut borrowed_key_holder_fields = quote! {};
-                    let mut borrowed_key_holder_field_assignment = quote! {};
+                    let mut key_holder_fields = quote! {};
+                    let mut key_holder_field_assignment = quote! {};
 
                     for field in data_struct.fields.iter() {
                         if field_has_key_attribute(field)? {
                             let field_ident = &field.ident;
                             let field_type = &field.ty;
-                            borrowed_key_holder_fields
-                                .extend(quote! {#field_ident: &'__borrowed #field_type,});
-                            borrowed_key_holder_field_assignment
-                                .extend(quote! {#field_ident: &self.#field_ident,});
+                            key_holder_fields.extend(quote! {#field_ident: #field_type,});
+                            key_holder_field_assignment
+                                .extend(quote! {#field_ident: self.#field_ident.clone(),});
                         }
                     }
 
-                    quote! {
+                    let key_holder_struct_definition = quote! {
                         #[allow(non_camel_case_types)]
-                        #[derive(dust_dds::serialized_payload::cdr::serialize::CdrSerialize)]
-                        struct __borrowed_key_holder<'__borrowed> {
-                            #borrowed_key_holder_fields
+                        #[derive(dust_dds::serialized_payload::cdr::serialize::CdrSerialize, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize)]
+                        pub struct __key_holder {
+                            #key_holder_fields
                         }
+                    };
 
-                        dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr_le(
-                            &__borrowed_key_holder{
-                                #borrowed_key_holder_field_assignment
-                            },
-                            writer)
-                    }
+                    let key_holder_struct_construction = quote! {
+                        __key_holder{
+                            #key_holder_field_assignment
+                        }
+                    };
+
+                    (key_holder_struct_definition, key_holder_struct_construction)
                 }
-                false => quote! {Ok(())},
+                false => {
+                    let key_holder_struct_definition = quote! {
+                        #[allow(non_camel_case_types)]
+                        #[derive(dust_dds::serialized_payload::cdr::serialize::CdrSerialize, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize)]
+                        pub struct __key_holder;
+                    };
+
+                    let key_holder_struct_construction = quote! {
+                        __key_holder
+                    };
+
+                    (key_holder_struct_definition, key_holder_struct_construction)
+                }
             };
             Ok(quote! {
                 const _ : () = {
+
+                    #key_holder_struct_definition
+
                     impl #impl_generics dust_dds::topic_definition::type_support::DdsKey for #ident #type_generics #where_clause {
-                        type Key = ();
+                        type Key = __key_holder;
 
                         fn get_key(&self) -> dust_dds::infrastructure::error::DdsResult<Self::Key> {
-                            todo!()
+                            Ok(#key_holder_struct_construction)
                         }
 
                         fn get_key_from_serialized_data(serialized_foo: &[u8]) -> dust_dds::infrastructure::error::DdsResult<Self::Key> {
-                            todo!()
+                            <#ident as dust_dds::topic_definition::type_support::DdsDeserialize>::deserialize_data(serialized_foo)?
+                                .get_key()
                         }
                     }
                 };
