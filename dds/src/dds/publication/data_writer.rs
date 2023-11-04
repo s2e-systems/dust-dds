@@ -9,10 +9,7 @@ use crate::{
             publisher_actor::{self, PublisherActor},
             topic_actor::{self, TopicActor},
         },
-        payload_serializer_deserializer::{
-            cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
-        },
-        utils::actor::ActorAddress,
+        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -26,26 +23,11 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
-    serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::{
         topic::Topic,
         type_support::{serialize_rtps_classic_cdr_le, DdsHasKey, DdsKey, DdsSerialize},
     },
 };
-
-fn get_instance_handle(foo: &impl DdsKey) -> DdsResult<InstanceHandle> {
-    let mut serialized_key = Vec::new();
-    let mut serializer = ClassicCdrSerializer::new(&mut serialized_key, CdrEndianness::BigEndian);
-    CdrSerialize::serialize(&foo.get_key()?, &mut serializer)?;
-    let handle = if serialized_key.len() <= 16 {
-        let mut h = [0; 16];
-        h[..serialized_key.len()].clone_from_slice(serialized_key.as_slice());
-        h
-    } else {
-        <[u8; 16]>::from(md5::compute(serialized_key.as_slice()))
-    };
-    Ok(InstanceHandle::new(handle))
-}
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
@@ -281,7 +263,9 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::lookup_instance::new(get_instance_handle(instance)?),
+            data_writer_actor::lookup_instance::new(get_instance_handle_from_key(
+                &instance.get_key()?,
+            )?),
         )?
     }
 
@@ -346,7 +330,7 @@ where
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::write_w_timestamp::new(
                 serialized_data,
-                get_instance_handle(data)?,
+                get_instance_handle_from_key(&data.get_key()?)?,
                 handle,
                 timestamp,
             ),

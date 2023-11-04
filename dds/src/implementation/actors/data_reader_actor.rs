@@ -40,7 +40,10 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::{
+            actor::{spawn_actor, Actor, ActorAddress},
+            instance_handle_from_key::get_instance_handle_from_key,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -61,7 +64,7 @@ use crate::{
     },
     serialized_payload::cdr::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::DdsInstanceHandle,
+    topic_definition::type_support::DdsKey,
 };
 
 use super::{
@@ -77,8 +80,13 @@ use super::{
 pub struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<InstanceHandle>);
 
 impl InstanceHandleBuilder {
-    pub fn new(instance_handle_fn: fn(&[u8]) -> DdsResult<InstanceHandle>) -> Self {
-        Self(instance_handle_fn)
+    pub fn new<Foo>() -> Self
+    where
+        Foo: DdsKey,
+    {
+        Self(|serialized_foo| {
+            get_instance_handle_from_key(&Foo::get_key_from_serialized_data(serialized_foo)?)
+        })
     }
 
     fn build_instance_handle(
@@ -1615,7 +1623,8 @@ impl DataReaderActor {
         if publication_builtin_topic_data.topic_name() == self.topic_name
             && publication_builtin_topic_data.get_type_name() == self.type_name
         {
-            let instance_handle = discovered_writer_data.get_instance_handle().unwrap();
+            let instance_handle =
+                get_instance_handle_from_key(&discovered_writer_data.get_key().unwrap()).unwrap();
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &discovered_writer_data,

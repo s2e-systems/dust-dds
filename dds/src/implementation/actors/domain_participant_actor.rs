@@ -43,7 +43,10 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::{
+            actor::{spawn_actor, Actor, ActorAddress},
+            instance_handle_from_key::get_instance_handle_from_key,
+        },
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -67,10 +70,7 @@ use crate::{
     },
     topic_definition::{
         topic_listener::TopicListener,
-        type_support::{
-            serialize_rtps_classic_cdr_le, DdsDeserialize, DdsInstanceHandle,
-            DdsInstanceHandleFromSerializedData, DdsSerialize,
-        },
+        type_support::{serialize_rtps_classic_cdr_le, DdsDeserialize, DdsKey, DdsSerialize},
     },
     {
         builtin_topics::TopicBuiltinTopicData,
@@ -231,9 +231,7 @@ impl DomainParticipantActor {
             spdp_reader_qos,
             Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
-            InstanceHandleBuilder::new(
-                SpdpDiscoveredParticipantData::get_handle_from_serialized_data,
-            ),
+            InstanceHandleBuilder::new::<SpdpDiscoveredParticipantData>(),
         ));
 
         let sedp_reader_qos = DataReaderQos {
@@ -259,7 +257,7 @@ impl DomainParticipantActor {
             sedp_reader_qos.clone(),
             Box::new(NoOpListener::<DiscoveredTopicData>::new()),
             vec![],
-            InstanceHandleBuilder::new(DiscoveredTopicData::get_handle_from_serialized_data),
+            InstanceHandleBuilder::new::<DiscoveredTopicData>(),
         ));
 
         let sedp_builtin_publications_reader_guid =
@@ -271,7 +269,7 @@ impl DomainParticipantActor {
             sedp_reader_qos.clone(),
             Box::new(NoOpListener::<DiscoveredWriterData>::new()),
             vec![],
-            InstanceHandleBuilder::new(DiscoveredWriterData::get_handle_from_serialized_data),
+            InstanceHandleBuilder::new::<DiscoveredWriterData>(),
         ));
 
         let sedp_builtin_subscriptions_reader_guid =
@@ -283,7 +281,7 @@ impl DomainParticipantActor {
             sedp_reader_qos,
             Box::new(NoOpListener::<DiscoveredReaderData>::new()),
             vec![],
-            InstanceHandleBuilder::new(DiscoveredReaderData::get_handle_from_serialized_data),
+            InstanceHandleBuilder::new::<DiscoveredReaderData>(),
         ));
 
         let builtin_subscriber = spawn_actor(SubscriberActor::new(
@@ -1026,9 +1024,9 @@ impl DomainParticipantActor {
             discovered_writer_data
                 .serialize_data(&mut serialized_data)
                 .expect("Shouldn't fail to serialize builtin type");
-            let instance_handle = discovered_writer_data
-                .get_instance_handle()
-                .expect("Shouldn't fail to serialize key of builtin type");
+            let instance_handle =
+                get_instance_handle_from_key(&discovered_writer_data.get_key().unwrap())
+                    .expect("Shouldn't fail to serialize key of builtin type");
             sedp_publications_announcer
                 .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
                     serialized_data,
