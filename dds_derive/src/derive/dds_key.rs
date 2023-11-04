@@ -118,6 +118,73 @@ pub fn expand_dds_serialize_key(input: &DeriveInput) -> Result<TokenStream> {
     }
 }
 
+pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
+    match &input.data {
+        syn::Data::Struct(data_struct) => {
+            let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+            let ident = &input.ident;
+
+            let has_key = struct_has_key(data_struct)?;
+
+            let serialize_key_body = match has_key {
+                true => {
+                    let mut borrowed_key_holder_fields = quote! {};
+                    let mut borrowed_key_holder_field_assignment = quote! {};
+
+                    for field in data_struct.fields.iter() {
+                        if field_has_key_attribute(field)? {
+                            let field_ident = &field.ident;
+                            let field_type = &field.ty;
+                            borrowed_key_holder_fields
+                                .extend(quote! {#field_ident: &'__borrowed #field_type,});
+                            borrowed_key_holder_field_assignment
+                                .extend(quote! {#field_ident: &self.#field_ident,});
+                        }
+                    }
+
+                    quote! {
+                        #[allow(non_camel_case_types)]
+                        #[derive(dust_dds::serialized_payload::cdr::serialize::CdrSerialize)]
+                        struct __borrowed_key_holder<'__borrowed> {
+                            #borrowed_key_holder_fields
+                        }
+
+                        dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr_le(
+                            &__borrowed_key_holder{
+                                #borrowed_key_holder_field_assignment
+                            },
+                            writer)
+                    }
+                }
+                false => quote! {Ok(())},
+            };
+            Ok(quote! {
+                const _ : () = {
+                    impl #impl_generics dust_dds::topic_definition::type_support::DdsKey for #ident #type_generics #where_clause {
+                        type Key = ();
+
+                        fn get_key(&self) -> dust_dds::infrastructure::error::DdsResult<Self::Key> {
+                            todo!()
+                        }
+
+                        fn get_key_from_serialized_data(serialized_foo: &[u8]) -> dust_dds::infrastructure::error::DdsResult<Self::Key> {
+                            todo!()
+                        }
+                    }
+                };
+            })
+        }
+        syn::Data::Enum(data_enum) => Err(syn::Error::new(
+            data_enum.enum_token.span,
+            "Enum not supported",
+        )),
+        syn::Data::Union(data_union) => Err(syn::Error::new(
+            data_union.union_token.span,
+            "Union not supported",
+        )),
+    }
+}
+
 pub fn expand_dds_instance_handle(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         syn::Data::Struct(data_struct) => {
