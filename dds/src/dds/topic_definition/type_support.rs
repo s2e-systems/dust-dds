@@ -66,6 +66,21 @@ pub trait DdsDeserialize<'de>: Sized {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self>;
 }
 
+/// This trait defines the key associated with the type.
+///
+/// The key identifies the different instances of the type.
+///
+///
+/// ## Derivable
+///
+pub trait DdsKey {
+    type Key: CdrSerialize + for<'de> CdrDeserialize<'de>;
+
+    fn get_key(&self) -> DdsResult<Self::Key>;
+
+    fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key>;
+}
+
 /// This trait describes how the key information in the data structure can be serialized to a writer.
 ///
 /// The information created by this trait is typically visible on the `serializedData` element

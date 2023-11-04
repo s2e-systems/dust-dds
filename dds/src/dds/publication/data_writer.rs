@@ -9,6 +9,9 @@ use crate::{
             publisher_actor::{self, PublisherActor},
             topic_actor::{self, TopicActor},
         },
+        payload_serializer_deserializer::{
+            cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
+        },
         utils::actor::ActorAddress,
     },
     infrastructure::{
@@ -23,11 +26,26 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
+    serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::{
         topic::Topic,
-        type_support::{DdsHasKey, DdsInstanceHandle, DdsSerialize, DdsSerializeKey},
+        type_support::{serialize_rtps_classic_cdr_le, DdsHasKey, DdsKey, DdsSerialize},
     },
 };
+
+fn get_instance_handle(foo: &impl DdsKey) -> DdsResult<InstanceHandle> {
+    let mut serialized_key = Vec::new();
+    let mut serializer = ClassicCdrSerializer::new(&mut serialized_key, CdrEndianness::BigEndian);
+    CdrSerialize::serialize(&foo.get_key()?, &mut serializer)?;
+    let handle = if serialized_key.len() <= 16 {
+        let mut h = [0; 16];
+        h[..serialized_key.len()].clone_from_slice(serialized_key.as_slice());
+        h
+    } else {
+        <[u8; 16]>::from(md5::compute(serialized_key.as_slice()))
+    };
+    Ok(InstanceHandle::new(handle))
+}
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
@@ -110,7 +128,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsHasKey + DdsSerialize + DdsSerializeKey + DdsInstanceHandle,
+    Foo: DdsHasKey + DdsSerialize + DdsKey,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -232,7 +250,7 @@ where
             }?;
 
             let mut instance_serialized_key = Vec::new();
-            instance.serialize_key(&mut instance_serialized_key)?;
+            serialize_rtps_classic_cdr_le(&instance.get_key()?, &mut instance_serialized_key)?;
 
             self.writer_address.send_mail_and_await_reply_blocking(
                 data_writer_actor::unregister_instance_w_timestamp::new(
@@ -263,7 +281,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::lookup_instance::new(instance.get_instance_handle()?),
+            data_writer_actor::lookup_instance::new(get_instance_handle(instance)?),
         )?
     }
 
@@ -328,7 +346,7 @@ where
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::write_w_timestamp::new(
                 serialized_data,
-                data.get_instance_handle()?,
+                get_instance_handle(data)?,
                 handle,
                 timestamp,
             ),
@@ -401,7 +419,7 @@ where
         }?;
 
         let mut instance_serialized_key = Vec::new();
-        data.serialize_key(&mut instance_serialized_key)?;
+        serialize_rtps_classic_cdr_le(&data.get_key()?, &mut instance_serialized_key)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::dispose_w_timestamp::new(
