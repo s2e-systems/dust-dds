@@ -1,7 +1,16 @@
-use crate::{builtin_topics::BuiltInTopicKey, implementation::rtps::types::Guid};
-
 /// Type for the instance handle representing an Entity
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, derive_more::Constructor)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    Hash,
+    PartialOrd,
+    Ord,
+    derive_more::Constructor,
+    derive_more::AsRef,
+)]
 pub struct InstanceHandle([u8; 16]);
 
 impl Default for InstanceHandle {
@@ -12,12 +21,6 @@ impl Default for InstanceHandle {
 
 /// Special constant value representing a 'nil' [`InstanceHandle`]
 pub const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);
-
-impl AsRef<[u8; 16]> for InstanceHandle {
-    fn as_ref(&self) -> &[u8; 16] {
-        &self.0
-    }
-}
 
 impl From<&[u8]> for InstanceHandle {
     fn from(x: &[u8]) -> Self {
@@ -35,17 +38,5 @@ impl From<&[u8]> for InstanceHandle {
 impl From<InstanceHandle> for [u8; 16] {
     fn from(x: InstanceHandle) -> Self {
         x.0
-    }
-}
-
-impl From<Guid> for InstanceHandle {
-    fn from(x: Guid) -> Self {
-        InstanceHandle(x.into())
-    }
-}
-
-impl From<BuiltInTopicKey> for InstanceHandle {
-    fn from(x: BuiltInTopicKey) -> Self {
-        InstanceHandle(x.value)
     }
 }

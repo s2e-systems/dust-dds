@@ -1231,7 +1231,7 @@ impl DataReaderActor {
                 absolute_generation_rank,
                 source_timestamp: cache_change.source_timestamp,
                 instance_handle: sample_instance_handle,
-                publication_handle: cache_change.writer_guid.into(),
+                publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
                 valid_data,
             };
 
@@ -1464,7 +1464,7 @@ impl DataReaderActor {
     }
 
     async fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_reader.guid().into()
+        InstanceHandle::new(self.rtps_reader.guid().into())
     }
 
     async fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {

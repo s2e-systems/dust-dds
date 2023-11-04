@@ -25,7 +25,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsInstanceHandleFromSerializedData, DdsHasKey},
+        type_support::{DdsHasKey, DdsInstanceHandleFromSerializedData},
     },
 };
 
@@ -174,7 +174,7 @@ impl Subscriber {
         let reader_actor = spawn_actor(data_reader);
         let reader_address = reader_actor.address();
         self.subscriber_address.send_mail_and_await_reply_blocking(
-            subscriber_actor::data_reader_add::new(guid.into(), reader_actor),
+            subscriber_actor::data_reader_add::new(InstanceHandle::new(guid.into()), reader_actor),
         )?;
 
         let data_reader = DataReader::new(

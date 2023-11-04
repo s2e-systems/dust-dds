@@ -299,28 +299,28 @@ impl DomainParticipantActor {
         builtin_subscriber
             .address()
             .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
-                spdp_builtin_participant_reader_guid.into(),
+                InstanceHandle::new(spdp_builtin_participant_reader_guid.into()),
                 spdp_builtin_participant_reader,
             ))
             .unwrap();
         builtin_subscriber
             .address()
             .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
-                sedp_builtin_topics_reader_guid.into(),
+                InstanceHandle::new(sedp_builtin_topics_reader_guid.into()),
                 sedp_builtin_topics_reader,
             ))
             .unwrap();
         builtin_subscriber
             .address()
             .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
-                sedp_builtin_publications_reader_guid.into(),
+                InstanceHandle::new(sedp_builtin_publications_reader_guid.into()),
                 sedp_builtin_publications_reader,
             ))
             .unwrap();
         builtin_subscriber
             .address()
             .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
-                sedp_builtin_subscriptions_reader_guid.into(),
+                InstanceHandle::new(sedp_builtin_subscriptions_reader_guid.into()),
                 sedp_builtin_subscriptions_reader,
             ))
             .unwrap();
@@ -425,28 +425,28 @@ impl DomainParticipantActor {
         builtin_publisher
             .address()
             .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
-                spdp_builtin_participant_writer_guid.into(),
+                InstanceHandle::new(spdp_builtin_participant_writer_guid.into()),
                 spdp_builtin_participant_writer,
             ))
             .unwrap();
         builtin_publisher
             .address()
             .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
-                sedp_builtin_topics_writer_guid.into(),
+                InstanceHandle::new(sedp_builtin_topics_writer_guid.into()),
                 sedp_builtin_topics_writer_actor,
             ))
             .unwrap();
         builtin_publisher
             .address()
             .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
-                sedp_builtin_publications_writer_guid.into(),
+                InstanceHandle::new(sedp_builtin_publications_writer_guid.into()),
                 sedp_builtin_publications_writer_actor,
             ))
             .unwrap();
         builtin_publisher
             .address()
             .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
-                sedp_builtin_subscriptions_writer_guid.into(),
+                InstanceHandle::new(sedp_builtin_subscriptions_writer_guid.into()),
                 sedp_builtin_subscriptions_writer_actor,
             ))
             .unwrap();
@@ -506,7 +506,7 @@ impl DomainParticipantActor {
         let publisher_actor = spawn_actor(publisher);
         let publisher_address = publisher_actor.address();
         self.user_defined_publisher_list
-            .insert(guid.into(), publisher_actor);
+            .insert(InstanceHandle::new(guid.into()), publisher_actor);
 
         publisher_address
     }
@@ -533,7 +533,7 @@ impl DomainParticipantActor {
         let subscriber_address = subscriber_actor.address();
 
         self.user_defined_subscriber_list
-            .insert(guid.into(), subscriber_actor);
+            .insert(InstanceHandle::new(guid.into()), subscriber_actor);
 
         subscriber_address
     }
@@ -559,7 +559,8 @@ impl DomainParticipantActor {
         let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
             spawn_actor(topic);
         let topic_address = topic_actor.address();
-        self.topic_list.insert(guid.into(), topic_actor);
+        self.topic_list
+            .insert(InstanceHandle::new(guid.into()), topic_actor);
 
         topic_address
     }
@@ -589,7 +590,7 @@ impl DomainParticipantActor {
     }
 
     async fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_participant.guid().into()
+        InstanceHandle::new(self.rtps_participant.guid().into())
     }
 
     async fn enable(&mut self) {

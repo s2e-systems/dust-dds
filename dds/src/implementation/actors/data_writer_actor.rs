@@ -266,7 +266,7 @@ impl DataWriterActor {
 #[actor_interface]
 impl DataWriterActor {
     async fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_writer.guid().into()
+        InstanceHandle::new(self.rtps_writer.guid().into())
     }
 
     async fn add_matched_publication(
@@ -747,7 +747,8 @@ impl DataWriterActor {
         {
             let handle = r.key().value.into();
             self.matched_reader_remove(handle).await;
-            self.remove_matched_subscription(handle.into()).await;
+            self.remove_matched_subscription(InstanceHandle::new(handle.into()))
+                .await;
 
             self.on_publication_matched(
                 data_writer_address,

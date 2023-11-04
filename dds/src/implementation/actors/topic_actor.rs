@@ -86,7 +86,7 @@ impl TopicActor {
     }
 
     async fn get_instance_handle(&self) -> InstanceHandle {
-        self.guid.into()
+        InstanceHandle::new(self.guid.into())
     }
 
     async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
