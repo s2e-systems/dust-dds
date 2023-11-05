@@ -106,10 +106,15 @@ impl InstanceHandleFromSerializedFoo {
 struct InstanceHandleFromSerializedKey(fn(&[u8]) -> DdsResult<InstanceHandle>);
 
 impl InstanceHandleFromSerializedKey {
-    pub fn new<Foo>() -> Self {
+    pub fn new<Foo>() -> Self
+    where
+        Foo: DdsKey,
+    {
         Self(define_function_with_correct_lifetime(
             |mut serialized_key| {
-                get_instance_handle_from_key(&deserialize_rtps_classic_cdr(&mut serialized_key)?)
+                get_instance_handle_from_key(&deserialize_rtps_classic_cdr::<Foo::Key>(
+                    &mut serialized_key,
+                )?)
             },
         ))
     }
