@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    convert::TryFrom,
+};
 
 use dust_dds_derive::actor_interface;
 use tracing::debug;
@@ -64,7 +67,7 @@ use crate::{
     },
     serialized_payload::cdr::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::DdsKey,
+    topic_definition::type_support::{deserialize_rtps_classic_cdr, DdsKey},
 };
 
 use super::{
@@ -77,37 +80,68 @@ use super::{
     subscriber_listener_actor::{self, SubscriberListenerActor},
 };
 
-pub struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<InstanceHandle>);
+// This function is a workaround due to an issue resolving
+// lifetimes of the closure.
+// See for more details: https://github.com/rust-lang/rust/issues/41078
+fn define_function_with_correct_lifetime<F>(closure: F) -> F
+where
+    F: for<'a> Fn(&'a [u8]) -> DdsResult<InstanceHandle>,
+{
+    closure
+}
 
-impl InstanceHandleBuilder {
+struct InstanceHandleFromSerializedFoo(fn(&[u8]) -> DdsResult<InstanceHandle>);
+
+impl InstanceHandleFromSerializedFoo {
     pub fn new<Foo>() -> Self
     where
         Foo: DdsKey,
     {
-        Self(|serialized_foo| {
+        Self(define_function_with_correct_lifetime(|serialized_foo| {
             get_instance_handle_from_key(&Foo::get_key_from_serialized_data(serialized_foo)?)
-        })
+        }))
     }
+}
 
-    fn build_instance_handle(
-        &self,
-        change_kind: ChangeKind,
-        data: &[u8],
-        inline_qos: &[Parameter],
-    ) -> DdsResult<InstanceHandle> {
-        Ok(match change_kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(data)?,
-            ChangeKind::NotAliveDisposed
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => match inline_qos
-                .iter()
-                .find(|&x| x.parameter_id() == PID_KEY_HASH)
-            {
-                Some(p) => p.value().into(),
-                None => data[4..].into(),
+struct InstanceHandleFromSerializedKey(fn(&[u8]) -> DdsResult<InstanceHandle>);
+
+impl InstanceHandleFromSerializedKey {
+    pub fn new<Foo>() -> Self {
+        Self(define_function_with_correct_lifetime(
+            |mut serialized_key| {
+                get_instance_handle_from_key(&deserialize_rtps_classic_cdr(&mut serialized_key)?)
             },
-        })
+        ))
     }
+}
+
+fn build_instance_handle(
+    instance_handle_from_serialized_foo: &InstanceHandleFromSerializedFoo,
+    instance_handle_from_serialized_key: &InstanceHandleFromSerializedKey,
+    change_kind: ChangeKind,
+    data: &[u8],
+    inline_qos: &[Parameter],
+) -> DdsResult<InstanceHandle> {
+    Ok(match change_kind {
+        ChangeKind::Alive | ChangeKind::AliveFiltered => {
+            (instance_handle_from_serialized_foo.0)(data)?
+        }
+        ChangeKind::NotAliveDisposed
+        | ChangeKind::NotAliveUnregistered
+        | ChangeKind::NotAliveDisposedUnregistered => match inline_qos
+            .iter()
+            .find(|&x| x.parameter_id() == PID_KEY_HASH)
+        {
+            Some(p) => {
+                if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
+                    InstanceHandle::new(key)
+                } else {
+                    (instance_handle_from_serialized_key.0)(data)?
+                }
+            }
+            None => (instance_handle_from_serialized_key.0)(data)?,
+        },
+    })
 }
 
 impl SampleLostStatus {
@@ -230,7 +264,8 @@ pub struct DataReaderActor {
     matched_writers: Vec<RtpsWriterProxy>,
     changes: Vec<RtpsReaderCacheChange>,
     qos: DataReaderQos,
-    instance_handle_builder: InstanceHandleBuilder,
+    instance_handle_from_serialized_foo: InstanceHandleFromSerializedFoo,
+    instance_handle_from_serialized_key: InstanceHandleFromSerializedKey,
     type_name: String,
     topic_name: String,
     _liveliness_changed_status: LivelinessChangedStatus,
@@ -251,15 +286,19 @@ pub struct DataReaderActor {
 }
 
 impl DataReaderActor {
-    pub fn new(
+    pub fn new<Foo>(
         rtps_reader: RtpsReader,
         type_name: String,
         topic_name: String,
         qos: DataReaderQos,
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
-        instance_handle_builder: InstanceHandleBuilder,
-    ) -> Self {
+    ) -> Self
+    where
+        Foo: DdsKey,
+    {
+        let instance_handle_from_serialized_foo = InstanceHandleFromSerializedFoo::new::<Foo>();
+        let instance_handle_from_serialized_key = InstanceHandleFromSerializedKey::new::<Foo>();
         let status_condition = spawn_actor(StatusConditionActor::default());
         let listener = spawn_actor(DataReaderListenerActor::new(listener));
 
@@ -284,7 +323,8 @@ impl DataReaderActor {
             status_kind,
             listener,
             qos,
-            instance_handle_builder,
+            instance_handle_from_serialized_foo,
+            instance_handle_from_serialized_key,
             instances: HashMap::new(),
         }
     }
@@ -860,7 +900,9 @@ impl DataReaderActor {
             Ok(ChangeKind::Alive)
         }?;
 
-        let instance_handle = self.instance_handle_builder.build_instance_handle(
+        let instance_handle = build_instance_handle(
+            &self.instance_handle_from_serialized_foo,
+            &self.instance_handle_from_serialized_key,
             change_kind,
             data.as_ref(),
             inline_qos.parameter(),
@@ -1168,7 +1210,8 @@ impl DataReaderActor {
 
         let mut indexed_samples = Vec::new();
 
-        let instance_handle_build = &self.instance_handle_builder;
+        let instance_handle_from_serialized_foo = &self.instance_handle_from_serialized_foo;
+        let instance_handle_from_serialized_key = &self.instance_handle_from_serialized_key;
         let instances = &self.instances;
         let mut instances_in_collection = HashMap::new();
         for (index, cache_change) in self
@@ -1176,9 +1219,14 @@ impl DataReaderActor {
             .iter_mut()
             .enumerate()
             .filter(|(_, cc)| {
-                let sample_instance_handle = instance_handle_build
-                    .build_instance_handle(cc.kind, cc.data.as_ref(), cc.inline_qos.parameter())
-                    .unwrap();
+                let sample_instance_handle = build_instance_handle(
+                    instance_handle_from_serialized_foo,
+                    instance_handle_from_serialized_key,
+                    cc.kind,
+                    cc.data.as_ref(),
+                    cc.inline_qos.parameter(),
+                )
+                .unwrap();
 
                 sample_states.contains(&cc.sample_state)
                     && view_states.contains(&instances[&sample_instance_handle].view_state)
@@ -1191,14 +1239,14 @@ impl DataReaderActor {
             })
             .take(max_samples as usize)
         {
-            let sample_instance_handle = self
-                .instance_handle_builder
-                .build_instance_handle(
-                    cache_change.kind,
-                    cache_change.data.as_ref(),
-                    cache_change.inline_qos.parameter(),
-                )
-                .unwrap();
+            let sample_instance_handle = build_instance_handle(
+                &self.instance_handle_from_serialized_foo,
+                &self.instance_handle_from_serialized_key,
+                cache_change.kind,
+                cache_change.data.as_ref(),
+                cache_change.inline_qos.parameter(),
+            )
+            .unwrap();
             instances_in_collection
                 .entry(sample_instance_handle)
                 .or_insert_with(Instance::new);

@@ -88,7 +88,7 @@ use std::{
 };
 
 use super::{
-    data_reader_actor::{self, InstanceHandleBuilder},
+    data_reader_actor::{self},
     data_writer_actor::{self, DataWriterActor},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     publisher_actor::{self, PublisherActor},
@@ -224,15 +224,15 @@ impl DomainParticipantActor {
         };
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        let spdp_builtin_participant_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
-            "SpdpDiscoveredParticipantData".to_string(),
-            String::from(DCPS_PARTICIPANT),
-            spdp_reader_qos,
-            Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
-            vec![],
-            InstanceHandleBuilder::new::<SpdpDiscoveredParticipantData>(),
-        ));
+        let spdp_builtin_participant_reader =
+            spawn_actor(DataReaderActor::new::<SpdpDiscoveredParticipantData>(
+                create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
+                "SpdpDiscoveredParticipantData".to_string(),
+                String::from(DCPS_PARTICIPANT),
+                spdp_reader_qos,
+                Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
+                vec![],
+            ));
 
         let sedp_reader_qos = DataReaderQos {
             durability: DurabilityQosPolicy {
@@ -250,39 +250,38 @@ impl DomainParticipantActor {
 
         let sedp_builtin_topics_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-        let sedp_builtin_topics_reader = spawn_actor(DataReaderActor::new(
+        let sedp_builtin_topics_reader = spawn_actor(DataReaderActor::new::<DiscoveredTopicData>(
             create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
             sedp_reader_qos.clone(),
             Box::new(NoOpListener::<DiscoveredTopicData>::new()),
             vec![],
-            InstanceHandleBuilder::new::<DiscoveredTopicData>(),
         ));
 
         let sedp_builtin_publications_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-        let sedp_builtin_publications_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
-            "DiscoveredWriterData".to_string(),
-            String::from(DCPS_PUBLICATION),
-            sedp_reader_qos.clone(),
-            Box::new(NoOpListener::<DiscoveredWriterData>::new()),
-            vec![],
-            InstanceHandleBuilder::new::<DiscoveredWriterData>(),
-        ));
+        let sedp_builtin_publications_reader =
+            spawn_actor(DataReaderActor::new::<DiscoveredWriterData>(
+                create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
+                "DiscoveredWriterData".to_string(),
+                String::from(DCPS_PUBLICATION),
+                sedp_reader_qos.clone(),
+                Box::new(NoOpListener::<DiscoveredWriterData>::new()),
+                vec![],
+            ));
 
         let sedp_builtin_subscriptions_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let sedp_builtin_subscriptions_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
-            "DiscoveredReaderData".to_string(),
-            String::from(DCPS_SUBSCRIPTION),
-            sedp_reader_qos,
-            Box::new(NoOpListener::<DiscoveredReaderData>::new()),
-            vec![],
-            InstanceHandleBuilder::new::<DiscoveredReaderData>(),
-        ));
+        let sedp_builtin_subscriptions_reader =
+            spawn_actor(DataReaderActor::new::<DiscoveredReaderData>(
+                create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
+                "DiscoveredReaderData".to_string(),
+                String::from(DCPS_SUBSCRIPTION),
+                sedp_reader_qos,
+                Box::new(NoOpListener::<DiscoveredReaderData>::new()),
+                vec![],
+            ));
 
         let builtin_subscriber = spawn_actor(SubscriberActor::new(
             SubscriberQos::default(),
