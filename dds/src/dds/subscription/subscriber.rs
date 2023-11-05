@@ -25,7 +25,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsHasKey, DdsInstanceHandleFromSerializedData, DdsKey},
+        type_support::{DdsHasKey, DdsKey},
     },
 };
 
@@ -101,7 +101,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsInstanceHandleFromSerializedData + DdsHasKey + DdsKey,
+        Foo: DdsHasKey + DdsKey,
     {
         let default_unicast_locator_list = self
             .participant_address
