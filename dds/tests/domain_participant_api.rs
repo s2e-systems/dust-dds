@@ -570,7 +570,6 @@ fn default_topic_qos() {
 }
 
 #[test]
-#[ignore = "Broken after refactor"]
 fn builtin_reader_access() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
@@ -693,6 +692,9 @@ fn get_discovery_data_from_builtin_reader() {
         .unwrap();
 
     let participants_reader_cond = participants_reader.get_statuscondition().unwrap();
+    participants_reader_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(participants_reader_cond))
