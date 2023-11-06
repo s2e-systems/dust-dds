@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
-            data_reader_actor::{self, DataReaderActor, InstanceHandleBuilder},
+            data_reader_actor::{self, DataReaderActor},
             domain_participant_actor::{self, DomainParticipantActor},
             subscriber_actor::{self, SubscriberActor},
         },
@@ -25,7 +25,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsInstanceHandleFromSerializedData, DdsHasKey},
+        type_support::{DdsHasKey, DdsKey},
     },
 };
 
@@ -101,7 +101,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsInstanceHandleFromSerializedData + DdsHasKey,
+        Foo: DdsHasKey + DdsKey,
     {
         let default_unicast_locator_list = self
             .participant_address
@@ -161,20 +161,19 @@ impl Subscriber {
 
         let listener = Box::new(a_listener);
         let status_kind = mask.to_vec();
-        let data_reader = DataReaderActor::new(
+        let data_reader = DataReaderActor::new::<Foo>(
             rtps_reader,
             a_topic.get_type_name()?,
             a_topic.get_name()?,
             qos,
             listener,
             status_kind,
-            InstanceHandleBuilder::new(Foo::get_handle_from_serialized_data),
         );
 
         let reader_actor = spawn_actor(data_reader);
         let reader_address = reader_actor.address();
         self.subscriber_address.send_mail_and_await_reply_blocking(
-            subscriber_actor::data_reader_add::new(guid.into(), reader_actor),
+            subscriber_actor::data_reader_add::new(InstanceHandle::new(guid.into()), reader_actor),
         )?;
 
         let data_reader = DataReader::new(

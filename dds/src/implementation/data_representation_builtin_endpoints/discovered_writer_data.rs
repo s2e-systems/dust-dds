@@ -3,11 +3,8 @@ use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::rtps::types::{EntityId, Guid, Locator},
-    infrastructure::{error::DdsResult, instance::InstanceHandle},
-    topic_definition::type_support::{
-        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
-        DdsSerialize,
-    },
+    infrastructure::error::DdsResult,
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize},
 };
 
 use super::parameter_id_values::{
@@ -108,20 +105,18 @@ impl DdsHasKey for DiscoveredWriterData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsInstanceHandle for DiscoveredWriterData {
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.dds_publication_data.key().value.as_ref().into())
-    }
-}
+impl DdsKey for DiscoveredWriterData {
+    type Key = [u8; 16];
 
-impl DdsInstanceHandleFromSerializedData for DiscoveredWriterData {
-    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
-        Ok(Self::deserialize_data(serialized_data)?
+    fn get_key(&self) -> DdsResult<Self::Key> {
+        Ok(self.dds_publication_data.key().value)
+    }
+
+    fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key> {
+        Ok(Self::deserialize_data(serialized_foo)?
             .dds_publication_data
             .key()
-            .value
-            .as_ref()
-            .into())
+            .value)
     }
 }
 

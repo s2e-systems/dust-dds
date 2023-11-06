@@ -6,7 +6,7 @@ use crate::{
         messages::types::Count,
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
-    infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},
+    infrastructure::{error::DdsResult, time::Duration},
     serialized_payload::{
         cdr::{
             deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
@@ -16,10 +16,7 @@ use crate::{
             deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
         },
     },
-    topic_definition::type_support::{
-        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
-        DdsSerialize,
-    },
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize},
 };
 
 use super::parameter_id_values::{
@@ -228,20 +225,18 @@ impl DdsHasKey for SpdpDiscoveredParticipantData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsInstanceHandle for SpdpDiscoveredParticipantData {
-    fn get_instance_handle(&self) -> DdsResult<crate::infrastructure::instance::InstanceHandle> {
-        Ok(self.dds_participant_data.key().value.as_ref().into())
-    }
-}
+impl DdsKey for SpdpDiscoveredParticipantData {
+    type Key = [u8; 16];
 
-impl DdsInstanceHandleFromSerializedData for SpdpDiscoveredParticipantData {
-    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
-        Ok(Self::deserialize_data(serialized_data)?
+    fn get_key(&self) -> DdsResult<Self::Key> {
+        Ok(self.dds_participant_data.key().value)
+    }
+
+    fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key> {
+        Ok(Self::deserialize_data(serialized_foo)?
             .dds_participant_data
             .key()
-            .value
-            .as_ref()
-            .into())
+            .value)
     }
 }
 

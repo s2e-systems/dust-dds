@@ -8,7 +8,10 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor, subscriber_actor, topic_actor,
         },
-        utils::actor::{ActorAddress, THE_RUNTIME},
+        utils::{
+            actor::{ActorAddress, THE_RUNTIME},
+            instance_handle_from_key::get_instance_handle_from_key,
+        },
     },
     infrastructure::{
         condition::StatusCondition,
@@ -24,7 +27,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{DdsInstanceHandle, DdsSerialize},
+        type_support::{DdsKey, DdsSerialize},
     },
 };
 
@@ -937,7 +940,7 @@ impl DomainParticipant {
                                     .send_mail_and_await_reply(
                                         data_writer_actor::write_w_timestamp::new(
                                             serialized_data,
-                                            spdp_discovered_participant_data.get_instance_handle()
+                                            get_instance_handle_from_key(&spdp_discovered_participant_data.get_key()?)
                                                 .unwrap(),
                                             None,
                                             timestamp,

@@ -41,7 +41,10 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::{self, UdpTransportWrite},
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::{
+            actor::{spawn_actor, Actor, ActorAddress},
+            instance_handle_from_key::get_instance_handle_from_key,
+        },
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -59,7 +62,7 @@ use crate::{
         time::DurationKind,
     },
     serialized_payload::cdr::serialize::CdrSerialize,
-    topic_definition::type_support::DdsInstanceHandle,
+    topic_definition::type_support::DdsKey,
     {
         builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
@@ -266,7 +269,7 @@ impl DataWriterActor {
 #[actor_interface]
 impl DataWriterActor {
     async fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_writer.guid().into()
+        InstanceHandle::new(self.rtps_writer.guid().into())
     }
 
     async fn add_matched_publication(
@@ -617,7 +620,8 @@ impl DataWriterActor {
                 discovered_reader_data.subscription_builtin_topic_data(),
                 &publisher_qos,
             );
-            let instance_handle = discovered_reader_data.get_instance_handle().unwrap();
+            let instance_handle =
+                get_instance_handle_from_key(&discovered_reader_data.get_key().unwrap()).unwrap();
 
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_reader_data
@@ -747,7 +751,8 @@ impl DataWriterActor {
         {
             let handle = r.key().value.into();
             self.matched_reader_remove(handle).await;
-            self.remove_matched_subscription(handle.into()).await;
+            self.remove_matched_subscription(InstanceHandle::new(handle.into()))
+                .await;
 
             self.on_publication_matched(
                 data_writer_address,

@@ -17,7 +17,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
-        status::StatusKind,
+        status::StatusKind, instance::InstanceHandle,
     },
 };
 use lazy_static::lazy_static;
@@ -182,7 +182,7 @@ impl DomainParticipantFactory {
         let participant_address = participant_actor.address();
         self.0.address().send_mail_and_await_reply_blocking(
             domain_participant_factory_actor::add_participant::new(
-                participant_guid.into(),
+                InstanceHandle::new(participant_guid.into()),
                 participant_actor,
             ),
         )?;
