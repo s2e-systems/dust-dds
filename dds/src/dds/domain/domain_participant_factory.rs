@@ -16,8 +16,9 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
+        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
-        status::StatusKind, instance::InstanceHandle,
+        status::StatusKind,
     },
 };
 use lazy_static::lazy_static;
@@ -25,7 +26,7 @@ use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
     net::{Ipv4Addr, SocketAddr},
-    sync::Mutex,
+    sync::RwLock,
 };
 use tracing::warn;
 
@@ -39,7 +40,7 @@ lazy_static! {
         DomainParticipantFactory(participant_factory_actor)
     };
 
-    static ref THE_DDS_CONFIGURATION: Mutex<DustDdsConfiguration> = Mutex::new(DustDdsConfiguration::default());
+    static ref THE_DDS_CONFIGURATION: RwLock<DustDdsConfiguration> = RwLock::new(DustDdsConfiguration::default());
 
 }
 
@@ -100,7 +101,7 @@ impl DomainParticipantFactory {
         ];
 
         let interface_address_list =
-            get_interface_address_list(THE_DDS_CONFIGURATION.lock().unwrap().interface_name());
+            get_interface_address_list(THE_DDS_CONFIGURATION.read().unwrap().interface_name());
 
         let default_unicast_socket =
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).map_err(
@@ -169,10 +170,14 @@ impl DomainParticipantFactory {
         let domain_participant = DomainParticipantActor::new(
             rtps_participant,
             domain_id,
-            THE_DDS_CONFIGURATION.lock().unwrap().domain_tag().to_string(),
+            THE_DDS_CONFIGURATION
+                .read()
+                .unwrap()
+                .domain_tag()
+                .to_string(),
             domain_participant_qos,
             &spdp_discovery_locator_list,
-            THE_DDS_CONFIGURATION.lock().unwrap().fragment_size(),
+            THE_DDS_CONFIGURATION.read().unwrap().fragment_size(),
             udp_transport_write,
             listener,
             status_kind,
@@ -431,13 +436,13 @@ impl DomainParticipantFactory {
 impl DomainParticipantFactory {
     /// Set the configuration of the [`DomainParticipantFactory`] singleton
     pub fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
-        *THE_DDS_CONFIGURATION.lock().unwrap() = configuration;
+        *THE_DDS_CONFIGURATION.write().unwrap() = configuration;
         Ok(())
     }
 
     /// Get the current configuration of the [`DomainParticipantFactory`] singleton
     pub fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
-        Ok(THE_DDS_CONFIGURATION.lock().unwrap().clone())
+        Ok(THE_DDS_CONFIGURATION.read().unwrap().clone())
     }
 }
 
