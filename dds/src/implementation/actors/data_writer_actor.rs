@@ -1,6 +1,5 @@
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
-    cdr::{endianness::CdrEndianness, serialize::CdrSerialize, serializer::ClassicCdrSerializer},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -11,6 +10,9 @@ use crate::{
             types::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
+        },
+        payload_serializer_deserializer::{
+            cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
         },
         rtps::{
             message_receiver::MessageReceiver,
@@ -39,7 +41,10 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::{self, UdpTransportWrite},
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::{
+            actor::{spawn_actor, Actor, ActorAddress},
+            instance_handle_from_key::get_instance_handle_from_key,
+        },
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -56,7 +61,8 @@ use crate::{
         },
         time::DurationKind,
     },
-    topic_definition::type_support::DdsInstanceHandle,
+    serialized_payload::cdr::serialize::CdrSerialize,
+    topic_definition::type_support::DdsKey,
     {
         builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
@@ -263,7 +269,7 @@ impl DataWriterActor {
 #[actor_interface]
 impl DataWriterActor {
     async fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_writer.guid().into()
+        InstanceHandle::new(self.rtps_writer.guid().into())
     }
 
     async fn add_matched_publication(
@@ -614,7 +620,8 @@ impl DataWriterActor {
                 discovered_reader_data.subscription_builtin_topic_data(),
                 &publisher_qos,
             );
-            let instance_handle = discovered_reader_data.get_instance_handle().unwrap();
+            let instance_handle =
+                get_instance_handle_from_key(&discovered_reader_data.get_key().unwrap()).unwrap();
 
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_reader_data
@@ -744,7 +751,8 @@ impl DataWriterActor {
         {
             let handle = r.key().value.into();
             self.matched_reader_remove(handle).await;
-            self.remove_matched_subscription(handle.into()).await;
+            self.remove_matched_subscription(InstanceHandle::new(handle.into()))
+                .await;
 
             self.on_publication_matched(
                 data_writer_address,

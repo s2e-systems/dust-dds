@@ -130,7 +130,8 @@ impl PublisherActor {
         );
         let data_writer_actor = spawn_actor(data_writer);
         let data_writer_address = data_writer_actor.address();
-        self.data_writer_list.insert(guid.into(), data_writer_actor);
+        self.data_writer_list
+            .insert(InstanceHandle::new(guid.into()), data_writer_actor);
 
         Ok(data_writer_address)
     }
@@ -210,7 +211,7 @@ impl PublisherActor {
     }
 
     async fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_group.guid().into()
+        InstanceHandle::new(self.rtps_group.guid().into())
     }
 
     async fn get_status_kind(&self) -> Vec<StatusKind> {

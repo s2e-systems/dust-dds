@@ -1,26 +1,13 @@
 use std::io::{BufRead, Read};
 
 use crate::{
-    cdr::{
-        deserialize::CdrDeserialize, deserializer::ClassicCdrDeserializer,
-        endianness::CdrEndianness,
-    },
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+    serialized_payload::{
+        cdr::deserialize::CdrDeserialize, parameter_list::deserializer::ParameterListDeserializer,
+    },
 };
 
-pub trait ParameterListDeserializer<'de> {
-    fn read<T>(&self, id: i16) -> Result<T, std::io::Error>
-    where
-        T: CdrDeserialize<'de>;
-
-    fn read_with_default<T>(&self, id: i16, default: T) -> Result<T, std::io::Error>
-    where
-        T: CdrDeserialize<'de>;
-
-    fn read_collection<T>(&self, id: i16) -> Result<Vec<T>, std::io::Error>
-    where
-        T: CdrDeserialize<'de>;
-}
+use super::{cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness};
 
 struct Parameter<'de> {
     id: i16,
@@ -144,7 +131,7 @@ impl<'de> ParameterListDeserializer<'de> for ParameterListCdrDeserializer<'de> {
 
 #[cfg(test)]
 mod tests {
-    use crate::cdr::parameter_list_deserialize::ParameterListDeserialize;
+    use crate::serialized_payload::parameter_list::deserialize::ParameterListDeserialize;
 
     use super::*;
 

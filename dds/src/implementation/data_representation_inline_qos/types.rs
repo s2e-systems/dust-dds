@@ -1,4 +1,4 @@
-use crate::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
+use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
 
 #[derive(Clone, Copy, CdrSerialize, CdrDeserialize, PartialEq, Eq)]
 pub struct KeyHash(pub [u8; 16]);

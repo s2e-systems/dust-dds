@@ -10,7 +10,7 @@ use crate::{
         },
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::messages::submessage_elements::Data,
-        utils::actor::ActorAddress,
+        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
     infrastructure::{
         error::DdsError,
@@ -22,7 +22,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{
         topic::Topic,
-        type_support::{DdsDeserialize, DdsInstanceHandle, DdsSerialize},
+        type_support::{DdsDeserialize, DdsKey, DdsSerialize},
     },
     {
         builtin_topics::PublicationBuiltinTopicData,
@@ -763,7 +763,7 @@ fn announce_data_reader(
         if dw.send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
             == Ok("DiscoveredReaderData".to_string())
         {
-            let instance_handle = discovered_reader_data.get_instance_handle()?;
+            let instance_handle = get_instance_handle_from_key(&discovered_reader_data.get_key()?)?;
             dw.send_mail_and_await_reply_blocking(data_writer_actor::write_w_timestamp::new(
                 serialized_data,
                 instance_handle,

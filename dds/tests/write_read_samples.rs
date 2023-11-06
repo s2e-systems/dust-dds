@@ -2,6 +2,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
+        instance::InstanceHandle,
         listeners::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind, TopicQos},
         qos_policy::{
@@ -22,7 +23,7 @@ use dust_dds::{
             ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::{DdsInstanceHandle, DdsType},
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -891,6 +892,10 @@ fn each_key_sample_is_read() {
     writer.write(&data2, None).unwrap();
     writer.write(&data3, None).unwrap();
 
+    let data1_handle = writer.lookup_instance(&data1).unwrap();
+    let data2_handle = writer.lookup_instance(&data2).unwrap();
+    let data3_handle = writer.lookup_instance(&data3).unwrap();
+
     writer
         .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
@@ -903,19 +908,19 @@ fn each_key_sample_is_read() {
     assert_eq!(samples[0].data().unwrap(), data1);
     assert_eq!(
         samples[0].sample_info().instance_handle,
-        data1.get_instance_handle().unwrap().into(),
+        data1_handle.unwrap(),
     );
 
     assert_eq!(samples[1].data().unwrap(), data2);
     assert_eq!(
         samples[1].sample_info().instance_handle,
-        data2.get_instance_handle().unwrap().into(),
+        data2_handle.unwrap(),
     );
 
     assert_eq!(samples[2].data().unwrap(), data3);
     assert_eq!(
         samples[2].sample_info().instance_handle,
-        data3.get_instance_handle().unwrap().into(),
+        data3_handle.unwrap(),
     );
 }
 
@@ -993,6 +998,8 @@ fn read_specific_instance() {
     writer.write(&data2, None).unwrap();
     writer.write(&data3, None).unwrap();
 
+    let data1_handle = writer.lookup_instance(&data1).unwrap();
+
     writer
         .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
@@ -1000,7 +1007,7 @@ fn read_specific_instance() {
     let samples = reader
         .read_instance(
             3,
-            data1.get_instance_handle().unwrap().into(),
+            data1_handle.unwrap(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1328,6 +1335,7 @@ fn take_specific_instance() {
     writer.write(&data1, None).unwrap();
     writer.write(&data2, None).unwrap();
     writer.write(&data3, None).unwrap();
+    let data1_handle = writer.lookup_instance(&data1).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -1336,7 +1344,7 @@ fn take_specific_instance() {
     let samples = reader
         .take_instance(
             3,
-            data1.get_instance_handle().unwrap().into(),
+            data1_handle.unwrap(),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
@@ -1428,10 +1436,7 @@ fn take_specific_unknown_instance() {
     assert_eq!(
         reader.take_instance(
             3,
-            KeyedData { id: 99, value: 20 }
-                .get_instance_handle()
-                .unwrap()
-                .into(),
+            InstanceHandle::new([99; 16]),
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,

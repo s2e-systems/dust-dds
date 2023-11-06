@@ -151,7 +151,7 @@ impl SubscriberActor {
     }
 
     async fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_group.guid().into()
+        InstanceHandle::new(self.rtps_group.guid().into())
     }
 
     async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {

@@ -1,27 +1,8 @@
-use crate::cdr::{
-    endianness::CdrEndianness, serialize::CdrSerialize, serializer::ClassicCdrSerializer,
+use crate::serialized_payload::{
+    cdr::serialize::CdrSerialize, parameter_list::serializer::ParameterListSerializer,
 };
 
-pub use dust_dds_derive::ParameterListDeserialize;
-
-pub trait ParameterListSerializer {
-    fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
-    where
-        T: CdrSerialize;
-
-    fn write_with_default<T>(
-        &mut self,
-        id: i16,
-        value: &T,
-        default: &T,
-    ) -> Result<(), std::io::Error>
-    where
-        T: CdrSerialize + PartialEq;
-
-    fn write_collection<T>(&mut self, id: i16, value_list: &[T]) -> Result<(), std::io::Error>
-    where
-        T: CdrSerialize;
-}
+use super::{cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness};
 
 pub struct ParameterListCdrSerializer<W> {
     writer: W,
@@ -105,7 +86,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::cdr::parameter_list_serialize::ParameterListSerialize;
+    use crate::serialized_payload::parameter_list::serialize::ParameterListSerialize;
 
     use super::*;
 

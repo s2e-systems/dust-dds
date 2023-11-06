@@ -1,40 +1,6 @@
-use crate::cdr::{error::CdrResult, serialize::CdrSerialize};
+use crate::serialized_payload::cdr::{serialize::CdrSerialize, serializer::CdrSerializer};
 
 use super::endianness::CdrEndianness;
-
-pub trait CdrSerializer {
-    fn serialize_bool(&mut self, v: bool) -> CdrResult<()>;
-
-    fn serialize_i8(&mut self, v: i8) -> CdrResult<()>;
-
-    fn serialize_i16(&mut self, v: i16) -> CdrResult<()>;
-
-    fn serialize_i32(&mut self, v: i32) -> CdrResult<()>;
-
-    fn serialize_i64(&mut self, v: i64) -> CdrResult<()>;
-
-    fn serialize_u8(&mut self, v: u8) -> CdrResult<()>;
-
-    fn serialize_u16(&mut self, v: u16) -> CdrResult<()>;
-
-    fn serialize_u32(&mut self, v: u32) -> CdrResult<()>;
-
-    fn serialize_u64(&mut self, v: u64) -> CdrResult<()>;
-
-    fn serialize_f32(&mut self, v: f32) -> CdrResult<()>;
-
-    fn serialize_f64(&mut self, v: f64) -> CdrResult<()>;
-
-    fn serialize_char(&mut self, v: char) -> CdrResult<()>;
-
-    fn serialize_str(&mut self, v: &str) -> CdrResult<()>;
-
-    fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> CdrResult<()>;
-
-    fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> CdrResult<()>;
-
-    fn serialize_unit(&mut self) -> CdrResult<()>;
-}
 
 pub struct ClassicCdrSerializer<W> {
     writer: W,
@@ -58,13 +24,13 @@ where
         self.pos += size;
     }
 
-    fn set_pos_of<T>(&mut self) -> CdrResult<()> {
+    fn set_pos_of<T>(&mut self) -> Result<(), std::io::Error> {
         self.write_padding_of::<T>()?;
         self.add_pos(std::mem::size_of::<T>());
         Ok(())
     }
 
-    fn write_padding_of<T>(&mut self) -> CdrResult<()> {
+    fn write_padding_of<T>(&mut self) -> Result<(), std::io::Error> {
         // Calculate the required padding to align with 1-byte, 2-byte, 4-byte, 8-byte boundaries.
         // Instead of using the slow modulo operation '%', the faster bit-masking is used
         const PADDING: [u8; 8] = [0; 8];
@@ -86,11 +52,11 @@ impl<W> CdrSerializer for ClassicCdrSerializer<W>
 where
     W: std::io::Write,
 {
-    fn serialize_bool(&mut self, v: bool) -> CdrResult<()> {
+    fn serialize_bool(&mut self, v: bool) -> Result<(), std::io::Error> {
         self.serialize_u8(v as u8)
     }
 
-    fn serialize_i8(&mut self, v: i8) -> CdrResult<()> {
+    fn serialize_i8(&mut self, v: i8) -> Result<(), std::io::Error> {
         self.set_pos_of::<i8>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -98,7 +64,7 @@ where
         }
     }
 
-    fn serialize_i16(&mut self, v: i16) -> CdrResult<()> {
+    fn serialize_i16(&mut self, v: i16) -> Result<(), std::io::Error> {
         self.set_pos_of::<i16>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -106,7 +72,7 @@ where
         }
     }
 
-    fn serialize_i32(&mut self, v: i32) -> CdrResult<()> {
+    fn serialize_i32(&mut self, v: i32) -> Result<(), std::io::Error> {
         self.set_pos_of::<i32>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -114,7 +80,7 @@ where
         }
     }
 
-    fn serialize_i64(&mut self, v: i64) -> CdrResult<()> {
+    fn serialize_i64(&mut self, v: i64) -> Result<(), std::io::Error> {
         self.set_pos_of::<i64>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -122,7 +88,7 @@ where
         }
     }
 
-    fn serialize_u8(&mut self, v: u8) -> CdrResult<()> {
+    fn serialize_u8(&mut self, v: u8) -> Result<(), std::io::Error> {
         self.set_pos_of::<u8>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -130,7 +96,7 @@ where
         }
     }
 
-    fn serialize_u16(&mut self, v: u16) -> CdrResult<()> {
+    fn serialize_u16(&mut self, v: u16) -> Result<(), std::io::Error> {
         self.set_pos_of::<u16>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -138,7 +104,7 @@ where
         }
     }
 
-    fn serialize_u32(&mut self, v: u32) -> CdrResult<()> {
+    fn serialize_u32(&mut self, v: u32) -> Result<(), std::io::Error> {
         self.set_pos_of::<u32>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -146,7 +112,7 @@ where
         }
     }
 
-    fn serialize_u64(&mut self, v: u64) -> CdrResult<()> {
+    fn serialize_u64(&mut self, v: u64) -> Result<(), std::io::Error> {
         self.set_pos_of::<u64>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -154,7 +120,7 @@ where
         }
     }
 
-    fn serialize_f32(&mut self, v: f32) -> CdrResult<()> {
+    fn serialize_f32(&mut self, v: f32) -> Result<(), std::io::Error> {
         self.set_pos_of::<f32>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -162,7 +128,7 @@ where
         }
     }
 
-    fn serialize_f64(&mut self, v: f64) -> CdrResult<()> {
+    fn serialize_f64(&mut self, v: f64) -> Result<(), std::io::Error> {
         self.set_pos_of::<f64>()?;
         match self.endianness {
             CdrEndianness::LittleEndian => self.writer.write_all(&v.to_le_bytes()),
@@ -170,7 +136,7 @@ where
         }
     }
 
-    fn serialize_char(&mut self, v: char) -> CdrResult<()> {
+    fn serialize_char(&mut self, v: char) -> Result<(), std::io::Error> {
         if !v.is_ascii() {
             Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -185,7 +151,7 @@ where
         }
     }
 
-    fn serialize_str(&mut self, v: &str) -> CdrResult<()> {
+    fn serialize_str(&mut self, v: &str) -> Result<(), std::io::Error> {
         if !v.is_ascii() {
             Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -209,7 +175,7 @@ where
         }
     }
 
-    fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> CdrResult<()> {
+    fn serialize_seq(&mut self, v: &[impl CdrSerialize]) -> Result<(), std::io::Error> {
         let l = v.len();
         if l > u32::MAX as usize {
             Err(std::io::Error::new(
@@ -225,14 +191,17 @@ where
         }
     }
 
-    fn serialize_array<const N: usize>(&mut self, v: &[impl CdrSerialize; N]) -> CdrResult<()> {
+    fn serialize_array<const N: usize>(
+        &mut self,
+        v: &[impl CdrSerialize; N],
+    ) -> Result<(), std::io::Error> {
         for e in v {
             e.serialize(self)?;
         }
         Ok(())
     }
 
-    fn serialize_unit(&mut self) -> CdrResult<()> {
+    fn serialize_unit(&mut self) -> Result<(), std::io::Error> {
         Ok(())
     }
 }
@@ -241,7 +210,7 @@ where
 mod tests {
     use super::*;
 
-    fn serialize_be<T>(v: &T) -> CdrResult<Vec<u8>>
+    fn serialize_be<T>(v: &T) -> Result<Vec<u8>, std::io::Error>
     where
         T: CdrSerialize + ?Sized,
     {
@@ -251,7 +220,7 @@ mod tests {
         Ok(writer)
     }
 
-    fn serialize_le<T>(v: &T) -> CdrResult<Vec<u8>>
+    fn serialize_le<T>(v: &T) -> Result<Vec<u8>, std::io::Error>
     where
         T: CdrSerialize + ?Sized,
     {

@@ -1,11 +1,11 @@
 use core::cmp::Ordering;
 
 use crate::{
-    cdr::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
-        serialize::CdrSerialize, serializer::CdrSerializer,
-    },
     infrastructure::time::{Duration, DurationKind, DURATION_ZERO},
+    serialized_payload::cdr::{
+        deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
+        serializer::CdrSerializer,
+    },
 };
 
 pub type QosPolicyId = i32;
@@ -17,7 +17,7 @@ pub enum Length {
 
 const LENGTH_UNLIMITED: i32 = -1;
 impl CdrSerialize for Length {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             Length::Unlimited => serializer.serialize_i32(LENGTH_UNLIMITED),
             Length::Limited(l) => serializer.serialize_u32(*l),
@@ -26,7 +26,7 @@ impl CdrSerialize for Length {
 }
 
 impl<'de> CdrDeserialize<'de> for Length {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let value: i32 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             LENGTH_UNLIMITED => Ok(Length::Unlimited),
@@ -257,7 +257,7 @@ pub enum DurabilityQosPolicyKind {
 }
 
 impl CdrSerialize for DurabilityQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             DurabilityQosPolicyKind::Volatile => 0u8,
             DurabilityQosPolicyKind::TransientLocal => 1,
@@ -267,7 +267,7 @@ impl CdrSerialize for DurabilityQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DurabilityQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(DurabilityQosPolicyKind::Volatile),
@@ -334,7 +334,7 @@ pub enum PresentationQosPolicyAccessScopeKind {
 }
 
 impl CdrSerialize for PresentationQosPolicyAccessScopeKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             PresentationQosPolicyAccessScopeKind::Instance => 0u8,
             PresentationQosPolicyAccessScopeKind::Topic => 1,
@@ -344,7 +344,7 @@ impl CdrSerialize for PresentationQosPolicyAccessScopeKind {
 }
 
 impl<'de> CdrDeserialize<'de> for PresentationQosPolicyAccessScopeKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(PresentationQosPolicyAccessScopeKind::Instance),
@@ -498,7 +498,7 @@ pub enum OwnershipQosPolicyKind {
 }
 
 impl CdrSerialize for OwnershipQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             OwnershipQosPolicyKind::Shared => 0u8,
         }
@@ -507,7 +507,7 @@ impl CdrSerialize for OwnershipQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for OwnershipQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(OwnershipQosPolicyKind::Shared),
@@ -555,7 +555,7 @@ pub enum LivelinessQosPolicyKind {
 }
 
 impl CdrSerialize for LivelinessQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             LivelinessQosPolicyKind::Automatic => 0u8,
             LivelinessQosPolicyKind::ManualByParticipant => 1,
@@ -566,7 +566,7 @@ impl CdrSerialize for LivelinessQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for LivelinessQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(LivelinessQosPolicyKind::Automatic),
@@ -731,7 +731,7 @@ const BEST_EFFORT: i32 = 1;
 const RELIABLE: i32 = 2;
 
 impl CdrSerialize for ReliabilityQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             ReliabilityQosPolicyKind::BestEffort => BEST_EFFORT,
             ReliabilityQosPolicyKind::Reliable => RELIABLE,
@@ -741,7 +741,7 @@ impl CdrSerialize for ReliabilityQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for ReliabilityQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let value: i32 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             BEST_EFFORT => Ok(ReliabilityQosPolicyKind::BestEffort),
@@ -832,7 +832,7 @@ pub enum DestinationOrderQosPolicyKind {
 }
 
 impl CdrSerialize for DestinationOrderQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             DestinationOrderQosPolicyKind::ByReceptionTimestamp => 0u8,
             DestinationOrderQosPolicyKind::BySourceTimestamp => 1,
@@ -842,7 +842,7 @@ impl CdrSerialize for DestinationOrderQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for DestinationOrderQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(DestinationOrderQosPolicyKind::ByReceptionTimestamp),
@@ -908,7 +908,7 @@ pub enum HistoryQosPolicyKind {
 }
 
 impl CdrSerialize for HistoryQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             HistoryQosPolicyKind::KeepLast(depth) => {
                 serializer.serialize_u8(0)?;
@@ -923,7 +923,7 @@ impl CdrSerialize for HistoryQosPolicyKind {
 }
 
 impl<'de> CdrDeserialize<'de> for HistoryQosPolicyKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let kind: u8 = CdrDeserialize::deserialize(deserializer)?;
         let depth: i32 = CdrDeserialize::deserialize(deserializer)?;
         match kind {

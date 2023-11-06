@@ -8,7 +8,7 @@ use crate::{
             topic_actor::{self, TopicActor},
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        utils::actor::ActorAddress,
+        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -19,10 +19,7 @@ use crate::{
     },
 };
 
-use super::{
-    topic_listener::TopicListener,
-    type_support::{DdsInstanceHandle, DdsSerialize},
-};
+use super::{topic_listener::TopicListener, type_support::{DdsSerialize, DdsKey}};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
@@ -248,7 +245,7 @@ fn announce_topic(
             data_writer.send_mail_and_await_reply_blocking(
                 data_writer_actor::write_w_timestamp::new(
                     serialized_data,
-                    discovered_topic_data.get_instance_handle()?,
+                    get_instance_handle_from_key(&discovered_topic_data.get_key()?)?,
                     None,
                     timestamp,
                 ),

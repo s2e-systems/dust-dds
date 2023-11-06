@@ -1,15 +1,11 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    cdr::{
-        parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_serialize::ParameterListSerialize,
-    },
     implementation::rtps::types::{EntityId, Guid, Locator},
-    infrastructure::{error::DdsResult, instance::InstanceHandle},
-    topic_definition::type_support::{
-        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
-        DdsSerialize,
+    infrastructure::error::DdsResult,
+    serialized_payload::parameter_list::{
+        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
     },
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize},
 };
 
 use super::parameter_id_values::{
@@ -111,25 +107,18 @@ impl DdsHasKey for DiscoveredReaderData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsInstanceHandle for DiscoveredReaderData {
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self
-            .subscription_builtin_topic_data
-            .key()
-            .value
-            .as_ref()
-            .into())
-    }
-}
+impl DdsKey for DiscoveredReaderData {
+    type Key = [u8; 16];
 
-impl DdsInstanceHandleFromSerializedData for DiscoveredReaderData {
-    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
-        Ok(Self::deserialize_data(serialized_data)?
+    fn get_key(&self) -> DdsResult<Self::Key> {
+        Ok(self.subscription_builtin_topic_data.key().value)
+    }
+
+    fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key> {
+        Ok(Self::deserialize_data(serialized_foo)?
             .subscription_builtin_topic_data
             .key()
-            .value
-            .as_ref()
-            .into())
+            .value)
     }
 }
 

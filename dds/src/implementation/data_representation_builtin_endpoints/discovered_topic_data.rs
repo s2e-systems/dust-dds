@@ -1,14 +1,10 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    cdr::{
-        parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_serialize::ParameterListSerialize,
+    infrastructure::error::DdsResult,
+    serialized_payload::parameter_list::{
+        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
     },
-    infrastructure::{error::DdsResult, instance::InstanceHandle},
-    topic_definition::type_support::{
-        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
-        DdsSerialize,
-    },
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize},
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
@@ -44,20 +40,18 @@ impl DdsHasKey for DiscoveredTopicData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsInstanceHandle for DiscoveredTopicData {
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.topic_builtin_topic_data.key().value.as_ref().into())
-    }
-}
+impl DdsKey for DiscoveredTopicData {
+    type Key = [u8; 16];
 
-impl DdsInstanceHandleFromSerializedData for DiscoveredTopicData {
-    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
-        Ok(Self::deserialize_data(serialized_data)?
+    fn get_key(&self) -> DdsResult<Self::Key> {
+        Ok(self.topic_builtin_topic_data.key().value)
+    }
+
+    fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key> {
+        Ok(Self::deserialize_data(serialized_foo)?
             .topic_builtin_topic_data
             .key()
-            .value
-            .as_ref()
-            .into())
+            .value)
     }
 }
 

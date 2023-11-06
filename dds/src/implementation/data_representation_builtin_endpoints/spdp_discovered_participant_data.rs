@@ -1,22 +1,22 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
-    cdr::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, error::CdrResult,
-        parameter_list_deserialize::ParameterListDeserialize,
-        parameter_list_serialize::ParameterListSerialize, serialize::CdrSerialize,
-        serializer::CdrSerializer,
-    },
     domain::domain_participant_factory::DomainId,
     implementation::rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
-    infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},
-    topic_definition::type_support::{
-        DdsDeserialize, DdsHasKey, DdsInstanceHandle, DdsInstanceHandleFromSerializedData,
-        DdsSerialize,
+    infrastructure::{error::DdsResult, time::Duration},
+    serialized_payload::{
+        cdr::{
+            deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
+            serializer::CdrSerializer,
+        },
+        parameter_list::{
+            deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
+        },
     },
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize},
 };
 
 use super::parameter_id_values::{
@@ -40,7 +40,7 @@ impl Default for DomainTag {
 #[derive(Default, Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef)]
 struct DomainIdParameter(Option<DomainId>);
 impl CdrSerialize for DomainIdParameter {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> CdrResult<()> {
+    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         self.0
             .expect("Default DomainId not supposed to be serialized")
             .serialize(serializer)
@@ -48,7 +48,7 @@ impl CdrSerialize for DomainIdParameter {
 }
 
 impl<'de> CdrDeserialize<'de> for DomainIdParameter {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> CdrResult<Self> {
+    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         // None should not happen since this is only deserialized if the
         // corresponding PID is found
         Ok(Self(Some(CdrDeserialize::deserialize(deserializer)?)))
@@ -225,20 +225,18 @@ impl DdsHasKey for SpdpDiscoveredParticipantData {
     const HAS_KEY: bool = true;
 }
 
-impl DdsInstanceHandle for SpdpDiscoveredParticipantData {
-    fn get_instance_handle(&self) -> DdsResult<crate::infrastructure::instance::InstanceHandle> {
-        Ok(self.dds_participant_data.key().value.as_ref().into())
-    }
-}
+impl DdsKey for SpdpDiscoveredParticipantData {
+    type Key = [u8; 16];
 
-impl DdsInstanceHandleFromSerializedData for SpdpDiscoveredParticipantData {
-    fn get_handle_from_serialized_data(serialized_data: &[u8]) -> DdsResult<InstanceHandle> {
-        Ok(Self::deserialize_data(serialized_data)?
+    fn get_key(&self) -> DdsResult<Self::Key> {
+        Ok(self.dds_participant_data.key().value)
+    }
+
+    fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key> {
+        Ok(Self::deserialize_data(serialized_foo)?
             .dds_participant_data
             .key()
-            .value
-            .as_ref()
-            .into())
+            .value)
     }
 }
 
