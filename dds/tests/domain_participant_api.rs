@@ -597,7 +597,6 @@ fn builtin_reader_access() {
 }
 
 #[test]
-#[ignore = "Broken after refactor"]
 fn get_discovery_data_from_builtin_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_user_data = vec![1, 2];
@@ -638,7 +637,7 @@ fn get_discovery_data_from_builtin_reader() {
         .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    let _data_writer = publisher
+    let data_writer = publisher
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(DataWriterQos {
@@ -656,7 +655,7 @@ fn get_discovery_data_from_builtin_reader() {
         .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    let _data_reader = subscriber
+    let data_reader = subscriber
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(DataReaderQos {
@@ -669,6 +668,29 @@ fn get_discovery_data_from_builtin_reader() {
             NO_STATUS,
         )
         .unwrap();
+
+    // Wait for reader to be matched to data writer
+    let cond = data_writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // Wait for the writer to be matched to data reader
+    let cond = data_reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
     let builtin_subscriber = participant.get_builtin_subscriber().unwrap();
 
     let participants_reader = builtin_subscriber
@@ -691,57 +713,17 @@ fn get_discovery_data_from_builtin_reader() {
         .unwrap()
         .unwrap();
 
-    let participants_reader_cond = participants_reader.get_statuscondition().unwrap();
-    participants_reader_cond
-        .set_enabled_statuses(&[StatusKind::DataAvailable])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(participants_reader_cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
     let participant_samples = participants_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
-
-    let topics_reader_cond = topics_reader.get_statuscondition().unwrap();
-    topics_reader_cond
-        .set_enabled_statuses(&[StatusKind::DataAvailable])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(topics_reader_cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let topic_samples = topics_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    let subscriptions_reader_cond = subscriptions_reader.get_statuscondition().unwrap();
-    subscriptions_reader_cond
-        .set_enabled_statuses(&[StatusKind::DataAvailable])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(subscriptions_reader_cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
     let subscription_samples = subscriptions_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
-
-    let publications_reader_cond = publications_reader.get_statuscondition().unwrap();
-    publications_reader_cond
-        .set_enabled_statuses(&[StatusKind::DataAvailable])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(publications_reader_cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let publication_samples = publications_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
