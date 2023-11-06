@@ -17,13 +17,6 @@ use crate::{
             serializer::ParameterListSerializer,
         },
     },
-    serialized_payload::{
-        cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
-        parameter_list::{
-            deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-            serializer::ParameterListSerializer,
-        },
-    },
 };
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize};
