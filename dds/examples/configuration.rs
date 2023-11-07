@@ -17,12 +17,11 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
     let configuration = DustDdsConfigurationBuilder::new()
         .domain_tag("abc".to_string())
-        .unwrap()
         .fragment_size(1000)
-        .unwrap()
         .interface_name(None)
-        .unwrap()
-        .build();
+        .build()
+        .unwrap();
+
     participant_factory
         .set_configuration(configuration)
         .unwrap();

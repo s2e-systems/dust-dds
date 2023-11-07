@@ -51,33 +51,33 @@ impl DustDdsConfigurationBuilder {
     }
 
     /// Build a new configuration
-    pub fn build(self) -> DustDdsConfiguration {
-        self.configuration
-    }
-
-    /// Set the domain tag to use for the participants
-    pub fn domain_tag(mut self, domain_tag: String) -> DdsResult<Self> {
-        self.configuration.domain_tag = domain_tag;
-        Ok(self)
-    }
-
-    /// Set the network interface name to use for discovery
-    pub fn interface_name(mut self, interface_name: Option<String>) -> DdsResult<Self> {
-        self.configuration.interface_name = interface_name;
-        Ok(self)
-    }
-
-    /// Set the maximum size for the data fragments. Types with serialized data above this size will be transmitted as fragments.
-    pub fn fragment_size(mut self, fragment_size: usize) -> DdsResult<Self> {
+    pub fn build(self) -> DdsResult<DustDdsConfiguration> {
         let fragment_size_range = 8..=65000;
-        if !fragment_size_range.contains(&fragment_size) {
+        if !fragment_size_range.contains(&self.configuration.fragment_size) {
             Err(DdsError::Error(format!(
                 "Interface size out of range. Value must be between in {:?}",
                 fragment_size_range
             )))
         } else {
-            self.configuration.fragment_size = fragment_size;
-            Ok(self)
+            Ok(self.configuration)
         }
+    }
+
+    /// Set the domain tag to use for the participants
+    pub fn domain_tag(mut self, domain_tag: String) -> Self {
+        self.configuration.domain_tag = domain_tag;
+        self
+    }
+
+    /// Set the network interface name to use for discovery
+    pub fn interface_name(mut self, interface_name: Option<String>) -> Self {
+        self.configuration.interface_name = interface_name;
+        self
+    }
+
+    /// Set the maximum size for the data fragments. Types with serialized data above this size will be transmitted as fragments.
+    pub fn fragment_size(mut self, fragment_size: usize) -> Self {
+        self.configuration.fragment_size = fragment_size;
+        self
     }
 }
