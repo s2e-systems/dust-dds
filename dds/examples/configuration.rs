@@ -18,7 +18,7 @@ fn main() {
     let configuration = DustDdsConfigurationBuilder::new()
         .domain_tag("abc".to_string())
         .fragment_size(1000)
-        .interface_name(None)
+        .interface_name(Some("Wi-Fi".to_string()))
         .build()
         .unwrap();
 
