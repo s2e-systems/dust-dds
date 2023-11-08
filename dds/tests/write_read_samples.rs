@@ -15,13 +15,9 @@ use dust_dds::{
         time::{Duration, DurationKind, Time},
         wait_set::{Condition, WaitSet},
     },
-    subscription::{
-        data_reader::DataReader,
-        data_reader_listener::DataReaderListener,
-        sample_info::{
-            InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
-            ANY_SAMPLE_STATE, ANY_VIEW_STATE,
-        },
+    subscription::sample_info::{
+        InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
+        ANY_VIEW_STATE,
     },
     topic_definition::type_support::DdsType,
 };
@@ -2700,87 +2696,6 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
 
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data().unwrap(), data2);
-}
-
-#[test]
-#[ignore = "Listener calls are async and don't guarantee order"]
-fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
-    struct Listener {
-        sender: std::sync::mpsc::SyncSender<()>,
-        data_sample_list: std::vec::IntoIter<KeyedData>,
-    }
-    impl DataReaderListener for Listener {
-        type Foo = KeyedData;
-        fn on_data_available(&mut self, the_reader: &DataReader<KeyedData>) {
-            if let Ok(samples) =
-                the_reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-            {
-                let sample = samples[0].data().unwrap();
-                let sample_expected = self.data_sample_list.next().unwrap();
-                assert_eq!(sample, sample_expected);
-                if self.data_sample_list.len() == 0 {
-                    self.sender.send(()).unwrap();
-                }
-            }
-        }
-    }
-
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-    let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
-        .unwrap();
-    let topic = participant
-        .create_topic(
-            "TestTopic",
-            "KeyedData",
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
-        .unwrap();
-    let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
-        .unwrap();
-
-    let (sender, receiver) = std::sync::mpsc::sync_channel(0);
-
-    let data_sample_list = (1..=10)
-        .map(|value| KeyedData { id: 1, value })
-        .collect::<Vec<_>>();
-    let listener = Listener {
-        sender,
-        data_sample_list: data_sample_list.clone().into_iter(),
-    };
-    let _reader = subscriber
-        .create_datareader(
-            &topic,
-            QosKind::Default,
-            listener,
-            &[StatusKind::DataAvailable],
-        )
-        .unwrap();
-    let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
-        .unwrap();
-    let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
-        .unwrap();
-    let writer_cond = writer.get_statuscondition().unwrap();
-    writer_cond
-        .set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(writer_cond))
-        .unwrap();
-    wait_set.wait(Duration::new(60, 0)).unwrap();
-    for data_sample in data_sample_list {
-        writer.write(&data_sample, None).unwrap();
-    }
-    receiver
-        .recv_timeout(std::time::Duration::from_secs(10))
-        .unwrap();
 }
 
 #[test]
