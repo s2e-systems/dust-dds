@@ -17,7 +17,6 @@ categories = ["api-bindings", "network-programming"]
 
 [dependencies]
 dust_dds_derive = { path = "../dds_derive", version = "0.4" }
-serde = { version = "=1.0", default-features = false, features = ["derive"] }
 
 derive_more = "=0.99.16"
 md5 = "=0.7.0"  # Chose this crate over other possibilities since it doesn't have any other dependencies
@@ -28,10 +27,6 @@ lazy_static = "=1.4"
 socket2 = "=0.4"
 network-interface = "1.0.1"
 mac_address = "=1.1"
-
-jsonschema = {version = "=0.12.0", default-features = false}
-serde_json = "=1.0.87"
-schemars = "=0.8.11"
 
 fnmatch-regex = "=0.2.0"
 

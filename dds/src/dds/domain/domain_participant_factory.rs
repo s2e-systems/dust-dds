@@ -1,12 +1,12 @@
 use super::domain_participant::DomainParticipant;
 use crate::{
+    configuration::DustDdsConfiguration,
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         actors::{
             domain_participant_actor::{self, DomainParticipantActor},
             domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
         },
-        configuration::DustDdsConfiguration,
         rtps::{
             participant::RtpsParticipant,
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -16,18 +16,17 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
+        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
-        status::StatusKind, instance::InstanceHandle,
+        status::StatusKind,
     },
 };
-use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-use schemars::schema_for;
 use socket2::Socket;
 use std::{
     net::{Ipv4Addr, SocketAddr},
-    str::FromStr,
+    sync::RwLock,
 };
 use tracing::warn;
 
@@ -41,12 +40,8 @@ lazy_static! {
         DomainParticipantFactory(participant_factory_actor)
     };
 
-    static ref THE_DDS_CONFIGURATION: DustDdsConfiguration =
-        if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION") {
-            configuration_try_from_str(configuration_json.as_str()).unwrap()
-        } else {
-            DustDdsConfiguration::default()
-        };
+    static ref THE_DDS_CONFIGURATION: RwLock<DustDdsConfiguration> = RwLock::new(DustDdsConfiguration::default());
+
 }
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
@@ -106,7 +101,7 @@ impl DomainParticipantFactory {
         ];
 
         let interface_address_list =
-            get_interface_address_list(THE_DDS_CONFIGURATION.interface_name.as_ref());
+            get_interface_address_list(THE_DDS_CONFIGURATION.read().unwrap().interface_name());
 
         let default_unicast_socket =
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).map_err(
@@ -175,10 +170,14 @@ impl DomainParticipantFactory {
         let domain_participant = DomainParticipantActor::new(
             rtps_participant,
             domain_id,
-            THE_DDS_CONFIGURATION.domain_tag.clone(),
+            THE_DDS_CONFIGURATION
+                .read()
+                .unwrap()
+                .domain_tag()
+                .to_string(),
             domain_participant_qos,
             &spdp_discovery_locator_list,
-            THE_DDS_CONFIGURATION.fragment_size,
+            THE_DDS_CONFIGURATION.read().unwrap().fragment_size(),
             udp_transport_write,
             listener,
             status_kind,
@@ -434,21 +433,17 @@ impl DomainParticipantFactory {
     }
 }
 
-fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfiguration, String> {
-    let root_schema = schema_for!(DustDdsConfiguration);
-    let json_schema_str =
-        serde_json::to_string(&root_schema).expect("Json schema could not be created");
+impl DomainParticipantFactory {
+    /// Set the configuration of the [`DomainParticipantFactory`] singleton
+    pub fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
+        *THE_DDS_CONFIGURATION.write().unwrap() = configuration;
+        Ok(())
+    }
 
-    let schema = serde_json::value::Value::from_str(json_schema_str.as_str())
-        .expect("Json schema not valid");
-    let compiled_schema = JSONSchema::compile(&schema).expect("Json schema could not be compiled");
-
-    let instance =
-        serde_json::value::Value::from_str(configuration_json).map_err(|e| e.to_string())?;
-    compiled_schema
-        .validate(&instance)
-        .map_err(|errors| errors.map(|e| e.to_string()).collect::<String>())?;
-    serde_json::from_value(instance).map_err(|e| e.to_string())
+    /// Get the current configuration of the [`DomainParticipantFactory`] singleton
+    pub fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
+        Ok(THE_DDS_CONFIGURATION.read().unwrap().clone())
+    }
 }
 
 type LocatorAddress = [u8; 16];
@@ -518,25 +513,4 @@ fn get_multicast_socket(
     socket.set_multicast_loop_v4(true)?;
 
     tokio::net::UdpSocket::from_std(socket.into())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn from_configuration_json() {
-        let configuration = configuration_try_from_str(
-            r#"{"domain_tag" : "from_configuration_json", "interface_name": "Wi-Fi"}"#,
-        )
-        .unwrap();
-        assert_eq!(
-            configuration,
-            DustDdsConfiguration {
-                domain_tag: "from_configuration_json".to_string(),
-                interface_name: Some("Wi-Fi".to_string()),
-                fragment_size: 1344
-            }
-        );
-    }
 }

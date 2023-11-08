@@ -1,5 +1,4 @@
 #![doc = include_str!("../README.md")]
-#![doc = include_str!("../schema/schema.md")]
 mod dds;
 #[forbid(unsafe_code)]
 /// Module containing the traits and classes needed to represent types in the formats defined in the RTPS standard
