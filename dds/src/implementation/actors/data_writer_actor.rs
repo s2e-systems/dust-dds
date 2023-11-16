@@ -903,7 +903,7 @@ impl DataWriterActor {
                                         header,
                                         vec![info_ts_submessage, data_submessage],
                                     ),
-                                    &vec![reader_locator.locator()],
+                                    &[reader_locator.locator()],
                                 )
                                 .await;
                         } else {
@@ -917,7 +917,7 @@ impl DataWriterActor {
                             udp_transport_write
                                 .write(
                                     &RtpsMessageWrite::new(header, vec![gap_submessage]),
-                                    &vec![reader_locator.locator()],
+                                    &[reader_locator.locator()],
                                 )
                                 .await;
                         }
