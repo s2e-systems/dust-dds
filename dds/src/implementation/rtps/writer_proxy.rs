@@ -1,7 +1,6 @@
 use std::{
     cmp::{max, min},
     collections::HashMap,
-    sync::Arc,
 };
 
 use crate::implementation::rtps_udp_psm::udp_transport::UdpTransportWrite;
@@ -253,7 +252,7 @@ impl RtpsWriterProxy {
         &mut self,
         reader_guid: &Guid,
         header: RtpsMessageHeader,
-        udp_transport_write: &Arc<UdpTransportWrite>,
+        udp_transport_write: &UdpTransportWrite,
     ) {
         if self.must_send_acknacks() || !self.missing_changes().is_empty() {
             self.set_must_send_acknacks(false);

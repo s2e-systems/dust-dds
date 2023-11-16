@@ -868,7 +868,7 @@ impl DataWriterActor {
     async fn send_message_to_reader_locators(
         &mut self,
         header: RtpsMessageHeader,
-        udp_transport_write: &Arc<UdpTransportWrite>,
+        udp_transport_write: &UdpTransportWrite,
     ) {
         for reader_locator in &mut self.reader_locators {
             match &self.qos.reliability.kind {
@@ -934,7 +934,7 @@ impl DataWriterActor {
     async fn send_message_to_reader_proxies(
         &mut self,
         header: RtpsMessageHeader,
-        udp_transport_write: &Arc<UdpTransportWrite>,
+        udp_transport_write: &UdpTransportWrite,
     ) {
         for reader_proxy in &mut self.matched_readers {
             match (&self.qos.reliability.kind, reader_proxy.reliability()) {
@@ -1160,7 +1160,7 @@ async fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
-    udp_transport_write: &Arc<UdpTransportWrite>,
+    udp_transport_write: &UdpTransportWrite,
     header: RtpsMessageHeader,
 ) {
     // a_change_seq_num := the_reader_proxy.next_unsent_change();
@@ -1295,7 +1295,7 @@ async fn send_message_to_reader_proxy_reliable(
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
     heartbeat_period: Duration,
-    udp_transport_write: &Arc<UdpTransportWrite>,
+    udp_transport_write: &UdpTransportWrite,
     header: RtpsMessageHeader,
 ) {
     // Top part of the state machine - Figure 8.19 RTPS standard
@@ -1395,7 +1395,7 @@ async fn send_change_message_reader_proxy_reliable(
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
     change_seq_num: SequenceNumber,
-    udp_transport_write: &Arc<UdpTransportWrite>,
+    udp_transport_write: &UdpTransportWrite,
     header: RtpsMessageHeader,
 ) {
     match writer_cache
