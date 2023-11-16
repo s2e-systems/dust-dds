@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use dust_dds_derive::actor_interface;
 use fnmatch_regex::glob_to_regex;
@@ -180,7 +180,7 @@ impl SubscriberActor {
     async fn send_message(
         &self,
         header: RtpsMessageHeader,
-        udp_transport_write: ActorAddress<UdpTransportWrite>,
+        udp_transport_write: Arc<UdpTransportWrite>,
     ) {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address

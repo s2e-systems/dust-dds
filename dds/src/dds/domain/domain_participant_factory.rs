@@ -26,7 +26,7 @@ use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
     net::{Ipv4Addr, SocketAddr},
-    sync::RwLock,
+    sync::{Arc, RwLock},
 };
 use tracing::warn;
 
@@ -151,7 +151,7 @@ impl DomainParticipantFactory {
         let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
         let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
-        let udp_transport_write = spawn_actor(UdpTransportWrite::new(socket));
+        let udp_transport_write = Arc::new(UdpTransportWrite::new(socket));
 
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,

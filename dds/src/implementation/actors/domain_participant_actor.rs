@@ -84,6 +84,7 @@ use crate::{
 
 use std::{
     collections::{HashMap, HashSet},
+    sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -151,7 +152,7 @@ pub struct DomainParticipantActor {
     ignored_subcriptions: HashSet<InstanceHandle>,
     ignored_topic_list: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
-    udp_transport_write: Actor<UdpTransportWrite>,
+    udp_transport_write: Arc<UdpTransportWrite>,
     listener: Actor<DomainParticipantListenerActor>,
     status_kind: Vec<StatusKind>,
 }
@@ -165,7 +166,7 @@ impl DomainParticipantActor {
         domain_participant_qos: DomainParticipantQos,
         spdp_discovery_locator_list: &[Locator],
         data_max_size_serialized: usize,
-        udp_transport_write: Actor<UdpTransportWrite>,
+        udp_transport_write: Arc<UdpTransportWrite>,
         listener: Box<dyn DomainParticipantListener + Send>,
         status_kind: Vec<StatusKind>,
     ) -> Self {
@@ -806,8 +807,8 @@ impl DomainParticipantActor {
         self.builtin_subscriber.address()
     }
 
-    async fn get_upd_transport_write(&self) -> ActorAddress<UdpTransportWrite> {
-        self.udp_transport_write.address()
+    async fn get_upd_transport_write(&self) -> Arc<UdpTransportWrite> {
+        self.udp_transport_write.clone()
     }
 
     async fn get_guid(&self) -> Guid {
@@ -893,14 +894,14 @@ impl DomainParticipantActor {
         self.builtin_publisher
             .send_mail(publisher_actor::send_message::new(
                 header,
-                self.udp_transport_write.address(),
+                self.udp_transport_write.clone(),
                 now,
             ))
             .await;
         self.builtin_subscriber
             .send_mail(subscriber_actor::send_message::new(
                 header,
-                self.udp_transport_write.address(),
+                self.udp_transport_write.clone(),
             ))
             .await;
 
@@ -908,7 +909,7 @@ impl DomainParticipantActor {
             publisher
                 .send_mail(publisher_actor::send_message::new(
                     header,
-                    self.udp_transport_write.address(),
+                    self.udp_transport_write.clone(),
                     now,
                 ))
                 .await;
@@ -918,7 +919,7 @@ impl DomainParticipantActor {
             subscriber
                 .send_mail(subscriber_actor::send_message::new(
                     header,
-                    self.udp_transport_write.address(),
+                    self.udp_transport_write.clone(),
                 ))
                 .await;
         }
@@ -977,7 +978,7 @@ impl DomainParticipantActor {
                         self.rtps_participant.vendor_id(),
                         self.rtps_participant.guid().prefix(),
                     ),
-                    self.udp_transport_write.address().clone(),
+                    self.udp_transport_write.clone().clone(),
                 ))
                 .await
                 .expect("Should not fail to send command");
@@ -999,7 +1000,7 @@ impl DomainParticipantActor {
                         self.rtps_participant.vendor_id(),
                         self.rtps_participant.guid().prefix(),
                     ),
-                    self.udp_transport_write.address().clone(),
+                    self.udp_transport_write.clone(),
                     self.get_current_time().await,
                 ))
                 .await
