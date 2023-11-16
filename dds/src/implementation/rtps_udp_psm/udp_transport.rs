@@ -2,7 +2,7 @@ use crate::implementation::rtps::{
     messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
     types::{Locator, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
 };
-use dust_dds_derive::actor_interface;
+
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs},
@@ -49,12 +49,11 @@ impl UdpTransportWrite {
     }
 }
 
-#[actor_interface]
 impl UdpTransportWrite {
-    async fn write(&mut self, message: RtpsMessageWrite, destination_locator_list: Vec<Locator>) {
+    pub async fn write(&self, message: &RtpsMessageWrite, destination_locator_list: &[Locator]) {
         let buf = message.buffer();
 
-        for destination_locator in destination_locator_list {
+        for &destination_locator in destination_locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
                 let interface_addresses = NetworkInterface::show();

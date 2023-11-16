@@ -3,10 +3,7 @@ use std::{
     collections::HashMap,
 };
 
-use crate::implementation::{
-    rtps_udp_psm::udp_transport::{self, UdpTransportWrite},
-    utils::actor::ActorAddress,
-};
+use crate::implementation::rtps_udp_psm::udp_transport::UdpTransportWrite;
 
 use super::{
     messages::{
@@ -255,7 +252,7 @@ impl RtpsWriterProxy {
         &mut self,
         reader_guid: &Guid,
         header: RtpsMessageHeader,
-        udp_transport_write: &ActorAddress<UdpTransportWrite>,
+        udp_transport_write: &UdpTransportWrite,
     ) {
         if self.must_send_acknacks() || !self.missing_changes().is_empty() {
             self.set_must_send_acknacks(false);
@@ -312,12 +309,11 @@ impl RtpsWriterProxy {
             }
 
             udp_transport_write
-                .send_mail(udp_transport::write::new(
-                    RtpsMessageWrite::new(header, submessages),
-                    self.unicast_locator_list().to_vec(),
-                ))
-                .await
-                .unwrap();
+                .write(
+                    &RtpsMessageWrite::new(header, submessages),
+                    self.unicast_locator_list(),
+                )
+                .await;
         }
     }
 

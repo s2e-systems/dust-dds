@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     convert::TryFrom,
+    sync::Arc,
 };
 
 use dust_dds_derive::actor_interface;
@@ -1961,7 +1962,7 @@ impl DataReaderActor {
     async fn send_message(
         &mut self,
         header: RtpsMessageHeader,
-        udp_transport_write: ActorAddress<UdpTransportWrite>,
+        udp_transport_write: Arc<UdpTransportWrite>,
     ) {
         for writer_proxy in self.matched_writers.iter_mut() {
             writer_proxy

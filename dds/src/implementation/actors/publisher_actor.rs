@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use dust_dds_derive::actor_interface;
 use fnmatch_regex::glob_to_regex;
@@ -247,7 +247,7 @@ impl PublisherActor {
     async fn send_message(
         &self,
         header: RtpsMessageHeader,
-        udp_transport_write: ActorAddress<UdpTransportWrite>,
+        udp_transport_write: Arc<UdpTransportWrite>,
         now: Time,
     ) {
         for data_writer_address in self.data_writer_list.values() {
