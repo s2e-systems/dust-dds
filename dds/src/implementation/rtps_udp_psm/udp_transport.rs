@@ -50,7 +50,7 @@ impl UdpTransportWrite {
 }
 
 impl UdpTransportWrite {
-    pub async fn write(&self, message: &RtpsMessageWrite, destination_locator_list: &[Locator]) {
+    pub fn write(&self, message: &RtpsMessageWrite, destination_locator_list: &[Locator]) {
         let buf = message.buffer();
 
         for &destination_locator in destination_locator_list {
