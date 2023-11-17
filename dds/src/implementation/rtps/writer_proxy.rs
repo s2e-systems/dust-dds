@@ -137,7 +137,7 @@ impl RtpsWriterProxy {
 
         // Any number below first_available_seq_num is missing so that is the minimum
         // If there are missing changes, the minimum will be one above the maximum
-        if let Some(&minimum_missing_changes) = self.missing_changes().iter().min() {
+        if let Some(minimum_missing_changes) = self.missing_changes().min() {
             minimum_missing_changes - 1
         } else {
             // If there are no missing changes then the highest received sequence number
@@ -167,11 +167,9 @@ impl RtpsWriterProxy {
         self.first_available_seq_num = first_available_seq_num;
     }
 
-    pub fn missing_changes(&self) -> Vec<SequenceNumber> {
+    pub fn missing_changes(&self) -> impl Iterator<Item = SequenceNumber> {
         // The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
         // return { change IN this.changes_from_writer SUCH-THAT change.status == MISSING};
-        let mut missing_changes = Vec::new();
-
         let highest_received_seq_num = self.highest_received_change_sn;
         let highest_irrelevant_seq_num = self
             .irrelevant_changes
@@ -184,19 +182,18 @@ impl RtpsWriterProxy {
             self.last_available_seq_num,
             max(highest_received_seq_num, highest_irrelevant_seq_num),
         );
+
         // Changes below first_available_seq_num are LOST (or RECEIVED, but in any case not MISSING) and above last_available_seq_num are unknown.
         // In between those two numbers, every change that is not RECEIVED or IRRELEVANT is MISSING
-        let mut seq_num = self.first_available_seq_num;
-        while seq_num <= highest_number {
-            let received = seq_num <= self.highest_received_change_sn;
-
-            let irrelevant = self.irrelevant_changes.contains(&seq_num);
-            if !(irrelevant || received) {
-                missing_changes.push(seq_num)
-            }
-            seq_num += 1;
-        }
-        missing_changes
+        let highest_received_change_sn = self.highest_received_change_sn;
+        let irrelevant_changes = self.irrelevant_changes.clone();
+        (i64::from(self.first_available_seq_num)..=i64::from(highest_number))
+            .map(|x| SequenceNumber::from(x))
+            .filter(move |x| {
+                let received = x <= &highest_received_change_sn;
+                !received
+            })
+            .filter(move |x| !irrelevant_changes.contains(x))
     }
 
     pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
@@ -254,21 +251,23 @@ impl RtpsWriterProxy {
         header: RtpsMessageHeader,
         udp_transport_write: &UdpTransportWrite,
     ) {
-        if self.must_send_acknacks() || !self.missing_changes().is_empty() {
+        if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
 
             let info_dst_submessage =
                 InfoDestinationSubmessageWrite::new(self.remote_writer_guid().prefix());
 
-            let mut missing_changes = self.missing_changes();
-            missing_changes.truncate(256);
+            let missing_changes = self.missing_changes();
 
             let acknack_submessage = AckNackSubmessageWrite::new(
                 true,
                 reader_guid.entity_id(),
                 self.remote_writer_guid().entity_id(),
-                SequenceNumberSet::new(self.available_changes_max() + 1, missing_changes),
+                SequenceNumberSet::new(
+                    self.available_changes_max() + 1,
+                    missing_changes.take(256).collect(),
+                ),
                 self.acknack_count(),
             );
 
@@ -317,6 +316,6 @@ impl RtpsWriterProxy {
 
     pub fn is_historical_data_received(&self) -> bool {
         let at_least_one_heartbeat_received = self.last_received_heartbeat_count > 0;
-        at_least_one_heartbeat_received && self.missing_changes().is_empty()
+        at_least_one_heartbeat_received && self.missing_changes().count() == 0
     }
 }

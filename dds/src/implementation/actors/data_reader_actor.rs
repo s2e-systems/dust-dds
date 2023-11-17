@@ -518,7 +518,7 @@ impl DataReaderActor {
                     writer_proxy.set_must_send_acknacks(
                         !heartbeat_submessage.final_flag()
                             || (!heartbeat_submessage.liveliness_flag()
-                                && !writer_proxy.missing_changes().is_empty()),
+                                && !writer_proxy.missing_changes().count() == 0),
                     );
 
                     if !heartbeat_submessage.final_flag() {
