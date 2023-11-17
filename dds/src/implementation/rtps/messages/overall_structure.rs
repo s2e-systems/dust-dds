@@ -184,10 +184,10 @@ pub struct RtpsMessageWrite {
 }
 
 impl RtpsMessageWrite {
-    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageWriteKind<'_>>) -> Self {
+    pub fn new(header: &RtpsMessageHeader, submessages: &[RtpsSubmessageWriteKind<'_>]) -> Self {
         let mut buffer = [0; BUFFER_SIZE];
         let mut len = header.write_bytes(&mut buffer[0..]);
-        for submessage in &submessages {
+        for submessage in submessages {
             len += submessage.write_bytes(&mut buffer[len..]);
         }
         Self { buffer, len }
@@ -393,7 +393,7 @@ mod tests {
             vendor_id: [9, 8],
             guid_prefix: [3; 12],
         };
-        let message = RtpsMessageWrite::new(header, Vec::new());
+        let message = RtpsMessageWrite::new(&header, &[]);
         #[rustfmt::skip]
         assert_eq!(message.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -435,7 +435,7 @@ mod tests {
             inline_qos,
             serialized_payload,
         ));
-        let value = RtpsMessageWrite::new(header, vec![submessage]);
+        let value = RtpsMessageWrite::new(&header, &[submessage]);
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol

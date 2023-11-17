@@ -899,8 +899,8 @@ impl DataWriterActor {
                             );
                             udp_transport_write.write(
                                 &RtpsMessageWrite::new(
-                                    header,
-                                    vec![info_ts_submessage, data_submessage],
+                                    &header,
+                                    &[info_ts_submessage, data_submessage],
                                 ),
                                 &[reader_locator.locator()],
                             );
@@ -913,7 +913,7 @@ impl DataWriterActor {
                                     SequenceNumberSet::new(unsent_change_seq_num + 1, vec![]),
                                 ));
                             udp_transport_write.write(
-                                &RtpsMessageWrite::new(header, vec![gap_submessage]),
+                                &RtpsMessageWrite::new(&header, &[gap_submessage]),
                                 &[reader_locator.locator()],
                             );
                         }
@@ -1194,7 +1194,7 @@ async fn send_message_to_reader_proxy_best_effort(
                 SequenceNumberSet::new(gap_end_sequence_number + 1, vec![]),
             ));
             udp_transport_write.write(
-                &RtpsMessageWrite::new(header, vec![gap_submessage]),
+                &RtpsMessageWrite::new(&header, &[gap_submessage]),
                 reader_proxy.unicast_locator_list(),
             );
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -1227,7 +1227,7 @@ async fn send_message_to_reader_proxy_best_effort(
                     let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write.write(
-                        &RtpsMessageWrite::new(header, vec![info_dst, info_timestamp, data_frag]),
+                        &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
                         reader_proxy.unicast_locator_list(),
                     );
                 }
@@ -1249,15 +1249,15 @@ async fn send_message_to_reader_proxy_best_effort(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
                 udp_transport_write.write(
-                    &RtpsMessageWrite::new(header, vec![info_dst, info_timestamp, data_submessage]),
+                    &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_submessage]),
                     reader_proxy.unicast_locator_list(),
                 );
             }
         } else {
             udp_transport_write.write(
                 &RtpsMessageWrite::new(
-                    header,
-                    vec![RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
+                    &header,
+                    &[RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
                         ENTITYID_UNKNOWN,
                         writer_id,
                         next_unsent_change_seq_num,
@@ -1306,7 +1306,7 @@ async fn send_message_to_reader_proxy_reliable(
                     .heartbeat_machine()
                     .submessage(writer_id, first_sn, last_sn);
                 udp_transport_write.write(
-                    &RtpsMessageWrite::new(header, vec![gap_submessage, heartbeat_submessage]),
+                    &RtpsMessageWrite::new(&header, &[gap_submessage, heartbeat_submessage]),
                     reader_proxy.unicast_locator_list(),
                 );
             } else {
@@ -1342,7 +1342,7 @@ async fn send_message_to_reader_proxy_reliable(
             .heartbeat_machine()
             .submessage(writer_id, first_sn, last_sn);
         udp_transport_write.write(
-            &RtpsMessageWrite::new(header, vec![heartbeat_submessage]),
+            &RtpsMessageWrite::new(&header, &[heartbeat_submessage]),
             reader_proxy.unicast_locator_list(),
         );
     }
@@ -1406,7 +1406,7 @@ async fn send_change_message_reader_proxy_reliable(
                     let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write.write(
-                        &RtpsMessageWrite::new(header, vec![info_dst, info_timestamp, data_frag]),
+                        &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
                         reader_proxy.unicast_locator_list(),
                     );
                 }
@@ -1444,8 +1444,8 @@ async fn send_change_message_reader_proxy_reliable(
 
                 udp_transport_write.write(
                     &RtpsMessageWrite::new(
-                        header,
-                        vec![info_dst, info_timestamp, data_submessage, heartbeat],
+                        &header,
+                        &[info_dst, info_timestamp, data_submessage, heartbeat],
                     ),
                     reader_proxy.unicast_locator_list(),
                 );
@@ -1464,7 +1464,7 @@ async fn send_change_message_reader_proxy_reliable(
             ));
 
             udp_transport_write.write(
-                &RtpsMessageWrite::new(header, vec![info_dst, gap_submessage]),
+                &RtpsMessageWrite::new(&header, &[info_dst, gap_submessage]),
                 reader_proxy.unicast_locator_list(),
             );
         }

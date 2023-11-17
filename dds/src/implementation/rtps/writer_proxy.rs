@@ -298,7 +298,7 @@ impl RtpsWriterProxy {
             }
 
             udp_transport_write.write(
-                &RtpsMessageWrite::new(header, submessages),
+                &RtpsMessageWrite::new(&header, &submessages),
                 self.unicast_locator_list(),
             );
         }
