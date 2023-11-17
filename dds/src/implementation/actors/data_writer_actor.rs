@@ -796,10 +796,8 @@ impl DataWriterActor {
         // Remove stale changes before sending
         self.remove_stale_changes(now);
 
-        self.send_message_to_reader_locators(header, &udp_transport_write)
-            .await;
-        self.send_message_to_reader_proxies(header, &udp_transport_write)
-            .await;
+        self.send_message_to_reader_locators(header, &udp_transport_write);
+        self.send_message_to_reader_proxies(header, &udp_transport_write);
     }
 
     async fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
@@ -865,7 +863,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn send_message_to_reader_locators(
+    fn send_message_to_reader_locators(
         &mut self,
         header: RtpsMessageHeader,
         udp_transport_write: &UdpTransportWrite,
@@ -927,7 +925,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn send_message_to_reader_proxies(
+    fn send_message_to_reader_proxies(
         &mut self,
         header: RtpsMessageHeader,
         udp_transport_write: &UdpTransportWrite,
@@ -943,7 +941,6 @@ impl DataWriterActor {
                         udp_transport_write,
                         header,
                     )
-                    .await
                 }
                 (ReliabilityQosPolicyKind::Reliable, ReliabilityKind::Reliable) => {
                     send_message_to_reader_proxy_reliable(
@@ -954,7 +951,6 @@ impl DataWriterActor {
                         udp_transport_write,
                         header,
                     )
-                    .await
                 }
                 (ReliabilityQosPolicyKind::BestEffort, ReliabilityKind::Reliable) => {
                     panic!("Impossible combination. Should not be matched")
@@ -1152,7 +1148,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     incompatible_qos_policy_list
 }
 
-async fn send_message_to_reader_proxy_best_effort(
+fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
@@ -1272,7 +1268,7 @@ async fn send_message_to_reader_proxy_best_effort(
     }
 }
 
-async fn send_message_to_reader_proxy_reliable(
+fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
@@ -1317,8 +1313,7 @@ async fn send_message_to_reader_proxy_reliable(
                     next_unsent_change_seq_num,
                     udp_transport_write,
                     header,
-                )
-                .await;
+                );
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
@@ -1362,13 +1357,12 @@ async fn send_message_to_reader_proxy_reliable(
                 next_requested_change_seq_num,
                 udp_transport_write,
                 header,
-            )
-            .await;
+            );
         }
     }
 }
 
-async fn send_change_message_reader_proxy_reliable(
+fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
