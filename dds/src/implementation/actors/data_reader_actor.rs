@@ -1965,9 +1965,7 @@ impl DataReaderActor {
         udp_transport_write: Arc<UdpTransportWrite>,
     ) {
         for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy
-                .send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
-                .await
+            writer_proxy.send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
         }
     }
 

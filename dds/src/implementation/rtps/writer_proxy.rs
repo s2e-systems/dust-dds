@@ -235,7 +235,7 @@ impl RtpsWriterProxy {
         self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 
-    pub async fn send_message(
+    pub fn send_message(
         &mut self,
         reader_guid: &Guid,
         header: RtpsMessageHeader,
