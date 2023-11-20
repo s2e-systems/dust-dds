@@ -70,14 +70,11 @@ pub struct SequenceNumberSet {
 }
 
 impl SequenceNumberSet {
-    pub fn new(base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
-        if let Some(&min) = set.iter().min() {
-            let max = *set.iter().max().unwrap();
-            if !(max - min < SequenceNumber::from(256) && min >= SequenceNumber::from(1)) {
-                panic!("SequenceNumber set max - min < 256 && min >= 1 must hold")
-            }
+    pub fn new(base: SequenceNumber, set: impl Iterator<Item = SequenceNumber>) -> Self {
+        Self {
+            base,
+            set: set.collect(),
         }
-        Self { base, set }
     }
 
     pub fn base(&self) -> SequenceNumber {
@@ -121,14 +118,11 @@ pub struct FragmentNumberSet {
 }
 
 impl FragmentNumberSet {
-    pub fn new(base: FragmentNumber, set: Vec<FragmentNumber>) -> Self {
-        if let Some(&min) = set.iter().min() {
-            let max = *set.iter().max().unwrap();
-            if !(max - min < 256 && min >= 1) {
-                panic!("FragmentNumberSet set max - min < 256 && min >= 1 must hold")
-            }
+    pub fn new(base: FragmentNumber, set: impl Iterator<Item = FragmentNumber>) -> Self {
+        Self {
+            base,
+            set: set.collect(),
         }
-        Self { base, set }
     }
 }
 
@@ -450,7 +444,7 @@ impl FromBytes for SequenceNumberSet {
                 set.push(SequenceNumber::from(base + delta_n as i64));
             }
         }
-        SequenceNumberSet::new(SequenceNumber::from(base), set)
+        SequenceNumberSet::new(SequenceNumber::from(base), set.into_iter())
     }
 }
 
@@ -535,7 +529,7 @@ impl FromBytes for FragmentNumberSet {
                 set.push(base + delta_n as u32);
             }
         }
-        Self::new(base, set)
+        Self::new(base, set.into_iter())
     }
 }
 

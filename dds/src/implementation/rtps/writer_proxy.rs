@@ -254,10 +254,7 @@ impl RtpsWriterProxy {
                 true,
                 reader_guid.entity_id(),
                 self.remote_writer_guid().entity_id(),
-                SequenceNumberSet::new(
-                    self.available_changes_max() + 1,
-                    missing_changes.take(256).collect(),
-                ),
+                SequenceNumberSet::new(self.available_changes_max() + 1, missing_changes.take(256)),
                 self.acknack_count(),
             );
 
@@ -288,7 +285,7 @@ impl RtpsWriterProxy {
                             *seq_num,
                             FragmentNumberSet::new(
                                 missing_fragment_number[0],
-                                missing_fragment_number,
+                                missing_fragment_number.into_iter(),
                             ),
                             self.nack_frag_count,
                         ));
