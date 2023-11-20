@@ -518,7 +518,7 @@ impl DataReaderActor {
                     writer_proxy.set_must_send_acknacks(
                         !heartbeat_submessage.final_flag()
                             || (!heartbeat_submessage.liveliness_flag()
-                                && !writer_proxy.missing_changes().is_empty()),
+                                && !writer_proxy.missing_changes().count() == 0),
                     );
 
                     if !heartbeat_submessage.final_flag() {
@@ -1965,9 +1965,7 @@ impl DataReaderActor {
         udp_transport_write: Arc<UdpTransportWrite>,
     ) {
         for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy
-                .send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
-                .await
+            writer_proxy.send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
         }
     }
 
