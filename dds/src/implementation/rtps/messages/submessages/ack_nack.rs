@@ -72,7 +72,9 @@ impl AckNackSubmessageWrite<'_> {
     }
 }
 
-impl Submessage for AckNackSubmessageWrite<'_> {
+impl<'a> Submessage<'a> for AckNackSubmessageWrite<'a> {
+    type SubmessageList = &'a [SubmessageElement<'a>];
+
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::ACKNACK,
@@ -81,7 +83,7 @@ impl Submessage for AckNackSubmessageWrite<'_> {
         )
     }
 
-    fn submessage_elements(&self) -> &[SubmessageElement] {
+    fn submessage_elements(&'a self) -> Self::SubmessageList {
         &self.submessage_elements
     }
 }
@@ -90,7 +92,7 @@ impl Submessage for AckNackSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_vec,
+        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
         types::{SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -99,13 +101,13 @@ mod tests {
         let final_flag = false;
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let submessage = AckNackSubmessageWrite::new(
+        let submessage = RtpsSubmessageWriteKind::AckNack(AckNackSubmessageWrite::new(
             final_flag,
             reader_id,
             writer_id,
             SequenceNumberSet::new(SequenceNumber::from(10), []),
             14,
-        );
+        ));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x06_u8, 0b_0000_0001, 24, 0, // Submessage header

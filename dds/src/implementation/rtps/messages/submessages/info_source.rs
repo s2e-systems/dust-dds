@@ -60,12 +60,14 @@ impl InfoSourceSubmessageWrite<'_> {
     }
 }
 
-impl Submessage for InfoSourceSubmessageWrite<'_> {
+impl<'a> Submessage<'a> for InfoSourceSubmessageWrite<'a> {
+    type SubmessageList = &'a [SubmessageElement<'a>];
+
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], octets_to_next_header)
     }
 
-    fn submessage_elements(&self) -> &[SubmessageElement] {
+    fn submessage_elements(&'a self) -> Self::SubmessageList {
         &self.submessage_elements
     }
 }
@@ -74,17 +76,17 @@ impl Submessage for InfoSourceSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_vec,
+        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
         types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
     };
 
     #[test]
     fn serialize_info_source() {
-        let submessage = InfoSourceSubmessageWrite::_new(
+        let submessage = RtpsSubmessageWriteKind::InfoSource(InfoSourceSubmessageWrite::_new(
             PROTOCOLVERSION_1_0,
             VENDOR_ID_UNKNOWN,
             GUIDPREFIX_UNKNOWN,
-        );
+        ));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x0c, 0b_0000_0001, 20, 0, // Submessage header

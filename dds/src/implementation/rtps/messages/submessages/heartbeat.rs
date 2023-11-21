@@ -84,7 +84,9 @@ impl HeartbeatSubmessageWrite<'_> {
     }
 }
 
-impl Submessage for HeartbeatSubmessageWrite<'_> {
+impl<'a> Submessage<'a> for HeartbeatSubmessageWrite<'a> {
+    type SubmessageList = &'a [SubmessageElement<'a>];
+
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::HEARTBEAT,
@@ -93,7 +95,7 @@ impl Submessage for HeartbeatSubmessageWrite<'_> {
         )
     }
 
-    fn submessage_elements(&self) -> &[SubmessageElement] {
+    fn submessage_elements(&'a self) -> Self::SubmessageList {
         &self.submessage_elements
     }
 }
@@ -102,7 +104,7 @@ impl Submessage for HeartbeatSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_vec,
+        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -115,7 +117,7 @@ mod tests {
         let first_sn = SequenceNumber::from(5);
         let last_sn = SequenceNumber::from(7);
         let count = 2;
-        let submessage = HeartbeatSubmessageWrite::new(
+        let submessage = RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessageWrite::new(
             final_flag,
             liveliness_flag,
             reader_id,
@@ -123,7 +125,7 @@ mod tests {
             first_sn,
             last_sn,
             count,
-        );
+        ));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x07_u8, 0b_0000_0101, 28, 0, // Submessage header
