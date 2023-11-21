@@ -148,10 +148,10 @@ pub struct FragmentNumberSet {
 }
 
 impl FragmentNumberSet {
-    pub fn new(base: FragmentNumber, set: impl Iterator<Item = FragmentNumber>) -> Self {
+    pub fn new(base: FragmentNumber, set: impl IntoIterator<Item = FragmentNumber>) -> Self {
         Self {
             base,
-            set: set.collect(),
+            set: set.into_iter().collect(),
         }
     }
 }
