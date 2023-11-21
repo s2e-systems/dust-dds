@@ -110,7 +110,9 @@ pub struct DataSubmessageWrite<'a> {
     data_flag: SubmessageFlag,
     key_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
-    submessage_elements: Vec<SubmessageElement<'a>>,
+    submessage_elements: [SubmessageElement<'a>; 5],
+    inline_qos_submessage_element: Option<SubmessageElement<'a>>,
+    serialized_payload_submessage_element: Option<SubmessageElement<'a>>,
 }
 
 impl<'a> DataSubmessageWrite<'a> {
@@ -128,31 +130,44 @@ impl<'a> DataSubmessageWrite<'a> {
     ) -> Self {
         const EXTRA_FLAGS: u16 = 0;
         const OCTETS_TO_INLINE_QOS: u16 = 16;
-        let mut submessage_elements = vec![
+        let submessage_elements = [
             SubmessageElement::UShort(EXTRA_FLAGS),
             SubmessageElement::UShort(OCTETS_TO_INLINE_QOS),
             SubmessageElement::EntityId(reader_id),
             SubmessageElement::EntityId(writer_id),
             SubmessageElement::SequenceNumber(writer_sn),
         ];
-        if inline_qos_flag {
-            submessage_elements.push(SubmessageElement::ParameterList(inline_qos));
-        }
-        if data_flag || key_flag {
-            submessage_elements.push(SubmessageElement::SerializedData(serialized_payload));
-        }
+        let inline_qos_submessage_element = if inline_qos_flag {
+            Some(SubmessageElement::ParameterList(inline_qos))
+        } else {
+            None
+        };
+
+        let serialized_payload_submessage_element = if data_flag || key_flag {
+            Some(SubmessageElement::SerializedData(serialized_payload))
+        } else {
+            None
+        };
         Self {
             inline_qos_flag,
             data_flag,
             key_flag,
             non_standard_payload_flag,
             submessage_elements,
+            inline_qos_submessage_element,
+            serialized_payload_submessage_element,
         }
     }
 }
 
 impl<'a> Submessage<'a> for DataSubmessageWrite<'a> {
-    type SubmessageList = &'a [SubmessageElement<'a>];
+    type SubmessageList = std::iter::Chain<
+        std::iter::Chain<
+            std::slice::Iter<'a, SubmessageElement<'a>>,
+            std::option::Iter<'a, SubmessageElement<'a>>,
+        >,
+        std::option::Iter<'a, SubmessageElement<'a>>,
+    >;
 
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
@@ -168,7 +183,10 @@ impl<'a> Submessage<'a> for DataSubmessageWrite<'a> {
     }
 
     fn submessage_elements(&'a self) -> Self::SubmessageList {
-        &self.submessage_elements
+        self.submessage_elements
+            .iter()
+            .chain(self.inline_qos_submessage_element.iter())
+            .chain(self.serialized_payload_submessage_element.iter())
     }
 }
 
