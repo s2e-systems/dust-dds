@@ -458,7 +458,7 @@ impl FromBytes for SequenceNumberSet {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let high = E::read_i32(&v[0..]);
         let low = E::read_i32(&v[4..]);
-        let base = ((high as i64) << 32) + low as i64;
+        let base = SequenceNumber::from(((high as i64) << 32) + low as i64);
 
         let num_bits = E::read_u32(&v[8..]);
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
@@ -469,13 +469,11 @@ impl FromBytes for SequenceNumberSet {
             buf.consume(4);
         }
 
-        let mut set = Vec::with_capacity(256);
-        for delta_n in 0..num_bits as usize {
-            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(SequenceNumber::from(base + delta_n as i64));
-            }
+        SequenceNumberSet {
+            base,
+            num_bits,
+            bitmap,
         }
-        SequenceNumberSet::new(SequenceNumber::from(base), set)
     }
 }
 
