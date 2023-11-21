@@ -70,7 +70,9 @@ impl HeartbeatFragSubmessageWrite<'_> {
     }
 }
 
-impl Submessage for HeartbeatFragSubmessageWrite<'_> {
+impl<'a> Submessage<'a> for HeartbeatFragSubmessageWrite<'a> {
+    type SubmessageList = &'a [SubmessageElement<'a>];
+
     fn submessage_header(
         &self,
         octets_to_next_header: u16,
@@ -78,7 +80,7 @@ impl Submessage for HeartbeatFragSubmessageWrite<'_> {
         SubmessageHeaderWrite::new(SubmessageKind::HEARTBEAT_FRAG, &[], octets_to_next_header)
     }
 
-    fn submessage_elements(&self) -> &[SubmessageElement] {
+    fn submessage_elements(&'a self) -> Self::SubmessageList {
         &self.submessage_elements
     }
 }
@@ -87,19 +89,20 @@ impl Submessage for HeartbeatFragSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_vec,
+        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
     fn serialize_heart_beat() {
-        let submessage = HeartbeatFragSubmessageWrite::_new(
-            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
-            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
-            SequenceNumber::from(5),
-            7,
-            2,
-        );
+        let submessage =
+            RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessageWrite::_new(
+                EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+                EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+                SequenceNumber::from(5),
+                7,
+                2,
+            ));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x13_u8, 0b_0000_0001, 24, 0, // Submessage header

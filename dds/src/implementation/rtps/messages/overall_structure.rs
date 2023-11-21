@@ -33,24 +33,28 @@ use std::{marker::PhantomData, sync::Arc};
 pub(in crate::implementation::rtps) type WriteEndianness = byteorder::LittleEndian;
 const BUFFER_SIZE: usize = 65000;
 
-pub trait Submessage {
+pub trait Submessage<'a> {
+    type SubmessageList;
+
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite;
-    fn submessage_elements(&self) -> &[SubmessageElement];
+    fn submessage_elements(&'a self) -> Self::SubmessageList;
 }
 
-impl<T> WriteBytes for T
-where
-    T: Submessage,
-{
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let (header, body) = buf.split_at_mut(4);
-        let mut len = 0;
-        for submessage_element in self.submessage_elements() {
-            len += submessage_element.write_bytes(&mut body[len..]);
-        }
-        let submessage_header = self.submessage_header(len as u16);
-        submessage_header.write_bytes(header) + len
+#[inline]
+fn write_submessage_bytes<'a>(
+    submessage: &'a impl Submessage<
+        'a,
+        SubmessageList = impl IntoIterator<Item = &'a SubmessageElement<'a>>,
+    >,
+    buf: &mut [u8],
+) -> usize {
+    let (header, body) = buf.split_at_mut(4);
+    let mut len = 0;
+    for submessage_element in submessage.submessage_elements().into_iter() {
+        len += submessage_element.write_bytes(&mut body[len..]);
     }
+    let submessage_header = submessage.submessage_header(len as u16);
+    submessage_header.write_bytes(header) + len
 }
 
 pub trait FromBytes {
@@ -232,20 +236,21 @@ pub enum RtpsSubmessageWriteKind<'a> {
 }
 
 impl WriteBytes for RtpsSubmessageWriteKind<'_> {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         match self {
-            RtpsSubmessageWriteKind::AckNack(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::Data(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::DataFrag(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::Gap(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::Heartbeat(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::HeartbeatFrag(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::InfoDestination(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::InfoReply(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::InfoSource(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::InfoTimestamp(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::NackFrag(s) => s.write_bytes(buf),
-            RtpsSubmessageWriteKind::Pad(s) => s.write_bytes(buf),
+            RtpsSubmessageWriteKind::AckNack(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::Data(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::DataFrag(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::Gap(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::Heartbeat(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::HeartbeatFrag(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoDestination(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoReply(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoSource(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoTimestamp(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::NackFrag(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::Pad(s) => write_submessage_bytes(s, buf),
         }
     }
 }
@@ -286,6 +291,7 @@ impl RtpsMessageHeader {
 }
 
 impl WriteBytes for RtpsMessageHeader {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.protocol.write_bytes(&mut buf[0..]);
         self.version.write_bytes(&mut buf[4..]);
@@ -331,6 +337,7 @@ impl EndiannessFlag<byteorder::LittleEndian> {
 }
 
 impl WriteBytes for SubmessageHeaderWrite {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.submessage_id.write_bytes(&mut buf[0..]);
         let flags = [

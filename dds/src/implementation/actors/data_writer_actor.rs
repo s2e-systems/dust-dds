@@ -669,9 +669,7 @@ impl DataWriterActor {
                 {
                     DurabilityQosPolicyKind::Volatile => self
                         .writer_cache
-                        .change_list()
-                        .map(|cc| cc.sequence_number())
-                        .max()
+                        .get_seq_num_max()
                         .unwrap_or_else(|| SequenceNumber::from(0)),
                     DurabilityQosPolicyKind::TransientLocal => SequenceNumber::from(0),
                 };
@@ -802,12 +800,7 @@ impl DataWriterActor {
 
     async fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
         let mut locator = a_locator;
-        if let Some(highest_available_change_sn) = self
-            .writer_cache
-            .change_list()
-            .map(|cc| cc.sequence_number())
-            .max()
-        {
+        if let Some(highest_available_change_sn) = self.writer_cache.get_seq_num_max() {
             locator.set_highest_sent_change_sn(highest_available_change_sn)
         }
 
@@ -850,9 +843,8 @@ impl DataWriterActor {
                         if acknack_submessage.count() > reader_proxy.last_received_acknack_count() {
                             reader_proxy
                                 .acked_changes_set(acknack_submessage.reader_sn_state().base() - 1);
-                            reader_proxy.requested_changes_set(
-                                acknack_submessage.reader_sn_state().set().as_ref(),
-                            );
+                            reader_proxy
+                                .requested_changes_set(acknack_submessage.reader_sn_state().set());
 
                             reader_proxy
                                 .set_last_received_acknack_count(acknack_submessage.count());
@@ -908,7 +900,7 @@ impl DataWriterActor {
                                     ENTITYID_UNKNOWN,
                                     self.rtps_writer.guid().entity_id(),
                                     unsent_change_seq_num,
-                                    SequenceNumberSet::new(unsent_change_seq_num + 1, vec![]),
+                                    SequenceNumberSet::new(unsent_change_seq_num + 1, []),
                                 ));
                             udp_transport_write.write(
                                 &RtpsMessageWrite::new(&header, &[gap_submessage]),
@@ -978,7 +970,9 @@ impl DataWriterActor {
                         if nackfrag_submessage.count()
                             > reader_proxy.last_received_nack_frag_count()
                         {
-                            reader_proxy.requested_changes_set(&[nackfrag_submessage.writer_sn()]);
+                            reader_proxy.requested_changes_set(std::iter::once(
+                                nackfrag_submessage.writer_sn(),
+                            ));
                             reader_proxy
                                 .set_last_received_nack_frag_count(nackfrag_submessage.count());
                         }
@@ -1187,7 +1181,7 @@ fn send_message_to_reader_proxy_best_effort(
                 reader_proxy.remote_reader_guid().entity_id(),
                 writer_id,
                 gap_start_sequence_number,
-                SequenceNumberSet::new(gap_end_sequence_number + 1, vec![]),
+                SequenceNumberSet::new(gap_end_sequence_number + 1, []),
             ));
             udp_transport_write.write(
                 &RtpsMessageWrite::new(&header, &[gap_submessage]),
@@ -1257,7 +1251,7 @@ fn send_message_to_reader_proxy_best_effort(
                         ENTITYID_UNKNOWN,
                         writer_id,
                         next_unsent_change_seq_num,
-                        SequenceNumberSet::new(next_unsent_change_seq_num + 1, vec![]),
+                        SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
                     ))],
                 ),
                 reader_proxy.unicast_locator_list(),
@@ -1286,17 +1280,13 @@ fn send_message_to_reader_proxy_reliable(
                     reader_proxy.remote_reader_guid().entity_id(),
                     writer_id,
                     gap_start_sequence_number,
-                    SequenceNumberSet::new(gap_end_sequence_number + 1, vec![]),
+                    SequenceNumberSet::new(gap_end_sequence_number + 1, []),
                 ));
                 let first_sn = writer_cache
-                    .change_list()
-                    .map(|x| x.sequence_number())
-                    .min()
+                    .get_seq_num_min()
                     .unwrap_or_else(|| SequenceNumber::from(1));
                 let last_sn = writer_cache
-                    .change_list()
-                    .map(|x| x.sequence_number())
-                    .max()
+                    .get_seq_num_max()
                     .unwrap_or_else(|| SequenceNumber::from(0));
                 let heartbeat_submessage = reader_proxy
                     .heartbeat_machine()
@@ -1324,14 +1314,10 @@ fn send_message_to_reader_proxy_reliable(
         .is_time_for_heartbeat(heartbeat_period)
     {
         let first_sn = writer_cache
-            .change_list()
-            .map(|x| x.sequence_number())
-            .min()
+            .get_seq_num_min()
             .unwrap_or_else(|| SequenceNumber::from(1));
         let last_sn = writer_cache
-            .change_list()
-            .map(|x| x.sequence_number())
-            .max()
+            .get_seq_num_max()
             .unwrap_or_else(|| SequenceNumber::from(0));
         let heartbeat_submessage = reader_proxy
             .heartbeat_machine()
@@ -1423,14 +1409,10 @@ fn send_change_message_reader_proxy_reliable(
                 );
 
                 let first_sn = writer_cache
-                    .change_list()
-                    .map(|x| x.sequence_number())
-                    .min()
+                    .get_seq_num_min()
                     .unwrap_or_else(|| SequenceNumber::from(1));
                 let last_sn = writer_cache
-                    .change_list()
-                    .map(|x| x.sequence_number())
-                    .max()
+                    .get_seq_num_max()
                     .unwrap_or_else(|| SequenceNumber::from(0));
                 let heartbeat = reader_proxy
                     .heartbeat_machine()
@@ -1454,7 +1436,7 @@ fn send_change_message_reader_proxy_reliable(
                 ENTITYID_UNKNOWN,
                 writer_id,
                 change_seq_num,
-                SequenceNumberSet::new(change_seq_num + 1, vec![]),
+                SequenceNumberSet::new(change_seq_num + 1, []),
             ));
 
             udp_transport_write.write(

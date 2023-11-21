@@ -71,12 +71,14 @@ impl NackFragSubmessageWrite<'_> {
     }
 }
 
-impl Submessage for NackFragSubmessageWrite<'_> {
+impl<'a> Submessage<'a> for NackFragSubmessageWrite<'a> {
+    type SubmessageList = &'a [SubmessageElement<'a>];
+
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::NACK_FRAG, &[], octets_to_next_header)
     }
 
-    fn submessage_elements(&self) -> &[SubmessageElement] {
+    fn submessage_elements(&'a self) -> Self::SubmessageList {
         &self.submessage_elements
     }
 }
@@ -85,19 +87,19 @@ impl Submessage for NackFragSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_vec,
+        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
     fn serialize_nack_frag() {
-        let submessage = NackFragSubmessageWrite::new(
+        let submessage = RtpsSubmessageWriteKind::NackFrag(NackFragSubmessageWrite::new(
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
             SequenceNumber::from(4),
-            FragmentNumberSet::new(10, vec![]),
+            FragmentNumberSet::new(10, std::iter::empty()),
             6,
-        );
+        ));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x12_u8, 0b_0000_0001, 28, 0, // Submessage header
@@ -129,7 +131,7 @@ mod tests {
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let expected_writer_sn = SequenceNumber::from(4);
-        let expected_fragment_number_state = FragmentNumberSet::new(10, vec![]);
+        let expected_fragment_number_state = FragmentNumberSet::new(10, std::iter::empty());
         let expected_count = 6;
 
         assert_eq!(expected_reader_id, submessage.reader_id());

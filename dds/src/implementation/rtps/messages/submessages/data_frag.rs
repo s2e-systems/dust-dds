@@ -187,7 +187,9 @@ impl<'a> DataFragSubmessageWrite<'a> {
     }
 }
 
-impl Submessage for DataFragSubmessageWrite<'_> {
+impl<'a> Submessage<'a> for DataFragSubmessageWrite<'a> {
+    type SubmessageList = &'a [SubmessageElement<'a>];
+
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA_FRAG,
@@ -200,7 +202,7 @@ impl Submessage for DataFragSubmessageWrite<'_> {
         )
     }
 
-    fn submessage_elements(&self) -> &[SubmessageElement] {
+    fn submessage_elements(&'a self) -> Self::SubmessageList {
         &self.submessage_elements
     }
 }
@@ -209,7 +211,10 @@ impl Submessage for DataFragSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{overall_structure::into_bytes_vec, submessage_elements::Parameter},
+        messages::{
+            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+            submessage_elements::Parameter,
+        },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -217,7 +222,7 @@ mod tests {
     fn serialize_no_inline_qos_no_serialized_payload() {
         let inline_qos = &ParameterList::empty();
         let serialized_payload = &Data::new(vec![].into());
-        let submessage = DataFragSubmessageWrite::new(
+        let submessage = RtpsSubmessageWriteKind::DataFrag(DataFragSubmessageWrite::new(
             false,
             false,
             false,
@@ -230,7 +235,7 @@ mod tests {
             5,
             inline_qos,
             serialized_payload,
-        );
+        ));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x16_u8, 0b_0000_0001, 32, 0, // Submessage header
@@ -250,7 +255,7 @@ mod tests {
     fn serialize_with_inline_qos_with_serialized_payload() {
         let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74])]);
         let serialized_payload = Data::new(vec![1, 2, 3].into());
-        let submessage = DataFragSubmessageWrite::new(
+        let submessage = RtpsSubmessageWriteKind::DataFrag(DataFragSubmessageWrite::new(
             true,
             false,
             false,
@@ -263,7 +268,7 @@ mod tests {
             5,
             &inline_qos,
             &serialized_payload,
-        );
+        ));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x16_u8, 0b_0000_0011, 48, 0, // Submessage header

@@ -14,6 +14,7 @@ type Long = i32;
 type UnsignedLong = u32;
 
 impl WriteBytes for Long {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         WriteEndianness::write_i32(buf, *self);
         4
@@ -21,6 +22,7 @@ impl WriteBytes for Long {
 }
 
 impl WriteBytes for UnsignedLong {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         WriteEndianness::write_u32(buf, *self);
         4
@@ -28,6 +30,7 @@ impl WriteBytes for UnsignedLong {
 }
 
 impl WriteBytes for u16 {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         WriteEndianness::write_u16(buf, *self);
         2
@@ -35,6 +38,7 @@ impl WriteBytes for u16 {
 }
 
 impl WriteBytes for i16 {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         WriteEndianness::write_i16(buf, *self);
         2
@@ -42,6 +46,7 @@ impl WriteBytes for i16 {
 }
 
 impl<const N: usize> WriteBytes for [Octet; N] {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         buf[..self.len()].copy_from_slice(self);
         N
@@ -153,6 +158,7 @@ pub const ENTITYID_UNKNOWN: EntityId = EntityId::new([0; 3], USER_DEFINED_UNKNOW
 pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_PARTICIPANT);
 
 impl WriteBytes for EntityId {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.entity_key().write_bytes(&mut buf[0..]);
         self.entity_kind().write_bytes(&mut buf[3..]);
@@ -161,6 +167,7 @@ impl WriteBytes for EntityId {
 }
 
 impl WriteBytes for Octet {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         buf[0] = *self;
         1
@@ -257,6 +264,7 @@ impl Sub<i64> for SequenceNumber {
 }
 
 impl WriteBytes for SequenceNumber {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.high.write_bytes(&mut buf[0..]) + self.low.write_bytes(&mut buf[4..])
     }
@@ -274,6 +282,7 @@ pub struct Locator {
 }
 
 impl WriteBytes for Locator {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.kind.write_bytes(&mut buf[0..]);
         self.port.write_bytes(&mut buf[4..]);
@@ -374,6 +383,7 @@ pub struct ProtocolVersion {
 }
 
 impl WriteBytes for ProtocolVersion {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         buf[0] = self.major;
         buf[1] = self.minor;

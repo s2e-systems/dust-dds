@@ -64,12 +64,14 @@ impl<'a> InfoReplySubmessageWrite<'a> {
     }
 }
 
-impl Submessage for InfoReplySubmessageWrite<'_> {
+impl<'a> Submessage<'a> for InfoReplySubmessageWrite<'a> {
+    type SubmessageList = &'a [SubmessageElement<'a>];
+
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_REPLY, &[], octets_to_next_header)
     }
 
-    fn submessage_elements(&self) -> &[SubmessageElement] {
+    fn submessage_elements(&'a self) -> Self::SubmessageList {
         &self.submessage_elements
     }
 }
@@ -78,17 +80,18 @@ impl Submessage for InfoReplySubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_vec, types::Locator,
+        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+        types::Locator,
     };
 
     #[test]
     fn serialize_info_reply() {
         let locator = Locator::new(11, 12, [1; 16]);
-        let submessage = InfoReplySubmessageWrite::_new(
+        let submessage = RtpsSubmessageWriteKind::InfoReply(InfoReplySubmessageWrite::_new(
             false,
             LocatorList::new(vec![locator]),
             LocatorList::new(vec![]),
-        );
+        ));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x0f, 0b_0000_0001, 28, 0, // Submessage header

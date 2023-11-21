@@ -612,7 +612,7 @@ impl DataReaderActor {
             }
 
             for seq_num in gap_submessage.gap_list().set() {
-                writer_proxy.irrelevant_change_set(*seq_num)
+                writer_proxy.irrelevant_change_set(seq_num)
             }
         }
     }

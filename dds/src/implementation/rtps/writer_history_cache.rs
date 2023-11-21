@@ -179,12 +179,14 @@ impl RtpsWriterCacheChange {
 #[derive(Default)]
 pub struct WriterHistoryCache {
     changes: HashMap<InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
+    max_seq_num: Option<SequenceNumber>,
 }
 
 impl WriterHistoryCache {
     pub fn new() -> Self {
         Self {
             changes: HashMap::new(),
+            max_seq_num: None,
         }
     }
 
@@ -208,6 +210,10 @@ impl WriterHistoryCache {
             HistoryQosPolicyKind::KeepAll => (),
         };
 
+        if change.sequence_number() > self.max_seq_num.unwrap_or_else(|| SequenceNumber::from(0)) {
+            self.max_seq_num = Some(change.sequence_number())
+        }
+
         changes_of_instance.push_back(change);
     }
 
@@ -220,7 +226,7 @@ impl WriterHistoryCache {
         }
     }
 
-    pub fn _get_seq_num_min(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
         self.changes
             .values()
             .flatten()
@@ -228,12 +234,8 @@ impl WriterHistoryCache {
             .min()
     }
 
-    pub fn _get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.changes
-            .values()
-            .flatten()
-            .map(|cc| cc.sequence_number)
-            .max()
+    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+        self.max_seq_num
     }
 }
 
@@ -301,7 +303,7 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        assert_eq!(hc._get_seq_num_min(), Some(SequenceNumber::from(1)));
+        assert_eq!(hc.get_seq_num_min(), Some(SequenceNumber::from(1)));
     }
 
     #[test]
@@ -337,6 +339,6 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        assert_eq!(hc._get_seq_num_max(), Some(SequenceNumber::from(2)));
+        assert_eq!(hc.get_seq_num_max(), Some(SequenceNumber::from(2)));
     }
 }

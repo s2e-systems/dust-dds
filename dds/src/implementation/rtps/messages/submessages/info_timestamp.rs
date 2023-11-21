@@ -37,23 +37,27 @@ impl<'a> InfoTimestampSubmessageRead<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoTimestampSubmessageWrite<'a> {
     pub invalidate_flag: SubmessageFlag,
-    submessage_elements: Vec<SubmessageElement<'a>>,
+    timestamp_submessage_element: Option<SubmessageElement<'a>>,
 }
 
 impl InfoTimestampSubmessageWrite<'_> {
     pub fn new(invalidate_flag: SubmessageFlag, timestamp: Time) -> Self {
-        let mut submessage_elements = vec![];
-        if !invalidate_flag {
-            submessage_elements.push(SubmessageElement::Timestamp(timestamp))
-        }
+        let timestamp_submessage_element = if !invalidate_flag {
+            Some(SubmessageElement::Timestamp(timestamp))
+        } else {
+            None
+        };
+
         Self {
             invalidate_flag,
-            submessage_elements,
+            timestamp_submessage_element,
         }
     }
 }
 
-impl Submessage for InfoTimestampSubmessageWrite<'_> {
+impl<'a> Submessage<'a> for InfoTimestampSubmessageWrite<'a> {
+    type SubmessageList = std::option::Iter<'a, SubmessageElement<'a>>;
+
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::INFO_TS,
@@ -62,19 +66,24 @@ impl Submessage for InfoTimestampSubmessageWrite<'_> {
         )
     }
 
-    fn submessage_elements(&self) -> &[SubmessageElement] {
-        &self.submessage_elements
+    fn submessage_elements(&'a self) -> Self::SubmessageList {
+        self.timestamp_submessage_element.iter()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::messages::overall_structure::into_bytes_vec;
+    use crate::implementation::rtps::messages::overall_structure::{
+        into_bytes_vec, RtpsSubmessageWriteKind,
+    };
 
     #[test]
     fn serialize_info_timestamp_valid_time() {
-        let submessage = InfoTimestampSubmessageWrite::new(false, Time::new(4, 0));
+        let submessage = RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
+            false,
+            Time::new(4, 0),
+        ));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
@@ -86,7 +95,10 @@ mod tests {
 
     #[test]
     fn serialize_info_timestamp_invalid_time() {
-        let submessage = InfoTimestampSubmessageWrite::new(true, TIME_INVALID);
+        let submessage = RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
+            true,
+            TIME_INVALID,
+        ));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
