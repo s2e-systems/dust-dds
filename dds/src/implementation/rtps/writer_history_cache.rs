@@ -179,12 +179,14 @@ impl RtpsWriterCacheChange {
 #[derive(Default)]
 pub struct WriterHistoryCache {
     changes: HashMap<InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
+    max_seq_num: Option<SequenceNumber>,
 }
 
 impl WriterHistoryCache {
     pub fn new() -> Self {
         Self {
             changes: HashMap::new(),
+            max_seq_num: None,
         }
     }
 
@@ -208,6 +210,10 @@ impl WriterHistoryCache {
             HistoryQosPolicyKind::KeepAll => (),
         };
 
+        if change.sequence_number() > self.max_seq_num.unwrap_or(SequenceNumber::from(0)) {
+            self.max_seq_num = Some(change.sequence_number())
+        }
+
         changes_of_instance.push_back(change);
     }
 
@@ -229,11 +235,7 @@ impl WriterHistoryCache {
     }
 
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.changes
-            .values()
-            .flatten()
-            .map(|cc| cc.sequence_number)
-            .max()
+        self.max_seq_num
     }
 }
 
