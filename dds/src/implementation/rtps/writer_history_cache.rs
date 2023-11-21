@@ -210,7 +210,7 @@ impl WriterHistoryCache {
             HistoryQosPolicyKind::KeepAll => (),
         };
 
-        if change.sequence_number() > self.max_seq_num.unwrap_or(SequenceNumber::from(0)) {
+        if change.sequence_number() > self.max_seq_num.unwrap_or_else(|| SequenceNumber::from(0)) {
             self.max_seq_num = Some(change.sequence_number())
         }
 
