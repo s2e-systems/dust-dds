@@ -110,7 +110,7 @@ impl SequenceNumberSet {
                     self.index += 1;
                     let bitmap_num = delta_n / 32;
                     let mask = 1 << (31 - delta_n % 32);
-                    if self.set.bitmap[bitmap_num as usize] & mask == mask {
+                    if self.set.bitmap[bitmap_num] & mask == mask {
                         return Some(self.set.base + SequenceNumber::from(delta_n as i64));
                     }
                 }
