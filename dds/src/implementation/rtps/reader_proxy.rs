@@ -214,10 +214,7 @@ impl RtpsReaderProxy {
         // highest_acked_seq_num := MAX { this.acknowledged_changes }
         // return ( highest_available_seq_num > highest_acked_seq_num )
 
-        let highest_available_seq_num = writer_history_cache
-            .change_list()
-            .map(|cc| cc.sequence_number())
-            .max();
+        let highest_available_seq_num = writer_history_cache.get_seq_num_max();
 
         match highest_available_seq_num {
             Some(highest_available_seq_num) => {

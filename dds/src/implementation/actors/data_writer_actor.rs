@@ -669,9 +669,7 @@ impl DataWriterActor {
                 {
                     DurabilityQosPolicyKind::Volatile => self
                         .writer_cache
-                        .change_list()
-                        .map(|cc| cc.sequence_number())
-                        .max()
+                        .get_seq_num_max()
                         .unwrap_or_else(|| SequenceNumber::from(0)),
                     DurabilityQosPolicyKind::TransientLocal => SequenceNumber::from(0),
                 };
@@ -802,12 +800,7 @@ impl DataWriterActor {
 
     async fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
         let mut locator = a_locator;
-        if let Some(highest_available_change_sn) = self
-            .writer_cache
-            .change_list()
-            .map(|cc| cc.sequence_number())
-            .max()
-        {
+        if let Some(highest_available_change_sn) = self.writer_cache.get_seq_num_max() {
             locator.set_highest_sent_change_sn(highest_available_change_sn)
         }
 
@@ -1290,14 +1283,10 @@ fn send_message_to_reader_proxy_reliable(
                     SequenceNumberSet::new(gap_end_sequence_number + 1, []),
                 ));
                 let first_sn = writer_cache
-                    .change_list()
-                    .map(|x| x.sequence_number())
-                    .min()
+                    .get_seq_num_min()
                     .unwrap_or_else(|| SequenceNumber::from(1));
                 let last_sn = writer_cache
-                    .change_list()
-                    .map(|x| x.sequence_number())
-                    .max()
+                    .get_seq_num_max()
                     .unwrap_or_else(|| SequenceNumber::from(0));
                 let heartbeat_submessage = reader_proxy
                     .heartbeat_machine()
@@ -1325,14 +1314,10 @@ fn send_message_to_reader_proxy_reliable(
         .is_time_for_heartbeat(heartbeat_period)
     {
         let first_sn = writer_cache
-            .change_list()
-            .map(|x| x.sequence_number())
-            .min()
+            .get_seq_num_min()
             .unwrap_or_else(|| SequenceNumber::from(1));
         let last_sn = writer_cache
-            .change_list()
-            .map(|x| x.sequence_number())
-            .max()
+            .get_seq_num_max()
             .unwrap_or_else(|| SequenceNumber::from(0));
         let heartbeat_submessage = reader_proxy
             .heartbeat_machine()
@@ -1424,14 +1409,10 @@ fn send_change_message_reader_proxy_reliable(
                 );
 
                 let first_sn = writer_cache
-                    .change_list()
-                    .map(|x| x.sequence_number())
-                    .min()
+                    .get_seq_num_min()
                     .unwrap_or_else(|| SequenceNumber::from(1));
                 let last_sn = writer_cache
-                    .change_list()
-                    .map(|x| x.sequence_number())
-                    .max()
+                    .get_seq_num_max()
                     .unwrap_or_else(|| SequenceNumber::from(0));
                 let heartbeat = reader_proxy
                     .heartbeat_machine()
