@@ -37,24 +37,26 @@ impl<'a> InfoTimestampSubmessageRead<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoTimestampSubmessageWrite<'a> {
     pub invalidate_flag: SubmessageFlag,
-    submessage_elements: Vec<SubmessageElement<'a>>,
+    timestamp_submessage_element: Option<SubmessageElement<'a>>,
 }
 
 impl InfoTimestampSubmessageWrite<'_> {
     pub fn new(invalidate_flag: SubmessageFlag, timestamp: Time) -> Self {
-        let mut submessage_elements = vec![];
-        if !invalidate_flag {
-            submessage_elements.push(SubmessageElement::Timestamp(timestamp))
-        }
+        let timestamp_submessage_element = if !invalidate_flag {
+            Some(SubmessageElement::Timestamp(timestamp))
+        } else {
+            None
+        };
+
         Self {
             invalidate_flag,
-            submessage_elements,
+            timestamp_submessage_element,
         }
     }
 }
 
 impl<'a> Submessage<'a> for InfoTimestampSubmessageWrite<'a> {
-    type SubmessageList = &'a [SubmessageElement<'a>];
+    type SubmessageList = std::option::Iter<'a, SubmessageElement<'a>>;
 
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
@@ -65,7 +67,7 @@ impl<'a> Submessage<'a> for InfoTimestampSubmessageWrite<'a> {
     }
 
     fn submessage_elements(&'a self) -> Self::SubmessageList {
-        &self.submessage_elements
+        self.timestamp_submessage_element.iter()
     }
 }
 
