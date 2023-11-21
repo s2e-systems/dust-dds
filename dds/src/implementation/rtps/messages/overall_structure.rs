@@ -40,6 +40,7 @@ pub trait Submessage<'a> {
     fn submessage_elements(&'a self) -> Self::SubmessageList;
 }
 
+#[inline]
 fn write_submessage_bytes<'a>(
     submessage: &'a impl Submessage<
         'a,
@@ -235,6 +236,7 @@ pub enum RtpsSubmessageWriteKind<'a> {
 }
 
 impl WriteBytes for RtpsSubmessageWriteKind<'_> {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         match self {
             RtpsSubmessageWriteKind::AckNack(s) => write_submessage_bytes(s, buf),
@@ -289,6 +291,7 @@ impl RtpsMessageHeader {
 }
 
 impl WriteBytes for RtpsMessageHeader {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.protocol.write_bytes(&mut buf[0..]);
         self.version.write_bytes(&mut buf[4..]);
@@ -334,6 +337,7 @@ impl EndiannessFlag<byteorder::LittleEndian> {
 }
 
 impl WriteBytes for SubmessageHeaderWrite {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.submessage_id.write_bytes(&mut buf[0..]);
         let flags = [
