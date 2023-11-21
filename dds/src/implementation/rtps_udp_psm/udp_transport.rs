@@ -19,7 +19,7 @@ impl UdpTransportRead {
     }
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        let mut buf = vec![0; 65000];
+        let mut buf = vec![0; 1500];
 
         match self.socket.recv_from(&mut buf).await {
             Ok((bytes, source_address)) => {
