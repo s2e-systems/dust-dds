@@ -196,15 +196,15 @@ impl RtpsReaderProxy {
         self.requested_changes.clone()
     }
 
-    pub fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
+    pub fn requested_changes_set(&mut self, req_seq_num_set: impl Iterator<Item = SequenceNumber>) {
         // "FOR_EACH seq_num IN req_seq_num_set DO
         //     FIND change_for_reader IN this.changes_for_reader
         //          SUCH-THAT (change_for_reader.sequenceNumber==seq_num)
         //     change_for_reader.status := REQUESTED;
         // END"
         for seq_num in req_seq_num_set {
-            if !self.requested_changes.contains(seq_num) {
-                self.requested_changes.push(*seq_num);
+            if !self.requested_changes.contains(&seq_num) {
+                self.requested_changes.push(seq_num);
             }
         }
     }

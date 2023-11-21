@@ -41,6 +41,7 @@ pub enum SubmessageElement<'a> {
 }
 
 impl WriteBytes for SubmessageElement<'_> {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         match self {
             SubmessageElement::Count(e) => e.write_bytes(buf),
@@ -66,14 +67,27 @@ impl WriteBytes for SubmessageElement<'_> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SequenceNumberSet {
     base: SequenceNumber,
-    set: Vec<SequenceNumber>,
+    num_bits: u32,
+    bitmap: [i32; 8],
 }
 
 impl SequenceNumberSet {
-    pub fn new(base: SequenceNumber, set: impl Iterator<Item = SequenceNumber>) -> Self {
+    pub fn new(base: SequenceNumber, set: impl IntoIterator<Item = SequenceNumber>) -> Self {
+        let mut bitmap = [0; 8];
+        let mut num_bits = 0;
+        for sequence_number in set {
+            let delta_n = <i64>::from(sequence_number - base) as u32;
+            let bitmap_num = delta_n / 32;
+            bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
+            if delta_n + 1 > num_bits {
+                num_bits = delta_n + 1;
+            }
+        }
+
         Self {
             base,
-            set: set.collect(),
+            num_bits,
+            bitmap,
         }
     }
 
@@ -81,29 +95,45 @@ impl SequenceNumberSet {
         self.base
     }
 
-    pub fn set(&self) -> &[SequenceNumber] {
-        self.set.as_ref()
+    pub fn set(&self) -> impl Iterator<Item = SequenceNumber> + '_ {
+        struct SequenceNumberSetIterator<'a> {
+            set: &'a SequenceNumberSet,
+            index: usize,
+        }
+
+        impl Iterator for SequenceNumberSetIterator<'_> {
+            type Item = SequenceNumber;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                while self.index < self.set.num_bits as usize {
+                    let delta_n = self.index;
+                    self.index += 1;
+                    let bitmap_num = delta_n / 32;
+                    let mask = 1 << (31 - delta_n % 32);
+                    if self.set.bitmap[bitmap_num as usize] & mask == mask {
+                        return Some(self.set.base + SequenceNumber::from(delta_n as i64));
+                    }
+                }
+                None
+            }
+        }
+
+        SequenceNumberSetIterator {
+            set: self,
+            index: 0,
+        }
     }
 }
 
 impl WriteBytes for SequenceNumberSet {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let mut bitmap = [0; 8];
-        let mut num_bits = 0;
-        for sequence_number in &self.set {
-            let delta_n = <i64>::from(*sequence_number - self.base) as u32;
-            let bitmap_num = delta_n / 32;
-            bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
-            if delta_n + 1 > num_bits {
-                num_bits = delta_n + 1;
-            }
-        }
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+        let number_of_bitmap_elements = ((self.num_bits + 31) / 32) as usize; //In standard referred to as "M"
 
         self.base.write_bytes(&mut buf[0..]);
-        num_bits.write_bytes(&mut buf[8..]);
+        self.num_bits.write_bytes(&mut buf[8..]);
         let mut len = 12;
-        for bitmap_element in &bitmap[..number_of_bitmap_elements] {
+        for bitmap_element in &self.bitmap[..number_of_bitmap_elements] {
             bitmap_element.write_bytes(&mut buf[len..]);
             len += 4;
         }
@@ -386,6 +416,7 @@ impl AsRef<[u8]> for Data {
 }
 
 impl WriteBytes for &Data {
+    #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         buf[..self.0.len()].copy_from_slice(self.0.as_slice());
         let length_inclusive_padding = (self.0.len() + 3) & !3;
@@ -444,7 +475,7 @@ impl FromBytes for SequenceNumberSet {
                 set.push(SequenceNumber::from(base + delta_n as i64));
             }
         }
-        SequenceNumberSet::new(SequenceNumber::from(base), set.into_iter())
+        SequenceNumberSet::new(SequenceNumber::from(base), set)
     }
 }
 
@@ -539,6 +570,25 @@ mod tests {
     use crate::implementation::rtps::{
         messages::overall_structure::into_bytes_vec, types::Locator,
     };
+
+    #[test]
+    fn sequence_number_set_methods() {
+        let base = SequenceNumber::from(100);
+        let set = [
+            SequenceNumber::from(102),
+            SequenceNumber::from(200),
+            SequenceNumber::from(355),
+        ];
+        let seq_num_set = SequenceNumberSet::new(base, set);
+
+        assert_eq!(seq_num_set.base(), base);
+        assert!(
+            seq_num_set.set().eq(set),
+            "{:?} not equal to {:?}",
+            seq_num_set.set().collect::<Vec<_>>(),
+            set
+        );
+    }
 
     #[test]
     fn serialize_fragment_number_max_gap() {
@@ -699,10 +749,10 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number_max_gap() {
-        let sequence_number_set = SequenceNumberSet {
-            base: SequenceNumber::from(2),
-            set: vec![SequenceNumber::from(2), SequenceNumber::from(257)],
-        };
+        let sequence_number_set = SequenceNumberSet::new(
+            SequenceNumber::from(2),
+            [SequenceNumber::from(2), SequenceNumber::from(257)],
+        );
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(sequence_number_set), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -721,10 +771,10 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
-        let expected = SequenceNumberSet {
-            base: SequenceNumber::from(2),
-            set: vec![SequenceNumber::from(2), SequenceNumber::from(257)],
-        };
+        let expected = SequenceNumberSet::new(
+            SequenceNumber::from(2),
+            [SequenceNumber::from(2), SequenceNumber::from(257)],
+        );
         #[rustfmt::skip]
         let result = SequenceNumberSet::from_bytes::<byteorder::LittleEndian>(&[
             0, 0, 0, 0, // bitmapBase: high (long)
