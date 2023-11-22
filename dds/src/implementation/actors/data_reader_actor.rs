@@ -38,7 +38,7 @@ use crate::{
             reader::RtpsReader,
             reader_history_cache::{Instance, RtpsReaderCacheChange},
             types::{
-                ChangeKind, EntityId, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
+                ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
                 GUID_UNKNOWN,
             },
             writer_proxy::RtpsWriterProxy,
@@ -410,34 +410,84 @@ impl DataReaderActor {
         ),
     ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
-        match self.convert_received_data_to_cache_change(
-            writer_guid,
-            data_submessage.key_flag(),
-            data_submessage.inline_qos(),
-            data_submessage.serialized_payload(),
-            source_timestamp,
-            reception_timestamp,
-        ) {
-            Ok(cache_change) => {
-                self.process_received_change(
-                    cache_change,
-                    data_submessage.reader_id(),
-                    data_submessage.writer_sn(),
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                    subscriber_status_condition,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
-                )
-                .await?
+        let sequence_number = data_submessage.writer_sn();
+        let message_reader_id = data_submessage.reader_id();
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|wp| wp.remote_writer_guid() == writer_guid)
+        {
+            //Stateful reader behavior
+            match self.qos.reliability.kind {
+                ReliabilityQosPolicyKind::BestEffort => {
+                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                    if sequence_number >= expected_seq_num {
+                        writer_proxy.received_change_set(sequence_number);
+                        if sequence_number > expected_seq_num {
+                            writer_proxy.lost_changes_update(sequence_number);
+                            self.on_sample_lost(
+                                data_reader_address,
+                                subscriber_address,
+                                participant_address,
+                                subscriber_mask_listener,
+                                participant_mask_listener,
+                            )
+                            .await?;
+                        }
+                        self.add_change(
+                            data_submessage,
+                            writer_guid,
+                            source_timestamp,
+                            reception_timestamp,
+                            data_reader_address,
+                            subscriber_address,
+                            participant_address,
+                            subscriber_status_condition,
+                            subscriber_mask_listener,
+                            participant_mask_listener,
+                        )
+                        .await?;
+                    }
+                }
+                ReliabilityQosPolicyKind::Reliable => {
+                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                    if sequence_number == expected_seq_num {
+                        writer_proxy.received_change_set(sequence_number);
+                        self.add_change(
+                            data_submessage,
+                            writer_guid,
+                            source_timestamp,
+                            reception_timestamp,
+                            data_reader_address,
+                            subscriber_address,
+                            participant_address,
+                            subscriber_status_condition,
+                            subscriber_mask_listener,
+                            participant_mask_listener,
+                        )
+                        .await?;
+                    }
+                }
             }
-            Err(e) => debug!(
-                "Received invalid data on reader with GUID {:?}. Error: {:?}. Data submessage payload: {:?}",
-                self.rtps_reader.guid(),
-                e,
-                data_submessage.serialized_payload(),
-            ),
+        } else if message_reader_id == ENTITYID_UNKNOWN
+            || message_reader_id == self.rtps_reader.guid().entity_id()
+        {
+            // Stateless reader behavior
+            self.add_change(
+                data_submessage,
+                writer_guid,
+                source_timestamp,
+                reception_timestamp,
+                data_reader_address,
+                subscriber_address,
+                participant_address,
+                subscriber_status_condition,
+                subscriber_mask_listener,
+                participant_mask_listener,
+            )
+            .await?;
+        } else {
+            // Do nothing
         }
 
         Ok(())
@@ -944,11 +994,12 @@ impl DataReaderActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    async fn process_received_change(
+    async fn add_change(
         &mut self,
-        cache_change: RtpsReaderCacheChange,
-        message_reader_id: EntityId,
-        sequence_number: SequenceNumber,
+        data_submessage: &DataSubmessageRead,
+        writer_guid: Guid,
+        source_timestamp: Option<Time>,
+        reception_timestamp: Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
@@ -959,18 +1010,20 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        let writer_proxy = self
-            .matched_writers
-            .iter_mut()
-            .find(|wp| wp.remote_writer_guid() == cache_change.writer_guid);
-        match (self.qos.reliability.kind, writer_proxy) {
-            (ReliabilityQosPolicyKind::BestEffort, Some(writer_proxy)) => {
-                let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                if sequence_number >= expected_seq_num {
-                    writer_proxy.received_change_set(sequence_number);
-                    if sequence_number > expected_seq_num {
-                        writer_proxy.lost_changes_update(sequence_number);
-                        self.on_sample_lost(
+        match self.convert_received_data_to_cache_change(
+            writer_guid,
+            data_submessage.key_flag(),
+            data_submessage.inline_qos(),
+            data_submessage.serialized_payload(),
+            source_timestamp,
+            reception_timestamp,
+        ) {
+            Ok(change) => {
+                if self.is_sample_of_interest_based_on_time(&change) {
+                    if self.is_max_samples_limit_reached(&change) {
+                        self.on_sample_rejected(
+                            change.instance_handle,
+                            SampleRejectedStatusKind::RejectedBySamplesLimit,
                             data_reader_address,
                             subscriber_address,
                             participant_address,
@@ -978,161 +1031,91 @@ impl DataReaderActor {
                             participant_mask_listener,
                         )
                         .await?;
-                    }
-                    self.add_change(
-                        cache_change,
-                        data_reader_address,
-                        subscriber_address,
-                        participant_address,
-                        subscriber_status_condition,
-                        subscriber_mask_listener,
-                        participant_mask_listener,
-                    )
-                    .await?;
-                }
-            }
-            (ReliabilityQosPolicyKind::BestEffort, None)
-                if message_reader_id == ENTITYID_UNKNOWN
-                    || message_reader_id == self.rtps_reader.guid().entity_id() =>
-            {
-                self.add_change(
-                    cache_change,
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                    subscriber_status_condition,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
-                )
-                .await?;
-            }
-            (ReliabilityQosPolicyKind::Reliable, Some(writer_proxy)) => {
-                let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                if sequence_number == expected_seq_num {
-                    writer_proxy.received_change_set(sequence_number);
-                    self.add_change(
-                        cache_change,
-                        data_reader_address,
-                        subscriber_address,
-                        participant_address,
-                        subscriber_status_condition,
-                        subscriber_mask_listener,
-                        participant_mask_listener,
-                    )
-                    .await?;
-                }
-            }
-            (ReliabilityQosPolicyKind::BestEffort, None)
-            | (ReliabilityQosPolicyKind::Reliable, None) => {
-                debug!("Ignored valid cache change on reader with GUID {:?}. No matching writer or entity_id", self.rtps_reader.guid());
-            }
-        }
-        Ok(())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn add_change(
-        &mut self,
-        change: RtpsReaderCacheChange,
-        data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant_address: &ActorAddress<DomainParticipantActor>,
-        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
-        participant_mask_listener: &(
-            ActorAddress<DomainParticipantListenerActor>,
-            Vec<StatusKind>,
-        ),
-    ) -> DdsResult<()> {
-        if self.is_sample_of_interest_based_on_time(&change) {
-            if self.is_max_samples_limit_reached(&change) {
-                self.on_sample_rejected(
-                    change.instance_handle,
-                    SampleRejectedStatusKind::RejectedBySamplesLimit,
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
-                )
-                .await?;
-            } else if self.is_max_instances_limit_reached(&change) {
-                self.on_sample_rejected(
-                    change.instance_handle,
-                    SampleRejectedStatusKind::RejectedByInstancesLimit,
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
-                )
-                .await?;
-            } else if self.is_max_samples_per_instance_limit_reached(&change) {
-                self.on_sample_rejected(
-                    change.instance_handle,
-                    SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
-                )
-                .await?;
-            } else {
-                let num_alive_samples_of_instance = self
-                    .changes
-                    .iter()
-                    .filter(|cc| {
-                        cc.instance_handle == change.instance_handle && cc.kind == ChangeKind::Alive
-                    })
-                    .count() as i32;
-
-                if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-                    if depth == num_alive_samples_of_instance {
-                        let index_sample_to_remove = self
+                    } else if self.is_max_instances_limit_reached(&change) {
+                        self.on_sample_rejected(
+                            change.instance_handle,
+                            SampleRejectedStatusKind::RejectedByInstancesLimit,
+                            data_reader_address,
+                            subscriber_address,
+                            participant_address,
+                            subscriber_mask_listener,
+                            participant_mask_listener,
+                        )
+                        .await?;
+                    } else if self.is_max_samples_per_instance_limit_reached(&change) {
+                        self.on_sample_rejected(
+                            change.instance_handle,
+                            SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
+                            data_reader_address,
+                            subscriber_address,
+                            participant_address,
+                            subscriber_mask_listener,
+                            participant_mask_listener,
+                        )
+                        .await?;
+                    } else {
+                        let num_alive_samples_of_instance = self
                             .changes
                             .iter()
-                            .position(|cc| {
-                                cc.instance_handle == change.instance_handle
-                                    && cc.kind == ChangeKind::Alive
+                            .filter(|cc| {
+                                cc.instance_handle == change.instance_handle && cc.kind == ChangeKind::Alive
                             })
-                            .expect("Samples must exist");
-                        self.changes.remove(index_sample_to_remove);
-                    }
-                }
+                            .count() as i32;
 
-                self.instance_reception_time
-                    .insert(change.instance_handle, change.reception_timestamp);
-                self.changes.push(change);
-                self.data_available_status_changed_flag = true;
+                        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+                            if depth == num_alive_samples_of_instance {
+                                let index_sample_to_remove = self
+                                    .changes
+                                    .iter()
+                                    .position(|cc| {
+                                        cc.instance_handle == change.instance_handle
+                                            && cc.kind == ChangeKind::Alive
+                                    })
+                                    .expect("Samples must exist");
+                                self.changes.remove(index_sample_to_remove);
+                            }
+                        }
 
-                match self.qos.destination_order.kind {
-                    DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                        self.changes.sort_by(|a, b| {
-                            a.source_timestamp
-                                .as_ref()
-                                .expect("Missing source timestamp")
-                                .cmp(
-                                    b.source_timestamp
+                        self.instance_reception_time
+                            .insert(change.instance_handle, change.reception_timestamp);
+                        self.changes.push(change);
+                        self.data_available_status_changed_flag = true;
+
+                        match self.qos.destination_order.kind {
+                            DestinationOrderQosPolicyKind::BySourceTimestamp => {
+                                self.changes.sort_by(|a, b| {
+                                    a.source_timestamp
                                         .as_ref()
-                                        .expect("Missing source timestamp"),
-                                )
-                        });
-                    }
-                    DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
-                        .changes
-                        .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
-                }
+                                        .expect("Missing source timestamp")
+                                        .cmp(
+                                            b.source_timestamp
+                                                .as_ref()
+                                                .expect("Missing source timestamp"),
+                                        )
+                                });
+                            }
+                            DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
+                                .changes
+                                .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
+                        }
 
-                self.on_data_available(
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                    subscriber_status_condition,
-                    subscriber_mask_listener,
-                )
-                .await?;
-            }
+                        self.on_data_available(
+                            data_reader_address,
+                            subscriber_address,
+                            participant_address,
+                            subscriber_status_condition,
+                            subscriber_mask_listener,
+                        )
+                        .await?;
+                    }
+                }
+            },
+            Err(e) => debug!(
+                "Received invalid data on reader with GUID {:?}. Error: {:?}. Data submessage payload: {:?}",
+                self.rtps_reader.guid(),
+                e,
+                data_submessage.serialized_payload(),
+            ),
         }
         Ok(())
     }
