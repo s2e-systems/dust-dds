@@ -5,7 +5,8 @@ use crate::implementation::{
     rtps::{
         messages::{
             overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+                RtpsMap, RtpsSubmessageWriteKind, Submessage, SubmessageHeader,
+                SubmessageHeaderRead, SubmessageHeaderWrite, WriteBytes,
             },
             submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{SubmessageFlag, SubmessageKind},
@@ -40,9 +41,27 @@ impl DataSubmessageRead {
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
+        inline_qos: &ParameterList,
+        serialized_payload: &Data,
     ) -> Self {
-        // Self { data }
-        todo!()
+        let data_write = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        ));
+
+        let mut data = vec![0; 65000];
+        data_write.write_bytes(&mut data);
+
+        Self {
+            data: ArcSlice::from(data),
+        }
     }
 
     fn octets_to_inline_qos(&self) -> usize {

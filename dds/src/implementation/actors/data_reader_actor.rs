@@ -468,24 +468,14 @@ impl DataReaderActor {
             .iter_mut()
             .find(|wp| wp.remote_writer_guid() == writer_guid)
         {
-            writer_proxy.push_data_frag(data_frag_submessage);
-            let cache_change = writer_proxy.extract_frag(sequence_number).map(|data| {
-                self.convert_received_data_to_cache_change(
-                    writer_guid,
-                    data_frag_submessage.key_flag(),
-                    data_frag_submessage.inline_qos(),
-                    data,
+            writer_proxy.push_data_frag(data_frag_submessage.clone());
+            if let Some(data_submessage) = writer_proxy.reconstruct_data_from_frag(sequence_number)
+            {
+                self.on_data_submessage_received(
+                    &data_submessage,
+                    source_guid_prefix,
                     source_timestamp,
                     reception_timestamp,
-                )
-                .unwrap()
-            });
-
-            if let Some(cache_change) = cache_change {
-                self.process_received_change(
-                    cache_change,
-                    data_frag_submessage.reader_id(),
-                    data_frag_submessage.writer_sn(),
                     data_reader_address,
                     subscriber_address,
                     participant_address,

@@ -14,7 +14,7 @@ use crate::implementation::{
     },
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataFragSubmessageRead {
     data: ArcSlice,
 }
