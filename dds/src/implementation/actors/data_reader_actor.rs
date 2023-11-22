@@ -1213,7 +1213,7 @@ impl DataReaderActor {
             }
         };
 
-        let mut indexed_samples = Vec::with_capacity(max_samples as usize);
+        let mut indexed_samples = Vec::new();
 
         let instances = &self.instances;
         let mut instances_in_collection = HashMap::new();
