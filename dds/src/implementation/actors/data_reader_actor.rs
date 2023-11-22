@@ -36,7 +36,7 @@ use crate::{
                 },
             },
             reader::RtpsReader,
-            reader_history_cache::{Instance, RtpsReaderCacheChange},
+            reader_history_cache::{InstanceState, RtpsReaderCacheChange},
             types::{
                 ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
                 GUID_UNKNOWN,
@@ -288,7 +288,7 @@ pub struct DataReaderActor {
     status_condition: Actor<StatusConditionActor>,
     listener: Actor<DataReaderListenerActor>,
     status_kind: Vec<StatusKind>,
-    instances: HashMap<InstanceHandle, Instance>,
+    instances: HashMap<InstanceHandle, InstanceState>,
 }
 
 impl DataReaderActor {
@@ -1003,7 +1003,7 @@ impl DataReaderActor {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                 self.instances
                     .entry(instance_handle)
-                    .or_insert_with(Instance::new)
+                    .or_insert_with(InstanceState::new)
                     .update_state(change_kind);
                 Ok(())
             }
@@ -1213,63 +1213,45 @@ impl DataReaderActor {
             }
         };
 
-        let mut indexed_samples = Vec::new();
+        let mut indexed_samples = Vec::with_capacity(max_samples as usize);
 
-        let instance_handle_from_serialized_foo = &self.instance_handle_from_serialized_foo;
-        let instance_handle_from_serialized_key = &self.instance_handle_from_serialized_key;
         let instances = &self.instances;
         let mut instances_in_collection = HashMap::new();
         for (index, cache_change) in self
             .changes
-            .iter_mut()
+            .iter()
             .enumerate()
             .filter(|(_, cc)| {
-                let sample_instance_handle = build_instance_handle(
-                    instance_handle_from_serialized_foo,
-                    instance_handle_from_serialized_key,
-                    cc.kind,
-                    cc.data.as_ref(),
-                    cc.inline_qos.parameter(),
-                )
-                .unwrap();
-
                 sample_states.contains(&cc.sample_state)
-                    && view_states.contains(&instances[&sample_instance_handle].view_state)
-                    && instance_states.contains(&instances[&sample_instance_handle].instance_state)
+                    && view_states.contains(&instances[&cc.instance_handle].view_state)
+                    && instance_states.contains(&instances[&cc.instance_handle].instance_state)
                     && if let Some(h) = specific_instance_handle {
-                        h == sample_instance_handle
+                        h == cc.instance_handle
                     } else {
                         true
                     }
             })
             .take(max_samples as usize)
         {
-            let sample_instance_handle = build_instance_handle(
-                &self.instance_handle_from_serialized_foo,
-                &self.instance_handle_from_serialized_key,
-                cache_change.kind,
-                cache_change.data.as_ref(),
-                cache_change.inline_qos.parameter(),
-            )
-            .unwrap();
             instances_in_collection
-                .entry(sample_instance_handle)
-                .or_insert_with(Instance::new);
+                .entry(cache_change.instance_handle)
+                .or_insert_with(InstanceState::new);
 
             instances_in_collection
-                .get_mut(&sample_instance_handle)
+                .get_mut(&cache_change.instance_handle)
                 .unwrap()
                 .update_state(cache_change.kind);
             let sample_state = cache_change.sample_state;
-            let view_state = self.instances[&sample_instance_handle].view_state;
-            let instance_state = self.instances[&sample_instance_handle].instance_state;
+            let view_state = self.instances[&cache_change.instance_handle].view_state;
+            let instance_state = self.instances[&cache_change.instance_handle].instance_state;
 
-            let absolute_generation_rank = (self.instances[&sample_instance_handle]
+            let absolute_generation_rank = (self.instances[&cache_change.instance_handle]
                 .most_recent_disposed_generation_count
-                + self.instances[&sample_instance_handle].most_recent_no_writers_generation_count)
-                - (instances_in_collection[&sample_instance_handle]
+                + self.instances[&cache_change.instance_handle]
+                    .most_recent_no_writers_generation_count)
+                - (instances_in_collection[&cache_change.instance_handle]
                     .most_recent_disposed_generation_count
-                    + instances_in_collection[&sample_instance_handle]
+                    + instances_in_collection[&cache_change.instance_handle]
                         .most_recent_no_writers_generation_count);
 
             let (data, valid_data) = match cache_change.kind {
@@ -1291,7 +1273,7 @@ impl DataReaderActor {
                 generation_rank: 0, // To be filled up after collection is created
                 absolute_generation_rank,
                 source_timestamp: cache_change.source_timestamp,
-                instance_handle: sample_instance_handle,
+                instance_handle: cache_change.instance_handle,
                 publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
                 valid_data,
             };

@@ -33,6 +33,7 @@ impl From<ArcSlice> for DataSubmessageRead {
 }
 
 impl DataSubmessageRead {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         inline_qos_flag: SubmessageFlag,
         data_flag: SubmessageFlag,
