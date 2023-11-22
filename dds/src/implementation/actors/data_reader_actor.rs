@@ -434,58 +434,103 @@ impl DataReaderActor {
                             )
                             .await?;
                         }
-                        self.add_change(
-                            data_submessage,
+                        match self.convert_received_data_to_cache_change(
                             writer_guid,
+                            data_submessage.key_flag(),
+                            data_submessage.inline_qos(),
+                            data_submessage.serialized_payload(),
                             source_timestamp,
                             reception_timestamp,
-                            data_reader_address,
-                            subscriber_address,
-                            participant_address,
-                            subscriber_status_condition,
-                            subscriber_mask_listener,
-                            participant_mask_listener,
-                        )
-                        .await?;
+                        ) {
+                            Ok(change) => {
+                                self.add_change(
+                                    change,
+                                    data_reader_address,
+                                    subscriber_address,
+                                    participant_address,
+                                    subscriber_status_condition,
+                                    subscriber_mask_listener,
+                                    participant_mask_listener,
+                                )
+                                .await?;
+                            }
+                            Err(e) => debug!(
+                                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
+                                 Message writer ID: {writer_id:?}
+                                 Message reader ID: {reader_id:?}
+                                 Data submessage payload: {payload:?}",
+                                guid = self.rtps_reader.guid(),
+                                err = e,
+                                writer_id = data_submessage.writer_id(),
+                                reader_id = data_submessage.reader_id(),
+                                payload = data_submessage.serialized_payload(),
+                            ),
+                        }
                     }
                 }
                 ReliabilityQosPolicyKind::Reliable => {
                     let expected_seq_num = writer_proxy.available_changes_max() + 1;
                     if sequence_number == expected_seq_num {
                         writer_proxy.received_change_set(sequence_number);
-                        self.add_change(
-                            data_submessage,
+                        match self.convert_received_data_to_cache_change(
                             writer_guid,
+                            data_submessage.key_flag(),
+                            data_submessage.inline_qos(),
+                            data_submessage.serialized_payload(),
                             source_timestamp,
                             reception_timestamp,
-                            data_reader_address,
-                            subscriber_address,
-                            participant_address,
-                            subscriber_status_condition,
-                            subscriber_mask_listener,
-                            participant_mask_listener,
-                        )
-                        .await?;
+                        ) {
+                            Ok(change) => {
+                                self.add_change(
+                                    change,
+                                    data_reader_address,
+                                    subscriber_address,
+                                    participant_address,
+                                    subscriber_status_condition,
+                                    subscriber_mask_listener,
+                                    participant_mask_listener,
+                                )
+                                .await?;
+                            }
+                            Err(e) => debug!(
+                                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
+                                 Message writer ID: {writer_id:?}
+                                 Message reader ID: {reader_id:?}
+                                 Data submessage payload: {payload:?}",
+                                guid = self.rtps_reader.guid(),
+                                err = e,
+                                writer_id = data_submessage.writer_id(),
+                                reader_id = data_submessage.reader_id(),
+                                payload = data_submessage.serialized_payload(),
+                            ),
+                        }
                     }
                 }
             }
         } else if message_reader_id == ENTITYID_UNKNOWN
             || message_reader_id == self.rtps_reader.guid().entity_id()
         {
-            // Stateless reader behavior
-            self.add_change(
-                data_submessage,
+            // Stateless reader behavior. We add the change if the data is correct. No error is printed
+            // because all readers would get changes marked with ENTITYID_UNKNOWN
+            if let Ok(change) = self.convert_received_data_to_cache_change(
                 writer_guid,
+                data_submessage.key_flag(),
+                data_submessage.inline_qos(),
+                data_submessage.serialized_payload(),
                 source_timestamp,
                 reception_timestamp,
-                data_reader_address,
-                subscriber_address,
-                participant_address,
-                subscriber_status_condition,
-                subscriber_mask_listener,
-                participant_mask_listener,
-            )
-            .await?;
+            ) {
+                self.add_change(
+                    change,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                    subscriber_status_condition,
+                    subscriber_mask_listener,
+                    participant_mask_listener,
+                )
+                .await?;
+            }
         } else {
             // Do nothing
         }
@@ -996,10 +1041,7 @@ impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     async fn add_change(
         &mut self,
-        data_submessage: &DataSubmessageRead,
-        writer_guid: Guid,
-        source_timestamp: Option<Time>,
-        reception_timestamp: Time,
+        change: RtpsReaderCacheChange,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber_address: &ActorAddress<SubscriberActor>,
         participant_address: &ActorAddress<DomainParticipantActor>,
@@ -1010,113 +1052,97 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        match self.convert_received_data_to_cache_change(
-            writer_guid,
-            data_submessage.key_flag(),
-            data_submessage.inline_qos(),
-            data_submessage.serialized_payload(),
-            source_timestamp,
-            reception_timestamp,
-        ) {
-            Ok(change) => {
-                if self.is_sample_of_interest_based_on_time(&change) {
-                    if self.is_max_samples_limit_reached(&change) {
-                        self.on_sample_rejected(
-                            change.instance_handle,
-                            SampleRejectedStatusKind::RejectedBySamplesLimit,
-                            data_reader_address,
-                            subscriber_address,
-                            participant_address,
-                            subscriber_mask_listener,
-                            participant_mask_listener,
-                        )
-                        .await?;
-                    } else if self.is_max_instances_limit_reached(&change) {
-                        self.on_sample_rejected(
-                            change.instance_handle,
-                            SampleRejectedStatusKind::RejectedByInstancesLimit,
-                            data_reader_address,
-                            subscriber_address,
-                            participant_address,
-                            subscriber_mask_listener,
-                            participant_mask_listener,
-                        )
-                        .await?;
-                    } else if self.is_max_samples_per_instance_limit_reached(&change) {
-                        self.on_sample_rejected(
-                            change.instance_handle,
-                            SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
-                            data_reader_address,
-                            subscriber_address,
-                            participant_address,
-                            subscriber_mask_listener,
-                            participant_mask_listener,
-                        )
-                        .await?;
-                    } else {
-                        let num_alive_samples_of_instance = self
+        if self.is_sample_of_interest_based_on_time(&change) {
+            if self.is_max_samples_limit_reached(&change) {
+                self.on_sample_rejected(
+                    change.instance_handle,
+                    SampleRejectedStatusKind::RejectedBySamplesLimit,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                    subscriber_mask_listener,
+                    participant_mask_listener,
+                )
+                .await?;
+            } else if self.is_max_instances_limit_reached(&change) {
+                self.on_sample_rejected(
+                    change.instance_handle,
+                    SampleRejectedStatusKind::RejectedByInstancesLimit,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                    subscriber_mask_listener,
+                    participant_mask_listener,
+                )
+                .await?;
+            } else if self.is_max_samples_per_instance_limit_reached(&change) {
+                self.on_sample_rejected(
+                    change.instance_handle,
+                    SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                    subscriber_mask_listener,
+                    participant_mask_listener,
+                )
+                .await?;
+            } else {
+                let num_alive_samples_of_instance = self
+                    .changes
+                    .iter()
+                    .filter(|cc| {
+                        cc.instance_handle == change.instance_handle && cc.kind == ChangeKind::Alive
+                    })
+                    .count() as i32;
+
+                if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+                    if depth == num_alive_samples_of_instance {
+                        let index_sample_to_remove = self
                             .changes
                             .iter()
-                            .filter(|cc| {
-                                cc.instance_handle == change.instance_handle && cc.kind == ChangeKind::Alive
+                            .position(|cc| {
+                                cc.instance_handle == change.instance_handle
+                                    && cc.kind == ChangeKind::Alive
                             })
-                            .count() as i32;
-
-                        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-                            if depth == num_alive_samples_of_instance {
-                                let index_sample_to_remove = self
-                                    .changes
-                                    .iter()
-                                    .position(|cc| {
-                                        cc.instance_handle == change.instance_handle
-                                            && cc.kind == ChangeKind::Alive
-                                    })
-                                    .expect("Samples must exist");
-                                self.changes.remove(index_sample_to_remove);
-                            }
-                        }
-
-                        self.instance_reception_time
-                            .insert(change.instance_handle, change.reception_timestamp);
-                        self.changes.push(change);
-                        self.data_available_status_changed_flag = true;
-
-                        match self.qos.destination_order.kind {
-                            DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                                self.changes.sort_by(|a, b| {
-                                    a.source_timestamp
-                                        .as_ref()
-                                        .expect("Missing source timestamp")
-                                        .cmp(
-                                            b.source_timestamp
-                                                .as_ref()
-                                                .expect("Missing source timestamp"),
-                                        )
-                                });
-                            }
-                            DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
-                                .changes
-                                .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
-                        }
-
-                        self.on_data_available(
-                            data_reader_address,
-                            subscriber_address,
-                            participant_address,
-                            subscriber_status_condition,
-                            subscriber_mask_listener,
-                        )
-                        .await?;
+                            .expect("Samples must exist");
+                        self.changes.remove(index_sample_to_remove);
                     }
                 }
-            },
-            Err(e) => debug!(
-                "Received invalid data on reader with GUID {:?}. Error: {:?}. Data submessage payload: {:?}",
-                self.rtps_reader.guid(),
-                e,
-                data_submessage.serialized_payload(),
-            ),
+
+                self.instance_reception_time
+                    .insert(change.instance_handle, change.reception_timestamp);
+                self.changes.push(change);
+                self.data_available_status_changed_flag = true;
+
+                match self.qos.destination_order.kind {
+                    DestinationOrderQosPolicyKind::BySourceTimestamp => {
+                        self.changes.sort_by(|a, b| {
+                            a.source_timestamp
+                                .as_ref()
+                                .expect("Missing source timestamp")
+                                .cmp(
+                                    b.source_timestamp
+                                        .as_ref()
+                                        .expect("Missing source timestamp"),
+                                )
+                        });
+                    }
+                    DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
+                        .changes
+                        .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
+                }
+
+                self.on_data_available(
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                    subscriber_status_condition,
+                    subscriber_mask_listener,
+                )
+                .await?;
+            }
         }
+
         Ok(())
     }
 
