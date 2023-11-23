@@ -558,7 +558,7 @@ impl FromBytes for FragmentNumberSet {
                 set.push(base + delta_n as u32);
             }
         }
-        Self::new(base, set.into_iter())
+        Self::new(base, set)
     }
 }
 

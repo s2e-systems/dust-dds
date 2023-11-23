@@ -60,7 +60,7 @@ pub fn struct_def(def: idl::Struct) -> impl Iterator<Item = String> {
                 .into_iter()
                 .map(|member| format!("    {},\n", struct_member(member))),
         )
-        .chain(["}\n".to_string()].into_iter())
+        .chain(["}\n".to_string()])
 }
 
 pub fn enum_def(def: idl::Enum) -> impl Iterator<Item = String> {
@@ -74,7 +74,7 @@ pub fn enum_def(def: idl::Enum) -> impl Iterator<Item = String> {
             .into_iter()
             .map(|variant| format!("    {},\n", variant)),
     )
-    .chain(["}\n".to_string()].into_iter())
+    .chain(["}\n".to_string()])
 }
 
 pub fn module_def(def: idl::Module) -> impl Iterator<Item = String> {
@@ -86,7 +86,7 @@ pub fn module_def(def: idl::Module) -> impl Iterator<Item = String> {
                 .flat_map(definition)
                 .map(|line| "    ".to_string() + &line),
         )
-        .chain(["}\n".to_string()].into_iter())
+        .chain(["}\n".to_string()])
 }
 
 pub fn definition(def: idl::Definition) -> Box<dyn Iterator<Item = String>> {
