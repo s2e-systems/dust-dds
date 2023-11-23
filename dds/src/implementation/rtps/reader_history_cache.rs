@@ -21,14 +21,14 @@ pub struct RtpsReaderCacheChange {
     pub reception_timestamp: Time,
 }
 
-pub struct Instance {
+pub struct InstanceState {
     pub view_state: ViewStateKind,
     pub instance_state: InstanceStateKind,
     pub most_recent_disposed_generation_count: i32,
     pub most_recent_no_writers_generation_count: i32,
 }
 
-impl Instance {
+impl InstanceState {
     pub fn new() -> Self {
         Self {
             view_state: ViewStateKind::New,

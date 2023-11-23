@@ -14,7 +14,7 @@ use crate::implementation::{
     },
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataFragSubmessageRead {
     data: ArcSlice,
 }
@@ -120,7 +120,9 @@ pub struct DataFragSubmessageWrite<'a> {
     inline_qos_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
     key_flag: SubmessageFlag,
-    submessage_elements: Vec<SubmessageElement<'a>>,
+    submessage_elements: [SubmessageElement<'a>; 9],
+    inline_qos_submessage_element: Option<SubmessageElement<'a>>,
+    serialized_payload_submessage_element: SubmessageElement<'a>,
 }
 
 impl<'a> DataFragSubmessageWrite<'a> {
@@ -141,7 +143,7 @@ impl<'a> DataFragSubmessageWrite<'a> {
     ) -> Self {
         const EXTRA_FLAGS: u16 = 0;
         const OCTETS_TO_INLINE_QOS: u16 = 28;
-        let mut submessage_elements = vec![
+        let submessage_elements = [
             SubmessageElement::UShort(EXTRA_FLAGS),
             SubmessageElement::UShort(OCTETS_TO_INLINE_QOS),
             SubmessageElement::EntityId(reader_id),
@@ -152,43 +154,33 @@ impl<'a> DataFragSubmessageWrite<'a> {
             SubmessageElement::UShort(fragment_size),
             SubmessageElement::ULong(data_size),
         ];
-        if inline_qos_flag {
-            submessage_elements.push(SubmessageElement::ParameterList(inline_qos));
-        }
-        submessage_elements.push(SubmessageElement::SerializedData(serialized_payload));
+        let inline_qos_submessage_element = if inline_qos_flag {
+            Some(SubmessageElement::ParameterList(inline_qos))
+        } else {
+            None
+        };
+        let serialized_payload_submessage_element =
+            SubmessageElement::SerializedData(serialized_payload);
 
         Self {
             inline_qos_flag,
             non_standard_payload_flag,
             key_flag,
             submessage_elements,
-        }
-    }
-
-    pub fn writer_sn(&self) -> SequenceNumber {
-        match self.submessage_elements[4] {
-            SubmessageElement::SequenceNumber(e) => e,
-            _ => todo!(),
-        }
-    }
-
-    pub fn fragment_starting_num(&self) -> FragmentNumber {
-        match self.submessage_elements[5] {
-            SubmessageElement::FragmentNumber(e) => e,
-            _ => todo!(),
-        }
-    }
-
-    pub fn fragments_in_submessage(&self) -> u16 {
-        match self.submessage_elements[6] {
-            SubmessageElement::UShort(e) => e,
-            _ => todo!(),
+            inline_qos_submessage_element,
+            serialized_payload_submessage_element,
         }
     }
 }
 
 impl<'a> Submessage<'a> for DataFragSubmessageWrite<'a> {
-    type SubmessageList = &'a [SubmessageElement<'a>];
+    type SubmessageList = std::iter::Chain<
+        std::iter::Chain<
+            std::slice::Iter<'a, SubmessageElement<'a>>,
+            std::option::Iter<'a, SubmessageElement<'a>>,
+        >,
+        std::iter::Once<&'a SubmessageElement<'a>>,
+    >;
 
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
@@ -203,7 +195,10 @@ impl<'a> Submessage<'a> for DataFragSubmessageWrite<'a> {
     }
 
     fn submessage_elements(&'a self) -> Self::SubmessageList {
-        &self.submessage_elements
+        self.submessage_elements
+            .iter()
+            .chain(self.inline_qos_submessage_element.iter())
+            .chain(std::iter::once(&self.serialized_payload_submessage_element))
     }
 }
 

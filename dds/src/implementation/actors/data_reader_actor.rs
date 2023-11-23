@@ -36,9 +36,9 @@ use crate::{
                 },
             },
             reader::RtpsReader,
-            reader_history_cache::{Instance, RtpsReaderCacheChange},
+            reader_history_cache::{InstanceState, RtpsReaderCacheChange},
             types::{
-                ChangeKind, EntityId, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
+                ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
                 GUID_UNKNOWN,
             },
             writer_proxy::RtpsWriterProxy,
@@ -288,7 +288,7 @@ pub struct DataReaderActor {
     status_condition: Actor<StatusConditionActor>,
     listener: Actor<DataReaderListenerActor>,
     status_kind: Vec<StatusKind>,
-    instances: HashMap<InstanceHandle, Instance>,
+    instances: HashMap<InstanceHandle, InstanceState>,
 }
 
 impl DataReaderActor {
@@ -410,19 +410,118 @@ impl DataReaderActor {
         ),
     ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
-        match self.convert_received_data_to_cache_change(
-            writer_guid,
-            data_submessage.key_flag(),
-            data_submessage.inline_qos(),
-            data_submessage.serialized_payload(),
-            source_timestamp,
-            reception_timestamp,
-        ) {
-            Ok(cache_change) => {
-                self.process_received_change(
-                    cache_change,
-                    data_submessage.reader_id(),
-                    data_submessage.writer_sn(),
+        let sequence_number = data_submessage.writer_sn();
+        let message_reader_id = data_submessage.reader_id();
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|wp| wp.remote_writer_guid() == writer_guid)
+        {
+            //Stateful reader behavior
+            match self.qos.reliability.kind {
+                ReliabilityQosPolicyKind::BestEffort => {
+                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                    if sequence_number >= expected_seq_num {
+                        writer_proxy.received_change_set(sequence_number);
+                        if sequence_number > expected_seq_num {
+                            writer_proxy.lost_changes_update(sequence_number);
+                            self.on_sample_lost(
+                                data_reader_address,
+                                subscriber_address,
+                                participant_address,
+                                subscriber_mask_listener,
+                                participant_mask_listener,
+                            )
+                            .await?;
+                        }
+                        match self.convert_received_data_to_cache_change(
+                            writer_guid,
+                            data_submessage.key_flag(),
+                            data_submessage.inline_qos(),
+                            data_submessage.serialized_payload(),
+                            source_timestamp,
+                            reception_timestamp,
+                        ) {
+                            Ok(change) => {
+                                self.add_change(
+                                    change,
+                                    data_reader_address,
+                                    subscriber_address,
+                                    participant_address,
+                                    subscriber_status_condition,
+                                    subscriber_mask_listener,
+                                    participant_mask_listener,
+                                )
+                                .await?;
+                            }
+                            Err(e) => debug!(
+                                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
+                                 Message writer ID: {writer_id:?}
+                                 Message reader ID: {reader_id:?}
+                                 Data submessage payload: {payload:?}",
+                                guid = self.rtps_reader.guid(),
+                                err = e,
+                                writer_id = data_submessage.writer_id(),
+                                reader_id = data_submessage.reader_id(),
+                                payload = data_submessage.serialized_payload(),
+                            ),
+                        }
+                    }
+                }
+                ReliabilityQosPolicyKind::Reliable => {
+                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                    if sequence_number == expected_seq_num {
+                        writer_proxy.received_change_set(sequence_number);
+                        match self.convert_received_data_to_cache_change(
+                            writer_guid,
+                            data_submessage.key_flag(),
+                            data_submessage.inline_qos(),
+                            data_submessage.serialized_payload(),
+                            source_timestamp,
+                            reception_timestamp,
+                        ) {
+                            Ok(change) => {
+                                self.add_change(
+                                    change,
+                                    data_reader_address,
+                                    subscriber_address,
+                                    participant_address,
+                                    subscriber_status_condition,
+                                    subscriber_mask_listener,
+                                    participant_mask_listener,
+                                )
+                                .await?;
+                            }
+                            Err(e) => debug!(
+                                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
+                                 Message writer ID: {writer_id:?}
+                                 Message reader ID: {reader_id:?}
+                                 Data submessage payload: {payload:?}",
+                                guid = self.rtps_reader.guid(),
+                                err = e,
+                                writer_id = data_submessage.writer_id(),
+                                reader_id = data_submessage.reader_id(),
+                                payload = data_submessage.serialized_payload(),
+                            ),
+                        }
+                    }
+                }
+            }
+        } else if message_reader_id == ENTITYID_UNKNOWN
+            || message_reader_id == self.rtps_reader.guid().entity_id()
+        {
+            // Stateless reader behavior. We add the change if the data is correct. No error is printed
+            // because all readers would get changes marked with ENTITYID_UNKNOWN
+            if let Ok(change) = self.convert_received_data_to_cache_change(
+                writer_guid,
+                data_submessage.key_flag(),
+                data_submessage.inline_qos(),
+                data_submessage.serialized_payload(),
+                source_timestamp,
+                reception_timestamp,
+            ) {
+                self.add_change(
+                    change,
                     data_reader_address,
                     subscriber_address,
                     participant_address,
@@ -430,14 +529,10 @@ impl DataReaderActor {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
-                .await?
+                .await?;
             }
-            Err(e) => debug!(
-                "Received invalid data on reader with GUID {:?}. Error: {:?}. Data submessage payload: {:?}",
-                self.rtps_reader.guid(),
-                e,
-                data_submessage.serialized_payload(),
-            ),
+        } else {
+            // Do nothing
         }
 
         Ok(())
@@ -468,24 +563,14 @@ impl DataReaderActor {
             .iter_mut()
             .find(|wp| wp.remote_writer_guid() == writer_guid)
         {
-            writer_proxy.push_data_frag(data_frag_submessage);
-            let cache_change = writer_proxy.extract_frag(sequence_number).map(|data| {
-                self.convert_received_data_to_cache_change(
-                    writer_guid,
-                    data_frag_submessage.key_flag(),
-                    data_frag_submessage.inline_qos(),
-                    data,
+            writer_proxy.push_data_frag(data_frag_submessage.clone());
+            if let Some(data_submessage) = writer_proxy.reconstruct_data_from_frag(sequence_number)
+            {
+                self.on_data_submessage_received(
+                    &data_submessage,
+                    source_guid_prefix,
                     source_timestamp,
                     reception_timestamp,
-                )
-                .unwrap()
-            });
-
-            if let Some(cache_change) = cache_change {
-                self.process_received_change(
-                    cache_change,
-                    data_frag_submessage.reader_id(),
-                    data_frag_submessage.writer_sn(),
                     data_reader_address,
                     subscriber_address,
                     participant_address,
@@ -918,7 +1003,7 @@ impl DataReaderActor {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                 self.instances
                     .entry(instance_handle)
-                    .or_insert_with(Instance::new)
+                    .or_insert_with(InstanceState::new)
                     .update_state(change_kind);
                 Ok(())
             }
@@ -951,93 +1036,6 @@ impl DataReaderActor {
                 .most_recent_no_writers_generation_count,
             reception_timestamp,
         })
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn process_received_change(
-        &mut self,
-        cache_change: RtpsReaderCacheChange,
-        message_reader_id: EntityId,
-        sequence_number: SequenceNumber,
-        data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant_address: &ActorAddress<DomainParticipantActor>,
-        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
-        participant_mask_listener: &(
-            ActorAddress<DomainParticipantListenerActor>,
-            Vec<StatusKind>,
-        ),
-    ) -> DdsResult<()> {
-        let writer_proxy = self
-            .matched_writers
-            .iter_mut()
-            .find(|wp| wp.remote_writer_guid() == cache_change.writer_guid);
-        match (self.qos.reliability.kind, writer_proxy) {
-            (ReliabilityQosPolicyKind::BestEffort, Some(writer_proxy)) => {
-                let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                if sequence_number >= expected_seq_num {
-                    writer_proxy.received_change_set(sequence_number);
-                    if sequence_number > expected_seq_num {
-                        writer_proxy.lost_changes_update(sequence_number);
-                        self.on_sample_lost(
-                            data_reader_address,
-                            subscriber_address,
-                            participant_address,
-                            subscriber_mask_listener,
-                            participant_mask_listener,
-                        )
-                        .await?;
-                    }
-                    self.add_change(
-                        cache_change,
-                        data_reader_address,
-                        subscriber_address,
-                        participant_address,
-                        subscriber_status_condition,
-                        subscriber_mask_listener,
-                        participant_mask_listener,
-                    )
-                    .await?;
-                }
-            }
-            (ReliabilityQosPolicyKind::BestEffort, None)
-                if message_reader_id == ENTITYID_UNKNOWN
-                    || message_reader_id == self.rtps_reader.guid().entity_id() =>
-            {
-                self.add_change(
-                    cache_change,
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                    subscriber_status_condition,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
-                )
-                .await?;
-            }
-            (ReliabilityQosPolicyKind::Reliable, Some(writer_proxy)) => {
-                let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                if sequence_number == expected_seq_num {
-                    writer_proxy.received_change_set(sequence_number);
-                    self.add_change(
-                        cache_change,
-                        data_reader_address,
-                        subscriber_address,
-                        participant_address,
-                        subscriber_status_condition,
-                        subscriber_mask_listener,
-                        participant_mask_listener,
-                    )
-                    .await?;
-                }
-            }
-            (ReliabilityQosPolicyKind::BestEffort, None)
-            | (ReliabilityQosPolicyKind::Reliable, None) => {
-                debug!("Ignored valid cache change on reader with GUID {:?}. No matching writer or entity_id", self.rtps_reader.guid());
-            }
-        }
-        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1144,6 +1142,7 @@ impl DataReaderActor {
                 .await?;
             }
         }
+
         Ok(())
     }
 
@@ -1216,61 +1215,43 @@ impl DataReaderActor {
 
         let mut indexed_samples = Vec::new();
 
-        let instance_handle_from_serialized_foo = &self.instance_handle_from_serialized_foo;
-        let instance_handle_from_serialized_key = &self.instance_handle_from_serialized_key;
         let instances = &self.instances;
         let mut instances_in_collection = HashMap::new();
         for (index, cache_change) in self
             .changes
-            .iter_mut()
+            .iter()
             .enumerate()
             .filter(|(_, cc)| {
-                let sample_instance_handle = build_instance_handle(
-                    instance_handle_from_serialized_foo,
-                    instance_handle_from_serialized_key,
-                    cc.kind,
-                    cc.data.as_ref(),
-                    cc.inline_qos.parameter(),
-                )
-                .unwrap();
-
                 sample_states.contains(&cc.sample_state)
-                    && view_states.contains(&instances[&sample_instance_handle].view_state)
-                    && instance_states.contains(&instances[&sample_instance_handle].instance_state)
+                    && view_states.contains(&instances[&cc.instance_handle].view_state)
+                    && instance_states.contains(&instances[&cc.instance_handle].instance_state)
                     && if let Some(h) = specific_instance_handle {
-                        h == sample_instance_handle
+                        h == cc.instance_handle
                     } else {
                         true
                     }
             })
             .take(max_samples as usize)
         {
-            let sample_instance_handle = build_instance_handle(
-                &self.instance_handle_from_serialized_foo,
-                &self.instance_handle_from_serialized_key,
-                cache_change.kind,
-                cache_change.data.as_ref(),
-                cache_change.inline_qos.parameter(),
-            )
-            .unwrap();
             instances_in_collection
-                .entry(sample_instance_handle)
-                .or_insert_with(Instance::new);
+                .entry(cache_change.instance_handle)
+                .or_insert_with(InstanceState::new);
 
             instances_in_collection
-                .get_mut(&sample_instance_handle)
+                .get_mut(&cache_change.instance_handle)
                 .unwrap()
                 .update_state(cache_change.kind);
             let sample_state = cache_change.sample_state;
-            let view_state = self.instances[&sample_instance_handle].view_state;
-            let instance_state = self.instances[&sample_instance_handle].instance_state;
+            let view_state = self.instances[&cache_change.instance_handle].view_state;
+            let instance_state = self.instances[&cache_change.instance_handle].instance_state;
 
-            let absolute_generation_rank = (self.instances[&sample_instance_handle]
+            let absolute_generation_rank = (self.instances[&cache_change.instance_handle]
                 .most_recent_disposed_generation_count
-                + self.instances[&sample_instance_handle].most_recent_no_writers_generation_count)
-                - (instances_in_collection[&sample_instance_handle]
+                + self.instances[&cache_change.instance_handle]
+                    .most_recent_no_writers_generation_count)
+                - (instances_in_collection[&cache_change.instance_handle]
                     .most_recent_disposed_generation_count
-                    + instances_in_collection[&sample_instance_handle]
+                    + instances_in_collection[&cache_change.instance_handle]
                         .most_recent_no_writers_generation_count);
 
             let (data, valid_data) = match cache_change.kind {
@@ -1292,7 +1273,7 @@ impl DataReaderActor {
                 generation_rank: 0, // To be filled up after collection is created
                 absolute_generation_rank,
                 source_timestamp: cache_change.source_timestamp,
-                instance_handle: sample_instance_handle,
+                instance_handle: cache_change.instance_handle,
                 publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
                 valid_data,
             };

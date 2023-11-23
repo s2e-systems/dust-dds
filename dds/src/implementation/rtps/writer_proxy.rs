@@ -3,45 +3,27 @@ use std::{
     collections::HashMap,
 };
 
-use crate::implementation::rtps_udp_psm::udp_transport::UdpTransportWrite;
+use crate::implementation::{
+    rtps::messages::submessage_elements::ArcSlice, rtps_udp_psm::udp_transport::UdpTransportWrite,
+};
 
 use super::{
     messages::{
         overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind},
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
-            ack_nack::AckNackSubmessageWrite, data_frag::DataFragSubmessageRead,
-            info_destination::InfoDestinationSubmessageWrite, nack_frag::NackFragSubmessageWrite,
+            ack_nack::AckNackSubmessageWrite, data::DataSubmessageRead,
+            data_frag::DataFragSubmessageRead, info_destination::InfoDestinationSubmessageWrite,
+            nack_frag::NackFragSubmessageWrite,
         },
-        types::{Count, FragmentNumber},
+        types::Count,
     },
     types::{EntityId, Guid, Locator, SequenceNumber},
 };
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct OwningDataFragSubmessage {
-    fragment_starting_num: FragmentNumber,
-    data_size: u32,
-    fragment_size: u16,
-    fragments_in_submessage: u16,
-    serialized_payload: Data,
-}
-
-impl From<&DataFragSubmessageRead> for OwningDataFragSubmessage {
-    fn from(x: &DataFragSubmessageRead) -> Self {
-        Self {
-            fragment_starting_num: x.fragment_starting_num(),
-            data_size: x.data_size(),
-            fragment_size: x.fragment_size(),
-            fragments_in_submessage: x.fragments_in_submessage(),
-            serialized_payload: x.serialized_payload(),
-        }
-    }
-}
-
-fn total_fragments_expected(data_frag_submessage: &OwningDataFragSubmessage) -> u32 {
-    let data_size = data_frag_submessage.data_size;
-    let fragment_size = data_frag_submessage.fragment_size as u32;
+fn total_fragments_expected(data_frag_submessage: &DataFragSubmessageRead) -> u32 {
+    let data_size = data_frag_submessage.data_size();
+    let fragment_size = data_frag_submessage.fragment_size() as u32;
     let total_fragments_correction = if data_size % fragment_size == 0 { 0 } else { 1 };
     data_size / fragment_size + total_fragments_correction
 }
@@ -61,7 +43,7 @@ pub struct RtpsWriterProxy {
     last_received_heartbeat_frag_count: Count,
     acknack_count: Count,
     nack_frag_count: Count,
-    frag_buffer: HashMap<SequenceNumber, Vec<OwningDataFragSubmessage>>,
+    frag_buffer: HashMap<SequenceNumber, Vec<DataFragSubmessageRead>>,
 }
 
 impl RtpsWriterProxy {
@@ -90,35 +72,59 @@ impl RtpsWriterProxy {
         }
     }
 
-    pub fn push_data_frag(&mut self, submessage: &DataFragSubmessageRead) {
-        let owning_data_frag = submessage.into();
+    pub fn push_data_frag(&mut self, submessage: DataFragSubmessageRead) {
         let frag_bug_seq_num = self.frag_buffer.entry(submessage.writer_sn()).or_default();
-        if !frag_bug_seq_num.contains(&owning_data_frag) {
-            frag_bug_seq_num.push(owning_data_frag);
+        if !frag_bug_seq_num.contains(&submessage) {
+            frag_bug_seq_num.push(submessage);
         }
     }
 
-    pub fn extract_frag(&mut self, seq_num: SequenceNumber) -> Option<Data> {
+    pub fn reconstruct_data_from_frag(
+        &mut self,
+        seq_num: SequenceNumber,
+    ) -> Option<DataSubmessageRead> {
         if let Some(seq_num_frag) = self.frag_buffer.get(&seq_num) {
             let total_fragments_expected = total_fragments_expected(&seq_num_frag[0]);
 
             let mut total_fragments = 0;
             for frag_seq_num in seq_num_frag {
-                total_fragments += frag_seq_num.fragments_in_submessage as u32;
+                total_fragments += frag_seq_num.fragments_in_submessage() as u32;
             }
 
             if total_fragments == total_fragments_expected {
                 let mut frag_seq_num_list = self.frag_buffer.remove(&seq_num).expect("Must exist");
-                frag_seq_num_list.sort_by_key(|k| k.fragment_starting_num);
+                frag_seq_num_list.sort_by_key(|k| k.fragment_starting_num());
 
+                let inline_qos_flag = frag_seq_num_list[0].inline_qos_flag();
+                let data_flag = !frag_seq_num_list[0].key_flag();
+                let key_flag = frag_seq_num_list[0].key_flag();
+                let non_standard_payload_flag = false;
+                let writer_id = self.remote_writer_guid.entity_id();
+                let reader_id = frag_seq_num_list[0].reader_id();
+                let writer_sn = seq_num;
+                let inline_qos = frag_seq_num_list[0].inline_qos();
                 let mut data = Vec::new();
                 for frag in frag_seq_num_list {
-                    data.append(&mut frag.serialized_payload.as_ref().to_vec());
+                    data.append(&mut frag.serialized_payload().as_ref().to_vec());
                 }
-                return Some(Data::new(data.into()));
+
+                Some(DataSubmessageRead::new(
+                    inline_qos_flag,
+                    data_flag,
+                    key_flag,
+                    non_standard_payload_flag,
+                    reader_id,
+                    writer_id,
+                    writer_sn,
+                    &inline_qos,
+                    &Data::new(ArcSlice::from(data)),
+                ))
+            } else {
+                None
             }
+        } else {
+            None
         }
-        None
     }
 
     pub fn remote_writer_guid(&self) -> Guid {
@@ -268,9 +274,9 @@ impl RtpsWriterProxy {
                 let mut missing_fragment_number = Vec::new();
                 for fragment_number in 1..=total_fragments_expected {
                     if !owning_data_frag_list.iter().any(|x| {
-                        fragment_number >= x.fragment_starting_num
+                        fragment_number >= x.fragment_starting_num()
                             && fragment_number
-                                < x.fragment_starting_num + (x.fragments_in_submessage as u32)
+                                < x.fragment_starting_num() + (x.fragments_in_submessage() as u32)
                     }) {
                         missing_fragment_number.push(fragment_number)
                     }
