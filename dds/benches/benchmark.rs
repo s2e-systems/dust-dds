@@ -273,7 +273,7 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
         .unwrap();
     wait_set2.wait(Duration::new(20, 0)).unwrap();
 
-    let large_data_sample = LargeKeyedData { id: 1, value: vec![7; 50000] };
+    let large_data_sample = LargeKeyedData { id: 1, value: vec![7; 32000] };
 
     c.bench_function("best_effort_write_and_receive_frag", |b| {
         b.iter(|| {
@@ -288,9 +288,9 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    // best_effort_write_only,
-    // best_effort_read_only,
-    // best_effort_write_and_receive,
+    best_effort_write_only,
+    best_effort_read_only,
+    best_effort_write_and_receive,
     best_effort_write_and_receive_frag
 );
 criterion_main!(benches);
