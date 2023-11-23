@@ -45,6 +45,7 @@ impl DataSubmessageRead {
         inline_qos: &ParameterList,
         serialized_payload: &Data,
     ) -> Self {
+        let empty_serialized_payload = Data::new(ArcSlice::from(vec![]));
         let data_write = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
@@ -54,11 +55,12 @@ impl DataSubmessageRead {
             writer_id,
             writer_sn,
             inline_qos,
-            serialized_payload,
+            &empty_serialized_payload,
         ));
-
-        let mut data = vec![0; 65000];
-        data_write.write_bytes(&mut data);
+        let mut data = vec![0; 1500];
+        let length_sofar = data_write.write_bytes(&mut data);
+        data.truncate(length_sofar);
+        data.extend_from_slice(serialized_payload.as_ref());
 
         Self {
             data: ArcSlice::from(data),
