@@ -7,6 +7,7 @@ pub struct DustDdsConfiguration {
     domain_tag: String,
     interface_name: Option<String>,
     fragment_size: usize,
+    udp_receive_buffer_size: Option<usize>,
 }
 
 impl DustDdsConfiguration {
@@ -24,6 +25,11 @@ impl DustDdsConfiguration {
     pub fn fragment_size(&self) -> usize {
         self.fragment_size
     }
+
+    // Receive buffer size used for UDP socket. ['None'] means the OS default value
+    pub fn udp_receive_buffer_size(&self) -> Option<usize> {
+        self.udp_receive_buffer_size
+    }
 }
 
 impl Default for DustDdsConfiguration {
@@ -32,6 +38,7 @@ impl Default for DustDdsConfiguration {
             domain_tag: "".to_string(),
             interface_name: None,
             fragment_size: 1344,
+            udp_receive_buffer_size: None,
         }
     }
 }
@@ -78,6 +85,12 @@ impl DustDdsConfigurationBuilder {
     /// Set the maximum size for the data fragments. Types with serialized data above this size will be transmitted as fragments.
     pub fn fragment_size(mut self, fragment_size: usize) -> Self {
         self.configuration.fragment_size = fragment_size;
+        self
+    }
+
+    /// Set the value of the SO_RCVBUF option on the UDP socket. ['None'] corresponds to the OS default
+    pub fn udp_receive_buffer_size(mut self, udp_receive_buffer_size: Option<usize>) -> Self {
+        self.configuration.udp_receive_buffer_size = udp_receive_buffer_size;
         self
     }
 }

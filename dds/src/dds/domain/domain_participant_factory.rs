@@ -104,12 +104,30 @@ impl DomainParticipantFactory {
             get_interface_address_list(THE_DDS_CONFIGURATION.read().unwrap().interface_name());
 
         let default_unicast_socket =
-            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).map_err(
-                |_| DdsError::Error("Failed to bind to default unicast socket".to_string()),
+            socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None).map_err(
+                |_| DdsError::Error("Failed to create default unicast socket".to_string()),
             )?;
+        default_unicast_socket
+            .bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())
+            .map_err(|_| DdsError::Error("Failed to bind to default unicast socket".to_string()))?;
         default_unicast_socket
             .set_nonblocking(true)
             .map_err(|_| DdsError::Error("Failed to set socket non-blocking".to_string()))?;
+        if let Some(buffer_size) = THE_DDS_CONFIGURATION
+            .read()
+            .unwrap()
+            .udp_receive_buffer_size()
+        {
+            default_unicast_socket
+                .set_recv_buffer_size(buffer_size)
+                .map_err(|_| {
+                    DdsError::Error(
+                        "Failed to set default unicast socket receive buffer size".to_string(),
+                    )
+                })?;
+        }
+        let default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
+
         let user_defined_unicast_port = default_unicast_socket
             .local_addr()
             .map_err(|_| DdsError::Error("Failed to get socket address".to_string()))?
