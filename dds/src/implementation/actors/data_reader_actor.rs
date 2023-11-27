@@ -303,6 +303,7 @@ pub struct DataReaderActor {
     listener: Actor<DataReaderListenerActor>,
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
+    instance_deadline_missed_task: HashMap<InstanceHandle, tokio::task::AbortHandle>,
 }
 
 impl DataReaderActor {
@@ -347,6 +348,7 @@ impl DataReaderActor {
             instance_handle_from_serialized_foo,
             instance_handle_from_serialized_key,
             instances: HashMap::new(),
+            instance_deadline_missed_task: HashMap::new(),
         }
     }
 
@@ -1378,6 +1380,13 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
     ) {
+        if let Some(t) = self
+            .instance_deadline_missed_task
+            .remove(&change_instance_handle)
+        {
+            t.abort();
+        }
+
         if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
             let mut deadline_missed_interval = tokio::time::interval(tokio::time::Duration::new(
                 deadline_missed_period.sec() as u64,
@@ -1391,7 +1400,7 @@ impl DataReaderActor {
             let subscriber_listener_mask = subscriber_mask_listener.1.clone();
             let participant_listener_address = participant_mask_listener.0.clone();
             let participant_listener_mask = participant_mask_listener.1.clone();
-            tokio::spawn(async move {
+            let deadline_missed_task = tokio::spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
 
@@ -1467,6 +1476,9 @@ impl DataReaderActor {
                     }
                 }
             });
+
+            self.instance_deadline_missed_task
+                .insert(change_instance_handle, deadline_missed_task.abort_handle());
         }
     }
 }
