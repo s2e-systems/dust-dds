@@ -297,7 +297,6 @@ pub struct DataReaderActor {
     subscription_matched_status: SubscriptionMatchedStatus,
     matched_publication_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
     enabled: bool,
-    instance_reception_time: HashMap<InstanceHandle, Time>,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
     status_condition: Actor<StatusConditionActor>,
@@ -339,7 +338,6 @@ impl DataReaderActor {
             subscription_matched_status: SubscriptionMatchedStatus::default(),
             matched_publication_list: HashMap::new(),
             enabled: false,
-            instance_reception_time: HashMap::new(),
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
             status_condition,
@@ -352,19 +350,19 @@ impl DataReaderActor {
         }
     }
 
-    pub fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
+    fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
         self.requested_incompatible_qos_status.read_and_reset()
     }
 
-    pub fn get_sample_lost_status(&mut self) -> SampleLostStatus {
+    fn get_sample_lost_status(&mut self) -> SampleLostStatus {
         self.sample_lost_status.read_and_reset()
     }
 
-    pub fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
+    fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
         self.sample_rejected_status.read_and_reset()
     }
 
-    pub async fn on_data_available(
+    async fn on_data_available(
         &self,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber_address: &ActorAddress<SubscriberActor>,
@@ -406,7 +404,7 @@ impl DataReaderActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn on_data_submessage_received(
+    async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead,
         source_guid_prefix: GuidPrefix,
@@ -552,7 +550,7 @@ impl DataReaderActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn on_data_frag_submessage_received(
+    async fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessageRead,
         source_guid_prefix: GuidPrefix,
@@ -597,7 +595,7 @@ impl DataReaderActor {
         Ok(())
     }
 
-    pub fn on_heartbeat_submessage_received(
+    fn on_heartbeat_submessage_received(
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessageRead,
         source_guid_prefix: GuidPrefix,
@@ -629,7 +627,7 @@ impl DataReaderActor {
         }
     }
 
-    pub fn on_heartbeat_frag_submessage_received(
+    fn on_heartbeat_frag_submessage_received(
         &mut self,
         heartbeat_frag_submessage: &HeartbeatFragSubmessageRead,
         source_guid_prefix: GuidPrefix,
@@ -692,7 +690,7 @@ impl DataReaderActor {
         incompatible_qos_policy_list
     }
 
-    pub fn on_gap_submessage_received(
+    fn on_gap_submessage_received(
         &mut self,
         gap_submessage: &GapSubmessageRead,
         source_guid_prefix: GuidPrefix,
@@ -1122,8 +1120,15 @@ impl DataReaderActor {
                     }
                 }
 
-                self.instance_reception_time
-                    .insert(change.instance_handle, change.reception_timestamp);
+                self.start_deadline_missed_task(
+                    change.instance_handle,
+                    data_reader_address.clone(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                    subscriber_mask_listener,
+                    participant_mask_listener,
+                );
+
                 self.changes.push(change);
                 self.data_available_status_changed_flag = true;
 
@@ -1358,6 +1363,110 @@ impl DataReaderActor {
         match previous_handle {
             Some(p) => self.instances.keys().filter(|&h| h > &p).min().cloned(),
             None => self.instances.keys().min().cloned(),
+        }
+    }
+
+    fn start_deadline_missed_task(
+        &mut self,
+        change_instance_handle: InstanceHandle,
+        data_reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        participant_mask_listener: &(
+            ActorAddress<DomainParticipantListenerActor>,
+            Vec<StatusKind>,
+        ),
+    ) {
+        if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
+            let mut deadline_missed_interval = tokio::time::interval(tokio::time::Duration::new(
+                deadline_missed_period.sec() as u64,
+                deadline_missed_period.nanosec(),
+            ));
+            let reader_status_condition = self.status_condition.address();
+            let requested_deadline_missed_status = self.requested_deadline_missed_status.address();
+            let reader_listener_address = self.listener.address();
+            let reader_listener_mask = self.status_kind.clone();
+            let subscriber_listener_address = subscriber_mask_listener.0.clone();
+            let subscriber_listener_mask = subscriber_mask_listener.1.clone();
+            let participant_listener_address = participant_mask_listener.0.clone();
+            let participant_listener_mask = participant_mask_listener.1.clone();
+            tokio::spawn(async move {
+                loop {
+                    deadline_missed_interval.tick().await;
+
+                    let r: DdsResult<()> = async {
+                        requested_deadline_missed_status
+                            .send_mail_and_await_reply(
+                                increment_requested_deadline_missed_status::new(
+                                    change_instance_handle,
+                                ),
+                            )
+                            .await?;
+
+                        reader_status_condition
+                            .send_mail_and_await_reply(
+                                status_condition_actor::add_communication_state::new(
+                                    StatusKind::RequestedDeadlineMissed,
+                                ),
+                            )
+                            .await?;
+                        if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
+                            let status = requested_deadline_missed_status
+                                .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+                                .await?;
+
+                            reader_listener_address
+                                .send_mail(
+                                    data_reader_listener_actor::trigger_on_requested_deadline_missed::new(
+                                    data_reader_address.clone(),
+                                    subscriber_address.clone(),
+                                    participant_address.clone(),
+                                    status,
+                                ),
+                            )
+                            .await?;
+                        } else if subscriber_listener_mask
+                            .contains(&StatusKind::RequestedDeadlineMissed)
+                        {
+                            let status = requested_deadline_missed_status
+                                .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+                                .await?;
+                            subscriber_listener_address
+                                .send_mail(
+                                    subscriber_listener_actor::trigger_on_requested_deadline_missed::new(
+                                    data_reader_address.clone(),
+                                    subscriber_address.clone(),
+                                    participant_address.clone(),
+                                    status,
+                                ),
+                            )
+                            .await?;
+                        } else if participant_listener_mask
+                            .contains(&StatusKind::RequestedDeadlineMissed)
+                        {
+                            let status = requested_deadline_missed_status
+                                .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+                                .await?;
+                            participant_listener_address.send_mail(
+                                    domain_participant_listener_actor::trigger_on_requested_deadline_missed::new(
+                                    data_reader_address.clone(),
+                                    subscriber_address.clone(),
+                                    participant_address.clone(),
+                                    status,
+                                ),
+                            )
+                            .await?;
+                        }
+                        Ok(())
+                    }
+                    .await;
+
+                    if r.is_err() {
+                        break;
+                    }
+                }
+            });
         }
     }
 }
@@ -1872,96 +1981,6 @@ impl DataReaderActor {
                 _ => (),
             }
         }
-        Ok(())
-    }
-
-    async fn update_communication_status(
-        &mut self,
-        now: Time,
-        data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
-        participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
-            Vec<StatusKind>,
-        ),
-    ) -> DdsResult<()> {
-        let (subscriber_listener_address, subscriber_listener_mask) = &subscriber_mask_listener;
-        let (participant_listener_address, participant_listener_mask) = &participant_mask_listener;
-        let (missed_deadline_instances, instance_reception_time) = self
-            .instance_reception_time
-            .iter()
-            .partition(|&(_, received_time)| {
-                DurationKind::Finite(now - *received_time) > self.qos.deadline.period
-            });
-
-        self.instance_reception_time = instance_reception_time;
-
-        for (missed_deadline_instance, _) in missed_deadline_instances {
-            self.requested_deadline_missed_status
-                .send_mail_and_await_reply(increment_requested_deadline_missed_status::new(
-                    missed_deadline_instance,
-                ))
-                .await;
-
-            self.status_condition
-                .address()
-                .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                    StatusKind::RequestedDeadlineMissed,
-                ))
-                .await?;
-            if self
-                .status_kind
-                .contains(&StatusKind::RequestedDeadlineMissed)
-            {
-                let status = self
-                    .requested_deadline_missed_status
-                    .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
-                    .await;
-
-                self.listener
-                    .send_mail(
-                        data_reader_listener_actor::trigger_on_requested_deadline_missed::new(
-                            data_reader_address.clone(),
-                            subscriber_address.clone(),
-                            participant_address.clone(),
-                            status,
-                        ),
-                    )
-                    .await;
-            } else if subscriber_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
-                let status = self
-                    .requested_deadline_missed_status
-                    .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
-                    .await;
-                subscriber_listener_address
-                    .send_mail(
-                        subscriber_listener_actor::trigger_on_requested_deadline_missed::new(
-                            data_reader_address.clone(),
-                            subscriber_address.clone(),
-                            participant_address.clone(),
-                            status,
-                        ),
-                    )
-                    .await?;
-            } else if participant_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
-                let status = self
-                    .requested_deadline_missed_status
-                    .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
-                    .await;
-                participant_listener_address.send_mail(
-                    domain_participant_listener_actor::trigger_on_requested_deadline_missed::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                        status,
-                    ),
-                )
-                .await?;
-            }
-        }
-
         Ok(())
     }
 
