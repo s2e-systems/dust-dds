@@ -184,15 +184,30 @@ impl SampleRejectedStatus {
     }
 }
 
-impl RequestedDeadlineMissedStatus {
-    fn increment(&mut self, instance_handle: InstanceHandle) {
+#[derive(Default)]
+struct ReaderRequestedDeadlineMissedStatus {
+    total_count: i32,
+    total_count_change: i32,
+    last_instance_handle: InstanceHandle,
+}
+
+#[actor_interface]
+impl ReaderRequestedDeadlineMissedStatus {
+    async fn increment_requested_deadline_missed_status(
+        &mut self,
+        instance_handle: InstanceHandle,
+    ) {
         self.total_count += 1;
         self.total_count_change += 1;
         self.last_instance_handle = instance_handle;
     }
 
-    fn read_and_reset(&mut self) -> Self {
-        let status = self.clone();
+    async fn read_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
+        let status = RequestedDeadlineMissedStatus {
+            total_count: self.total_count,
+            total_count_change: self.total_count_change,
+            last_instance_handle: self.last_instance_handle,
+        };
 
         self.total_count_change = 0;
 
@@ -275,7 +290,7 @@ pub struct DataReaderActor {
     type_name: String,
     topic_name: String,
     _liveliness_changed_status: LivelinessChangedStatus,
-    requested_deadline_missed_status: RequestedDeadlineMissedStatus,
+    requested_deadline_missed_status: Actor<ReaderRequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
     sample_lost_status: SampleLostStatus,
     sample_rejected_status: SampleRejectedStatus,
@@ -315,7 +330,9 @@ impl DataReaderActor {
             type_name,
             topic_name,
             _liveliness_changed_status: LivelinessChangedStatus::default(),
-            requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
+            requested_deadline_missed_status: spawn_actor(
+                ReaderRequestedDeadlineMissedStatus::default(),
+            ),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
             sample_lost_status: SampleLostStatus::default(),
             sample_rejected_status: SampleRejectedStatus::default(),
@@ -333,10 +350,6 @@ impl DataReaderActor {
             instance_handle_from_serialized_key,
             instances: HashMap::new(),
         }
-    }
-
-    pub fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
-        self.requested_deadline_missed_status.read_and_reset()
     }
 
     pub fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
@@ -1887,7 +1900,10 @@ impl DataReaderActor {
 
         for (missed_deadline_instance, _) in missed_deadline_instances {
             self.requested_deadline_missed_status
-                .increment(missed_deadline_instance);
+                .send_mail_and_await_reply(increment_requested_deadline_missed_status::new(
+                    missed_deadline_instance,
+                ))
+                .await;
 
             self.status_condition
                 .address()
@@ -1899,7 +1915,10 @@ impl DataReaderActor {
                 .status_kind
                 .contains(&StatusKind::RequestedDeadlineMissed)
             {
-                let status = self.get_requested_deadline_missed_status();
+                let status = self
+                    .requested_deadline_missed_status
+                    .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+                    .await;
 
                 self.listener
                     .send_mail(
@@ -1912,7 +1931,10 @@ impl DataReaderActor {
                     )
                     .await;
             } else if subscriber_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
-                let status = self.get_requested_deadline_missed_status();
+                let status = self
+                    .requested_deadline_missed_status
+                    .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+                    .await;
                 subscriber_listener_address
                     .send_mail(
                         subscriber_listener_actor::trigger_on_requested_deadline_missed::new(
@@ -1924,7 +1946,10 @@ impl DataReaderActor {
                     )
                     .await?;
             } else if participant_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
-                let status = self.get_requested_deadline_missed_status();
+                let status = self
+                    .requested_deadline_missed_status
+                    .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+                    .await;
                 participant_listener_address.send_mail(
                     domain_participant_listener_actor::trigger_on_requested_deadline_missed::new(
                         data_reader_address.clone(),
@@ -1957,5 +1982,11 @@ impl DataReaderActor {
     ) {
         self.listener = spawn_actor(DataReaderListenerActor::new(listener));
         self.status_kind = status_kind;
+    }
+
+    async fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
+        self.requested_deadline_missed_status
+            .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+            .await
     }
 }
