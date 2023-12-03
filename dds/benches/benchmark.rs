@@ -8,11 +8,7 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    subscription::{
-        data_reader::DataReader,
-        data_reader_listener::DataReaderListener,
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    },
+    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::DdsType,
 };
 
@@ -116,18 +112,18 @@ pub fn best_effort_read_only(c: &mut Criterion) {
 }
 
 fn best_effort_write_and_receive(c: &mut Criterion) {
-    struct Listener {
-        sender: std::sync::mpsc::SyncSender<()>,
-    }
-    impl DataReaderListener for Listener {
-        type Foo = KeyedData;
-        fn on_data_available(&mut self, the_reader: &DataReader<KeyedData>) {
-            // the_reader
-            //     .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-            //     .ok();
-            self.sender.send(()).unwrap();
-        }
-    }
+    // struct Listener {
+    //     sender: std::sync::mpsc::SyncSender<()>,
+    // }
+    // impl DataReaderListener for Listener {
+    //     type Foo = KeyedData;
+    //     fn on_data_available(&mut self, the_reader: &DataReader<KeyedData>) {
+    //         // the_reader
+    //         //     .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+    //         //     .ok();
+    //         self.sender.send(()).unwrap();
+    //     }
+    // }
 
     let domain_id = 202;
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -147,16 +143,11 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    // let (sender, receiver) = std::sync::mpsc::sync_channel(1);
 
-    let listener = Listener { sender };
+    // let listener = Listener { sender };
     let reader = subscriber
-        .create_datareader(
-            &topic,
-            QosKind::Default,
-            listener,
-            &[StatusKind::DataAvailable],
-        )
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, NoOpListener::default(), &[])
         .unwrap();
     let reader_cond = reader.get_statuscondition().unwrap();
     let publisher = participant
@@ -188,13 +179,15 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     c.bench_function("best_effort_write_and_receive", |b| {
         b.iter(|| {
             writer.write(&KeyedData { id: 1, value: 7 }, None).unwrap();
-            receiver
-                .recv_timeout(std::time::Duration::from_secs(10))
-                .unwrap();
+            while let Err(_) = reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            {
+            }
+            // receiver
+            //     .recv_timeout(std::time::Duration::from_secs(10))
+            //     .unwrap();
         })
     });
 }
-
 
 #[derive(Clone, Debug, PartialEq, DdsType)]
 struct LargeKeyedData {
@@ -204,18 +197,18 @@ struct LargeKeyedData {
 }
 
 fn best_effort_write_and_receive_frag(c: &mut Criterion) {
-    struct Listener {
-        sender: std::sync::mpsc::SyncSender<()>,
-    }
-    impl DataReaderListener for Listener {
-        type Foo = LargeKeyedData;
-        fn on_data_available(&mut self, the_reader: &DataReader<LargeKeyedData>) {
-            // the_reader
-            //     .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-            //     .ok();
-            self.sender.send(()).unwrap();
-        }
-    }
+    // struct Listener {
+    //     sender: std::sync::mpsc::SyncSender<()>,
+    // }
+    // impl DataReaderListener for Listener {
+    //     type Foo = LargeKeyedData;
+    //     fn on_data_available(&mut self, the_reader: &DataReader<LargeKeyedData>) {
+    //         // the_reader
+    //         //     .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+    //         //     .ok();
+    //         self.sender.send(()).unwrap();
+    //     }
+    // }
 
     let domain_id = 203;
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -235,16 +228,11 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
         .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    // let (sender, receiver) = std::sync::mpsc::sync_channel(1);
 
-    let listener = Listener { sender };
+    // let listener = Listener { sender };
     let reader = subscriber
-        .create_datareader(
-            &topic,
-            QosKind::Default,
-            listener,
-            &[StatusKind::DataAvailable],
-        )
+        .create_datareader::<LargeKeyedData>(&topic, QosKind::Default, NoOpListener::default(), &[])
         .unwrap();
     let reader_cond = reader.get_statuscondition().unwrap();
     let publisher = participant
@@ -273,18 +261,23 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
         .unwrap();
     wait_set2.wait(Duration::new(20, 0)).unwrap();
 
-    let large_data_sample = LargeKeyedData { id: 1, value: vec![7; 32000] };
+    let large_data_sample = LargeKeyedData {
+        id: 1,
+        value: vec![7; 32000],
+    };
 
     c.bench_function("best_effort_write_and_receive_frag", |b| {
         b.iter(|| {
             writer.write(&large_data_sample, None).unwrap();
-            receiver
-                .recv_timeout(std::time::Duration::from_secs(10))
-                .unwrap();
+            while let Err(_) = reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            {
+            }
+            // receiver
+            //     .recv_timeout(std::time::Duration::from_secs(10))
+            //     .unwrap();
         })
     });
 }
-
 
 criterion_group!(
     benches,
