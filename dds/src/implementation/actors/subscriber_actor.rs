@@ -18,8 +18,15 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
             group::RtpsGroup,
-            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
-            types::{Guid, Locator},
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessages::{
+                    data::DataSubmessageRead, data_frag::DataFragSubmessageRead,
+                    gap::GapSubmessageRead, heartbeat::HeartbeatSubmessageRead,
+                    heartbeat_frag::HeartbeatFragSubmessageRead,
+                },
+            },
+            types::{Guid, GuidPrefix, Locator},
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{spawn_actor, Actor, ActorAddress},
@@ -192,34 +199,113 @@ impl SubscriberActor {
         }
     }
 
-    async fn process_rtps_message(
-        &self,
-        message: RtpsMessageRead,
+    #[allow(clippy::too_many_arguments)]
+    async fn process_data_submessage(
+        &mut self,
+        data_submessage: DataSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
         reception_timestamp: Time,
-        participant_address: ActorAddress<DomainParticipantActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         participant_mask_listener: (
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) -> DdsResult<()> {
-        let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
-
-        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
-            data_reader_address
-                .send_mail_and_await_reply(data_reader_actor::process_rtps_message::new(
-                    message.clone(),
+    ) {
+        for data_reader in self.data_reader_list.values() {
+            data_reader
+                .send_mail(data_reader_actor::process_data_submessage::new(
+                    data_submessage.clone(),
+                    source_guid_prefix,
+                    source_timestamp,
                     reception_timestamp,
-                    data_reader_address.clone(),
+                    data_reader.address(),
                     subscriber_address.clone(),
                     participant_address.clone(),
-                    self.status_condition.address().clone(),
-                    subscriber_mask_listener.clone(),
+                    self.status_condition.address(),
+                    (self.listener.address(), self.status_kind.clone()),
                     participant_mask_listener.clone(),
                 ))
-                .await??;
+                .await;
         }
-        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn process_data_frag_submessage(
+        &mut self,
+        data_frag_submessage: DataFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
+        reception_timestamp: Time,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_mask_listener: (
+            ActorAddress<DomainParticipantListenerActor>,
+            Vec<StatusKind>,
+        ),
+    ) {
+        for data_reader in self.data_reader_list.values() {
+            data_reader
+                .send_mail(data_reader_actor::process_data_frag_submessage::new(
+                    data_frag_submessage.clone(),
+                    source_guid_prefix,
+                    source_timestamp,
+                    reception_timestamp,
+                    data_reader.address(),
+                    subscriber_address.clone(),
+                    participant_address.clone(),
+                    self.status_condition.address(),
+                    (self.listener.address(), self.status_kind.clone()),
+                    participant_mask_listener.clone(),
+                ))
+                .await;
+        }
+    }
+
+    async fn process_gap_submessage(
+        &mut self,
+        gap_submessage: GapSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for data_reader in self.data_reader_list.values() {
+            data_reader
+                .send_mail(data_reader_actor::process_gap_submessage::new(
+                    gap_submessage.clone(),
+                    source_guid_prefix,
+                ))
+                .await;
+        }
+    }
+
+    async fn process_heartbeat_submessage(
+        &mut self,
+        heartbeat_submessage: HeartbeatSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for data_reader in self.data_reader_list.values() {
+            data_reader
+                .send_mail(data_reader_actor::process_heartbeat_submessage::new(
+                    heartbeat_submessage.clone(),
+                    source_guid_prefix,
+                ))
+                .await;
+        }
+    }
+
+    async fn process_heartbeat_frag_submessage(
+        &mut self,
+        heartbeat_frag_submessage: HeartbeatFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for data_reader in self.data_reader_list.values() {
+            data_reader
+                .send_mail(data_reader_actor::process_heartbeat_frag_submessage::new(
+                    heartbeat_frag_submessage.clone(),
+                    source_guid_prefix,
+                ))
+                .await;
+        }
     }
 
     async fn add_matched_writer(

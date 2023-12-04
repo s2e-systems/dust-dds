@@ -15,12 +15,8 @@ use crate::{
             cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
         },
         rtps::{
-            message_receiver::MessageReceiver,
             messages::{
-                overall_structure::{
-                    RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
-                    RtpsSubmessageWriteKind,
-                },
+                overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind},
                 submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
                 submessages::{
                     ack_nack::AckNackSubmessageRead, gap::GapSubmessageWrite,
@@ -766,25 +762,6 @@ impl DataWriterActor {
         }
     }
 
-    async fn process_rtps_message(&mut self, message: RtpsMessageRead) {
-        let mut message_receiver = MessageReceiver::new(&message);
-        while let Some(submessage) = message_receiver.next() {
-            match &submessage {
-                RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
-                    .on_acknack_submessage_received(
-                        acknack_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
-                    .on_nack_frag_submessage_received(
-                        nackfrag_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                _ => (),
-            }
-        }
-    }
-
     async fn send_message(
         &mut self,
         header: RtpsMessageHeader,
@@ -815,18 +792,10 @@ impl DataWriterActor {
         self.listener = spawn_actor(DataWriterListenerActor::new(listener));
         self.status_kind = status_kind;
     }
-}
 
-impl DataWriterActor {
-    fn remove_stale_changes(&mut self, now: Time) {
-        let timespan_duration = self.qos.lifespan.duration;
-        self.writer_cache
-            .remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
-    }
-
-    fn on_acknack_submessage_received(
+    async fn process_acknack_submessage(
         &mut self,
-        acknack_submessage: &AckNackSubmessageRead,
+        acknack_submessage: AckNackSubmessageRead,
         source_guid_prefix: GuidPrefix,
     ) {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
@@ -853,6 +822,45 @@ impl DataWriterActor {
                 }
             }
         }
+    }
+
+    async fn process_nack_frag_submessage(
+        &mut self,
+        nackfrag_submessage: NackFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
+
+            if let Some(reader_proxy) = self
+                .matched_readers
+                .iter_mut()
+                .find(|x| x.remote_reader_guid() == reader_guid)
+            {
+                match reader_proxy.reliability() {
+                    ReliabilityKind::BestEffort => (),
+                    ReliabilityKind::Reliable => {
+                        if nackfrag_submessage.count()
+                            > reader_proxy.last_received_nack_frag_count()
+                        {
+                            reader_proxy.requested_changes_set(std::iter::once(
+                                nackfrag_submessage.writer_sn(),
+                            ));
+                            reader_proxy
+                                .set_last_received_nack_frag_count(nackfrag_submessage.count());
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl DataWriterActor {
+    fn remove_stale_changes(&mut self, now: Time) {
+        let timespan_duration = self.qos.lifespan.duration;
+        self.writer_cache
+            .remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
     }
 
     fn send_message_to_reader_locators(
@@ -946,37 +954,6 @@ impl DataWriterActor {
                 }
                 (ReliabilityQosPolicyKind::BestEffort, ReliabilityKind::Reliable) => {
                     panic!("Impossible combination. Should not be matched")
-                }
-            }
-        }
-    }
-
-    fn on_nack_frag_submessage_received(
-        &mut self,
-        nackfrag_submessage: &NackFragSubmessageRead,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
-
-            if let Some(reader_proxy) = self
-                .matched_readers
-                .iter_mut()
-                .find(|x| x.remote_reader_guid() == reader_guid)
-            {
-                match reader_proxy.reliability() {
-                    ReliabilityKind::BestEffort => (),
-                    ReliabilityKind::Reliable => {
-                        if nackfrag_submessage.count()
-                            > reader_proxy.last_received_nack_frag_count()
-                        {
-                            reader_proxy.requested_changes_set(std::iter::once(
-                                nackfrag_submessage.writer_sn(),
-                            ));
-                            reader_proxy
-                                .set_last_received_nack_frag_count(nackfrag_submessage.count());
-                        }
-                    }
                 }
             }
         }

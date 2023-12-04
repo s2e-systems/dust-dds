@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::implementation::rtps::{
     messages::{
         overall_structure::{
@@ -9,19 +11,19 @@ use crate::implementation::rtps::{
     types::{EntityId, SequenceNumber},
 };
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatSubmessageRead<'a> {
-    data: &'a [u8],
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct HeartbeatSubmessageRead {
+    data: Arc<[u8]>,
 }
 
-impl SubmessageHeader for HeartbeatSubmessageRead<'_> {
+impl SubmessageHeader for HeartbeatSubmessageRead {
     fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
+        SubmessageHeaderRead::new(&self.data)
     }
 }
 
-impl<'a> HeartbeatSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
+impl HeartbeatSubmessageRead {
+    pub fn new(data: Arc<[u8]>) -> Self {
         Self { data }
     }
 
@@ -150,7 +152,7 @@ mod tests {
         let expected_last_sn = SequenceNumber::from(7);
         let expected_count = 2;
         #[rustfmt::skip]
-        let submessage = HeartbeatSubmessageRead::new(&[
+        let submessage = HeartbeatSubmessageRead::new(Arc::from([
             0x07, 0b_0000_0101, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -159,7 +161,7 @@ mod tests {
             0, 0, 0, 0, // lastSN: SequenceNumberSet: high
             7, 0, 0, 0, // lastSN: SequenceNumberSet: low
             2, 0, 0, 0, // count: Count: value (long)
-        ]);
+        ]));
         assert_eq!(expected_final_flag, submessage.final_flag());
         assert_eq!(expected_liveliness_flag, submessage.liveliness_flag());
         assert_eq!(expected_reader_id, submessage._reader_id());

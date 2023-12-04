@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::implementation::rtps::{
     messages::{
         overall_structure::{
@@ -9,19 +11,19 @@ use crate::implementation::rtps::{
     types::{EntityId, SequenceNumber},
 };
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct GapSubmessageRead<'a> {
-    data: &'a [u8],
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct GapSubmessageRead {
+    data: Arc<[u8]>,
 }
 
-impl SubmessageHeader for GapSubmessageRead<'_> {
+impl SubmessageHeader for GapSubmessageRead {
     fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
+        SubmessageHeaderRead::new(self.data.as_ref())
     }
 }
 
-impl<'a> GapSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
+impl GapSubmessageRead {
+    pub fn new(data: Arc<[u8]>) -> Self {
         Self { data }
     }
 
@@ -115,7 +117,7 @@ mod tests {
         let expected_gap_start = SequenceNumber::from(5);
         let expected_gap_list = SequenceNumberSet::new(SequenceNumber::from(10), []);
         #[rustfmt::skip]
-        let submessage = GapSubmessageRead::new(&[
+        let submessage = GapSubmessageRead::new(Arc::from([
             0x08, 0b_0000_0001, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -124,7 +126,7 @@ mod tests {
             0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
            10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
-        ]);
+        ]));
         assert_eq!(expected_reader_id, submessage._reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());
         assert_eq!(expected_gap_start, submessage.gap_start());

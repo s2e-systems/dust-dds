@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::implementation::rtps::{
     messages::{
         overall_structure::{
@@ -9,19 +11,19 @@ use crate::implementation::rtps::{
     types::{EntityId, SequenceNumber},
 };
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct NackFragSubmessageRead<'a> {
-    data: &'a [u8],
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct NackFragSubmessageRead {
+    data: Arc<[u8]>,
 }
 
-impl SubmessageHeader for NackFragSubmessageRead<'_> {
+impl SubmessageHeader for NackFragSubmessageRead {
     fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
+        SubmessageHeaderRead::new(&self.data)
     }
 }
 
-impl<'a> NackFragSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
+impl NackFragSubmessageRead {
+    pub fn new(data: Arc<[u8]>) -> Self {
         Self { data }
     }
 
@@ -117,7 +119,7 @@ mod tests {
     #[test]
     fn deserialize_nack_frag() {
         #[rustfmt::skip]
-        let submessage = NackFragSubmessageRead::new(&[
+        let submessage = NackFragSubmessageRead::new(Arc::from([
             0x12_u8, 0b_0000_0001, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -126,7 +128,7 @@ mod tests {
            10, 0, 0, 0, // fragmentNumberState.base
             0, 0, 0, 0, // fragmentNumberState.numBits
             6, 0, 0, 0, // count
-        ]);
+        ]));
 
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

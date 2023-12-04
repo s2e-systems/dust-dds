@@ -15,7 +15,7 @@ use crate::implementation::{
     },
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataSubmessageRead {
     data: ArcSlice,
 }

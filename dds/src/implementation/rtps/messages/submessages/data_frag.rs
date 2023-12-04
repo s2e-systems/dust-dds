@@ -286,7 +286,7 @@ mod tests {
     #[test]
     fn deserialize_no_inline_qos_no_serialized_payload() {
         #[rustfmt::skip]
-        let submessage = DataFragSubmessageRead::new(vec![
+        let submessage = DataFragSubmessageRead::new(ArcSlice::from(vec![
             0x16_u8, 0b_0000_0001, 32, 0, // Submessage header
             0, 0, 28, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -296,7 +296,7 @@ mod tests {
             2, 0, 0, 0, // fragmentStartingNum
             3, 0, 5, 0, // fragmentsInSubmessage | fragmentSize
             4, 0, 0, 0, // sampleSize
-        ].into());
+        ]));
 
         let expected_inline_qos_flag = false;
         let expected_non_standard_payload_flag = false;
@@ -337,7 +337,7 @@ mod tests {
     #[test]
     fn deserialize_with_inline_qos_with_serialized_payload() {
         #[rustfmt::skip]
-        let submessage = DataFragSubmessageRead::new(vec![
+        let submessage = DataFragSubmessageRead::new(ArcSlice::from(vec![
             0x16_u8, 0b_0000_0011, 48, 0, // Submessage header
             0, 0, 28, 0, // extraFlags | octetsToInlineQos
             1, 2, 3, 4, // readerId
@@ -351,7 +351,7 @@ mod tests {
             71, 72, 73, 74, // inlineQos: value[length]
             1, 0, 0, 0, // inlineQos: Sentinel
             1, 2, 3, 0, // serializedPayload
-        ].into());
+        ]));
 
         let expected_inline_qos_flag = true;
         let expected_non_standard_payload_flag = false;

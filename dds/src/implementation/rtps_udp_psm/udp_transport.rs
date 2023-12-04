@@ -4,28 +4,25 @@ use crate::implementation::rtps::{
 };
 
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-use std::{
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs},
-    sync::Arc,
-};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 pub struct UdpTransportRead {
     socket: tokio::net::UdpSocket,
+    buf: Vec<u8>,
 }
 
 impl UdpTransportRead {
     pub fn new(socket: tokio::net::UdpSocket) -> Self {
-        Self { socket }
+        Self {
+            socket,
+            buf: vec![0; 65507],
+        }
     }
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        let mut buf = vec![0; 65507];
-
-        match self.socket.recv_from(&mut buf).await {
+        match self.socket.recv_from(&mut self.buf).await {
             Ok((bytes, source_address)) => {
-                buf.truncate(bytes);
-
-                let message = RtpsMessageRead::new(Arc::from(buf.into_boxed_slice()));
+                let message = RtpsMessageRead::new(&self.buf);
 
                 if bytes > 0 {
                     let udp_locator: UdpLocator = source_address.into();

@@ -25,9 +25,8 @@ use crate::{
             cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
         },
         rtps::{
-            message_receiver::MessageReceiver,
             messages::{
-                overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
+                overall_structure::RtpsMessageHeader,
                 submessage_elements::{Data, Parameter, ParameterList},
                 submessages::{
                     data::DataSubmessageRead, data_frag::DataFragSubmessageRead,
@@ -405,254 +404,6 @@ impl DataReaderActor {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
-    async fn on_data_submessage_received(
-        &mut self,
-        data_submessage: &DataSubmessageRead,
-        source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<Time>,
-        reception_timestamp: Time,
-        data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant_address: &ActorAddress<DomainParticipantActor>,
-        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
-        participant_mask_listener: &(
-            ActorAddress<DomainParticipantListenerActor>,
-            Vec<StatusKind>,
-        ),
-    ) -> DdsResult<()> {
-        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
-        let sequence_number = data_submessage.writer_sn();
-        let message_reader_id = data_submessage.reader_id();
-        if let Some(writer_proxy) = self
-            .matched_writers
-            .iter_mut()
-            .find(|wp| wp.remote_writer_guid() == writer_guid)
-        {
-            //Stateful reader behavior
-            match self.qos.reliability.kind {
-                ReliabilityQosPolicyKind::BestEffort => {
-                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                    if sequence_number >= expected_seq_num {
-                        writer_proxy.received_change_set(sequence_number);
-                        if sequence_number > expected_seq_num {
-                            writer_proxy.lost_changes_update(sequence_number);
-                            self.on_sample_lost(
-                                data_reader_address,
-                                subscriber_address,
-                                participant_address,
-                                subscriber_mask_listener,
-                                participant_mask_listener,
-                            )
-                            .await?;
-                        }
-                        match self.convert_received_data_to_cache_change(
-                            writer_guid,
-                            data_submessage.key_flag(),
-                            data_submessage.inline_qos(),
-                            data_submessage.serialized_payload(),
-                            source_timestamp,
-                            reception_timestamp,
-                        ) {
-                            Ok(change) => {
-                                self.add_change(
-                                    change,
-                                    data_reader_address,
-                                    subscriber_address,
-                                    participant_address,
-                                    subscriber_status_condition,
-                                    subscriber_mask_listener,
-                                    participant_mask_listener,
-                                )
-                                .await?;
-                            }
-                            Err(e) => debug!(
-                                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
-                                 Message writer ID: {writer_id:?}
-                                 Message reader ID: {reader_id:?}
-                                 Data submessage payload: {payload:?}",
-                                guid = self.rtps_reader.guid(),
-                                err = e,
-                                writer_id = data_submessage.writer_id(),
-                                reader_id = data_submessage.reader_id(),
-                                payload = data_submessage.serialized_payload(),
-                            ),
-                        }
-                    }
-                }
-                ReliabilityQosPolicyKind::Reliable => {
-                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                    if sequence_number == expected_seq_num {
-                        writer_proxy.received_change_set(sequence_number);
-                        match self.convert_received_data_to_cache_change(
-                            writer_guid,
-                            data_submessage.key_flag(),
-                            data_submessage.inline_qos(),
-                            data_submessage.serialized_payload(),
-                            source_timestamp,
-                            reception_timestamp,
-                        ) {
-                            Ok(change) => {
-                                self.add_change(
-                                    change,
-                                    data_reader_address,
-                                    subscriber_address,
-                                    participant_address,
-                                    subscriber_status_condition,
-                                    subscriber_mask_listener,
-                                    participant_mask_listener,
-                                )
-                                .await?;
-                            }
-                            Err(e) => debug!(
-                                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
-                                 Message writer ID: {writer_id:?}
-                                 Message reader ID: {reader_id:?}
-                                 Data submessage payload: {payload:?}",
-                                guid = self.rtps_reader.guid(),
-                                err = e,
-                                writer_id = data_submessage.writer_id(),
-                                reader_id = data_submessage.reader_id(),
-                                payload = data_submessage.serialized_payload(),
-                            ),
-                        }
-                    }
-                }
-            }
-        } else if message_reader_id == ENTITYID_UNKNOWN
-            || message_reader_id == self.rtps_reader.guid().entity_id()
-        {
-            // Stateless reader behavior. We add the change if the data is correct. No error is printed
-            // because all readers would get changes marked with ENTITYID_UNKNOWN
-            if let Ok(change) = self.convert_received_data_to_cache_change(
-                writer_guid,
-                data_submessage.key_flag(),
-                data_submessage.inline_qos(),
-                data_submessage.serialized_payload(),
-                source_timestamp,
-                reception_timestamp,
-            ) {
-                self.add_change(
-                    change,
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                    subscriber_status_condition,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
-                )
-                .await?;
-            }
-        } else {
-            // Do nothing
-        }
-
-        Ok(())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn on_data_frag_submessage_received(
-        &mut self,
-        data_frag_submessage: &DataFragSubmessageRead,
-        source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<Time>,
-        reception_timestamp: Time,
-        data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant_address: &ActorAddress<DomainParticipantActor>,
-        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
-        participant_mask_listener: &(
-            ActorAddress<DomainParticipantListenerActor>,
-            Vec<StatusKind>,
-        ),
-    ) -> DdsResult<()> {
-        let sequence_number = data_frag_submessage.writer_sn();
-        let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
-
-        if let Some(writer_proxy) = self
-            .matched_writers
-            .iter_mut()
-            .find(|wp| wp.remote_writer_guid() == writer_guid)
-        {
-            writer_proxy.push_data_frag(data_frag_submessage.clone());
-            if let Some(data_submessage) = writer_proxy.reconstruct_data_from_frag(sequence_number)
-            {
-                self.on_data_submessage_received(
-                    &data_submessage,
-                    source_guid_prefix,
-                    source_timestamp,
-                    reception_timestamp,
-                    data_reader_address,
-                    subscriber_address,
-                    participant_address,
-                    subscriber_status_condition,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
-                )
-                .await?;
-            }
-        }
-        Ok(())
-    }
-
-    fn on_heartbeat_submessage_received(
-        &mut self,
-        heartbeat_submessage: &HeartbeatSubmessageRead,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
-
-            if let Some(writer_proxy) = self
-                .matched_writers
-                .iter_mut()
-                .find(|x| x.remote_writer_guid() == writer_guid)
-            {
-                if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
-                    writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
-
-                    writer_proxy.set_must_send_acknacks(
-                        !heartbeat_submessage.final_flag()
-                            || (!heartbeat_submessage.liveliness_flag()
-                                && !writer_proxy.missing_changes().count() == 0),
-                    );
-
-                    if !heartbeat_submessage.final_flag() {
-                        writer_proxy.set_must_send_acknacks(true);
-                    }
-                    writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
-                    writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
-                }
-            }
-        }
-    }
-
-    fn on_heartbeat_frag_submessage_received(
-        &mut self,
-        heartbeat_frag_submessage: &HeartbeatFragSubmessageRead,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let writer_guid = Guid::new(source_guid_prefix, heartbeat_frag_submessage.writer_id());
-
-            if let Some(writer_proxy) = self
-                .matched_writers
-                .iter_mut()
-                .find(|x| x.remote_writer_guid() == writer_guid)
-            {
-                if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count()
-                {
-                    writer_proxy
-                        .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count());
-                }
-
-                // todo!()
-            }
-        }
-    }
-
     fn get_discovered_writer_incompatible_qos_policy_list(
         &self,
         discovered_writer_data: &DiscoveredWriterData,
@@ -690,29 +441,6 @@ impl DataReaderActor {
         }
 
         incompatible_qos_policy_list
-    }
-
-    fn on_gap_submessage_received(
-        &mut self,
-        gap_submessage: &GapSubmessageRead,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id());
-        if let Some(writer_proxy) = self
-            .matched_writers
-            .iter_mut()
-            .find(|x| x.remote_writer_guid() == writer_guid)
-        {
-            for seq_num in
-                i64::from(gap_submessage.gap_start())..i64::from(gap_submessage.gap_list().base())
-            {
-                writer_proxy.irrelevant_change_set(SequenceNumber::from(seq_num))
-            }
-
-            for seq_num in gap_submessage.gap_list().set() {
-                writer_proxy.irrelevant_change_set(seq_num)
-            }
-        }
     }
 
     async fn on_sample_lost(
@@ -1926,76 +1654,6 @@ impl DataReaderActor {
         self.type_name.to_string()
     }
 
-    #[allow(clippy::too_many_arguments)]
-    async fn process_rtps_message(
-        &mut self,
-        message: RtpsMessageRead,
-        reception_timestamp: Time,
-        data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        subscriber_status_condition: ActorAddress<StatusConditionActor>,
-        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
-        participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
-            Vec<StatusKind>,
-        ),
-    ) -> DdsResult<()> {
-        let mut message_receiver = MessageReceiver::new(&message);
-        while let Some(submessage) = message_receiver.next() {
-            match submessage {
-                RtpsSubmessageReadKind::Data(data_submessage) => {
-                    self.on_data_submessage_received(
-                        &data_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber_address,
-                        &participant_address,
-                        &subscriber_status_condition,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    )
-                    .await?;
-                }
-                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                    self.on_data_frag_submessage_received(
-                        &data_frag_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber_address,
-                        &participant_address,
-                        &subscriber_status_condition,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    )
-                    .await?;
-                }
-                RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    self.on_gap_submessage_received(
-                        &gap_submessage,
-                        message_receiver.source_guid_prefix(),
-                    );
-                }
-                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
-                    .on_heartbeat_submessage_received(
-                        &heartbeat_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
-                    .on_heartbeat_frag_submessage_received(
-                        &heartbeat_frag_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                _ => (),
-            }
-        }
-        Ok(())
-    }
-
     async fn send_message(
         &mut self,
         header: RtpsMessageHeader,
@@ -2019,5 +1677,276 @@ impl DataReaderActor {
         self.requested_deadline_missed_status
             .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
             .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn process_data_submessage(
+        &mut self,
+        data_submessage: DataSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
+        reception_timestamp: Time,
+        data_reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber_status_condition: ActorAddress<StatusConditionActor>,
+        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        participant_mask_listener: (
+            ActorAddress<DomainParticipantListenerActor>,
+            Vec<StatusKind>,
+        ),
+    ) -> DdsResult<()> {
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
+        let sequence_number = data_submessage.writer_sn();
+        let message_reader_id = data_submessage.reader_id();
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|wp| wp.remote_writer_guid() == writer_guid)
+        {
+            //Stateful reader behavior
+            match self.qos.reliability.kind {
+                ReliabilityQosPolicyKind::BestEffort => {
+                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                    if sequence_number >= expected_seq_num {
+                        writer_proxy.received_change_set(sequence_number);
+                        if sequence_number > expected_seq_num {
+                            writer_proxy.lost_changes_update(sequence_number);
+                            self.on_sample_lost(
+                                &data_reader_address,
+                                &subscriber_address,
+                                &participant_address,
+                                &subscriber_mask_listener,
+                                &participant_mask_listener,
+                            )
+                            .await?;
+                        }
+                        match self.convert_received_data_to_cache_change(
+                            writer_guid,
+                            data_submessage.key_flag(),
+                            data_submessage.inline_qos(),
+                            data_submessage.serialized_payload(),
+                            source_timestamp,
+                            reception_timestamp,
+                        ) {
+                            Ok(change) => {
+                                self.add_change(
+                                    change,
+                                    &data_reader_address,
+                                    &subscriber_address,
+                                    &participant_address,
+                                    &subscriber_status_condition,
+                                    &subscriber_mask_listener,
+                                    &participant_mask_listener,
+                                )
+                                .await?;
+                            }
+                            Err(e) => debug!(
+                                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
+                                 Message writer ID: {writer_id:?}
+                                 Message reader ID: {reader_id:?}
+                                 Data submessage payload: {payload:?}",
+                                guid = self.rtps_reader.guid(),
+                                err = e,
+                                writer_id = data_submessage.writer_id(),
+                                reader_id = data_submessage.reader_id(),
+                                payload = data_submessage.serialized_payload(),
+                            ),
+                        }
+                    }
+                }
+                ReliabilityQosPolicyKind::Reliable => {
+                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                    if sequence_number == expected_seq_num {
+                        writer_proxy.received_change_set(sequence_number);
+                        match self.convert_received_data_to_cache_change(
+                            writer_guid,
+                            data_submessage.key_flag(),
+                            data_submessage.inline_qos(),
+                            data_submessage.serialized_payload(),
+                            source_timestamp,
+                            reception_timestamp,
+                        ) {
+                            Ok(change) => {
+                                self.add_change(
+                                    change,
+                                    &data_reader_address,
+                                    &subscriber_address,
+                                    &participant_address,
+                                    &subscriber_status_condition,
+                                    &subscriber_mask_listener,
+                                    &participant_mask_listener,
+                                )
+                                .await?;
+                            }
+                            Err(e) => debug!(
+                                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
+                                 Message writer ID: {writer_id:?}
+                                 Message reader ID: {reader_id:?}
+                                 Data submessage payload: {payload:?}",
+                                guid = self.rtps_reader.guid(),
+                                err = e,
+                                writer_id = data_submessage.writer_id(),
+                                reader_id = data_submessage.reader_id(),
+                                payload = data_submessage.serialized_payload(),
+                            ),
+                        }
+                    }
+                }
+            }
+        } else if message_reader_id == ENTITYID_UNKNOWN
+            || message_reader_id == self.rtps_reader.guid().entity_id()
+        {
+            // Stateless reader behavior. We add the change if the data is correct. No error is printed
+            // because all readers would get changes marked with ENTITYID_UNKNOWN
+            if let Ok(change) = self.convert_received_data_to_cache_change(
+                writer_guid,
+                data_submessage.key_flag(),
+                data_submessage.inline_qos(),
+                data_submessage.serialized_payload(),
+                source_timestamp,
+                reception_timestamp,
+            ) {
+                self.add_change(
+                    change,
+                    &data_reader_address,
+                    &subscriber_address,
+                    &participant_address,
+                    &subscriber_status_condition,
+                    &subscriber_mask_listener,
+                    &participant_mask_listener,
+                )
+                .await?;
+            }
+        } else {
+            // Do nothing
+        }
+
+        Ok(())
+    }
+
+    async fn process_gap_submessage(
+        &mut self,
+        gap_submessage: GapSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id());
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|x| x.remote_writer_guid() == writer_guid)
+        {
+            for seq_num in
+                i64::from(gap_submessage.gap_start())..i64::from(gap_submessage.gap_list().base())
+            {
+                writer_proxy.irrelevant_change_set(SequenceNumber::from(seq_num))
+            }
+
+            for seq_num in gap_submessage.gap_list().set() {
+                writer_proxy.irrelevant_change_set(seq_num)
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn process_data_frag_submessage(
+        &mut self,
+        data_frag_submessage: DataFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
+        reception_timestamp: Time,
+        data_reader_address: ActorAddress<DataReaderActor>,
+        subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber_status_condition: ActorAddress<StatusConditionActor>,
+        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        participant_mask_listener: (
+            ActorAddress<DomainParticipantListenerActor>,
+            Vec<StatusKind>,
+        ),
+    ) -> DdsResult<()> {
+        let sequence_number = data_frag_submessage.writer_sn();
+        let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
+
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|wp| wp.remote_writer_guid() == writer_guid)
+        {
+            writer_proxy.push_data_frag(data_frag_submessage.clone());
+            if let Some(data_submessage) = writer_proxy.reconstruct_data_from_frag(sequence_number)
+            {
+                self.process_data_submessage(
+                    data_submessage,
+                    source_guid_prefix,
+                    source_timestamp,
+                    reception_timestamp,
+                    data_reader_address,
+                    subscriber_address,
+                    participant_address,
+                    subscriber_status_condition,
+                    subscriber_mask_listener,
+                    participant_mask_listener,
+                )
+                .await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn process_heartbeat_submessage(
+        &mut self,
+        heartbeat_submessage: HeartbeatSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
+
+            if let Some(writer_proxy) = self
+                .matched_writers
+                .iter_mut()
+                .find(|x| x.remote_writer_guid() == writer_guid)
+            {
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
+                    writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
+
+                    writer_proxy.set_must_send_acknacks(
+                        !heartbeat_submessage.final_flag()
+                            || (!heartbeat_submessage.liveliness_flag()
+                                && !writer_proxy.missing_changes().count() == 0),
+                    );
+
+                    if !heartbeat_submessage.final_flag() {
+                        writer_proxy.set_must_send_acknacks(true);
+                    }
+                    writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
+                    writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+                }
+            }
+        }
+    }
+
+    async fn process_heartbeat_frag_submessage(
+        &mut self,
+        heartbeat_frag_submessage: HeartbeatFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_frag_submessage.writer_id());
+
+            if let Some(writer_proxy) = self
+                .matched_writers
+                .iter_mut()
+                .find(|x| x.remote_writer_guid() == writer_guid)
+            {
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count()
+                {
+                    writer_proxy
+                        .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count());
+                }
+
+                // todo!()
+            }
+        }
     }
 }

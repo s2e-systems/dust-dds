@@ -10,9 +10,12 @@ use crate::{
         rtps::{
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessages::{ack_nack::AckNackSubmessageRead, nack_frag::NackFragSubmessageRead},
+            },
             types::{
-                EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+                EntityId, Guid, GuidPrefix, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
                 USER_DEFINED_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
@@ -233,14 +236,33 @@ impl PublisherActor {
             .collect()
     }
 
-    async fn process_rtps_message(&self, message: RtpsMessageRead) {
-        for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
+    async fn process_acknack_submessage(
+        &mut self,
+        acknack_submessage: AckNackSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for data_writer_address in self.data_writer_list.values() {
             data_writer_address
-                .send_mail(data_writer_actor::process_rtps_message::new(
-                    message.clone(),
+                .send_mail(data_writer_actor::process_acknack_submessage::new(
+                    acknack_submessage.clone(),
+                    source_guid_prefix,
                 ))
-                .await
-                .expect("Should not fail to send command");
+                .await;
+        }
+    }
+
+    async fn process_nack_frag_submessage(
+        &mut self,
+        nackfrag_submessage: NackFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for data_writer_address in self.data_writer_list.values() {
+            data_writer_address
+                .send_mail(data_writer_actor::process_nack_frag_submessage::new(
+                    nackfrag_submessage.clone(),
+                    source_guid_prefix,
+                ))
+                .await;
         }
     }
 

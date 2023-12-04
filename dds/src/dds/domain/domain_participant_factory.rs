@@ -8,6 +8,8 @@ use crate::{
             domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
         },
         rtps::{
+            message_receiver::MessageReceiver,
+            messages::overall_structure::RtpsSubmessageReadKind,
             participant::RtpsParticipant,
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
@@ -222,16 +224,48 @@ impl DomainParticipantFactory {
             );
 
             while let Some((_locator, message)) = metatraffic_multicast_transport.read().await {
-                let r = participant_address_clone
-                    .send_mail_and_await_reply(
-                        domain_participant_actor::process_metatraffic_rtps_message::new(
-                            message,
-                            participant_address_clone.clone(),
-                        ),
-                    )
-                    .await;
-                if r.is_err() {
-                    break;
+                let mut message_receiver = MessageReceiver::new(&message);
+                while let Some(submessage) = message_receiver.next() {
+                    match submessage {
+                        RtpsSubmessageReadKind::AckNack(ack_nack_submessage) => participant_address_clone
+                            .send_mail_and_await_reply(
+                            domain_participant_actor::process_metatraffic_acknack_submessage::new(
+                                ack_nack_submessage,
+                                message_receiver.source_guid_prefix(),
+                            ),
+                        ).await.unwrap(),
+                        RtpsSubmessageReadKind::Data(data_submessage) => participant_address_clone.send_mail_and_await_reply(domain_participant_actor::process_metatraffic_data_submessage::new(data_submessage, message_receiver.source_guid_prefix(), message_receiver.source_timestamp(), participant_address_clone.clone())).await.unwrap(),
+                        RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => participant_address_clone.send_mail_and_await_reply(domain_participant_actor::process_metatraffic_data_frag_submessage::new(data_frag_submessage, message_receiver.source_guid_prefix(), message_receiver.source_timestamp(), participant_address_clone.clone())).await.unwrap(),
+                        RtpsSubmessageReadKind::Gap(gap_submessage) => participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_metatraffic_gap_submessage::new(
+                            gap_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_metatraffic_heartbeat_submessage::new(
+                            heartbeat_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) =>  participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_metatraffic_heartbeat_frag_submessage::new(
+                            heartbeat_frag_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_metatraffic_nack_frag_submessage::new(
+                            nack_frag_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        _ => (),
+                    }
                 }
 
                 let r = participant_address_clone
@@ -261,34 +295,63 @@ impl DomainParticipantFactory {
             );
 
             while let Some((_locator, message)) = metatraffic_unicast_transport.read().await {
-                let r: DdsResult<()> = async {
-                    participant_address_clone
-                        .send_mail_and_await_reply(
-                            domain_participant_actor::process_metatraffic_rtps_message::new(
-                                message,
-                                participant_address_clone.clone(),
+                let mut message_receiver = MessageReceiver::new(&message);
+                while let Some(submessage) = message_receiver.next() {
+                    match submessage {
+                        RtpsSubmessageReadKind::AckNack(ack_nack_submessage) => participant_address_clone
+                            .send_mail_and_await_reply(
+                            domain_participant_actor::process_metatraffic_acknack_submessage::new(
+                                ack_nack_submessage,
+                                message_receiver.source_guid_prefix(),
                             ),
-                        )
-                        .await??;
-                    participant_address_clone
+                        ).await.unwrap(),
+                        RtpsSubmessageReadKind::Data(data_submessage) => participant_address_clone.send_mail_and_await_reply(domain_participant_actor::process_metatraffic_data_submessage::new(data_submessage, message_receiver.source_guid_prefix(), message_receiver.source_timestamp(), participant_address_clone.clone())).await.unwrap(),
+                        RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => participant_address_clone.send_mail_and_await_reply(domain_participant_actor::process_metatraffic_data_frag_submessage::new(data_frag_submessage, message_receiver.source_guid_prefix(), message_receiver.source_timestamp(), participant_address_clone.clone())).await.unwrap(),
+                        RtpsSubmessageReadKind::Gap(gap_submessage) => participant_address_clone
                         .send_mail_and_await_reply(
-                            domain_participant_actor::process_builtin_discovery::new(
-                                participant_address_clone.clone(),
-                            ),
+                        domain_participant_actor::process_metatraffic_gap_submessage::new(
+                            gap_submessage,
+                            message_receiver.source_guid_prefix(),
                         )
-                        .await?;
-
-                    participant_address_clone
-                        .send_mail(domain_participant_actor::send_message::new())
-                        .await?;
-                    Ok(())
+                    ).await.unwrap(),
+                        RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_metatraffic_heartbeat_submessage::new(
+                            heartbeat_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) =>  participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_metatraffic_heartbeat_frag_submessage::new(
+                            heartbeat_frag_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_metatraffic_nack_frag_submessage::new(
+                            nack_frag_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        _ => (),
+                    }
                 }
-                .await;
+                participant_address_clone
+                    .send_mail_and_await_reply(
+                        domain_participant_actor::process_builtin_discovery::new(
+                            participant_address_clone.clone(),
+                        ),
+                    )
+                    .await.unwrap();
 
-                if r.is_err() {
-                    break;
-                }
-            }
+                participant_address_clone
+                    .send_mail(domain_participant_actor::send_message::new())
+                    .await.unwrap();
+
+
+                    }
         });
 
         let participant_address_clone = participant_address;
@@ -299,17 +362,48 @@ impl DomainParticipantFactory {
             );
 
             while let Some((_locator, message)) = default_unicast_transport.read().await {
-                let r = participant_address_clone
-                    .send_mail(
-                        domain_participant_actor::process_user_defined_rtps_message::new(
-                            message,
-                            participant_address_clone.clone(),
-                        ),
-                    )
-                    .await;
-
-                if r.is_err() {
-                    break;
+                let mut message_receiver = MessageReceiver::new(&message);
+                while let Some(submessage) = message_receiver.next() {
+                    match submessage {
+                        RtpsSubmessageReadKind::AckNack(ack_nack_submessage) => participant_address_clone
+                            .send_mail_and_await_reply(
+                            domain_participant_actor::process_user_defined_acknack_submessage::new(
+                                ack_nack_submessage,
+                                message_receiver.source_guid_prefix(),
+                            ),
+                        ).await.unwrap(),
+                        RtpsSubmessageReadKind::Data(data_submessage) => participant_address_clone.send_mail_and_await_reply(domain_participant_actor::process_user_defined_data_submessage::new(data_submessage, message_receiver.source_guid_prefix(), message_receiver.source_timestamp(), participant_address_clone.clone())).await.unwrap(),
+                        RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => participant_address_clone.send_mail_and_await_reply(domain_participant_actor::process_user_defined_data_frag_submessage::new(data_frag_submessage, message_receiver.source_guid_prefix(), message_receiver.source_timestamp(), participant_address_clone.clone())).await.unwrap(),
+                        RtpsSubmessageReadKind::Gap(gap_submessage) => participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_user_defined_gap_submessage::new(
+                            gap_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_user_defined_heartbeat_submessage::new(
+                            heartbeat_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) =>  participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_user_defined_heartbeat_frag_submessage::new(
+                            heartbeat_frag_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => participant_address_clone
+                        .send_mail_and_await_reply(
+                        domain_participant_actor::process_user_defined_nack_frag_submessage::new(
+                            nack_frag_submessage,
+                            message_receiver.source_guid_prefix(),
+                        )
+                    ).await.unwrap(),
+                        _ => (),
+                    }
                 }
             }
         });

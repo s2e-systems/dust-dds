@@ -25,7 +25,13 @@ use crate::{
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
             messages::{
-                overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+                overall_structure::RtpsMessageHeader,
+                submessages::{
+                    ack_nack::AckNackSubmessageRead, data::DataSubmessageRead,
+                    data_frag::DataFragSubmessageRead, gap::GapSubmessageRead,
+                    heartbeat::HeartbeatSubmessageRead,
+                    heartbeat_frag::HeartbeatFragSubmessageRead, nack_frag::NackFragSubmessageRead,
+                },
                 types::Count,
             },
             participant::RtpsParticipant,
@@ -33,7 +39,7 @@ use crate::{
             reader_locator::RtpsReaderLocator,
             reader_proxy::RtpsReaderProxy,
             types::{
-                EntityId, Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+                EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber, TopicKind,
                 BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
                 BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT,
                 ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
@@ -925,86 +931,231 @@ impl DomainParticipantActor {
         }
     }
 
-    async fn process_metatraffic_rtps_message(
-        &self,
-        message: RtpsMessageRead,
-        participant_address: ActorAddress<DomainParticipantActor>,
-    ) -> DdsResult<()> {
-        let reception_timestamp = self.get_current_time().await;
-        let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
-        self.builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::process_rtps_message::new(
-                message.clone(),
-                reception_timestamp,
-                participant_address.clone(),
-                self.builtin_subscriber.address(),
-                participant_mask_listener,
-            ))
-            .await?;
-
-        self.builtin_publisher
-            .send_mail_and_await_reply(publisher_actor::process_rtps_message::new(message))
-            .await;
-
-        Ok(())
-    }
-
-    async fn process_user_defined_rtps_message(
-        &self,
-        message: RtpsMessageRead,
+    async fn process_metatraffic_data_submessage(
+        &mut self,
+        data_submessage: DataSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
         participant_address: ActorAddress<DomainParticipantActor>,
     ) {
-        let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
-        for user_defined_subscriber_address in self
-            .user_defined_subscriber_list
-            .values()
-            .map(|a| a.address())
-        {
-            user_defined_subscriber_address
-                .send_mail(subscriber_actor::process_rtps_message::new(
-                    message.clone(),
-                    self.get_current_time().await,
+        let reception_timestamp = self.get_current_time().await;
+        self.builtin_subscriber
+            .send_mail(subscriber_actor::process_data_submessage::new(
+                data_submessage,
+                source_guid_prefix,
+                source_timestamp,
+                reception_timestamp,
+                self.builtin_subscriber.address(),
+                participant_address,
+                (self.listener.address(), self.status_kind.clone()),
+            ))
+            .await
+    }
+
+    async fn process_user_defined_data_submessage(
+        &mut self,
+        data_submessage: DataSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    ) {
+        let reception_timestamp = self.get_current_time().await;
+        for subscriber in self.user_defined_subscriber_list.values() {
+            subscriber
+                .send_mail(subscriber_actor::process_data_submessage::new(
+                    data_submessage.clone(),
+                    source_guid_prefix,
+                    source_timestamp,
+                    reception_timestamp,
+                    subscriber.address(),
                     participant_address.clone(),
-                    user_defined_subscriber_address.clone(),
-                    participant_mask_listener.clone(),
+                    (self.listener.address(), self.status_kind.clone()),
                 ))
                 .await
-                .expect("Should not fail to send command");
-
-            user_defined_subscriber_address
-                .send_mail(subscriber_actor::send_message::new(
-                    RtpsMessageHeader::new(
-                        self.rtps_participant.protocol_version(),
-                        self.rtps_participant.vendor_id(),
-                        self.rtps_participant.guid().prefix(),
-                    ),
-                    self.udp_transport_write.clone().clone(),
-                ))
-                .await
-                .expect("Should not fail to send command");
         }
+    }
 
-        for user_defined_publisher_address in self
-            .user_defined_publisher_list
-            .values()
-            .map(|a| a.address())
-        {
-            user_defined_publisher_address
-                .send_mail(publisher_actor::process_rtps_message::new(message.clone()))
-                .await
-                .expect("Should not fail to send command");
-            user_defined_publisher_address
-                .send_mail(publisher_actor::send_message::new(
-                    RtpsMessageHeader::new(
-                        self.rtps_participant.protocol_version(),
-                        self.rtps_participant.vendor_id(),
-                        self.rtps_participant.guid().prefix(),
-                    ),
-                    self.udp_transport_write.clone(),
-                    self.get_current_time().await,
+    async fn process_metatraffic_gap_submessage(
+        &mut self,
+        gap_submessage: GapSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        self.builtin_subscriber
+            .send_mail(subscriber_actor::process_gap_submessage::new(
+                gap_submessage,
+                source_guid_prefix,
+            ))
+            .await
+    }
+
+    async fn process_user_defined_gap_submessage(
+        &mut self,
+        gap_submessage: GapSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for subscriber in self.user_defined_subscriber_list.values() {
+            subscriber
+                .send_mail(subscriber_actor::process_gap_submessage::new(
+                    gap_submessage.clone(),
+                    source_guid_prefix,
                 ))
                 .await
-                .expect("Should not fail to send command");
+        }
+    }
+
+    async fn process_metatraffic_heartbeat_submessage(
+        &mut self,
+        heartbeat_submessage: HeartbeatSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        self.builtin_subscriber
+            .send_mail(subscriber_actor::process_heartbeat_submessage::new(
+                heartbeat_submessage,
+                source_guid_prefix,
+            ))
+            .await
+    }
+
+    async fn process_user_defined_heartbeat_submessage(
+        &mut self,
+        heartbeat_submessage: HeartbeatSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for subscriber in self.user_defined_subscriber_list.values() {
+            subscriber
+                .send_mail(subscriber_actor::process_heartbeat_submessage::new(
+                    heartbeat_submessage.clone(),
+                    source_guid_prefix,
+                ))
+                .await
+        }
+    }
+
+    async fn process_metatraffic_heartbeat_frag_submessage(
+        &mut self,
+        heartbeat_frag_submessage: HeartbeatFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        self.builtin_subscriber
+            .send_mail(subscriber_actor::process_heartbeat_frag_submessage::new(
+                heartbeat_frag_submessage,
+                source_guid_prefix,
+            ))
+            .await
+    }
+
+    async fn process_user_defined_heartbeat_frag_submessage(
+        &mut self,
+        heartbeat_frag_submessage: HeartbeatFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for subscriber in self.user_defined_subscriber_list.values() {
+            subscriber
+                .send_mail(subscriber_actor::process_heartbeat_frag_submessage::new(
+                    heartbeat_frag_submessage.clone(),
+                    source_guid_prefix,
+                ))
+                .await
+        }
+    }
+
+    async fn process_metatraffic_data_frag_submessage(
+        &mut self,
+        data_frag_submessage: DataFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    ) {
+        let reception_timestamp = self.get_current_time().await;
+        self.builtin_subscriber
+            .send_mail(subscriber_actor::process_data_frag_submessage::new(
+                data_frag_submessage,
+                source_guid_prefix,
+                source_timestamp,
+                reception_timestamp,
+                self.builtin_subscriber.address(),
+                participant_address,
+                (self.listener.address(), self.status_kind.clone()),
+            ))
+            .await
+    }
+
+    async fn process_user_defined_data_frag_submessage(
+        &mut self,
+        data_frag_submessage: DataFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<Time>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    ) {
+        let reception_timestamp = self.get_current_time().await;
+        for subscriber in self.user_defined_subscriber_list.values() {
+            subscriber
+                .send_mail(subscriber_actor::process_data_frag_submessage::new(
+                    data_frag_submessage.clone(),
+                    source_guid_prefix,
+                    source_timestamp,
+                    reception_timestamp,
+                    subscriber.address(),
+                    participant_address.clone(),
+                    (self.listener.address(), self.status_kind.clone()),
+                ))
+                .await
+        }
+    }
+
+    async fn process_metatraffic_acknack_submessage(
+        &mut self,
+        acknack_submessage: AckNackSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        self.builtin_publisher
+            .send_mail(publisher_actor::process_acknack_submessage::new(
+                acknack_submessage,
+                source_guid_prefix,
+            ))
+            .await
+    }
+
+    async fn process_user_defined_acknack_submessage(
+        &mut self,
+        acknack_submessage: AckNackSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for publisher in self.user_defined_publisher_list.values() {
+            publisher
+                .send_mail(publisher_actor::process_acknack_submessage::new(
+                    acknack_submessage.clone(),
+                    source_guid_prefix,
+                ))
+                .await
+        }
+    }
+
+    async fn process_metatraffic_nack_frag_submessage(
+        &mut self,
+        nackfrag_submessage: NackFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        self.builtin_publisher
+            .send_mail(publisher_actor::process_nack_frag_submessage::new(
+                nackfrag_submessage,
+                source_guid_prefix,
+            ))
+            .await;
+    }
+
+    async fn process_user_defined_nack_frag_submessage(
+        &mut self,
+        nackfrag_submessage: NackFragSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for publisher in self.user_defined_publisher_list.values() {
+            publisher
+                .send_mail(publisher_actor::process_nack_frag_submessage::new(
+                    nackfrag_submessage.clone(),
+                    source_guid_prefix,
+                ))
+                .await;
         }
     }
 
