@@ -141,7 +141,9 @@ impl RtpsWriterProxy {
 
         // Any number below first_available_seq_num is missing so that is the minimum
         // If there are missing changes, the minimum will be one above the maximum
-        if let Some(minimum_missing_changes) = self.missing_changes().min() {
+
+        //This list is ordered so the minimum would be the first element
+        if let Some(minimum_missing_changes) = self.missing_changes().next() {
             minimum_missing_changes - 1
         } else {
             // If there are no missing changes then the highest received sequence number
