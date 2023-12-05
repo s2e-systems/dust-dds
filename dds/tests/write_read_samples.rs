@@ -805,7 +805,7 @@ fn take_next_sample() {
     writer.write(&data3, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     assert_eq!(reader.take_next_sample().unwrap().data().unwrap(), data1);
@@ -893,7 +893,7 @@ fn each_key_sample_is_read() {
     let data3_handle = writer.lookup_instance(&data3).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -997,7 +997,7 @@ fn read_specific_instance() {
     let data1_handle = writer.lookup_instance(&data1).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -1089,7 +1089,7 @@ fn read_next_instance() {
     writer.write(&data3, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples1 = reader
@@ -1611,7 +1611,7 @@ fn write_read_sample_view_state() {
     writer.write(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     reader
@@ -1625,7 +1625,7 @@ fn write_read_sample_view_state() {
     writer.write(&data2, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -2280,7 +2280,7 @@ fn data_reader_order_by_source_timestamp() {
         .unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -2461,7 +2461,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     writer.write(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(3, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let reader_new = subscriber

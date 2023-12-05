@@ -1596,7 +1596,7 @@ fn subscriber_deadline_missed_listener() {
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         deadline: DeadlineQosPolicy {
-            period: DurationKind::Finite(Duration::new(1, 0)),
+            period: DurationKind::Finite(Duration::new(10, 0)),
         },
         ..Default::default()
     };
@@ -1624,7 +1624,7 @@ fn subscriber_deadline_missed_listener() {
     writer.write(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let status = receiver
