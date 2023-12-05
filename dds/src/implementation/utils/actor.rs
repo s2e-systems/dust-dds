@@ -8,6 +8,7 @@ use lazy_static::lazy_static;
 use crate::infrastructure::error::{DdsError, DdsResult};
 
 static INITIALIZE_EXECUTOR: Once = Once::new();
+const NUM_THREADS: usize = 8;
 
 lazy_static! {
     pub static ref THE_RUNTIME: smol::Executor<'static> = smol::Executor::new();
@@ -274,7 +275,7 @@ where
     A: Send + 'static,
 {
     INITIALIZE_EXECUTOR.call_once(|| {
-        const NUM_THREADS: usize = 4;
+
         // Create an executor thread pool.
         for n in 0..NUM_THREADS {
             // A pending future is one that simply yields forever.
