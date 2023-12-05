@@ -405,6 +405,8 @@ impl DomainParticipantFactory {
                         _ => (),
                     }
                 }
+                participant_address_clone
+                        .send_mail(domain_participant_actor::send_message::new()).await.unwrap();
             }
         });
 
