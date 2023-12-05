@@ -1,11 +1,13 @@
 use std::sync::{
     atomic::{self, AtomicBool},
-    Arc,
+    Arc, Once,
 };
 
 use lazy_static::lazy_static;
 
 use crate::infrastructure::error::{DdsError, DdsResult};
+
+static INITIALIZE_EXECUTOR: Once = Once::new();
 
 lazy_static! {
     pub static ref THE_RUNTIME: smol::Executor<'static> = smol::Executor::new();
@@ -257,6 +259,7 @@ impl<A> Drop for Actor<A> {
     fn drop(&mut self) {
         self.cancellation_token
             .store(true, atomic::Ordering::Release);
+        self.sender.close();
         // self.join_handle.cancel();
     }
 }
@@ -270,6 +273,18 @@ pub fn spawn_actor<A>(actor: A) -> Actor<A>
 where
     A: Send + 'static,
 {
+    INITIALIZE_EXECUTOR.call_once(|| {
+        const NUM_THREADS: usize = 4;
+        // Create an executor thread pool.
+        for n in 0..NUM_THREADS {
+            // A pending future is one that simply yields forever.
+            std::thread::Builder::new()
+                .name(format!("dust-dds-worker-thread-{}", n))
+                .spawn(|| smol::future::block_on(THE_RUNTIME.run(std::future::pending::<()>())))
+                .expect("cannot spawn executor thread");
+        }
+    });
+
     let (sender, mailbox) = smol::channel::bounded(16);
 
     let mut actor_obj = SpawnedActor {

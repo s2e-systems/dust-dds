@@ -27,13 +27,11 @@ use socket2::Socket;
 use std::{
     convert::TryFrom,
     net::{Ipv4Addr, SocketAddr},
-    sync::{Arc, Once, RwLock},
+    sync::{Arc, RwLock},
 };
 use tracing::warn;
 
 pub type DomainId = i32;
-
-static INITIALIZE_EXECUTOR: Once = Once::new();
 
 lazy_static! {
     /// This value can be used as an alias for the singleton factory returned by the operation
@@ -377,17 +375,6 @@ impl DomainParticipantFactory {
     /// The pre-defined value [`struct@THE_PARTICIPANT_FACTORY`] can also be used as an alias for the singleton factory returned by this operation.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
-        INITIALIZE_EXECUTOR.call_once(|| {
-            const NUM_THREADS: usize = 4;
-            // Create an executor thread pool.
-            for n in 0..NUM_THREADS {
-                // A pending future is one that simply yields forever.
-                std::thread::Builder::new()
-                    .name(format!("dust-dds-worker-thread-{}", n))
-                    .spawn(|| smol::future::block_on(THE_RUNTIME.run(std::future::pending::<()>())))
-                    .expect("cannot spawn executor thread");
-            }
-        });
         &THE_PARTICIPANT_FACTORY
     }
 
