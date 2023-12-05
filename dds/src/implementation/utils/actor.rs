@@ -290,7 +290,7 @@ pub fn spawn_actor<A>(actor: A) -> Actor<A>
 where
     A: Send + 'static,
 {
-    let (sender, mailbox) = tokio::sync::mpsc::channel(16);
+    let (sender, mailbox) = tokio::sync::mpsc::channel(32);
 
     let mut actor_obj = SpawnedActor {
         value: actor,
