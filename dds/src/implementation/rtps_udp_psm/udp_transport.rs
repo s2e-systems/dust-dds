@@ -8,18 +8,20 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 pub struct UdpTransportRead {
     socket: tokio::net::UdpSocket,
-    buf: Vec<u8>,
+    buf: Box<[u8]>,
 }
 
 impl UdpTransportRead {
     pub fn new(socket: tokio::net::UdpSocket) -> Self {
         Self {
             socket,
-            buf: vec![0; 65507],
+            buf: Box::new([0; 65507]),
         }
     }
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
+        self.buf.fill(0);
+
         match self.socket.recv_from(&mut self.buf).await {
             Ok((bytes, source_address)) => {
                 let message = RtpsMessageRead::new(&self.buf);
