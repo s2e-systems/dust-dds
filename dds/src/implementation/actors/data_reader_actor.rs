@@ -5,6 +5,7 @@ use std::{
 };
 
 use dust_dds_derive::actor_interface;
+use smol::stream::StreamExt;
 use tracing::debug;
 
 use crate::{
@@ -45,7 +46,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress},
+            actor::{spawn_actor, Actor, ActorAddress, THE_RUNTIME},
             instance_handle_from_key::get_instance_handle_from_key,
         },
     },
@@ -303,7 +304,7 @@ pub struct DataReaderActor {
     listener: Actor<DataReaderListenerActor>,
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
-    instance_deadline_missed_task: HashMap<InstanceHandle, tokio::task::AbortHandle>,
+    instance_deadline_missed_task: HashMap<InstanceHandle, smol::Task<()>>,
 }
 
 impl DataReaderActor {
@@ -1380,18 +1381,11 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
     ) {
-        if let Some(t) = self
-            .instance_deadline_missed_task
-            .remove(&change_instance_handle)
-        {
-            t.abort();
-        }
+        self.instance_deadline_missed_task
+            .remove(&change_instance_handle);
 
         if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
-            let mut deadline_missed_interval = tokio::time::interval(tokio::time::Duration::new(
-                deadline_missed_period.sec() as u64,
-                deadline_missed_period.nanosec(),
-            ));
+            let mut deadline_missed_interval = smol::Timer::interval(deadline_missed_period.into());
             let reader_status_condition = self.status_condition.address();
             let requested_deadline_missed_status = self.requested_deadline_missed_status.address();
             let reader_listener_address = self.listener.address();
@@ -1400,9 +1394,9 @@ impl DataReaderActor {
             let subscriber_listener_mask = subscriber_mask_listener.1.clone();
             let participant_listener_address = participant_mask_listener.0.clone();
             let participant_listener_mask = participant_mask_listener.1.clone();
-            let deadline_missed_task = tokio::spawn(async move {
+            let deadline_missed_task = THE_RUNTIME.spawn(async move {
                 loop {
-                    deadline_missed_interval.tick().await;
+                    deadline_missed_interval.next().await;
 
                     let r: DdsResult<()> = async {
                         requested_deadline_missed_status
@@ -1478,7 +1472,7 @@ impl DataReaderActor {
             });
 
             self.instance_deadline_missed_task
-                .insert(change_instance_handle, deadline_missed_task.abort_handle());
+                .insert(change_instance_handle, deadline_missed_task);
         }
     }
 }

@@ -10,11 +10,11 @@ use std::{
 };
 
 pub struct UdpTransportRead {
-    socket: tokio::net::UdpSocket,
+    socket: smol::net::UdpSocket,
 }
 
 impl UdpTransportRead {
-    pub fn new(socket: tokio::net::UdpSocket) -> Self {
+    pub fn new(socket: smol::net::UdpSocket) -> Self {
         Self { socket }
     }
 

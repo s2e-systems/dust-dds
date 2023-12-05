@@ -163,5 +163,5 @@ fn data_writer_get_topic_should_return_same_topic_as_used_for_creation() {
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    assert!(writer.get_topic().unwrap() == topic);
+    assert!(writer.get_topic().unwrap().get_name() == topic.get_name());
 }

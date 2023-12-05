@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use smol::stream::StreamExt;
+
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
@@ -907,7 +909,7 @@ impl DomainParticipant {
 
             // Spawn the task that regularly announces the domain participant
             THE_RUNTIME.spawn(async move {
-                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+                let mut interval = smol::Timer::interval(std::time::Duration::from_secs(5));
                 loop {
                     let r: DdsResult<()> = async {
                         let builtin_publisher = domain_participant_address
@@ -961,9 +963,9 @@ impl DomainParticipant {
                         break;
                     }
 
-                    interval.tick().await;
+                    interval.next().await;
                 }
-            });
+            }).detach();
         }
 
         Ok(())

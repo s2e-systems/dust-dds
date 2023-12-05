@@ -29,14 +29,12 @@ impl DataWriterListenerActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         status: OfferedIncompatibleQosStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.trigger_on_offered_incompatible_qos(
-                writer_address,
-                publisher_address,
-                participant_address,
-                status,
-            )
-        });
+        self.listener.trigger_on_offered_incompatible_qos(
+            writer_address,
+            publisher_address,
+            participant_address,
+            status,
+        )
     }
 
     async fn trigger_on_publication_matched(
@@ -46,13 +44,11 @@ impl DataWriterListenerActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         status: PublicationMatchedStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.trigger_on_publication_matched(
-                writer_address,
-                publisher_address,
-                participant_address,
-                status,
-            )
-        });
+        self.listener.trigger_on_publication_matched(
+            writer_address,
+            publisher_address,
+            participant_address,
+            status,
+        )
     }
 }

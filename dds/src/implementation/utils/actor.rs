@@ -8,12 +8,7 @@ use lazy_static::lazy_static;
 use crate::infrastructure::error::{DdsError, DdsResult};
 
 lazy_static! {
-    pub static ref THE_RUNTIME: tokio::runtime::Runtime =
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .thread_stack_size(4 * 1024 * 1024)
-            .build()
-            .expect("Failed to create Tokio runtime");
+    pub static ref THE_RUNTIME: smol::Executor<'static> = smol::Executor::new();
 }
 
 pub trait Mail {
@@ -31,7 +26,7 @@ where
 
 #[derive(Debug)]
 pub struct ActorAddress<A> {
-    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
+    sender: smol::channel::Sender<Box<dyn GenericHandler<A> + Send>>,
 }
 
 impl<A> Clone for ActorAddress<A> {
@@ -42,22 +37,14 @@ impl<A> Clone for ActorAddress<A> {
     }
 }
 
-impl<A> PartialEq for ActorAddress<A> {
-    fn eq(&self, other: &Self) -> bool {
-        self.sender.same_channel(&other.sender)
-    }
-}
-
-impl<A> Eq for ActorAddress<A> {}
-
 impl<A> ActorAddress<A> {
     pub async fn send_mail_and_await_reply<M>(&self, mail: M) -> DdsResult<M::Result>
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
-        M::Result: Send,
+        M::Result: Send + Sync,
     {
-        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
+        let (response_sender, response_receiver) = async_oneshot::oneshot();
 
         self.sender
             .send(Box::new(ReplyMail::new(mail, response_sender)))
@@ -72,9 +59,9 @@ impl<A> ActorAddress<A> {
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
-        M::Result: Send,
+        M::Result: Send + Sync,
     {
-        let (response_sender, mut response_receiver) = tokio::sync::oneshot::channel();
+        let (response_sender, response_receiver) = async_oneshot::oneshot();
 
         let mut send_result = self
             .sender
@@ -83,13 +70,10 @@ impl<A> ActorAddress<A> {
         // would be only valid when the runtime is multithreaded. For single threaded runtimes this would still cause a panic.
         while let Err(receive_error) = send_result {
             match receive_error {
-                tokio::sync::mpsc::error::TrySendError::Full(mail) => {
+                smol::channel::TrySendError::Full(mail) => {
                     send_result = self.sender.try_send(mail);
                 }
-
-                tokio::sync::mpsc::error::TrySendError::Closed(_) => {
-                    return Err(DdsError::AlreadyDeleted)
-                }
+                smol::channel::TrySendError::Closed(_) => return Err(DdsError::AlreadyDeleted),
             }
         }
 
@@ -99,16 +83,15 @@ impl<A> ActorAddress<A> {
         let mut receive_result = response_receiver.try_recv();
         while let Err(receive_error) = receive_result {
             match receive_error {
-                tokio::sync::oneshot::error::TryRecvError::Empty => {
+                async_oneshot::TryRecvError::Empty(response_receiver) => {
                     receive_result = response_receiver.try_recv();
                 }
-
-                tokio::sync::oneshot::error::TryRecvError::Closed => {
-                    return Err(DdsError::AlreadyDeleted)
-                }
+                async_oneshot::TryRecvError::Closed => return Err(DdsError::AlreadyDeleted),
             }
         }
-        Ok(receive_result.expect("Receive result should be Ok"))
+        Ok(receive_result
+            .map_err(|_| ())
+            .expect("Receive result should be Ok"))
     }
 
     pub async fn send_mail<M>(&self, mail: M) -> DdsResult<()>
@@ -132,13 +115,10 @@ impl<A> ActorAddress<A> {
         // would be only valid when the runtime is multithreaded. For single threaded runtimes this would still cause a panic.
         while let Err(error) = send_result {
             match error {
-                tokio::sync::mpsc::error::TrySendError::Full(mail) => {
+                smol::channel::TrySendError::Full(mail) => {
                     send_result = self.sender.try_send(mail);
                 }
-
-                tokio::sync::mpsc::error::TrySendError::Closed(_) => {
-                    return Err(DdsError::AlreadyDeleted)
-                }
+                smol::channel::TrySendError::Closed(_) => return Err(DdsError::AlreadyDeleted),
             }
         }
         Ok(())
@@ -185,14 +165,14 @@ where
     // have to be moved out and the struct. Because the struct is passed as a Boxed
     // trait object this is only feasible by using the Option fields.
     mail: Option<M>,
-    sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
+    sender: Option<async_oneshot::Sender<M::Result>>,
 }
 
 impl<M> ReplyMail<M>
 where
     M: Mail,
 {
-    fn new(message: M, sender: tokio::sync::oneshot::Sender<M::Result>) -> Self {
+    fn new(message: M, sender: async_oneshot::Sender<M::Result>) -> Self {
         Self {
             mail: Some(message),
             sender: Some(sender),
@@ -205,7 +185,7 @@ impl<A, M> GenericHandler<A> for ReplyMail<M>
 where
     A: MailHandler<M> + Send,
     M: Mail + Send,
-    M::Result: Send,
+    M::Result: Send + Sync,
 {
     async fn handle(&mut self, actor: &mut A) {
         let result = <A as MailHandler<M>>::handle(
@@ -225,8 +205,8 @@ where
 }
 
 pub struct Actor<A> {
-    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
-    join_handle: tokio::task::JoinHandle<()>,
+    sender: smol::channel::Sender<Box<dyn GenericHandler<A> + Send>>,
+    _join_handle: smol::Task<()>,
     cancellation_token: Arc<AtomicBool>,
 }
 
@@ -241,9 +221,9 @@ impl<A> Actor<A> {
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
-        M::Result: Send,
+        M::Result: Send + Sync,
     {
-        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
+        let (response_sender, response_receiver) = async_oneshot::oneshot();
 
         self.sender
             .send(Box::new(ReplyMail::new(mail, response_sender)))
@@ -277,20 +257,20 @@ impl<A> Drop for Actor<A> {
     fn drop(&mut self) {
         self.cancellation_token
             .store(true, atomic::Ordering::Release);
-        self.join_handle.abort();
+        // self.join_handle.cancel();
     }
 }
 
 struct SpawnedActor<A> {
     value: A,
-    mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<A> + Send>>,
+    mailbox: smol::channel::Receiver<Box<dyn GenericHandler<A> + Send>>,
 }
 
 pub fn spawn_actor<A>(actor: A) -> Actor<A>
 where
     A: Send + 'static,
 {
-    let (sender, mailbox) = tokio::sync::mpsc::channel(16);
+    let (sender, mailbox) = smol::channel::bounded(16);
 
     let mut actor_obj = SpawnedActor {
         value: actor,
@@ -300,7 +280,7 @@ where
     let cancellation_token_cloned = cancellation_token.clone();
 
     let join_handle = THE_RUNTIME.spawn(async move {
-        while let Some(mut m) = actor_obj.mailbox.recv().await {
+        while let Ok(mut m) = actor_obj.mailbox.recv().await {
             if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
                 m.handle(&mut actor_obj.value).await;
             } else {
@@ -311,7 +291,7 @@ where
 
     Actor {
         sender,
-        join_handle,
+        _join_handle: join_handle,
         cancellation_token,
     }
 }

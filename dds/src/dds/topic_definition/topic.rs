@@ -19,12 +19,14 @@ use crate::{
     },
 };
 
-use super::{topic_listener::TopicListener, type_support::{DdsSerialize, DdsKey}};
+use super::{
+    topic_listener::TopicListener,
+    type_support::{DdsKey, DdsSerialize},
+};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
-#[derive(PartialEq, Eq)]
 pub struct Topic {
     topic_address: ActorAddress<TopicActor>,
     participant_address: ActorAddress<DomainParticipantActor>,

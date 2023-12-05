@@ -37,12 +37,10 @@ impl DomainParticipantListenerActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         status: SampleRejectedStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.on_sample_rejected(
-                &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
-                status,
-            )
-        });
+        self.listener.on_sample_rejected(
+            &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
+            status,
+        )
     }
 
     async fn trigger_on_requested_incompatible_qos(
@@ -52,12 +50,10 @@ impl DomainParticipantListenerActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         status: RequestedIncompatibleQosStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.on_requested_incompatible_qos(
-                &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
-                status,
-            )
-        });
+        self.listener.on_requested_incompatible_qos(
+            &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
+            status,
+        )
     }
 
     async fn trigger_on_offered_incompatible_qos(
@@ -67,12 +63,10 @@ impl DomainParticipantListenerActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         status: OfferedIncompatibleQosStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.on_offered_incompatible_qos(
-                &DataWriter::<()>::new(writer_address, publisher_address, participant_address),
-                status,
-            )
-        });
+        self.listener.on_offered_incompatible_qos(
+            &DataWriter::<()>::new(writer_address, publisher_address, participant_address),
+            status,
+        )
     }
 
     async fn trigger_on_publication_matched(
@@ -82,12 +76,10 @@ impl DomainParticipantListenerActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         status: PublicationMatchedStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.on_publication_matched(
-                &DataWriter::<()>::new(writer_address, publisher_address, participant_address),
-                status,
-            )
-        });
+        self.listener.on_publication_matched(
+            &DataWriter::<()>::new(writer_address, publisher_address, participant_address),
+            status,
+        )
     }
 
     async fn trigger_on_requested_deadline_missed(
@@ -97,12 +89,10 @@ impl DomainParticipantListenerActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         status: RequestedDeadlineMissedStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.on_requested_deadline_missed(
-                &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
-                status,
-            )
-        });
+        self.listener.on_requested_deadline_missed(
+            &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
+            status,
+        )
     }
 
     async fn trigger_on_subscription_matched(
@@ -112,12 +102,10 @@ impl DomainParticipantListenerActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         status: SubscriptionMatchedStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.on_subscription_matched(
-                &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
-                status,
-            )
-        });
+        self.listener.on_subscription_matched(
+            &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
+            status,
+        )
     }
 
     async fn trigger_on_sample_lost(
@@ -127,11 +115,9 @@ impl DomainParticipantListenerActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         status: SampleLostStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.on_sample_lost(
-                &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
-                status,
-            )
-        });
+        self.listener.on_sample_lost(
+            &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
+            status,
+        )
     }
 }
