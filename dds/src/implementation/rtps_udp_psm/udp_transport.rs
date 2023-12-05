@@ -20,11 +20,9 @@ impl UdpTransportRead {
     }
 
     pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        self.buf.fill(0);
-
-        match self.socket.recv_from(&mut self.buf).await {
+        match self.socket.recv_from(self.buf.as_mut()).await {
             Ok((bytes, source_address)) => {
-                let message = RtpsMessageRead::new(&self.buf);
+                let message = RtpsMessageRead::new(&self.buf[..bytes]);
 
                 if bytes > 0 {
                     let udp_locator: UdpLocator = source_address.into();
