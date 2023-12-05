@@ -34,7 +34,7 @@ jobs:
     resource_class: large
     steps:
       - checkout
-      - run: cargo bench --package dust_dds
+      - run: cargo bench --package dust_dds --bench benchmark -- --sample-size 200 --measurement-time 20
       - store_artifacts:
           path: ./target/criterion
   build:
