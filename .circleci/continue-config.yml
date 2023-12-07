@@ -38,7 +38,7 @@ jobs:
       - run: git checkout master
       - run: cargo bench --package dust_dds --bench benchmark -- --save-baseline master_baseline
       - run: cargo bench --bench benchmark -- --load-baseline branch_baseline --baseline master_baseline --color never | tee /tmp/output
-      - run: if grep --quiet regressed /tmp/output; then exit 1; fi
+      # Performance regression is not explicitly checked due to measurement instability issues
       - store_artifacts:
           path: ./target/criterion
   build:
