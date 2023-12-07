@@ -174,7 +174,8 @@ impl RtpsWriterProxy {
     }
 
     pub fn missing_changes(&self) -> impl Iterator<Item = SequenceNumber> {
-        // The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
+        // The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer
+        // represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
         // return { change IN this.changes_from_writer SUCH-THAT change.status == MISSING};
         let highest_received_seq_num = self.highest_received_change_sn;
 
@@ -183,13 +184,11 @@ impl RtpsWriterProxy {
 
         // Changes below first_available_seq_num are LOST (or RECEIVED, but in any case not MISSING) and above last_available_seq_num are unknown.
         // In between those two numbers, every change that is not RECEIVED or IRRELEVANT is MISSING
-        let highest_received_change_sn = self.highest_received_change_sn;
-        (i64::from(self.first_available_seq_num)..=i64::from(highest_number))
-            .map(SequenceNumber::from)
-            .filter(move |x| {
-                let received = x <= &highest_received_change_sn;
-                !received
-            })
+        let first_missing_change = max(
+            self.first_available_seq_num,
+            self.highest_received_change_sn + 1,
+        );
+        (i64::from(first_missing_change)..=i64::from(highest_number)).map(SequenceNumber::from)
     }
 
     pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
