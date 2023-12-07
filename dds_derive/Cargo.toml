@@ -1,12 +1,12 @@
 [package]
 name = "dust_dds_derive"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
 	"Joao Rebelo <jrebelo@s2e-systems.com>",
 	"Stefan Kimmer <skimmer@s2e-systems.com>",
 	"Pierre Martinet <pmartinet@s2e-systems.com>"
 ]
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0"
 description = "Derive macro for `DdsType` and other traits from `dust-dds`"
 readme = "README.md"
