@@ -141,7 +141,18 @@ impl RtpsWriterProxy {
 
         // Any number below first_available_seq_num is missing so that is the minimum
         // If there are missing changes, the minimum will be one above the maximum
-        if let Some(minimum_missing_changes) = self.missing_changes().min() {
+
+        let highest_number = max(self.last_available_seq_num, self.highest_received_change_sn);
+        let first_missing_change = max(
+            self.first_available_seq_num,
+            self.highest_received_change_sn + 1,
+        );
+
+        if let Some(minimum_missing_changes) = (i64::from(first_missing_change)
+            ..=i64::from(highest_number))
+            .map(SequenceNumber::from)
+            .min()
+        {
             minimum_missing_changes - 1
         } else {
             // If there are no missing changes then the highest received sequence number
@@ -177,10 +188,9 @@ impl RtpsWriterProxy {
         // The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer
         // represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
         // return { change IN this.changes_from_writer SUCH-THAT change.status == MISSING};
-        let highest_received_seq_num = self.highest_received_change_sn;
 
         // The highest sequence number of all present
-        let highest_number = max(self.last_available_seq_num, highest_received_seq_num);
+        let highest_number = max(self.last_available_seq_num, self.highest_received_change_sn);
 
         // Changes below first_available_seq_num are LOST (or RECEIVED, but in any case not MISSING) and above last_available_seq_num are unknown.
         // In between those two numbers, every change that is not RECEIVED or IRRELEVANT is MISSING
@@ -253,13 +263,14 @@ impl RtpsWriterProxy {
             let info_dst_submessage =
                 InfoDestinationSubmessageWrite::new(self.remote_writer_guid().prefix());
 
-            let missing_changes = self.missing_changes();
-
             let acknack_submessage = AckNackSubmessageWrite::new(
                 true,
                 reader_guid.entity_id(),
                 self.remote_writer_guid().entity_id(),
-                SequenceNumberSet::new(self.available_changes_max() + 1, missing_changes.take(256)),
+                SequenceNumberSet::new(
+                    self.available_changes_max() + 1,
+                    self.missing_changes().take(256),
+                ),
                 self.acknack_count(),
             );
 
