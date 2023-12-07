@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    collections::HashMap,
-};
+use std::{cmp::max, collections::HashMap};
 
 use crate::implementation::{
     rtps::messages::submessage_elements::ArcSlice, rtps_udp_psm::udp_transport::UdpTransportWrite,
@@ -139,29 +136,10 @@ impl RtpsWriterProxy {
         // The condition to make any CacheChange ‘a_change’ available for ‘access’ by the DDS DataReader is that there are no changes
         // from the RTPS Writer with SequenceNumber_t smaller than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN.
 
-        // Any number below first_available_seq_num is missing so that is the minimum
-        // If there are missing changes, the minimum will be one above the maximum
-
-        let highest_number = max(self.last_available_seq_num, self.highest_received_change_sn);
-        let first_missing_change = max(
-            self.first_available_seq_num,
-            self.highest_received_change_sn + 1,
-        );
-
-        if let Some(minimum_missing_changes) = (i64::from(first_missing_change)
-            ..=i64::from(highest_number))
-            .map(SequenceNumber::from)
-            .min()
-        {
-            minimum_missing_changes - 1
-        } else {
-            // If there are no missing changes then the highest received sequence number
-            // with a lower limit of the first_available_seq_num
-            let minimum_available_changes_max =
-                min(self.first_available_seq_num, self.last_available_seq_num);
-            let highest_received_seq_num = self.highest_received_change_sn;
-            max(highest_received_seq_num, minimum_available_changes_max)
-        }
+        max(
+            self.first_available_seq_num - 1,
+            self.highest_received_change_sn,
+        )
     }
 
     pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
