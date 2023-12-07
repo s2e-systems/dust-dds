@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    collections::HashMap,
-};
+use std::{cmp::max, collections::HashMap};
 
 use crate::implementation::{
     rtps::messages::submessage_elements::ArcSlice, rtps_udp_psm::udp_transport::UdpTransportWrite,
@@ -139,18 +136,10 @@ impl RtpsWriterProxy {
         // The condition to make any CacheChange ‘a_change’ available for ‘access’ by the DDS DataReader is that there are no changes
         // from the RTPS Writer with SequenceNumber_t smaller than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN.
 
-        // Any number below first_available_seq_num is missing so that is the minimum
-        // If there are missing changes, the minimum will be one above the maximum
-        if let Some(minimum_missing_changes) = self.missing_changes().min() {
-            minimum_missing_changes - 1
-        } else {
-            // If there are no missing changes then the highest received sequence number
-            // with a lower limit of the first_available_seq_num
-            let minimum_available_changes_max =
-                min(self.first_available_seq_num, self.last_available_seq_num);
-            let highest_received_seq_num = self.highest_received_change_sn;
-            max(highest_received_seq_num, minimum_available_changes_max)
-        }
+        max(
+            self.first_available_seq_num - 1,
+            self.highest_received_change_sn,
+        )
     }
 
     pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
@@ -174,22 +163,20 @@ impl RtpsWriterProxy {
     }
 
     pub fn missing_changes(&self) -> impl Iterator<Item = SequenceNumber> {
-        // The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
+        // The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer
+        // represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
         // return { change IN this.changes_from_writer SUCH-THAT change.status == MISSING};
-        let highest_received_seq_num = self.highest_received_change_sn;
 
         // The highest sequence number of all present
-        let highest_number = max(self.last_available_seq_num, highest_received_seq_num);
+        let highest_number = max(self.last_available_seq_num, self.highest_received_change_sn);
 
         // Changes below first_available_seq_num are LOST (or RECEIVED, but in any case not MISSING) and above last_available_seq_num are unknown.
         // In between those two numbers, every change that is not RECEIVED or IRRELEVANT is MISSING
-        let highest_received_change_sn = self.highest_received_change_sn;
-        (i64::from(self.first_available_seq_num)..=i64::from(highest_number))
-            .map(SequenceNumber::from)
-            .filter(move |x| {
-                let received = x <= &highest_received_change_sn;
-                !received
-            })
+        let first_missing_change = max(
+            self.first_available_seq_num,
+            self.highest_received_change_sn + 1,
+        );
+        (i64::from(first_missing_change)..=i64::from(highest_number)).map(SequenceNumber::from)
     }
 
     pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
@@ -254,13 +241,14 @@ impl RtpsWriterProxy {
             let info_dst_submessage =
                 InfoDestinationSubmessageWrite::new(self.remote_writer_guid().prefix());
 
-            let missing_changes = self.missing_changes();
-
             let acknack_submessage = AckNackSubmessageWrite::new(
                 true,
                 reader_guid.entity_id(),
                 self.remote_writer_guid().entity_id(),
-                SequenceNumberSet::new(self.available_changes_max() + 1, missing_changes.take(256)),
+                SequenceNumberSet::new(
+                    self.available_changes_max() + 1,
+                    self.missing_changes().take(256),
+                ),
                 self.acknack_count(),
             );
 
