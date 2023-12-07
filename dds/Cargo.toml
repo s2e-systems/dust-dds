@@ -7,7 +7,7 @@ authors = [
 	"Pierre Martinet <pmartinet@s2e-systems.com>"
 ]
 license = "Apache-2.0"
-edition = "2018"
+edition = "2021"
 readme = "README.md"
 description = "Data Distribution Service (DDS) implementation"
 homepage = "https://s2e-systems.com/products/dust-dds"
