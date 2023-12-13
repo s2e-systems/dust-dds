@@ -103,6 +103,7 @@ impl Publisher {
             )?;
 
         let listener = Box::new(a_listener);
+        let type_xml = format!("<types>{}</types>", Foo::get_type_xml());
         let data_writer_address = self.publisher_address.send_mail_and_await_reply_blocking(
             publisher_actor::create_datawriter::new(
                 a_topic.get_type_name()?,
@@ -114,7 +115,7 @@ impl Publisher {
                 mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
-                Foo::get_type_xml(),
+                type_xml,
             ),
         )??;
 

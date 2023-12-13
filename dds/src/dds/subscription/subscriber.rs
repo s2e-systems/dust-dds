@@ -158,7 +158,7 @@ impl Subscriber {
             DURATION_ZERO,
             false,
         );
-
+        let type_xml = format!("<types>{}</types>", Foo::get_type_xml());
         let listener = Box::new(a_listener);
         let status_kind = mask.to_vec();
         let data_reader = DataReaderActor::new::<Foo>(
@@ -168,7 +168,7 @@ impl Subscriber {
             qos,
             listener,
             status_kind,
-            Foo::get_type_xml(),
+            type_xml,
         );
 
         let reader_actor = spawn_actor(data_reader);
