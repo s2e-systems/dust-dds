@@ -19,7 +19,7 @@ use crate::{
     },
 };
 
-pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize};
+pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
 /// This trait indicates whether the associated type is keyed or not, i.e. if the middleware
 /// should manage different instances of the type.
