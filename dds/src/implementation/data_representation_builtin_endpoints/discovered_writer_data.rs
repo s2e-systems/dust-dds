@@ -161,6 +161,7 @@ mod tests {
                 PartitionQosPolicy::default(),
                 TopicDataQosPolicy::default(),
                 GroupDataQosPolicy::default(),
+                String::default(),
             ),
             WriterProxy::new(
                 Guid::new(
@@ -226,6 +227,7 @@ mod tests {
                 PartitionQosPolicy::default(),
                 TopicDataQosPolicy::default(),
                 GroupDataQosPolicy::default(),
+                String::default(),
             ),
             WriterProxy::new(
                 // must correspond to publication_builtin_topic_data.key

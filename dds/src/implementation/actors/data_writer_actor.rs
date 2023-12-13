@@ -233,6 +233,7 @@ pub struct DataWriterActor {
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
+    xml_type: String,
 }
 
 impl DataWriterActor {
@@ -243,6 +244,7 @@ impl DataWriterActor {
         listener: Box<dyn AnyDataWriterListener + Send>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
+        xml_type: String,
     ) -> Self {
         let status_condition = spawn_actor(StatusConditionActor::default());
         let listener = spawn_actor(DataWriterListenerActor::new(listener));
@@ -261,6 +263,7 @@ impl DataWriterActor {
             writer_cache: WriterHistoryCache::new(),
             qos,
             registered_instance_list: HashSet::new(),
+            xml_type,
         }
     }
 
@@ -527,6 +530,7 @@ impl DataWriterActor {
                 publisher_qos.partition.clone(),
                 topic_qos.topic_data,
                 publisher_qos.group_data,
+                self.xml_type.clone(),
             ),
             WriterProxy::new(
                 self.rtps_writer.guid(),

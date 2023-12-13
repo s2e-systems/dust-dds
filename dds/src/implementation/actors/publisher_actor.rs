@@ -84,6 +84,7 @@ impl PublisherActor {
         mask: Vec<StatusKind>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
+        xml_type: String,
     ) -> DdsResult<ActorAddress<DataWriterActor>> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
@@ -127,6 +128,7 @@ impl PublisherActor {
             a_listener,
             mask,
             qos,
+            xml_type,
         );
         let data_writer_actor = spawn_actor(data_writer);
         let data_writer_address = data_writer_actor.address();

@@ -17,7 +17,7 @@ use crate::{
     },
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
-    topic_definition::type_support::DdsHasKey,
+    topic_definition::type_support::{DdsHasKey, DdsTypeXml},
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
@@ -84,7 +84,7 @@ impl Publisher {
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
-        Foo: DdsHasKey,
+        Foo: DdsHasKey + DdsTypeXml,
     {
         let default_unicast_locator_list = self
             .participant_address
@@ -114,6 +114,7 @@ impl Publisher {
                 mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
+                Foo::get_type_xml(),
             ),
         )??;
 
