@@ -75,6 +75,10 @@ pub trait DdsKey {
     fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key>;
 }
 
+pub trait DdsTypeXml {
+    fn get_type_xml() -> String;
+}
+
 /// This is a convenience derive to allow the user to easily derive all the different traits needed for a type to be used for
 /// communication with DustDDS. If the individual traits are manually derived then this derive should not be used.
 ///
