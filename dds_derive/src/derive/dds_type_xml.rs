@@ -204,8 +204,8 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(expand_dds_type_xml(&input).unwrap()).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             r#"impl dust_dds::topic_definition::type_support::DdsTypeXml for TestStruct {
-                fn get_type_xml() -> String {
-                    "<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" /><member name=\"value_list\" type=\"uint8\" sequenceMaxLength=\"-1\" /></struct>".to_string()
+                fn get_type_xml() -> Option<String> {
+                    Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" /><member name=\"value_list\" type=\"uint8\" sequenceMaxLength=\"-1\" /></struct>".to_string())
                 }
             }"#
             .parse()
