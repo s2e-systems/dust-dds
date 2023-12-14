@@ -108,14 +108,14 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                         "Type not supported for automatic XML derive",
                     )),
                 }?;
-                xml_writer.write(field_element).expect(&format!(
-                    "Failed to write member start element for {}",
-                    field_name
-                ));
-                xml_writer.write(XmlEvent::end_element()).expect(&format!(
-                    "Failed to write member end element for {}",
-                    field_name
-                ));
+                xml_writer.write(field_element).unwrap_or_else(|_| {
+                    panic!("Failed to write member start element for {}", field_name)
+                });
+                xml_writer
+                    .write(XmlEvent::end_element())
+                    .unwrap_or_else(|_| {
+                        panic!("Failed to write member end element for {}", field_name)
+                    });
             }
             xml_writer
                 .write(XmlEvent::end_element())
