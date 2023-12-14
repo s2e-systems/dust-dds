@@ -60,12 +60,13 @@ pub trait DdsDeserialize<'de>: Sized {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self>;
 }
 
-/// This trait defines the key associated with the type.
-///
-/// The key identifies the different instances of the type.
-///
+/// This trait defines the key associated with the type. The key is used to identify different instances of the type.
+/// The returned key object must implement ['CdrSerialize'] and ['CdrDeserialize'] since CDR is the format always
+/// used to transmit the key information on the wire and this can not be modified by the user.
 ///
 /// ## Derivable
+///
+/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement ['CdrSerialize'] and ['CdrDeserialize']
 ///
 pub trait DdsKey {
     type Key: CdrSerialize + for<'de> CdrDeserialize<'de>;
@@ -75,8 +76,15 @@ pub trait DdsKey {
     fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key>;
 }
 
+/// This trait defines the optional type representation for a user type. The type representation
+/// returned by the function in this trait must follow the description in 7.3.2 XML Type Representation
+/// of the [OMG DDS-XTypes standard](https://www.omg.org/spec/DDS-XTypes/1.3/).
+///
+/// ## Derivable
+///
+/// This trait can be automatically derived for every DustDDS supported type.
 pub trait DdsTypeXml {
-    fn get_type_xml() -> String;
+    fn get_type_xml() -> Option<String>;
 }
 
 /// This is a convenience derive to allow the user to easily derive all the different traits needed for a type to be used for

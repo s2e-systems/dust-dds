@@ -46,17 +46,10 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
 
                 let field_element = match &field.ty {
                     syn::Type::Array(_) => todo!(),
-                    syn::Type::BareFn(_) => todo!(),
-                    syn::Type::Group(_) => todo!(),
-                    syn::Type::ImplTrait(_) => todo!(),
-                    syn::Type::Infer(_) => todo!(),
-                    syn::Type::Macro(_) => todo!(),
-                    syn::Type::Never(_) => todo!(),
-                    syn::Type::Paren(_) => todo!(),
                     syn::Type::Path(p) => match p.path.get_ident() {
                         Some(i) => {
                             let xtypes_type = convert_rust_type_to_xtypes(i);
-                            field_element.attr("type", xtypes_type)
+                            Ok(field_element.attr("type", xtypes_type))
                         }
                         None => {
                             if p.path.segments[0].ident == "Vec" {
@@ -67,9 +60,9 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                                                 Some(i) => {
                                                     let xtypes_type =
                                                         convert_rust_type_to_xtypes(i);
-                                                    field_element
+                                                    Ok(field_element
                                                         .attr("type", xtypes_type)
-                                                        .attr("sequenceMaxLength", "-1")
+                                                        .attr("sequenceMaxLength", "-1"))
                                                 }
                                                 None => todo!(),
                                             },
@@ -85,14 +78,36 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                             }
                         }
                     },
-                    syn::Type::Ptr(_) => todo!(),
-                    syn::Type::Reference(_) => field_element, //TODO: Handle references
-                    syn::Type::Slice(_) => todo!(),
-                    syn::Type::TraitObject(_) => todo!(),
-                    syn::Type::Tuple(_) => todo!(),
-                    syn::Type::Verbatim(_) => todo!(),
-                    _ => todo!(),
-                };
+                    syn::Type::Reference(r) => {
+                        match r.elem.as_ref() {
+                            syn::Type::Slice(s) => match s.elem.as_ref() {
+                                syn::Type::Path(p) => match p.path.get_ident() {
+                                    Some(i) => {
+                                        let xtypes_type =
+                                            convert_rust_type_to_xtypes(i);
+                                        Ok(field_element
+                                            .attr("type", xtypes_type)
+                                            .attr("sequenceMaxLength", "-1"))
+                                    },
+                                    None => todo!(),
+                                }
+                                _ => unimplemented!("Only slice of ident supported"),
+                            }
+                            _=> unimplemented!("Only reference to slice supported"),
+                        }
+                    },
+                    syn::Type::Tuple(t) => Err(syn::Error::new(
+                        t.paren_token.span.open(),
+                        "Tuple types not supported for automatic XML drive. Use a custom struct instead",
+                    )),
+                    _ => Err(syn::Error::new(
+                        field
+                            .colon_token
+                            .expect("Field expect to contain colon token for type definition")
+                            .span,
+                        "Type not supported for automatic XML derive",
+                    )),
+                }?;
                 xml_writer.write(field_element).expect(&format!(
                     "Failed to write member start element for {}",
                     field_name
@@ -110,8 +125,8 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
 
             Ok(quote! {
                 impl #impl_generics dust_dds::topic_definition::type_support::DdsTypeXml for #ident #type_generics #where_clause {
-                    fn get_type_xml() -> String {
-                        #output_xml_string.to_string()
+                    fn get_type_xml() -> Option<String> {
+                        Some(#output_xml_string.to_string())
                     }
                 }
             })
@@ -153,8 +168,8 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(expand_dds_type_xml(&input).unwrap()).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             r#"impl dust_dds::topic_definition::type_support::DdsTypeXml for TestStruct {
-                fn get_type_xml() -> String {
-                    "<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" /><member name=\"name\" type=\"string\" /><member name=\"value\" type=\"float32\" /></struct>".to_string()
+                fn get_type_xml() -> Option<String> {
+                    Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" /><member name=\"name\" type=\"string\" /><member name=\"value\" type=\"float32\" /></struct>".to_string())
                 }
             }"#
             .parse()

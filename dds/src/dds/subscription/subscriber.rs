@@ -158,7 +158,8 @@ impl Subscriber {
             DURATION_ZERO,
             false,
         );
-        let type_xml = format!("<types>{}</types>", Foo::get_type_xml());
+        let type_xml =
+            Foo::get_type_xml().map_or_else(String::default, |s| format!("<types>{}</types>", s));
         let listener = Box::new(a_listener);
         let status_kind = mask.to_vec();
         let data_reader = DataReaderActor::new::<Foo>(
