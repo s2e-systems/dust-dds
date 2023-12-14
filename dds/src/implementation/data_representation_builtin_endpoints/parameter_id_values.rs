@@ -1,5 +1,8 @@
 use crate::{
-    implementation::rtps::{types::{EntityId, ENTITYID_UNKNOWN}, messages::types::ParameterId},
+    implementation::rtps::{
+        messages::types::ParameterId,
+        types::{EntityId, ENTITYID_UNKNOWN},
+    },
     infrastructure::time::Duration,
 };
 
@@ -55,6 +58,9 @@ pub const PID_DATA_MAX_SIZE_SERIALIZED: ParameterId = PID_TYPE_MAX_SIZE_SERIALIZ
 // Following PID is listed in "Table 9.19 – Deprecated ParameterId Values" but
 // also in "Table 9.14 - ParameterId mapping and default values"
 pub const PID_GROUP_ENTITYID: ParameterId = 0x0053;
+
+#[allow(overflowing_literals)]
+pub const PID_TYPE_REPRESENTATION: ParameterId = 0x8010;
 
 // Constant value from Table 9.14 - ParameterId mapping and default values
 // that are not N/A and not See DDS specification

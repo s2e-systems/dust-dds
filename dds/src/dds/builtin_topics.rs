@@ -6,7 +6,7 @@ use crate::{
         PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP,
         PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY,
         PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME,
-        PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
+        PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_TYPE_REPRESENTATION, PID_USER_DATA,
     },
     infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -252,6 +252,8 @@ pub struct PublicationBuiltinTopicData {
     topic_data: TopicDataQosPolicy,
     #[parameter(id = PID_GROUP_DATA, default=Default::default())]
     group_data: GroupDataQosPolicy,
+    #[parameter(id = PID_TYPE_REPRESENTATION, default=Default::default())]
+    xml_type: String,
 }
 
 impl PublicationBuiltinTopicData {
@@ -274,6 +276,7 @@ impl PublicationBuiltinTopicData {
         partition: PartitionQosPolicy,
         topic_data: TopicDataQosPolicy,
         group_data: GroupDataQosPolicy,
+        xml_type: String,
     ) -> Self {
         Self {
             key,
@@ -293,6 +296,7 @@ impl PublicationBuiltinTopicData {
             partition,
             topic_data,
             group_data,
+            xml_type,
         }
     }
 
@@ -363,6 +367,10 @@ impl PublicationBuiltinTopicData {
     pub fn group_data(&self) -> &GroupDataQosPolicy {
         &self.group_data
     }
+
+    pub fn xml_type(&self) -> &str {
+        &self.xml_type
+    }
 }
 
 impl DdsHasKey for PublicationBuiltinTopicData {
@@ -409,6 +417,8 @@ pub struct SubscriptionBuiltinTopicData {
     topic_data: TopicDataQosPolicy,
     #[parameter(id = PID_GROUP_DATA, default = Default::default())]
     group_data: GroupDataQosPolicy,
+    #[parameter(id = PID_TYPE_REPRESENTATION, default=Default::default())]
+    xml_type: String,
 }
 
 impl SubscriptionBuiltinTopicData {
@@ -431,6 +441,7 @@ impl SubscriptionBuiltinTopicData {
         partition: PartitionQosPolicy,
         topic_data: TopicDataQosPolicy,
         group_data: GroupDataQosPolicy,
+        xml_type: String,
     ) -> Self {
         Self {
             key,
@@ -450,6 +461,7 @@ impl SubscriptionBuiltinTopicData {
             partition,
             topic_data,
             group_data,
+            xml_type,
         }
     }
 
@@ -519,6 +531,10 @@ impl SubscriptionBuiltinTopicData {
 
     pub fn group_data(&self) -> &GroupDataQosPolicy {
         &self.group_data
+    }
+
+    pub fn xml_type(&self) -> &str {
+        &self.xml_type
     }
 }
 

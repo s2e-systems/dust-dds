@@ -233,6 +233,7 @@ impl DomainParticipantActor {
                 spdp_reader_qos,
                 Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
                 vec![],
+                String::default(),
             ));
 
         let sedp_reader_qos = DataReaderQos {
@@ -258,6 +259,7 @@ impl DomainParticipantActor {
             sedp_reader_qos.clone(),
             Box::new(NoOpListener::<DiscoveredTopicData>::new()),
             vec![],
+            String::default(),
         ));
 
         let sedp_builtin_publications_reader_guid =
@@ -270,6 +272,7 @@ impl DomainParticipantActor {
                 sedp_reader_qos.clone(),
                 Box::new(NoOpListener::<DiscoveredWriterData>::new()),
                 vec![],
+                String::default(),
             ));
 
         let sedp_builtin_subscriptions_reader_guid =
@@ -282,6 +285,7 @@ impl DomainParticipantActor {
                 sedp_reader_qos,
                 Box::new(NoOpListener::<DiscoveredReaderData>::new()),
                 vec![],
+                String::default(),
             ));
 
         let builtin_subscriber = spawn_actor(SubscriberActor::new(
@@ -346,6 +350,7 @@ impl DomainParticipantActor {
             Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
             vec![],
             spdp_writer_qos,
+            String::default(),
         ));
 
         for reader_locator in spdp_discovery_locator_list
@@ -382,6 +387,7 @@ impl DomainParticipantActor {
             Box::new(NoOpListener::<DiscoveredTopicData>::new()),
             vec![],
             sedp_writer_qos.clone(),
+            String::default(),
         );
         let sedp_builtin_topics_writer_actor = spawn_actor(sedp_builtin_topics_writer);
 
@@ -394,6 +400,7 @@ impl DomainParticipantActor {
             Box::new(NoOpListener::<DiscoveredWriterData>::new()),
             vec![],
             sedp_writer_qos.clone(),
+            String::default(),
         );
         let sedp_builtin_publications_writer_actor = spawn_actor(sedp_builtin_publications_writer);
 
@@ -406,6 +413,7 @@ impl DomainParticipantActor {
             Box::new(NoOpListener::<DiscoveredReaderData>::new()),
             vec![],
             sedp_writer_qos,
+            String::default(),
         );
         let sedp_builtin_subscriptions_writer_actor =
             spawn_actor(sedp_builtin_subscriptions_writer);

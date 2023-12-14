@@ -17,7 +17,7 @@ use crate::{
     },
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
-    topic_definition::type_support::DdsHasKey,
+    topic_definition::type_support::{DdsHasKey, DdsTypeXml},
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
@@ -84,7 +84,7 @@ impl Publisher {
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
-        Foo: DdsHasKey,
+        Foo: DdsHasKey + DdsTypeXml,
     {
         let default_unicast_locator_list = self
             .participant_address
@@ -103,6 +103,8 @@ impl Publisher {
             )?;
 
         let listener = Box::new(a_listener);
+        let type_xml =
+            Foo::get_type_xml().map_or_else(String::default, |s| format!("<types>{}</types>", s));
         let data_writer_address = self.publisher_address.send_mail_and_await_reply_blocking(
             publisher_actor::create_datawriter::new(
                 a_topic.get_type_name()?,
@@ -114,6 +116,7 @@ impl Publisher {
                 mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
+                type_xml,
             ),
         )??;
 

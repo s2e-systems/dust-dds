@@ -174,6 +174,7 @@ mod tests {
                 PartitionQosPolicy::default(),
                 TopicDataQosPolicy::default(),
                 GroupDataQosPolicy::default(),
+                String::default(),
             ),
         };
 
@@ -240,6 +241,7 @@ mod tests {
                 PartitionQosPolicy::default(),
                 TopicDataQosPolicy::default(),
                 GroupDataQosPolicy::default(),
+                String::default(),
             ),
         };
 

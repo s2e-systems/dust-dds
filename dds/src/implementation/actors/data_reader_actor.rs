@@ -304,6 +304,7 @@ pub struct DataReaderActor {
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, tokio::task::AbortHandle>,
+    xml_type: String,
 }
 
 impl DataReaderActor {
@@ -314,6 +315,7 @@ impl DataReaderActor {
         qos: DataReaderQos,
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
+        xml_type: String,
     ) -> Self
     where
         Foo: DdsKey,
@@ -349,6 +351,7 @@ impl DataReaderActor {
             instance_handle_from_serialized_key,
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
+            xml_type,
         }
     }
 
@@ -1636,6 +1639,7 @@ impl DataReaderActor {
                 subscriber_qos.partition.clone(),
                 topic_qos.topic_data,
                 subscriber_qos.group_data,
+                self.xml_type.clone(),
             ),
         )
     }

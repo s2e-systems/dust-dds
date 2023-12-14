@@ -25,7 +25,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsHasKey, DdsKey},
+        type_support::{DdsHasKey, DdsKey, DdsTypeXml},
     },
 };
 
@@ -101,7 +101,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
-        Foo: DdsHasKey + DdsKey,
+        Foo: DdsHasKey + DdsKey + DdsTypeXml,
     {
         let default_unicast_locator_list = self
             .participant_address
@@ -158,7 +158,8 @@ impl Subscriber {
             DURATION_ZERO,
             false,
         );
-
+        let type_xml =
+            Foo::get_type_xml().map_or_else(String::default, |s| format!("<types>{}</types>", s));
         let listener = Box::new(a_listener);
         let status_kind = mask.to_vec();
         let data_reader = DataReaderActor::new::<Foo>(
@@ -168,6 +169,7 @@ impl Subscriber {
             qos,
             listener,
             status_kind,
+            type_xml,
         );
 
         let reader_actor = spawn_actor(data_reader);
