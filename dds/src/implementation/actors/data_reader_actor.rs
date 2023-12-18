@@ -74,7 +74,7 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_listener_actor::{self, DataReaderListenerActor},
-    domain_participant_actor::DomainParticipantActor,
+    domain_participant_actor::{DomainParticipantActor, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER},
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
     status_condition_actor::{self, StatusConditionActor},
     subscriber_actor::SubscriberActor,
@@ -523,7 +523,10 @@ impl DataReaderActor {
                     }
                 }
             }
-        } else if message_reader_id == ENTITYID_UNKNOWN {
+        } else if message_reader_id == ENTITYID_UNKNOWN
+            || (message_reader_id == self.rtps_reader.guid().entity_id()
+                && message_reader_id == ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER) // Additional condition only for discovery interoperability with FastDDS
+        {
             // Stateless reader behavior. We add the change if the data is correct. No error is printed
             // because all readers would get changes marked with ENTITYID_UNKNOWN
             if let Ok(change) = self.convert_received_data_to_cache_change(
