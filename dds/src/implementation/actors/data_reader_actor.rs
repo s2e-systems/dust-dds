@@ -523,9 +523,7 @@ impl DataReaderActor {
                     }
                 }
             }
-        } else if message_reader_id == ENTITYID_UNKNOWN
-            || message_reader_id == self.rtps_reader.guid().entity_id()
-        {
+        } else if message_reader_id == ENTITYID_UNKNOWN {
             // Stateless reader behavior. We add the change if the data is correct. No error is printed
             // because all readers would get changes marked with ENTITYID_UNKNOWN
             if let Ok(change) = self.convert_received_data_to_cache_change(
