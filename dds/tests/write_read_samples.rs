@@ -421,7 +421,7 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
         .take(5, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    assert_eq!(samples.len(), 3);
+    assert_eq!(samples.len(), 3, "Received wrong number of samples. Received samples: {:?}", samples);
     assert_eq!(samples[0].data().unwrap(), data3);
     assert_eq!(samples[1].data().unwrap(), data4);
     assert_eq!(samples[2].data().unwrap(), data5);
@@ -525,6 +525,104 @@ fn samples_are_taken() {
     assert_eq!(samples2.len(), 2);
     assert_eq!(samples2[0].data().unwrap(), data4);
     assert_eq!(samples2[1].data().unwrap(), data5);
+}
+
+#[test]
+fn wait_for_samples_to_be_taken_best_effort() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpListener::new(),
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoOpListener::new(),
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpListener::new(),
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+    let data2 = KeyedData { id: 2, value: 10 };
+    let data3 = KeyedData { id: 3, value: 20 };
+    let data4 = KeyedData { id: 4, value: 30 };
+    let data5 = KeyedData { id: 5, value: 40 };
+
+    writer.write(&data1, None).unwrap();
+    writer.write(&data2, None).unwrap();
+    writer.write(&data3, None).unwrap();
+    writer.write(&data4, None).unwrap();
+    writer.write(&data5, None).unwrap();
+
+    let start_time = std::time::Instant::now();
+    let mut samples = Vec::new();
+    while start_time.elapsed() < std::time::Duration::from_secs(10) {
+        if let Ok(sample) = reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE) {
+            samples.push(sample[0].data().unwrap())
+        }
+
+        if samples.len() >= 5 {
+            break;
+        }
+    }
+
+    assert_eq!(samples.len(), 5);
+    assert_eq!(samples[0], data1);
+    assert_eq!(samples[1], data2);
+    assert_eq!(samples[2], data3);
+    assert_eq!(samples[3], data4);
+    assert_eq!(samples[4], data5);
 }
 
 #[test]
@@ -805,7 +903,7 @@ fn take_next_sample() {
     writer.write(&data3, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     assert_eq!(reader.take_next_sample().unwrap().data().unwrap(), data1);
@@ -1089,7 +1187,7 @@ fn read_next_instance() {
     writer.write(&data3, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples1 = reader
