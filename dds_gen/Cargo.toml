@@ -4,7 +4,7 @@ version = "0.7.0"
 authors = [
 	"Joao Rebelo <jrebelo@s2e-systems.com>",
 	"Stefan Kimmer <skimmer@s2e-systems.com>",
-	"Pierre Martinet <pmartinet@s2e-systems.com>"
+	"Pierre Martinet <pmartinet@s2e-systems.com>",
 ]
 license = "Apache-2.0"
 edition = "2021"
@@ -18,3 +18,6 @@ categories = ["compilers"]
 [dependencies]
 pest = "=2.5.3"
 pest_derive = "=2.5.3"
+
+[dev-dependencies]
+syn = { version = "2.0", features = ["full", "extra-traits"] }

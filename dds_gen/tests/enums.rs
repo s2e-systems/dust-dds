@@ -1,3 +1,5 @@
+use syn::File;
+
 #[test]
 fn enum_generation() {
     let idl = r#"
@@ -5,7 +7,8 @@ fn enum_generation() {
         enum Direction { North, East, South, West };
     "#;
 
-    let expected = r#"
+    let expected = syn::parse2::<File>(
+        r#"
     #[derive(Debug)]
     pub enum Suits {
         Spades,
@@ -20,9 +23,14 @@ fn enum_generation() {
         South,
         West,
     }
-    "#;
+    "#
+        .parse()
+        .unwrap(),
+    )
+    .unwrap();
 
-    let result = dust_dds_gen::compile_idl(idl).unwrap();
+    let result =
+        syn::parse2::<File>(dust_dds_gen::compile_idl(idl).unwrap().parse().unwrap()).unwrap();
 
     assert_eq!(result, expected);
 }
