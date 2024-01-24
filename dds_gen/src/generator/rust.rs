@@ -252,7 +252,7 @@ fn module_dcl(pair: IdlPair, writer: &mut String) {
         .expect("Must have an identifier according to the grammar");
     writer.push_str("pub mod ");
     generate_rust_source(identifier, writer);
-    writer.push_str("{");
+    writer.push('{');
 
     for definition in inner_pairs
         .clone()
@@ -261,7 +261,7 @@ fn module_dcl(pair: IdlPair, writer: &mut String) {
         generate_rust_source(definition, writer);
     }
 
-    writer.push_str("}");
+    writer.push('}');
 }
 
 fn type_dcl(pair: IdlPair, writer: &mut String) {
@@ -320,17 +320,17 @@ fn enum_dcl(pair: IdlPair, writer: &mut String) {
     writer.push_str("#[derive(Debug)]\n");
     writer.push_str("pub enum ");
     generate_rust_source(identifier, writer);
-    writer.push_str("{");
+    writer.push('{');
 
     for enumerator in inner_pairs
         .clone()
         .filter(|p| p.as_rule() == Rule::enumerator)
     {
         generate_rust_source(enumerator, writer);
-        writer.push_str(",");
+        writer.push(',');
     }
 
-    writer.push_str("}");
+    writer.push('}');
 }
 
 fn enumerator(pair: IdlPair, writer: &mut String) {
@@ -382,8 +382,8 @@ fn member(pair: IdlPair, writer: &mut String) {
                     .find(|p| p.as_rule() == Rule::fixed_array_size)
                     .expect("Identifier must exist according to grammar");
                 generate_rust_source(identifier, writer);
-                writer.push_str(":");
-                writer.push_str("[");
+                writer.push(':');
+                writer.push('[');
                 generate_rust_source(type_spec.clone(), writer);
                 writer.push_str(";");
                 generate_rust_source(fixed_array_size, writer);
