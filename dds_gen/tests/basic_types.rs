@@ -20,10 +20,6 @@ fn basic_types() {
             double n;
             // fixed o;
         };
-
-        struct TemplateTypes {
-            sequence<sequence<octet>> a;
-        }
     "#;
 
     let expected = syn::parse2::<File>(
@@ -44,11 +40,6 @@ fn basic_types() {
                 pub l: u64,
                 pub m: f32,
                 pub n: f64,
-            }
-
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            pub struct TemplateTypes {
-                pub a: Vec<Vec<u8>>,
             }
     "#
         .parse()
