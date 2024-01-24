@@ -346,14 +346,10 @@ fn member(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
 
     let type_spec = inner_pairs
-        .clone()
-        .filter(|p| p.as_rule() == Rule::type_spec)
-        .next()
+        .clone().find(|p| p.as_rule() == Rule::type_spec)
         .expect("Declarator must exist according to grammar");
     let declarators = inner_pairs
-        .clone()
-        .filter(|p| p.as_rule() == Rule::declarators)
-        .next()
+        .clone().find(|p| p.as_rule() == Rule::declarators)
         .expect("Declarator must exist according to grammar");
 
     for annotation_appl in inner_pairs
@@ -385,18 +381,18 @@ fn member(pair: IdlPair, writer: &mut String) {
                 writer.push(':');
                 writer.push('[');
                 generate_rust_source(type_spec.clone(), writer);
-                writer.push_str(";");
+                writer.push(';');
                 generate_rust_source(fixed_array_size, writer);
-                writer.push_str("]");
+                writer.push(']');
             }
             Rule::simple_declarator => {
                 generate_rust_source(array_or_simple_declarator, writer);
-                writer.push_str(":");
+                writer.push(':');
                 generate_rust_source(type_spec.clone(), writer);
             }
             _ => panic!("Not allowed by the grammar"),
         }
-        writer.push_str(",");
+        writer.push(',');
     }
 }
 
@@ -537,7 +533,7 @@ fn sequence_type(pair: IdlPair, writer: &mut String) {
 
     writer.push_str("Vec<");
     generate_rust_source(type_spec, writer);
-    writer.push_str(">");
+    writer.push('>');
 }
 
 fn string_type(_pair: IdlPair, writer: &mut String) {
