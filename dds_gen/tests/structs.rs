@@ -48,7 +48,7 @@ fn structs_generation() {
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             pub struct Sentence {
                 pub words: Vec<String>,
-                pub dependencies: Vec<[u32; 2]>,
+                pub dependencies: Vec<Vec<u32>>,
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             pub struct User {

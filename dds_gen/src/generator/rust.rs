@@ -63,25 +63,25 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::base_type_spec => base_type_spec(pair, writer),
         Rule::floating_pt_type => floating_pt_type(pair, writer),
         Rule::float => float(pair, writer),
-        Rule::double => todo!(),
-        Rule::long_double => todo!(),
+        Rule::double => double(pair, writer),
+        Rule::long_double => unimplemented!("long double not support in Rust mapping"),
         Rule::integer_type => integer_type(pair, writer),
         Rule::signed_int => signed_int(pair, writer),
-        Rule::signed_short_int => todo!(),
+        Rule::signed_short_int => signed_short_int(pair, writer),
         Rule::signed_long_int => signed_long_int(pair, writer),
         Rule::signed_longlong_int => signed_longlong_int(pair, writer),
-        Rule::unsigned_int => todo!(),
-        Rule::unsigned_short_int => todo!(),
-        Rule::unsigned_long_int => todo!(),
-        Rule::unsigned_longlong_int => todo!(),
-        Rule::char_type => todo!(),
-        Rule::wide_char_type => todo!(),
+        Rule::unsigned_int => unsigned_int(pair, writer),
+        Rule::unsigned_short_int => unsigned_short_int(pair, writer),
+        Rule::unsigned_long_int => unsigned_long_int(pair, writer),
+        Rule::unsigned_longlong_int => unsigned_longlong_int(pair, writer),
+        Rule::char_type => char_type(pair, writer),
+        Rule::wide_char_type => wide_char_type(pair, writer),
         Rule::boolean_type => todo!(),
         Rule::octet_type => octet_type(pair, writer),
-        Rule::template_type_spec => todo!(),
-        Rule::sequence_type => todo!(),
-        Rule::string_type => todo!(),
-        Rule::wide_string_type => todo!(),
+        Rule::template_type_spec => template_type_spec(pair, writer),
+        Rule::sequence_type => sequence_type(pair, writer),
+        Rule::string_type => string_type(pair, writer),
+        Rule::wide_string_type => wide_string_type(pair, writer),
         Rule::fixed_pt_type => todo!(),
         Rule::fixed_pt_const_type => todo!(),
         Rule::constr_type_dcl => constr_type_dcl(pair, writer),
@@ -408,6 +408,10 @@ fn float(_pair: IdlPair, writer: &mut String) {
     writer.push_str("f32");
 }
 
+fn double(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("f64");
+}
+
 fn integer_type(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
@@ -426,6 +430,10 @@ fn signed_int(pair: IdlPair, writer: &mut String) {
     )
 }
 
+fn signed_short_int(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("i16");
+}
+
 fn signed_long_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("i32");
 }
@@ -434,8 +442,59 @@ fn signed_longlong_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("i64");
 }
 
+fn unsigned_int(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn unsigned_short_int(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("u16");
+}
+
+fn unsigned_long_int(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("u32");
+}
+
+fn unsigned_longlong_int(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("u64");
+}
+
 fn octet_type(_pair: IdlPair, writer: &mut String) {
     writer.push_str("u8");
+}
+
+fn template_type_spec(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn sequence_type(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+
+    let type_spec = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::type_spec)
+        .expect("Must have a type_spec according to the grammar");
+
+    writer.push_str("Vec<");
+    generate_rust_source(type_spec, writer);
+    writer.push_str(">");
+}
+
+fn string_type(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("String");
+}
+
+fn wide_string_type(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("String");
 }
 
 fn fixed_array_size(pair: IdlPair, writer: &mut String) {
@@ -482,6 +541,14 @@ fn scoped_name(pair: IdlPair, writer: &mut String) {
     }
 }
 
+fn char_type(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("char");
+}
+
+fn wide_char_type(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("char");
+}
+
 #[cfg(test)]
 mod tests {
     use pest::Parser;
@@ -522,5 +589,29 @@ mod tests {
         generate_rust_source(p, &mut out);
         println!("RESULT: {}", out);
         assert_eq!("#[dust_dds(key)]pub a:i32,", &out);
+    }
+
+    #[test]
+    fn parse_member_sequence_type() {
+        let mut out = String::new();
+        let p = IdlParser::parse(Rule::member, "sequence<octet> a;")
+            .unwrap()
+            .next()
+            .unwrap();
+        generate_rust_source(p, &mut out);
+        println!("RESULT: {}", out);
+        assert_eq!("pub a:Vec<u8>,", &out);
+    }
+
+    #[test]
+    fn parse_member_sequence_of_sequence_type() {
+        let mut out = String::new();
+        let p = IdlParser::parse(Rule::member, "sequence<sequence<octet>> a;")
+            .unwrap()
+            .next()
+            .unwrap();
+        generate_rust_source(p, &mut out);
+        println!("RESULT: {}", out);
+        assert_eq!("pub a:Vec<Vec<u8>>,", &out);
     }
 }
