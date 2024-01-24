@@ -18,7 +18,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::other_directive => todo!(),
         Rule::block_comment => todo!(),
         Rule::line_comment => todo!(),
-        Rule::COMMENT => todo!(),
+        Rule::COMMENT => (),
         Rule::identifier => identifier(pair, writer),
         Rule::character_literal => todo!(),
         Rule::string_literal => todo!(),
@@ -36,7 +36,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::float_suffix => todo!(),
         Rule::specification => specification(pair, writer),
         Rule::definition => definition(pair, writer),
-        Rule::module_dcl => todo!(),
+        Rule::module_dcl => module_dcl(pair, writer),
         Rule::scoped_name => scoped_name(pair, writer),
         Rule::const_dcl => todo!(),
         Rule::const_type => todo!(),
@@ -97,8 +97,8 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::case_label => todo!(),
         Rule::element_spec => todo!(),
         Rule::union_forward_dcl => todo!(),
-        Rule::enum_dcl => todo!(),
-        Rule::enumerator => todo!(),
+        Rule::enum_dcl => enum_dcl(pair, writer),
+        Rule::enumerator => enumerator(pair, writer),
         Rule::array_declarator => todo!(),
         Rule::fixed_array_size => fixed_array_size(pair, writer),
         Rule::native_dcl => todo!(),
@@ -244,6 +244,26 @@ fn definition(pair: IdlPair, writer: &mut String) {
     )
 }
 
+fn module_dcl(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+    let identifier = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::identifier)
+        .expect("Must have an identifier according to the grammar");
+    writer.push_str("mod ");
+    generate_rust_source(identifier, writer);
+    writer.push_str("{");
+
+    for definition in inner_pairs
+        .clone()
+        .filter(|p| p.as_rule() == Rule::definition)
+    {
+        generate_rust_source(definition, writer);
+    }
+
+    writer.push_str("}");
+}
+
 fn type_dcl(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
@@ -289,6 +309,37 @@ fn struct_def(pair: IdlPair, writer: &mut String) {
     }
 
     writer.push_str("}\n");
+}
+
+fn enum_dcl(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+    let identifier = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::identifier)
+        .expect("Must have an identifier according to the grammar");
+    writer.push_str("#[derive(Debug)]\n");
+    writer.push_str("pub enum ");
+    generate_rust_source(identifier, writer);
+    writer.push_str("{");
+
+    for enumerator in inner_pairs
+        .clone()
+        .filter(|p| p.as_rule() == Rule::enumerator)
+    {
+        generate_rust_source(enumerator, writer);
+        writer.push_str(",");
+    }
+
+    writer.push_str("}");
+}
+
+fn enumerator(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
 }
 
 fn member(pair: IdlPair, writer: &mut String) {
@@ -613,5 +664,23 @@ mod tests {
         generate_rust_source(p, &mut out);
         println!("RESULT: {}", out);
         assert_eq!("pub a:Vec<Vec<u8>>,", &out);
+    }
+
+    #[test]
+    fn parse_enum() {
+        let mut out = String::new();
+        let p = IdlParser::parse(
+            Rule::enum_dcl,
+            "enum Suits { Spades, Hearts, Diamonds, Clubs };",
+        )
+        .unwrap()
+        .next()
+        .unwrap();
+        generate_rust_source(p, &mut out);
+        println!("RESULT: {}", out);
+        assert_eq!(
+            "#[derive(Debug)]\npub enum Suits{Spades,Hearts,Diamonds,Clubs,}",
+            &out
+        );
     }
 }
