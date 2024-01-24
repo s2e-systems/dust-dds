@@ -1,7 +1,7 @@
 use syn::File;
 
 #[test]
-fn structs_generation() {
+fn basic_types() {
     let idl = r#"
         struct BasicTypes {
             boolean a;
@@ -20,6 +20,10 @@ fn structs_generation() {
             double n;
             // fixed o;
         };
+
+        struct TemplateTypes {
+            sequence<sequence<octet>> a;
+        }
     "#;
 
     let expected = syn::parse2::<File>(
@@ -40,6 +44,43 @@ fn structs_generation() {
                 pub l: u64,
                 pub m: f32,
                 pub n: f64,
+            }
+
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            pub struct TemplateTypes {
+                pub a: Vec<Vec<u8>>,
+            }
+    "#
+        .parse()
+        .unwrap(),
+    )
+    .unwrap();
+
+    let result =
+        syn::parse2::<File>(dust_dds_gen::compile_idl(idl).unwrap().parse().unwrap()).unwrap();
+
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn template_types() {
+    let idl = r#"
+        struct TemplateTypes {
+            sequence<sequence<octet>> a;
+            string<256> b;
+            sequence<short, 128> c;
+            wstring<64> d;
+        };
+    "#;
+
+    let expected = syn::parse2::<File>(
+        r#"
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            pub struct TemplateTypes {
+                pub a: Vec<Vec<u8>>,
+                pub b: String,
+                pub c: Vec<i16>,
+                pub d: String,
             }
     "#
         .parse()

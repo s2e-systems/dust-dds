@@ -27,7 +27,7 @@ fn module_generation() {
 
             module Cards
             {
-                enum Suit { Spades, Hearts, Diamonds, Clubs /*, NoTrump */ };
+                enum Suit { Spades, Hearts, Diamonds, Clubs /*, NoTrumpCard */ };
             };
         };
 

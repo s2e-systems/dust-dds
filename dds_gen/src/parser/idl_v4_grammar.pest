@@ -36,7 +36,7 @@ include_directive = !{ "#" ~ "include" ~ (("<" ~ path_spec ~ ">") | ("\"" ~ path
 other_directive = @{ "#" ~ (!newline ~ ANY)* }
 block_comment = @{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 line_comment = @{ "//" ~ (!newline ~ ANY)* }
-COMMENT = ${ block_comment | line_comment }
+COMMENT = _{ block_comment | line_comment }
 
 
 identifier = @{ (alpha | "_") ~ ("_" | alpha | digit)* }

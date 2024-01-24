@@ -598,7 +598,7 @@ fn wide_char_type(_pair: IdlPair, writer: &mut String) {
     writer.push_str("char");
 }
 
-fn boolean(pair: IdlPair, writer: &mut String) {
+fn boolean(_pair: IdlPair, writer: &mut String) {
     writer.push_str("bool");
 }
 
