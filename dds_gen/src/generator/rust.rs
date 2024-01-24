@@ -11,13 +11,13 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::octal_escape => todo!(),
         Rule::hex_escape => todo!(),
         Rule::unicode_escape => todo!(),
-        Rule::newline => todo!(),
-        Rule::WHITESPACE => todo!(),
+        Rule::newline => (),
+        Rule::WHITESPACE => (),
         Rule::path_spec => todo!(),
         Rule::include_directive => todo!(),
         Rule::other_directive => todo!(),
-        Rule::block_comment => todo!(),
-        Rule::line_comment => todo!(),
+        Rule::block_comment => (),
+        Rule::line_comment => (),
         Rule::COMMENT => (),
         Rule::identifier => identifier(pair, writer),
         Rule::character_literal => todo!(),
@@ -76,7 +76,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::unsigned_longlong_int => unsigned_longlong_int(pair, writer),
         Rule::char_type => char_type(pair, writer),
         Rule::wide_char_type => wide_char_type(pair, writer),
-        Rule::boolean_type => todo!(),
+        Rule::boolean_type => boolean(pair, writer),
         Rule::octet_type => octet_type(pair, writer),
         Rule::template_type_spec => template_type_spec(pair, writer),
         Rule::sequence_type => sequence_type(pair, writer),
@@ -346,10 +346,12 @@ fn member(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
 
     let type_spec = inner_pairs
-        .clone().find(|p| p.as_rule() == Rule::type_spec)
+        .clone()
+        .find(|p| p.as_rule() == Rule::type_spec)
         .expect("Declarator must exist according to grammar");
     let declarators = inner_pairs
-        .clone().find(|p| p.as_rule() == Rule::declarators)
+        .clone()
+        .find(|p| p.as_rule() == Rule::declarators)
         .expect("Declarator must exist according to grammar");
 
     for annotation_appl in inner_pairs
@@ -594,6 +596,10 @@ fn char_type(_pair: IdlPair, writer: &mut String) {
 
 fn wide_char_type(_pair: IdlPair, writer: &mut String) {
     writer.push_str("char");
+}
+
+fn boolean(pair: IdlPair, writer: &mut String) {
+    writer.push_str("bool");
 }
 
 #[cfg(test)]

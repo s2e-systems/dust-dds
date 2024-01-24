@@ -25,6 +25,7 @@ fn structs_generation() {
 
         struct User {
             wstring<8> name;
+            boolean active;
         };
     "#;
 
@@ -53,6 +54,7 @@ fn structs_generation() {
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             pub struct User {
                 pub name: String,
+                pub active: bool,
             }
     "#
         .parse()
