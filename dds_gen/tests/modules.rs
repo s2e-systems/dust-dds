@@ -40,8 +40,8 @@ fn module_generation() {
 
     let expected = syn::parse2::<File>(
         r#"
-        mod Game {
-            mod Chess {
+        pub mod Game {
+            pub mod Chess {
                 #[derive(Debug)]
                 pub enum ChessPiece {
                     Pawn,
@@ -57,7 +57,7 @@ fn module_generation() {
                     pub line: u16,
                 }
             }
-            mod Cards {
+            pub mod Cards {
                 #[derive(Debug)]
                 pub enum Suit {
                     Spades,

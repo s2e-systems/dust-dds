@@ -16,8 +16,8 @@ keywords = ["dds", "idl", "middleware"]
 categories = ["compilers"]
 
 [dependencies]
-pest = "=2.5.3"
-pest_derive = "=2.5.3"
+pest = "2.7"
+pest_derive = "2.7"
 
 [dev-dependencies]
 syn = { version = "2.0", features = ["full", "extra-traits"] }

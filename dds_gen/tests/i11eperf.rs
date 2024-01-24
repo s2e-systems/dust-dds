@@ -105,7 +105,7 @@ fn i11eperf_generation() {
 
     let expected = syn::parse2::<File>(
         r#"
-        mod i11eperf {
+        pub mod i11eperf {
           #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             pub struct ou {
               pub ts: u64,
