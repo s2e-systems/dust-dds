@@ -107,75 +107,75 @@ fn i11eperf_generation() {
         r#"
         mod i11eperf {
           #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct ou {
-                ts: u64,
-                s: u32,
+            pub struct ou {
+              pub ts: u64,
+              pub s: u32,
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct a32 {
-                ts: u64,
-                s: u32,
-                xary: [u8; 32 - 12],
+            pub struct a32 {
+              pub ts: u64,
+              pub s: u32,
+              pub xary: [u8; 32 - 12],
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct a128 {
-                ts: u64,
-                s: u32,
-                xary: [u8; 128 - 12],
+            pub struct a128 {
+              pub ts: u64,
+              pub s: u32,
+              pub xary: [u8; 128 - 12],
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct a1024 {
-                ts: u64,
-                s: u32,
-                xary: [u8; 1024 - 12],
+            pub struct a1024 {
+              pub ts: u64,
+              pub s: u32,
+              pub xary: [u8; 1024 - 12],
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct a16k {
-                ts: u64,
-                s: u32,
-                xary: [u8; 16*1024 - 12],
+            pub struct a16k {
+              pub ts: u64,
+              pub s: u32,
+              pub xary: [u8; 16*1024 - 12],
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct a48k {
-                ts: u64,
-                s: u32,
-                xary: [u8; 48*1024 - 12],
+            pub struct a48k {
+              pub ts: u64,
+              pub s: u32,
+              pub xary: [u8; 48*1024 - 12],
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct a64k {
-                ts: u64,
-                s: u32,
-                xary: [u8; 64*1024 - 12],
+            pub struct a64k {
+              pub ts: u64,
+              pub s: u32,
+              pub xary: [u8; 64*1024 - 12],
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct a1M {
-                ts: u64,
-                s: u32,
-                xary: [u8; 1024*1024 - 12],
+            pub struct a1M {
+              pub ts: u64,
+              pub s: u32,
+              pub xary: [u8; 1024*1024 - 12],
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct a2M {
-                ts: u64,
-                s: u32,
-                xary: [u8; 2*1024*1024 - 12],
+            pub struct a2M {
+              pub ts: u64,
+              pub s: u32,
+              pub xary: [u8; 2*1024*1024 - 12],
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct a4M {
-                ts: u64,
-                s: u32,
-                xary: [u8; 4*1024*1024 - 12],
+            pub struct a4M {
+              pub ts: u64,
+              pub s: u32,
+              pub xary: [u8; 4*1024*1024 - 12],
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct a8M {
-                ts: u64,
-                s: u32,
-                xary: [u8; 8*1024*1024 - 12],
+            pub struct a8M {
+              pub ts: u64,
+              pub s: u32,
+              pub xary: [u8; 8*1024*1024 - 12],
             }
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
-            struct seq {
-                ts: u64,
-                s: u32,
-                xseq: Vec<u8>,
+            pub struct seq {
+              pub ts: u64,
+              pub s: u32,
+              pub xseq: Vec<u8>,
             }
         }
     "#
