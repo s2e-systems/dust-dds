@@ -40,7 +40,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::scoped_name => todo!(),
         Rule::const_dcl => todo!(),
         Rule::const_type => todo!(),
-        Rule::const_expr => todo!(),
+        Rule::const_expr => const_expr(pair, writer)?,
         Rule::or_expr => todo!(),
         Rule::xor_expr => todo!(),
         Rule::and_expr => todo!(),
@@ -56,7 +56,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::primary_expr => todo!(),
         Rule::literal => todo!(),
         Rule::boolean_literal => todo!(),
-        Rule::positive_int_const => todo!(),
+        Rule::positive_int_const => positive_int_const(pair, writer)?,
         Rule::type_dcl => type_dcl(pair, writer)?,
         Rule::type_spec => type_spec(pair, writer)?,
         Rule::simple_type_spec => simple_type_spec(pair, writer)?,
@@ -69,7 +69,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::signed_int => signed_int(pair, writer)?,
         Rule::signed_short_int => todo!(),
         Rule::signed_long_int => signed_long_int(pair, writer)?,
-        Rule::signed_longlong_int => todo!(),
+        Rule::signed_longlong_int => signed_longlong_int(pair, writer)?,
         Rule::unsigned_int => todo!(),
         Rule::unsigned_short_int => todo!(),
         Rule::unsigned_long_int => todo!(),
@@ -77,7 +77,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::char_type => todo!(),
         Rule::wide_char_type => todo!(),
         Rule::boolean_type => todo!(),
-        Rule::octet_type => todo!(),
+        Rule::octet_type => octet_type(pair, writer)?,
         Rule::template_type_spec => todo!(),
         Rule::sequence_type => todo!(),
         Rule::string_type => todo!(),
@@ -100,7 +100,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::enum_dcl => todo!(),
         Rule::enumerator => todo!(),
         Rule::array_declarator => todo!(),
-        Rule::fixed_array_size => todo!(),
+        Rule::fixed_array_size => fixed_array_size(pair, writer)?,
         Rule::native_dcl => todo!(),
         Rule::simple_declarator => simple_declarator(pair, writer)?,
         Rule::typedef_dcl => todo!(),
@@ -108,7 +108,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::ANY_declarators => todo!(),
         Rule::ANY_declarator => todo!(),
         Rule::declarators => declarators(pair, writer)?,
-        Rule::declarator => declarator(pair, writer)?,
+        Rule::declarator => todo!(),
         Rule::ANY_type => todo!(),
         Rule::except_dcl => todo!(),
         Rule::interface_dcl => todo!(),
@@ -280,6 +280,7 @@ fn struct_def(pair: IdlPair, writer: &mut String) -> Result<(), String> {
         .find(|p| p.as_rule() == Rule::identifier)
         .expect("Identifier must exist according to the grammar");
 
+    writer.push_str("#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\n");
     writer.push_str("pub struct ");
     generate_rust_source(identifier, writer)?;
 
@@ -307,10 +308,41 @@ fn member(pair: IdlPair, writer: &mut String) -> Result<(), String> {
         .next()
         .expect("Declarator must exist according to grammar");
 
-    generate_rust_source(declarators, writer)?;
-    writer.push_str(": ");
-    generate_rust_source(type_spec, writer)?;
-    writer.push_str(",");
+    for declarator in declarators.into_inner() {
+        let array_or_simple_declarator = declarator
+            .into_inner()
+            .next()
+            .expect("Must have an element according to the grammar");
+        writer.push_str("pub ");
+        match array_or_simple_declarator.as_rule() {
+            Rule::array_declarator => {
+                let array_declarator = array_or_simple_declarator.into_inner();
+                let identifier = array_declarator
+                    .clone()
+                    .find(|p| p.as_rule() == Rule::identifier)
+                    .expect("Identifier must exist according to grammar");
+                // TODO: Only single array supported
+                let fixed_array_size = array_declarator
+                    .clone()
+                    .find(|p| p.as_rule() == Rule::fixed_array_size)
+                    .expect("Identifier must exist according to grammar");
+                generate_rust_source(identifier, writer)?;
+                writer.push_str(":");
+                writer.push_str("[");
+                generate_rust_source(type_spec.clone(), writer)?;
+                writer.push_str(";");
+                generate_rust_source(fixed_array_size, writer)?;
+                writer.push_str("]");
+            }
+            Rule::simple_declarator => {
+                generate_rust_source(array_or_simple_declarator, writer)?;
+                writer.push_str(":");
+                generate_rust_source(type_spec.clone(), writer)?;
+            }
+            _ => panic!("Not allowed by the grammar"),
+        }
+        writer.push_str(",");
+    }
 
     Ok(())
 }
@@ -320,15 +352,6 @@ fn declarators(pair: IdlPair, writer: &mut String) -> Result<(), String> {
         generate_rust_source(declarator, writer)?;
     }
     Ok(())
-}
-
-fn declarator(pair: IdlPair, writer: &mut String) -> Result<(), String> {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
 }
 
 fn simple_declarator(pair: IdlPair, writer: &mut String) -> Result<(), String> {
@@ -390,8 +413,41 @@ fn signed_int(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn signed_long_int(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn signed_long_int(_pair: IdlPair, writer: &mut String) -> Result<(), String> {
     writer.push_str("i32");
+    Ok(())
+}
+
+fn signed_longlong_int(_pair: IdlPair, writer: &mut String) -> Result<(), String> {
+    writer.push_str("i64");
+    Ok(())
+}
+
+fn octet_type(_pair: IdlPair, writer: &mut String) -> Result<(), String> {
+    writer.push_str("u8");
+    Ok(())
+}
+
+fn fixed_array_size(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn positive_int_const(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn const_expr(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+    writer.push_str(pair.as_str());
     Ok(())
 }
 
@@ -409,7 +465,9 @@ mod tests {
         let p = IdlParser::parse(
             Rule::struct_def,
             "struct MyStruct {
-            long a;
+            @key long a;
+            long long b, c;
+            octet xary[32], yary[64];
         };",
         )
         .unwrap()
@@ -417,6 +475,9 @@ mod tests {
         .unwrap();
         generate_rust_source(p, &mut out).unwrap();
         println!("RESULT: {}", out);
-        assert_eq!("pub struct MyStruct {a: i32,}\n", &out);
+        assert_eq!(
+            "#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
+            &out
+        );
     }
 }
