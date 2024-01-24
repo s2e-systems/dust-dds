@@ -96,7 +96,7 @@ definition = {
     | template_module_dcl ~ ";"
     | template_module_inst ~ ";"
     | annotation_dcl ~ ";"
-    | include_directive 
+    | include_directive
     | other_directive
 }
 // (3)
@@ -305,7 +305,7 @@ struct_dcl = {
 // (46) (195)
 struct_def = { "struct" ~ identifier ~ (":" ~ scoped_name)? ~ "{" ~ member* ~ "}" }
 // (47)
-member = { annotation_appl? ~ type_spec ~ declarators ~ ";" }
+member = { annotation_appl* ~ type_spec ~ declarators ~ ";" }
 // (48)
 struct_forward_dcl = { "struct" ~ identifier }
 // (49)
@@ -815,4 +815,3 @@ annotation_appl_params = {
 }
 // (217)
 annotation_appl_param = { identifier ~ "=" ~ const_expr }
-

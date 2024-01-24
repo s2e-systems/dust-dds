@@ -37,7 +37,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::specification => specification(pair, writer)?,
         Rule::definition => definition(pair, writer)?,
         Rule::module_dcl => todo!(),
-        Rule::scoped_name => todo!(),
+        Rule::scoped_name => scoped_name(pair, writer)?,
         Rule::const_dcl => todo!(),
         Rule::const_type => todo!(),
         Rule::const_expr => const_expr(pair, writer)?,
@@ -61,8 +61,8 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::type_spec => type_spec(pair, writer)?,
         Rule::simple_type_spec => simple_type_spec(pair, writer)?,
         Rule::base_type_spec => base_type_spec(pair, writer)?,
-        Rule::floating_pt_type => todo!(),
-        Rule::float => todo!(),
+        Rule::floating_pt_type => floating_pt_type(pair, writer)?,
+        Rule::float => float(pair, writer)?,
         Rule::double => todo!(),
         Rule::long_double => todo!(),
         Rule::integer_type => integer_type(pair, writer)?,
@@ -223,7 +223,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::annotation_member => todo!(),
         Rule::annotation_member_type => todo!(),
         Rule::ANY_const_type => todo!(),
-        Rule::annotation_appl => todo!(),
+        Rule::annotation_appl => annotation_appl(pair, writer)?,
         Rule::annotation_appl_params => todo!(),
         Rule::annotation_appl_param => todo!(),
     }
@@ -307,6 +307,13 @@ fn member(pair: IdlPair, writer: &mut String) -> Result<(), String> {
         .filter(|p| p.as_rule() == Rule::declarators)
         .next()
         .expect("Declarator must exist according to grammar");
+
+    for annotation_appl in inner_pairs
+        .clone()
+        .filter(|p| p.as_rule() == Rule::annotation_appl)
+    {
+        generate_rust_source(annotation_appl, writer)?;
+    }
 
     for declarator in declarators.into_inner() {
         let array_or_simple_declarator = declarator
@@ -395,6 +402,20 @@ fn base_type_spec(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
+fn floating_pt_type(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn float(_pair: IdlPair, writer: &mut String) -> Result<(), String> {
+    writer.push_str("f32");
+    Ok(())
+}
+
 fn integer_type(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     generate_rust_source(
         pair.into_inner()
@@ -451,6 +472,32 @@ fn const_expr(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     Ok(())
 }
 
+fn annotation_appl(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+    let inner_pairs = pair.into_inner();
+
+    let scoped_name = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::scoped_name)
+        .expect("Must have a scoped name according to the grammar");
+
+    generate_rust_source(scoped_name, writer)?;
+
+    Ok(())
+}
+
+fn scoped_name(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+    let identifier = pair
+        .into_inner()
+        .next()
+        .expect("Must have an identifier according to the grammar");
+
+    if identifier.as_str() == "key" {
+        writer.push_str("#[dust_dds(key)]");
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use pest::Parser;
@@ -465,7 +512,7 @@ mod tests {
         let p = IdlParser::parse(
             Rule::struct_def,
             "struct MyStruct {
-            @key long a;
+            long a;
             long long b, c;
             octet xary[32], yary[64];
         };",
@@ -479,5 +526,17 @@ mod tests {
             "#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
             &out
         );
+    }
+
+    #[test]
+    fn parse_member_with_key() {
+        let mut out = String::new();
+        let p = IdlParser::parse(Rule::member, "@key long a;")
+            .unwrap()
+            .next()
+            .unwrap();
+        generate_rust_source(p, &mut out).unwrap();
+        println!("RESULT: {}", out);
+        assert_eq!("#[dust_dds(key)]pub a:i32,", &out);
     }
 }
