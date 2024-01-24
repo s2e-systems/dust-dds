@@ -1,6 +1,6 @@
 use crate::parser::{IdlPair, Rule};
 
-pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
     match pair.as_rule() {
         Rule::EOI => (),
         Rule::alpha => todo!(),
@@ -19,7 +19,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::block_comment => todo!(),
         Rule::line_comment => todo!(),
         Rule::COMMENT => todo!(),
-        Rule::identifier => identifier(pair, writer)?,
+        Rule::identifier => identifier(pair, writer),
         Rule::character_literal => todo!(),
         Rule::string_literal => todo!(),
         Rule::wide_character_literal => todo!(),
@@ -34,13 +34,13 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::fractional_part => todo!(),
         Rule::exponent => todo!(),
         Rule::float_suffix => todo!(),
-        Rule::specification => specification(pair, writer)?,
-        Rule::definition => definition(pair, writer)?,
+        Rule::specification => specification(pair, writer),
+        Rule::definition => definition(pair, writer),
         Rule::module_dcl => todo!(),
-        Rule::scoped_name => scoped_name(pair, writer)?,
+        Rule::scoped_name => scoped_name(pair, writer),
         Rule::const_dcl => todo!(),
         Rule::const_type => todo!(),
-        Rule::const_expr => const_expr(pair, writer)?,
+        Rule::const_expr => const_expr(pair, writer),
         Rule::or_expr => todo!(),
         Rule::xor_expr => todo!(),
         Rule::and_expr => todo!(),
@@ -56,20 +56,20 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::primary_expr => todo!(),
         Rule::literal => todo!(),
         Rule::boolean_literal => todo!(),
-        Rule::positive_int_const => positive_int_const(pair, writer)?,
-        Rule::type_dcl => type_dcl(pair, writer)?,
-        Rule::type_spec => type_spec(pair, writer)?,
-        Rule::simple_type_spec => simple_type_spec(pair, writer)?,
-        Rule::base_type_spec => base_type_spec(pair, writer)?,
-        Rule::floating_pt_type => floating_pt_type(pair, writer)?,
-        Rule::float => float(pair, writer)?,
+        Rule::positive_int_const => positive_int_const(pair, writer),
+        Rule::type_dcl => type_dcl(pair, writer),
+        Rule::type_spec => type_spec(pair, writer),
+        Rule::simple_type_spec => simple_type_spec(pair, writer),
+        Rule::base_type_spec => base_type_spec(pair, writer),
+        Rule::floating_pt_type => floating_pt_type(pair, writer),
+        Rule::float => float(pair, writer),
         Rule::double => todo!(),
         Rule::long_double => todo!(),
-        Rule::integer_type => integer_type(pair, writer)?,
-        Rule::signed_int => signed_int(pair, writer)?,
+        Rule::integer_type => integer_type(pair, writer),
+        Rule::signed_int => signed_int(pair, writer),
         Rule::signed_short_int => todo!(),
-        Rule::signed_long_int => signed_long_int(pair, writer)?,
-        Rule::signed_longlong_int => signed_longlong_int(pair, writer)?,
+        Rule::signed_long_int => signed_long_int(pair, writer),
+        Rule::signed_longlong_int => signed_longlong_int(pair, writer),
         Rule::unsigned_int => todo!(),
         Rule::unsigned_short_int => todo!(),
         Rule::unsigned_long_int => todo!(),
@@ -77,17 +77,17 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::char_type => todo!(),
         Rule::wide_char_type => todo!(),
         Rule::boolean_type => todo!(),
-        Rule::octet_type => octet_type(pair, writer)?,
+        Rule::octet_type => octet_type(pair, writer),
         Rule::template_type_spec => todo!(),
         Rule::sequence_type => todo!(),
         Rule::string_type => todo!(),
         Rule::wide_string_type => todo!(),
         Rule::fixed_pt_type => todo!(),
         Rule::fixed_pt_const_type => todo!(),
-        Rule::constr_type_dcl => constr_type_dcl(pair, writer)?,
-        Rule::struct_dcl => struct_dcl(pair, writer)?,
-        Rule::struct_def => struct_def(pair, writer)?,
-        Rule::member => member(pair, writer)?,
+        Rule::constr_type_dcl => constr_type_dcl(pair, writer),
+        Rule::struct_dcl => struct_dcl(pair, writer),
+        Rule::struct_def => struct_def(pair, writer),
+        Rule::member => member(pair, writer),
         Rule::struct_forward_dcl => todo!(),
         Rule::union_dcl => todo!(),
         Rule::union_def => todo!(),
@@ -100,14 +100,14 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::enum_dcl => todo!(),
         Rule::enumerator => todo!(),
         Rule::array_declarator => todo!(),
-        Rule::fixed_array_size => fixed_array_size(pair, writer)?,
+        Rule::fixed_array_size => fixed_array_size(pair, writer),
         Rule::native_dcl => todo!(),
-        Rule::simple_declarator => simple_declarator(pair, writer)?,
+        Rule::simple_declarator => simple_declarator(pair, writer),
         Rule::typedef_dcl => todo!(),
         Rule::type_declarator => todo!(),
         Rule::ANY_declarators => todo!(),
         Rule::ANY_declarator => todo!(),
-        Rule::declarators => declarators(pair, writer)?,
+        Rule::declarators => declarators(pair, writer),
         Rule::declarator => todo!(),
         Rule::ANY_type => todo!(),
         Rule::except_dcl => todo!(),
@@ -223,21 +223,19 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) -> Result<(), St
         Rule::annotation_member => todo!(),
         Rule::annotation_member_type => todo!(),
         Rule::ANY_const_type => todo!(),
-        Rule::annotation_appl => annotation_appl(pair, writer)?,
+        Rule::annotation_appl => annotation_appl(pair, writer),
         Rule::annotation_appl_params => todo!(),
         Rule::annotation_appl_param => todo!(),
     }
-    Ok(())
 }
 
-fn specification(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn specification(pair: IdlPair, writer: &mut String) {
     for definition in pair.into_inner() {
-        generate_rust_source(definition, writer)?;
+        generate_rust_source(definition, writer);
     }
-    Ok(())
 }
 
-fn definition(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn definition(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -246,7 +244,7 @@ fn definition(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn type_dcl(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn type_dcl(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -255,7 +253,7 @@ fn type_dcl(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn constr_type_dcl(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn constr_type_dcl(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -264,7 +262,7 @@ fn constr_type_dcl(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn struct_dcl(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn struct_dcl(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -273,7 +271,7 @@ fn struct_dcl(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn struct_def(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn struct_def(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
     let identifier = inner_pairs
         .clone()
@@ -282,19 +280,18 @@ fn struct_def(pair: IdlPair, writer: &mut String) -> Result<(), String> {
 
     writer.push_str("#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\n");
     writer.push_str("pub struct ");
-    generate_rust_source(identifier, writer)?;
+    generate_rust_source(identifier, writer);
 
     writer.push_str(" {");
 
     for member in inner_pairs.filter(|p| p.as_rule() == Rule::member) {
-        generate_rust_source(member, writer)?;
+        generate_rust_source(member, writer);
     }
 
     writer.push_str("}\n");
-    Ok(())
 }
 
-fn member(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn member(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
 
     let type_spec = inner_pairs
@@ -312,7 +309,7 @@ fn member(pair: IdlPair, writer: &mut String) -> Result<(), String> {
         .clone()
         .filter(|p| p.as_rule() == Rule::annotation_appl)
     {
-        generate_rust_source(annotation_appl, writer)?;
+        generate_rust_source(annotation_appl, writer);
     }
 
     for declarator in declarators.into_inner() {
@@ -333,35 +330,32 @@ fn member(pair: IdlPair, writer: &mut String) -> Result<(), String> {
                     .clone()
                     .find(|p| p.as_rule() == Rule::fixed_array_size)
                     .expect("Identifier must exist according to grammar");
-                generate_rust_source(identifier, writer)?;
+                generate_rust_source(identifier, writer);
                 writer.push_str(":");
                 writer.push_str("[");
-                generate_rust_source(type_spec.clone(), writer)?;
+                generate_rust_source(type_spec.clone(), writer);
                 writer.push_str(";");
-                generate_rust_source(fixed_array_size, writer)?;
+                generate_rust_source(fixed_array_size, writer);
                 writer.push_str("]");
             }
             Rule::simple_declarator => {
-                generate_rust_source(array_or_simple_declarator, writer)?;
+                generate_rust_source(array_or_simple_declarator, writer);
                 writer.push_str(":");
-                generate_rust_source(type_spec.clone(), writer)?;
+                generate_rust_source(type_spec.clone(), writer);
             }
             _ => panic!("Not allowed by the grammar"),
         }
         writer.push_str(",");
     }
-
-    Ok(())
 }
 
-fn declarators(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn declarators(pair: IdlPair, writer: &mut String) {
     for declarator in pair.into_inner() {
-        generate_rust_source(declarator, writer)?;
+        generate_rust_source(declarator, writer);
     }
-    Ok(())
 }
 
-fn simple_declarator(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn simple_declarator(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -370,12 +364,11 @@ fn simple_declarator(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn identifier(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn identifier(pair: IdlPair, writer: &mut String) {
     writer.push_str(pair.as_str());
-    Ok(())
 }
 
-fn type_spec(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn type_spec(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -384,7 +377,7 @@ fn type_spec(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn simple_type_spec(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn simple_type_spec(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -393,7 +386,7 @@ fn simple_type_spec(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn base_type_spec(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn base_type_spec(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -402,7 +395,7 @@ fn base_type_spec(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn floating_pt_type(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn floating_pt_type(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -411,12 +404,11 @@ fn floating_pt_type(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn float(_pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn float(_pair: IdlPair, writer: &mut String) {
     writer.push_str("f32");
-    Ok(())
 }
 
-fn integer_type(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn integer_type(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -425,7 +417,7 @@ fn integer_type(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn signed_int(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn signed_int(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -434,22 +426,19 @@ fn signed_int(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn signed_long_int(_pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn signed_long_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("i32");
-    Ok(())
 }
 
-fn signed_longlong_int(_pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn signed_longlong_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("i64");
-    Ok(())
 }
 
-fn octet_type(_pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn octet_type(_pair: IdlPair, writer: &mut String) {
     writer.push_str("u8");
-    Ok(())
 }
 
-fn fixed_array_size(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn fixed_array_size(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -458,7 +447,7 @@ fn fixed_array_size(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     )
 }
 
-fn positive_int_const(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn positive_int_const(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -467,12 +456,11 @@ fn positive_int_const(pair: IdlPair, writer: &mut String) -> Result<(), String> 
     )
 }
 
-fn const_expr(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn const_expr(pair: IdlPair, writer: &mut String) {
     writer.push_str(pair.as_str());
-    Ok(())
 }
 
-fn annotation_appl(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn annotation_appl(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
 
     let scoped_name = inner_pairs
@@ -480,12 +468,10 @@ fn annotation_appl(pair: IdlPair, writer: &mut String) -> Result<(), String> {
         .find(|p| p.as_rule() == Rule::scoped_name)
         .expect("Must have a scoped name according to the grammar");
 
-    generate_rust_source(scoped_name, writer)?;
-
-    Ok(())
+    generate_rust_source(scoped_name, writer);
 }
 
-fn scoped_name(pair: IdlPair, writer: &mut String) -> Result<(), String> {
+fn scoped_name(pair: IdlPair, writer: &mut String) {
     let identifier = pair
         .into_inner()
         .next()
@@ -494,8 +480,6 @@ fn scoped_name(pair: IdlPair, writer: &mut String) -> Result<(), String> {
     if identifier.as_str() == "key" {
         writer.push_str("#[dust_dds(key)]");
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -520,7 +504,7 @@ mod tests {
         .unwrap()
         .next()
         .unwrap();
-        generate_rust_source(p, &mut out).unwrap();
+        generate_rust_source(p, &mut out);
         println!("RESULT: {}", out);
         assert_eq!(
             "#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
@@ -535,7 +519,7 @@ mod tests {
             .unwrap()
             .next()
             .unwrap();
-        generate_rust_source(p, &mut out).unwrap();
+        generate_rust_source(p, &mut out);
         println!("RESULT: {}", out);
         assert_eq!("#[dust_dds(key)]pub a:i32,", &out);
     }

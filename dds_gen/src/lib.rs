@@ -11,6 +11,6 @@ pub fn compile_idl(idl_source: &str) -> Result<String, String> {
         .expect("Must contain a specification");
 
     let mut output = String::new();
-    rust::generate_rust_source(parsed_idl, &mut output)?;
+    rust::generate_rust_source(parsed_idl, &mut output);
     Ok(output)
 }

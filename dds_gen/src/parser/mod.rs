@@ -5,4 +5,3 @@ use pest_derive::Parser;
 pub struct IdlParser;
 
 pub type IdlPair<'i> = pest::iterators::Pair<'i, Rule>;
-pub type IdlPairList<'i> = pest::iterators::Pairs<'i, Rule>;
