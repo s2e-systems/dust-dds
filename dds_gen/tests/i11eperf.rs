@@ -106,72 +106,72 @@ fn i11eperf_generation() {
     let expected = syn::parse2::<File>(
         r#"
         mod i11eperf {
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+          #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct ou {
                 ts: u64,
                 s: u32,
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct a32 {
                 ts: u64,
                 s: u32,
                 xary: [u8; 32 - 12],
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct a128 {
                 ts: u64,
                 s: u32,
                 xary: [u8; 128 - 12],
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct a1024 {
                 ts: u64,
                 s: u32,
                 xary: [u8; 1024 - 12],
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct a16k {
                 ts: u64,
                 s: u32,
                 xary: [u8; 16*1024 - 12],
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct a48k {
                 ts: u64,
                 s: u32,
                 xary: [u8; 48*1024 - 12],
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct a64k {
                 ts: u64,
                 s: u32,
                 xary: [u8; 64*1024 - 12],
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct a1M {
                 ts: u64,
                 s: u32,
                 xary: [u8; 1024*1024 - 12],
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct a2M {
                 ts: u64,
                 s: u32,
                 xary: [u8; 2*1024*1024 - 12],
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct a4M {
                 ts: u64,
                 s: u32,
                 xary: [u8; 4*1024*1024 - 12],
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct a8M {
                 ts: u64,
                 s: u32,
                 xary: [u8; 8*1024*1024 - 12],
             }
-            #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
             struct seq {
                 ts: u64,
                 s: u32,
