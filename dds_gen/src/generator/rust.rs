@@ -3,15 +3,10 @@ use crate::parser::{IdlPair, Rule};
 pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
     match pair.as_rule() {
         Rule::EOI => (),
-        Rule::alpha => todo!(),
-        Rule::digit => todo!(),
-        Rule::octal_digit => todo!(),
-        Rule::hex_digit => todo!(),
         Rule::escape => todo!(),
         Rule::octal_escape => todo!(),
         Rule::hex_escape => todo!(),
         Rule::unicode_escape => todo!(),
-        Rule::newline => (),
         Rule::WHITESPACE => (),
         Rule::path_spec => todo!(),
         Rule::include_directive => todo!(),
@@ -19,6 +14,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::block_comment => (),
         Rule::line_comment => (),
         Rule::COMMENT => (),
+        Rule::reserved_keyword => (),
         Rule::identifier => identifier(pair, writer),
         Rule::character_literal => todo!(),
         Rule::string_literal => todo!(),
@@ -62,14 +58,13 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::simple_type_spec => simple_type_spec(pair, writer),
         Rule::base_type_spec => base_type_spec(pair, writer),
         Rule::floating_pt_type => floating_pt_type(pair, writer),
-        Rule::float => float(pair, writer),
-        Rule::double => double(pair, writer),
-        Rule::long_double => unimplemented!("long double not support in Rust mapping"),
         Rule::integer_type => integer_type(pair, writer),
+        Rule::signed_tiny_int => todo!(),
         Rule::signed_int => signed_int(pair, writer),
         Rule::signed_short_int => signed_short_int(pair, writer),
         Rule::signed_long_int => signed_long_int(pair, writer),
         Rule::signed_longlong_int => signed_longlong_int(pair, writer),
+        Rule::unsigned_tiny_int => todo!(),
         Rule::unsigned_int => unsigned_int(pair, writer),
         Rule::unsigned_short_int => unsigned_short_int(pair, writer),
         Rule::unsigned_long_int => unsigned_long_int(pair, writer),
@@ -105,11 +100,11 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::simple_declarator => simple_declarator(pair, writer),
         Rule::typedef_dcl => todo!(),
         Rule::type_declarator => todo!(),
-        Rule::ANY_declarators => todo!(),
-        Rule::ANY_declarator => todo!(),
+        Rule::any_declarators => todo!(),
+        Rule::any_declarator => todo!(),
         Rule::declarators => declarators(pair, writer),
         Rule::declarator => todo!(),
-        Rule::ANY_type => todo!(),
+        Rule::any_type => todo!(),
         Rule::except_dcl => todo!(),
         Rule::interface_dcl => todo!(),
         Rule::interface_def => todo!(),
@@ -222,7 +217,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::annotation_body => todo!(),
         Rule::annotation_member => todo!(),
         Rule::annotation_member_type => todo!(),
-        Rule::ANY_const_type => todo!(),
+        Rule::any_const_type => todo!(),
         Rule::annotation_appl => annotation_appl(pair, writer),
         Rule::annotation_appl_params => todo!(),
         Rule::annotation_appl_param => todo!(),
@@ -445,20 +440,12 @@ fn base_type_spec(pair: IdlPair, writer: &mut String) {
 }
 
 fn floating_pt_type(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
-}
-
-fn float(_pair: IdlPair, writer: &mut String) {
-    writer.push_str("f32");
-}
-
-fn double(_pair: IdlPair, writer: &mut String) {
-    writer.push_str("f64");
+    match pair.as_str() {
+        "float" => writer.push_str("f32"),
+        "double" => writer.push_str("f64"),
+        "long double" => unimplemented!("long double not supported in Rust"),
+        _ => panic!("Invalid option by grammar"),
+    }
 }
 
 fn integer_type(pair: IdlPair, writer: &mut String) {

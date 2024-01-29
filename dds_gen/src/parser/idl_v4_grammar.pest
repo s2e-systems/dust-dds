@@ -1,45 +1,120 @@
-// Copyright (C) 2017  Kevin Pansky
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
 
-//
-// Object Management Group Interface Definition Language v4.1
-// OMG Document Number: formal/2017-05-07
-// Standard document URL: http://www.omg.org/spec/IDL/4.1/
-//
+// Object Management Group Interface Definition Language v4.2
+// OMG Document Number: formal/18-01-05
+// Release Date: March 2018
+// Standard Document URL: http://www.omg.org/spec/IDL/4.2/
 
-
-//
-//
 // From Section 7.2 Lexical Conventions:
-//
-//
-
-alpha = { 'a'..'z' | 'A'..'Z' }
-digit = { '0'..'9' }
-octal_digit = { '0'..'7' }
-hex_digit = {'0'..'9' | 'a'..'f' | 'A'..'F'}
 escape = ${ "\\" ~ ("n" | "t" | "v" | "b" | "r" | "f" | "a" | "\\" | "?" | "'" | "\"") | octal_escape | hex_escape | unicode_escape }
-octal_escape = ${ "\\" ~ octal_digit ~ octal_digit? ~ octal_digit? }
-hex_escape = ${ "\\" ~ "x" ~ hex_digit ~ hex_digit? }
-unicode_escape = ${ "\\" ~ "u" ~ hex_digit{1,4} }
+octal_escape = ${ "\\" ~ ASCII_OCT_DIGIT ~ ASCII_OCT_DIGIT? ~ ASCII_OCT_DIGIT? }
+hex_escape = ${ "\\" ~ "x" ~ ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT? }
+unicode_escape = ${ "\\" ~ "u" ~ ASCII_HEX_DIGIT{1,4} }
 
-
-newline = _{ "\n" | "\r\n" }
-WHITESPACE = _{ " " | "\t" | newline }
+WHITESPACE = _{ " " | "\t" | NEWLINE }
 path_spec = @{ (!">" ~!"\"" ~ ANY)+ }
 include_directive = !{ "#" ~ "include" ~ (("<" ~ path_spec ~ ">") | ("\"" ~ path_spec ~ "\"")) }
-other_directive = @{ "#" ~ (!newline ~ ANY)* }
+other_directive = @{ "#" ~ (!NEWLINE ~ ANY)* }
 block_comment = @{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
-line_comment = @{ "//" ~ (!newline ~ ANY)* }
+line_comment = @{ "//" ~ (!NEWLINE ~ ANY)* }
 COMMENT = _{ block_comment | line_comment }
 
+// Keywords must be written exactly as shown in the above list.
+// Identifiers that collide with keywords (see 7.2.3, Identifiers) are illegal.
+// For example, boolean is a valid keyword; Boolean and BOOLEAN are illegal identifiers.
+reserved_keyword = {
+      ^"abstract"
+    | ^"any"
+    | ^"bitmask"
+    | ^"alias"
+    | ^"attribute"
+    | ^"bitfield"
+    | ^"bitmask"
+    | ^"bitset"
+    | ^"boolean"
+    | ^"case"
+    | ^"char"
+    | ^"component"
+    | ^"connector"
+    | ^"const"
+    | ^"consumes"
+    | ^"context"
+    | ^"custom"
+    | ^"default"
+    | ^"double"
+    | ^"exception"
+    | ^"emits"
+    | ^"enum"
+    | ^"eventtype"
+    | ^"factory"
+    | ^"FALSE"
+    | ^"finder"
+    | ^"fixed"
+    | ^"float"
+    | ^"getraises"
+    | ^"home"
+    | ^"import"
+    | ^"in"
+    | ^"inout"
+    | ^"interface"
+    | ^"local"
+    | ^"long"
+    | ^"manages"
+    | ^"map"
+    | ^"mirrorport"
+    | ^"module"
+    | ^"multiple"
+    | ^"native"
+    | ^"Object"
+    | ^"octet"
+    | ^"oneway"
+    | ^"out"
+    | ^"primarykey"
+    | ^"private"
+    | ^"port"
+    | ^"porttype"
+    | ^"provides"
+    | ^"public"
+    | ^"publishes"
+    | ^"raises"
+    | ^"readonly"
+    | ^"setraises"
+    | ^"sequence"
+    | ^"short"
+    | ^"string"
+    | ^"struct"
+    | ^"supports"
+    | ^"switch"
+    | ^"TRUE"
+    | ^"truncatable"
+    | ^"typedef"
+    | ^"typeid"
+    | ^"typename"
+    | ^"typeprefix"
+    | ^"unsigned"
+    | ^"union"
+    | ^"uses"
+    | ^"ValueBase"
+    | ^"valuetype"
+    | ^"void"
+    | ^"wchar"
+    | ^"wstring"
+    | ^"int8"
+    | ^"uint8"
+    | ^"int16"
+    | ^"int32"
+    | ^"int64"
+    | ^"uint16"
+    | ^"uint32"
+    | ^"uint64"
+}
 
-identifier = @{ (alpha | "_") ~ ("_" | alpha | digit)* }
+// Identifier can not be a keyword. The optional is used instead of the negative lookahead (!)
+// because the identifier might start with a keyword as long as it has something after it.
+identifier = @{
+    reserved_keyword? ~ (ASCII | "_") ~ ("_" | ASCII_ALPHANUMERIC )*
+    | "_" ~ (ASCII | "_") ~ ("_" | ASCII_ALPHANUMERIC )*
+}
+
 character_literal = @{ "'" ~ (!"'" ~ (escape | ANY)) ~ "'" }
 string_literal = @{ "\"" ~ (!"\"" ~ (escape | ANY))* ~ "\"" }
 wide_character_literal = @{ "L'" ~ (!"'" ~ (escape | ANY)) ~ "'" }
@@ -49,9 +124,9 @@ integer_literal = ${
     | octal_integer_literal
     | decimal_integer_literal
 }
-decimal_integer_literal = @{ digit+ }
-octal_integer_literal = @{ "0" ~ octal_digit+ }
-hex_integer_literal = @{ ("0x" | "0X") ~ hex_digit+ }
+decimal_integer_literal = @{ ASCII_DIGIT+ }
+octal_integer_literal = @{ "0" ~ ASCII_OCT_DIGIT+ }
+hex_integer_literal = @{ ("0x" | "0X") ~ ASCII_HEX_DIGIT+ }
 fixed_pt_literal = ${ floating_pt_literal }
 floating_pt_literal = ${
     integral_part ~ "." ~ fractional_part ~ exponent? ~ float_suffix?
@@ -59,57 +134,59 @@ floating_pt_literal = ${
     | integral_part ~ exponent ~ float_suffix?
     | integral_part ~ float_suffix
 }
-integral_part =  @{ digit+ }
-fractional_part =  @{ digit+ }
-exponent = ${ ("e" | "E") ~ ("+" | "-")? ~ digit+ }
+integral_part =  @{ ASCII_DIGIT+ }
+fractional_part =  @{ ASCII_DIGIT+ }
+exponent = ${ ("e" | "E") ~ ("+" | "-")? ~ ASCII_DIGIT+ }
 float_suffix = ${ ("f" | "F" | "d" | "D") }
 
-
-
-//
-//
-// From Annex: Consolidated IDL Grammar
-//
-//
-
+// Annex: Consolidated IDL Grammar
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Core Data Types:
 ///////////////////////////////////////////////////////////////////////////////
 // (1)
-specification = { SOI ~ definition* ~ EOI}
-// (2) (71) (98) (111) (184) (208)
+specification = { SOI ~ definition+ ~ EOI}
+// (2)
 definition = {
     module_dcl ~ ";"
     | const_dcl ~ ";"
     | type_dcl ~ ";"
+    // (71)
     | except_dcl ~ ";"
     | interface_dcl ~ ";"
+    // (98)
     | value_dcl ~ ";"
+    // (111)
     | type_id_dcl ~ ";"
     | type_prefix_dcl ~ ";"
     | import_dcl ~ ";"
+    // (133)
     | component_dcl ~ ";"
+    // (144)
     | home_dcl ~ ";"
+    // (153)
     | event_dcl ~ ";"
+    // (171)
     | porttype_dcl ~ ";"
     | connector_dcl ~ ";"
+    // (184)
     | template_module_dcl ~ ";"
     | template_module_inst ~ ";"
+    // (218)
     | annotation_dcl ~ ";"
     | include_directive
     | other_directive
 }
 // (3)
-module_dcl = { "module" ~ identifier ~ "{" ~ definition* ~ "}" }
+module_dcl = { "module" ~ identifier ~ "{" ~ definition+ ~ "}" }
 // (4)
 scoped_name = { "::"? ~ identifier ~ ("::" ~ identifier)* }
 // (5)
 const_dcl = { "const" ~ const_type ~ identifier ~ "=" ~ const_expr }
 // (6)
 const_type = {
-    floating_pt_type
+    integer_type
+    | floating_pt_type
     | fixed_pt_const_type
-    | integer_type
     | char_type
     | wide_char_type
     | boolean_type
@@ -175,9 +252,9 @@ primary_expr = {
 }
 // (17)
 literal = {
-    floating_pt_literal
+    integer_literal
+    | floating_pt_literal
     | fixed_pt_literal
-    | integer_literal
     | character_literal
     | wide_character_literal
     | boolean_literal
@@ -197,14 +274,19 @@ type_dcl = {
     | native_dcl
     | typedef_dcl
 }
-// (21) (206)
-type_spec = { template_type_spec | simple_type_spec }
+// (21)
+type_spec = {
+    // (216)
+    template_type_spec
+    | simple_type_spec
+
+}
 // (22)
 simple_type_spec = {
     base_type_spec
     | scoped_name
 }
-// (23) (69) (118) (131)
+// (23)
 base_type_spec = {
     floating_pt_type
     | integer_type
@@ -212,22 +294,19 @@ base_type_spec = {
     | wide_char_type
     | boolean_type
     | octet_type
-    | ANY_type
+    // (69)
+    | any_type
+    // (117)
     | object_type
+    // (131)
     | value_base_type
 }
 // (24)
 floating_pt_type = {
-    float
-    | double
-    | long_double
+    "long" ~" double"
+    | "float"
+    | "double"
 }
-float = { "float" }
-
-double = { "double" }
-
-long_double = { "long" ~ "double" }
-
 // (25)
 integer_type = {
     signed_int
@@ -235,28 +314,53 @@ integer_type = {
 }
 // (26)
 signed_int = {
-    signed_short_int
-    | signed_longlong_int
+    signed_longlong_int
+    | signed_short_int
     | signed_long_int
+    // (206)
+    | signed_tiny_int
 }
 // (27)
-signed_short_int = { "short" }
+signed_short_int = {
+    "short"
+    | "int16"
+}
 // (28)
-signed_long_int = { "long" }
+signed_long_int = {
+    "long"
+    // (211)
+    | "int32"
+}
 // (29)
-signed_longlong_int = { "long" ~ "long" }
+signed_longlong_int = {
+    "long" ~ "long"
+    // (212)
+    | "int64"
+
+}
 // (30)
 unsigned_int = {
-    unsigned_short_int
-    | unsigned_longlong_int
+    unsigned_longlong_int
+    | unsigned_short_int
     | unsigned_long_int
+    // (207)
+    | unsigned_tiny_int
 }
 // (31)
-unsigned_short_int = { "unsigned" ~ "short" }
+unsigned_short_int = {
+    "unsigned" ~ "short"
+    | "uint16"
+}
 // (32)
-unsigned_long_int = { "unsigned" ~ "long" }
+unsigned_long_int = {
+    "unsigned" ~ "long"
+    | "uint32"
+}
 // (33)
-unsigned_longlong_int = { "unsigned" ~ "long" ~ "long" }
+unsigned_longlong_int = {
+    "unsigned" ~ "long" ~ "long"
+    | "uint64"
+}
 // (34)
 char_type = { "char" }
 // (35)
@@ -265,12 +369,13 @@ wide_char_type = { "wchar" }
 boolean_type = { "boolean" }
 // (37)
 octet_type = { "octet" }
-// (38) (197)
+// (38)
 template_type_spec = {
     sequence_type
     | string_type
     | wide_string_type
     | fixed_pt_type
+    // (197)
     | map_type
 }
 // (39)
@@ -289,11 +394,12 @@ wide_string_type = {
 fixed_pt_type = { "fixed" ~ "<" ~ positive_int_const ~ "," ~ positive_int_const ~ ">" }
 // (43)
 fixed_pt_const_type = { "fixed" }
-// (44) (198)
+// (44)
 constr_type_dcl = {
     struct_dcl
     | union_dcl
     | enum_dcl
+    // (198)
     | bitset_dcl
     | bitmask_dcl
 }
@@ -302,8 +408,8 @@ struct_dcl = {
     struct_def
     | struct_forward_dcl
 }
-// (46) (195)
-struct_def = { annotation_appl* ~ "struct" ~ identifier ~ (":" ~ scoped_name)? ~ "{" ~ member* ~ "}" }
+// (46)
+struct_def = { annotation_appl* ~ "struct" ~ identifier ~ /*(195)*/(":" ~ scoped_name)? ~ "{" ~ member* ~ "}" }
 // (47)
 member = { annotation_appl* ~ type_spec ~ declarators ~ ";" }
 // (48)
@@ -315,14 +421,15 @@ union_dcl = {
 }
 // (50)
 union_def = { "union" ~ identifier ~ "switch" ~ "(" ~ switch_type_spec ~ ")" ~ "{" ~ switch_body ~ "}" }
-// (51) (196)
+// (51)
 switch_type_spec = {
     integer_type
     | char_type
     | boolean_type
+    | scoped_name
+    // (196)
     | wide_char_type
     | octet_type
-    | scoped_name
 }
 // (52)
 switch_body = { case+ }
@@ -338,7 +445,7 @@ element_spec = { type_spec ~ declarator }
 // (56)
 union_forward_dcl = { "union" ~ identifier }
 // (57)
-enum_dcl = { "enum" ~ identifier ~ "{" ~ enumerator ~ ("," ~ enumerator)* ~ ","? ~ "}" }
+enum_dcl = { "enum" ~ identifier ~ "{" ~ enumerator ~ ("," ~ enumerator)* ~ "}" }
 // (58)
 enumerator = { identifier }
 // (59)
@@ -352,29 +459,25 @@ simple_declarator = { identifier }
 // (63)
 typedef_dcl = { "typedef" ~ type_declarator }
 // (64)
-type_declarator = { (template_type_spec | constr_type_dcl | simple_type_spec) ~ ANY_declarators }
+type_declarator = { (template_type_spec | constr_type_dcl | simple_type_spec ) ~ any_declarators }
 // (65)
-ANY_declarators = { ANY_declarator ~ ("," ~ ANY_declarator)* }
+any_declarators = { any_declarator ~ ("," ~ any_declarator)* }
 // (66)
-ANY_declarator = {
+any_declarator = {
     array_declarator
     | simple_declarator
 }
 // (67)
 declarators = { declarator ~ ("," ~ declarator )* }
-// (68) (207)
-declarator = { array_declarator | simple_declarator }
-
-
+// (68)
+declarator = {/*(217)*/array_declarator | simple_declarator }
 
 ///////////////////////////////////////////////////////////////////////////////
-// From Building Block ANY:
+// From Building Block any:
 ///////////////////////////////////////////////////////////////////////////////
 // (69) merged to (23)
 // (70)
-ANY_type = { "ANY" }
-
-
+any_type = { "any" }
 
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Interfaces – Basic:
@@ -393,26 +496,33 @@ interface_def = { interface_header ~ "{" ~ interface_body ~ "}" }
 interface_forward_dcl = { interface_kind ~ identifier }
 // (76)
 interface_header = { interface_kind ~ identifier ~ interface_inheritance_spec? }
-// (77) (119) (129)
-interface_kind = { "interface" | "local" ~ "interface" | "abstract" ~ "interface" }
+// (77)
+interface_kind = {
+    "interface"
+    // (119)
+    | "local" ~ "interface"
+    // (129)
+    | "abstract" ~ "interface" }
 // (78)
 interface_inheritance_spec = { ":" ~ interface_name ~ ("," ~ interface_name)* }
 // (79)
 interface_name = { scoped_name }
 // (80)
 interface_body = { export* }
-// (81) (97) (112)
+// (81)
 export = {
     op_dcl ~ ";"
     | attr_dcl ~ ";"
+    // (97)
     | type_dcl ~ ";"
     | const_dcl ~ ";"
     | except_dcl ~ ";"
+    // (112)
     | type_id_dcl ~ ";"
     | type_prefix_dcl ~ ";"
     | import_dcl ~ ";"
-    | op_with_context ~ ";"
     | op_oneway_dcl ~ ";"
+    | op_with_context ~ ";"
 }
 // (82)
 op_dcl = { op_type_spec ~ identifier ~ "(" ~ parameter_dcls? ~ ")" ~ raises_expr? }
@@ -427,7 +537,7 @@ parameter_dcls = { param_dcl ~ ("," ~ param_dcl)* }
 param_dcl = { param_attribute ~ type_spec ~ simple_declarator }
 // (86)
 param_attribute = {
-    "inout"
+    "inout" // Must be first for matching purposes
     | "in"
     | "out"
 }
@@ -464,23 +574,20 @@ set_excep_expr = { "setraises" ~ exception_list }
 // (96)
 exception_list = { "(" ~ scoped_name ~ ("," ~ scoped_name)* ~ ")" }
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Interfaces – Full:
 ///////////////////////////////////////////////////////////////////////////////
 // (97) merged to (81)
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Value Types:
 ///////////////////////////////////////////////////////////////////////////////
 // (98) merged to (2)
-// (99) (125)
+// (99)
 value_dcl = {
     value_def
     | value_forward_dcl
+    // (125)
     | value_box_def
     | value_abs_def
 }
@@ -488,11 +595,16 @@ value_dcl = {
 value_def = { value_header ~ "{" ~ value_element* ~ "}" }
 // (101)
 value_header = { value_kind ~ identifier ~ value_inheritance_spec? }
-// (102) (128)
-value_kind = { "valuetype" | "custom" ~ "valuetype" }
-// (103) (130)
+// (102)
+value_kind = {
+    "valuetype"
+    // (128)
+    | "custom" ~ "valuetype" }
+// (103)
 value_inheritance_spec = {
+    // (130)
     ":" ~ "truncatable"? ~ value_name ~ ("," ~ value_name)* ~ ("supports" ~ interface_name ~ ("," ~ interface_name)* )?
+    // (103) Must stay after for matching purposes
     | (":" ~ value_name)? ~ ("supports" ~ interface_name)?
 }
 // (104)
@@ -513,8 +625,6 @@ init_param_dcls = { init_param_dcl ~ ("," ~ init_param_dcl)* }
 init_param_dcl = { "in" ~ type_spec ~ simple_declarator }
 // (110)
 value_forward_dcl = { value_kind ~ identifier }
-
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block CORBA-Specific – Interfaces:
@@ -544,8 +654,6 @@ op_with_context = { (op_dcl | op_oneway_dcl) ~ context_expr }
 // (124)
 context_expr = { "context" ~ "(" ~ string_literal ~ ("," ~ string_literal)* ~ ")" }
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block CORBA-Specific – Value Types:
 ///////////////////////////////////////////////////////////////////////////////
@@ -561,8 +669,6 @@ value_abs_def = { "abstract" ~ "valuetype" ~ identifier ~ value_inheritance_spec
 // (132)
 value_base_type = { "ValueBase" }
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Components – Basic:
 ///////////////////////////////////////////////////////////////////////////////
@@ -573,30 +679,33 @@ component_dcl = { component_def | component_forward_dcl }
 component_forward_dcl = { "component" ~ identifier }
 // (136)
 component_def = { component_header ~ "{" ~ component_body ~ "}" }
-// (137) (154)
-component_header = { "component" ~ identifier ~ component_inheritance_spec? ~ supported_interface_spec? }
+// (137)
+component_header = { "component" ~ identifier ~ component_inheritance_spec? ~ /*(154)*/ supported_interface_spec? }
 // (138)
 component_inheritance_spec = { ":" ~ scoped_name }
 // (139)
 component_body = { component_export* }
-// (140) (156) (179)
+// (140)
 component_export = {
     provides_dcl ~ ";"
     | uses_dcl ~ ";"
     | attr_dcl ~ ";"
+    // (156)
     | emits_dcl ~ ";"
     | publishes_dcl ~ ";"
     | consumes_dcl ~ ";"
+    // (179)
     | port_dcl ~ ";"
 }
 // (141)
 provides_dcl = { "provides" ~ interface_type ~ identifier }
-// (142) (157)
-interface_type = { scoped_name | "Object" }
-// (143) (158)
-uses_dcl = { "uses" ~ "multiple"? ~ interface_type ~ identifier }
-
-
+// (142)
+interface_type = {
+    scoped_name
+    // (157)
+    | "Object" }
+// (143)
+uses_dcl = { "uses" ~ /*(158)*/"multiple"? ~ interface_type ~ identifier }
 
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Components – Homes:
@@ -604,16 +713,17 @@ uses_dcl = { "uses" ~ "multiple"? ~ interface_type ~ identifier }
 // (144) merged to (2)
 // (145)
 home_dcl = { home_header ~ "{" ~ home_body ~ "}" }
-// (146) (162)
-home_header = { "home" ~ identifier ~ home_inheritance_spec? ~ supported_interface_spec? ~ "manages" ~ scoped_name ~ primary_key_spec? }
+// (146)
+home_header = { "home" ~ identifier ~ home_inheritance_spec? ~ /*(162)*/supported_interface_spec? ~ "manages" ~ scoped_name ~ primary_key_spec? }
 // (147)
 home_inheritance_spec = { ":" ~ scoped_name }
 // (148)
 home_body = { home_export* }
-// (149) (164)
+// (149)
 home_export = {
     export
     | factory_dcl ~ ";"
+    // (164)
     | finder_dcl ~ ";"
 }
 // (150)
@@ -622,8 +732,6 @@ factory_dcl = { "factory" ~ identifier ~ "(" ~ factory_param_dcls? ~ ")" ~ raise
 factory_param_dcls = { factory_param_dcl ~ ("," ~ factory_param_dcl)* }
 // (152)
 factory_param_dcl = { "in" ~ type_spec ~ simple_declarator }
-
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block CCM-Specific:
@@ -662,8 +770,6 @@ event_def = { event_header ~ "{" ~ value_element* ~ "}" }
 // (170)
 event_header = { "custom"? ~ "eventtype" ~ identifier ~ value_inheritance_spec? }
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Components – Ports and Connectors:
 ///////////////////////////////////////////////////////////////////////////////
@@ -701,8 +807,6 @@ connector_export = {
     port_ref
     | attr_dcl ~ ";"
 }
-
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Template Modules:
@@ -747,8 +851,6 @@ template_module_ref = { "alias" ~ scoped_name ~ "<" ~ formal_parameter_names ~ "
 // (194)
 formal_parameter_names = { identifier ~ ("," ~ identifier)* }
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Extended Data-Types:
 ///////////////////////////////////////////////////////////////////////////////
@@ -772,26 +874,34 @@ destination_type = { boolean_type | octet_type | integer_type }
 bitmask_dcl = { "bitmask" ~ identifier ~ "{" ~ bit_value ~ ("," ~ bit_value)* ~ "}" }
 // (205)
 bit_value = { identifier }
-
-
+// (206) merged to (26)
+// (207) merged to (30)
+// (208)
+signed_tiny_int = { "int8" }
+// (209)
+unsigned_tiny_int = { "uint8" }
+// (210) merged to (27)
+// (211) merged to (28)
+// (212) merged to (29)
+// (213) merged to (31)
+// (214) merged to (32)
+// (215) merged to (33)
 
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Anonymous Types:
 ///////////////////////////////////////////////////////////////////////////////
-// (206) merged to (21)
-// (207) merged to (68)
-
-
+// (216) merged to (21)
+// (217) merged to (68)
 
 ///////////////////////////////////////////////////////////////////////////////
 // From Building Block Annotations:
 ///////////////////////////////////////////////////////////////////////////////
-// (208) merged to (2)
-// (209)
+// (218) merged to (2)
+// (219)
 annotation_dcl = { annotation_header ~ "{" ~ annotation_body ~ "}" }
-// (210)
+// (220)
 annotation_header = { "@annotation" ~ identifier }
-// (211)
+// (221)
 annotation_body = {
     (
         annotation_member
@@ -800,18 +910,18 @@ annotation_body = {
         | typedef_dcl ~ ";"
     )*
 }
-// (212)
+// (222)
 annotation_member = { annotation_member_type ~ simple_declarator ~ ( "default" ~ const_expr )? ~ ";" }
-// (213)
-annotation_member_type = { const_type | ANY_const_type | scoped_name }
-// (214)
-ANY_const_type = { "ANY" }
-// (215)
+// (223)
+annotation_member_type = { const_type | any_const_type | scoped_name }
+// (224)
+any_const_type = { "any" }
+// (225)
 annotation_appl = { "@" ~ scoped_name ~ ("(" ~ annotation_appl_params ~ ")")? }
-// (216)
+// (226)
 annotation_appl_params = {
     const_expr
     | annotation_appl_param ~ ("," ~ annotation_appl_param)*
 }
-// (217)
+// (227)
 annotation_appl_param = { identifier ~ "=" ~ const_expr }
