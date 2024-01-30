@@ -431,7 +431,7 @@ switch_type_spec = {
     | wide_char_type
     | octet_type
 }
-// (52)W
+// (52)
 switch_body = { case+ }
 // (53)
 case = { case_label+ ~ element_spec ~ ";" }
