@@ -246,14 +246,14 @@ unary_operator = {
 }
 // (16)
 primary_expr = {
-    scoped_name
-    | literal
+    literal
+    | scoped_name
     | "(" ~ const_expr ~ ")"
 }
 // (17)
 literal = {
-    integer_literal
-    | floating_pt_literal
+    floating_pt_literal
+    | integer_literal
     | fixed_pt_literal
     | character_literal
     | wide_character_literal
@@ -431,7 +431,7 @@ switch_type_spec = {
     | wide_char_type
     | octet_type
 }
-// (52)
+// (52)W
 switch_body = { case+ }
 // (53)
 case = { case_label+ ~ element_spec ~ ";" }

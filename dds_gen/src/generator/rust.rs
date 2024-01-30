@@ -34,8 +34,8 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::definition => definition(pair, writer),
         Rule::module_dcl => module_dcl(pair, writer),
         Rule::scoped_name => scoped_name(pair, writer),
-        Rule::const_dcl => todo!(),
-        Rule::const_type => todo!(),
+        Rule::const_dcl => const_dcl(pair, writer),
+        Rule::const_type => const_type(pair, writer),
         Rule::const_expr => const_expr(pair, writer),
         Rule::or_expr => todo!(),
         Rule::xor_expr => todo!(),
@@ -59,12 +59,12 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::base_type_spec => base_type_spec(pair, writer),
         Rule::floating_pt_type => floating_pt_type(pair, writer),
         Rule::integer_type => integer_type(pair, writer),
-        Rule::signed_tiny_int => todo!(),
+        Rule::signed_tiny_int => signed_tiny_int(pair, writer),
         Rule::signed_int => signed_int(pair, writer),
         Rule::signed_short_int => signed_short_int(pair, writer),
         Rule::signed_long_int => signed_long_int(pair, writer),
         Rule::signed_longlong_int => signed_longlong_int(pair, writer),
-        Rule::unsigned_tiny_int => todo!(),
+        Rule::unsigned_tiny_int => unsigned_tiny_int(pair, writer),
         Rule::unsigned_int => unsigned_int(pair, writer),
         Rule::unsigned_short_int => unsigned_short_int(pair, writer),
         Rule::unsigned_long_int => unsigned_long_int(pair, writer),
@@ -77,13 +77,13 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::sequence_type => sequence_type(pair, writer),
         Rule::string_type => string_type(pair, writer),
         Rule::wide_string_type => wide_string_type(pair, writer),
-        Rule::fixed_pt_type => todo!(),
-        Rule::fixed_pt_const_type => todo!(),
+        Rule::fixed_pt_type => unimplemented!("Fixed point not supported in Rust mapping"),
+        Rule::fixed_pt_const_type => unimplemented!("Fixed point not supported in Rust mapping"),
         Rule::constr_type_dcl => constr_type_dcl(pair, writer),
         Rule::struct_dcl => struct_dcl(pair, writer),
         Rule::struct_def => struct_def(pair, writer),
         Rule::member => member(pair, writer),
-        Rule::struct_forward_dcl => todo!(),
+        Rule::struct_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
         Rule::union_dcl => todo!(),
         Rule::union_def => todo!(),
         Rule::switch_type_spec => todo!(),
@@ -91,24 +91,24 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::case => todo!(),
         Rule::case_label => todo!(),
         Rule::element_spec => todo!(),
-        Rule::union_forward_dcl => todo!(),
+        Rule::union_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
         Rule::enum_dcl => enum_dcl(pair, writer),
         Rule::enumerator => enumerator(pair, writer),
         Rule::array_declarator => todo!(),
         Rule::fixed_array_size => fixed_array_size(pair, writer),
         Rule::native_dcl => todo!(),
         Rule::simple_declarator => simple_declarator(pair, writer),
-        Rule::typedef_dcl => todo!(),
-        Rule::type_declarator => todo!(),
-        Rule::any_declarators => todo!(),
-        Rule::any_declarator => todo!(),
+        Rule::typedef_dcl => typedef_dcl(pair, writer),
+        Rule::type_declarator => type_declarator(pair, writer),
+        Rule::any_declarators => (), // Handled inside typedef_dcl
+        Rule::any_declarator => any_declarator(pair, writer),
         Rule::declarators => declarators(pair, writer),
         Rule::declarator => todo!(),
         Rule::any_type => todo!(),
         Rule::except_dcl => todo!(),
         Rule::interface_dcl => todo!(),
         Rule::interface_def => todo!(),
-        Rule::interface_forward_dcl => todo!(),
+        Rule::interface_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
         Rule::interface_header => todo!(),
         Rule::interface_kind => todo!(),
         Rule::interface_inheritance_spec => todo!(),
@@ -408,6 +408,44 @@ fn simple_declarator(pair: IdlPair, writer: &mut String) {
     )
 }
 
+fn typedef_dcl(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn type_declarator(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+    let type_spec = inner_pairs.clone().find(|p| {
+        p.as_rule() == Rule::template_type_spec
+            || p.as_rule() == Rule::constr_type_dcl
+            || p.as_rule() == Rule::simple_type_spec
+    }).expect("template_type_spec, constr_type_dcl or simple_type_spec must exist according to grammar");
+    let any_declarators = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::any_declarators)
+        .expect("Must have any_declarators according to grammar");
+    for any_declarator in any_declarators.into_inner() {
+        writer.push_str("pub type ");
+        generate_rust_source(any_declarator, writer);
+        writer.push('=');
+        generate_rust_source(type_spec.clone(), writer);
+        writer.push_str(";\n");
+    }
+}
+
+fn any_declarator(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
 fn identifier(pair: IdlPair, writer: &mut String) {
     writer.push_str(pair.as_str());
 }
@@ -457,6 +495,10 @@ fn integer_type(pair: IdlPair, writer: &mut String) {
     )
 }
 
+fn signed_tiny_int(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("i8");
+}
+
 fn signed_int(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
@@ -476,6 +518,10 @@ fn signed_long_int(_pair: IdlPair, writer: &mut String) {
 
 fn signed_longlong_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("i64");
+}
+
+fn unsigned_tiny_int(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("u8");
 }
 
 fn unsigned_int(pair: IdlPair, writer: &mut String) {
@@ -577,6 +623,41 @@ fn scoped_name(pair: IdlPair, writer: &mut String) {
     }
 }
 
+fn const_dcl(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+    let identifier = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::identifier)
+        .expect("Must have an identifier according to the grammar");
+
+    let const_type = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::const_type)
+        .expect("Must have a const_type according to the grammar");
+
+    let const_expr = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::const_expr)
+        .expect("Must have a const_expr according to the grammar");
+
+    writer.push_str("pub const ");
+    generate_rust_source(identifier, writer);
+    writer.push_str(":");
+    generate_rust_source(const_type, writer);
+    writer.push('=');
+    generate_rust_source(const_expr, writer);
+    writer.push_str(";\n");
+}
+
+fn const_type(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to grammar"),
+        writer,
+    );
+}
+
 fn char_type(_pair: IdlPair, writer: &mut String) {
     writer.push_str("char");
 }
@@ -671,5 +752,30 @@ mod tests {
             "#[derive(Debug)]\npub enum Suits{Spades,Hearts,Diamonds,Clubs,}",
             &out
         );
+    }
+
+    #[test]
+    fn parse_const_with_literals() {
+        let mut out = String::new();
+        let p = IdlParser::parse(Rule::specification, r#"const string a = 'a';"#)
+            .unwrap()
+            .next()
+            .unwrap();
+
+        generate_rust_source(p, &mut out);
+        assert_eq!("pub const a:String='a';\n", &out);
+    }
+
+    #[test]
+    fn parse_typedef() {
+        let mut out = String::new();
+
+        let p = IdlParser::parse(Rule::typedef_dcl, r#"typedef long Name;"#)
+            .unwrap()
+            .next()
+            .unwrap();
+
+        generate_rust_source(p, &mut out);
+        assert_eq!("pub type Name=i32;\n", &out);
     }
 }
