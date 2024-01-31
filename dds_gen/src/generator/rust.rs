@@ -108,18 +108,18 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::except_dcl => todo!(),
         Rule::interface_dcl => interface_dcl(pair, writer),
         Rule::interface_def => interface_def(pair, writer),
-        Rule::interface_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
+        Rule::interface_forward_dcl => todo!(), // Forward declarations are irrelevant in Rust mapping
         Rule::interface_header => interface_header(pair, writer),
         Rule::interface_kind => interface_kind(pair, writer),
         Rule::interface_inheritance_spec => todo!(),
         Rule::interface_name => todo!(),
         Rule::interface_body => interface_body(pair, writer),
-        Rule::export => todo!(),
-        Rule::op_dcl => todo!(),
-        Rule::op_type_spec => todo!(),
-        Rule::parameter_dcls => todo!(),
-        Rule::param_dcl => todo!(),
-        Rule::param_attribute => todo!(),
+        Rule::export => export(pair, writer),
+        Rule::op_dcl => op_dcl(pair, writer),
+        Rule::op_type_spec => op_type_spec(pair, writer),
+        Rule::parameter_dcls => parameter_dcls(pair, writer),
+        Rule::param_dcl => param_dcl(pair, writer),
+        Rule::param_attribute => param_attribute(pair, writer),
         Rule::raises_expr => todo!(),
         Rule::attr_dcl => todo!(),
         Rule::readonly_attr_spec => todo!(),
@@ -463,6 +463,81 @@ fn interface_kind(pair: IdlPair, writer: &mut String) {
 fn interface_body(pair: IdlPair, writer: &mut String) {
     for export in pair.into_inner().filter(|p| p.as_rule() == Rule::export) {
         generate_rust_source(export, writer);
+    }
+}
+
+fn export(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn op_dcl(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+    let identifier = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::identifier)
+        .expect("Must have an identifier according to the grammar");
+    let parameter_dcls = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::parameter_dcls)
+        .expect("Must have a parameter_dcls according to the grammar");
+    let op_type_spec = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::op_type_spec)
+        .expect("Must have an op_type_spec according to the grammar");
+    writer.push_str("fn ");
+    generate_rust_source(identifier, writer);
+    writer.push('(');
+    generate_rust_source(parameter_dcls, writer);
+    writer.push(')');
+    generate_rust_source(op_type_spec, writer);
+    writer.push_str(";\n");
+}
+
+fn op_type_spec(pair: IdlPair, writer: &mut String) {
+    if let Some(type_spec) = pair.into_inner().find(|p| p.as_rule() == Rule::type_spec) {
+        writer.push_str("->");
+        generate_rust_source(type_spec, writer);
+    }
+}
+
+fn parameter_dcls(pair: IdlPair, writer: &mut String) {
+    for param_dcl in pair.into_inner().filter(|p| p.as_rule() == Rule::param_dcl) {
+        generate_rust_source(param_dcl, writer);
+    }
+}
+
+fn param_dcl(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+    let param_attribute = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::param_attribute)
+        .expect("Must have a param_attribute according to the grammar");
+    let type_spec = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::type_spec)
+        .expect("Must have a type_spec according to the grammar");
+    let simple_declarator = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::simple_declarator)
+        .expect("Must have a simple_declarator according to the grammar");
+
+    generate_rust_source(simple_declarator, writer);
+    writer.push(':');
+    generate_rust_source(param_attribute, writer);
+    generate_rust_source(type_spec, writer);
+    writer.push(',');
+}
+
+fn param_attribute(pair: IdlPair, writer: &mut String) {
+    match pair.as_str() {
+        "inout" | "out" => writer.push_str("&mut "),
+        "in" => writer.push_str("&"),
+        _ => panic!("Invalid option by grammar"),
     }
 }
 
@@ -847,15 +922,37 @@ mod tests {
     }
 
     #[test]
-    fn parse_interface() {
+    fn parse_interface_export() {
         let mut out = String::new();
 
-        let p = IdlParser::parse(Rule::interface_dcl, r#"interface MyInterface {};"#)
+        let p = IdlParser::parse(Rule::export, r#"short op(out string s);"#)
             .unwrap()
             .next()
             .unwrap();
 
         generate_rust_source(p, &mut out);
-        assert_eq!("pub trait MyInterface{}\n", &out);
+        assert_eq!("fn op(s:&mut String,)->i16;\n", &out);
+    }
+
+    #[test]
+    fn parse_interface() {
+        let mut out = String::new();
+
+        let p = IdlParser::parse(
+            Rule::interface_def,
+            "interface MyInterface {
+                void op(out string s, inout short a, in char u);
+                unsigned short sum(in unsigned short a, in unsigned short b);
+            };",
+        )
+        .unwrap()
+        .next()
+        .unwrap();
+
+        generate_rust_source(p, &mut out);
+        assert_eq!(
+            "pub trait MyInterface{fn op(s:&mut String,a:&mut i16,u:&char,);\nfn sum(a:&u16,b:&u16,)->u16;\n}\n",
+            &out
+        );
     }
 }

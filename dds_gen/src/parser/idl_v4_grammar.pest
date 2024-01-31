@@ -493,7 +493,7 @@ interface_dcl = {
 // (74)
 interface_def = { interface_header ~ "{" ~ interface_body ~ "}" }
 // (75)
-interface_forward_dcl = { interface_kind ~ identifier }
+interface_forward_dcl = { interface_kind ~ identifier ~!(interface_inheritance_spec | "{") }
 // (76)
 interface_header = { interface_kind ~ identifier ~ interface_inheritance_spec? }
 // (77)
@@ -528,8 +528,8 @@ export = {
 op_dcl = { op_type_spec ~ identifier ~ "(" ~ parameter_dcls? ~ ")" ~ raises_expr? }
 // (83)
 op_type_spec = {
-    type_spec
-    | "void"
+    "void"
+    | type_spec
 }
 // (84)
 parameter_dcls = { param_dcl ~ ("," ~ param_dcl)* }
@@ -701,9 +701,10 @@ component_export = {
 provides_dcl = { "provides" ~ interface_type ~ identifier }
 // (142)
 interface_type = {
-    scoped_name
     // (157)
-    | "Object" }
+    "Object"
+    | scoped_name
+}
 // (143)
 uses_dcl = { "uses" ~ /*(158)*/"multiple"? ~ interface_type ~ identifier }
 
