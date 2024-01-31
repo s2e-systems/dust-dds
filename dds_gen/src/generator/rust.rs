@@ -106,14 +106,14 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::declarator => todo!(),
         Rule::any_type => todo!(),
         Rule::except_dcl => todo!(),
-        Rule::interface_dcl => todo!(),
-        Rule::interface_def => todo!(),
+        Rule::interface_dcl => interface_dcl(pair, writer),
+        Rule::interface_def => interface_def(pair, writer),
         Rule::interface_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
-        Rule::interface_header => todo!(),
-        Rule::interface_kind => todo!(),
+        Rule::interface_header => interface_header(pair, writer),
+        Rule::interface_kind => interface_kind(pair, writer),
         Rule::interface_inheritance_spec => todo!(),
         Rule::interface_name => todo!(),
-        Rule::interface_body => todo!(),
+        Rule::interface_body => interface_body(pair, writer),
         Rule::export => todo!(),
         Rule::op_dcl => todo!(),
         Rule::op_type_spec => todo!(),
@@ -396,6 +396,73 @@ fn member(pair: IdlPair, writer: &mut String) {
 fn declarators(pair: IdlPair, writer: &mut String) {
     for declarator in pair.into_inner() {
         generate_rust_source(declarator, writer);
+    }
+}
+
+fn interface_dcl(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn interface_def(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+
+    let interface_header = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::interface_header)
+        .expect("Must have an interface_header according to grammar");
+
+    let interface_body = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::interface_body)
+        .expect("Must have an interface_body according to grammar");
+
+    generate_rust_source(interface_header, writer);
+    writer.push('{');
+    generate_rust_source(interface_body, writer);
+    writer.push_str("}\n");
+}
+
+fn interface_header(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+
+    let interface_kind = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::interface_kind)
+        .expect("Must have an interface_kind according to grammar");
+
+    let identifier = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::identifier)
+        .expect("Must have an identifier according to grammar");
+
+    let interface_inheritance_spec = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::interface_inheritance_spec);
+
+    generate_rust_source(interface_kind, writer);
+    generate_rust_source(identifier, writer);
+
+    if let Some(interface_inheritance_spec) = interface_inheritance_spec {
+        generate_rust_source(interface_inheritance_spec, writer);
+    }
+}
+
+fn interface_kind(pair: IdlPair, writer: &mut String) {
+    match pair.as_str() {
+        "interface" | "abstract interface" => writer.push_str("pub trait "),
+        "local interface" => writer.push_str("trait "),
+        _ => panic!("Invalid string according to grammar"),
+    }
+}
+
+fn interface_body(pair: IdlPair, writer: &mut String) {
+    for export in pair.into_inner().filter(|p| p.as_rule() == Rule::export) {
+        generate_rust_source(export, writer);
     }
 }
 
@@ -777,5 +844,18 @@ mod tests {
 
         generate_rust_source(p, &mut out);
         assert_eq!("pub type Name=i32;\n", &out);
+    }
+
+    #[test]
+    fn parse_interface() {
+        let mut out = String::new();
+
+        let p = IdlParser::parse(Rule::interface_dcl, r#"interface MyInterface {};"#)
+            .unwrap()
+            .next()
+            .unwrap();
+
+        generate_rust_source(p, &mut out);
+        assert_eq!("pub trait MyInterface{}\n", &out);
     }
 }
