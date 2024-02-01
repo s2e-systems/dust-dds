@@ -26,7 +26,6 @@ lazy_static = "=1.4"
 
 socket2 = "=0.4"
 network-interface = "1.0.1"
-mac_address = "=1.1"
 
 fnmatch-regex = "=0.2.0"
 
