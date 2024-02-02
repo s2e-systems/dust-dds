@@ -27,7 +27,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{DdsKey, DdsSerialize},
+        type_support::{DdsKey, DdsSerialize, TypeSupport},
     },
 };
 
@@ -974,5 +974,23 @@ impl DomainParticipant {
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::get_instance_handle::new())
+    }
+}
+
+/// This implementation block contains the TypeSupport operations for the [`DomainParticipant`].
+impl DomainParticipant {
+    /// This operation allows an application to communicate to the Service the existence of a data type. The generated implementation
+    /// of that operation embeds all the knowledge that has to be communicated to the middleware in order to make it able to manage
+    /// the contents of data of that data type. This includes in particular the key definition that will allow the Service to distinguish
+    /// different instances of the same type.
+    /// It is a pre-condition error to use the same type_name to register two different TypeSupport with the same DomainParticipant.
+    /// If an application attempts this, the operation will fail and return PRECONDITION_NOT_MET. However, it is allowed to
+    /// register the same TypeSupport multiple times with a DomainParticipant using the same or different values for the type_name.
+    /// If register_type is called multiple times on the same TypeSupport with the same DomainParticipant and type_name the
+    /// second (and subsequent) registrations are ignored but the operation returns OK.
+    /// The application may pass nil as the value for the type_name. In this case the default type-name as defined by the TypeSupport
+    /// (i.e., the value returned by the get_type_name operation) will be used.
+    pub fn register_type(&self, type_name: String, type_support: TypeSupport) -> DdsResult<()> {
+        todo!()
     }
 }
