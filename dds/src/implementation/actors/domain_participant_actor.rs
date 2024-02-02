@@ -70,7 +70,9 @@ use crate::{
     },
     topic_definition::{
         topic_listener::TopicListener,
-        type_support::{serialize_rtps_classic_cdr_le, DdsDeserialize, DdsKey, DdsSerialize},
+        type_support::{
+            serialize_rtps_classic_cdr_le, DdsDeserialize, DdsKey, DdsSerialize, TypeSupport,
+        },
     },
     {
         builtin_topics::TopicBuiltinTopicData,
@@ -94,6 +96,7 @@ use super::{
     domain_participant_listener_actor::DomainParticipantListenerActor,
     publisher_actor::{self, PublisherActor},
     subscriber_actor, topic_actor,
+    type_support_actor::{self, TypeSupportActor},
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -155,6 +158,7 @@ pub struct DomainParticipantActor {
     udp_transport_write: Arc<UdpTransportWrite>,
     listener: Actor<DomainParticipantListenerActor>,
     status_kind: Vec<StatusKind>,
+    type_support_actor: Actor<TypeSupportActor>,
 }
 
 impl DomainParticipantActor {
@@ -457,6 +461,31 @@ impl DomainParticipantActor {
             ))
             .unwrap();
 
+        let mut type_support_list = HashMap::new();
+        type_support_list.insert(
+            "DiscoveredReaderData".to_string(),
+            TypeSupport {
+                instance_handle_from_serialized_foo: |_| todo!(),
+                instance_handle_from_serialized_key: |_| todo!(),
+            },
+        );
+        type_support_list.insert(
+            "DiscoveredWriterData".to_string(),
+            TypeSupport {
+                instance_handle_from_serialized_foo: |_| todo!(),
+                instance_handle_from_serialized_key: |_| todo!(),
+            },
+        );
+        type_support_list.insert(
+            "DiscoveredTopicData".to_string(),
+            TypeSupport {
+                instance_handle_from_serialized_foo: |_| todo!(),
+                instance_handle_from_serialized_key: |_| todo!(),
+            },
+        );
+
+        let type_support_actor = spawn_actor(TypeSupportActor::new(type_support_list));
+
         Self {
             rtps_participant,
             domain_id,
@@ -486,6 +515,7 @@ impl DomainParticipantActor {
             udp_transport_write,
             listener: spawn_actor(DomainParticipantListenerActor::new(listener)),
             status_kind,
+            type_support_actor,
         }
     }
 }
@@ -947,6 +977,7 @@ impl DomainParticipantActor {
                 participant_address.clone(),
                 self.builtin_subscriber.address(),
                 participant_mask_listener,
+                self.type_support_actor.address(),
             ))
             .await?;
 
@@ -975,6 +1006,7 @@ impl DomainParticipantActor {
                     participant_address.clone(),
                     user_defined_subscriber_address.clone(),
                     participant_mask_listener.clone(),
+                    self.type_support_actor.address(),
                 ))
                 .await
                 .expect("Should not fail to send command");
@@ -1116,6 +1148,15 @@ impl DomainParticipantActor {
         } else {
             Ok(())
         }
+    }
+
+    async fn register_type(&mut self, type_name: String, type_support: TypeSupport) {
+        self.type_support_actor
+            .send_mail_and_await_reply(type_support_actor::register_type::new(
+                type_name,
+                type_support,
+            ))
+            .await
     }
 }
 

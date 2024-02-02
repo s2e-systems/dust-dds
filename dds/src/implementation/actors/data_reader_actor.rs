@@ -79,6 +79,7 @@ use super::{
     status_condition_actor::{self, StatusConditionActor},
     subscriber_actor::SubscriberActor,
     subscriber_listener_actor::{self, SubscriberListenerActor},
+    type_support_actor::{self, TypeSupportActor},
 };
 
 // This function is a workaround due to an issue resolving
@@ -1935,7 +1936,6 @@ impl DataReaderActor {
     async fn process_rtps_message(
         &mut self,
         message: RtpsMessageRead,
-        type_support: TypeSupport,
         reception_timestamp: Time,
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
@@ -1946,8 +1946,19 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        type_support_actor_address: ActorAddress<TypeSupportActor>,
     ) -> DdsResult<()> {
         let mut message_receiver = MessageReceiver::new(&message);
+        let type_support = type_support_actor_address
+            .send_mail_and_await_reply(type_support_actor::get_type_support::new(
+                self.type_name.clone(),
+            ))
+            .await?
+            .ok_or(DdsError::PreconditionNotMet(format!(
+                "Type with name {} not registered with domain participant",
+                self.type_name
+            )))?;
+
         while let Some(submessage) = message_receiver.next() {
             match submessage {
                 RtpsSubmessageReadKind::Data(data_submessage) => {

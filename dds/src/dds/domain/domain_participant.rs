@@ -991,6 +991,8 @@ impl DomainParticipant {
     /// The application may pass nil as the value for the type_name. In this case the default type-name as defined by the TypeSupport
     /// (i.e., the value returned by the get_type_name operation) will be used.
     pub fn register_type(&self, type_name: String, type_support: TypeSupport) -> DdsResult<()> {
-        todo!()
+        self.participant_address.send_mail_and_await_reply_blocking(
+            domain_participant_actor::register_type::new(type_name, type_support),
+        )
     }
 }

@@ -24,6 +24,7 @@ use crate::{
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
+#[derive(Clone, PartialEq)]
 pub struct TypeSupport {
     pub instance_handle_from_serialized_foo: fn(&[u8]) -> DdsResult<InstanceHandle>,
     pub instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<InstanceHandle>,
