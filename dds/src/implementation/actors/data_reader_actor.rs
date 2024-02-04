@@ -123,14 +123,14 @@ impl InstanceHandleFromSerializedKey {
 }
 
 fn build_instance_handle(
-    type_support: &TypeSupport,
+    type_support: &Arc<dyn TypeSupport + Send + Sync>,
     change_kind: ChangeKind,
     data: &[u8],
     inline_qos: &[Parameter],
 ) -> DdsResult<InstanceHandle> {
     Ok(match change_kind {
         ChangeKind::Alive | ChangeKind::AliveFiltered => {
-            (type_support.instance_handle_from_serialized_foo)(data)?
+            type_support.instance_handle_from_serialized_foo(data)?
         }
         ChangeKind::NotAliveDisposed
         | ChangeKind::NotAliveUnregistered
@@ -142,10 +142,10 @@ fn build_instance_handle(
                 if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
                     InstanceHandle::new(key)
                 } else {
-                    (type_support.instance_handle_from_serialized_key)(data)?
+                    type_support.instance_handle_from_serialized_key(data)?
                 }
             }
-            None => (type_support.instance_handle_from_serialized_key)(data)?,
+            None => type_support.instance_handle_from_serialized_key(data)?,
         },
     })
 }
@@ -406,7 +406,7 @@ impl DataReaderActor {
     async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead,
-        type_support: &TypeSupport,
+        type_support: &Arc<dyn TypeSupport + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
@@ -558,7 +558,7 @@ impl DataReaderActor {
     async fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessageRead,
-        type_support: &TypeSupport,
+        type_support: &Arc<dyn TypeSupport + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
@@ -981,7 +981,7 @@ impl DataReaderActor {
         data: Data,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
-        type_support: &TypeSupport,
+        type_support: &Arc<dyn TypeSupport + Send + Sync>,
     ) -> DdsResult<RtpsReaderCacheChange> {
         let change_kind = if key_flag {
             if let Some(p) = inline_qos

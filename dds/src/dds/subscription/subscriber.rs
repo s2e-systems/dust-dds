@@ -25,7 +25,7 @@ use crate::{
     },
     topic_definition::{
         topic::Topic,
-        type_support::{DdsHasKey, DdsKey, DdsTypeXml, TypeSupport},
+        type_support::{DdsHasKey, DdsKey, DdsTypeXml, FooTypeSupport},
     },
 };
 
@@ -106,10 +106,7 @@ impl Subscriber {
         self.participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
                 a_topic.get_type_name()?,
-                TypeSupport {
-                    instance_handle_from_serialized_foo: |_| todo!(),
-                    instance_handle_from_serialized_key: |_| todo!(),
-                },
+                Box::new(FooTypeSupport::new::<Foo>()),
             ))?;
         let default_unicast_locator_list = self
             .participant_address

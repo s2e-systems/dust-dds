@@ -71,7 +71,8 @@ use crate::{
     topic_definition::{
         topic_listener::TopicListener,
         type_support::{
-            serialize_rtps_classic_cdr_le, DdsDeserialize, DdsKey, DdsSerialize, TypeSupport,
+            serialize_rtps_classic_cdr_le, DdsDeserialize, DdsKey, DdsSerialize, FooTypeSupport,
+            TypeSupport,
         },
     },
     {
@@ -461,27 +462,23 @@ impl DomainParticipantActor {
             ))
             .unwrap();
 
-        let mut type_support_list = HashMap::new();
+        let mut type_support_list: HashMap<String, Arc<dyn TypeSupport + Send + Sync>> =
+            HashMap::new();
+        type_support_list.insert(
+            "SpdpDiscoveredParticipantData".to_string(),
+            Arc::new(FooTypeSupport::new::<SpdpDiscoveredParticipantData>()),
+        );
         type_support_list.insert(
             "DiscoveredReaderData".to_string(),
-            TypeSupport {
-                instance_handle_from_serialized_foo: |_| todo!(),
-                instance_handle_from_serialized_key: |_| todo!(),
-            },
+            Arc::new(FooTypeSupport::new::<DiscoveredReaderData>()),
         );
         type_support_list.insert(
             "DiscoveredWriterData".to_string(),
-            TypeSupport {
-                instance_handle_from_serialized_foo: |_| todo!(),
-                instance_handle_from_serialized_key: |_| todo!(),
-            },
+            Arc::new(FooTypeSupport::new::<DiscoveredWriterData>()),
         );
         type_support_list.insert(
             "DiscoveredTopicData".to_string(),
-            TypeSupport {
-                instance_handle_from_serialized_foo: |_| todo!(),
-                instance_handle_from_serialized_key: |_| todo!(),
-            },
+            Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
         );
 
         let type_support_actor = spawn_actor(TypeSupportActor::new(type_support_list));
@@ -1150,11 +1147,15 @@ impl DomainParticipantActor {
         }
     }
 
-    async fn register_type(&mut self, type_name: String, type_support: TypeSupport) {
+    async fn register_type(
+        &mut self,
+        type_name: String,
+        type_support: Box<dyn TypeSupport + Send + Sync>,
+    ) {
         self.type_support_actor
             .send_mail_and_await_reply(type_support_actor::register_type::new(
                 type_name,
-                type_support,
+                type_support.into(),
             ))
             .await
     }

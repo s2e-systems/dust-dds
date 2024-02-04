@@ -8,6 +8,7 @@ use crate::{
             endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
             parameter_list_serializer::ParameterListCdrSerializer,
         },
+        utils::instance_handle_from_key::get_instance_handle_from_key,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -24,10 +25,70 @@ use crate::{
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
-#[derive(Clone, PartialEq)]
-pub struct TypeSupport {
-    pub instance_handle_from_serialized_foo: fn(&[u8]) -> DdsResult<InstanceHandle>,
-    pub instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<InstanceHandle>,
+pub trait TypeSupport {
+    fn instance_handle_from_serialized_foo(
+        &self,
+        serialized_foo: &[u8],
+    ) -> DdsResult<InstanceHandle>;
+    fn instance_handle_from_serialized_key(
+        &self,
+        serialized_key: &[u8],
+    ) -> DdsResult<InstanceHandle>;
+}
+
+pub struct FooTypeSupport {
+    instance_handle_from_serialized_foo: fn(&[u8]) -> DdsResult<InstanceHandle>,
+    instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<InstanceHandle>,
+}
+
+impl FooTypeSupport {
+    pub fn new<Foo>() -> Self
+    where
+        Foo: DdsKey,
+    {
+        // This function is a workaround due to an issue resolving
+        // lifetimes of the closure.
+        // See for more details: https://github.com/rust-lang/rust/issues/41078
+        fn define_function_with_correct_lifetime<F>(closure: F) -> F
+        where
+            F: for<'a> Fn(&'a [u8]) -> DdsResult<InstanceHandle>,
+        {
+            closure
+        }
+
+        let instance_handle_from_serialized_foo =
+            define_function_with_correct_lifetime(|serialized_foo| {
+                get_instance_handle_from_key(&Foo::get_key_from_serialized_data(serialized_foo)?)
+            });
+
+        let instance_handle_from_serialized_key =
+            define_function_with_correct_lifetime(|mut serialized_key| {
+                get_instance_handle_from_key(&deserialize_rtps_classic_cdr::<Foo::Key>(
+                    &mut serialized_key,
+                )?)
+            });
+
+        Self {
+            instance_handle_from_serialized_foo,
+            instance_handle_from_serialized_key,
+        }
+    }
+}
+
+impl TypeSupport for FooTypeSupport {
+    fn instance_handle_from_serialized_foo(
+        &self,
+        serialized_foo: &[u8],
+    ) -> DdsResult<InstanceHandle> {
+        (self.instance_handle_from_serialized_foo)(serialized_foo)
+    }
+
+    fn instance_handle_from_serialized_key(
+        &self,
+        serialized_key: &[u8],
+    ) -> DdsResult<InstanceHandle> {
+        (self.instance_handle_from_serialized_key)(serialized_key)
+    }
 }
 
 /// This trait indicates whether the associated type is keyed or not, i.e. if the middleware
