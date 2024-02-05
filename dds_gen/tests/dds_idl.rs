@@ -2,9 +2,13 @@ use syn::File;
 
 #[test]
 fn dds_idl_compilation() {
-    let idl = r#"
+    let idl = "
         #define BASIC_TYPE long
-    "#;
+
+        struct TemplateTypes {
+            BASIC_TYPE a
+        };
+    ";
 
     let expected = syn::parse2::<File>(r#""#.parse().unwrap()).unwrap();
 
