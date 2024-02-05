@@ -1,4 +1,4 @@
-
+// This grammar is adapted from:
 // Object Management Group Interface Definition Language v4.2
 // OMG Document Number: formal/18-01-05
 // Release Date: March 2018
@@ -11,9 +11,6 @@ hex_escape = ${ "\\" ~ "x" ~ ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT? }
 unicode_escape = ${ "\\" ~ "u" ~ ASCII_HEX_DIGIT{1,4} }
 
 WHITESPACE = _{ " " | "\t" | NEWLINE }
-path_spec = @{ (!">" ~!"\"" ~ ANY)+ }
-include_directive = !{ "#" ~ "include" ~ (("<" ~ path_spec ~ ">") | ("\"" ~ path_spec ~ "\"")) }
-other_directive = @{ "#" ~ (!NEWLINE ~ ANY)* }
 block_comment = @{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 line_comment = @{ "//" ~ (!NEWLINE ~ ANY)* }
 COMMENT = _{ block_comment | line_comment }
@@ -173,8 +170,6 @@ definition = {
     | template_module_inst ~ ";"
     // (218)
     | annotation_dcl ~ ";"
-    | include_directive
-    | other_directive
 }
 // (3)
 module_dcl = { "module" ~ identifier ~ "{" ~ definition+ ~ "}" }
