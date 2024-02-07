@@ -230,16 +230,15 @@ impl DomainParticipantActor {
         };
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        let spdp_builtin_participant_reader =
-            spawn_actor(DataReaderActor::new(
-                create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
-                "SpdpDiscoveredParticipantData".to_string(),
-                String::from(DCPS_PARTICIPANT),
-                spdp_reader_qos,
-                Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
-                vec![],
-                String::default(),
-            ));
+        let spdp_builtin_participant_reader = spawn_actor(DataReaderActor::new(
+            create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
+            "SpdpDiscoveredParticipantData".to_string(),
+            String::from(DCPS_PARTICIPANT),
+            spdp_reader_qos,
+            Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
+            vec![],
+            String::default(),
+        ));
 
         let sedp_reader_qos = DataReaderQos {
             durability: DurabilityQosPolicy {
@@ -464,19 +463,19 @@ impl DomainParticipantActor {
             HashMap::new();
         type_support_list.insert(
             "SpdpDiscoveredParticipantData".to_string(),
-            Arc::new(FooTypeSupport::new::<SpdpDiscoveredParticipantData>()),
+            Arc::new(FooTypeSupport::<SpdpDiscoveredParticipantData>::new()),
         );
         type_support_list.insert(
             "DiscoveredReaderData".to_string(),
-            Arc::new(FooTypeSupport::new::<DiscoveredReaderData>()),
+            Arc::new(FooTypeSupport::<DiscoveredReaderData>::new()),
         );
         type_support_list.insert(
             "DiscoveredWriterData".to_string(),
-            Arc::new(FooTypeSupport::new::<DiscoveredWriterData>()),
+            Arc::new(FooTypeSupport::<DiscoveredWriterData>::new()),
         );
         type_support_list.insert(
             "DiscoveredTopicData".to_string(),
-            Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
+            Arc::new(FooTypeSupport::<DiscoveredTopicData>::new()),
         );
 
         let type_support_actor = spawn_actor(TypeSupportActor::new(type_support_list));

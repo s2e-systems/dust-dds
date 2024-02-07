@@ -51,7 +51,7 @@ fn large_data_should_be_fragmented() {
         .unwrap();
 
     participant
-        .register_type("LargeData", FooTypeSupport::new::<LargeData>())
+        .register_type("LargeData", FooTypeSupport::<LargeData>::new())
         .unwrap();
 
     let topic = participant
@@ -144,6 +144,10 @@ fn large_data_should_be_fragmented_reliable() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("LargeData", FooTypeSupport::<LargeData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "LargeDataTopic",
@@ -227,6 +231,10 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant
@@ -331,6 +339,10 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant
@@ -444,6 +456,10 @@ fn samples_are_taken() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -544,6 +560,10 @@ fn wait_for_samples_to_be_taken_best_effort() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -640,6 +660,10 @@ fn read_only_unread_samples() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant
@@ -761,6 +785,10 @@ fn read_next_sample() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -845,6 +873,10 @@ fn take_next_sample() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -927,6 +959,10 @@ fn each_key_sample_is_read() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant
@@ -1035,6 +1071,10 @@ fn read_specific_instance() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -1127,6 +1167,10 @@ fn read_next_instance() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant
@@ -1251,6 +1295,10 @@ fn take_next_instance() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -1373,6 +1421,10 @@ fn take_specific_instance() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -1466,6 +1518,10 @@ fn take_specific_unknown_instance() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -1555,6 +1611,10 @@ fn write_read_disposed_samples() {
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant
@@ -1655,6 +1715,10 @@ fn write_read_sample_view_state() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "OtherTopic",
@@ -1753,6 +1817,10 @@ fn inconsistent_topic_status_condition() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let best_effort_topic_qos = TopicQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
@@ -1814,6 +1882,10 @@ fn reader_with_minimum_time_separation_qos() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant
@@ -1932,6 +2004,10 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -2028,6 +2104,10 @@ fn volatile_writer_reader_receives_only_new_samples() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant
@@ -2127,6 +2207,10 @@ fn write_read_unkeyed_topic() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("UserData", FooTypeSupport::<UserData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "write_read_unkeyed_topic",
@@ -2204,6 +2288,11 @@ fn data_reader_resource_limits() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+
+    participant
+        .register_type("UserData", FooTypeSupport::<UserData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "data_reader_resource_limits",
@@ -2305,6 +2394,11 @@ fn data_reader_order_by_source_timestamp() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+
+    participant
+        .register_type("UserData", FooTypeSupport::<UserData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -2318,6 +2412,7 @@ fn data_reader_order_by_source_timestamp() {
     let publisher = participant
         .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
@@ -2409,6 +2504,10 @@ fn data_reader_publication_handle_sample_info() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("UserData", FooTypeSupport::<UserData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -2491,6 +2590,10 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant
@@ -2609,6 +2712,10 @@ fn write_read_unregistered_samples_are_also_disposed() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -2707,6 +2814,10 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant
@@ -2811,6 +2922,10 @@ fn reader_joining_after_writer_writes_many_samples() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
 
     let topic = participant

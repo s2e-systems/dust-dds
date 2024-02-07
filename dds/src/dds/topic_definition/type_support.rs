@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{io::Read, marker::PhantomData};
 
 use crate::{
     implementation::{
@@ -31,67 +31,38 @@ pub trait TypeSupport {
     fn instance_handle_from_serialized_key(&self, serialized_key: &[u8]) -> DdsResult<Vec<u8>>;
 }
 
-pub struct FooTypeSupport {
-    has_key: bool,
-    get_key_from_serialized_foo: fn(&[u8]) -> DdsResult<Vec<u8>>,
-    instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<Vec<u8>>,
-}
+pub struct FooTypeSupport<Foo>(PhantomData<Foo>);
 
-impl FooTypeSupport {
-    pub fn new<Foo>() -> Self
-    where
-        Foo: DdsKey + DdsHasKey,
-    {
-        // This function is a workaround due to an issue resolving
-        // lifetimes of the closure.
-        // See for more details: https://github.com/rust-lang/rust/issues/41078
-        fn define_function_with_correct_lifetime<F>(closure: F) -> F
-        where
-            F: for<'a> Fn(&'a [u8]) -> DdsResult<Vec<u8>>,
-        {
-            closure
-        }
-
-        let get_key_from_serialized_foo = define_function_with_correct_lifetime(|serialized_foo| {
-            let mut writer = Vec::new();
-            let mut serializer =
-                cdr_serializer::ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
-            let foo_key = Foo::get_key_from_serialized_data(&serialized_foo)?;
-            CdrSerialize::serialize(&foo_key, &mut serializer)?;
-            Ok(writer)
-        });
-
-        let instance_handle_from_serialized_key =
-            define_function_with_correct_lifetime(|mut serialized_key| {
-                let mut writer = Vec::new();
-                let mut serializer = cdr_serializer::ClassicCdrSerializer::new(
-                    &mut writer,
-                    CdrEndianness::BigEndian,
-                );
-                let foo_key = deserialize_rtps_classic_cdr::<Foo::Key>(&mut serialized_key)?;
-                CdrSerialize::serialize(&foo_key, &mut serializer)?;
-                Ok(writer)
-            });
-
-        Self {
-            has_key: Foo::HAS_KEY,
-            get_key_from_serialized_foo,
-            instance_handle_from_serialized_key,
-        }
+impl<Foo> FooTypeSupport<Foo> {
+    pub fn new() -> Self {
+        Self(PhantomData)
     }
 }
 
-impl TypeSupport for FooTypeSupport {
+impl<Foo> TypeSupport for FooTypeSupport<Foo>
+where
+    Foo: DdsKey + DdsHasKey,
+{
     fn has_key(&self) -> bool {
-        self.has_key
+        Foo::HAS_KEY
     }
 
     fn get_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
-        (self.get_key_from_serialized_foo)(serialized_foo)
+        let mut writer = Vec::new();
+        let mut serializer =
+            cdr_serializer::ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
+        let foo_key = Foo::get_key_from_serialized_data(&serialized_foo)?;
+        CdrSerialize::serialize(&foo_key, &mut serializer)?;
+        Ok(writer)
     }
 
-    fn instance_handle_from_serialized_key(&self, serialized_key: &[u8]) -> DdsResult<Vec<u8>> {
-        (self.instance_handle_from_serialized_key)(serialized_key)
+    fn instance_handle_from_serialized_key(&self, mut serialized_key: &[u8]) -> DdsResult<Vec<u8>> {
+        let mut writer = Vec::new();
+        let mut serializer =
+            cdr_serializer::ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
+        let foo_key = deserialize_rtps_classic_cdr::<Foo::Key>(&mut serialized_key)?;
+        CdrSerialize::serialize(&foo_key, &mut serializer)?;
+        Ok(writer)
     }
 }
 

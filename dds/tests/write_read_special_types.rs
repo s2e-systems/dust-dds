@@ -13,7 +13,7 @@ use dust_dds::{
     },
     serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::{DdsType, TypeSupport},
+    topic_definition::type_support::{DdsType, FooTypeSupport, TypeSupport},
 };
 use dust_dds_derive::{DdsDeserialize, DdsSerialize};
 
@@ -32,6 +32,10 @@ fn foo_with_lifetime_should_read_and_write() {
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("BorrowedData", FooTypeSupport::<BorrowedData>::new())
         .unwrap();
 
     let topic = participant
@@ -129,6 +133,13 @@ fn foo_with_non_consecutive_key_should_read_and_write() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type(
+            "NonConsecutiveKey",
+            FooTypeSupport::<NonConsecutiveKey>::new(),
+        )
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -221,7 +232,7 @@ fn foo_with_specialized_type_support_should_read_and_write() {
 
     impl TypeSupport for DynamicTypeSupport {
         fn has_key(&self) -> bool {
-            todo!()
+            true
         }
 
         fn get_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
