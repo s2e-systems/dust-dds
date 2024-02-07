@@ -4,16 +4,14 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
         payload_serializer_deserializer::{
-            cdr_deserializer::ClassicCdrDeserializer, cdr_serializer::ClassicCdrSerializer,
-            endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
+            cdr_deserializer::ClassicCdrDeserializer,
+            cdr_serializer::{self, ClassicCdrSerializer},
+            endianness::CdrEndianness,
+            parameter_list_deserializer::ParameterListCdrDeserializer,
             parameter_list_serializer::ParameterListCdrSerializer,
         },
-        utils::instance_handle_from_key::get_instance_handle_from_key,
     },
-    infrastructure::{
-        error::{DdsError, DdsResult},
-        instance::InstanceHandle,
-    },
+    infrastructure::error::{DdsError, DdsResult},
     serialized_payload::{
         cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
         parameter_list::{
@@ -26,67 +24,73 @@ use crate::{
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
 pub trait TypeSupport {
-    fn instance_handle_from_serialized_foo(
-        &self,
-        serialized_foo: &[u8],
-    ) -> DdsResult<InstanceHandle>;
-    fn instance_handle_from_serialized_key(
-        &self,
-        serialized_key: &[u8],
-    ) -> DdsResult<InstanceHandle>;
+    fn has_key(&self) -> bool;
+
+    fn get_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>>;
+
+    fn instance_handle_from_serialized_key(&self, serialized_key: &[u8]) -> DdsResult<Vec<u8>>;
 }
 
 pub struct FooTypeSupport {
-    instance_handle_from_serialized_foo: fn(&[u8]) -> DdsResult<InstanceHandle>,
-    instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<InstanceHandle>,
+    has_key: bool,
+    get_key_from_serialized_foo: fn(&[u8]) -> DdsResult<Vec<u8>>,
+    instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<Vec<u8>>,
 }
 
 impl FooTypeSupport {
     pub fn new<Foo>() -> Self
     where
-        Foo: DdsKey,
+        Foo: DdsKey + DdsHasKey,
     {
         // This function is a workaround due to an issue resolving
         // lifetimes of the closure.
         // See for more details: https://github.com/rust-lang/rust/issues/41078
         fn define_function_with_correct_lifetime<F>(closure: F) -> F
         where
-            F: for<'a> Fn(&'a [u8]) -> DdsResult<InstanceHandle>,
+            F: for<'a> Fn(&'a [u8]) -> DdsResult<Vec<u8>>,
         {
             closure
         }
 
-        let instance_handle_from_serialized_foo =
-            define_function_with_correct_lifetime(|serialized_foo| {
-                get_instance_handle_from_key(&Foo::get_key_from_serialized_data(serialized_foo)?)
-            });
+        let get_key_from_serialized_foo = define_function_with_correct_lifetime(|serialized_foo| {
+            let mut writer = Vec::new();
+            let mut serializer =
+                cdr_serializer::ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
+            let foo_key = Foo::get_key_from_serialized_data(&serialized_foo)?;
+            CdrSerialize::serialize(&foo_key, &mut serializer)?;
+            Ok(writer)
+        });
 
         let instance_handle_from_serialized_key =
             define_function_with_correct_lifetime(|mut serialized_key| {
-                get_instance_handle_from_key(&deserialize_rtps_classic_cdr::<Foo::Key>(
-                    &mut serialized_key,
-                )?)
+                let mut writer = Vec::new();
+                let mut serializer = cdr_serializer::ClassicCdrSerializer::new(
+                    &mut writer,
+                    CdrEndianness::BigEndian,
+                );
+                let foo_key = deserialize_rtps_classic_cdr::<Foo::Key>(&mut serialized_key)?;
+                CdrSerialize::serialize(&foo_key, &mut serializer)?;
+                Ok(writer)
             });
 
         Self {
-            instance_handle_from_serialized_foo,
+            has_key: Foo::HAS_KEY,
+            get_key_from_serialized_foo,
             instance_handle_from_serialized_key,
         }
     }
 }
 
 impl TypeSupport for FooTypeSupport {
-    fn instance_handle_from_serialized_foo(
-        &self,
-        serialized_foo: &[u8],
-    ) -> DdsResult<InstanceHandle> {
-        (self.instance_handle_from_serialized_foo)(serialized_foo)
+    fn has_key(&self) -> bool {
+        self.has_key
     }
 
-    fn instance_handle_from_serialized_key(
-        &self,
-        serialized_key: &[u8],
-    ) -> DdsResult<InstanceHandle> {
+    fn get_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
+        (self.get_key_from_serialized_foo)(serialized_foo)
+    }
+
+    fn instance_handle_from_serialized_key(&self, serialized_key: &[u8]) -> DdsResult<Vec<u8>> {
         (self.instance_handle_from_serialized_key)(serialized_key)
     }
 }

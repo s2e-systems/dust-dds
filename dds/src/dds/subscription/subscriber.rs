@@ -23,10 +23,7 @@ use crate::{
         status::{SampleLostStatus, StatusKind},
         time::DURATION_ZERO,
     },
-    topic_definition::{
-        topic::Topic,
-        type_support::{DdsHasKey, DdsKey, DdsTypeXml, FooTypeSupport},
-    },
+    topic_definition::topic::Topic,
 };
 
 use super::{
@@ -99,16 +96,18 @@ impl Subscriber {
         qos: QosKind<DataReaderQos>,
         a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<DataReader<Foo>>
-    where
-        Foo: DdsHasKey + DdsKey + DdsTypeXml,
-    {
-        self.participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
-                a_topic.get_type_name()?,
-                Box::new(FooTypeSupport::new::<Foo>()),
+    ) -> DdsResult<DataReader<Foo>> {
+        let type_name = a_topic.get_type_name()?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
             ))?
-            .ok();
+            .ok_or(DdsError::PreconditionNotMet(format!(
+                "Type with name {} not registered with parent domain participant",
+                type_name
+            )))?;
+
         let default_unicast_locator_list = self
             .participant_address
             .send_mail_and_await_reply_blocking(
@@ -130,7 +129,9 @@ impl Subscriber {
             }
         };
 
-        let entity_kind = match Foo::HAS_KEY {
+        let has_key = type_support.has_key();
+
+        let entity_kind = match has_key {
             true => USER_DEFINED_READER_WITH_KEY,
             false => USER_DEFINED_READER_NO_KEY,
         };
@@ -148,7 +149,7 @@ impl Subscriber {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = Guid::new(subscriber_guid.prefix(), entity_id);
 
-        let topic_kind = match Foo::HAS_KEY {
+        let topic_kind = match has_key {
             true => TopicKind::WithKey,
             false => TopicKind::NoKey,
         };
@@ -164,11 +165,10 @@ impl Subscriber {
             DURATION_ZERO,
             false,
         );
-        let type_xml =
-            Foo::get_type_xml().map_or_else(String::default, |s| format!("<types>{}</types>", s));
+        let type_xml = String::new(); // Foo::get_type_xml().map_or_else(String::default, |s| format!("<types>{}</types>", s));
         let listener = Box::new(a_listener);
         let status_kind = mask.to_vec();
-        let data_reader = DataReaderActor::new::<Foo>(
+        let data_reader = DataReaderActor::new(
             rtps_reader,
             a_topic.get_type_name()?,
             a_topic.get_name()?,

@@ -16,10 +16,7 @@ use crate::{
         time::Duration,
     },
     publication::data_writer::DataWriter,
-    topic_definition::{
-        topic::Topic,
-        type_support::{DdsHasKey, DdsKey, DdsTypeXml, FooTypeSupport},
-    },
+    topic_definition::topic::Topic,
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
@@ -84,16 +81,17 @@ impl Publisher {
         qos: QosKind<DataWriterQos>,
         a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<DataWriter<Foo>>
-    where
-        Foo: DdsHasKey + DdsKey + DdsTypeXml,
-    {
-        self.participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
-                a_topic.get_type_name()?,
-                Box::new(FooTypeSupport::new::<Foo>()),
+    ) -> DdsResult<DataWriter<Foo>> {
+        let type_name = a_topic.get_type_name()?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
             ))?
-            .ok();
+            .ok_or(DdsError::PreconditionNotMet(format!(
+                "Type with name {} not registered with parent domain participant",
+                type_name
+            )))?;
 
         let default_unicast_locator_list = self
             .participant_address
@@ -112,13 +110,13 @@ impl Publisher {
             )?;
 
         let listener = Box::new(a_listener);
-        let type_xml =
-            Foo::get_type_xml().map_or_else(String::default, |s| format!("<types>{}</types>", s));
+        let has_key = type_support.has_key();
+        let type_xml = String::new(); // Foo::get_type_xml().map_or_else(String::default, |s| format!("<types>{}</types>", s));
         let data_writer_address = self.publisher_address.send_mail_and_await_reply_blocking(
             publisher_actor::create_datawriter::new(
                 a_topic.get_type_name()?,
                 a_topic.get_name()?,
-                Foo::HAS_KEY,
+                has_key,
                 data_max_size_serialized,
                 qos,
                 listener,

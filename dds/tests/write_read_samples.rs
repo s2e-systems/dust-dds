@@ -50,6 +50,10 @@ fn large_data_should_be_fragmented() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("LargeData", FooTypeSupport::new::<LargeData>())
+        .unwrap();
+
     let topic = participant
         .create_topic(
             "LargeDataTopic",

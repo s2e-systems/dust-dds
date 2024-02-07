@@ -23,10 +23,7 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
-    topic_definition::{
-        topic::Topic,
-        type_support::{serialize_rtps_classic_cdr_le, DdsHasKey, DdsKey, DdsSerialize},
-    },
+    topic_definition::{topic::Topic, type_support::DdsSerialize},
 };
 
 /// The [`DataWriter`] allows the application to set the value of the
@@ -110,7 +107,7 @@ impl<Foo> DataWriter<Foo> {
 
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsHasKey + DdsSerialize + DdsKey,
+    Foo: DdsSerialize,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -205,7 +202,20 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        if Foo::HAS_KEY {
+        let type_name = self
+            .writer_address
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
+            ))?
+            .ok_or(DdsError::PreconditionNotMet(format!(
+                "Type with name {} not registered with parent domain participant",
+                type_name
+            )))?;
+        let has_key = type_support.has_key();
+        if has_key {
             let instance_handle = match handle {
                 Some(h) => {
                     if let Some(stored_handle) = self.lookup_instance(instance)? {
@@ -231,8 +241,10 @@ where
                 }
             }?;
 
-            let mut instance_serialized_key = Vec::new();
-            serialize_rtps_classic_cdr_le(&instance.get_key()?, &mut instance_serialized_key)?;
+            let mut serialized_foo = Vec::new();
+            instance.serialize_data(&mut serialized_foo)?;
+            let instance_serialized_key =
+                type_support.get_key_from_serialized_foo(&serialized_foo)?;
 
             self.writer_address.send_mail_and_await_reply_blocking(
                 data_writer_actor::unregister_instance_w_timestamp::new(
@@ -262,10 +274,25 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+        let type_name = self
+            .writer_address
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
+            ))?
+            .ok_or(DdsError::PreconditionNotMet(format!(
+                "Type with name {} not registered with parent domain participant",
+                type_name
+            )))?;
+
+        let mut serialized_foo = Vec::new();
+        instance.serialize_data(&mut serialized_foo)?;
+        let key = type_support.get_key_from_serialized_foo(&serialized_foo)?;
+
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::lookup_instance::new(get_instance_handle_from_key(
-                &instance.get_key()?,
-            )?),
+            data_writer_actor::lookup_instance::new(get_instance_handle_from_key(&key)?),
         )?
     }
 
@@ -324,13 +351,27 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        let type_name = self
+            .writer_address
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
+            ))?
+            .ok_or(DdsError::PreconditionNotMet(format!(
+                "Type with name {} not registered with parent domain participant",
+                type_name
+            )))?;
+
         let mut serialized_data = Vec::new();
         data.serialize_data(&mut serialized_data)?;
+        let key = type_support.get_key_from_serialized_foo(&serialized_data)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::write_w_timestamp::new(
                 serialized_data,
-                get_instance_handle_from_key(&data.get_key()?)?,
+                get_instance_handle_from_key(&key)?,
                 handle,
                 timestamp,
             ),
@@ -402,15 +443,25 @@ where
             }
         }?;
 
-        let mut instance_serialized_key = Vec::new();
-        serialize_rtps_classic_cdr_le(&data.get_key()?, &mut instance_serialized_key)?;
+        let type_name = self
+            .writer_address
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
+            ))?
+            .ok_or(DdsError::PreconditionNotMet(format!(
+                "Type with name {} not registered with parent domain participant",
+                type_name
+            )))?;
+
+        let mut serialized_foo = Vec::new();
+        data.serialize_data(&mut serialized_foo)?;
+        let key = type_support.get_key_from_serialized_foo(&serialized_foo)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::dispose_w_timestamp::new(
-                instance_serialized_key,
-                instance_handle,
-                timestamp,
-            ),
+            data_writer_actor::dispose_w_timestamp::new(key, instance_handle, timestamp),
         )?
     }
 }

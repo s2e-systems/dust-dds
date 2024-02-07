@@ -68,7 +68,7 @@ use crate::{
     },
     serialized_payload::cdr::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::{deserialize_rtps_classic_cdr, DdsKey, TypeSupport},
+    topic_definition::type_support::{DdsKey, TypeSupport},
 };
 
 use super::{
@@ -82,46 +82,6 @@ use super::{
     type_support_actor::{self, TypeSupportActor},
 };
 
-// This function is a workaround due to an issue resolving
-// lifetimes of the closure.
-// See for more details: https://github.com/rust-lang/rust/issues/41078
-fn define_function_with_correct_lifetime<F>(closure: F) -> F
-where
-    F: for<'a> Fn(&'a [u8]) -> DdsResult<InstanceHandle>,
-{
-    closure
-}
-
-struct InstanceHandleFromSerializedFoo(fn(&[u8]) -> DdsResult<InstanceHandle>);
-
-impl InstanceHandleFromSerializedFoo {
-    pub fn new<Foo>() -> Self
-    where
-        Foo: DdsKey,
-    {
-        Self(define_function_with_correct_lifetime(|serialized_foo| {
-            get_instance_handle_from_key(&Foo::get_key_from_serialized_data(serialized_foo)?)
-        }))
-    }
-}
-
-struct InstanceHandleFromSerializedKey(fn(&[u8]) -> DdsResult<InstanceHandle>);
-
-impl InstanceHandleFromSerializedKey {
-    pub fn new<Foo>() -> Self
-    where
-        Foo: DdsKey,
-    {
-        Self(define_function_with_correct_lifetime(
-            |mut serialized_key| {
-                get_instance_handle_from_key(&deserialize_rtps_classic_cdr::<Foo::Key>(
-                    &mut serialized_key,
-                )?)
-            },
-        ))
-    }
-}
-
 fn build_instance_handle(
     type_support: &Arc<dyn TypeSupport + Send + Sync>,
     change_kind: ChangeKind,
@@ -130,7 +90,7 @@ fn build_instance_handle(
 ) -> DdsResult<InstanceHandle> {
     Ok(match change_kind {
         ChangeKind::Alive | ChangeKind::AliveFiltered => {
-            type_support.instance_handle_from_serialized_foo(data)?
+            get_instance_handle_from_key(&type_support.get_key_from_serialized_foo(data)?)?
         }
         ChangeKind::NotAliveDisposed
         | ChangeKind::NotAliveUnregistered
@@ -142,10 +102,14 @@ fn build_instance_handle(
                 if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
                     InstanceHandle::new(key)
                 } else {
-                    type_support.instance_handle_from_serialized_key(data)?
+                    get_instance_handle_from_key(
+                        &type_support.instance_handle_from_serialized_key(data)?,
+                    )?
                 }
             }
-            None => type_support.instance_handle_from_serialized_key(data)?,
+            None => get_instance_handle_from_key(
+                &type_support.instance_handle_from_serialized_key(data)?,
+            )?,
         },
     })
 }
@@ -306,7 +270,7 @@ pub struct DataReaderActor {
 }
 
 impl DataReaderActor {
-    pub fn new<Foo>(
+    pub fn new(
         rtps_reader: RtpsReader,
         type_name: String,
         topic_name: String,
@@ -314,10 +278,7 @@ impl DataReaderActor {
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
         xml_type: String,
-    ) -> Self
-    where
-        Foo: DdsKey,
-    {
+    ) -> Self {
         let status_condition = spawn_actor(StatusConditionActor::default());
         let listener = spawn_actor(DataReaderListenerActor::new(listener));
 

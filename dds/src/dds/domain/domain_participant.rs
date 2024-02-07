@@ -993,12 +993,12 @@ impl DomainParticipant {
     pub fn register_type(
         &self,
         type_name: &str,
-        type_support: Box<dyn TypeSupport + Send + Sync>,
+        type_support: impl TypeSupport + Send + Sync + 'static,
     ) -> DdsResult<()> {
         self.participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
                 type_name.to_string(),
-                type_support.into(),
+                Box::new(type_support),
             ))?
     }
 }

@@ -231,7 +231,7 @@ impl DomainParticipantActor {
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
         let spdp_builtin_participant_reader =
-            spawn_actor(DataReaderActor::new::<SpdpDiscoveredParticipantData>(
+            spawn_actor(DataReaderActor::new(
                 create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
                 "SpdpDiscoveredParticipantData".to_string(),
                 String::from(DCPS_PARTICIPANT),
@@ -257,7 +257,7 @@ impl DomainParticipantActor {
 
         let sedp_builtin_topics_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-        let sedp_builtin_topics_reader = spawn_actor(DataReaderActor::new::<DiscoveredTopicData>(
+        let sedp_builtin_topics_reader = spawn_actor(DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
@@ -269,29 +269,27 @@ impl DomainParticipantActor {
 
         let sedp_builtin_publications_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-        let sedp_builtin_publications_reader =
-            spawn_actor(DataReaderActor::new::<DiscoveredWriterData>(
-                create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
-                "DiscoveredWriterData".to_string(),
-                String::from(DCPS_PUBLICATION),
-                sedp_reader_qos.clone(),
-                Box::new(NoOpListener::<DiscoveredWriterData>::new()),
-                vec![],
-                String::default(),
-            ));
+        let sedp_builtin_publications_reader = spawn_actor(DataReaderActor::new(
+            create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
+            "DiscoveredWriterData".to_string(),
+            String::from(DCPS_PUBLICATION),
+            sedp_reader_qos.clone(),
+            Box::new(NoOpListener::<DiscoveredWriterData>::new()),
+            vec![],
+            String::default(),
+        ));
 
         let sedp_builtin_subscriptions_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let sedp_builtin_subscriptions_reader =
-            spawn_actor(DataReaderActor::new::<DiscoveredReaderData>(
-                create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
-                "DiscoveredReaderData".to_string(),
-                String::from(DCPS_SUBSCRIPTION),
-                sedp_reader_qos,
-                Box::new(NoOpListener::<DiscoveredReaderData>::new()),
-                vec![],
-                String::default(),
-            ));
+        let sedp_builtin_subscriptions_reader = spawn_actor(DataReaderActor::new(
+            create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
+            "DiscoveredReaderData".to_string(),
+            String::from(DCPS_SUBSCRIPTION),
+            sedp_reader_qos,
+            Box::new(NoOpListener::<DiscoveredReaderData>::new()),
+            vec![],
+            String::default(),
+        ));
 
         let builtin_subscriber = spawn_actor(SubscriberActor::new(
             SubscriberQos::default(),
@@ -1157,6 +1155,15 @@ impl DomainParticipantActor {
                 type_name,
                 type_support.into(),
             ))
+            .await
+    }
+
+    async fn get_type_support(
+        &mut self,
+        type_name: String,
+    ) -> Option<Arc<dyn TypeSupport + Send + Sync>> {
+        self.type_support_actor
+            .send_mail_and_await_reply(type_support_actor::get_type_support::new(type_name))
             .await
     }
 }
