@@ -107,7 +107,8 @@ impl Subscriber {
             .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
                 a_topic.get_type_name()?,
                 Box::new(FooTypeSupport::new::<Foo>()),
-            ))?;
+            ))?
+            .ok();
         let default_unicast_locator_list = self
             .participant_address
             .send_mail_and_await_reply_blocking(

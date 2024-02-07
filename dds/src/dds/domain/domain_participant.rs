@@ -995,11 +995,10 @@ impl DomainParticipant {
         type_name: &str,
         type_support: Box<dyn TypeSupport + Send + Sync>,
     ) -> DdsResult<()> {
-        self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::register_type::new(
+        self.participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
                 type_name.to_string(),
                 type_support.into(),
-            ),
-        )
+            ))?
     }
 }

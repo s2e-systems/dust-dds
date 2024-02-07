@@ -1151,7 +1151,7 @@ impl DomainParticipantActor {
         &mut self,
         type_name: String,
         type_support: Box<dyn TypeSupport + Send + Sync>,
-    ) {
+    ) -> DdsResult<()> {
         self.type_support_actor
             .send_mail_and_await_reply(type_support_actor::register_type::new(
                 type_name,
