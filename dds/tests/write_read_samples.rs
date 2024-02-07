@@ -19,7 +19,7 @@ use dust_dds::{
         InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
         ANY_VIEW_STATE,
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsType, FooTypeSupport},
 };
 
 mod utils;
@@ -421,7 +421,12 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
         .take(5, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    assert_eq!(samples.len(), 3, "Received wrong number of samples. Received samples: {:?}", samples);
+    assert_eq!(
+        samples.len(),
+        3,
+        "Received wrong number of samples. Received samples: {:?}",
+        samples
+    );
     assert_eq!(samples[0].data().unwrap(), data3);
     assert_eq!(samples[1].data().unwrap(), data4);
     assert_eq!(samples[2].data().unwrap(), data5);

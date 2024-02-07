@@ -992,11 +992,14 @@ impl DomainParticipant {
     /// (i.e., the value returned by the get_type_name operation) will be used.
     pub fn register_type(
         &self,
-        type_name: String,
+        type_name: &str,
         type_support: Box<dyn TypeSupport + Send + Sync>,
     ) -> DdsResult<()> {
         self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::register_type::new(type_name, type_support.into()),
+            domain_participant_actor::register_type::new(
+                type_name.to_string(),
+                type_support.into(),
+            ),
         )
     }
 }

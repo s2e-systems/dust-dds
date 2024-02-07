@@ -16,8 +16,10 @@ use crate::{
         time::Duration,
     },
     publication::data_writer::DataWriter,
-    topic_definition::topic::Topic,
-    topic_definition::type_support::{DdsHasKey, DdsTypeXml},
+    topic_definition::{
+        topic::Topic,
+        type_support::{DdsHasKey, DdsKey, DdsTypeXml, FooTypeSupport},
+    },
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
@@ -84,8 +86,14 @@ impl Publisher {
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
-        Foo: DdsHasKey + DdsTypeXml,
+        Foo: DdsHasKey + DdsKey + DdsTypeXml,
     {
+        self.participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
+                a_topic.get_type_name()?,
+                Box::new(FooTypeSupport::new::<Foo>()),
+            ))?;
+
         let default_unicast_locator_list = self
             .participant_address
             .send_mail_and_await_reply_blocking(
