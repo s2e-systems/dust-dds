@@ -11,6 +11,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
+    topic_definition::type_support::FooTypeSupport,
 };
 
 mod hello_world {
@@ -22,12 +23,11 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("HelloWorldType", FooTypeSupport::<HelloWorldType>::new())
         .unwrap();
 
     let topic = participant
