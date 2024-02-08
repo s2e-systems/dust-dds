@@ -27,7 +27,10 @@ fn main() {
         .unwrap();
 
     participant
-        .register_type("HelloWorldType", FooTypeSupport::<HelloWorldType>::new())
+        .register_type(
+            "HelloWorldType",
+            FooTypeSupport::<hello_world::HelloWorldType>::new(),
+        )
         .unwrap();
 
     let topic = participant

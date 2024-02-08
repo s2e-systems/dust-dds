@@ -49,6 +49,12 @@ impl<Foo> FooTypeSupport<Foo> {
     }
 }
 
+impl<Foo> Default for FooTypeSupport<Foo> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
 impl<Foo> TypeSupport for FooTypeSupport<Foo>
 where
     Foo: DdsKey + DdsHasKey,
@@ -59,7 +65,7 @@ where
 
     fn get_serialized_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
         let mut writer = Vec::new();
-        let foo_key = Foo::get_key_from_serialized_data(&serialized_foo)?;
+        let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
         serialize_rtps_classic_cdr_le(&foo_key, &mut writer)?;
         Ok(writer)
     }
@@ -68,8 +74,8 @@ where
         &self,
         serialized_foo: &[u8],
     ) -> DdsResult<InstanceHandle> {
-        let foo_key = Foo::get_key_from_serialized_data(&serialized_foo)?;
-        Ok(get_instance_handle_from_key(&foo_key)?)
+        let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
+        get_instance_handle_from_key(&foo_key)
     }
 
     fn instance_handle_from_serialized_key(
@@ -77,7 +83,7 @@ where
         mut serialized_key: &[u8],
     ) -> DdsResult<InstanceHandle> {
         let foo_key = deserialize_rtps_classic_cdr::<Foo::Key>(&mut serialized_key)?;
-        Ok(get_instance_handle_from_key(&foo_key)?)
+        get_instance_handle_from_key(&foo_key)
     }
 }
 

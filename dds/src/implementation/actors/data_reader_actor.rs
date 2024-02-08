@@ -930,6 +930,7 @@ impl DataReaderActor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn convert_received_data_to_cache_change(
         &mut self,
         writer_guid: Guid,

@@ -27,7 +27,10 @@ fn main() {
         .unwrap();
 
     participant
-        .register_type("BigDataType", FooTypeSupport::<BigDataType>::new())
+        .register_type(
+            "BigDataType",
+            FooTypeSupport::<big_data::BigDataType>::new(),
+        )
         .unwrap();
 
     let topic = participant

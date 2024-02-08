@@ -11,7 +11,8 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE}, topic_definition::type_support::FooTypeSupport,
+    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    topic_definition::type_support::FooTypeSupport,
 };
 
 mod hello_world {
@@ -27,7 +28,10 @@ fn main() {
         .unwrap();
 
     participant
-        .register_type("HelloWorldType", FooTypeSupport::<HelloWorldType>::new())
+        .register_type(
+            "HelloWorldType",
+            FooTypeSupport::<hello_world::HelloWorldType>::new(),
+        )
         .unwrap();
 
     let topic = participant
