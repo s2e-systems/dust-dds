@@ -16,7 +16,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
         infrastructure::{listeners::NoOpListener, qos::QosKind, status::NO_STATUS},
-        topic_definition::type_support::DdsType,
+        topic_definition::type_support::{DdsType, FooTypeSupport}
     };
 
     #[derive(DdsType)]
@@ -32,6 +32,10 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
 
         let participant = participant_factory
             .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .unwrap();
+
+        participant
+            .register_type("HelloWorldType", FooTypeSupport::<HelloWorldType>::new())
             .unwrap();
 
         let topic = participant
@@ -61,7 +65,7 @@ The subscriber side can be implemented as:
         domain::domain_participant_factory::DomainParticipantFactory,
         infrastructure::{listeners::NoOpListener, qos::QosKind, status::NO_STATUS},
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        topic_definition::type_support::DdsType,
+        topic_definition::type_support::{DdsType, FooTypeSupport},
     };
 
     #[derive(Debug, DdsType)]
@@ -77,6 +81,10 @@ The subscriber side can be implemented as:
 
         let participant = participant_factory
             .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .unwrap();
+
+        participant
+            .register_type("HelloWorldType", FooTypeSupport::<HelloWorldType>::new())
             .unwrap();
 
         let topic = participant

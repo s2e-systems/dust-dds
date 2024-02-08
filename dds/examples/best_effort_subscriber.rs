@@ -15,7 +15,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsType, FooTypeSupport},
 };
 
 #[derive(DdsType, Debug)]
@@ -54,6 +54,13 @@ fn main() {
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type(
+            "BestEffortExampleType",
+            FooTypeSupport::<BestEffortExampleType>::new(),
+        )
         .unwrap();
 
     let topic = participant

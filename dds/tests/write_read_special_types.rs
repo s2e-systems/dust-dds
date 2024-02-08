@@ -240,21 +240,55 @@ fn foo_with_specialized_type_support_should_read_and_write() {
             &self,
             serialized_foo: &[u8],
         ) -> DdsResult<Vec<u8>> {
-            todo!()
+            Ok(serialized_foo[0..8].to_vec())
         }
 
         fn instance_handle_from_serialized_foo(
             &self,
             serialized_foo: &[u8],
         ) -> DdsResult<InstanceHandle> {
-            todo!()
+            Ok(InstanceHandle::new([
+                serialized_foo[4],
+                serialized_foo[5],
+                serialized_foo[6],
+                serialized_foo[7],
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ]))
         }
 
         fn instance_handle_from_serialized_key(
             &self,
             serialized_key: &[u8],
         ) -> DdsResult<InstanceHandle> {
-            todo!()
+            Ok(InstanceHandle::new([
+                serialized_key[4],
+                serialized_key[5],
+                serialized_key[6],
+                serialized_key[7],
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ]))
         }
     }
 

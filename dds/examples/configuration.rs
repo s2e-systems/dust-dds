@@ -2,7 +2,7 @@ use dust_dds::{
     configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{listeners::NoOpListener, qos::QosKind, status::NO_STATUS},
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsType, FooTypeSupport},
 };
 
 #[derive(DdsType, Debug)]
@@ -28,6 +28,10 @@ fn main() {
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("HelloWorldType", FooTypeSupport::<HelloWorldType>::new())
         .unwrap();
 
     let topic = participant

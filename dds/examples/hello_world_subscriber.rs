@@ -12,7 +12,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsType, FooTypeSupport},
 };
 
 #[derive(Debug, DdsType)]
@@ -28,6 +28,10 @@ fn main() {
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("HelloWorldType", FooTypeSupport::<HelloWorldType>::new())
         .unwrap();
 
     let topic = participant
