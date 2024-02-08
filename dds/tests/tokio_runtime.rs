@@ -10,7 +10,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsType, FooTypeSupport},
 };
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
@@ -29,11 +29,13 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("UserData", FooTypeSupport::<UserData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "LargeDataTopic",
-            "LargeData",
+            "UserData",
             QosKind::Default,
             NoOpListener::new(),
             NO_STATUS,

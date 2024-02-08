@@ -29,7 +29,10 @@ use dust_dds::{
         subscriber::Subscriber,
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::{topic_listener::TopicListener, type_support::DdsType},
+    topic_definition::{
+        topic_listener::TopicListener,
+        type_support::{DdsType, FooTypeSupport},
+    },
 };
 
 mod utils;
@@ -72,7 +75,9 @@ fn deadline_missed_listener() {
             &[StatusKind::RequestedDeadlineMissed],
         )
         .unwrap();
-
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -178,6 +183,9 @@ fn sample_rejected_listener() {
             participant_listener,
             &[StatusKind::SampleRejected],
         )
+        .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
         .unwrap();
     let topic = participant
         .create_topic(
@@ -296,6 +304,9 @@ fn subscription_matched_listener() {
             &[StatusKind::SubscriptionMatched],
         )
         .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
@@ -391,6 +402,9 @@ fn requested_incompatible_qos_listener() {
             &[StatusKind::RequestedIncompatibleQos],
         )
         .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
@@ -485,6 +499,9 @@ fn publication_matched_listener() {
             participant_listener,
             &[StatusKind::PublicationMatched],
         )
+        .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
         .unwrap();
     let topic = participant
         .create_topic(
@@ -582,6 +599,9 @@ fn offered_incompatible_qos_listener() {
             &[StatusKind::OfferedIncompatibleQos],
         )
         .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
@@ -667,7 +687,9 @@ fn on_data_available_listener() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -756,7 +778,9 @@ fn data_on_readers_listener() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -861,7 +885,9 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -963,7 +989,9 @@ fn participant_deadline_missed_listener() {
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -1065,6 +1093,9 @@ fn participant_sample_rejected_listener() {
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
         .unwrap();
     let topic = participant
         .create_topic(
@@ -1181,6 +1212,9 @@ fn participant_subscription_matched_listener() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
@@ -1272,6 +1306,9 @@ fn participant_requested_incompatible_qos_listener() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
@@ -1361,6 +1398,9 @@ fn publisher_publication_matched_listener() {
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
         .unwrap();
     let topic = participant
         .create_topic(
@@ -1456,6 +1496,9 @@ fn publisher_offered_incompatible_qos_listener() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
@@ -1550,7 +1593,9 @@ fn subscriber_deadline_missed_listener() {
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -1654,6 +1699,9 @@ fn subscriber_sample_rejected_listener() {
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
         .unwrap();
     let topic = participant
         .create_topic(
@@ -1770,6 +1818,9 @@ fn subscriber_subscription_matched_listener() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
@@ -1863,6 +1914,9 @@ fn subscriber_requested_incompatible_qos_listener() {
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
         .unwrap();
     let topic = participant
         .create_topic(
@@ -1959,6 +2013,9 @@ fn data_writer_publication_matched_listener() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "SampleRejectedListenerTopic",
@@ -2051,6 +2108,9 @@ fn data_writer_offered_incompatible_qos_listener() {
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
         .unwrap();
     let topic = participant
         .create_topic(
@@ -2152,6 +2212,9 @@ fn non_sync_listener_should_be_accepted() {
             NonSyncListener::new(),
             NO_STATUS,
         )
+        .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
         .unwrap();
     let topic = participant
         .create_topic(

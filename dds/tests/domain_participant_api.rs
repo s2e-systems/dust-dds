@@ -20,7 +20,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsType, FooTypeSupport},
 };
 
 mod utils;
@@ -84,6 +84,9 @@ fn create_delete_topic() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "abc",
@@ -156,7 +159,9 @@ fn not_allowed_to_delete_topic_from_different_participant() {
     let other_participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "abc",
@@ -181,7 +186,9 @@ fn not_allowed_to_delete_publisher_with_writer() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let writer_topic = participant
         .create_topic(
             "Test",
@@ -219,6 +226,9 @@ fn not_allowed_to_delete_subscriber_with_reader() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let reader_topic = participant
         .create_topic(
             "Test",
@@ -255,7 +265,9 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let reader_topic = participant
         .create_topic(
             "Test",
@@ -292,7 +304,9 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let writer_topic = participant
         .create_topic(
             "Test",
@@ -329,7 +343,9 @@ fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let writer_topic = participant
         .create_topic(
             "Test",
@@ -363,7 +379,9 @@ fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let reader_topic = participant
         .create_topic(
             "Test",
@@ -397,7 +415,9 @@ fn allowed_to_delete_topic_with_created_and_deleted_writer() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let writer_topic = participant
         .create_topic(
             "Test",
@@ -431,7 +451,9 @@ fn allowed_to_delete_topic_with_created_and_deleted_reader() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let reader_topic = participant
         .create_topic(
             "Test",
@@ -535,7 +557,9 @@ fn default_topic_qos() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("TestType", FooTypeSupport::<TestType>::new())
+        .unwrap();
     let topic_data = vec![1, 2, 3];
     let qos = TopicQos {
         topic_data: TopicDataQosPolicy {
@@ -616,6 +640,9 @@ fn get_discovery_data_from_builtin_reader() {
             NoOpListener::new(),
             NO_STATUS,
         )
+        .unwrap();
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
         .unwrap();
 
     let topic = participant
@@ -757,7 +784,9 @@ fn ignore_publication() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "MyTopic",
@@ -830,7 +859,9 @@ fn ignore_subscription() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
+    participant
+        .register_type("MyData", FooTypeSupport::<MyData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "MyTopic",

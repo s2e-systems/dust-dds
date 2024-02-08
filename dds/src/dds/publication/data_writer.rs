@@ -9,7 +9,7 @@ use crate::{
             publisher_actor::{self, PublisherActor},
             topic_actor::{self, TopicActor},
         },
-        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
+        utils::actor::ActorAddress,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -244,7 +244,7 @@ where
             let mut serialized_foo = Vec::new();
             instance.serialize_data(&mut serialized_foo)?;
             let instance_serialized_key =
-                type_support.get_key_from_serialized_foo(&serialized_foo)?;
+                type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
 
             self.writer_address.send_mail_and_await_reply_blocking(
                 data_writer_actor::unregister_instance_w_timestamp::new(
@@ -289,10 +289,10 @@ where
 
         let mut serialized_foo = Vec::new();
         instance.serialize_data(&mut serialized_foo)?;
-        let key = type_support.get_key_from_serialized_foo(&serialized_foo)?;
+        let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_foo)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::lookup_instance::new(get_instance_handle_from_key(&key)?),
+            data_writer_actor::lookup_instance::new(instance_handle),
         )?
     }
 
@@ -366,15 +366,10 @@ where
 
         let mut serialized_data = Vec::new();
         data.serialize_data(&mut serialized_data)?;
-        let key = type_support.get_key_from_serialized_foo(&serialized_data)?;
+        let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::write_w_timestamp::new(
-                serialized_data,
-                get_instance_handle_from_key(&key)?,
-                handle,
-                timestamp,
-            ),
+            data_writer_actor::write_w_timestamp::new(serialized_data, key, handle, timestamp),
         )??;
 
         self.participant_address
@@ -458,7 +453,7 @@ where
 
         let mut serialized_foo = Vec::new();
         data.serialize_data(&mut serialized_foo)?;
-        let key = type_support.get_key_from_serialized_foo(&serialized_foo)?;
+        let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
             data_writer_actor::dispose_w_timestamp::new(key, instance_handle, timestamp),

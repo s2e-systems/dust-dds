@@ -4,6 +4,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsResult,
+        instance::InstanceHandle,
         listeners::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
@@ -41,7 +42,7 @@ fn foo_with_lifetime_should_read_and_write() {
     let topic = participant
         .create_topic(
             "MyTopic",
-            "KeyedData",
+            "BorrowedData",
             QosKind::Default,
             NoOpListener::new(),
             NO_STATUS,
@@ -235,14 +236,24 @@ fn foo_with_specialized_type_support_should_read_and_write() {
             true
         }
 
-        fn get_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
-            Ok(serialized_foo[4..8].to_vec())
+        fn get_serialized_key_from_serialized_foo(
+            &self,
+            serialized_foo: &[u8],
+        ) -> DdsResult<Vec<u8>> {
+            todo!()
+        }
+
+        fn instance_handle_from_serialized_foo(
+            &self,
+            serialized_foo: &[u8],
+        ) -> DdsResult<InstanceHandle> {
+            todo!()
         }
 
         fn instance_handle_from_serialized_key(
             &self,
-            _serialized_key: &[u8],
-        ) -> DdsResult<Vec<u8>> {
+            serialized_key: &[u8],
+        ) -> DdsResult<InstanceHandle> {
             todo!()
         }
     }

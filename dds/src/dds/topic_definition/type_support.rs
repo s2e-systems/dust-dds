@@ -4,14 +4,16 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
         payload_serializer_deserializer::{
-            cdr_deserializer::ClassicCdrDeserializer,
-            cdr_serializer::{self, ClassicCdrSerializer},
-            endianness::CdrEndianness,
-            parameter_list_deserializer::ParameterListCdrDeserializer,
+            cdr_deserializer::ClassicCdrDeserializer, cdr_serializer::ClassicCdrSerializer,
+            endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
             parameter_list_serializer::ParameterListCdrSerializer,
         },
+        utils::instance_handle_from_key::get_instance_handle_from_key,
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+    },
     serialized_payload::{
         cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
         parameter_list::{
@@ -26,9 +28,17 @@ pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 pub trait TypeSupport {
     fn has_key(&self) -> bool;
 
-    fn get_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>>;
+    fn get_serialized_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>>;
 
-    fn instance_handle_from_serialized_key(&self, serialized_key: &[u8]) -> DdsResult<Vec<u8>>;
+    fn instance_handle_from_serialized_foo(
+        &self,
+        serialized_foo: &[u8],
+    ) -> DdsResult<InstanceHandle>;
+
+    fn instance_handle_from_serialized_key(
+        &self,
+        serialized_key: &[u8],
+    ) -> DdsResult<InstanceHandle>;
 }
 
 pub struct FooTypeSupport<Foo>(PhantomData<Foo>);
@@ -47,22 +57,27 @@ where
         Foo::HAS_KEY
     }
 
-    fn get_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
+    fn get_serialized_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
         let mut writer = Vec::new();
-        let mut serializer =
-            cdr_serializer::ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
         let foo_key = Foo::get_key_from_serialized_data(&serialized_foo)?;
-        CdrSerialize::serialize(&foo_key, &mut serializer)?;
+        serialize_rtps_classic_cdr_le(&foo_key, &mut writer)?;
         Ok(writer)
     }
 
-    fn instance_handle_from_serialized_key(&self, mut serialized_key: &[u8]) -> DdsResult<Vec<u8>> {
-        let mut writer = Vec::new();
-        let mut serializer =
-            cdr_serializer::ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
+    fn instance_handle_from_serialized_foo(
+        &self,
+        serialized_foo: &[u8],
+    ) -> DdsResult<InstanceHandle> {
+        let foo_key = Foo::get_key_from_serialized_data(&serialized_foo)?;
+        Ok(get_instance_handle_from_key(&foo_key)?)
+    }
+
+    fn instance_handle_from_serialized_key(
+        &self,
+        mut serialized_key: &[u8],
+    ) -> DdsResult<InstanceHandle> {
         let foo_key = deserialize_rtps_classic_cdr::<Foo::Key>(&mut serialized_key)?;
-        CdrSerialize::serialize(&foo_key, &mut serializer)?;
-        Ok(writer)
+        Ok(get_instance_handle_from_key(&foo_key)?)
     }
 }
 

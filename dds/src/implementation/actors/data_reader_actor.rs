@@ -90,7 +90,7 @@ fn build_instance_handle(
 ) -> DdsResult<InstanceHandle> {
     Ok(match change_kind {
         ChangeKind::Alive | ChangeKind::AliveFiltered => {
-            get_instance_handle_from_key(&type_support.get_key_from_serialized_foo(data)?)?
+            type_support.instance_handle_from_serialized_foo(data)?
         }
         ChangeKind::NotAliveDisposed
         | ChangeKind::NotAliveUnregistered
@@ -102,14 +102,10 @@ fn build_instance_handle(
                 if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
                     InstanceHandle::new(key)
                 } else {
-                    get_instance_handle_from_key(
-                        &type_support.instance_handle_from_serialized_key(data)?,
-                    )?
+                    type_support.instance_handle_from_serialized_key(data)?
                 }
             }
-            None => get_instance_handle_from_key(
-                &type_support.instance_handle_from_serialized_key(data)?,
-            )?,
+            None => type_support.instance_handle_from_serialized_key(data)?,
         },
     })
 }
