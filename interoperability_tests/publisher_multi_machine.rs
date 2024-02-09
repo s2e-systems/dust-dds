@@ -11,7 +11,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsType, FooTypeSupport},
 };
 
 #[derive(DdsType)]
@@ -27,6 +27,10 @@ fn main() {
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+
+    participant
+        .register_type("HelloWorldType", FooTypeSupport::<HelloWorldType>::new())
         .unwrap();
 
     let topic = participant

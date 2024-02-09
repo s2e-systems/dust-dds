@@ -1912,10 +1912,12 @@ impl DataReaderActor {
                 self.type_name.clone(),
             ))
             .await?
-            .ok_or(DdsError::PreconditionNotMet(format!(
-                "Type with name {} not registered with domain participant",
-                self.type_name
-            )))?;
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    self.type_name
+                ))
+            })?;
 
         while let Some(submessage) = message_receiver.next() {
             match submessage {

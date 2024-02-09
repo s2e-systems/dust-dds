@@ -13,7 +13,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsType, FooTypeSupport},
 };
 
 #[derive(Clone, Debug, PartialEq, DdsType)]
@@ -27,6 +27,9 @@ pub fn best_effort_write_only(c: &mut Criterion) {
     let domain_id = 200;
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
     let topic = participant
         .create_topic(
@@ -71,6 +74,9 @@ pub fn best_effort_read_only(c: &mut Criterion) {
     let domain_id = 201;
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
         .unwrap();
     let topic = participant
         .create_topic(
@@ -134,6 +140,9 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+    participant
+        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
+        .unwrap();
     let topic = participant
         .create_topic(
             "TestTopic",
@@ -195,7 +204,6 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     });
 }
 
-
 #[derive(Clone, Debug, PartialEq, DdsType)]
 struct LargeKeyedData {
     #[dust_dds(key)]
@@ -221,6 +229,9 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .unwrap();
+    participant
+        .register_type("LargeKeyedData", FooTypeSupport::<LargeKeyedData>::new())
         .unwrap();
     let topic = participant
         .create_topic(
@@ -273,7 +284,10 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
         .unwrap();
     wait_set2.wait(Duration::new(20, 0)).unwrap();
 
-    let large_data_sample = LargeKeyedData { id: 1, value: vec![7; 32000] };
+    let large_data_sample = LargeKeyedData {
+        id: 1,
+        value: vec![7; 32000],
+    };
 
     c.bench_function("best_effort_write_and_receive_frag", |b| {
         b.iter(|| {
@@ -284,7 +298,6 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
         })
     });
 }
-
 
 criterion_group!(
     benches,

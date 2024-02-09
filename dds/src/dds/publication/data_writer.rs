@@ -210,10 +210,12 @@ where
             .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))?
-            .ok_or(DdsError::PreconditionNotMet(format!(
-                "Type with name {} not registered with parent domain participant",
-                type_name
-            )))?;
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
         let has_key = type_support.has_key();
         if has_key {
             let instance_handle = match handle {
@@ -282,10 +284,12 @@ where
             .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))?
-            .ok_or(DdsError::PreconditionNotMet(format!(
-                "Type with name {} not registered with parent domain participant",
-                type_name
-            )))?;
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
 
         let mut serialized_foo = Vec::new();
         instance.serialize_data(&mut serialized_foo)?;
@@ -359,10 +363,12 @@ where
             .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))?
-            .ok_or(DdsError::PreconditionNotMet(format!(
-                "Type with name {} not registered with parent domain participant",
-                type_name
-            )))?;
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
 
         let mut serialized_data = Vec::new();
         data.serialize_data(&mut serialized_data)?;
@@ -446,10 +452,12 @@ where
             .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))?
-            .ok_or(DdsError::PreconditionNotMet(format!(
-                "Type with name {} not registered with parent domain participant",
-                type_name
-            )))?;
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
 
         let mut serialized_foo = Vec::new();
         data.serialize_data(&mut serialized_foo)?;
