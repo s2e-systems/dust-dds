@@ -68,7 +68,7 @@ use crate::{
     },
     serialized_payload::cdr::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::{DdsKey, TypeSupport},
+    topic_definition::type_support::{DdsKey, DynamicTypeInterface},
 };
 
 use super::{
@@ -83,7 +83,7 @@ use super::{
 };
 
 fn build_instance_handle(
-    type_support: &Arc<dyn TypeSupport + Send + Sync>,
+    type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
     change_kind: ChangeKind,
     data: &[u8],
     inline_qos: &[Parameter],
@@ -363,7 +363,7 @@ impl DataReaderActor {
     async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead,
-        type_support: &Arc<dyn TypeSupport + Send + Sync>,
+        type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
@@ -515,7 +515,7 @@ impl DataReaderActor {
     async fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessageRead,
-        type_support: &Arc<dyn TypeSupport + Send + Sync>,
+        type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
@@ -939,7 +939,7 @@ impl DataReaderActor {
         data: Data,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
-        type_support: &Arc<dyn TypeSupport + Send + Sync>,
+        type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<RtpsReaderCacheChange> {
         let change_kind = if key_flag {
             if let Some(p) = inline_qos

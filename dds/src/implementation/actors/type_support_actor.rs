@@ -7,15 +7,17 @@ use dust_dds_derive::actor_interface;
 
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
-    topic_definition::type_support::TypeSupport,
+    topic_definition::type_support::DynamicTypeInterface,
 };
 
 pub struct TypeSupportActor {
-    type_support_list: HashMap<String, Arc<dyn TypeSupport + Send + Sync>>,
+    type_support_list: HashMap<String, Arc<dyn DynamicTypeInterface + Send + Sync>>,
 }
 
 impl TypeSupportActor {
-    pub fn new(type_support_list: HashMap<String, Arc<dyn TypeSupport + Send + Sync>>) -> Self {
+    pub fn new(
+        type_support_list: HashMap<String, Arc<dyn DynamicTypeInterface + Send + Sync>>,
+    ) -> Self {
         Self { type_support_list }
     }
 }
@@ -25,7 +27,7 @@ impl TypeSupportActor {
     async fn register_type(
         &mut self,
         type_name: String,
-        type_support: Arc<dyn TypeSupport + Send + Sync>,
+        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<()> {
         match self.type_support_list.entry(type_name.clone()) {
             Entry::Occupied(_) => Err(DdsError::PreconditionNotMet(format!(
@@ -42,7 +44,7 @@ impl TypeSupportActor {
     async fn get_type_support(
         &self,
         type_name: String,
-    ) -> Option<Arc<dyn TypeSupport + Send + Sync>> {
+    ) -> Option<Arc<dyn DynamicTypeInterface + Send + Sync>> {
         self.type_support_list.get(&type_name).cloned()
     }
 }

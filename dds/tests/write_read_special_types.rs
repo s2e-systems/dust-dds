@@ -35,9 +35,7 @@ fn foo_with_lifetime_should_read_and_write() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    participant
-        .register_type("BorrowedData", FooTypeSupport::<BorrowedData>::new())
-        .unwrap();
+    TypeSupport::<NonConsecutiveKey>::register_type(&participant, TypeSupport::get_type_name());
 
     let topic = participant
         .create_topic(
@@ -134,12 +132,7 @@ fn foo_with_non_consecutive_key_should_read_and_write() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    participant
-        .register_type(
-            "NonConsecutiveKey",
-            FooTypeSupport::<NonConsecutiveKey>::new(),
-        )
-        .unwrap();
+    TypeSupport::<NonConsecutiveKey>::register_type(&participant, TypeSupport::get_type_name());
 
     let topic = participant
         .create_topic(
@@ -225,13 +218,20 @@ fn foo_with_specialized_type_support_should_read_and_write() {
         Clone, Debug, PartialEq, CdrSerialize, CdrDeserialize, DdsSerialize, DdsDeserialize,
     )]
     struct DynamicType {
-        id: u32,
         value: Vec<u8>,
     }
 
-    struct DynamicTypeSupport;
+    impl DynamicType {
+        fn get_type_support(xml_representation: String) -> DynamicTypeSupport {
+            DynamicTypeSupport { xml_representation }
+        }
+    }
 
-    impl TypeSupport for DynamicTypeSupport {
+    struct DynamicTypeSupport {
+        xml_representation: String,
+    }
+
+    impl DdsDynamicKey for DynamicTypeSupport {
         fn has_key(&self) -> bool {
             true
         }
@@ -298,9 +298,12 @@ fn foo_with_specialized_type_support_should_read_and_write() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    participant
-        .register_type("DynamicType", DynamicTypeSupport)
-        .unwrap();
+    TypeSupport::<DynamicTypeSupport>::register_dynamic_type(
+        &participant,
+        "DynamicType",
+        DynamicTypeSupport,
+    )
+    .unwrap();
 
     let topic = participant
         .create_topic(
@@ -361,13 +364,11 @@ fn foo_with_specialized_type_support_should_read_and_write() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = DynamicType {
-        id: 1,
-        value: vec![1, 2, 3, 4],
+        value: vec![1, 0, 0, 0, 1, 2, 3, 4],
     };
 
     let data2 = DynamicType {
-        id: 2,
-        value: vec![1, 2, 3, 4],
+        value: vec![2, 0, 0, 0, 1, 2, 3, 4],
     };
 
     writer.write(&data1, None).unwrap();

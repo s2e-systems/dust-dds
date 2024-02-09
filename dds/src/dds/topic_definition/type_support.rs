@@ -25,19 +25,47 @@ use crate::{
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
-pub trait TypeSupportInterface {
-    fn register_type(
+pub struct TypeSupport<Foo>(PhantomData<Foo>);
+
+impl<Foo> TypeSupport<Foo> {
+    /// This operation allows an application to communicate to the Service the existence of a data type. The generated implementation
+    /// of that operation embeds all the knowledge that has to be communicated to the middleware in order to make it able to manage
+    /// the contents of data of that data type. This includes in particular the key definition that will allow the Service to distinguish
+    /// different instances of the same type.
+    /// It is a pre-condition error to use the same type_name to register two different TypeSupport with the same DomainParticipant.
+    /// If an application attempts this, the operation will fail and return PRECONDITION_NOT_MET. However, it is allowed to
+    /// register the same TypeSupport multiple times with a DomainParticipant using the same or different values for the type_name.
+    /// If register_type is called multiple times on the same TypeSupport with the same DomainParticipant and type_name the
+    /// second (and subsequent) registrations are ignored but the operation returns OK.
+    /// The application may pass nil as the value for the type_name. In this case the default type-name as defined by the TypeSupport
+    /// (i.e., the value returned by the get_type_name operation) will be used.
+    pub fn register_type(
         participant: &dust_dds::domain::domain_participant::DomainParticipant,
         type_name: &str,
     ) -> DdsResult<()>
     where
-        Self: Sized + DdsKey + DdsHasKey + Send + Sync + 'static,
+        Foo: DdsHasKey + DdsKey,
     {
-        participant.register_type(type_name, FooTypeSupport::<Self>::new())
+        participant.register_type(type_name, Box::new(FooTypeSupport::new::<Foo>()))
+    }
+
+    /// This operation returns the default name for the data-type represented by the TypeSupport.
+    pub fn get_type_name() -> &'static str {
+        ""
+    }
+
+    #[doc(hidden)]
+    pub fn register_dynamic_type(
+        participant: &dust_dds::domain::domain_participant::DomainParticipant,
+        type_name: &str,
+        dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
+    ) -> DdsResult<()> {
+        participant.register_type(type_name, Box::new(dynamic_type_representation))
     }
 }
 
-pub trait TypeSupport {
+#[doc(hidden)]
+pub trait DynamicTypeInterface {
     fn has_key(&self) -> bool;
 
     fn get_serialized_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>>;
@@ -53,49 +81,78 @@ pub trait TypeSupport {
     ) -> DdsResult<InstanceHandle>;
 }
 
-pub struct FooTypeSupport<Foo>(PhantomData<Foo>);
+pub(crate) struct FooTypeSupport {
+    has_key: bool,
+    get_serialized_key_from_serialized_foo: fn(&[u8]) -> DdsResult<Vec<u8>>,
+    instance_handle_from_serialized_foo: fn(&[u8]) -> DdsResult<InstanceHandle>,
+    instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<InstanceHandle>,
+}
 
-impl<Foo> FooTypeSupport<Foo> {
-    pub fn new() -> Self {
-        Self(PhantomData)
+impl FooTypeSupport {
+    pub fn new<Foo>() -> Self
+    where
+        Foo: DdsKey + DdsHasKey,
+    {
+        // This function is a workaround due to an issue resolving
+        // lifetimes of the closure.
+        // See for more details: https://github.com/rust-lang/rust/issues/41078
+        fn define_function_with_correct_lifetime<F, O>(closure: F) -> F
+        where
+            F: for<'a> Fn(&'a [u8]) -> DdsResult<O>,
+        {
+            closure
+        }
+
+        let get_serialized_key_from_serialized_foo =
+            define_function_with_correct_lifetime(|serialized_foo| {
+                let mut writer = Vec::new();
+                let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
+                serialize_rtps_classic_cdr_le(&foo_key, &mut writer)?;
+                Ok(writer)
+            });
+
+        let instance_handle_from_serialized_foo =
+            define_function_with_correct_lifetime(|serialized_foo| {
+                let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
+                get_instance_handle_from_key(&foo_key)
+            });
+
+        let instance_handle_from_serialized_key =
+            define_function_with_correct_lifetime(|mut serialized_key| {
+                let foo_key = deserialize_rtps_classic_cdr::<Foo::Key>(&mut serialized_key)?;
+                get_instance_handle_from_key(&foo_key)
+            });
+
+        Self {
+            has_key: Foo::HAS_KEY,
+            get_serialized_key_from_serialized_foo,
+            instance_handle_from_serialized_foo,
+            instance_handle_from_serialized_key,
+        }
     }
 }
 
-impl<Foo> Default for FooTypeSupport<Foo> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-
-impl<Foo> TypeSupport for FooTypeSupport<Foo>
-where
-    Foo: DdsKey + DdsHasKey,
-{
+impl DynamicTypeInterface for FooTypeSupport {
     fn has_key(&self) -> bool {
-        Foo::HAS_KEY
+        self.has_key
     }
 
     fn get_serialized_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
-        let mut writer = Vec::new();
-        let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
-        serialize_rtps_classic_cdr_le(&foo_key, &mut writer)?;
-        Ok(writer)
+        (self.get_serialized_key_from_serialized_foo)(serialized_foo)
     }
 
     fn instance_handle_from_serialized_foo(
         &self,
         serialized_foo: &[u8],
     ) -> DdsResult<InstanceHandle> {
-        let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
-        get_instance_handle_from_key(&foo_key)
+        (self.instance_handle_from_serialized_foo)(serialized_foo)
     }
 
     fn instance_handle_from_serialized_key(
         &self,
-        mut serialized_key: &[u8],
+        serialized_key: &[u8],
     ) -> DdsResult<InstanceHandle> {
-        let foo_key = deserialize_rtps_classic_cdr::<Foo::Key>(&mut serialized_key)?;
-        get_instance_handle_from_key(&foo_key)
+        (self.instance_handle_from_serialized_key)(serialized_key)
     }
 }
 

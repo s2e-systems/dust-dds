@@ -2,7 +2,7 @@ use dust_dds_derive::actor_interface;
 use tracing::warn;
 
 use crate::{
-    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -49,16 +49,20 @@ use crate::{
         },
     },
     infrastructure::{
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         listeners::NoOpListener,
-        qos::{DataReaderQos, DataWriterQos, QosKind},
+        qos::{
+            DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
+            SubscriberQos, TopicQos,
+        },
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
             LifespanQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
         },
         status::StatusKind,
-        time::{DurationKind, DURATION_ZERO},
+        time::{Duration, DurationKind, Time, DURATION_ZERO},
     },
     publication::publisher_listener::PublisherListener,
     subscription::{
@@ -71,16 +75,8 @@ use crate::{
     topic_definition::{
         topic_listener::TopicListener,
         type_support::{
-            serialize_rtps_classic_cdr_le, DdsDeserialize, DdsKey, DdsSerialize, FooTypeSupport,
-            TypeSupport,
-        },
-    },
-    {
-        builtin_topics::TopicBuiltinTopicData,
-        infrastructure::{
-            error::{DdsError, DdsResult},
-            qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-            time::{Duration, Time},
+            serialize_rtps_classic_cdr_le, DdsDeserialize, DdsKey, DdsSerialize,
+            DynamicTypeInterface, FooTypeSupport,
         },
     },
 };
@@ -459,23 +455,23 @@ impl DomainParticipantActor {
             ))
             .unwrap();
 
-        let mut type_support_list: HashMap<String, Arc<dyn TypeSupport + Send + Sync>> =
+        let mut type_support_list: HashMap<String, Arc<dyn DynamicTypeInterface + Send + Sync>> =
             HashMap::new();
         type_support_list.insert(
             "SpdpDiscoveredParticipantData".to_string(),
-            Arc::new(FooTypeSupport::<SpdpDiscoveredParticipantData>::new()),
+            Arc::new(FooTypeSupport::new::<SpdpDiscoveredParticipantData>()),
         );
         type_support_list.insert(
             "DiscoveredReaderData".to_string(),
-            Arc::new(FooTypeSupport::<DiscoveredReaderData>::new()),
+            Arc::new(FooTypeSupport::new::<DiscoveredReaderData>()),
         );
         type_support_list.insert(
             "DiscoveredWriterData".to_string(),
-            Arc::new(FooTypeSupport::<DiscoveredWriterData>::new()),
+            Arc::new(FooTypeSupport::new::<DiscoveredWriterData>()),
         );
         type_support_list.insert(
             "DiscoveredTopicData".to_string(),
-            Arc::new(FooTypeSupport::<DiscoveredTopicData>::new()),
+            Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
         );
 
         let type_support_actor = spawn_actor(TypeSupportActor::new(type_support_list));
@@ -1147,7 +1143,7 @@ impl DomainParticipantActor {
     async fn register_type(
         &mut self,
         type_name: String,
-        type_support: Box<dyn TypeSupport + Send + Sync>,
+        type_support: Box<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<()> {
         self.type_support_actor
             .send_mail_and_await_reply(type_support_actor::register_type::new(
@@ -1160,7 +1156,7 @@ impl DomainParticipantActor {
     async fn get_type_support(
         &mut self,
         type_name: String,
-    ) -> Option<Arc<dyn TypeSupport + Send + Sync>> {
+    ) -> Option<Arc<dyn DynamicTypeInterface + Send + Sync>> {
         self.type_support_actor
             .send_mail_and_await_reply(type_support_actor::get_type_support::new(type_name))
             .await
