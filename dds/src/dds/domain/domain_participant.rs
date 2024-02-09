@@ -5,7 +5,7 @@ use crate::{
     implementation::{
         actors::{
             data_reader_actor, data_writer_actor,
-            domain_participant_actor::{self, DomainParticipantActor},
+            domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
             publisher_actor, subscriber_actor, topic_actor,
         },
         utils::{
@@ -27,7 +27,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{DdsHasKey, DdsKey, DdsSerialize, DynamicTypeInterface, FooTypeSupport},
+        type_support::{DdsHasKey, DdsKey, DdsSerialize, DynamicTypeInterface},
     },
 };
 

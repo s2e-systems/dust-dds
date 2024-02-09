@@ -8,7 +8,6 @@ use crate::{
             endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
             parameter_list_serializer::ParameterListCdrSerializer,
         },
-        utils::instance_handle_from_key::get_instance_handle_from_key,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -40,81 +39,6 @@ pub trait DynamicTypeInterface {
         &self,
         serialized_key: &[u8],
     ) -> DdsResult<InstanceHandle>;
-}
-
-pub(crate) struct FooTypeSupport {
-    has_key: bool,
-    get_serialized_key_from_serialized_foo: fn(&[u8]) -> DdsResult<Vec<u8>>,
-    instance_handle_from_serialized_foo: fn(&[u8]) -> DdsResult<InstanceHandle>,
-    instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<InstanceHandle>,
-}
-
-impl FooTypeSupport {
-    pub fn new<Foo>() -> Self
-    where
-        Foo: DdsKey + DdsHasKey,
-    {
-        // This function is a workaround due to an issue resolving
-        // lifetimes of the closure.
-        // See for more details: https://github.com/rust-lang/rust/issues/41078
-        fn define_function_with_correct_lifetime<F, O>(closure: F) -> F
-        where
-            F: for<'a> Fn(&'a [u8]) -> DdsResult<O>,
-        {
-            closure
-        }
-
-        let get_serialized_key_from_serialized_foo =
-            define_function_with_correct_lifetime(|serialized_foo| {
-                let mut writer = Vec::new();
-                let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
-                serialize_rtps_classic_cdr_le(&foo_key, &mut writer)?;
-                Ok(writer)
-            });
-
-        let instance_handle_from_serialized_foo =
-            define_function_with_correct_lifetime(|serialized_foo| {
-                let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
-                get_instance_handle_from_key(&foo_key)
-            });
-
-        let instance_handle_from_serialized_key =
-            define_function_with_correct_lifetime(|mut serialized_key| {
-                let foo_key = deserialize_rtps_classic_cdr::<Foo::Key>(&mut serialized_key)?;
-                get_instance_handle_from_key(&foo_key)
-            });
-
-        Self {
-            has_key: Foo::HAS_KEY,
-            get_serialized_key_from_serialized_foo,
-            instance_handle_from_serialized_foo,
-            instance_handle_from_serialized_key,
-        }
-    }
-}
-
-impl DynamicTypeInterface for FooTypeSupport {
-    fn has_key(&self) -> bool {
-        self.has_key
-    }
-
-    fn get_serialized_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
-        (self.get_serialized_key_from_serialized_foo)(serialized_foo)
-    }
-
-    fn instance_handle_from_serialized_foo(
-        &self,
-        serialized_foo: &[u8],
-    ) -> DdsResult<InstanceHandle> {
-        (self.instance_handle_from_serialized_foo)(serialized_foo)
-    }
-
-    fn instance_handle_from_serialized_key(
-        &self,
-        serialized_key: &[u8],
-    ) -> DdsResult<InstanceHandle> {
-        (self.instance_handle_from_serialized_key)(serialized_key)
-    }
 }
 
 /// This trait indicates whether the associated type is keyed or not, i.e. if the middleware
