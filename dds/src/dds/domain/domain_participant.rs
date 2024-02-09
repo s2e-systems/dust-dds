@@ -27,7 +27,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{DdsHasKey, DdsKey, DdsSerialize, FooTypeSupport},
+        type_support::{DdsHasKey, DdsKey, DdsSerialize, DynamicTypeInterface, FooTypeSupport},
     },
 };
 
@@ -226,10 +226,24 @@ impl DomainParticipant {
     {
         let type_support = FooTypeSupport::new::<Foo>();
 
+        self.create_dynamic_topic(topic_name, type_name, qos, a_listener, mask, type_support)
+    }
+
+    #[doc(hidden)]
+    #[tracing::instrument(skip(self, a_listener, dynamic_type_representation))]
+    pub fn create_dynamic_topic(
+        &self,
+        topic_name: &str,
+        type_name: &str,
+        qos: QosKind<TopicQos>,
+        a_listener: impl TopicListener + Send + 'static,
+        mask: &[StatusKind],
+        dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
+    ) -> DdsResult<Topic> {
         self.participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
                 type_name.to_string(),
-                Box::new(type_support),
+                Box::new(dynamic_type_representation),
             ))?;
 
         let topic_address = self
