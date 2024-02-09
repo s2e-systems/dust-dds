@@ -34,12 +34,8 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
             .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
             .unwrap();
 
-        participant
-            .register_type("HelloWorldType", FooTypeSupport::<HelloWorldType>::new())
-            .unwrap();
-
         let topic = participant
-            .create_topic("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
             .unwrap();
 
         let publisher = participant
@@ -83,12 +79,8 @@ The subscriber side can be implemented as:
             .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
             .unwrap();
 
-        participant
-            .register_type("HelloWorldType", FooTypeSupport::<HelloWorldType>::new())
-            .unwrap();
-
         let topic = participant
-            .create_topic("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
             .unwrap();
 
         let subscriber = participant

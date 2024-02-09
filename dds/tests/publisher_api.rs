@@ -6,7 +6,7 @@ use dust_dds::{
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
     },
-    topic_definition::type_support::{DdsType, FooTypeSupport},
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -42,11 +42,8 @@ fn default_data_writer_qos() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    participant
-        .register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<UserType>(
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
@@ -93,11 +90,8 @@ fn different_writers_have_different_instance_handles() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    participant
-        .register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<UserType>(
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
@@ -148,11 +142,8 @@ fn data_writer_get_topic_should_return_same_topic_as_used_for_creation() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    participant
-        .register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<UserType>(
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,

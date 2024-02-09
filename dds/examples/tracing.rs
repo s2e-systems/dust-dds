@@ -10,7 +10,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::{DdsType, FooTypeSupport},
+    topic_definition::type_support::DdsType,
 };
 use tracing::Level;
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
@@ -39,12 +39,8 @@ fn main() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    participant
-        .register_type("Data", FooTypeSupport::<Data>::new())
-        .unwrap();
-
     let topic = participant
-        .create_topic(
+        .create_topic::<Data>(
             "DataTopic",
             "Data",
             QosKind::Default,

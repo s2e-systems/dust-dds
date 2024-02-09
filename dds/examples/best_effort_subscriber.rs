@@ -15,18 +15,12 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::{DdsType, TypeSupport, TypeSupportInterface},
+    topic_definition::type_support::DdsType,
 };
 
 #[derive(DdsType, Debug)]
 struct BestEffortExampleType {
     id: i32,
-}
-
-impl TypeSupportInterface for BestEffortExampleType {
-    fn get_type_name() -> &'static str {
-        "BestEffortExampleType"
-    }
 }
 
 struct Listener {
@@ -62,13 +56,10 @@ fn main() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    BestEffortExampleType::register_type(&participant, BestEffortExampleType::get_type_name())
-        .unwrap();
-
     let topic = participant
-        .create_topic(
+        .create_topic::<BestEffortExampleType>(
             "BestEffortExampleTopic",
-            BestEffortExampleType::get_type_name(),
+            "BestEffortExampleType",
             QosKind::Default,
             NoOpListener::new(),
             NO_STATUS,

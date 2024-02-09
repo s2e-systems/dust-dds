@@ -27,7 +27,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{DdsKey, DdsSerialize, DynamicTypeInterface},
+        type_support::{DdsHasKey, DdsKey, DdsSerialize, FooTypeSupport},
     },
 };
 
@@ -213,14 +213,25 @@ impl DomainParticipant {
     /// The created [`Topic`] belongs to the [`DomainParticipant`] that is its factory.
     /// In case of failure, the operation will return an error and no [`Topic`] will be created.
     #[tracing::instrument(skip(self, a_listener))]
-    pub fn create_topic(
+    pub fn create_topic<Foo>(
         &self,
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
         a_listener: impl TopicListener + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<Topic> {
+    ) -> DdsResult<Topic>
+    where
+        Foo: DdsKey + DdsHasKey,
+    {
+        let type_support = FooTypeSupport::new::<Foo>();
+
+        self.participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
+                type_name.to_string(),
+                Box::new(type_support),
+            ))?;
+
         let topic_address = self
             .participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::create_topic::new(
@@ -324,7 +335,10 @@ impl DomainParticipant {
     /// Regardless of whether the middleware chooses to propagate topics, the [`DomainParticipant::delete_topic()`] operation deletes only the local proxy.
     /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
     #[tracing::instrument(skip(self))]
-    pub fn find_topic(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic> {
+    pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic>
+    where
+        Foo: DdsKey + DdsHasKey,
+    {
         let start_time = Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(timeout) {
@@ -370,7 +384,7 @@ impl DomainParticipant {
                             lifespan: discovered_topic_data.lifespan().clone(),
                             ownership: discovered_topic_data.ownership().clone(),
                         };
-                        let topic = self.create_topic(
+                        let topic = self.create_topic::<Foo>(
                             topic_name,
                             discovered_topic_data.get_type_name(),
                             QosKind::Specific(qos),
@@ -974,19 +988,5 @@ impl DomainParticipant {
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::get_instance_handle::new())
-    }
-}
-
-impl DomainParticipant {
-    pub(crate) fn register_type(
-        &self,
-        type_name: &str,
-        type_support: Box<dyn DynamicTypeInterface + Send + Sync>,
-    ) -> DdsResult<()> {
-        self.participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
-                type_name.to_string(),
-                type_support,
-            ))?
     }
 }

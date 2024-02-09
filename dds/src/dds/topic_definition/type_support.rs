@@ -1,4 +1,4 @@
-use std::{io::Read, marker::PhantomData};
+use std::io::Read;
 
 use crate::{
     implementation::{
@@ -24,45 +24,6 @@ use crate::{
 };
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
-
-pub struct TypeSupport<Foo>(PhantomData<Foo>);
-
-impl<Foo> TypeSupport<Foo> {
-    /// This operation allows an application to communicate to the Service the existence of a data type. The generated implementation
-    /// of that operation embeds all the knowledge that has to be communicated to the middleware in order to make it able to manage
-    /// the contents of data of that data type. This includes in particular the key definition that will allow the Service to distinguish
-    /// different instances of the same type.
-    /// It is a pre-condition error to use the same type_name to register two different TypeSupport with the same DomainParticipant.
-    /// If an application attempts this, the operation will fail and return PRECONDITION_NOT_MET. However, it is allowed to
-    /// register the same TypeSupport multiple times with a DomainParticipant using the same or different values for the type_name.
-    /// If register_type is called multiple times on the same TypeSupport with the same DomainParticipant and type_name the
-    /// second (and subsequent) registrations are ignored but the operation returns OK.
-    /// The application may pass nil as the value for the type_name. In this case the default type-name as defined by the TypeSupport
-    /// (i.e., the value returned by the get_type_name operation) will be used.
-    pub fn register_type(
-        participant: &dust_dds::domain::domain_participant::DomainParticipant,
-        type_name: &str,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsHasKey + DdsKey,
-    {
-        participant.register_type(type_name, Box::new(FooTypeSupport::new::<Foo>()))
-    }
-
-    /// This operation returns the default name for the data-type represented by the TypeSupport.
-    pub fn get_type_name() -> &'static str {
-        ""
-    }
-
-    #[doc(hidden)]
-    pub fn register_dynamic_type(
-        participant: &dust_dds::domain::domain_participant::DomainParticipant,
-        type_name: &str,
-        dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
-    ) -> DdsResult<()> {
-        participant.register_type(type_name, Box::new(dynamic_type_representation))
-    }
-}
 
 #[doc(hidden)]
 pub trait DynamicTypeInterface {

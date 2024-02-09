@@ -6,7 +6,7 @@ use dust_dds::{
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
     },
-    topic_definition::type_support::{DdsType, TypeSupport},
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -42,12 +42,10 @@ fn default_data_reader_qos() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    TypeSupport::<UserType>::register_type(&participant, TypeSupport::<TestType>::get_type_name())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<UserType>(
             "default_data_reader_qos",
-            TypeSupport::<UserType>::get_type_name(),
+            "UserType",
             QosKind::Default,
             NoOpListener::new(),
             NO_STATUS,
@@ -92,13 +90,10 @@ fn different_readers_have_different_instance_handles() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    TypeSupport::<UserType>::register_type(&participant, TypeSupport::<TestType>::get_type_name())
-        .unwrap();
-
     let topic = participant
-        .create_topic(
+        .create_topic::<UserType>(
             "default_data_writer_qos",
-            TypeSupport::<UserType>::get_type_name(),
+            "UserType",
             QosKind::Default,
             NoOpListener::new(),
             NO_STATUS,
@@ -147,12 +142,10 @@ fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creatio
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    TypeSupport::<UserType>::register_type(&participant, TypeSupport::<UserType>::get_type_name())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<UserType>(
             "default_data_writer_qos",
-            TypeSupport::<UserType>::get_type_name(),
+            "UserType",
             QosKind::Default,
             NoOpListener::new(),
             NO_STATUS,

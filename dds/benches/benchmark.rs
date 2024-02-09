@@ -13,7 +13,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::{DdsType, FooTypeSupport},
+    topic_definition::type_support::DdsType,
 };
 
 #[derive(Clone, Debug, PartialEq, DdsType)]
@@ -28,11 +28,8 @@ pub fn best_effort_write_only(c: &mut Criterion) {
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    participant
-        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -75,11 +72,8 @@ pub fn best_effort_read_only(c: &mut Criterion) {
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    participant
-        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -140,11 +134,8 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    participant
-        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "TestTopic",
             "KeyedData",
             QosKind::Default,
@@ -230,11 +221,8 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    participant
-        .register_type("LargeKeyedData", FooTypeSupport::<LargeKeyedData>::new())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<LargeKeyedData>(
             "TestTopic",
             "LargeKeyedData",
             QosKind::Default,

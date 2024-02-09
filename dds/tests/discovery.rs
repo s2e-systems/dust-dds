@@ -8,7 +8,7 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::type_support::{DdsType, FooTypeSupport},
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -23,10 +23,8 @@ fn writer_discovers_reader_in_same_participant() {
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -65,10 +63,8 @@ fn deleted_readers_are_disposed_from_writer() {
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -112,10 +108,8 @@ fn updated_readers_are_announced_to_writer() {
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -171,10 +165,8 @@ fn reader_discovers_writer_in_same_participant() {
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -213,10 +205,8 @@ fn deleted_writers_are_disposed_from_reader() {
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -260,10 +250,8 @@ fn updated_writers_are_announced_to_reader() {
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -321,10 +309,8 @@ fn two_participants_should_get_subscription_matched() {
     let dp1 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    dp1.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic1 = dp1
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -342,10 +328,8 @@ fn two_participants_should_get_subscription_matched() {
     let dp2 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    dp2.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic2 = dp2
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -381,14 +365,8 @@ fn participant_records_discovered_topics() {
     let participant1 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    participant1
-        .register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let participant2 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
-        .unwrap();
-    participant2
-        .register_type("UserType", FooTypeSupport::<UserType>::new())
         .unwrap();
 
     let topic_names = ["Topic 1", "Topic 2"];
@@ -396,7 +374,7 @@ fn participant_records_discovered_topics() {
     for name in topic_names {
         topics.push(
             participant1
-                .create_topic(
+                .create_topic::<UserType>(
                     name,
                     "UserType",
                     QosKind::Default,
@@ -409,7 +387,11 @@ fn participant_records_discovered_topics() {
 
     let mut found_topics = Vec::new();
     for name in topic_names {
-        found_topics.push(participant2.find_topic(name, Duration::new(10, 0)).unwrap());
+        found_topics.push(
+            participant2
+                .find_topic::<UserType>(name, Duration::new(10, 0))
+                .unwrap(),
+        );
     }
 
     let discovered_topic_names: Vec<String> = participant2
@@ -464,10 +446,8 @@ fn reader_discovers_disposed_writer_same_participant() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -512,10 +492,8 @@ fn publisher_and_subscriber_different_partition_not_matched() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -574,10 +552,8 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -647,11 +623,8 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -721,10 +694,8 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -794,11 +765,8 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,
@@ -850,11 +818,8 @@ fn reader_matched_to_already_existing_writer_with_matched_reader() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    dp.register_type("UserType", FooTypeSupport::<UserType>::new())
-        .unwrap();
-
     let topic = dp
-        .create_topic(
+        .create_topic::<UserType>(
             "topic_name",
             "UserType",
             QosKind::Default,

@@ -9,7 +9,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::{DdsType, FooTypeSupport},
+    topic_definition::type_support::DdsType,
 };
 
 mod utils;
@@ -69,11 +69,8 @@ fn not_allowed_to_delete_participant_with_entities() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    participant
-        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "Test",
             "KeyedData",
             QosKind::Default,
@@ -107,11 +104,8 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    participant
-        .register_type("KeyedData", FooTypeSupport::<KeyedData>::new())
-        .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "Test",
             "KeyedData",
             QosKind::Default,
@@ -152,7 +146,7 @@ fn all_objects_are_dropped() {
             .unwrap();
 
         let topic = participant
-            .create_topic(
+            .create_topic::<KeyedData>(
                 "MyTopic",
                 "KeyedData",
                 QosKind::Default,
@@ -244,7 +238,7 @@ fn objects_are_correctly_dropped() {
             .unwrap();
         {
             let topic = participant
-                .create_topic(
+                .create_topic::<KeyedData>(
                     topic_name,
                     "KeyedData",
                     QosKind::Default,

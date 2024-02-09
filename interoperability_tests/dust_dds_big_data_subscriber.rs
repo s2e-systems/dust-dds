@@ -12,7 +12,6 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::FooTypeSupport,
 };
 
 mod big_data {
@@ -27,15 +26,8 @@ fn main() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    participant
-        .register_type(
-            "BigDataType",
-            FooTypeSupport::<big_data::BigDataType>::new(),
-        )
-        .unwrap();
-
     let topic = participant
-        .create_topic(
+        .create_topic::<big_data::BigDataType>(
             "BigData",
             "BigDataType",
             QosKind::Default,

@@ -7,7 +7,7 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    topic_definition::type_support::{DdsType, FooTypeSupport},
+    topic_definition::type_support::DdsType,
 };
 
 #[derive(DdsType, Debug)]
@@ -23,15 +23,8 @@ fn main() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    participant
-        .register_type(
-            "BestEffortExampleType",
-            FooTypeSupport::<BestEffortExampleType>::new(),
-        )
-        .unwrap();
-
     let topic = participant
-        .create_topic(
+        .create_topic::<BestEffortExampleType>(
             "BestEffortExampleTopic",
             "BestEffortExampleType",
             QosKind::Default,
