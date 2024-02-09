@@ -68,7 +68,7 @@ use crate::{
     },
     serialized_payload::cdr::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::{deserialize_rtps_classic_cdr, DdsKey},
+    topic_definition::type_support::{DdsKey, DynamicTypeInterface},
 };
 
 use super::{
@@ -79,58 +79,18 @@ use super::{
     status_condition_actor::{self, StatusConditionActor},
     subscriber_actor::SubscriberActor,
     subscriber_listener_actor::{self, SubscriberListenerActor},
+    type_support_actor::{self, TypeSupportActor},
 };
 
-// This function is a workaround due to an issue resolving
-// lifetimes of the closure.
-// See for more details: https://github.com/rust-lang/rust/issues/41078
-fn define_function_with_correct_lifetime<F>(closure: F) -> F
-where
-    F: for<'a> Fn(&'a [u8]) -> DdsResult<InstanceHandle>,
-{
-    closure
-}
-
-struct InstanceHandleFromSerializedFoo(fn(&[u8]) -> DdsResult<InstanceHandle>);
-
-impl InstanceHandleFromSerializedFoo {
-    pub fn new<Foo>() -> Self
-    where
-        Foo: DdsKey,
-    {
-        Self(define_function_with_correct_lifetime(|serialized_foo| {
-            get_instance_handle_from_key(&Foo::get_key_from_serialized_data(serialized_foo)?)
-        }))
-    }
-}
-
-struct InstanceHandleFromSerializedKey(fn(&[u8]) -> DdsResult<InstanceHandle>);
-
-impl InstanceHandleFromSerializedKey {
-    pub fn new<Foo>() -> Self
-    where
-        Foo: DdsKey,
-    {
-        Self(define_function_with_correct_lifetime(
-            |mut serialized_key| {
-                get_instance_handle_from_key(&deserialize_rtps_classic_cdr::<Foo::Key>(
-                    &mut serialized_key,
-                )?)
-            },
-        ))
-    }
-}
-
 fn build_instance_handle(
-    instance_handle_from_serialized_foo: &InstanceHandleFromSerializedFoo,
-    instance_handle_from_serialized_key: &InstanceHandleFromSerializedKey,
+    type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
     change_kind: ChangeKind,
     data: &[u8],
     inline_qos: &[Parameter],
 ) -> DdsResult<InstanceHandle> {
     Ok(match change_kind {
         ChangeKind::Alive | ChangeKind::AliveFiltered => {
-            (instance_handle_from_serialized_foo.0)(data)?
+            type_support.instance_handle_from_serialized_foo(data)?
         }
         ChangeKind::NotAliveDisposed
         | ChangeKind::NotAliveUnregistered
@@ -142,10 +102,10 @@ fn build_instance_handle(
                 if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
                     InstanceHandle::new(key)
                 } else {
-                    (instance_handle_from_serialized_key.0)(data)?
+                    type_support.instance_handle_from_serialized_key(data)?
                 }
             }
-            None => (instance_handle_from_serialized_key.0)(data)?,
+            None => type_support.instance_handle_from_serialized_key(data)?,
         },
     })
 }
@@ -285,8 +245,6 @@ pub struct DataReaderActor {
     matched_writers: Vec<RtpsWriterProxy>,
     changes: Vec<RtpsReaderCacheChange>,
     qos: DataReaderQos,
-    instance_handle_from_serialized_foo: InstanceHandleFromSerializedFoo,
-    instance_handle_from_serialized_key: InstanceHandleFromSerializedKey,
     type_name: String,
     topic_name: String,
     _liveliness_changed_status: LivelinessChangedStatus,
@@ -308,7 +266,7 @@ pub struct DataReaderActor {
 }
 
 impl DataReaderActor {
-    pub fn new<Foo>(
+    pub fn new(
         rtps_reader: RtpsReader,
         type_name: String,
         topic_name: String,
@@ -316,12 +274,7 @@ impl DataReaderActor {
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
         xml_type: String,
-    ) -> Self
-    where
-        Foo: DdsKey,
-    {
-        let instance_handle_from_serialized_foo = InstanceHandleFromSerializedFoo::new::<Foo>();
-        let instance_handle_from_serialized_key = InstanceHandleFromSerializedKey::new::<Foo>();
+    ) -> Self {
         let status_condition = spawn_actor(StatusConditionActor::default());
         let listener = spawn_actor(DataReaderListenerActor::new(listener));
 
@@ -347,8 +300,6 @@ impl DataReaderActor {
             status_kind,
             listener,
             qos,
-            instance_handle_from_serialized_foo,
-            instance_handle_from_serialized_key,
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
             xml_type,
@@ -412,6 +363,7 @@ impl DataReaderActor {
     async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessageRead,
+        type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
@@ -457,6 +409,7 @@ impl DataReaderActor {
                             data_submessage.serialized_payload(),
                             source_timestamp,
                             reception_timestamp,
+                            type_support,
                         ) {
                             Ok(change) => {
                                 self.add_change(
@@ -495,6 +448,7 @@ impl DataReaderActor {
                             data_submessage.serialized_payload(),
                             source_timestamp,
                             reception_timestamp,
+                            type_support,
                         ) {
                             Ok(change) => {
                                 self.add_change(
@@ -525,7 +479,8 @@ impl DataReaderActor {
             }
         } else if message_reader_id == ENTITYID_UNKNOWN
             || (message_reader_id == self.rtps_reader.guid().entity_id()
-                && message_reader_id == ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER) // Additional condition only for discovery interoperability with FastDDS
+                && message_reader_id == ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER)
+        // Additional condition only for discovery interoperability with FastDDS
         {
             // Stateless reader behavior. We add the change if the data is correct. No error is printed
             // because all readers would get changes marked with ENTITYID_UNKNOWN
@@ -536,6 +491,7 @@ impl DataReaderActor {
                 data_submessage.serialized_payload(),
                 source_timestamp,
                 reception_timestamp,
+                type_support,
             ) {
                 self.add_change(
                     change,
@@ -559,6 +515,7 @@ impl DataReaderActor {
     async fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessageRead,
+        type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
@@ -585,6 +542,7 @@ impl DataReaderActor {
             {
                 self.on_data_submessage_received(
                     &data_submessage,
+                    type_support,
                     source_guid_prefix,
                     source_timestamp,
                     reception_timestamp,
@@ -972,6 +930,7 @@ impl DataReaderActor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn convert_received_data_to_cache_change(
         &mut self,
         writer_guid: Guid,
@@ -980,6 +939,7 @@ impl DataReaderActor {
         data: Data,
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
+        type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<RtpsReaderCacheChange> {
         let change_kind = if key_flag {
             if let Some(p) = inline_qos
@@ -1009,8 +969,7 @@ impl DataReaderActor {
         }?;
 
         let instance_handle = build_instance_handle(
-            &self.instance_handle_from_serialized_foo,
-            &self.instance_handle_from_serialized_key,
+            type_support,
             change_kind,
             data.as_ref(),
             inline_qos.parameter(),
@@ -1945,13 +1904,27 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        type_support_actor_address: ActorAddress<TypeSupportActor>,
     ) -> DdsResult<()> {
         let mut message_receiver = MessageReceiver::new(&message);
+        let type_support = type_support_actor_address
+            .send_mail_and_await_reply(type_support_actor::get_type_support::new(
+                self.type_name.clone(),
+            ))
+            .await?
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    self.type_name
+                ))
+            })?;
+
         while let Some(submessage) = message_receiver.next() {
             match submessage {
                 RtpsSubmessageReadKind::Data(data_submessage) => {
                     self.on_data_submessage_received(
                         &data_submessage,
+                        &type_support,
                         message_receiver.source_guid_prefix(),
                         message_receiver.source_timestamp(),
                         reception_timestamp,
@@ -1967,6 +1940,7 @@ impl DataReaderActor {
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                     self.on_data_frag_submessage_received(
                         &data_frag_submessage,
+                        &type_support,
                         message_receiver.source_guid_prefix(),
                         message_receiver.source_timestamp(),
                         reception_timestamp,

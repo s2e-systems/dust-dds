@@ -2,7 +2,7 @@ use dust_dds_derive::actor_interface;
 use tracing::warn;
 
 use crate::{
-    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -49,16 +49,20 @@ use crate::{
         },
     },
     infrastructure::{
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         listeners::NoOpListener,
-        qos::{DataReaderQos, DataWriterQos, QosKind},
+        qos::{
+            DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
+            SubscriberQos, TopicQos,
+        },
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
             LifespanQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
         },
         status::StatusKind,
-        time::{DurationKind, DURATION_ZERO},
+        time::{Duration, DurationKind, Time, DURATION_ZERO},
     },
     publication::publisher_listener::PublisherListener,
     subscription::{
@@ -70,14 +74,9 @@ use crate::{
     },
     topic_definition::{
         topic_listener::TopicListener,
-        type_support::{serialize_rtps_classic_cdr_le, DdsDeserialize, DdsKey, DdsSerialize},
-    },
-    {
-        builtin_topics::TopicBuiltinTopicData,
-        infrastructure::{
-            error::{DdsError, DdsResult},
-            qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-            time::{Duration, Time},
+        type_support::{
+            deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsDeserialize, DdsHasKey,
+            DdsKey, DdsSerialize, DynamicTypeInterface,
         },
     },
 };
@@ -94,6 +93,7 @@ use super::{
     domain_participant_listener_actor::DomainParticipantListenerActor,
     publisher_actor::{self, PublisherActor},
     subscriber_actor, topic_actor,
+    type_support_actor::{self, TypeSupportActor},
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -126,6 +126,81 @@ pub const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 pub const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration::new(0, 500);
 pub const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
+pub struct FooTypeSupport {
+    has_key: bool,
+    get_serialized_key_from_serialized_foo: fn(&[u8]) -> DdsResult<Vec<u8>>,
+    instance_handle_from_serialized_foo: fn(&[u8]) -> DdsResult<InstanceHandle>,
+    instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<InstanceHandle>,
+}
+
+impl FooTypeSupport {
+    pub fn new<Foo>() -> Self
+    where
+        Foo: DdsKey + DdsHasKey,
+    {
+        // This function is a workaround due to an issue resolving
+        // lifetimes of the closure.
+        // See for more details: https://github.com/rust-lang/rust/issues/41078
+        fn define_function_with_correct_lifetime<F, O>(closure: F) -> F
+        where
+            F: for<'a> Fn(&'a [u8]) -> DdsResult<O>,
+        {
+            closure
+        }
+
+        let get_serialized_key_from_serialized_foo =
+            define_function_with_correct_lifetime(|serialized_foo| {
+                let mut writer = Vec::new();
+                let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
+                serialize_rtps_classic_cdr_le(&foo_key, &mut writer)?;
+                Ok(writer)
+            });
+
+        let instance_handle_from_serialized_foo =
+            define_function_with_correct_lifetime(|serialized_foo| {
+                let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
+                get_instance_handle_from_key(&foo_key)
+            });
+
+        let instance_handle_from_serialized_key =
+            define_function_with_correct_lifetime(|mut serialized_key| {
+                let foo_key = deserialize_rtps_classic_cdr::<Foo::Key>(&mut serialized_key)?;
+                get_instance_handle_from_key(&foo_key)
+            });
+
+        Self {
+            has_key: Foo::HAS_KEY,
+            get_serialized_key_from_serialized_foo,
+            instance_handle_from_serialized_foo,
+            instance_handle_from_serialized_key,
+        }
+    }
+}
+
+impl DynamicTypeInterface for FooTypeSupport {
+    fn has_key(&self) -> bool {
+        self.has_key
+    }
+
+    fn get_serialized_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
+        (self.get_serialized_key_from_serialized_foo)(serialized_foo)
+    }
+
+    fn instance_handle_from_serialized_foo(
+        &self,
+        serialized_foo: &[u8],
+    ) -> DdsResult<InstanceHandle> {
+        (self.instance_handle_from_serialized_foo)(serialized_foo)
+    }
+
+    fn instance_handle_from_serialized_key(
+        &self,
+        serialized_key: &[u8],
+    ) -> DdsResult<InstanceHandle> {
+        (self.instance_handle_from_serialized_key)(serialized_key)
+    }
+}
+
 pub struct DomainParticipantActor {
     rtps_participant: RtpsParticipant,
     domain_id: DomainId,
@@ -155,6 +230,7 @@ pub struct DomainParticipantActor {
     udp_transport_write: Arc<UdpTransportWrite>,
     listener: Actor<DomainParticipantListenerActor>,
     status_kind: Vec<StatusKind>,
+    type_support_actor: Actor<TypeSupportActor>,
 }
 
 impl DomainParticipantActor {
@@ -225,16 +301,15 @@ impl DomainParticipantActor {
         };
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        let spdp_builtin_participant_reader =
-            spawn_actor(DataReaderActor::new::<SpdpDiscoveredParticipantData>(
-                create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
-                "SpdpDiscoveredParticipantData".to_string(),
-                String::from(DCPS_PARTICIPANT),
-                spdp_reader_qos,
-                Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
-                vec![],
-                String::default(),
-            ));
+        let spdp_builtin_participant_reader = spawn_actor(DataReaderActor::new(
+            create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
+            "SpdpDiscoveredParticipantData".to_string(),
+            String::from(DCPS_PARTICIPANT),
+            spdp_reader_qos,
+            Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
+            vec![],
+            String::default(),
+        ));
 
         let sedp_reader_qos = DataReaderQos {
             durability: DurabilityQosPolicy {
@@ -252,7 +327,7 @@ impl DomainParticipantActor {
 
         let sedp_builtin_topics_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-        let sedp_builtin_topics_reader = spawn_actor(DataReaderActor::new::<DiscoveredTopicData>(
+        let sedp_builtin_topics_reader = spawn_actor(DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
@@ -264,29 +339,27 @@ impl DomainParticipantActor {
 
         let sedp_builtin_publications_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-        let sedp_builtin_publications_reader =
-            spawn_actor(DataReaderActor::new::<DiscoveredWriterData>(
-                create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
-                "DiscoveredWriterData".to_string(),
-                String::from(DCPS_PUBLICATION),
-                sedp_reader_qos.clone(),
-                Box::new(NoOpListener::<DiscoveredWriterData>::new()),
-                vec![],
-                String::default(),
-            ));
+        let sedp_builtin_publications_reader = spawn_actor(DataReaderActor::new(
+            create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
+            "DiscoveredWriterData".to_string(),
+            String::from(DCPS_PUBLICATION),
+            sedp_reader_qos.clone(),
+            Box::new(NoOpListener::<DiscoveredWriterData>::new()),
+            vec![],
+            String::default(),
+        ));
 
         let sedp_builtin_subscriptions_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let sedp_builtin_subscriptions_reader =
-            spawn_actor(DataReaderActor::new::<DiscoveredReaderData>(
-                create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
-                "DiscoveredReaderData".to_string(),
-                String::from(DCPS_SUBSCRIPTION),
-                sedp_reader_qos,
-                Box::new(NoOpListener::<DiscoveredReaderData>::new()),
-                vec![],
-                String::default(),
-            ));
+        let sedp_builtin_subscriptions_reader = spawn_actor(DataReaderActor::new(
+            create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
+            "DiscoveredReaderData".to_string(),
+            String::from(DCPS_SUBSCRIPTION),
+            sedp_reader_qos,
+            Box::new(NoOpListener::<DiscoveredReaderData>::new()),
+            vec![],
+            String::default(),
+        ));
 
         let builtin_subscriber = spawn_actor(SubscriberActor::new(
             SubscriberQos::default(),
@@ -457,6 +530,27 @@ impl DomainParticipantActor {
             ))
             .unwrap();
 
+        let mut type_support_list: HashMap<String, Arc<dyn DynamicTypeInterface + Send + Sync>> =
+            HashMap::new();
+        type_support_list.insert(
+            "SpdpDiscoveredParticipantData".to_string(),
+            Arc::new(FooTypeSupport::new::<SpdpDiscoveredParticipantData>()),
+        );
+        type_support_list.insert(
+            "DiscoveredReaderData".to_string(),
+            Arc::new(FooTypeSupport::new::<DiscoveredReaderData>()),
+        );
+        type_support_list.insert(
+            "DiscoveredWriterData".to_string(),
+            Arc::new(FooTypeSupport::new::<DiscoveredWriterData>()),
+        );
+        type_support_list.insert(
+            "DiscoveredTopicData".to_string(),
+            Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
+        );
+
+        let type_support_actor = spawn_actor(TypeSupportActor::new(type_support_list));
+
         Self {
             rtps_participant,
             domain_id,
@@ -486,6 +580,7 @@ impl DomainParticipantActor {
             udp_transport_write,
             listener: spawn_actor(DomainParticipantListenerActor::new(listener)),
             status_kind,
+            type_support_actor,
         }
     }
 }
@@ -947,6 +1042,7 @@ impl DomainParticipantActor {
                 participant_address.clone(),
                 self.builtin_subscriber.address(),
                 participant_mask_listener,
+                self.type_support_actor.address(),
             ))
             .await?;
 
@@ -975,6 +1071,7 @@ impl DomainParticipantActor {
                     participant_address.clone(),
                     user_defined_subscriber_address.clone(),
                     participant_mask_listener.clone(),
+                    self.type_support_actor.address(),
                 ))
                 .await
                 .expect("Should not fail to send command");
@@ -1116,6 +1213,28 @@ impl DomainParticipantActor {
         } else {
             Ok(())
         }
+    }
+
+    async fn register_type(
+        &mut self,
+        type_name: String,
+        type_support: Box<dyn DynamicTypeInterface + Send + Sync>,
+    ) {
+        self.type_support_actor
+            .send_mail_and_await_reply(type_support_actor::register_type::new(
+                type_name,
+                type_support.into(),
+            ))
+            .await
+    }
+
+    async fn get_type_support(
+        &mut self,
+        type_name: String,
+    ) -> Option<Arc<dyn DynamicTypeInterface + Send + Sync>> {
+        self.type_support_actor
+            .send_mail_and_await_reply(type_support_actor::get_type_support::new(type_name))
+            .await
     }
 }
 

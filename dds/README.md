@@ -35,7 +35,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
             .unwrap();
 
         let topic = participant
-            .create_topic("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
             .unwrap();
 
         let publisher = participant
@@ -80,7 +80,7 @@ The subscriber side can be implemented as:
             .unwrap();
 
         let topic = participant
-            .create_topic("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
             .unwrap();
 
         let subscriber = participant

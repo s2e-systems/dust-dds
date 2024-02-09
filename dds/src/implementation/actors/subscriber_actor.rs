@@ -8,6 +8,7 @@ use super::{
     data_reader_actor::{self, DataReaderActor},
     domain_participant_actor::DomainParticipantActor,
     subscriber_listener_actor::SubscriberListenerActor,
+    type_support_actor::TypeSupportActor,
 };
 use crate::{
     implementation::{
@@ -202,6 +203,7 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        type_support_actor_address: ActorAddress<TypeSupportActor>,
     ) -> DdsResult<()> {
         let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
 
@@ -216,6 +218,7 @@ impl SubscriberActor {
                     self.status_condition.address().clone(),
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
+                    type_support_actor_address.clone(),
                 ))
                 .await??;
         }
