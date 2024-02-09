@@ -88,10 +88,12 @@ impl Publisher {
             .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))?
-            .ok_or(DdsError::PreconditionNotMet(format!(
-                "Type with name {} not registered with parent domain participant",
-                type_name
-            )))?;
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
 
         let default_unicast_locator_list = self
             .participant_address
