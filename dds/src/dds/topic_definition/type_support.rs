@@ -25,6 +25,18 @@ use crate::{
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
+pub trait TypeSupportInterface {
+    fn register_type(
+        participant: &dust_dds::domain::domain_participant::DomainParticipant,
+        type_name: &str,
+    ) -> DdsResult<()>
+    where
+        Self: Sized + DdsKey + DdsHasKey + Send + Sync + 'static,
+    {
+        participant.register_type(type_name, FooTypeSupport::<Self>::new())
+    }
+}
+
 pub trait TypeSupport {
     fn has_key(&self) -> bool;
 
