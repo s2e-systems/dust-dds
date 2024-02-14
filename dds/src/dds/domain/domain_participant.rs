@@ -32,7 +32,7 @@ use crate::{
 };
 
 use super::{
-    domain_participant_factory::{DomainId, THE_PARTICIPANT_FACTORY},
+    domain_participant_factory::{DomainId, DomainParticipantFactory},
     domain_participant_listener::DomainParticipantListener,
 };
 
@@ -69,7 +69,9 @@ impl DomainParticipant {
 
 impl Drop for DomainParticipant {
     fn drop(&mut self) {
-        THE_PARTICIPANT_FACTORY.delete_participant(self).ok();
+        DomainParticipantFactory::get_instance()
+            .delete_participant(self)
+            .ok();
     }
 }
 
@@ -818,7 +820,9 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => THE_PARTICIPANT_FACTORY.get_default_participant_qos()?,
+            QosKind::Default => {
+                DomainParticipantFactory::get_instance().get_default_participant_qos()?
+            }
             QosKind::Specific(q) => q,
         };
 
