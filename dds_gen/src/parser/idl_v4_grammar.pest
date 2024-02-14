@@ -11,6 +11,11 @@ hex_escape = ${ "\\" ~ "x" ~ ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT? }
 unicode_escape = ${ "\\" ~ "u" ~ ASCII_HEX_DIGIT{1,4} }
 
 WHITESPACE = _{ " " | "\t" | NEWLINE }
+path_spec = @{ (!">" ~!"\"" ~ ANY)+ }
+include_directive = !{ "#" ~ "include" ~ (("<" ~ path_spec ~ ">") | ("\"" ~ path_spec ~ "\"")) }
+define_replacement_list = {(!NEWLINE ~ ANY)*}
+define_directive = @{"#define"}
+other_directive = @{ "#" ~ (!NEWLINE ~ ANY)* }
 block_comment = @{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 line_comment = @{ "//" ~ (!NEWLINE ~ ANY)* }
 COMMENT = _{ block_comment | line_comment }
@@ -144,7 +149,11 @@ float_suffix = ${ ("f" | "F" | "d" | "D") }
 specification = { SOI ~ definition+ ~ EOI}
 // (2)
 definition = {
-    module_dcl ~ ";"
+    define_directive
+    | include_directive
+    | other_directive
+
+    | module_dcl ~ ";"
     | const_dcl ~ ";"
     | type_dcl ~ ";"
     // (71)
@@ -170,6 +179,7 @@ definition = {
     | template_module_inst ~ ";"
     // (218)
     | annotation_dcl ~ ";"
+
 }
 // (3)
 module_dcl = { "module" ~ identifier ~ "{" ~ definition+ ~ "}" }
