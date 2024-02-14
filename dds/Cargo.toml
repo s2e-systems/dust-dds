@@ -18,7 +18,6 @@ categories = ["api-bindings", "network-programming"]
 [dependencies]
 dust_dds_derive = { path = "../dds_derive", version = "0.7" }
 
-derive_more = "=0.99.16"
 md5 = "=0.7.0"  # Chose this crate over other possibilities since it doesn't have any other dependencies
 
 byteorder = "=1.4.3"

@@ -28,7 +28,7 @@ use super::parameter_id_values::{
 };
 
 #[derive(
-    Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef, CdrSerialize, CdrDeserialize,
+    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize,
 )]
 struct DomainTag(String);
 impl Default for DomainTag {
@@ -37,7 +37,7 @@ impl Default for DomainTag {
     }
 }
 
-#[derive(Default, Debug, PartialEq, Eq, Clone, derive_more::From, derive_more::AsRef)]
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
 struct DomainIdParameter(Option<DomainId>);
 impl CdrSerialize for DomainIdParameter {
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
@@ -107,8 +107,8 @@ impl ParticipantProxy {
         builtin_endpoint_qos: BuiltinEndpointQos,
     ) -> Self {
         Self {
-            domain_id: DomainIdParameter::from(domain_id),
-            domain_tag: DomainTag::from(domain_tag),
+            domain_id: DomainIdParameter(domain_id),
+            domain_tag: DomainTag(domain_tag),
             protocol_version,
             guid_prefix,
             vendor_id,
@@ -124,11 +124,11 @@ impl ParticipantProxy {
     }
 
     pub fn domain_id(&self) -> Option<DomainId> {
-        *self.domain_id.as_ref()
+        self.domain_id.0
     }
 
     pub fn domain_tag(&self) -> &str {
-        self.domain_tag.as_ref().as_ref()
+        self.domain_tag.0.as_ref()
     }
 
     pub fn _protocol_version(&self) -> ProtocolVersion {
