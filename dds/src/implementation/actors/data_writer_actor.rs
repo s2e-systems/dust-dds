@@ -237,6 +237,7 @@ pub struct DataWriterActor {
 }
 
 impl DataWriterActor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_writer: RtpsWriter,
         type_name: String,
@@ -743,6 +744,7 @@ impl DataWriterActor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn remove_matched_reader(
         &mut self,
         discovered_reader_handle: InstanceHandle,

@@ -86,6 +86,7 @@ impl SubscriberActor {
 
 #[actor_interface]
 impl SubscriberActor {
+    #[allow(clippy::too_many_arguments)]
     async fn create_datareader(
         &mut self,
         type_name: String,
@@ -272,6 +273,7 @@ impl SubscriberActor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn process_rtps_message(
         &self,
         message: RtpsMessageRead,
@@ -306,6 +308,7 @@ impl SubscriberActor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn add_matched_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
