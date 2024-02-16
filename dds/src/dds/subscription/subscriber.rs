@@ -2,18 +2,11 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
-            data_reader_actor::{self, DataReaderActor},
+            data_reader_actor::{self},
             domain_participant_actor::{self, DomainParticipantActor},
             subscriber_actor::{self, SubscriberActor},
         },
-        rtps::{
-            endpoint::RtpsEndpoint,
-            reader::RtpsReader,
-            types::{
-                EntityId, Guid, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
-            },
-        },
-        utils::actor::{spawn_actor, ActorAddress},
+        utils::actor::ActorAddress,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -21,7 +14,6 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
-        time::DURATION_ZERO,
     },
     topic_definition::topic::Topic,
 };
@@ -98,6 +90,7 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>> {
         let type_name = a_topic.get_type_name()?;
+        let topic_name = a_topic.get_name()?;
         let type_support = self
             .participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
@@ -110,6 +103,8 @@ impl Subscriber {
                 ))
             })?;
 
+        let listener = Box::new(a_listener);
+
         let default_unicast_locator_list = self
             .participant_address
             .send_mail_and_await_reply_blocking(
@@ -121,70 +116,20 @@ impl Subscriber {
                 domain_participant_actor::get_default_unicast_locator_list::new(),
             )?;
 
-        let qos = match qos {
-            QosKind::Default => self.subscriber_address.send_mail_and_await_reply_blocking(
-                subscriber_actor::get_default_datareader_qos::new(),
-            )?,
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
-        };
-
         let has_key = type_support.has_key();
 
-        let entity_kind = match has_key {
-            true => USER_DEFINED_READER_WITH_KEY,
-            false => USER_DEFINED_READER_NO_KEY,
-        };
-        let subscriber_guid = self
+        let reader_address = self
             .subscriber_address
-            .send_mail_and_await_reply_blocking(subscriber_actor::guid::new())?;
-
-        let entity_key: [u8; 3] = [
-            subscriber_guid.entity_id().entity_key()[0],
-            self.subscriber_address
-                .send_mail_and_await_reply_blocking(subscriber_actor::get_unique_reader_id::new())?,
-            0,
-        ];
-
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = Guid::new(subscriber_guid.prefix(), entity_id);
-
-        let topic_kind = match has_key {
-            true => TopicKind::WithKey,
-            false => TopicKind::NoKey,
-        };
-
-        let rtps_reader = RtpsReader::new(
-            RtpsEndpoint::new(
-                guid,
-                topic_kind,
-                &default_unicast_locator_list,
-                &default_multicast_locator_list,
-            ),
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-        );
-        let type_xml = String::new(); // Foo::get_type_xml().map_or_else(String::default, |s| format!("<types>{}</types>", s));
-        let listener = Box::new(a_listener);
-        let status_kind = mask.to_vec();
-        let data_reader = DataReaderActor::new(
-            rtps_reader,
-            a_topic.get_type_name()?,
-            a_topic.get_name()?,
-            qos,
-            listener,
-            status_kind,
-            type_xml,
-        );
-
-        let reader_actor = spawn_actor(data_reader);
-        let reader_address = reader_actor.address();
-        self.subscriber_address.send_mail_and_await_reply_blocking(
-            subscriber_actor::data_reader_add::new(InstanceHandle::new(guid.into()), reader_actor),
-        )?;
+            .send_mail_and_await_reply_blocking(subscriber_actor::create_datareader::new(
+                type_name,
+                topic_name,
+                has_key,
+                qos,
+                listener,
+                mask.to_vec(),
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+            ))??;
 
         let data_reader = DataReader::new(
             reader_address,

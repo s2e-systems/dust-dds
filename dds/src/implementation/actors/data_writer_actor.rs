@@ -42,7 +42,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress},
+            actor::{Actor, ActorAddress},
             instance_handle_from_key::get_instance_handle_from_key,
         },
     },
@@ -245,9 +245,10 @@ impl DataWriterActor {
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
         xml_type: String,
+        handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = spawn_actor(StatusConditionActor::default());
-        let listener = spawn_actor(DataWriterListenerActor::new(listener));
+        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let listener = Actor::spawn(DataWriterListenerActor::new(listener), handle);
         DataWriterActor {
             rtps_writer,
             reader_locators: Vec::new(),
@@ -816,7 +817,10 @@ impl DataWriterActor {
         listener: Box<dyn AnyDataWriterListener + Send>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = spawn_actor(DataWriterListenerActor::new(listener));
+        self.listener = Actor::spawn(
+            DataWriterListenerActor::new(listener),
+            &tokio::runtime::Handle::current(),
+        );
         self.status_kind = status_kind;
     }
 }

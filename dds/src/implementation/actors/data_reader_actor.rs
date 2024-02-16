@@ -45,7 +45,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress},
+            actor::{Actor, ActorAddress},
             instance_handle_from_key::get_instance_handle_from_key,
         },
     },
@@ -274,9 +274,10 @@ impl DataReaderActor {
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
         xml_type: String,
+        handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = spawn_actor(StatusConditionActor::default());
-        let listener = spawn_actor(DataReaderListenerActor::new(listener));
+        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let listener = Actor::spawn(DataReaderListenerActor::new(listener), handle);
 
         DataReaderActor {
             rtps_reader,
@@ -285,8 +286,9 @@ impl DataReaderActor {
             type_name,
             topic_name,
             _liveliness_changed_status: LivelinessChangedStatus::default(),
-            requested_deadline_missed_status: spawn_actor(
+            requested_deadline_missed_status: Actor::spawn(
                 ReaderRequestedDeadlineMissedStatus::default(),
+                handle,
             ),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
             sample_lost_status: SampleLostStatus::default(),
@@ -1990,7 +1992,10 @@ impl DataReaderActor {
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = spawn_actor(DataReaderListenerActor::new(listener));
+        self.listener = Actor::spawn(
+            DataReaderListenerActor::new(listener),
+            &tokio::runtime::Handle::current(),
+        );
         self.status_kind = status_kind;
     }
 

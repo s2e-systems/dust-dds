@@ -18,7 +18,7 @@ use crate::{
             writer::RtpsWriter,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -56,6 +56,7 @@ impl PublisherActor {
         rtps_group: RtpsGroup,
         listener: Box<dyn PublisherListener + Send>,
         status_kind: Vec<StatusKind>,
+        handle: &tokio::runtime::Handle,
     ) -> Self {
         Self {
             qos,
@@ -64,7 +65,7 @@ impl PublisherActor {
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
-            listener: spawn_actor(PublisherListenerActor::new(listener)),
+            listener: Actor::spawn(PublisherListenerActor::new(listener), handle),
             status_kind,
         }
     }
@@ -129,8 +130,9 @@ impl PublisherActor {
             mask,
             qos,
             xml_type,
+            &tokio::runtime::Handle::current(),
         );
-        let data_writer_actor = spawn_actor(data_writer);
+        let data_writer_actor = Actor::spawn(data_writer, &tokio::runtime::Handle::current());
         let data_writer_address = data_writer_actor.address();
         self.data_writer_list
             .insert(InstanceHandle::new(guid.into()), data_writer_actor);
@@ -353,7 +355,10 @@ impl PublisherActor {
         listener: Box<dyn PublisherListener + Send>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = spawn_actor(PublisherListenerActor::new(listener));
+        self.listener = Actor::spawn(
+            PublisherListenerActor::new(listener),
+            &tokio::runtime::Handle::current(),
+        );
         self.status_kind = status_kind;
     }
 }

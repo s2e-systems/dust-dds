@@ -44,7 +44,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress},
+            actor::{Actor, ActorAddress},
             instance_handle_from_key::get_instance_handle_from_key,
         },
     },
@@ -245,6 +245,7 @@ impl DomainParticipantActor {
         udp_transport_write: Arc<UdpTransportWrite>,
         listener: Box<dyn DomainParticipantListener + Send>,
         status_kind: Vec<StatusKind>,
+        handle: &tokio::runtime::Handle,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -256,6 +257,7 @@ impl DomainParticipantActor {
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
             DCPS_PARTICIPANT,
+            handle,
         );
 
         let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
@@ -265,6 +267,7 @@ impl DomainParticipantActor {
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
             DCPS_TOPIC,
+            handle,
         );
 
         let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
@@ -274,6 +277,7 @@ impl DomainParticipantActor {
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
             DCPS_PUBLICATION,
+            handle,
         );
 
         let sedp_subscriptions_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
@@ -283,6 +287,7 @@ impl DomainParticipantActor {
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
             DCPS_SUBSCRIPTION,
+            handle,
         );
 
         // Built-in subscriber creation
@@ -301,15 +306,19 @@ impl DomainParticipantActor {
         };
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        let spdp_builtin_participant_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
-            "SpdpDiscoveredParticipantData".to_string(),
-            String::from(DCPS_PARTICIPANT),
-            spdp_reader_qos,
-            Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
-            vec![],
-            String::default(),
-        ));
+        let spdp_builtin_participant_reader = Actor::spawn(
+            DataReaderActor::new(
+                create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
+                "SpdpDiscoveredParticipantData".to_string(),
+                String::from(DCPS_PARTICIPANT),
+                spdp_reader_qos,
+                Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
+                vec![],
+                String::default(),
+                handle,
+            ),
+            handle,
+        );
 
         let sedp_reader_qos = DataReaderQos {
             durability: DurabilityQosPolicy {
@@ -327,49 +336,65 @@ impl DomainParticipantActor {
 
         let sedp_builtin_topics_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-        let sedp_builtin_topics_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
-            "DiscoveredTopicData".to_string(),
-            String::from(DCPS_TOPIC),
-            sedp_reader_qos.clone(),
-            Box::new(NoOpListener::<DiscoveredTopicData>::new()),
-            vec![],
-            String::default(),
-        ));
+        let sedp_builtin_topics_reader = Actor::spawn(
+            DataReaderActor::new(
+                create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
+                "DiscoveredTopicData".to_string(),
+                String::from(DCPS_TOPIC),
+                sedp_reader_qos.clone(),
+                Box::new(NoOpListener::<DiscoveredTopicData>::new()),
+                vec![],
+                String::default(),
+                handle,
+            ),
+            handle,
+        );
 
         let sedp_builtin_publications_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-        let sedp_builtin_publications_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
-            "DiscoveredWriterData".to_string(),
-            String::from(DCPS_PUBLICATION),
-            sedp_reader_qos.clone(),
-            Box::new(NoOpListener::<DiscoveredWriterData>::new()),
-            vec![],
-            String::default(),
-        ));
+        let sedp_builtin_publications_reader = Actor::spawn(
+            DataReaderActor::new(
+                create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
+                "DiscoveredWriterData".to_string(),
+                String::from(DCPS_PUBLICATION),
+                sedp_reader_qos.clone(),
+                Box::new(NoOpListener::<DiscoveredWriterData>::new()),
+                vec![],
+                String::default(),
+                handle,
+            ),
+            handle,
+        );
 
         let sedp_builtin_subscriptions_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let sedp_builtin_subscriptions_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
-            "DiscoveredReaderData".to_string(),
-            String::from(DCPS_SUBSCRIPTION),
-            sedp_reader_qos,
-            Box::new(NoOpListener::<DiscoveredReaderData>::new()),
-            vec![],
-            String::default(),
-        ));
+        let sedp_builtin_subscriptions_reader = Actor::spawn(
+            DataReaderActor::new(
+                create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
+                "DiscoveredReaderData".to_string(),
+                String::from(DCPS_SUBSCRIPTION),
+                sedp_reader_qos,
+                Box::new(NoOpListener::<DiscoveredReaderData>::new()),
+                vec![],
+                String::default(),
+                handle,
+            ),
+            handle,
+        );
 
-        let builtin_subscriber = spawn_actor(SubscriberActor::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
-            Box::new(NoOpListener::new()),
-            vec![],
-        ));
+        let builtin_subscriber = Actor::spawn(
+            SubscriberActor::new(
+                SubscriberQos::default(),
+                RtpsGroup::new(Guid::new(
+                    guid_prefix,
+                    EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+                )),
+                Box::new(NoOpListener::new()),
+                vec![],
+                handle,
+            ),
+            handle,
+        );
 
         builtin_subscriber
             .address()
@@ -416,15 +441,19 @@ impl DomainParticipantActor {
         };
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-        let spdp_builtin_participant_writer = spawn_actor(DataWriterActor::new(
-            create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
-            "SpdpDiscoveredParticipantData".to_string(),
-            String::from(DCPS_PARTICIPANT),
-            Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
-            vec![],
-            spdp_writer_qos,
-            String::default(),
-        ));
+        let spdp_builtin_participant_writer = Actor::spawn(
+            DataWriterActor::new(
+                create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
+                "SpdpDiscoveredParticipantData".to_string(),
+                String::from(DCPS_PARTICIPANT),
+                Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
+                vec![],
+                spdp_writer_qos,
+                String::default(),
+                handle,
+            ),
+            handle,
+        );
 
         for reader_locator in spdp_discovery_locator_list
             .iter()
@@ -461,8 +490,9 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos.clone(),
             String::default(),
+            handle,
         );
-        let sedp_builtin_topics_writer_actor = spawn_actor(sedp_builtin_topics_writer);
+        let sedp_builtin_topics_writer_actor = Actor::spawn(sedp_builtin_topics_writer, handle);
 
         let sedp_builtin_publications_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
@@ -474,8 +504,10 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos.clone(),
             String::default(),
+            handle,
         );
-        let sedp_builtin_publications_writer_actor = spawn_actor(sedp_builtin_publications_writer);
+        let sedp_builtin_publications_writer_actor =
+            Actor::spawn(sedp_builtin_publications_writer, handle);
 
         let sedp_builtin_subscriptions_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
@@ -487,19 +519,24 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos,
             String::default(),
+            handle,
         );
         let sedp_builtin_subscriptions_writer_actor =
-            spawn_actor(sedp_builtin_subscriptions_writer);
+            Actor::spawn(sedp_builtin_subscriptions_writer, handle);
 
-        let builtin_publisher = spawn_actor(PublisherActor::new(
-            PublisherQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-            )),
-            Box::new(NoOpListener::new()),
-            vec![],
-        ));
+        let builtin_publisher = Actor::spawn(
+            PublisherActor::new(
+                PublisherQos::default(),
+                RtpsGroup::new(Guid::new(
+                    guid_prefix,
+                    EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+                )),
+                Box::new(NoOpListener::new()),
+                vec![],
+                handle,
+            ),
+            handle,
+        );
 
         builtin_publisher
             .address()
@@ -549,7 +586,7 @@ impl DomainParticipantActor {
             Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
         );
 
-        let type_support_actor = spawn_actor(TypeSupportActor::new(type_support_list));
+        let type_support_actor = Actor::spawn(TypeSupportActor::new(type_support_list), handle);
 
         Self {
             rtps_participant,
@@ -578,7 +615,7 @@ impl DomainParticipantActor {
             ignored_topic_list: HashSet::new(),
             data_max_size_serialized,
             udp_transport_write,
-            listener: spawn_actor(DomainParticipantListenerActor::new(listener)),
+            listener: Actor::spawn(DomainParticipantListenerActor::new(listener), handle),
             status_kind,
             type_support_actor,
         }
@@ -602,9 +639,15 @@ impl DomainParticipantActor {
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
         let status_kind = mask.to_vec();
-        let publisher = PublisherActor::new(publisher_qos, rtps_group, a_listener, status_kind);
+        let publisher = PublisherActor::new(
+            publisher_qos,
+            rtps_group,
+            a_listener,
+            status_kind,
+            &tokio::runtime::Handle::current(),
+        );
 
-        let publisher_actor = spawn_actor(publisher);
+        let publisher_actor = Actor::spawn(publisher, &tokio::runtime::Handle::current());
         let publisher_address = publisher_actor.address();
         self.user_defined_publisher_list
             .insert(InstanceHandle::new(guid.into()), publisher_actor);
@@ -628,9 +671,15 @@ impl DomainParticipantActor {
         let rtps_group = RtpsGroup::new(guid);
         let status_kind = mask.to_vec();
 
-        let subscriber = SubscriberActor::new(subscriber_qos, rtps_group, a_listener, status_kind);
+        let subscriber = SubscriberActor::new(
+            subscriber_qos,
+            rtps_group,
+            a_listener,
+            status_kind,
+            &tokio::runtime::Handle::current(),
+        );
 
-        let subscriber_actor = spawn_actor(subscriber);
+        let subscriber_actor = Actor::spawn(subscriber, &tokio::runtime::Handle::current());
         let subscriber_address = subscriber_actor.address();
 
         self.user_defined_subscriber_list
@@ -655,10 +704,16 @@ impl DomainParticipantActor {
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
-        let topic = TopicActor::new(guid, qos, type_name, &topic_name);
+        let topic = TopicActor::new(
+            guid,
+            qos,
+            type_name,
+            &topic_name,
+            &tokio::runtime::Handle::current(),
+        );
 
         let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
-            spawn_actor(topic);
+            Actor::spawn(topic, &tokio::runtime::Handle::current());
         let topic_address = topic_actor.address();
         self.topic_list
             .insert(InstanceHandle::new(guid.into()), topic_actor);
@@ -1187,7 +1242,10 @@ impl DomainParticipantActor {
         listener: Box<dyn DomainParticipantListener + Send>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = spawn_actor(DomainParticipantListenerActor::new(listener));
+        self.listener = Actor::spawn(
+            DomainParticipantListenerActor::new(listener),
+            &tokio::runtime::Handle::current(),
+        );
         self.status_kind = status_kind;
     }
 

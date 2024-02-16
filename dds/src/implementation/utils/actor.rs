@@ -230,7 +230,34 @@ pub struct Actor<A> {
     cancellation_token: Arc<AtomicBool>,
 }
 
-impl<A> Actor<A> {
+impl<A> Actor<A>
+where
+    A: Send + 'static,
+{
+    pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
+        let (sender, mut mailbox) =
+            tokio::sync::mpsc::channel::<Box<dyn GenericHandler<A> + Send>>(16);
+
+        let cancellation_token = Arc::new(AtomicBool::new(false));
+        let cancellation_token_cloned = cancellation_token.clone();
+
+        let join_handle = runtime.spawn(async move {
+            while let Some(mut m) = mailbox.recv().await {
+                if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
+                    m.handle(&mut actor).await;
+                } else {
+                    break;
+                }
+            }
+        });
+
+        Actor {
+            sender,
+            join_handle,
+            cancellation_token,
+        }
+    }
+
     pub fn address(&self) -> ActorAddress<A> {
         ActorAddress {
             sender: self.sender.clone(),
@@ -324,44 +351,10 @@ impl<A> Drop for Actor<A> {
     }
 }
 
-struct SpawnedActor<A> {
-    value: A,
-    mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<A> + Send>>,
-}
-
-pub fn spawn_actor<A>(actor: A) -> Actor<A>
-where
-    A: Send + 'static,
-{
-    let (sender, mailbox) = tokio::sync::mpsc::channel(16);
-
-    let mut actor_obj = SpawnedActor {
-        value: actor,
-        mailbox,
-    };
-    let cancellation_token = Arc::new(AtomicBool::new(false));
-    let cancellation_token_cloned = cancellation_token.clone();
-
-    let join_handle = THE_RUNTIME.spawn(async move {
-        while let Some(mut m) = actor_obj.mailbox.recv().await {
-            if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                m.handle(&mut actor_obj.value).await;
-            } else {
-                break;
-            }
-        }
-    });
-
-    Actor {
-        sender,
-        join_handle,
-        cancellation_token,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use dust_dds_derive::actor_interface;
+    use tokio::runtime::Runtime;
 
     use super::*;
 
@@ -388,8 +381,9 @@ mod tests {
 
     #[test]
     fn actor_increment() {
+        let runtime = Runtime::new().unwrap();
         let my_data = MyData { data: 0 };
-        let actor = spawn_actor(my_data);
+        let actor = Actor::spawn(my_data, runtime.handle());
 
         assert_eq!(
             actor
@@ -402,8 +396,9 @@ mod tests {
 
     #[test]
     fn actor_already_deleted() {
+        let runtime = Runtime::new().unwrap();
         let my_data = MyData { data: 0 };
-        let actor = spawn_actor(my_data);
+        let actor = Actor::spawn(my_data, runtime.handle());
         let actor_address = actor.address().clone();
         std::mem::drop(actor);
         assert_eq!(

@@ -5,6 +5,7 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use super::{
+    any_data_reader_listener::AnyDataReaderListener,
     data_reader_actor::{self, DataReaderActor},
     domain_participant_actor::DomainParticipantActor,
     subscriber_listener_actor::SubscriberListenerActor,
@@ -18,12 +19,17 @@ use crate::{
         },
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
+            endpoint::RtpsEndpoint,
             group::RtpsGroup,
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
-            types::{Guid, Locator},
+            reader::RtpsReader,
+            types::{
+                EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
+                USER_DEFINED_READER_WITH_KEY,
+            },
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -31,7 +37,7 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos},
         qos_policy::PartitionQosPolicy,
         status::StatusKind,
-        time::Time,
+        time::{Time, DURATION_ZERO},
     },
     subscription::subscriber_listener::SubscriberListener,
 };
@@ -54,9 +60,10 @@ impl SubscriberActor {
         rtps_group: RtpsGroup,
         listener: Box<dyn SubscriberListener + Send>,
         status_kind: Vec<StatusKind>,
+        handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = spawn_actor(StatusConditionActor::default());
-        let listener = spawn_actor(SubscriberListenerActor::new(listener));
+        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let listener = Actor::spawn(SubscriberListenerActor::new(listener), handle);
         SubscriberActor {
             qos,
             rtps_group,
@@ -69,10 +76,87 @@ impl SubscriberActor {
             status_kind,
         }
     }
+
+    fn get_unique_reader_id(&mut self) -> u8 {
+        let counter = self.user_defined_data_reader_counter;
+        self.user_defined_data_reader_counter += 1;
+        counter
+    }
 }
 
 #[actor_interface]
 impl SubscriberActor {
+    async fn create_datareader(
+        &mut self,
+        type_name: String,
+        topic_name: String,
+        has_key: bool,
+        qos: QosKind<DataReaderQos>,
+        a_listener: Box<dyn AnyDataReaderListener + Send>,
+        mask: Vec<StatusKind>,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+    ) -> DdsResult<ActorAddress<DataReaderActor>> {
+        let qos = match qos {
+            QosKind::Default => self.default_data_reader_qos.clone(),
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
+
+        let entity_kind = match has_key {
+            true => USER_DEFINED_READER_WITH_KEY,
+            false => USER_DEFINED_READER_NO_KEY,
+        };
+        let subscriber_guid = self.rtps_group.guid();
+
+        let entity_key: [u8; 3] = [
+            subscriber_guid.entity_id().entity_key()[0],
+            self.get_unique_reader_id(),
+            0,
+        ];
+
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let guid = Guid::new(subscriber_guid.prefix(), entity_id);
+
+        let topic_kind = match has_key {
+            true => TopicKind::WithKey,
+            false => TopicKind::NoKey,
+        };
+
+        let rtps_reader = RtpsReader::new(
+            RtpsEndpoint::new(
+                guid,
+                topic_kind,
+                &default_unicast_locator_list,
+                &default_multicast_locator_list,
+            ),
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
+        );
+        let type_xml = String::new(); // Foo::get_type_xml().map_or_else(String::default, |s| format!("<types>{}</types>", s));
+        let status_kind = mask.to_vec();
+        let data_reader = DataReaderActor::new(
+            rtps_reader,
+            type_name,
+            topic_name,
+            qos,
+            a_listener,
+            status_kind,
+            type_xml,
+            &tokio::runtime::Handle::current(),
+        );
+
+        let reader_actor = Actor::spawn(data_reader, &tokio::runtime::Handle::current());
+        let reader_address = reader_actor.address();
+        self.data_reader_list
+            .insert(InstanceHandle::new(guid.into()), reader_actor);
+
+        Ok(reader_address)
+    }
+
     async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DataReaderActor>> {
         for dr in self.data_reader_list.values() {
             if dr
@@ -97,12 +181,6 @@ impl SubscriberActor {
 
     async fn is_enabled(&self) -> bool {
         self.enabled
-    }
-
-    async fn get_unique_reader_id(&mut self) -> u8 {
-        let counter = self.user_defined_data_reader_counter;
-        self.user_defined_data_reader_counter += 1;
-        counter
     }
 
     async fn data_reader_add(
@@ -290,7 +368,10 @@ impl SubscriberActor {
         listener: Box<dyn SubscriberListener + Send>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = spawn_actor(SubscriberListenerActor::new(listener));
+        self.listener = Actor::spawn(
+            SubscriberListenerActor::new(listener),
+            &tokio::runtime::Handle::current(),
+        );
         self.status_kind = status_kind;
     }
 }

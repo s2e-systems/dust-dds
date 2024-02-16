@@ -21,7 +21,7 @@ use crate::{
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
-        utils::actor::{spawn_actor, Actor},
+        utils::actor::Actor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -72,6 +72,9 @@ impl DomainParticipantFactoryActor {
         a_listener: impl DomainParticipantListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
+        // To allow creating actors
+        let _runtime_guard = self.runtime.enter();
+
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -190,9 +193,9 @@ impl DomainParticipantFactoryActor {
             udp_transport_write,
             listener,
             status_kind,
+            self.runtime.handle(),
         );
-
-        let participant_actor = spawn_actor(domain_participant);
+        let participant_actor = Actor::spawn(domain_participant, self.runtime.handle());
         let participant_address = participant_actor.address();
         self.domain_participant_list.insert(
             InstanceHandle::new(participant_guid.into()),

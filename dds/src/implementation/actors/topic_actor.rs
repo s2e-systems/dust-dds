@@ -5,7 +5,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -41,8 +41,14 @@ pub struct TopicActor {
 }
 
 impl TopicActor {
-    pub fn new(guid: Guid, qos: TopicQos, type_name: String, topic_name: &str) -> Self {
-        let status_condition = spawn_actor(StatusConditionActor::default());
+    pub fn new(
+        guid: Guid,
+        qos: TopicQos,
+        type_name: String,
+        topic_name: &str,
+        handle: &tokio::runtime::Handle,
+    ) -> Self {
+        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         Self {
             guid,
             qos,
