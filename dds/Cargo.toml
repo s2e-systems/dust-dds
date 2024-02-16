@@ -4,7 +4,7 @@ version = "0.7.0"
 authors = [
 	"Joao Rebelo <jrebelo@s2e-systems.com>",
 	"Stefan Kimmer <skimmer@s2e-systems.com>",
-	"Pierre Martinet <pmartinet@s2e-systems.com>"
+	"Pierre Martinet <pmartinet@s2e-systems.com>",
 ]
 license = "Apache-2.0"
 edition = "2021"
@@ -18,10 +18,9 @@ categories = ["api-bindings", "network-programming"]
 [dependencies]
 dust_dds_derive = { path = "../dds_derive", version = "0.7" }
 
-md5 = "=0.7.0"  # Chose this crate over other possibilities since it doesn't have any other dependencies
+md5 = "=0.7.0" # Chose this crate over other possibilities since it doesn't have any other dependencies
 
 byteorder = "=1.4.3"
-lazy_static = "=1.4"
 
 socket2 = "=0.4"
 network-interface = "1.0.1"
