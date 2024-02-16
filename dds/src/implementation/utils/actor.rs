@@ -187,16 +187,14 @@ where
     M: Mail + Send,
     M::Result: Send,
 {
-    fn handle(&mut self, actor: &mut A) -> impl Future<Output = ()> + Send {
-        async {
-            <A as MailHandler<M>>::handle(
-                actor,
-                self.mail
-                    .take()
-                    .expect("Mail should be processed only once"),
-            )
-            .await;
-        }
+    async fn handle(&mut self, actor: &mut A) {
+        <A as MailHandler<M>>::handle(
+            actor,
+            self.mail
+                .take()
+                .expect("Mail should be processed only once"),
+        )
+        .await;
     }
 }
 
