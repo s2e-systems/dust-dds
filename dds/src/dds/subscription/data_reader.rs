@@ -152,29 +152,6 @@ impl<Foo> Clone for DataReader<Foo> {
     }
 }
 
-// impl<Foo> Drop for DataReader<Foo> {
-//     fn drop(&mut self) {
-//         todo!()
-//         // match &self.0 {
-//         //     DataReaderNodeKind::BuiltinStateful(_)
-//         //     | DataReaderNodeKind::BuiltinStateless(_)
-//         //     | DataReaderNodeKind::Listener(_) => (),
-
-//         //     DataReaderNodeKind::UserDefined(dr) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-//         //         .get_participant_mut(&dr.guid().prefix(), |dp| {
-//         //             if let Some(dp) = dp {
-//         //                 crate::implementation::behavior::user_defined_subscriber::delete_datareader(
-//         //                     dp,
-//         //                     dr.parent_subscriber(),
-//         //                     dr.guid(),
-//         //                 )
-//         //                 .ok();
-//         //             }
-//         //         }),
-//         // }
-//     }
-// }
-
 impl<Foo> DataReader<Foo> {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The size of the returned collection will
     /// be limited to the specified `max_samples`. The properties of the data values collection and the setting of the

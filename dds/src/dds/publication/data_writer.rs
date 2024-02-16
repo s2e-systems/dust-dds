@@ -88,27 +88,6 @@ impl<Foo> DataWriter<Foo> {
     }
 }
 
-// impl<Foo> Drop for DataWriter<Foo> {
-//     fn drop(&mut self) {
-//         match &self.0 {
-//             DataWriterNodeKind::Listener(_) => (),
-//             DataWriterNodeKind::UserDefined(dw) => todo!()
-//             // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-//             //     .get_participant_mut(&dw.guid().prefix(), |dp| {
-//             //         if let Some(dp) = dp {
-//             //             crate::implementation::behavior::user_defined_publisher::delete_datawriter(
-//             //                 dp,
-//             //                 dw.parent_publisher(),
-//             //                 dw.guid(),
-//             //                 dw.parent_publisher(),
-//             //             )
-//             //             .ok();
-//             //         }
-//             //     }),
-//         }
-//     }
-// }
-
 impl<Foo> DataWriter<Foo>
 where
     Foo: DdsSerialize,

@@ -48,25 +48,6 @@ impl Subscriber {
     }
 }
 
-// impl Drop for Subscriber {
-//     fn drop(&mut self) {
-//         todo!()
-//         // match &self.0 {
-//         //     SubscriberNodeKind::Builtin(_) | SubscriberNodeKind::Listener(_) => (),
-//         //     SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-//         //         .get_participant_mut(&s.guid().prefix(), |dp| {
-//         //             if let Some(dp) = dp {
-//         //                 crate::implementation::behavior::domain_participant::delete_subscriber(
-//         //                     dp,
-//         //                     s.guid(),
-//         //                 )
-//         //                 .ok();
-//         //             }
-//         //         }),
-//         // }
-//     }
-// }
-
 impl Subscriber {
     /// This operation creates a [`DataReader`]. The returned [`DataReader`] will be attached and belong to the [`Subscriber`].
     /// The [`DataReader`] returned by this operation has an associated [`Topic`] and a type `Foo`.

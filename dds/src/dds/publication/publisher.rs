@@ -45,21 +45,6 @@ impl Publisher {
     }
 }
 
-// impl Drop for Publisher {
-//     fn drop(&mut self) {
-//         todo!()
-//         // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.guid().prefix(), |dp| {
-//         //     if let Some(dp) = dp {
-//         //         crate::implementation::behavior::domain_participant::delete_publisher(
-//         //             dp,
-//         //             self.0.guid(),
-//         //         )
-//         //         .ok();
-//         //     }
-//         // })
-//     }
-// }
-
 impl Publisher {
     /// This operation creates a [`DataWriter`]. The returned [`DataWriter`] will be attached and belongs to the [`Publisher`].
     /// The [`DataWriter`] returned by this operation has an associated [`Topic`] and a type `Foo`.

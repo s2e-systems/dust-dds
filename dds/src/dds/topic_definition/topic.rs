@@ -47,25 +47,6 @@ impl Topic {
     }
 }
 
-// impl<Foo> Drop for Topic<Foo> {
-//     fn drop(&mut self) {
-//         todo!()
-//         // match &self.node {
-//         //     TopicNodeKind::Listener(_) => (),
-//         //     TopicNodeKind::UserDefined(t) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-//         //         .get_participant_mut(&t.guid().prefix(), |dp| {
-//         //             if let Some(dp) = dp {
-//         //                 crate::implementation::behavior::domain_participant::delete_topic(
-//         //                     dp,
-//         //                     t.guid(),
-//         //                 )
-//         //                 .ok();
-//         //             }
-//         //         }),
-//         // }
-//     }
-// }
-
 impl Topic {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     #[tracing::instrument(skip(self))]
