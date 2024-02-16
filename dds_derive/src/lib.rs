@@ -189,7 +189,6 @@ pub fn actor_interface(
                     type Result = #method_output_type;
                 }
 
-                #[async_trait::async_trait]
                 impl crate::implementation::utils::actor::MailHandler<#method_ident> for #actor_type {
                     async fn handle(&mut self, mail: #method_ident) -> <#method_ident as crate::implementation::utils::actor::Mail>::Result {
                         self.#method_ident(
