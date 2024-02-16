@@ -744,7 +744,11 @@ impl<Foo> DataWriter<Foo> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
+            data_writer_actor::set_listener::new(
+                Box::new(a_listener),
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            ),
         )
     }
 }

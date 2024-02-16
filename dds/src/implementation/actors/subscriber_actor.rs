@@ -96,6 +96,7 @@ impl SubscriberActor {
         mask: Vec<StatusKind>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<ActorAddress<DataReaderActor>> {
         let qos = match qos {
             QosKind::Default => self.default_data_reader_qos.clone(),
@@ -146,10 +147,10 @@ impl SubscriberActor {
             a_listener,
             status_kind,
             type_xml,
-            &tokio::runtime::Handle::current(),
+            &runtime_handle,
         );
 
-        let reader_actor = Actor::spawn(data_reader, &tokio::runtime::Handle::current());
+        let reader_actor = Actor::spawn(data_reader, &runtime_handle);
         let reader_address = reader_actor.address();
         self.data_reader_list
             .insert(InstanceHandle::new(guid.into()), reader_actor);
@@ -373,11 +374,9 @@ impl SubscriberActor {
         &mut self,
         listener: Box<dyn SubscriberListener + Send>,
         status_kind: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
-        self.listener = Actor::spawn(
-            SubscriberListenerActor::new(listener),
-            &tokio::runtime::Handle::current(),
-        );
+        self.listener = Actor::spawn(SubscriberListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }
 }

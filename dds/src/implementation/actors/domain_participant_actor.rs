@@ -629,6 +629,7 @@ impl DomainParticipantActor {
         qos: QosKind<PublisherQos>,
         a_listener: Box<dyn PublisherListener + Send>,
         mask: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<PublisherActor> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.clone(),
@@ -644,10 +645,10 @@ impl DomainParticipantActor {
             rtps_group,
             a_listener,
             status_kind,
-            &tokio::runtime::Handle::current(),
+            &runtime_handle,
         );
 
-        let publisher_actor = Actor::spawn(publisher, &tokio::runtime::Handle::current());
+        let publisher_actor = Actor::spawn(publisher, &runtime_handle);
         let publisher_address = publisher_actor.address();
         self.user_defined_publisher_list
             .insert(InstanceHandle::new(guid.into()), publisher_actor);
@@ -660,6 +661,7 @@ impl DomainParticipantActor {
         qos: QosKind<SubscriberQos>,
         a_listener: Box<dyn SubscriberListener + Send>,
         mask: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<SubscriberActor> {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.clone(),
@@ -676,10 +678,10 @@ impl DomainParticipantActor {
             rtps_group,
             a_listener,
             status_kind,
-            &tokio::runtime::Handle::current(),
+            &runtime_handle,
         );
 
-        let subscriber_actor = Actor::spawn(subscriber, &tokio::runtime::Handle::current());
+        let subscriber_actor = Actor::spawn(subscriber, &runtime_handle);
         let subscriber_address = subscriber_actor.address();
 
         self.user_defined_subscriber_list
@@ -695,6 +697,7 @@ impl DomainParticipantActor {
         qos: QosKind<TopicQos>,
         _a_listener: Box<dyn TopicListener + Send>,
         _mask: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<TopicActor> {
         let qos = match qos {
             QosKind::Default => self.default_topic_qos.clone(),
@@ -704,16 +707,10 @@ impl DomainParticipantActor {
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
-        let topic = TopicActor::new(
-            guid,
-            qos,
-            type_name,
-            &topic_name,
-            &tokio::runtime::Handle::current(),
-        );
+        let topic = TopicActor::new(guid, qos, type_name, &topic_name, &runtime_handle);
 
         let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
-            Actor::spawn(topic, &tokio::runtime::Handle::current());
+            Actor::spawn(topic, &runtime_handle);
         let topic_address = topic_actor.address();
         self.topic_list
             .insert(InstanceHandle::new(guid.into()), topic_actor);
@@ -1249,10 +1246,11 @@ impl DomainParticipantActor {
         &mut self,
         listener: Box<dyn DomainParticipantListener + Send>,
         status_kind: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         self.listener = Actor::spawn(
             DomainParticipantListenerActor::new(listener),
-            &tokio::runtime::Handle::current(),
+            &runtime_handle,
         );
         self.status_kind = status_kind;
     }

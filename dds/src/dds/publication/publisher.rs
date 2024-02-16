@@ -129,6 +129,7 @@ impl Publisher {
                 default_unicast_locator_list,
                 default_multicast_locator_list,
                 type_xml,
+                self.runtime_handle.clone(),
             ),
         )??;
 
@@ -371,7 +372,11 @@ impl Publisher {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.publisher_address.send_mail_and_await_reply_blocking(
-            publisher_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
+            publisher_actor::set_listener::new(
+                Box::new(a_listener),
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            ),
         )
     }
 

@@ -86,6 +86,7 @@ impl PublisherActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         xml_type: String,
+        runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<ActorAddress<DataWriterActor>> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
@@ -130,9 +131,9 @@ impl PublisherActor {
             mask,
             qos,
             xml_type,
-            &tokio::runtime::Handle::current(),
+            &runtime_handle,
         );
-        let data_writer_actor = Actor::spawn(data_writer, &tokio::runtime::Handle::current());
+        let data_writer_actor = Actor::spawn(data_writer, &runtime_handle);
         let data_writer_address = data_writer_actor.address();
         self.data_writer_list
             .insert(InstanceHandle::new(guid.into()), data_writer_actor);
@@ -358,11 +359,9 @@ impl PublisherActor {
         &mut self,
         listener: Box<dyn PublisherListener + Send>,
         status_kind: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
-        self.listener = Actor::spawn(
-            PublisherListenerActor::new(listener),
-            &tokio::runtime::Handle::current(),
-        );
+        self.listener = Actor::spawn(PublisherListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }
 }

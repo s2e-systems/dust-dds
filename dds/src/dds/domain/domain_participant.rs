@@ -98,6 +98,7 @@ impl DomainParticipant {
                 qos,
                 Box::new(a_listener),
                 mask.to_vec(),
+                self.runtime_handle.clone(),
             ))?;
 
         let publisher = Publisher::new(
@@ -171,6 +172,7 @@ impl DomainParticipant {
                     qos,
                     Box::new(a_listener),
                     mask.to_vec(),
+                    self.runtime_handle.clone(),
                 ),
             )?;
 
@@ -266,6 +268,7 @@ impl DomainParticipant {
                 qos,
                 Box::new(a_listener),
                 mask.to_vec(),
+                self.runtime_handle.clone(),
             ))?;
 
         let topic = Topic::new(
@@ -869,7 +872,11 @@ impl DomainParticipant {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
+            domain_participant_actor::set_listener::new(
+                Box::new(a_listener),
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            ),
         )
     }
 

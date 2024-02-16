@@ -2036,11 +2036,9 @@ impl DataReaderActor {
         &mut self,
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
-        self.listener = Actor::spawn(
-            DataReaderListenerActor::new(listener),
-            &tokio::runtime::Handle::current(),
-        );
+        self.listener = Actor::spawn(DataReaderListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }
 

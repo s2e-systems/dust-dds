@@ -745,7 +745,11 @@ impl<Foo> DataReader<Foo> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
+            data_reader_actor::set_listener::new(
+                Box::new(a_listener),
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            ),
         )
     }
 }

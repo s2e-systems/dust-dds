@@ -132,6 +132,7 @@ impl Subscriber {
                 mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
+                self.runtime_handle.clone(),
             ))??;
 
         let data_reader = DataReader::new(
@@ -309,7 +310,11 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.subscriber_address.send_mail_and_await_reply_blocking(
-            subscriber_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
+            subscriber_actor::set_listener::new(
+                Box::new(a_listener),
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            ),
         )
     }
 

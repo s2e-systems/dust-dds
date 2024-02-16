@@ -821,11 +821,9 @@ impl DataWriterActor {
         &mut self,
         listener: Box<dyn AnyDataWriterListener + Send>,
         status_kind: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
-        self.listener = Actor::spawn(
-            DataWriterListenerActor::new(listener),
-            &tokio::runtime::Handle::current(),
-        );
+        self.listener = Actor::spawn(DataWriterListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }
 }
