@@ -45,7 +45,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress},
+            actor::{Actor, ActorAddress},
             instance_handle_from_key::get_instance_handle_from_key,
         },
     },
@@ -266,6 +266,7 @@ pub struct DataReaderActor {
 }
 
 impl DataReaderActor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_reader: RtpsReader,
         type_name: String,
@@ -274,9 +275,10 @@ impl DataReaderActor {
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
         xml_type: String,
+        handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = spawn_actor(StatusConditionActor::default());
-        let listener = spawn_actor(DataReaderListenerActor::new(listener));
+        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let listener = Actor::spawn(DataReaderListenerActor::new(listener), handle);
 
         DataReaderActor {
             rtps_reader,
@@ -285,8 +287,9 @@ impl DataReaderActor {
             type_name,
             topic_name,
             _liveliness_changed_status: LivelinessChangedStatus::default(),
-            requested_deadline_missed_status: spawn_actor(
+            requested_deadline_missed_status: Actor::spawn(
                 ReaderRequestedDeadlineMissedStatus::default(),
+                handle,
             ),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
             sample_lost_status: SampleLostStatus::default(),
@@ -328,6 +331,7 @@ impl DataReaderActor {
             ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         subscriber_status_condition
             .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
@@ -345,6 +349,7 @@ impl DataReaderActor {
                 .send_mail(subscriber_listener_actor::trigger_on_data_on_readers::new(
                     subscriber_address.clone(),
                     participant_address.clone(),
+                    runtime_handle.clone(),
                 ))
                 .await?;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
@@ -353,6 +358,7 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
+                    runtime_handle.clone(),
                 ))
                 .await;
         }
@@ -376,6 +382,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
@@ -399,6 +406,7 @@ impl DataReaderActor {
                                 participant_address,
                                 subscriber_mask_listener,
                                 participant_mask_listener,
+                                runtime_handle,
                             )
                             .await?;
                         }
@@ -420,6 +428,7 @@ impl DataReaderActor {
                                     subscriber_status_condition,
                                     subscriber_mask_listener,
                                     participant_mask_listener,
+                                    runtime_handle,
                                 )
                                 .await?;
                             }
@@ -459,6 +468,7 @@ impl DataReaderActor {
                                     subscriber_status_condition,
                                     subscriber_mask_listener,
                                     participant_mask_listener,
+                                    runtime_handle,
                                 )
                                 .await?;
                             }
@@ -501,6 +511,7 @@ impl DataReaderActor {
                     subscriber_status_condition,
                     subscriber_mask_listener,
                     participant_mask_listener,
+                    runtime_handle,
                 )
                 .await?;
             }
@@ -528,6 +539,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
@@ -552,6 +564,7 @@ impl DataReaderActor {
                     subscriber_status_condition,
                     subscriber_mask_listener,
                     participant_mask_listener,
+                    runtime_handle,
                 )
                 .await?;
             }
@@ -690,6 +703,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.sample_lost_status.increment();
         self.status_condition
@@ -705,6 +719,7 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
+                    runtime_handle.clone(),
                     status,
                 ))
                 .await;
@@ -715,6 +730,7 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
+                    runtime_handle.clone(),
                     status,
                 ))
                 .await?;
@@ -726,6 +742,7 @@ impl DataReaderActor {
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
+                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -735,6 +752,7 @@ impl DataReaderActor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
@@ -749,6 +767,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: &tokio::runtime::Handle,
     ) {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
@@ -765,6 +784,7 @@ impl DataReaderActor {
                         data_reader_address,
                         subscriber_address,
                         participant_address,
+                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -777,6 +797,7 @@ impl DataReaderActor {
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
+                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -790,6 +811,7 @@ impl DataReaderActor {
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
+                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -814,6 +836,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
@@ -831,6 +854,7 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
+                    runtime_handle.clone(),
                     status,
                 ))
                 .await;
@@ -842,6 +866,7 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
+                    runtime_handle.clone(),
                     status,
                 ))
                 .await?;
@@ -853,6 +878,7 @@ impl DataReaderActor {
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
+                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -862,6 +888,7 @@ impl DataReaderActor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
@@ -876,6 +903,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: &tokio::runtime::Handle,
     ) {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
@@ -897,6 +925,7 @@ impl DataReaderActor {
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
+                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -909,6 +938,7 @@ impl DataReaderActor {
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
+                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -922,6 +952,7 @@ impl DataReaderActor {
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
+                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -1027,6 +1058,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
@@ -1038,6 +1070,7 @@ impl DataReaderActor {
                     participant_address,
                     subscriber_mask_listener,
                     participant_mask_listener,
+                    runtime_handle,
                 )
                 .await?;
             } else if self.is_max_instances_limit_reached(&change) {
@@ -1049,6 +1082,7 @@ impl DataReaderActor {
                     participant_address,
                     subscriber_mask_listener,
                     participant_mask_listener,
+                    runtime_handle,
                 )
                 .await?;
             } else if self.is_max_samples_per_instance_limit_reached(&change) {
@@ -1060,6 +1094,7 @@ impl DataReaderActor {
                     participant_address,
                     subscriber_mask_listener,
                     participant_mask_listener,
+                    runtime_handle,
                 )
                 .await?;
             } else {
@@ -1092,6 +1127,7 @@ impl DataReaderActor {
                     participant_address.clone(),
                     subscriber_mask_listener,
                     participant_mask_listener,
+                    runtime_handle.clone(),
                 );
 
                 self.changes.push(change);
@@ -1121,6 +1157,7 @@ impl DataReaderActor {
                     participant_address,
                     subscriber_status_condition,
                     subscriber_mask_listener,
+                    runtime_handle,
                 )
                 .await?;
             }
@@ -1331,6 +1368,7 @@ impl DataReaderActor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_deadline_missed_task(
         &mut self,
         change_instance_handle: InstanceHandle,
@@ -1342,6 +1380,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: tokio::runtime::Handle,
     ) {
         if let Some(t) = self
             .instance_deadline_missed_task
@@ -1394,6 +1433,7 @@ impl DataReaderActor {
                                     data_reader_address.clone(),
                                     subscriber_address.clone(),
                                     participant_address.clone(),
+                                    runtime_handle.clone(),
                                     status,
                                 ),
                             )
@@ -1410,6 +1450,7 @@ impl DataReaderActor {
                                     data_reader_address.clone(),
                                     subscriber_address.clone(),
                                     participant_address.clone(),
+                                    runtime_handle.clone(),
                                     status,
                                 ),
                             )
@@ -1425,6 +1466,7 @@ impl DataReaderActor {
                                     data_reader_address.clone(),
                                     subscriber_address.clone(),
                                     participant_address.clone(),
+                                    runtime_handle.clone(),
                                     status,
                                 ),
                             )
@@ -1751,6 +1793,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: tokio::runtime::Handle,
     ) {
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
@@ -1822,6 +1865,7 @@ impl DataReaderActor {
                             participant_address,
                             &subscriber_mask_listener,
                             &participant_mask_listener,
+                            &runtime_handle,
                         )
                         .await;
                     }
@@ -1833,6 +1877,7 @@ impl DataReaderActor {
                             participant_address,
                             &subscriber_mask_listener,
                             &participant_mask_listener,
+                            &runtime_handle,
                         )
                         .await;
                     }
@@ -1846,12 +1891,14 @@ impl DataReaderActor {
                     &participant_address,
                     &subscriber_mask_listener,
                     &participant_mask_listener,
+                    &runtime_handle,
                 )
                 .await;
             }
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn remove_matched_writer(
         &mut self,
         discovered_writer_handle: InstanceHandle,
@@ -1863,6 +1910,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: tokio::runtime::Handle,
     ) {
         let matched_publication = self
             .matched_publication_list
@@ -1877,6 +1925,7 @@ impl DataReaderActor {
                 participant_address,
                 &subscriber_mask_listener,
                 &participant_mask_listener,
+                &runtime_handle,
             )
             .await;
         }
@@ -1905,6 +1954,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         type_support_actor_address: ActorAddress<TypeSupportActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let mut message_receiver = MessageReceiver::new(&message);
         let type_support = type_support_actor_address
@@ -1934,6 +1984,7 @@ impl DataReaderActor {
                         &subscriber_status_condition,
                         &subscriber_mask_listener,
                         &participant_mask_listener,
+                        &runtime_handle,
                     )
                     .await?;
                 }
@@ -1950,6 +2001,7 @@ impl DataReaderActor {
                         &subscriber_status_condition,
                         &subscriber_mask_listener,
                         &participant_mask_listener,
+                        &runtime_handle,
                     )
                     .await?;
                 }
@@ -1989,8 +2041,9 @@ impl DataReaderActor {
         &mut self,
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
-        self.listener = spawn_actor(DataReaderListenerActor::new(listener));
+        self.listener = Actor::spawn(DataReaderListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }
 

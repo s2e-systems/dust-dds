@@ -96,6 +96,7 @@ pub struct DataReader<Foo> {
     reader_address: ActorAddress<DataReaderActor>,
     subscriber_address: ActorAddress<SubscriberActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
+    runtime_handle: tokio::runtime::Handle,
     phantom: PhantomData<Foo>,
 }
 
@@ -104,11 +105,13 @@ impl<Foo> DataReader<Foo> {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             reader_address,
             subscriber_address,
             participant_address,
+            runtime_handle,
             phantom: PhantomData,
         }
     }
@@ -143,33 +146,11 @@ impl<Foo> Clone for DataReader<Foo> {
             reader_address: self.reader_address.clone(),
             subscriber_address: self.subscriber_address.clone(),
             participant_address: self.participant_address.clone(),
+            runtime_handle: self.runtime_handle.clone(),
             phantom: self.phantom,
         }
     }
 }
-
-// impl<Foo> Drop for DataReader<Foo> {
-//     fn drop(&mut self) {
-//         todo!()
-//         // match &self.0 {
-//         //     DataReaderNodeKind::BuiltinStateful(_)
-//         //     | DataReaderNodeKind::BuiltinStateless(_)
-//         //     | DataReaderNodeKind::Listener(_) => (),
-
-//         //     DataReaderNodeKind::UserDefined(dr) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-//         //         .get_participant_mut(&dr.guid().prefix(), |dp| {
-//         //             if let Some(dp) = dp {
-//         //                 crate::implementation::behavior::user_defined_subscriber::delete_datareader(
-//         //                     dp,
-//         //                     dr.parent_subscriber(),
-//         //                     dr.guid(),
-//         //                 )
-//         //                 .ok();
-//         //             }
-//         //         }),
-//         // }
-//     }
-// }
 
 impl<Foo> DataReader<Foo> {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The size of the returned collection will
@@ -516,6 +497,7 @@ impl<Foo> DataReader<Foo> {
         Ok(Topic::new(
             self.topic_address(),
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         ))
     }
 
@@ -525,6 +507,7 @@ impl<Foo> DataReader<Foo> {
         Ok(Subscriber::new(
             self.subscriber_address.clone(),
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         ))
     }
 
@@ -739,7 +722,11 @@ impl<Foo> DataReader<Foo> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
+            data_reader_actor::set_listener::new(
+                Box::new(a_listener),
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            ),
         )
     }
 }

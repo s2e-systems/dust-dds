@@ -44,7 +44,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress},
+            actor::{Actor, ActorAddress},
             instance_handle_from_key::get_instance_handle_from_key,
         },
     },
@@ -245,6 +245,7 @@ impl DomainParticipantActor {
         udp_transport_write: Arc<UdpTransportWrite>,
         listener: Box<dyn DomainParticipantListener + Send>,
         status_kind: Vec<StatusKind>,
+        handle: &tokio::runtime::Handle,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -256,6 +257,7 @@ impl DomainParticipantActor {
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
             DCPS_PARTICIPANT,
+            handle,
         );
 
         let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
@@ -265,6 +267,7 @@ impl DomainParticipantActor {
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
             DCPS_TOPIC,
+            handle,
         );
 
         let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
@@ -274,6 +277,7 @@ impl DomainParticipantActor {
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
             DCPS_PUBLICATION,
+            handle,
         );
 
         let sedp_subscriptions_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
@@ -283,6 +287,7 @@ impl DomainParticipantActor {
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
             DCPS_SUBSCRIPTION,
+            handle,
         );
 
         // Built-in subscriber creation
@@ -301,15 +306,19 @@ impl DomainParticipantActor {
         };
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        let spdp_builtin_participant_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
-            "SpdpDiscoveredParticipantData".to_string(),
-            String::from(DCPS_PARTICIPANT),
-            spdp_reader_qos,
-            Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
-            vec![],
-            String::default(),
-        ));
+        let spdp_builtin_participant_reader = Actor::spawn(
+            DataReaderActor::new(
+                create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
+                "SpdpDiscoveredParticipantData".to_string(),
+                String::from(DCPS_PARTICIPANT),
+                spdp_reader_qos,
+                Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
+                vec![],
+                String::default(),
+                handle,
+            ),
+            handle,
+        );
 
         let sedp_reader_qos = DataReaderQos {
             durability: DurabilityQosPolicy {
@@ -327,49 +336,65 @@ impl DomainParticipantActor {
 
         let sedp_builtin_topics_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-        let sedp_builtin_topics_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
-            "DiscoveredTopicData".to_string(),
-            String::from(DCPS_TOPIC),
-            sedp_reader_qos.clone(),
-            Box::new(NoOpListener::<DiscoveredTopicData>::new()),
-            vec![],
-            String::default(),
-        ));
+        let sedp_builtin_topics_reader = Actor::spawn(
+            DataReaderActor::new(
+                create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
+                "DiscoveredTopicData".to_string(),
+                String::from(DCPS_TOPIC),
+                sedp_reader_qos.clone(),
+                Box::new(NoOpListener::<DiscoveredTopicData>::new()),
+                vec![],
+                String::default(),
+                handle,
+            ),
+            handle,
+        );
 
         let sedp_builtin_publications_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-        let sedp_builtin_publications_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
-            "DiscoveredWriterData".to_string(),
-            String::from(DCPS_PUBLICATION),
-            sedp_reader_qos.clone(),
-            Box::new(NoOpListener::<DiscoveredWriterData>::new()),
-            vec![],
-            String::default(),
-        ));
+        let sedp_builtin_publications_reader = Actor::spawn(
+            DataReaderActor::new(
+                create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
+                "DiscoveredWriterData".to_string(),
+                String::from(DCPS_PUBLICATION),
+                sedp_reader_qos.clone(),
+                Box::new(NoOpListener::<DiscoveredWriterData>::new()),
+                vec![],
+                String::default(),
+                handle,
+            ),
+            handle,
+        );
 
         let sedp_builtin_subscriptions_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let sedp_builtin_subscriptions_reader = spawn_actor(DataReaderActor::new(
-            create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
-            "DiscoveredReaderData".to_string(),
-            String::from(DCPS_SUBSCRIPTION),
-            sedp_reader_qos,
-            Box::new(NoOpListener::<DiscoveredReaderData>::new()),
-            vec![],
-            String::default(),
-        ));
+        let sedp_builtin_subscriptions_reader = Actor::spawn(
+            DataReaderActor::new(
+                create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
+                "DiscoveredReaderData".to_string(),
+                String::from(DCPS_SUBSCRIPTION),
+                sedp_reader_qos,
+                Box::new(NoOpListener::<DiscoveredReaderData>::new()),
+                vec![],
+                String::default(),
+                handle,
+            ),
+            handle,
+        );
 
-        let builtin_subscriber = spawn_actor(SubscriberActor::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
-            Box::new(NoOpListener::new()),
-            vec![],
-        ));
+        let builtin_subscriber = Actor::spawn(
+            SubscriberActor::new(
+                SubscriberQos::default(),
+                RtpsGroup::new(Guid::new(
+                    guid_prefix,
+                    EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+                )),
+                Box::new(NoOpListener::new()),
+                vec![],
+                handle,
+            ),
+            handle,
+        );
 
         builtin_subscriber
             .address()
@@ -416,15 +441,19 @@ impl DomainParticipantActor {
         };
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-        let spdp_builtin_participant_writer = spawn_actor(DataWriterActor::new(
-            create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
-            "SpdpDiscoveredParticipantData".to_string(),
-            String::from(DCPS_PARTICIPANT),
-            Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
-            vec![],
-            spdp_writer_qos,
-            String::default(),
-        ));
+        let spdp_builtin_participant_writer = Actor::spawn(
+            DataWriterActor::new(
+                create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
+                "SpdpDiscoveredParticipantData".to_string(),
+                String::from(DCPS_PARTICIPANT),
+                Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
+                vec![],
+                spdp_writer_qos,
+                String::default(),
+                handle,
+            ),
+            handle,
+        );
 
         for reader_locator in spdp_discovery_locator_list
             .iter()
@@ -461,8 +490,9 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos.clone(),
             String::default(),
+            handle,
         );
-        let sedp_builtin_topics_writer_actor = spawn_actor(sedp_builtin_topics_writer);
+        let sedp_builtin_topics_writer_actor = Actor::spawn(sedp_builtin_topics_writer, handle);
 
         let sedp_builtin_publications_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
@@ -474,8 +504,10 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos.clone(),
             String::default(),
+            handle,
         );
-        let sedp_builtin_publications_writer_actor = spawn_actor(sedp_builtin_publications_writer);
+        let sedp_builtin_publications_writer_actor =
+            Actor::spawn(sedp_builtin_publications_writer, handle);
 
         let sedp_builtin_subscriptions_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
@@ -487,19 +519,24 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos,
             String::default(),
+            handle,
         );
         let sedp_builtin_subscriptions_writer_actor =
-            spawn_actor(sedp_builtin_subscriptions_writer);
+            Actor::spawn(sedp_builtin_subscriptions_writer, handle);
 
-        let builtin_publisher = spawn_actor(PublisherActor::new(
-            PublisherQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-            )),
-            Box::new(NoOpListener::new()),
-            vec![],
-        ));
+        let builtin_publisher = Actor::spawn(
+            PublisherActor::new(
+                PublisherQos::default(),
+                RtpsGroup::new(Guid::new(
+                    guid_prefix,
+                    EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+                )),
+                Box::new(NoOpListener::new()),
+                vec![],
+                handle,
+            ),
+            handle,
+        );
 
         builtin_publisher
             .address()
@@ -549,7 +586,7 @@ impl DomainParticipantActor {
             Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
         );
 
-        let type_support_actor = spawn_actor(TypeSupportActor::new(type_support_list));
+        let type_support_actor = Actor::spawn(TypeSupportActor::new(type_support_list), handle);
 
         Self {
             rtps_participant,
@@ -578,7 +615,7 @@ impl DomainParticipantActor {
             ignored_topic_list: HashSet::new(),
             data_max_size_serialized,
             udp_transport_write,
-            listener: spawn_actor(DomainParticipantListenerActor::new(listener)),
+            listener: Actor::spawn(DomainParticipantListenerActor::new(listener), handle),
             status_kind,
             type_support_actor,
         }
@@ -592,6 +629,7 @@ impl DomainParticipantActor {
         qos: QosKind<PublisherQos>,
         a_listener: Box<dyn PublisherListener + Send>,
         mask: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<PublisherActor> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.clone(),
@@ -602,9 +640,15 @@ impl DomainParticipantActor {
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
         let status_kind = mask.to_vec();
-        let publisher = PublisherActor::new(publisher_qos, rtps_group, a_listener, status_kind);
+        let publisher = PublisherActor::new(
+            publisher_qos,
+            rtps_group,
+            a_listener,
+            status_kind,
+            &runtime_handle,
+        );
 
-        let publisher_actor = spawn_actor(publisher);
+        let publisher_actor = Actor::spawn(publisher, &runtime_handle);
         let publisher_address = publisher_actor.address();
         self.user_defined_publisher_list
             .insert(InstanceHandle::new(guid.into()), publisher_actor);
@@ -617,6 +661,7 @@ impl DomainParticipantActor {
         qos: QosKind<SubscriberQos>,
         a_listener: Box<dyn SubscriberListener + Send>,
         mask: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<SubscriberActor> {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.clone(),
@@ -628,9 +673,15 @@ impl DomainParticipantActor {
         let rtps_group = RtpsGroup::new(guid);
         let status_kind = mask.to_vec();
 
-        let subscriber = SubscriberActor::new(subscriber_qos, rtps_group, a_listener, status_kind);
+        let subscriber = SubscriberActor::new(
+            subscriber_qos,
+            rtps_group,
+            a_listener,
+            status_kind,
+            &runtime_handle,
+        );
 
-        let subscriber_actor = spawn_actor(subscriber);
+        let subscriber_actor = Actor::spawn(subscriber, &runtime_handle);
         let subscriber_address = subscriber_actor.address();
 
         self.user_defined_subscriber_list
@@ -646,6 +697,7 @@ impl DomainParticipantActor {
         qos: QosKind<TopicQos>,
         _a_listener: Box<dyn TopicListener + Send>,
         _mask: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<TopicActor> {
         let qos = match qos {
             QosKind::Default => self.default_topic_qos.clone(),
@@ -655,10 +707,10 @@ impl DomainParticipantActor {
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
-        let topic = TopicActor::new(guid, qos, type_name, &topic_name);
+        let topic = TopicActor::new(guid, qos, type_name, &topic_name, &runtime_handle);
 
         let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
-            spawn_actor(topic);
+            Actor::spawn(topic, &runtime_handle);
         let topic_address = topic_actor.address();
         self.topic_list
             .insert(InstanceHandle::new(guid.into()), topic_actor);
@@ -1032,6 +1084,7 @@ impl DomainParticipantActor {
         &self,
         message: RtpsMessageRead,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let reception_timestamp = self.get_current_time().await;
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
@@ -1043,6 +1096,7 @@ impl DomainParticipantActor {
                 self.builtin_subscriber.address(),
                 participant_mask_listener,
                 self.type_support_actor.address(),
+                runtime_handle,
             ))
             .await?;
 
@@ -1057,6 +1111,7 @@ impl DomainParticipantActor {
         &self,
         message: RtpsMessageRead,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         for user_defined_subscriber_address in self
@@ -1072,6 +1127,7 @@ impl DomainParticipantActor {
                     user_defined_subscriber_address.clone(),
                     participant_mask_listener.clone(),
                     self.type_support_actor.address(),
+                    runtime_handle.clone(),
                 ))
                 .await
                 .expect("Should not fail to send command");
@@ -1173,11 +1229,15 @@ impl DomainParticipantActor {
     async fn process_builtin_discovery(
         &mut self,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         self.process_spdp_participant_discovery().await;
-        self.process_sedp_publications_discovery(participant_address.clone())
-            .await;
-        self.process_sedp_subscriptions_discovery(participant_address)
+        self.process_sedp_publications_discovery(
+            participant_address.clone(),
+            runtime_handle.clone(),
+        )
+        .await;
+        self.process_sedp_subscriptions_discovery(participant_address, runtime_handle.clone())
             .await;
         self.process_sedp_topics_discovery().await;
     }
@@ -1186,8 +1246,12 @@ impl DomainParticipantActor {
         &mut self,
         listener: Box<dyn DomainParticipantListener + Send>,
         status_kind: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
-        self.listener = spawn_actor(DomainParticipantListenerActor::new(listener));
+        self.listener = Actor::spawn(
+            DomainParticipantListenerActor::new(listener),
+            &runtime_handle,
+        );
         self.status_kind = status_kind;
     }
 
@@ -1605,6 +1669,7 @@ impl DomainParticipantActor {
     async fn process_sedp_publications_discovery(
         &mut self,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         if let Some(sedp_publications_detector) = self
             .builtin_subscriber
@@ -1638,6 +1703,7 @@ impl DomainParticipantActor {
                                     self.add_matched_writer(
                                         discovered_writer_data,
                                         participant_address.clone(),
+                                        runtime_handle.clone(),
                                     )
                                     .await;
                                 }
@@ -1651,6 +1717,7 @@ impl DomainParticipantActor {
                             self.remove_matched_writer(
                                 discovered_writer_sample_info.instance_handle,
                                 participant_address.clone(),
+                                runtime_handle.clone(),
                             )
                             .await
                         }
@@ -1667,6 +1734,7 @@ impl DomainParticipantActor {
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
             Guid::new(
@@ -1714,6 +1782,7 @@ impl DomainParticipantActor {
                             subscriber_address,
                             participant_address.clone(),
                             participant_mask_listener,
+                            runtime_handle.clone(),
                         ))
                         .await;
                 }
@@ -1781,6 +1850,7 @@ impl DomainParticipantActor {
         &self,
         discovered_writer_handle: InstanceHandle,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         for subscriber in self.user_defined_subscriber_list.values() {
             let subscriber_address = subscriber.address();
@@ -1791,6 +1861,7 @@ impl DomainParticipantActor {
                     subscriber_address,
                     participant_address.clone(),
                     participant_mask_listener,
+                    runtime_handle.clone(),
                 ))
                 .await;
         }
@@ -1799,6 +1870,7 @@ impl DomainParticipantActor {
     async fn process_sedp_subscriptions_discovery(
         &mut self,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         if let Some(sedp_subscriptions_detector) = self
             .builtin_subscriber
@@ -1832,6 +1904,7 @@ impl DomainParticipantActor {
                                     self.add_matched_reader(
                                         discovered_reader_data,
                                         participant_address.clone(),
+                                        runtime_handle.clone(),
                                     )
                                     .await;
                                 }
@@ -1845,6 +1918,7 @@ impl DomainParticipantActor {
                             self.remove_matched_reader(
                                 discovered_reader_sample_info.instance_handle,
                                 participant_address.clone(),
+                                runtime_handle.clone(),
                             )
                             .await
                         }
@@ -1861,6 +1935,7 @@ impl DomainParticipantActor {
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
             Guid::new(
@@ -1926,6 +2001,7 @@ impl DomainParticipantActor {
                             participant_address.clone(),
                             participant_publication_matched_listener,
                             offered_incompatible_qos_participant_listener,
+                            runtime_handle.clone(),
                         ))
                         .await;
                 }
@@ -1994,6 +2070,7 @@ impl DomainParticipantActor {
         &self,
         discovered_reader_handle: InstanceHandle,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         for publisher in self.user_defined_publisher_list.values() {
             let publisher_address = publisher.address();
@@ -2009,6 +2086,7 @@ impl DomainParticipantActor {
                     publisher_address,
                     participant_address.clone(),
                     participant_publication_matched_listener,
+                    runtime_handle.clone(),
                 ))
                 .await;
         }

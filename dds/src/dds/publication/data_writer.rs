@@ -32,6 +32,7 @@ pub struct DataWriter<Foo> {
     writer_address: ActorAddress<DataWriterActor>,
     publisher_address: ActorAddress<PublisherActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
+    runtime_handle: tokio::runtime::Handle,
     phantom: PhantomData<Foo>,
 }
 
@@ -41,6 +42,7 @@ impl<Foo> Clone for DataWriter<Foo> {
             writer_address: self.writer_address.clone(),
             publisher_address: self.publisher_address.clone(),
             participant_address: self.participant_address.clone(),
+            runtime_handle: self.runtime_handle.clone(),
             phantom: self.phantom,
         }
     }
@@ -51,11 +53,13 @@ impl<Foo> DataWriter<Foo> {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             writer_address,
             publisher_address,
             participant_address,
+            runtime_handle,
             phantom: PhantomData,
         }
     }
@@ -83,27 +87,6 @@ impl<Foo> DataWriter<Foo> {
         panic!("Should always exist");
     }
 }
-
-// impl<Foo> Drop for DataWriter<Foo> {
-//     fn drop(&mut self) {
-//         match &self.0 {
-//             DataWriterNodeKind::Listener(_) => (),
-//             DataWriterNodeKind::UserDefined(dw) => todo!()
-//             // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-//             //     .get_participant_mut(&dw.guid().prefix(), |dp| {
-//             //         if let Some(dp) = dp {
-//             //             crate::implementation::behavior::user_defined_publisher::delete_datawriter(
-//             //                 dp,
-//             //                 dw.parent_publisher(),
-//             //                 dw.guid(),
-//             //                 dw.parent_publisher(),
-//             //             )
-//             //             .ok();
-//             //         }
-//             //     }),
-//         }
-//     }
-// }
 
 impl<Foo> DataWriter<Foo>
 where
@@ -525,6 +508,7 @@ impl<Foo> DataWriter<Foo> {
         Ok(Topic::new(
             self.topic_address(),
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         ))
     }
 
@@ -534,6 +518,7 @@ impl<Foo> DataWriter<Foo> {
         Ok(Publisher::new(
             self.publisher_address.clone(),
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         ))
     }
 
@@ -738,7 +723,11 @@ impl<Foo> DataWriter<Foo> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
+            data_writer_actor::set_listener::new(
+                Box::new(a_listener),
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            ),
         )
     }
 }

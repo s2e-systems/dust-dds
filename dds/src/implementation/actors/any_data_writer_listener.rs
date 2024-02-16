@@ -18,6 +18,7 @@ pub trait AnyDataWriterListener {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: LivelinessLostStatus,
     );
     fn trigger_on_offered_deadline_missed(
@@ -25,6 +26,7 @@ pub trait AnyDataWriterListener {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: OfferedDeadlineMissedStatus,
     );
     fn trigger_on_offered_incompatible_qos(
@@ -32,6 +34,7 @@ pub trait AnyDataWriterListener {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: OfferedIncompatibleQosStatus,
     );
     fn trigger_on_publication_matched(
@@ -39,6 +42,7 @@ pub trait AnyDataWriterListener {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: PublicationMatchedStatus,
     );
 }
@@ -52,10 +56,16 @@ where
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: LivelinessLostStatus,
     ) {
         self.on_liveliness_lost(
-            &DataWriter::new(writer_address, publisher_address, participant_address),
+            &DataWriter::new(
+                writer_address,
+                publisher_address,
+                participant_address,
+                runtime_handle,
+            ),
             status,
         );
     }
@@ -65,10 +75,16 @@ where
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: OfferedDeadlineMissedStatus,
     ) {
         self.on_offered_deadline_missed(
-            &DataWriter::new(writer_address, publisher_address, participant_address),
+            &DataWriter::new(
+                writer_address,
+                publisher_address,
+                participant_address,
+                runtime_handle,
+            ),
             status,
         );
     }
@@ -78,10 +94,16 @@ where
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: OfferedIncompatibleQosStatus,
     ) {
         self.on_offered_incompatible_qos(
-            &DataWriter::new(writer_address, publisher_address, participant_address),
+            &DataWriter::new(
+                writer_address,
+                publisher_address,
+                participant_address,
+                runtime_handle,
+            ),
             status,
         );
     }
@@ -91,10 +113,16 @@ where
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: PublicationMatchedStatus,
     ) {
         self.on_publication_matched(
-            &DataWriter::new(writer_address, publisher_address, participant_address),
+            &DataWriter::new(
+                writer_address,
+                publisher_address,
+                participant_address,
+                runtime_handle,
+            ),
             status,
         )
     }

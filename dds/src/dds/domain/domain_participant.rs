@@ -8,10 +8,7 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
             publisher_actor, subscriber_actor, topic_actor,
         },
-        utils::{
-            actor::{ActorAddress, THE_RUNTIME},
-            instance_handle_from_key::get_instance_handle_from_key,
-        },
+        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -32,7 +29,7 @@ use crate::{
 };
 
 use super::{
-    domain_participant_factory::{DomainId, THE_PARTICIPANT_FACTORY},
+    domain_participant_factory::{DomainId, DomainParticipantFactory},
     domain_participant_listener::DomainParticipantListener,
 };
 
@@ -57,19 +54,18 @@ use super::{
 
 pub struct DomainParticipant {
     participant_address: ActorAddress<DomainParticipantActor>,
+    runtime_handle: tokio::runtime::Handle,
 }
 
 impl DomainParticipant {
-    pub(crate) fn new(participant_address: ActorAddress<DomainParticipantActor>) -> Self {
+    pub(crate) fn new(
+        participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
+    ) -> Self {
         Self {
             participant_address,
+            runtime_handle,
         }
-    }
-}
-
-impl Drop for DomainParticipant {
-    fn drop(&mut self) {
-        THE_PARTICIPANT_FACTORY.delete_participant(self).ok();
     }
 }
 
@@ -94,9 +90,14 @@ impl DomainParticipant {
                 qos,
                 Box::new(a_listener),
                 mask.to_vec(),
+                self.runtime_handle.clone(),
             ))?;
 
-        let publisher = Publisher::new(publisher_address, self.participant_address.clone());
+        let publisher = Publisher::new(
+            publisher_address,
+            self.participant_address.clone(),
+            self.runtime_handle.clone(),
+        );
         if self
             .participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
@@ -163,10 +164,15 @@ impl DomainParticipant {
                     qos,
                     Box::new(a_listener),
                     mask.to_vec(),
+                    self.runtime_handle.clone(),
                 ),
             )?;
 
-        let subscriber = Subscriber::new(subscriber_address, self.participant_address.clone());
+        let subscriber = Subscriber::new(
+            subscriber_address,
+            self.participant_address.clone(),
+            self.runtime_handle.clone(),
+        );
 
         if self
             .participant_address
@@ -254,9 +260,14 @@ impl DomainParticipant {
                 qos,
                 Box::new(a_listener),
                 mask.to_vec(),
+                self.runtime_handle.clone(),
             ))?;
 
-        let topic = Topic::new(topic_address, self.participant_address.clone());
+        let topic = Topic::new(
+            topic_address,
+            self.participant_address.clone(),
+            self.runtime_handle.clone(),
+        );
         if self
             .participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
@@ -365,7 +376,11 @@ impl DomainParticipant {
                 if topic.send_mail_and_await_reply_blocking(topic_actor::get_name::new())?
                     == topic_name
                 {
-                    return Ok(Topic::new(topic, self.participant_address.clone()));
+                    return Ok(Topic::new(
+                        topic,
+                        self.participant_address.clone(),
+                        self.runtime_handle.clone(),
+                    ));
                 }
             }
 
@@ -451,6 +466,7 @@ impl DomainParticipant {
                     domain_participant_actor::get_built_in_subscriber::new(),
                 )?,
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         ))
     }
 
@@ -818,7 +834,9 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => THE_PARTICIPANT_FACTORY.get_default_participant_qos()?,
+            QosKind::Default => {
+                DomainParticipantFactory::get_instance().get_default_participant_qos()?
+            }
             QosKind::Specific(q) => q,
         };
 
@@ -846,7 +864,11 @@ impl DomainParticipant {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
+            domain_participant_actor::set_listener::new(
+                Box::new(a_listener),
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            ),
         )
     }
 
@@ -934,7 +956,7 @@ impl DomainParticipant {
             let domain_participant_address = self.participant_address.clone();
 
             // Spawn the task that regularly announces the domain participant
-            THE_RUNTIME.spawn(async move {
+            self.runtime_handle.spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
                 loop {
                     let r: DdsResult<()> = async {
