@@ -138,7 +138,7 @@ impl SubscriberActor {
             DURATION_ZERO,
             false,
         );
-        let type_xml = String::new(); // Foo::get_type_xml().map_or_else(String::default, |s| format!("<types>{}</types>", s));
+
         let status_kind = mask.to_vec();
         let data_reader = DataReaderActor::new(
             rtps_reader,
@@ -147,7 +147,6 @@ impl SubscriberActor {
             qos,
             a_listener,
             status_kind,
-            type_xml,
             &runtime_handle,
         );
 

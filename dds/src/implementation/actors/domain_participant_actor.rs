@@ -76,7 +76,7 @@ use crate::{
         topic_listener::TopicListener,
         type_support::{
             deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsDeserialize, DdsHasKey,
-            DdsKey, DdsSerialize, DynamicTypeInterface,
+            DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface,
         },
     },
 };
@@ -131,12 +131,13 @@ pub struct FooTypeSupport {
     get_serialized_key_from_serialized_foo: fn(&[u8]) -> DdsResult<Vec<u8>>,
     instance_handle_from_serialized_foo: fn(&[u8]) -> DdsResult<InstanceHandle>,
     instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<InstanceHandle>,
+    type_xml: String,
 }
 
 impl FooTypeSupport {
     pub fn new<Foo>() -> Self
     where
-        Foo: DdsKey + DdsHasKey,
+        Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
         // This function is a workaround due to an issue resolving
         // lifetimes of the closure.
@@ -168,11 +169,14 @@ impl FooTypeSupport {
                 get_instance_handle_from_key(&foo_key)
             });
 
+        let type_xml = Foo::get_type_xml().unwrap_or(String::new());
+
         Self {
             has_key: Foo::HAS_KEY,
             get_serialized_key_from_serialized_foo,
             instance_handle_from_serialized_foo,
             instance_handle_from_serialized_key,
+            type_xml,
         }
     }
 }
@@ -198,6 +202,10 @@ impl DynamicTypeInterface for FooTypeSupport {
         serialized_key: &[u8],
     ) -> DdsResult<InstanceHandle> {
         (self.instance_handle_from_serialized_key)(serialized_key)
+    }
+
+    fn xml_type(&self) -> String {
+        self.type_xml.clone()
     }
 }
 
@@ -314,7 +322,6 @@ impl DomainParticipantActor {
                 spdp_reader_qos,
                 Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
                 vec![],
-                String::default(),
                 handle,
             ),
             handle,
@@ -344,7 +351,6 @@ impl DomainParticipantActor {
                 sedp_reader_qos.clone(),
                 Box::new(NoOpListener::<DiscoveredTopicData>::new()),
                 vec![],
-                String::default(),
                 handle,
             ),
             handle,
@@ -360,7 +366,6 @@ impl DomainParticipantActor {
                 sedp_reader_qos.clone(),
                 Box::new(NoOpListener::<DiscoveredWriterData>::new()),
                 vec![],
-                String::default(),
                 handle,
             ),
             handle,
@@ -376,7 +381,6 @@ impl DomainParticipantActor {
                 sedp_reader_qos,
                 Box::new(NoOpListener::<DiscoveredReaderData>::new()),
                 vec![],
-                String::default(),
                 handle,
             ),
             handle,
@@ -449,7 +453,6 @@ impl DomainParticipantActor {
                 Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
                 vec![],
                 spdp_writer_qos,
-                String::default(),
                 handle,
             ),
             handle,
@@ -489,7 +492,6 @@ impl DomainParticipantActor {
             Box::new(NoOpListener::<DiscoveredTopicData>::new()),
             vec![],
             sedp_writer_qos.clone(),
-            String::default(),
             handle,
         );
         let sedp_builtin_topics_writer_actor = Actor::spawn(sedp_builtin_topics_writer, handle);
@@ -503,7 +505,6 @@ impl DomainParticipantActor {
             Box::new(NoOpListener::<DiscoveredWriterData>::new()),
             vec![],
             sedp_writer_qos.clone(),
-            String::default(),
             handle,
         );
         let sedp_builtin_publications_writer_actor =
@@ -518,7 +519,6 @@ impl DomainParticipantActor {
             Box::new(NoOpListener::<DiscoveredReaderData>::new()),
             vec![],
             sedp_writer_qos,
-            String::default(),
             handle,
         );
         let sedp_builtin_subscriptions_writer_actor =

@@ -5,7 +5,7 @@ use crate::{
     serialized_payload::parameter_list::{
         deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
     },
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize},
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
 use super::parameter_id_values::{
@@ -122,6 +122,11 @@ impl DdsKey for DiscoveredReaderData {
     }
 }
 
+impl DdsTypeXml for DiscoveredReaderData {
+    fn get_type_xml() -> Option<String> {
+        None
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
