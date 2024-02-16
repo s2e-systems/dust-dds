@@ -3,18 +3,7 @@ use std::sync::{
     Arc,
 };
 
-use lazy_static::lazy_static;
-
 use crate::infrastructure::error::{DdsError, DdsResult};
-
-lazy_static! {
-    pub static ref THE_RUNTIME: tokio::runtime::Runtime =
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .thread_stack_size(4 * 1024 * 1024)
-            .build()
-            .expect("Failed to create Tokio runtime");
-}
 
 pub trait Mail {
     type Result;

@@ -19,25 +19,30 @@ use crate::{
     },
 };
 
-use super::{topic_listener::TopicListener, type_support::{DdsSerialize, DdsKey}};
+use super::{
+    topic_listener::TopicListener,
+    type_support::{DdsKey, DdsSerialize},
+};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
-#[derive(PartialEq, Eq)]
 pub struct Topic {
     topic_address: ActorAddress<TopicActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
+    runtime_handle: tokio::runtime::Handle,
 }
 
 impl Topic {
     pub(crate) fn new(
         topic_address: ActorAddress<TopicActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             topic_address,
             participant_address,
+            runtime_handle,
         }
     }
 }
@@ -75,7 +80,10 @@ impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(self.participant_address.clone()))
+        Ok(DomainParticipant::new(
+            self.participant_address.clone(),
+            self.runtime_handle.clone(),
+        ))
     }
 
     /// The name of the type used to create the [`Topic`]

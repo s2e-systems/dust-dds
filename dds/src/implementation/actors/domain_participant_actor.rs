@@ -1087,6 +1087,7 @@ impl DomainParticipantActor {
         &self,
         message: RtpsMessageRead,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let reception_timestamp = self.get_current_time().await;
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
@@ -1098,6 +1099,7 @@ impl DomainParticipantActor {
                 self.builtin_subscriber.address(),
                 participant_mask_listener,
                 self.type_support_actor.address(),
+                runtime_handle,
             ))
             .await?;
 
@@ -1112,6 +1114,7 @@ impl DomainParticipantActor {
         &self,
         message: RtpsMessageRead,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         for user_defined_subscriber_address in self
@@ -1127,6 +1130,7 @@ impl DomainParticipantActor {
                     user_defined_subscriber_address.clone(),
                     participant_mask_listener.clone(),
                     self.type_support_actor.address(),
+                    runtime_handle.clone(),
                 ))
                 .await
                 .expect("Should not fail to send command");
@@ -1228,11 +1232,15 @@ impl DomainParticipantActor {
     async fn process_builtin_discovery(
         &mut self,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         self.process_spdp_participant_discovery().await;
-        self.process_sedp_publications_discovery(participant_address.clone())
-            .await;
-        self.process_sedp_subscriptions_discovery(participant_address)
+        self.process_sedp_publications_discovery(
+            participant_address.clone(),
+            runtime_handle.clone(),
+        )
+        .await;
+        self.process_sedp_subscriptions_discovery(participant_address, runtime_handle.clone())
             .await;
         self.process_sedp_topics_discovery().await;
     }
@@ -1663,6 +1671,7 @@ impl DomainParticipantActor {
     async fn process_sedp_publications_discovery(
         &mut self,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         if let Some(sedp_publications_detector) = self
             .builtin_subscriber
@@ -1696,6 +1705,7 @@ impl DomainParticipantActor {
                                     self.add_matched_writer(
                                         discovered_writer_data,
                                         participant_address.clone(),
+                                        runtime_handle.clone(),
                                     )
                                     .await;
                                 }
@@ -1709,6 +1719,7 @@ impl DomainParticipantActor {
                             self.remove_matched_writer(
                                 discovered_writer_sample_info.instance_handle,
                                 participant_address.clone(),
+                                runtime_handle.clone(),
                             )
                             .await
                         }
@@ -1725,6 +1736,7 @@ impl DomainParticipantActor {
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
             Guid::new(
@@ -1772,6 +1784,7 @@ impl DomainParticipantActor {
                             subscriber_address,
                             participant_address.clone(),
                             participant_mask_listener,
+                            runtime_handle.clone(),
                         ))
                         .await;
                 }
@@ -1839,6 +1852,7 @@ impl DomainParticipantActor {
         &self,
         discovered_writer_handle: InstanceHandle,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         for subscriber in self.user_defined_subscriber_list.values() {
             let subscriber_address = subscriber.address();
@@ -1849,6 +1863,7 @@ impl DomainParticipantActor {
                     subscriber_address,
                     participant_address.clone(),
                     participant_mask_listener,
+                    runtime_handle.clone(),
                 ))
                 .await;
         }
@@ -1857,6 +1872,7 @@ impl DomainParticipantActor {
     async fn process_sedp_subscriptions_discovery(
         &mut self,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         if let Some(sedp_subscriptions_detector) = self
             .builtin_subscriber
@@ -1890,6 +1906,7 @@ impl DomainParticipantActor {
                                     self.add_matched_reader(
                                         discovered_reader_data,
                                         participant_address.clone(),
+                                        runtime_handle.clone(),
                                     )
                                     .await;
                                 }
@@ -1903,6 +1920,7 @@ impl DomainParticipantActor {
                             self.remove_matched_reader(
                                 discovered_reader_sample_info.instance_handle,
                                 participant_address.clone(),
+                                runtime_handle.clone(),
                             )
                             .await
                         }
@@ -1919,6 +1937,7 @@ impl DomainParticipantActor {
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
             Guid::new(
@@ -1984,6 +2003,7 @@ impl DomainParticipantActor {
                             participant_address.clone(),
                             participant_publication_matched_listener,
                             offered_incompatible_qos_participant_listener,
+                            runtime_handle.clone(),
                         ))
                         .await;
                 }
@@ -2052,6 +2072,7 @@ impl DomainParticipantActor {
         &self,
         discovered_reader_handle: InstanceHandle,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         for publisher in self.user_defined_publisher_list.values() {
             let publisher_address = publisher.address();
@@ -2067,6 +2088,7 @@ impl DomainParticipantActor {
                     publisher_address,
                     participant_address.clone(),
                     participant_publication_matched_listener,
+                    runtime_handle.clone(),
                 ))
                 .await;
         }

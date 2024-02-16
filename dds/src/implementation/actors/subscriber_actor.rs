@@ -282,6 +282,7 @@ impl SubscriberActor {
             Vec<StatusKind>,
         ),
         type_support_actor_address: ActorAddress<TypeSupportActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
 
@@ -297,6 +298,7 @@ impl SubscriberActor {
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
                     type_support_actor_address.clone(),
+                    runtime_handle.clone(),
                 ))
                 .await??;
         }
@@ -314,6 +316,7 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: tokio::runtime::Handle,
     ) {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data().partition()) {
             for data_reader in self.data_reader_list.values() {
@@ -331,6 +334,7 @@ impl SubscriberActor {
                         subscriber_qos,
                         subscriber_mask_listener,
                         participant_mask_listener.clone(),
+                        runtime_handle.clone(),
                     ))
                     .await;
             }
@@ -346,6 +350,7 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        runtime_handle: tokio::runtime::Handle,
     ) {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
@@ -358,6 +363,7 @@ impl SubscriberActor {
                     participant_address.clone(),
                     subscriber_mask_listener,
                     participant_mask_listener.clone(),
+                    runtime_handle.clone(),
                 ))
                 .await;
         }

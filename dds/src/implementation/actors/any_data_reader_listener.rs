@@ -18,12 +18,14 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     );
     fn trigger_on_sample_rejected(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     );
     fn trigger_on_liveliness_changed(
@@ -31,6 +33,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: LivelinessChangedStatus,
     );
     fn trigger_on_requested_deadline_missed(
@@ -38,6 +41,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: RequestedDeadlineMissedStatus,
     );
     fn trigger_on_requested_incompatible_qos(
@@ -45,6 +49,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: RequestedIncompatibleQosStatus,
     );
     fn trigger_on_subscription_matched(
@@ -52,6 +57,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SubscriptionMatchedStatus,
     );
     fn trigger_on_sample_lost(
@@ -59,6 +65,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SampleLostStatus,
     );
 }
@@ -72,11 +79,13 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         self.on_data_available(&DataReader::new(
             reader_address,
             subscriber_address,
             participant_address,
+            runtime_handle,
         ))
     }
 
@@ -85,10 +94,16 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     ) {
         self.on_sample_rejected(
-            &DataReader::new(reader_address, subscriber_address, participant_address),
+            &DataReader::new(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                runtime_handle,
+            ),
             status,
         )
     }
@@ -98,10 +113,16 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: LivelinessChangedStatus,
     ) {
         self.on_liveliness_changed(
-            &DataReader::new(reader_address, subscriber_address, participant_address),
+            &DataReader::new(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                runtime_handle,
+            ),
             status,
         )
     }
@@ -111,10 +132,16 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: RequestedDeadlineMissedStatus,
     ) {
         self.on_requested_deadline_missed(
-            &DataReader::new(reader_address, subscriber_address, participant_address),
+            &DataReader::new(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                runtime_handle,
+            ),
             status,
         )
     }
@@ -124,10 +151,16 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: RequestedIncompatibleQosStatus,
     ) {
         self.on_requested_incompatible_qos(
-            &DataReader::new(reader_address, subscriber_address, participant_address),
+            &DataReader::new(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                runtime_handle,
+            ),
             status,
         )
     }
@@ -137,10 +170,16 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SubscriptionMatchedStatus,
     ) {
         self.on_subscription_matched(
-            &DataReader::new(reader_address, subscriber_address, participant_address),
+            &DataReader::new(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                runtime_handle,
+            ),
             status,
         )
     }
@@ -150,10 +189,16 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SampleLostStatus,
     ) {
         self.on_sample_lost(
-            &DataReader::new(reader_address, subscriber_address, participant_address),
+            &DataReader::new(
+                reader_address,
+                subscriber_address,
+                participant_address,
+                runtime_handle,
+            ),
             status,
         )
     }

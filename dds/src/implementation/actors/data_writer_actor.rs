@@ -612,6 +612,7 @@ impl DataWriterActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
@@ -722,6 +723,7 @@ impl DataWriterActor {
                         participant_address,
                         publisher_publication_matched_listener,
                         participant_publication_matched_listener,
+                        runtime_handle,
                     )
                     .await;
                 }
@@ -734,6 +736,7 @@ impl DataWriterActor {
                     participant_address,
                     offered_incompatible_qos_publisher_listener,
                     offered_incompatible_qos_participant_listener,
+                    runtime_handle,
                 )
                 .await;
             }
@@ -750,6 +753,7 @@ impl DataWriterActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         if let Some(r) = self
             .get_matched_subscription_data(discovered_reader_handle)
@@ -766,6 +770,7 @@ impl DataWriterActor {
                 participant_address,
                 publisher_publication_matched_listener,
                 participant_publication_matched_listener,
+                runtime_handle,
             )
             .await;
         }
@@ -999,6 +1004,7 @@ impl DataWriterActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         self.status_condition
             .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
@@ -1013,6 +1019,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )
@@ -1027,6 +1034,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )
@@ -1042,6 +1050,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )
@@ -1059,6 +1068,7 @@ impl DataWriterActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         self.status_condition
             .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
@@ -1077,6 +1087,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )
@@ -1091,6 +1102,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )
@@ -1106,6 +1118,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )

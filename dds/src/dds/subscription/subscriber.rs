@@ -31,16 +31,19 @@ use super::{
 pub struct Subscriber {
     subscriber_address: ActorAddress<SubscriberActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
+    runtime_handle: tokio::runtime::Handle,
 }
 
 impl Subscriber {
     pub(crate) fn new(
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             subscriber_address,
             participant_address,
+            runtime_handle,
         }
     }
 }
@@ -135,6 +138,7 @@ impl Subscriber {
             reader_address,
             self.subscriber_address.clone(),
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         );
 
         if self
@@ -191,6 +195,7 @@ impl Subscriber {
                     reader_address,
                     self.subscriber_address.clone(),
                     self.participant_address.clone(),
+                    self.runtime_handle.clone(),
                 )
             }))
     }
@@ -207,7 +212,10 @@ impl Subscriber {
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(self.participant_address.clone()))
+        Ok(DomainParticipant::new(
+            self.participant_address.clone(),
+            self.runtime_handle.clone(),
+        ))
     }
 
     /// This operation allows access to the [`SampleLostStatus`].

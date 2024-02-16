@@ -72,9 +72,6 @@ impl DomainParticipantFactoryActor {
         a_listener: impl DomainParticipantListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
-        // To allow creating actors
-        let _runtime_guard = self.runtime.enter();
-
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -202,9 +199,11 @@ impl DomainParticipantFactoryActor {
             participant_actor,
         );
 
-        let domain_participant = DomainParticipant::new(participant_address.clone());
+        let domain_participant =
+            DomainParticipant::new(participant_address.clone(), self.runtime.handle().clone());
 
         let participant_address_clone = participant_address.clone();
+        let runtime_handle_clone = self.runtime.handle().clone();
         self.runtime.spawn(async move {
             let mut metatraffic_multicast_transport = UdpTransportRead::new(
                 get_multicast_socket(
@@ -220,6 +219,7 @@ impl DomainParticipantFactoryActor {
                         domain_participant_actor::process_metatraffic_rtps_message::new(
                             message,
                             participant_address_clone.clone(),
+                            runtime_handle_clone.clone(),
                         ),
                     )
                     .await;
@@ -231,6 +231,7 @@ impl DomainParticipantFactoryActor {
                     .send_mail_and_await_reply(
                         domain_participant_actor::process_builtin_discovery::new(
                             participant_address_clone.clone(),
+                            runtime_handle_clone.clone(),
                         ),
                     )
                     .await;
@@ -247,6 +248,7 @@ impl DomainParticipantFactoryActor {
         });
 
         let participant_address_clone = participant_address.clone();
+        let runtime_handle_clone = self.runtime.handle().clone();
         self.runtime.spawn(async move {
             let mut metatraffic_unicast_transport = UdpTransportRead::new(
                 tokio::net::UdpSocket::from_std(metattrafic_unicast_socket)
@@ -260,6 +262,7 @@ impl DomainParticipantFactoryActor {
                             domain_participant_actor::process_metatraffic_rtps_message::new(
                                 message,
                                 participant_address_clone.clone(),
+                                runtime_handle_clone.clone(),
                             ),
                         )
                         .await??;
@@ -267,6 +270,7 @@ impl DomainParticipantFactoryActor {
                         .send_mail_and_await_reply(
                             domain_participant_actor::process_builtin_discovery::new(
                                 participant_address_clone.clone(),
+                                runtime_handle_clone.clone(),
                             ),
                         )
                         .await?;
@@ -285,6 +289,7 @@ impl DomainParticipantFactoryActor {
         });
 
         let participant_address_clone = participant_address;
+        let runtime_handle_clone = self.runtime.handle().clone();
         self.runtime.spawn(async move {
             let mut default_unicast_transport = UdpTransportRead::new(
                 tokio::net::UdpSocket::from_std(default_unicast_socket)
@@ -297,6 +302,7 @@ impl DomainParticipantFactoryActor {
                         domain_participant_actor::process_user_defined_rtps_message::new(
                             message,
                             participant_address_clone.clone(),
+                            runtime_handle_clone.clone(),
                         ),
                     )
                     .await;
@@ -337,7 +343,7 @@ impl DomainParticipantFactoryActor {
                         domain_participant_actor::get_domain_id::new(),
                     ) == domain_id
             })
-            .map(|dp| DomainParticipant::new(dp.address())))
+            .map(|dp| DomainParticipant::new(dp.address(), self.runtime.handle().clone())))
     }
 
     pub fn set_default_participant_qos(

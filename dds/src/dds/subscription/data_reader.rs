@@ -96,6 +96,7 @@ pub struct DataReader<Foo> {
     reader_address: ActorAddress<DataReaderActor>,
     subscriber_address: ActorAddress<SubscriberActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
+    runtime_handle: tokio::runtime::Handle,
     phantom: PhantomData<Foo>,
 }
 
@@ -104,11 +105,13 @@ impl<Foo> DataReader<Foo> {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             reader_address,
             subscriber_address,
             participant_address,
+            runtime_handle,
             phantom: PhantomData,
         }
     }
@@ -143,6 +146,7 @@ impl<Foo> Clone for DataReader<Foo> {
             reader_address: self.reader_address.clone(),
             subscriber_address: self.subscriber_address.clone(),
             participant_address: self.participant_address.clone(),
+            runtime_handle: self.runtime_handle.clone(),
             phantom: self.phantom,
         }
     }
@@ -516,6 +520,7 @@ impl<Foo> DataReader<Foo> {
         Ok(Topic::new(
             self.topic_address(),
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         ))
     }
 
@@ -525,6 +530,7 @@ impl<Foo> DataReader<Foo> {
         Ok(Subscriber::new(
             self.subscriber_address.clone(),
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         ))
     }
 

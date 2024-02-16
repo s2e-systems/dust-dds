@@ -279,6 +279,7 @@ impl PublisherActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         if self.is_partition_matched(
             discovered_reader_data
@@ -314,6 +315,7 @@ impl PublisherActor {
                         participant_publication_matched_listener.clone(),
                         offered_incompatible_qos_publisher_listener,
                         offered_incompatible_qos_participant_listener.clone(),
+                        runtime_handle.clone(),
                     ))
                     .await;
             }
@@ -328,6 +330,7 @@ impl PublisherActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
@@ -345,6 +348,7 @@ impl PublisherActor {
                     participant_address.clone(),
                     publisher_publication_matched_listener,
                     participant_publication_matched_listener.clone(),
+                    runtime_handle.clone(),
                 ))
                 .await;
         }

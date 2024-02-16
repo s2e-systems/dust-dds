@@ -28,16 +28,19 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 pub struct Publisher {
     publisher_address: ActorAddress<PublisherActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
+    runtime_handle: tokio::runtime::Handle,
 }
 
 impl Publisher {
     pub(crate) fn new(
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             publisher_address,
             participant_address,
+            runtime_handle,
         }
     }
 }
@@ -133,6 +136,7 @@ impl Publisher {
             data_writer_address,
             self.publisher_address.clone(),
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         );
 
         if self
@@ -195,6 +199,7 @@ impl Publisher {
                     dw,
                     self.publisher_address.clone(),
                     self.participant_address.clone(),
+                    self.runtime_handle.clone(),
                 )
             }))
     }
@@ -261,7 +266,10 @@ impl Publisher {
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(self.participant_address.clone()))
+        Ok(DomainParticipant::new(
+            self.participant_address.clone(),
+            self.runtime_handle.clone(),
+        ))
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.

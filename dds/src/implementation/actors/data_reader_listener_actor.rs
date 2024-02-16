@@ -30,12 +30,14 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         tokio::task::block_in_place(|| {
             self.listener.trigger_on_data_available(
                 reader_address,
                 subscriber_address,
                 participant_address,
+                runtime_handle,
             )
         });
     }
@@ -45,6 +47,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -52,6 +55,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                runtime_handle,
                 status,
             )
         });
@@ -62,6 +66,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SampleLostStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -69,6 +74,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                runtime_handle,
                 status,
             )
         })
@@ -79,6 +85,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: RequestedIncompatibleQosStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -86,6 +93,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                runtime_handle,
                 status,
             )
         });
@@ -96,6 +104,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SubscriptionMatchedStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -103,6 +112,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                runtime_handle,
                 status,
             )
         });
@@ -113,6 +123,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: RequestedDeadlineMissedStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -120,6 +131,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                runtime_handle,
                 status,
             )
         });
