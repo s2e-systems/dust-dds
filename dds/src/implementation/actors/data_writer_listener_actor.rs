@@ -27,6 +27,7 @@ impl DataWriterListenerActor {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: OfferedIncompatibleQosStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -34,6 +35,7 @@ impl DataWriterListenerActor {
                 writer_address,
                 publisher_address,
                 participant_address,
+                runtime_handle,
                 status,
             )
         });
@@ -44,6 +46,7 @@ impl DataWriterListenerActor {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: PublicationMatchedStatus,
     ) {
         tokio::task::block_in_place(|| {
@@ -51,6 +54,7 @@ impl DataWriterListenerActor {
                 writer_address,
                 publisher_address,
                 participant_address,
+                runtime_handle,
                 status,
             )
         });

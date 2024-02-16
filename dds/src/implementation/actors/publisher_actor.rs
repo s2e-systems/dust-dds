@@ -18,7 +18,7 @@ use crate::{
             writer::RtpsWriter,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::actor::{spawn_actor, Actor, ActorAddress},
+        utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -56,6 +56,7 @@ impl PublisherActor {
         rtps_group: RtpsGroup,
         listener: Box<dyn PublisherListener + Send>,
         status_kind: Vec<StatusKind>,
+        handle: &tokio::runtime::Handle,
     ) -> Self {
         Self {
             qos,
@@ -64,7 +65,7 @@ impl PublisherActor {
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
-            listener: spawn_actor(PublisherListenerActor::new(listener)),
+            listener: Actor::spawn(PublisherListenerActor::new(listener), handle),
             status_kind,
         }
     }
@@ -85,6 +86,7 @@ impl PublisherActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         xml_type: String,
+        runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<ActorAddress<DataWriterActor>> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
@@ -129,8 +131,9 @@ impl PublisherActor {
             mask,
             qos,
             xml_type,
+            &runtime_handle,
         );
-        let data_writer_actor = spawn_actor(data_writer);
+        let data_writer_actor = Actor::spawn(data_writer, &runtime_handle);
         let data_writer_address = data_writer_actor.address();
         self.data_writer_list
             .insert(InstanceHandle::new(guid.into()), data_writer_actor);
@@ -277,6 +280,7 @@ impl PublisherActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         if self.is_partition_matched(
             discovered_reader_data
@@ -312,6 +316,7 @@ impl PublisherActor {
                         participant_publication_matched_listener.clone(),
                         offered_incompatible_qos_publisher_listener,
                         offered_incompatible_qos_participant_listener.clone(),
+                        runtime_handle.clone(),
                     ))
                     .await;
             }
@@ -326,6 +331,7 @@ impl PublisherActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
@@ -343,6 +349,7 @@ impl PublisherActor {
                     participant_address.clone(),
                     publisher_publication_matched_listener,
                     participant_publication_matched_listener.clone(),
+                    runtime_handle.clone(),
                 ))
                 .await;
         }
@@ -352,8 +359,9 @@ impl PublisherActor {
         &mut self,
         listener: Box<dyn PublisherListener + Send>,
         status_kind: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
-        self.listener = spawn_actor(PublisherListenerActor::new(listener));
+        self.listener = Actor::spawn(PublisherListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }
 }

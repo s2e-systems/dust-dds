@@ -1,7 +1,32 @@
 use proc_macro2::{Ident, TokenStream};
-use quote::quote;
-use syn::DeriveInput;
+use quote::{quote, ToTokens};
+use syn::{spanned::Spanned, DeriveInput, Field};
 use xml::{writer::XmlEvent, EmitterConfig, EventWriter};
+
+fn field_has_key_attribute(field: &Field) -> syn::Result<bool> {
+    let mut has_key = false;
+    if let Some(dust_dds_attribute) = field
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("dust_dds"))
+    {
+        dust_dds_attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("key") {
+                has_key = true;
+                Ok(())
+            } else {
+                Err(syn::Error::new(
+                    meta.path.span(),
+                    format!(
+                        "Unexpected element {}. Valid options are \"key\"",
+                        meta.path.into_token_stream(),
+                    ),
+                ))
+            }
+        })?;
+    }
+    Ok(has_key)
+}
 
 fn convert_rust_type_to_xtypes(type_ident: &Ident) -> &str {
     let type_string = type_ident.to_string();
@@ -42,9 +67,10 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                     Some(ident) => ident.to_string(),
                     None => field_index.to_string(),
                 };
+                let field_has_key = field_has_key_attribute(field)?;
                 let field_element = XmlEvent::start_element("member").attr("name", &field_name);
 
-                let field_element = match &field.ty {
+                let mut field_element = match &field.ty {
                     syn::Type::Array(_) => todo!(),
                     syn::Type::Path(p) => match p.path.get_ident() {
                         Some(i) => {
@@ -108,6 +134,9 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                         "Type not supported for automatic XML derive",
                     )),
                 }?;
+                if field_has_key {
+                    field_element = field_element.attr("key", "true");
+                }
                 xml_writer.write(field_element).unwrap_or_else(|_| {
                     panic!("Failed to write member start element for {}", field_name)
                 });
@@ -169,7 +198,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             r#"impl dust_dds::topic_definition::type_support::DdsTypeXml for TestStruct {
                 fn get_type_xml() -> Option<String> {
-                    Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" /><member name=\"name\" type=\"string\" /><member name=\"value\" type=\"float32\" /></struct>".to_string())
+                    Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" key=\"true\" /><member name=\"name\" type=\"string\" /><member name=\"value\" type=\"float32\" /></struct>".to_string())
                 }
             }"#
             .parse()
@@ -205,7 +234,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             r#"impl dust_dds::topic_definition::type_support::DdsTypeXml for TestStruct {
                 fn get_type_xml() -> Option<String> {
-                    Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" /><member name=\"value_list\" type=\"uint8\" sequenceMaxLength=\"-1\" /></struct>".to_string())
+                    Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" key=\"true\" /><member name=\"value_list\" type=\"uint8\" sequenceMaxLength=\"-1\" /></struct>".to_string())
                 }
             }"#
             .parse()

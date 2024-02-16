@@ -29,7 +29,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -73,7 +73,7 @@ pub fn best_effort_read_only(c: &mut Criterion) {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -135,7 +135,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "TestTopic",
             "KeyedData",
             QosKind::Default,
@@ -195,7 +195,6 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     });
 }
 
-
 #[derive(Clone, Debug, PartialEq, DdsType)]
 struct LargeKeyedData {
     #[dust_dds(key)]
@@ -223,7 +222,7 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic(
+        .create_topic::<LargeKeyedData>(
             "TestTopic",
             "LargeKeyedData",
             QosKind::Default,
@@ -273,7 +272,10 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
         .unwrap();
     wait_set2.wait(Duration::new(20, 0)).unwrap();
 
-    let large_data_sample = LargeKeyedData { id: 1, value: vec![7; 32000] };
+    let large_data_sample = LargeKeyedData {
+        id: 1,
+        value: vec![7; 32000],
+    };
 
     c.bench_function("best_effort_write_and_receive_frag", |b| {
         b.iter(|| {
@@ -284,7 +286,6 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
         })
     });
 }
-
 
 criterion_group!(
     benches,

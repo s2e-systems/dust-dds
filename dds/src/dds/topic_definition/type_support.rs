@@ -9,7 +9,10 @@ use crate::{
             parameter_list_serializer::ParameterListCdrSerializer,
         },
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+    },
     serialized_payload::{
         cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
         parameter_list::{
@@ -20,6 +23,23 @@ use crate::{
 };
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
+
+#[doc(hidden)]
+pub trait DynamicTypeInterface {
+    fn has_key(&self) -> bool;
+
+    fn get_serialized_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>>;
+
+    fn instance_handle_from_serialized_foo(
+        &self,
+        serialized_foo: &[u8],
+    ) -> DdsResult<InstanceHandle>;
+
+    fn instance_handle_from_serialized_key(
+        &self,
+        serialized_key: &[u8],
+    ) -> DdsResult<InstanceHandle>;
+}
 
 /// This trait indicates whether the associated type is keyed or not, i.e. if the middleware
 /// should manage different instances of the type.

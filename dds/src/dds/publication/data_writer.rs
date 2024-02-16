@@ -9,7 +9,7 @@ use crate::{
             publisher_actor::{self, PublisherActor},
             topic_actor::{self, TopicActor},
         },
-        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
+        utils::actor::ActorAddress,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -23,10 +23,7 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
-    topic_definition::{
-        topic::Topic,
-        type_support::{serialize_rtps_classic_cdr_le, DdsHasKey, DdsKey, DdsSerialize},
-    },
+    topic_definition::{topic::Topic, type_support::DdsSerialize},
 };
 
 /// The [`DataWriter`] allows the application to set the value of the
@@ -35,6 +32,7 @@ pub struct DataWriter<Foo> {
     writer_address: ActorAddress<DataWriterActor>,
     publisher_address: ActorAddress<PublisherActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
+    runtime_handle: tokio::runtime::Handle,
     phantom: PhantomData<Foo>,
 }
 
@@ -44,6 +42,7 @@ impl<Foo> Clone for DataWriter<Foo> {
             writer_address: self.writer_address.clone(),
             publisher_address: self.publisher_address.clone(),
             participant_address: self.participant_address.clone(),
+            runtime_handle: self.runtime_handle.clone(),
             phantom: self.phantom,
         }
     }
@@ -54,11 +53,13 @@ impl<Foo> DataWriter<Foo> {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             writer_address,
             publisher_address,
             participant_address,
+            runtime_handle,
             phantom: PhantomData,
         }
     }
@@ -87,30 +88,9 @@ impl<Foo> DataWriter<Foo> {
     }
 }
 
-// impl<Foo> Drop for DataWriter<Foo> {
-//     fn drop(&mut self) {
-//         match &self.0 {
-//             DataWriterNodeKind::Listener(_) => (),
-//             DataWriterNodeKind::UserDefined(dw) => todo!()
-//             // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-//             //     .get_participant_mut(&dw.guid().prefix(), |dp| {
-//             //         if let Some(dp) = dp {
-//             //             crate::implementation::behavior::user_defined_publisher::delete_datawriter(
-//             //                 dp,
-//             //                 dw.parent_publisher(),
-//             //                 dw.guid(),
-//             //                 dw.parent_publisher(),
-//             //             )
-//             //             .ok();
-//             //         }
-//             //     }),
-//         }
-//     }
-// }
-
 impl<Foo> DataWriter<Foo>
 where
-    Foo: DdsHasKey + DdsSerialize + DdsKey,
+    Foo: DdsSerialize,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -205,7 +185,22 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        if Foo::HAS_KEY {
+        let type_name = self
+            .writer_address
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
+            ))?
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
+        let has_key = type_support.has_key();
+        if has_key {
             let instance_handle = match handle {
                 Some(h) => {
                     if let Some(stored_handle) = self.lookup_instance(instance)? {
@@ -231,8 +226,10 @@ where
                 }
             }?;
 
-            let mut instance_serialized_key = Vec::new();
-            serialize_rtps_classic_cdr_le(&instance.get_key()?, &mut instance_serialized_key)?;
+            let mut serialized_foo = Vec::new();
+            instance.serialize_data(&mut serialized_foo)?;
+            let instance_serialized_key =
+                type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
 
             self.writer_address.send_mail_and_await_reply_blocking(
                 data_writer_actor::unregister_instance_w_timestamp::new(
@@ -262,10 +259,27 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+        let type_name = self
+            .writer_address
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
+            ))?
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
+
+        let mut serialized_foo = Vec::new();
+        instance.serialize_data(&mut serialized_foo)?;
+        let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_foo)?;
+
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::lookup_instance::new(get_instance_handle_from_key(
-                &instance.get_key()?,
-            )?),
+            data_writer_actor::lookup_instance::new(instance_handle),
         )?
     }
 
@@ -324,16 +338,27 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        let type_name = self
+            .writer_address
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
+            ))?
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
+
         let mut serialized_data = Vec::new();
         data.serialize_data(&mut serialized_data)?;
+        let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::write_w_timestamp::new(
-                serialized_data,
-                get_instance_handle_from_key(&data.get_key()?)?,
-                handle,
-                timestamp,
-            ),
+            data_writer_actor::write_w_timestamp::new(serialized_data, key, handle, timestamp),
         )??;
 
         self.participant_address
@@ -402,15 +427,27 @@ where
             }
         }?;
 
-        let mut instance_serialized_key = Vec::new();
-        serialize_rtps_classic_cdr_le(&data.get_key()?, &mut instance_serialized_key)?;
+        let type_name = self
+            .writer_address
+            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
+            ))?
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
+
+        let mut serialized_foo = Vec::new();
+        data.serialize_data(&mut serialized_foo)?;
+        let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
 
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::dispose_w_timestamp::new(
-                instance_serialized_key,
-                instance_handle,
-                timestamp,
-            ),
+            data_writer_actor::dispose_w_timestamp::new(key, instance_handle, timestamp),
         )?
     }
 }
@@ -471,6 +508,7 @@ impl<Foo> DataWriter<Foo> {
         Ok(Topic::new(
             self.topic_address(),
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         ))
     }
 
@@ -480,6 +518,7 @@ impl<Foo> DataWriter<Foo> {
         Ok(Publisher::new(
             self.publisher_address.clone(),
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         ))
     }
 
@@ -684,7 +723,11 @@ impl<Foo> DataWriter<Foo> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
+            data_writer_actor::set_listener::new(
+                Box::new(a_listener),
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            ),
         )
     }
 }

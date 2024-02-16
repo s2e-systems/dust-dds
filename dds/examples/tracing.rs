@@ -40,9 +40,9 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
-            "LargeDataTopic",
-            "LargeData",
+        .create_topic::<Data>(
+            "DataTopic",
+            "Data",
             QosKind::Default,
             NoOpListener::new(),
             NO_STATUS,

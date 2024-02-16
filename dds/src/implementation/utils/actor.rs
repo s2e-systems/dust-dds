@@ -1,37 +1,29 @@
-use std::sync::{
-    atomic::{self, AtomicBool},
-    Arc,
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{
+        atomic::{self, AtomicBool},
+        Arc,
+    },
 };
 
-use lazy_static::lazy_static;
-
 use crate::infrastructure::error::{DdsError, DdsResult};
-
-lazy_static! {
-    pub static ref THE_RUNTIME: tokio::runtime::Runtime =
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .thread_stack_size(4 * 1024 * 1024)
-            .build()
-            .expect("Failed to create Tokio runtime");
-}
 
 pub trait Mail {
     type Result;
 }
 
-#[async_trait::async_trait]
 pub trait MailHandler<M>
 where
     M: Mail,
     Self: Sized,
 {
-    async fn handle(&mut self, mail: M) -> M::Result;
+    fn handle(&mut self, mail: M) -> impl Future<Output = M::Result> + Send;
 }
 
 #[derive(Debug)]
 pub struct ActorAddress<A> {
-    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
+    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
 }
 
 impl<A> Clone for ActorAddress<A> {
@@ -115,6 +107,7 @@ impl<A> ActorAddress<A> {
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
+        <M as Mail>::Result: Send,
     {
         self.sender
             .send(Box::new(CommandMail::new(mail)))
@@ -126,6 +119,7 @@ impl<A> ActorAddress<A> {
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
+        <M as Mail>::Result: Send,
     {
         let mut send_result = self.sender.try_send(Box::new(CommandMail::new(mail)));
         // Try sending the mail until it succeeds. This is done instead of calling a tokio::task::block_in_place because this solution
@@ -145,9 +139,36 @@ impl<A> ActorAddress<A> {
     }
 }
 
-#[async_trait::async_trait]
+// Workaround for not being able to make a dyn object out of a trait with async
+// https://rust-lang.github.io/async-fundamentals-initiative/evaluation/case-studies/builder-provider-api.html#dynamic-dispatch-behind-the-api
+trait GenericHandlerDyn<A> {
+    fn handle<'a, 'b>(
+        &'a mut self,
+        actor: &'b mut A,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+        Self: 'b;
+}
+
+impl<A, T> GenericHandlerDyn<A> for T
+where
+    T: GenericHandler<A>,
+{
+    fn handle<'a, 'b>(
+        &'a mut self,
+        actor: &'b mut A,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+        Self: 'b,
+    {
+        Box::pin(<Self as GenericHandler<A>>::handle(self, actor))
+    }
+}
+
 trait GenericHandler<A> {
-    async fn handle(&mut self, actor: &mut A);
+    fn handle(&mut self, actor: &mut A) -> impl Future<Output = ()> + Send;
 }
 
 struct CommandMail<M> {
@@ -160,11 +181,11 @@ impl<M> CommandMail<M> {
     }
 }
 
-#[async_trait::async_trait]
 impl<A, M> GenericHandler<A> for CommandMail<M>
 where
     A: MailHandler<M> + Send,
     M: Mail + Send,
+    M::Result: Send,
 {
     async fn handle(&mut self, actor: &mut A) {
         <A as MailHandler<M>>::handle(
@@ -200,7 +221,6 @@ where
     }
 }
 
-#[async_trait::async_trait]
 impl<A, M> GenericHandler<A> for ReplyMail<M>
 where
     A: MailHandler<M> + Send,
@@ -225,12 +245,39 @@ where
 }
 
 pub struct Actor<A> {
-    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
+    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
     join_handle: tokio::task::JoinHandle<()>,
     cancellation_token: Arc<AtomicBool>,
 }
 
-impl<A> Actor<A> {
+impl<A> Actor<A>
+where
+    A: Send + 'static,
+{
+    pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
+        let (sender, mut mailbox) =
+            tokio::sync::mpsc::channel::<Box<dyn GenericHandlerDyn<A> + Send>>(16);
+
+        let cancellation_token = Arc::new(AtomicBool::new(false));
+        let cancellation_token_cloned = cancellation_token.clone();
+
+        let join_handle = runtime.spawn(async move {
+            while let Some(mut m) = mailbox.recv().await {
+                if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
+                    m.handle(&mut actor).await;
+                } else {
+                    break;
+                }
+            }
+        });
+
+        Actor {
+            sender,
+            join_handle,
+            cancellation_token,
+        }
+    }
+
     pub fn address(&self) -> ActorAddress<A> {
         ActorAddress {
             sender: self.sender.clone(),
@@ -262,6 +309,7 @@ impl<A> Actor<A> {
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
+        <M as Mail>::Result: Send,
     {
         self.sender
             .send(Box::new(CommandMail::new(mail)))
@@ -270,6 +318,49 @@ impl<A> Actor<A> {
             .expect(
                 "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
             );
+    }
+
+    pub fn send_mail_and_await_reply_blocking<M>(&self, mail: M) -> M::Result
+    where
+        A: MailHandler<M> + Send,
+        M: Mail + Send + 'static,
+        <M as Mail>::Result: Send,
+    {
+        let (response_sender, mut response_receiver) = tokio::sync::oneshot::channel();
+
+        let mut send_result = self
+            .sender
+            .try_send(Box::new(ReplyMail::new(mail, response_sender)));
+        // Try sending the mail until it succeeds. This is done instead of calling a tokio::task::block_in_place because this solution
+        // would be only valid when the runtime is multithreaded. For single threaded runtimes this would still cause a panic.
+        while let Err(receive_error) = send_result {
+            match receive_error {
+                tokio::sync::mpsc::error::TrySendError::Full(mail) => {
+                    send_result = self.sender.try_send(mail);
+                }
+
+                tokio::sync::mpsc::error::TrySendError::Closed(_) => {
+                    panic!("With actor object it should always be possible to send mail")
+                }
+            }
+        }
+
+        // Receive on a try_recv() loop checking for error instead of a call to recv() to avoid blocking the thread. This would not cause
+        // a Tokio runtime panic since it is using an std channel but it could cause a single-threaded runtime to hang and further tasks not
+        // being executed.
+        let mut receive_result = response_receiver.try_recv();
+        while let Err(receive_error) = receive_result {
+            match receive_error {
+                tokio::sync::oneshot::error::TryRecvError::Empty => {
+                    receive_result = response_receiver.try_recv();
+                }
+
+                tokio::sync::oneshot::error::TryRecvError::Closed => {
+                    panic!("With actor object there should always be a reply")
+                }
+            }
+        }
+        receive_result.expect("Receive result should be Ok")
     }
 }
 
@@ -281,44 +372,10 @@ impl<A> Drop for Actor<A> {
     }
 }
 
-struct SpawnedActor<A> {
-    value: A,
-    mailbox: tokio::sync::mpsc::Receiver<Box<dyn GenericHandler<A> + Send>>,
-}
-
-pub fn spawn_actor<A>(actor: A) -> Actor<A>
-where
-    A: Send + 'static,
-{
-    let (sender, mailbox) = tokio::sync::mpsc::channel(16);
-
-    let mut actor_obj = SpawnedActor {
-        value: actor,
-        mailbox,
-    };
-    let cancellation_token = Arc::new(AtomicBool::new(false));
-    let cancellation_token_cloned = cancellation_token.clone();
-
-    let join_handle = THE_RUNTIME.spawn(async move {
-        while let Some(mut m) = actor_obj.mailbox.recv().await {
-            if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                m.handle(&mut actor_obj.value).await;
-            } else {
-                break;
-            }
-        }
-    });
-
-    Actor {
-        sender,
-        join_handle,
-        cancellation_token,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use dust_dds_derive::actor_interface;
+    use tokio::runtime::Runtime;
 
     use super::*;
 
@@ -345,8 +402,9 @@ mod tests {
 
     #[test]
     fn actor_increment() {
+        let runtime = Runtime::new().unwrap();
         let my_data = MyData { data: 0 };
-        let actor = spawn_actor(my_data);
+        let actor = Actor::spawn(my_data, runtime.handle());
 
         assert_eq!(
             actor
@@ -359,8 +417,9 @@ mod tests {
 
     #[test]
     fn actor_already_deleted() {
+        let runtime = Runtime::new().unwrap();
         let my_data = MyData { data: 0 };
-        let actor = spawn_actor(my_data);
+        let actor = Actor::spawn(my_data, runtime.handle());
         let actor_address = actor.address().clone();
         std::mem::drop(actor);
         assert_eq!(

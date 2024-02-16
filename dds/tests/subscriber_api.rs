@@ -42,9 +42,8 @@ fn default_data_reader_qos() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
     let topic = participant
-        .create_topic(
+        .create_topic::<UserType>(
             "default_data_reader_qos",
             "UserType",
             QosKind::Default,
@@ -91,9 +90,8 @@ fn different_readers_have_different_instance_handles() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
     let topic = participant
-        .create_topic(
+        .create_topic::<UserType>(
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
@@ -144,9 +142,8 @@ fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creatio
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
     let topic = participant
-        .create_topic(
+        .create_topic::<UserType>(
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
@@ -163,5 +160,12 @@ fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creatio
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), &[])
         .unwrap();
 
-    assert!(reader.get_topicdescription().unwrap() == topic);
+    assert!(
+        reader
+            .get_topicdescription()
+            .unwrap()
+            .get_instance_handle()
+            .unwrap()
+            == topic.get_instance_handle().unwrap()
+    );
 }

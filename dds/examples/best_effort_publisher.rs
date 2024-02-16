@@ -24,7 +24,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<BestEffortExampleType>(
             "BestEffortExampleTopic",
             "BestEffortExampleType",
             QosKind::Default,

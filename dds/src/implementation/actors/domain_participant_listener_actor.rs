@@ -35,11 +35,17 @@ impl DomainParticipantListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_sample_rejected(
-                &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
+                &DataReader::<()>::new(
+                    reader_address,
+                    subscriber_address,
+                    participant_address,
+                    runtime_handle,
+                ),
                 status,
             )
         });
@@ -50,11 +56,17 @@ impl DomainParticipantListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: RequestedIncompatibleQosStatus,
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_requested_incompatible_qos(
-                &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
+                &DataReader::<()>::new(
+                    reader_address,
+                    subscriber_address,
+                    participant_address,
+                    runtime_handle,
+                ),
                 status,
             )
         });
@@ -65,11 +77,17 @@ impl DomainParticipantListenerActor {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: OfferedIncompatibleQosStatus,
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_offered_incompatible_qos(
-                &DataWriter::<()>::new(writer_address, publisher_address, participant_address),
+                &DataWriter::<()>::new(
+                    writer_address,
+                    publisher_address,
+                    participant_address,
+                    runtime_handle,
+                ),
                 status,
             )
         });
@@ -80,11 +98,17 @@ impl DomainParticipantListenerActor {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: PublicationMatchedStatus,
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_publication_matched(
-                &DataWriter::<()>::new(writer_address, publisher_address, participant_address),
+                &DataWriter::<()>::new(
+                    writer_address,
+                    publisher_address,
+                    participant_address,
+                    runtime_handle,
+                ),
                 status,
             )
         });
@@ -95,11 +119,17 @@ impl DomainParticipantListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: RequestedDeadlineMissedStatus,
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_requested_deadline_missed(
-                &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
+                &DataReader::<()>::new(
+                    reader_address,
+                    subscriber_address,
+                    participant_address,
+                    runtime_handle,
+                ),
                 status,
             )
         });
@@ -110,11 +140,17 @@ impl DomainParticipantListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SubscriptionMatchedStatus,
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_subscription_matched(
-                &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
+                &DataReader::<()>::new(
+                    reader_address,
+                    subscriber_address,
+                    participant_address,
+                    runtime_handle,
+                ),
                 status,
             )
         });
@@ -125,11 +161,17 @@ impl DomainParticipantListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
         status: SampleLostStatus,
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_sample_lost(
-                &DataReader::<()>::new(reader_address, subscriber_address, participant_address),
+                &DataReader::<()>::new(
+                    reader_address,
+                    subscriber_address,
+                    participant_address,
+                    runtime_handle,
+                ),
                 status,
             )
         });

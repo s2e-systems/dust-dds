@@ -25,7 +25,7 @@ RUN git clone --depth 1 --branch v2.5.1 --single-branch https://github.com/ePros
 RUN cd Fast-DDS-Gen && ./gradlew assemble
 
 
-FROM cimg/rust:1.65.0
+FROM cimg/rust:1.75.0
 COPY --from=CycloneDdsBuilder /home/circleci/project/cyclonedds-install /usr/local/
 COPY --from=FastDdsBuilder /home/circleci/project/Fast-DDS-install /usr/local/
 COPY --from=FastDdsGenBuilder /home/circleci/project/Fast-DDS-Gen/share /usr/local/share

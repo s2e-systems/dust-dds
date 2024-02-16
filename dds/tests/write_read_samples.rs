@@ -51,7 +51,7 @@ fn large_data_should_be_fragmented() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<LargeData>(
             "LargeDataTopic",
             "LargeData",
             QosKind::Default,
@@ -141,7 +141,7 @@ fn large_data_should_be_fragmented_reliable() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<LargeData>(
             "LargeDataTopic",
             "LargeData",
             QosKind::Default,
@@ -226,7 +226,7 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -330,7 +330,7 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -421,7 +421,12 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
         .take(5, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    assert_eq!(samples.len(), 3, "Received wrong number of samples. Received samples: {:?}", samples);
+    assert_eq!(
+        samples.len(),
+        3,
+        "Received wrong number of samples. Received samples: {:?}",
+        samples
+    );
     assert_eq!(samples[0].data().unwrap(), data3);
     assert_eq!(samples[1].data().unwrap(), data4);
     assert_eq!(samples[2].data().unwrap(), data5);
@@ -436,7 +441,7 @@ fn samples_are_taken() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -536,7 +541,7 @@ fn wait_for_samples_to_be_taken_best_effort() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -634,7 +639,7 @@ fn read_only_unread_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -753,7 +758,7 @@ fn read_next_sample() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -837,7 +842,7 @@ fn take_next_sample() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -921,7 +926,7 @@ fn each_key_sample_is_read() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -1027,7 +1032,7 @@ fn read_specific_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -1121,7 +1126,7 @@ fn read_next_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -1243,7 +1248,7 @@ fn take_next_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -1365,7 +1370,7 @@ fn take_specific_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -1458,7 +1463,7 @@ fn take_specific_unknown_instance() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -1549,7 +1554,7 @@ fn write_read_disposed_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -1647,7 +1652,7 @@ fn write_read_sample_view_state() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "OtherTopic",
             "KeyedData",
             QosKind::Default,
@@ -1752,7 +1757,7 @@ fn inconsistent_topic_status_condition() {
         ..Default::default()
     };
     let topic_best_effort = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "Topic",
             "KeyedData",
             QosKind::Specific(best_effort_topic_qos),
@@ -1779,7 +1784,7 @@ fn inconsistent_topic_status_condition() {
         ..Default::default()
     };
     let _topic_reliable = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "Topic",
             "KeyedData",
             QosKind::Specific(reliable_topic_qos),
@@ -1808,7 +1813,7 @@ fn reader_with_minimum_time_separation_qos() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -1924,7 +1929,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -2022,7 +2027,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -2119,7 +2124,7 @@ fn write_read_unkeyed_topic() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<UserData>(
             "write_read_unkeyed_topic",
             "UserData",
             QosKind::Default,
@@ -2195,8 +2200,9 @@ fn data_reader_resource_limits() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+
     let topic = participant
-        .create_topic(
+        .create_topic::<UserData>(
             "data_reader_resource_limits",
             "UserData",
             QosKind::Default,
@@ -2296,8 +2302,9 @@ fn data_reader_order_by_source_timestamp() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+
     let topic = participant
-        .create_topic(
+        .create_topic::<UserData>(
             "MyTopic",
             "UserData",
             QosKind::Default,
@@ -2309,6 +2316,7 @@ fn data_reader_order_by_source_timestamp() {
     let publisher = participant
         .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
+
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
@@ -2401,7 +2409,7 @@ fn data_reader_publication_handle_sample_info() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<UserData>(
             "MyTopic",
             "UserData",
             QosKind::Default,
@@ -2485,7 +2493,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -2601,7 +2609,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -2701,7 +2709,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
@@ -2805,7 +2813,7 @@ fn reader_joining_after_writer_writes_many_samples() {
         .unwrap();
 
     let topic = participant
-        .create_topic(
+        .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,

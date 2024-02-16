@@ -5,13 +5,10 @@ use crate::{
     implementation::{
         actors::{
             data_reader_actor, data_writer_actor,
-            domain_participant_actor::{self, DomainParticipantActor},
+            domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
             publisher_actor, subscriber_actor, topic_actor,
         },
-        utils::{
-            actor::{ActorAddress, THE_RUNTIME},
-            instance_handle_from_key::get_instance_handle_from_key,
-        },
+        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -27,12 +24,12 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{DdsKey, DdsSerialize},
+        type_support::{DdsHasKey, DdsKey, DdsSerialize, DynamicTypeInterface},
     },
 };
 
 use super::{
-    domain_participant_factory::{DomainId, THE_PARTICIPANT_FACTORY},
+    domain_participant_factory::{DomainId, DomainParticipantFactory},
     domain_participant_listener::DomainParticipantListener,
 };
 
@@ -57,19 +54,18 @@ use super::{
 
 pub struct DomainParticipant {
     participant_address: ActorAddress<DomainParticipantActor>,
+    runtime_handle: tokio::runtime::Handle,
 }
 
 impl DomainParticipant {
-    pub(crate) fn new(participant_address: ActorAddress<DomainParticipantActor>) -> Self {
+    pub(crate) fn new(
+        participant_address: ActorAddress<DomainParticipantActor>,
+        runtime_handle: tokio::runtime::Handle,
+    ) -> Self {
         Self {
             participant_address,
+            runtime_handle,
         }
-    }
-}
-
-impl Drop for DomainParticipant {
-    fn drop(&mut self) {
-        THE_PARTICIPANT_FACTORY.delete_participant(self).ok();
     }
 }
 
@@ -94,9 +90,14 @@ impl DomainParticipant {
                 qos,
                 Box::new(a_listener),
                 mask.to_vec(),
+                self.runtime_handle.clone(),
             ))?;
 
-        let publisher = Publisher::new(publisher_address, self.participant_address.clone());
+        let publisher = Publisher::new(
+            publisher_address,
+            self.participant_address.clone(),
+            self.runtime_handle.clone(),
+        );
         if self
             .participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
@@ -163,10 +164,15 @@ impl DomainParticipant {
                     qos,
                     Box::new(a_listener),
                     mask.to_vec(),
+                    self.runtime_handle.clone(),
                 ),
             )?;
 
-        let subscriber = Subscriber::new(subscriber_address, self.participant_address.clone());
+        let subscriber = Subscriber::new(
+            subscriber_address,
+            self.participant_address.clone(),
+            self.runtime_handle.clone(),
+        );
 
         if self
             .participant_address
@@ -213,14 +219,39 @@ impl DomainParticipant {
     /// The created [`Topic`] belongs to the [`DomainParticipant`] that is its factory.
     /// In case of failure, the operation will return an error and no [`Topic`] will be created.
     #[tracing::instrument(skip(self, a_listener))]
-    pub fn create_topic(
+    pub fn create_topic<Foo>(
         &self,
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
         a_listener: impl TopicListener + Send + 'static,
         mask: &[StatusKind],
+    ) -> DdsResult<Topic>
+    where
+        Foo: DdsKey + DdsHasKey,
+    {
+        let type_support = FooTypeSupport::new::<Foo>();
+
+        self.create_dynamic_topic(topic_name, type_name, qos, a_listener, mask, type_support)
+    }
+
+    #[doc(hidden)]
+    #[tracing::instrument(skip(self, a_listener, dynamic_type_representation))]
+    pub fn create_dynamic_topic(
+        &self,
+        topic_name: &str,
+        type_name: &str,
+        qos: QosKind<TopicQos>,
+        a_listener: impl TopicListener + Send + 'static,
+        mask: &[StatusKind],
+        dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
     ) -> DdsResult<Topic> {
+        self.participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
+                type_name.to_string(),
+                Box::new(dynamic_type_representation),
+            ))?;
+
         let topic_address = self
             .participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::create_topic::new(
@@ -229,9 +260,14 @@ impl DomainParticipant {
                 qos,
                 Box::new(a_listener),
                 mask.to_vec(),
+                self.runtime_handle.clone(),
             ))?;
 
-        let topic = Topic::new(topic_address, self.participant_address.clone());
+        let topic = Topic::new(
+            topic_address,
+            self.participant_address.clone(),
+            self.runtime_handle.clone(),
+        );
         if self
             .participant_address
             .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
@@ -324,7 +360,10 @@ impl DomainParticipant {
     /// Regardless of whether the middleware chooses to propagate topics, the [`DomainParticipant::delete_topic()`] operation deletes only the local proxy.
     /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
     #[tracing::instrument(skip(self))]
-    pub fn find_topic(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic> {
+    pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic>
+    where
+        Foo: DdsKey + DdsHasKey,
+    {
         let start_time = Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(timeout) {
@@ -337,7 +376,11 @@ impl DomainParticipant {
                 if topic.send_mail_and_await_reply_blocking(topic_actor::get_name::new())?
                     == topic_name
                 {
-                    return Ok(Topic::new(topic, self.participant_address.clone()));
+                    return Ok(Topic::new(
+                        topic,
+                        self.participant_address.clone(),
+                        self.runtime_handle.clone(),
+                    ));
                 }
             }
 
@@ -370,7 +413,7 @@ impl DomainParticipant {
                             lifespan: discovered_topic_data.lifespan().clone(),
                             ownership: discovered_topic_data.ownership().clone(),
                         };
-                        let topic = self.create_topic(
+                        let topic = self.create_topic::<Foo>(
                             topic_name,
                             discovered_topic_data.get_type_name(),
                             QosKind::Specific(qos),
@@ -423,6 +466,7 @@ impl DomainParticipant {
                     domain_participant_actor::get_built_in_subscriber::new(),
                 )?,
             self.participant_address.clone(),
+            self.runtime_handle.clone(),
         ))
     }
 
@@ -790,7 +834,9 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => THE_PARTICIPANT_FACTORY.get_default_participant_qos()?,
+            QosKind::Default => {
+                DomainParticipantFactory::get_instance().get_default_participant_qos()?
+            }
             QosKind::Specific(q) => q,
         };
 
@@ -818,7 +864,11 @@ impl DomainParticipant {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::set_listener::new(Box::new(a_listener), mask.to_vec()),
+            domain_participant_actor::set_listener::new(
+                Box::new(a_listener),
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            ),
         )
     }
 
@@ -906,7 +956,7 @@ impl DomainParticipant {
             let domain_participant_address = self.participant_address.clone();
 
             // Spawn the task that regularly announces the domain participant
-            THE_RUNTIME.spawn(async move {
+            self.runtime_handle.spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
                 loop {
                     let r: DdsResult<()> = async {

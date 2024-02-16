@@ -42,7 +42,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::{
-            actor::{spawn_actor, Actor, ActorAddress},
+            actor::{Actor, ActorAddress},
             instance_handle_from_key::get_instance_handle_from_key,
         },
     },
@@ -237,6 +237,7 @@ pub struct DataWriterActor {
 }
 
 impl DataWriterActor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_writer: RtpsWriter,
         type_name: String,
@@ -245,9 +246,10 @@ impl DataWriterActor {
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
         xml_type: String,
+        handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = spawn_actor(StatusConditionActor::default());
-        let listener = spawn_actor(DataWriterListenerActor::new(listener));
+        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let listener = Actor::spawn(DataWriterListenerActor::new(listener), handle);
         DataWriterActor {
             rtps_writer,
             reader_locators: Vec::new(),
@@ -611,6 +613,7 @@ impl DataWriterActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
@@ -721,6 +724,7 @@ impl DataWriterActor {
                         participant_address,
                         publisher_publication_matched_listener,
                         participant_publication_matched_listener,
+                        runtime_handle,
                     )
                     .await;
                 }
@@ -733,12 +737,14 @@ impl DataWriterActor {
                     participant_address,
                     offered_incompatible_qos_publisher_listener,
                     offered_incompatible_qos_participant_listener,
+                    runtime_handle,
                 )
                 .await;
             }
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn remove_matched_reader(
         &mut self,
         discovered_reader_handle: InstanceHandle,
@@ -749,6 +755,7 @@ impl DataWriterActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         if let Some(r) = self
             .get_matched_subscription_data(discovered_reader_handle)
@@ -765,6 +772,7 @@ impl DataWriterActor {
                 participant_address,
                 publisher_publication_matched_listener,
                 participant_publication_matched_listener,
+                runtime_handle,
             )
             .await;
         }
@@ -815,8 +823,9 @@ impl DataWriterActor {
         &mut self,
         listener: Box<dyn AnyDataWriterListener + Send>,
         status_kind: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
     ) {
-        self.listener = spawn_actor(DataWriterListenerActor::new(listener));
+        self.listener = Actor::spawn(DataWriterListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }
 }
@@ -995,6 +1004,7 @@ impl DataWriterActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         self.status_condition
             .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
@@ -1009,6 +1019,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )
@@ -1023,6 +1034,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )
@@ -1038,6 +1050,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )
@@ -1055,6 +1068,7 @@ impl DataWriterActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        runtime_handle: tokio::runtime::Handle,
     ) {
         self.status_condition
             .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
@@ -1073,6 +1087,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )
@@ -1087,6 +1102,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )
@@ -1102,6 +1118,7 @@ impl DataWriterActor {
                         data_writer_address,
                         publisher_address,
                         participant_address,
+                        runtime_handle,
                         status,
                     ),
                 )

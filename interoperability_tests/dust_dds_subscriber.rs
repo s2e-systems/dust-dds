@@ -23,16 +23,11 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(
-            domain_id,
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .find_topic("HelloWorld", Duration::new(120, 0))
+        .find_topic::<hello_world::HelloWorldType>("HelloWorld", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant

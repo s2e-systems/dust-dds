@@ -29,11 +29,10 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-
     let topic = participant
-        .create_topic(
+        .create_topic::<UserData>(
             "LargeDataTopic",
-            "LargeData",
+            "UserData",
             QosKind::Default,
             NoOpListener::new(),
             NO_STATUS,
