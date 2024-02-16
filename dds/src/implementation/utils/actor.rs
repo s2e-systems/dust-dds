@@ -1,6 +1,10 @@
-use std::sync::{
-    atomic::{self, AtomicBool},
-    Arc,
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{
+        atomic::{self, AtomicBool},
+        Arc,
+    },
 };
 
 use crate::infrastructure::error::{DdsError, DdsResult};
@@ -9,18 +13,17 @@ pub trait Mail {
     type Result;
 }
 
-#[async_trait::async_trait]
 pub trait MailHandler<M>
 where
     M: Mail,
     Self: Sized,
 {
-    async fn handle(&mut self, mail: M) -> M::Result;
+    fn handle(&mut self, mail: M) -> impl Future<Output = M::Result> + Send;
 }
 
 #[derive(Debug)]
 pub struct ActorAddress<A> {
-    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
+    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
 }
 
 impl<A> Clone for ActorAddress<A> {
@@ -104,6 +107,7 @@ impl<A> ActorAddress<A> {
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
+        <M as Mail>::Result: Send,
     {
         self.sender
             .send(Box::new(CommandMail::new(mail)))
@@ -115,6 +119,7 @@ impl<A> ActorAddress<A> {
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
+        <M as Mail>::Result: Send,
     {
         let mut send_result = self.sender.try_send(Box::new(CommandMail::new(mail)));
         // Try sending the mail until it succeeds. This is done instead of calling a tokio::task::block_in_place because this solution
@@ -134,9 +139,36 @@ impl<A> ActorAddress<A> {
     }
 }
 
-#[async_trait::async_trait]
+// Workaround for not being able to make a dyn object out of a trait with async
+// https://rust-lang.github.io/async-fundamentals-initiative/evaluation/case-studies/builder-provider-api.html#dynamic-dispatch-behind-the-api
+trait GenericHandlerDyn<A> {
+    fn handle<'a, 'b>(
+        &'a mut self,
+        actor: &'b mut A,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+        Self: 'b;
+}
+
+impl<A, T> GenericHandlerDyn<A> for T
+where
+    T: GenericHandler<A>,
+{
+    fn handle<'a, 'b>(
+        &'a mut self,
+        actor: &'b mut A,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+        Self: 'b,
+    {
+        Box::pin(<Self as GenericHandler<A>>::handle(self, actor))
+    }
+}
+
 trait GenericHandler<A> {
-    async fn handle(&mut self, actor: &mut A);
+    fn handle(&mut self, actor: &mut A) -> impl Future<Output = ()> + Send;
 }
 
 struct CommandMail<M> {
@@ -149,11 +181,11 @@ impl<M> CommandMail<M> {
     }
 }
 
-#[async_trait::async_trait]
 impl<A, M> GenericHandler<A> for CommandMail<M>
 where
     A: MailHandler<M> + Send,
     M: Mail + Send,
+    M::Result: Send,
 {
     async fn handle(&mut self, actor: &mut A) {
         <A as MailHandler<M>>::handle(
@@ -189,7 +221,6 @@ where
     }
 }
 
-#[async_trait::async_trait]
 impl<A, M> GenericHandler<A> for ReplyMail<M>
 where
     A: MailHandler<M> + Send,
@@ -214,7 +245,7 @@ where
 }
 
 pub struct Actor<A> {
-    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandler<A> + Send>>,
+    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
     join_handle: tokio::task::JoinHandle<()>,
     cancellation_token: Arc<AtomicBool>,
 }
@@ -225,7 +256,7 @@ where
 {
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
         let (sender, mut mailbox) =
-            tokio::sync::mpsc::channel::<Box<dyn GenericHandler<A> + Send>>(16);
+            tokio::sync::mpsc::channel::<Box<dyn GenericHandlerDyn<A> + Send>>(16);
 
         let cancellation_token = Arc::new(AtomicBool::new(false));
         let cancellation_token_cloned = cancellation_token.clone();
@@ -278,6 +309,7 @@ where
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
+        <M as Mail>::Result: Send,
     {
         self.sender
             .send(Box::new(CommandMail::new(mail)))
@@ -292,7 +324,7 @@ where
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
-        M::Result: Send,
+        <M as Mail>::Result: Send,
     {
         let (response_sender, mut response_receiver) = tokio::sync::oneshot::channel();
 
