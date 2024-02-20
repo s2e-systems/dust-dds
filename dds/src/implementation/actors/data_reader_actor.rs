@@ -262,7 +262,6 @@ pub struct DataReaderActor {
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, tokio::task::AbortHandle>,
-    xml_type: String,
 }
 
 impl DataReaderActor {
@@ -274,7 +273,6 @@ impl DataReaderActor {
         qos: DataReaderQos,
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
-        xml_type: String,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
@@ -305,7 +303,6 @@ impl DataReaderActor {
             qos,
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
-            xml_type,
         }
     }
 
@@ -1598,6 +1595,7 @@ impl DataReaderActor {
         subscriber_qos: SubscriberQos,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
+        xml_type: String,
     ) -> DiscoveredReaderData {
         let guid = self.rtps_reader.guid();
 
@@ -1641,7 +1639,7 @@ impl DataReaderActor {
                 subscriber_qos.partition.clone(),
                 topic_qos.topic_data,
                 subscriber_qos.group_data,
-                self.xml_type.clone(),
+                xml_type,
             ),
         )
     }

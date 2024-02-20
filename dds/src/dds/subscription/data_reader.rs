@@ -599,6 +599,20 @@ impl<Foo> DataReader<Foo> {
             .reader_address
             .send_mail_and_await_reply_blocking(data_reader_actor::is_enabled::new())?
         {
+            let type_name = self
+                .reader_address
+                .send_mail_and_await_reply_blocking(data_reader_actor::get_type_name::new())?;
+            let type_support = self
+                .participant_address
+                .send_mail_and_await_reply_blocking(
+                    domain_participant_actor::get_type_support::new(type_name.clone()),
+                )?
+                .ok_or_else(|| {
+                    DdsError::PreconditionNotMet(format!(
+                        "Type with name {} not registered with parent domain participant",
+                        type_name
+                    ))
+                })?;
             announce_data_reader(
                 &self.participant_address,
                 self.reader_address.send_mail_and_await_reply_blocking(
@@ -614,6 +628,7 @@ impl<Foo> DataReader<Foo> {
                             .send_mail_and_await_reply_blocking(
                                 domain_participant_actor::get_default_multicast_locator_list::new(),
                             )?,
+                        type_support.xml_type(),
                     ),
                 )?,
             )?;
@@ -680,6 +695,21 @@ impl<Foo> DataReader<Foo> {
                 .send_mail_and_await_reply_blocking(data_reader_actor::enable::new())?;
         }
 
+        let type_name = self
+            .reader_address
+            .send_mail_and_await_reply_blocking(data_reader_actor::get_type_name::new())?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
+            ))?
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
+
         announce_data_reader(
             &self.participant_address,
             self.reader_address.send_mail_and_await_reply_blocking(
@@ -695,6 +725,7 @@ impl<Foo> DataReader<Foo> {
                         .send_mail_and_await_reply_blocking(
                             domain_participant_actor::get_default_multicast_locator_list::new(),
                         )?,
+                    type_support.xml_type(),
                 ),
             )?,
         )?;

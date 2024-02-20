@@ -233,7 +233,6 @@ pub struct DataWriterActor {
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
-    xml_type: String,
 }
 
 impl DataWriterActor {
@@ -245,7 +244,6 @@ impl DataWriterActor {
         listener: Box<dyn AnyDataWriterListener + Send>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
-        xml_type: String,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
@@ -265,7 +263,6 @@ impl DataWriterActor {
             writer_cache: WriterHistoryCache::new(),
             qos,
             registered_instance_list: HashSet::new(),
-            xml_type,
         }
     }
 
@@ -495,6 +492,7 @@ impl DataWriterActor {
         publisher_qos: PublisherQos,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
+        xml_type: String,
     ) -> DiscoveredWriterData {
         let writer_qos = &self.qos;
         let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
@@ -532,7 +530,7 @@ impl DataWriterActor {
                 publisher_qos.partition.clone(),
                 topic_qos.topic_data,
                 publisher_qos.group_data,
-                self.xml_type.clone(),
+                xml_type,
             ),
             WriterProxy::new(
                 self.rtps_writer.guid(),

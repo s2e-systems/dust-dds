@@ -24,7 +24,7 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{DdsHasKey, DdsKey, DdsSerialize, DynamicTypeInterface},
+        type_support::{DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface},
     },
 };
 
@@ -228,7 +228,7 @@ impl DomainParticipant {
         mask: &[StatusKind],
     ) -> DdsResult<Topic>
     where
-        Foo: DdsKey + DdsHasKey,
+        Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
         let type_support = FooTypeSupport::new::<Foo>();
 
@@ -362,7 +362,7 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic>
     where
-        Foo: DdsKey + DdsHasKey,
+        Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
         let start_time = Instant::now();
 

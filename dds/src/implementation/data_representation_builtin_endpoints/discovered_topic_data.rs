@@ -4,7 +4,7 @@ use crate::{
     serialized_payload::parameter_list::{
         deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
     },
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize},
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
@@ -52,6 +52,12 @@ impl DdsKey for DiscoveredTopicData {
             .topic_builtin_topic_data
             .key()
             .value)
+    }
+}
+
+impl DdsTypeXml for DiscoveredTopicData {
+    fn get_type_xml() -> Option<String> {
+        None
     }
 }
 
