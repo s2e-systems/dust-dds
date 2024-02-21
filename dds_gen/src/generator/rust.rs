@@ -1,6 +1,6 @@
 use crate::parser::{IdlPair, Rule};
 
-pub fn generate_rust_source<'a>(pair: IdlPair<'a>, writer: &mut String) {
+pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
     match pair.as_rule() {
         Rule::EOI => (),
         Rule::escape => todo!(),
@@ -221,13 +221,13 @@ pub fn generate_rust_source<'a>(pair: IdlPair<'a>, writer: &mut String) {
     }
 }
 
-fn specification<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn specification(pair: IdlPair, writer: &mut String) {
     for definition in pair.into_inner() {
         generate_rust_source(definition, writer);
     }
 }
 
-fn definition<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn definition(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -236,7 +236,7 @@ fn definition<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn module_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn module_dcl(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
     let identifier = inner_pairs
         .clone()
@@ -256,7 +256,7 @@ fn module_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     writer.push('}');
 }
 
-fn type_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn type_dcl(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -265,7 +265,7 @@ fn type_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn constr_type_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn constr_type_dcl(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -274,7 +274,7 @@ fn constr_type_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn struct_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn struct_dcl(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -283,7 +283,7 @@ fn struct_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn struct_def<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn struct_def(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
     let identifier = inner_pairs
         .clone()
@@ -303,7 +303,7 @@ fn struct_def<'a>(pair: IdlPair<'a>, writer: &mut String) {
     writer.push_str("}\n");
 }
 
-fn enum_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn enum_dcl(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
     let identifier = inner_pairs
         .clone()
@@ -325,7 +325,7 @@ fn enum_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     writer.push('}');
 }
 
-fn enumerator<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn enumerator(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -334,7 +334,7 @@ fn enumerator<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn member<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn member(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
 
     let type_spec = inner_pairs
@@ -390,13 +390,13 @@ fn member<'a>(pair: IdlPair<'a>, writer: &mut String) {
     }
 }
 
-fn declarators<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn declarators(pair: IdlPair, writer: &mut String) {
     for declarator in pair.into_inner() {
         generate_rust_source(declarator, writer);
     }
 }
 
-fn interface_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn interface_dcl(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -405,7 +405,7 @@ fn interface_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn interface_def<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn interface_def(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
 
     let interface_header = inner_pairs
@@ -424,7 +424,7 @@ fn interface_def<'a>(pair: IdlPair<'a>, writer: &mut String) {
     writer.push_str("}\n");
 }
 
-fn interface_header<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn interface_header(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
 
     let interface_kind = inner_pairs
@@ -449,7 +449,7 @@ fn interface_header<'a>(pair: IdlPair<'a>, writer: &mut String) {
     }
 }
 
-fn interface_kind<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn interface_kind(pair: IdlPair, writer: &mut String) {
     match pair.as_str() {
         "interface" | "abstract interface" => writer.push_str("pub trait "),
         "local interface" => writer.push_str("trait "),
@@ -457,13 +457,13 @@ fn interface_kind<'a>(pair: IdlPair<'a>, writer: &mut String) {
     }
 }
 
-fn interface_body<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn interface_body(pair: IdlPair, writer: &mut String) {
     for export in pair.into_inner().filter(|p| p.as_rule() == Rule::export) {
         generate_rust_source(export, writer);
     }
 }
 
-fn export<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn export(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -472,7 +472,7 @@ fn export<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn op_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn op_dcl(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
     let identifier = inner_pairs
         .clone()
@@ -495,20 +495,20 @@ fn op_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     writer.push_str(";\n");
 }
 
-fn op_type_spec<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn op_type_spec(pair: IdlPair, writer: &mut String) {
     if let Some(type_spec) = pair.into_inner().find(|p| p.as_rule() == Rule::type_spec) {
         writer.push_str("->");
         generate_rust_source(type_spec, writer);
     }
 }
 
-fn parameter_dcls<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn parameter_dcls(pair: IdlPair, writer: &mut String) {
     for param_dcl in pair.into_inner().filter(|p| p.as_rule() == Rule::param_dcl) {
         generate_rust_source(param_dcl, writer);
     }
 }
 
-fn param_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn param_dcl(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
     let param_attribute = inner_pairs
         .clone()
@@ -530,7 +530,7 @@ fn param_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     writer.push(',');
 }
 
-fn param_attribute<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn param_attribute(pair: IdlPair, writer: &mut String) {
     match pair.as_str() {
         "inout" | "out" => writer.push_str("&mut "),
         "in" => writer.push_str("&"),
@@ -538,7 +538,7 @@ fn param_attribute<'a>(pair: IdlPair<'a>, writer: &mut String) {
     }
 }
 
-fn simple_declarator<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn simple_declarator(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -547,7 +547,7 @@ fn simple_declarator<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn typedef_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn typedef_dcl(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -556,7 +556,7 @@ fn typedef_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn type_declarator<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn type_declarator(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
     let type_spec = inner_pairs.clone().find(|p| {
         p.as_rule() == Rule::template_type_spec
@@ -576,7 +576,7 @@ fn type_declarator<'a>(pair: IdlPair<'a>, writer: &mut String) {
     }
 }
 
-fn any_declarator<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn any_declarator(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -585,11 +585,11 @@ fn any_declarator<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn identifier<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn identifier(pair: IdlPair, writer: &mut String) {
     writer.push_str(pair.as_str());
 }
 
-fn type_spec<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn type_spec(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -598,7 +598,7 @@ fn type_spec<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn simple_type_spec<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn simple_type_spec(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -607,7 +607,7 @@ fn simple_type_spec<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn base_type_spec<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn base_type_spec(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -616,7 +616,7 @@ fn base_type_spec<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn floating_pt_type<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn floating_pt_type(pair: IdlPair, writer: &mut String) {
     match pair.as_str() {
         "float" => writer.push_str("f32"),
         "double" => writer.push_str("f64"),
@@ -625,7 +625,7 @@ fn floating_pt_type<'a>(pair: IdlPair<'a>, writer: &mut String) {
     }
 }
 
-fn integer_type<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn integer_type(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -634,11 +634,11 @@ fn integer_type<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn signed_tiny_int<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn signed_tiny_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("i8");
 }
 
-fn signed_int<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn signed_int(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -647,23 +647,23 @@ fn signed_int<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn signed_short_int<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn signed_short_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("i16");
 }
 
-fn signed_long_int<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn signed_long_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("i32");
 }
 
-fn signed_longlong_int<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn signed_longlong_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("i64");
 }
 
-fn unsigned_tiny_int<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn unsigned_tiny_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("u8");
 }
 
-fn unsigned_int<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn unsigned_int(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -672,23 +672,23 @@ fn unsigned_int<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn unsigned_short_int<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn unsigned_short_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("u16");
 }
 
-fn unsigned_long_int<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn unsigned_long_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("u32");
 }
 
-fn unsigned_longlong_int<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn unsigned_longlong_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("u64");
 }
 
-fn octet_type<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn octet_type(_pair: IdlPair, writer: &mut String) {
     writer.push_str("u8");
 }
 
-fn template_type_spec<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn template_type_spec(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -697,7 +697,7 @@ fn template_type_spec<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn sequence_type<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn sequence_type(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
 
     let type_spec = inner_pairs
@@ -710,15 +710,15 @@ fn sequence_type<'a>(pair: IdlPair<'a>, writer: &mut String) {
     writer.push('>');
 }
 
-fn string_type<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn string_type(_pair: IdlPair, writer: &mut String) {
     writer.push_str("String");
 }
 
-fn wide_string_type<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn wide_string_type(_pair: IdlPair, writer: &mut String) {
     writer.push_str("String");
 }
 
-fn fixed_array_size<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn fixed_array_size(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -727,7 +727,7 @@ fn fixed_array_size<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn positive_int_const<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn positive_int_const(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -736,11 +736,11 @@ fn positive_int_const<'a>(pair: IdlPair<'a>, writer: &mut String) {
     )
 }
 
-fn const_expr<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn const_expr(pair: IdlPair, writer: &mut String) {
     writer.push_str(pair.as_str());
 }
 
-fn annotation_appl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn annotation_appl(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
 
     let scoped_name = inner_pairs
@@ -758,7 +758,7 @@ fn annotation_appl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     }
 }
 
-fn scoped_name<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn scoped_name(pair: IdlPair, writer: &mut String) {
     let identifier = pair
         .into_inner()
         .next()
@@ -767,7 +767,7 @@ fn scoped_name<'a>(pair: IdlPair<'a>, writer: &mut String) {
     writer.push_str(identifier.as_str());
 }
 
-fn const_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn const_dcl(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
     let identifier = inner_pairs
         .clone()
@@ -793,7 +793,7 @@ fn const_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {
     writer.push_str(";\n");
 }
 
-fn const_type<'a>(pair: IdlPair<'a>, writer: &mut String) {
+fn const_type(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -802,15 +802,15 @@ fn const_type<'a>(pair: IdlPair<'a>, writer: &mut String) {
     );
 }
 
-fn char_type<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn char_type(_pair: IdlPair, writer: &mut String) {
     writer.push_str("char");
 }
 
-fn wide_char_type<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn wide_char_type(_pair: IdlPair, writer: &mut String) {
     writer.push_str("char");
 }
 
-fn boolean<'a>(_pair: IdlPair<'a>, writer: &mut String) {
+fn boolean(_pair: IdlPair, writer: &mut String) {
     writer.push_str("bool");
 }
 
