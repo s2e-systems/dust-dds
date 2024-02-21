@@ -28,6 +28,7 @@ pub trait AnyDataReaderListener {
         runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     );
+    #[allow(dead_code)]
     fn trigger_on_liveliness_changed(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,

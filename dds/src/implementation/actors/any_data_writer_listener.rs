@@ -13,6 +13,7 @@ use super::{
 };
 
 pub trait AnyDataWriterListener {
+    #[allow(dead_code)]
     fn trigger_on_liveliness_lost(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
@@ -21,6 +22,7 @@ pub trait AnyDataWriterListener {
         runtime_handle: tokio::runtime::Handle,
         status: LivelinessLostStatus,
     );
+    #[allow(dead_code)]
     fn trigger_on_offered_deadline_missed(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
