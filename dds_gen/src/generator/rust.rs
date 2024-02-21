@@ -340,7 +340,7 @@ fn member<'a>(pair: IdlPair<'a>, writer: &mut String) {
     let type_spec = inner_pairs
         .clone()
         .find(|p| p.as_rule() == Rule::type_spec)
-        .expect("Declarator must exist according to grammar");
+        .expect("Type spec must exist according to grammar");
     let declarators = inner_pairs
         .clone()
         .find(|p| p.as_rule() == Rule::declarators)
@@ -748,7 +748,14 @@ fn annotation_appl<'a>(pair: IdlPair<'a>, writer: &mut String) {
         .find(|p| p.as_rule() == Rule::scoped_name)
         .expect("Must have a scoped name according to the grammar");
 
-    generate_rust_source(scoped_name, writer);
+    let identifier = scoped_name
+        .into_inner()
+        .next()
+        .expect("Must have an identifier according to the grammar");
+
+    if identifier.as_str() == "key" {
+        writer.push_str("#[dust_dds(key)]");
+    }
 }
 
 fn scoped_name<'a>(pair: IdlPair<'a>, writer: &mut String) {
@@ -757,9 +764,7 @@ fn scoped_name<'a>(pair: IdlPair<'a>, writer: &mut String) {
         .next()
         .expect("Must have an identifier according to the grammar");
 
-    if identifier.as_str() == "key" {
-        writer.push_str("#[dust_dds(key)]");
-    }
+    writer.push_str(identifier.as_str());
 }
 
 fn const_dcl<'a>(pair: IdlPair<'a>, writer: &mut String) {

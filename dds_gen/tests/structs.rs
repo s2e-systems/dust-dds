@@ -151,3 +151,53 @@ fn module_generation() {
 
     assert_eq!(result, expected);
 }
+
+#[test]
+fn nested_types() {
+    let idl = r#"
+        enum Presence
+        {
+            Present, NotPresent
+        };
+
+        struct Color {
+            uint8 red;
+            uint8 green;
+            uint8 blue;
+        };
+
+        struct ColorSensor {
+            Presence state;
+            Color value;
+        };
+    "#;
+
+    let expected = syn::parse2::<File>(
+        r#"
+            #[derive(Debug)]
+            pub enum Presence {
+                Present,
+                NotPresent,
+            }
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            pub struct Color {
+                pub red: u8,
+                pub green: u8,
+                pub blue: u8,
+            }
+
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            pub struct ColorSensor {
+                pub state: Presence,
+                pub value: Color,
+            }"#
+        .parse()
+        .unwrap(),
+    )
+    .unwrap();
+
+    let result =
+        syn::parse2::<File>(dust_dds_gen::compile_idl(idl).unwrap().parse().unwrap()).unwrap();
+
+    assert_eq!(result, expected);
+}
