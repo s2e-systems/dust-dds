@@ -263,6 +263,10 @@ fn foo_with_specialized_type_support_should_read_and_write() {
         ) -> DdsResult<InstanceHandle> {
             unimplemented!("Not used for this test")
         }
+
+        fn xml_type(&self) -> String {
+            String::default()
+        }
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();

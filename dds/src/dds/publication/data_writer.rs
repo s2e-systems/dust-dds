@@ -598,6 +598,20 @@ impl<Foo> DataWriter<Foo> {
             .writer_address
             .send_mail_and_await_reply_blocking(data_writer_actor::is_enabled::new())?
         {
+            let type_name = self
+                .writer_address
+                .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
+            let type_support = self
+                .participant_address
+                .send_mail_and_await_reply_blocking(
+                    domain_participant_actor::get_type_support::new(type_name.clone()),
+                )?
+                .ok_or_else(|| {
+                    DdsError::PreconditionNotMet(format!(
+                        "Type with name {} not registered with parent domain participant",
+                        type_name
+                    ))
+                })?;
             let discovered_writer_data = self.writer_address.send_mail_and_await_reply_blocking(
                 data_writer_actor::as_discovered_writer_data::new(
                     TopicQos::default(),
@@ -611,6 +625,7 @@ impl<Foo> DataWriter<Foo> {
                         .send_mail_and_await_reply_blocking(
                             domain_participant_actor::get_default_multicast_locator_list::new(),
                         )?,
+                    type_support.xml_type(),
                 ),
             )?;
             self.participant_address.send_mail_blocking(
@@ -677,6 +692,20 @@ impl<Foo> DataWriter<Foo> {
             .writer_address
             .send_mail_and_await_reply_blocking(data_writer_actor::is_enabled::new())?
         {
+            let type_name = self
+                .writer_address
+                .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
+            let type_support = self
+                .participant_address
+                .send_mail_and_await_reply_blocking(
+                    domain_participant_actor::get_type_support::new(type_name.clone()),
+                )?
+                .ok_or_else(|| {
+                    DdsError::PreconditionNotMet(format!(
+                        "Type with name {} not registered with parent domain participant",
+                        type_name
+                    ))
+                })?;
             self.writer_address
                 .send_mail_and_await_reply_blocking(data_writer_actor::enable::new())?;
             let discovered_writer_data = self.writer_address.send_mail_and_await_reply_blocking(
@@ -692,6 +721,7 @@ impl<Foo> DataWriter<Foo> {
                         .send_mail_and_await_reply_blocking(
                             domain_participant_actor::get_default_multicast_locator_list::new(),
                         )?,
+                    type_support.xml_type(),
                 ),
             )?;
             self.participant_address.send_mail_blocking(

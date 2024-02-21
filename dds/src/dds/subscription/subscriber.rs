@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
-            data_reader_actor::{self},
+            data_reader_actor,
             domain_participant_actor::{self, DomainParticipantActor},
             subscriber_actor::{self, SubscriberActor},
         },

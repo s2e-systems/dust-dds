@@ -85,7 +85,6 @@ impl PublisherActor {
         mask: Vec<StatusKind>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        xml_type: String,
         runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<ActorAddress<DataWriterActor>> {
         let qos = match qos {
@@ -130,7 +129,6 @@ impl PublisherActor {
             a_listener,
             mask,
             qos,
-            xml_type,
             &runtime_handle,
         );
         let data_writer_actor = Actor::spawn(data_writer, &runtime_handle);

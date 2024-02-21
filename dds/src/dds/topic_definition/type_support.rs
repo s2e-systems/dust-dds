@@ -39,6 +39,8 @@ pub trait DynamicTypeInterface {
         &self,
         serialized_key: &[u8],
     ) -> DdsResult<InstanceHandle>;
+
+    fn xml_type(&self) -> String;
 }
 
 /// This trait indicates whether the associated type is keyed or not, i.e. if the middleware

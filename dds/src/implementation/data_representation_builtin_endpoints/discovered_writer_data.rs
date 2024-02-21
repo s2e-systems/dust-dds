@@ -4,7 +4,7 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::error::DdsResult,
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize},
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
 use super::parameter_id_values::{
@@ -117,6 +117,12 @@ impl DdsKey for DiscoveredWriterData {
             .dds_publication_data
             .key()
             .value)
+    }
+}
+
+impl DdsTypeXml for DiscoveredWriterData {
+    fn get_type_xml() -> Option<String> {
+        None
     }
 }
 

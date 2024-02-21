@@ -16,7 +16,7 @@ use crate::{
             deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
         },
     },
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize},
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
 use super::parameter_id_values::{
@@ -27,9 +27,7 @@ use super::parameter_id_values::{
     PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
 };
 
-#[derive(
-    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 struct DomainTag(String);
 impl Default for DomainTag {
     fn default() -> Self {
@@ -237,6 +235,12 @@ impl DdsKey for SpdpDiscoveredParticipantData {
             .dds_participant_data
             .key()
             .value)
+    }
+}
+
+impl DdsTypeXml for SpdpDiscoveredParticipantData {
+    fn get_type_xml() -> Option<String> {
+        None
     }
 }
 
