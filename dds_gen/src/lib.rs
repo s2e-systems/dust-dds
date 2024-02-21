@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use generator::rust;
 use pest::Parser;
 
@@ -13,7 +11,6 @@ pub fn compile_idl(idl_source: &str) -> Result<String, String> {
         .expect("Must contain a specification");
 
     let mut output = String::new();
-    let mut define_table = HashMap::new();
-    rust::generate_rust_source(parsed_idl, &mut output, &mut define_table);
+    rust::generate_rust_source(parsed_idl, &mut output);
     Ok(output)
 }
