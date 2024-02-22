@@ -2,6 +2,8 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{spanned::Spanned, DeriveInput, Field};
 use xml::{writer::XmlEvent, EmitterConfig, EventWriter};
+use super::enum_support::{read_enum_variant_discriminant_mapping, get_enum_bitbound, BitBound};
+
 
 fn field_has_key_attribute(field: &Field) -> syn::Result<bool> {
     let mut has_key = false;
@@ -50,15 +52,16 @@ fn convert_rust_type_to_xtypes(type_ident: &Ident) -> &str {
 }
 
 pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let ident = &input.ident;
+    let mut output_xml = Vec::new();
+    let mut xml_writer = EventWriter::new_with_config(
+        &mut output_xml,
+        EmitterConfig::new().write_document_declaration(false),
+    );
+
     match &input.data {
         syn::Data::Struct(data_struct) => {
-            let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-            let ident = &input.ident;
-            let mut output_xml = Vec::new();
-            let mut xml_writer = EventWriter::new_with_config(
-                &mut output_xml,
-                EmitterConfig::new().write_document_declaration(false),
-            );
             xml_writer
                 .write(XmlEvent::start_element("struct").attr("name", &ident.to_string()))
                 .expect("Failed to write struct XML element");
@@ -160,10 +163,39 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                 }
             })
         }
-        syn::Data::Enum(data_enum) => Err(syn::Error::new(
-            data_enum.enum_token.span,
-            "Enum not supported",
-        )),
+        syn::Data::Enum(data_enum) => {
+            let discriminant_mapping = read_enum_variant_discriminant_mapping(data_enum);
+            let max_discriminant = discriminant_mapping.iter().map(|(_,v)|v).max().expect("Map contains at least a value");
+            let bitbound = match get_enum_bitbound(max_discriminant) {
+                BitBound::Bit8 => "8",
+                BitBound::Bit16 => "16",
+                BitBound::Bit32 => "32",
+            };
+            xml_writer
+                .write(XmlEvent::start_element("enum").attr("name", &ident.to_string()).attr("bitBound", bitbound))
+                .expect("Failed to write enum XML element");
+            for (variant_name, variant_discriminant) in discriminant_mapping.iter() {
+                xml_writer
+                .write(XmlEvent::start_element("enumerator").attr("name", &variant_name.to_string()).attr("value", &variant_discriminant.to_string()))
+                .expect("Failed to write enumerator XML element");
+                xml_writer
+                    .write(XmlEvent::end_element())
+                    .expect("Failed to write enumerator XML end element");
+            }
+            xml_writer
+                .write(XmlEvent::end_element())
+                .expect("Failed to write enum XML end element");
+            let output_xml_string =
+                String::from_utf8(output_xml).expect("Failed to convert XML to string");
+
+            Ok(quote! {
+                impl #impl_generics dust_dds::topic_definition::type_support::DdsTypeXml for #ident #type_generics #where_clause {
+                    fn get_type_xml() -> Option<String> {
+                        Some(#output_xml_string.to_string())
+                    }
+                }
+            })
+        },
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",
@@ -235,6 +267,41 @@ mod tests {
             r#"impl dust_dds::topic_definition::type_support::DdsTypeXml for TestStruct {
                 fn get_type_xml() -> Option<String> {
                     Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" key=\"true\" /><member name=\"value_list\" type=\"uint8\" sequenceMaxLength=\"-1\" /></struct>".to_string())
+                }
+            }"#
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            expected,
+            "\n\n Result: {:?} \n Expected: {:?}",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
+    }
+
+    #[test]
+    fn enumeration() {
+        let input = syn::parse2::<DeriveInput>(
+            "
+            enum MyEnum {
+                VariantA=500,
+                VariantB=600,
+            }
+        "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        let result = syn::parse2::<ItemImpl>(expand_dds_type_xml(&input).unwrap()).unwrap();
+        let expected = syn::parse2::<ItemImpl>(
+            r#"impl dust_dds::topic_definition::type_support::DdsTypeXml for MyEnum {
+                fn get_type_xml() -> Option<String> {
+                    Some("<enum name=\"MyEnum\" bitBound=\"16\"><enumerator name=\"VariantA\" value=\"500\" /><enumerator name=\"VariantB\" value=\"600\" /></enum>".to_string())
                 }
             }"#
             .parse()
