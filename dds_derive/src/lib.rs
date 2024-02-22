@@ -1,8 +1,7 @@
 mod derive;
 
 use derive::{
-    cdr_deserialize::expand_cdr_deserialize,
-    cdr_serialize::expand_cdr_serialize,
+    cdr::{expand_cdr_serialize,expand_cdr_deserialize,},
     dds_key::{expand_dds_key, expand_has_key},
     dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
     dds_type_xml::expand_dds_type_xml,
