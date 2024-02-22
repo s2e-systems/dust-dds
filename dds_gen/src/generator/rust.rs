@@ -3,22 +3,15 @@ use crate::parser::{IdlPair, Rule};
 pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
     match pair.as_rule() {
         Rule::EOI => (),
-        Rule::alpha => todo!(),
-        Rule::digit => todo!(),
-        Rule::octal_digit => todo!(),
-        Rule::hex_digit => todo!(),
         Rule::escape => todo!(),
         Rule::octal_escape => todo!(),
         Rule::hex_escape => todo!(),
         Rule::unicode_escape => todo!(),
-        Rule::newline => (),
         Rule::WHITESPACE => (),
-        Rule::path_spec => todo!(),
-        Rule::include_directive => todo!(),
-        Rule::other_directive => todo!(),
         Rule::block_comment => (),
         Rule::line_comment => (),
         Rule::COMMENT => (),
+        Rule::reserved_keyword => (),
         Rule::identifier => identifier(pair, writer),
         Rule::character_literal => todo!(),
         Rule::string_literal => todo!(),
@@ -38,8 +31,8 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::definition => definition(pair, writer),
         Rule::module_dcl => module_dcl(pair, writer),
         Rule::scoped_name => scoped_name(pair, writer),
-        Rule::const_dcl => todo!(),
-        Rule::const_type => todo!(),
+        Rule::const_dcl => const_dcl(pair, writer),
+        Rule::const_type => const_type(pair, writer),
         Rule::const_expr => const_expr(pair, writer),
         Rule::or_expr => todo!(),
         Rule::xor_expr => todo!(),
@@ -62,14 +55,13 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::simple_type_spec => simple_type_spec(pair, writer),
         Rule::base_type_spec => base_type_spec(pair, writer),
         Rule::floating_pt_type => floating_pt_type(pair, writer),
-        Rule::float => float(pair, writer),
-        Rule::double => double(pair, writer),
-        Rule::long_double => unimplemented!("long double not support in Rust mapping"),
         Rule::integer_type => integer_type(pair, writer),
+        Rule::signed_tiny_int => signed_tiny_int(pair, writer),
         Rule::signed_int => signed_int(pair, writer),
         Rule::signed_short_int => signed_short_int(pair, writer),
         Rule::signed_long_int => signed_long_int(pair, writer),
         Rule::signed_longlong_int => signed_longlong_int(pair, writer),
+        Rule::unsigned_tiny_int => unsigned_tiny_int(pair, writer),
         Rule::unsigned_int => unsigned_int(pair, writer),
         Rule::unsigned_short_int => unsigned_short_int(pair, writer),
         Rule::unsigned_long_int => unsigned_long_int(pair, writer),
@@ -82,13 +74,13 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::sequence_type => sequence_type(pair, writer),
         Rule::string_type => string_type(pair, writer),
         Rule::wide_string_type => wide_string_type(pair, writer),
-        Rule::fixed_pt_type => todo!(),
-        Rule::fixed_pt_const_type => todo!(),
+        Rule::fixed_pt_type => unimplemented!("Fixed point not supported in Rust mapping"),
+        Rule::fixed_pt_const_type => unimplemented!("Fixed point not supported in Rust mapping"),
         Rule::constr_type_dcl => constr_type_dcl(pair, writer),
         Rule::struct_dcl => struct_dcl(pair, writer),
         Rule::struct_def => struct_def(pair, writer),
         Rule::member => member(pair, writer),
-        Rule::struct_forward_dcl => todo!(),
+        Rule::struct_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
         Rule::union_dcl => todo!(),
         Rule::union_def => todo!(),
         Rule::switch_type_spec => todo!(),
@@ -96,35 +88,35 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::case => todo!(),
         Rule::case_label => todo!(),
         Rule::element_spec => todo!(),
-        Rule::union_forward_dcl => todo!(),
+        Rule::union_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
         Rule::enum_dcl => enum_dcl(pair, writer),
         Rule::enumerator => enumerator(pair, writer),
         Rule::array_declarator => todo!(),
         Rule::fixed_array_size => fixed_array_size(pair, writer),
         Rule::native_dcl => todo!(),
         Rule::simple_declarator => simple_declarator(pair, writer),
-        Rule::typedef_dcl => todo!(),
-        Rule::type_declarator => todo!(),
-        Rule::ANY_declarators => todo!(),
-        Rule::ANY_declarator => todo!(),
+        Rule::typedef_dcl => typedef_dcl(pair, writer),
+        Rule::type_declarator => type_declarator(pair, writer),
+        Rule::any_declarators => (), // Handled inside typedef_dcl
+        Rule::any_declarator => any_declarator(pair, writer),
         Rule::declarators => declarators(pair, writer),
         Rule::declarator => todo!(),
-        Rule::ANY_type => todo!(),
+        Rule::any_type => todo!(),
         Rule::except_dcl => todo!(),
-        Rule::interface_dcl => todo!(),
-        Rule::interface_def => todo!(),
-        Rule::interface_forward_dcl => todo!(),
-        Rule::interface_header => todo!(),
-        Rule::interface_kind => todo!(),
+        Rule::interface_dcl => interface_dcl(pair, writer),
+        Rule::interface_def => interface_def(pair, writer),
+        Rule::interface_forward_dcl => todo!(), // Forward declarations are irrelevant in Rust mapping
+        Rule::interface_header => interface_header(pair, writer),
+        Rule::interface_kind => interface_kind(pair, writer),
         Rule::interface_inheritance_spec => todo!(),
         Rule::interface_name => todo!(),
-        Rule::interface_body => todo!(),
-        Rule::export => todo!(),
-        Rule::op_dcl => todo!(),
-        Rule::op_type_spec => todo!(),
-        Rule::parameter_dcls => todo!(),
-        Rule::param_dcl => todo!(),
-        Rule::param_attribute => todo!(),
+        Rule::interface_body => interface_body(pair, writer),
+        Rule::export => export(pair, writer),
+        Rule::op_dcl => op_dcl(pair, writer),
+        Rule::op_type_spec => op_type_spec(pair, writer),
+        Rule::parameter_dcls => parameter_dcls(pair, writer),
+        Rule::param_dcl => param_dcl(pair, writer),
+        Rule::param_attribute => param_attribute(pair, writer),
         Rule::raises_expr => todo!(),
         Rule::attr_dcl => todo!(),
         Rule::readonly_attr_spec => todo!(),
@@ -222,7 +214,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::annotation_body => todo!(),
         Rule::annotation_member => todo!(),
         Rule::annotation_member_type => todo!(),
-        Rule::ANY_const_type => todo!(),
+        Rule::any_const_type => todo!(),
         Rule::annotation_appl => annotation_appl(pair, writer),
         Rule::annotation_appl_params => todo!(),
         Rule::annotation_appl_param => todo!(),
@@ -348,7 +340,7 @@ fn member(pair: IdlPair, writer: &mut String) {
     let type_spec = inner_pairs
         .clone()
         .find(|p| p.as_rule() == Rule::type_spec)
-        .expect("Declarator must exist according to grammar");
+        .expect("Type spec must exist according to grammar");
     let declarators = inner_pairs
         .clone()
         .find(|p| p.as_rule() == Rule::declarators)
@@ -404,7 +396,187 @@ fn declarators(pair: IdlPair, writer: &mut String) {
     }
 }
 
+fn interface_dcl(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn interface_def(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+
+    let interface_header = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::interface_header)
+        .expect("Must have an interface_header according to grammar");
+
+    let interface_body = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::interface_body)
+        .expect("Must have an interface_body according to grammar");
+
+    generate_rust_source(interface_header, writer);
+    writer.push('{');
+    generate_rust_source(interface_body, writer);
+    writer.push_str("}\n");
+}
+
+fn interface_header(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+
+    let interface_kind = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::interface_kind)
+        .expect("Must have an interface_kind according to grammar");
+
+    let identifier = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::identifier)
+        .expect("Must have an identifier according to grammar");
+
+    let interface_inheritance_spec = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::interface_inheritance_spec);
+
+    generate_rust_source(interface_kind, writer);
+    generate_rust_source(identifier, writer);
+
+    if let Some(interface_inheritance_spec) = interface_inheritance_spec {
+        generate_rust_source(interface_inheritance_spec, writer);
+    }
+}
+
+fn interface_kind(pair: IdlPair, writer: &mut String) {
+    match pair.as_str() {
+        "interface" | "abstract interface" => writer.push_str("pub trait "),
+        "local interface" => writer.push_str("trait "),
+        _ => panic!("Invalid string according to grammar"),
+    }
+}
+
+fn interface_body(pair: IdlPair, writer: &mut String) {
+    for export in pair.into_inner().filter(|p| p.as_rule() == Rule::export) {
+        generate_rust_source(export, writer);
+    }
+}
+
+fn export(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn op_dcl(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+    let identifier = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::identifier)
+        .expect("Must have an identifier according to the grammar");
+    let parameter_dcls = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::parameter_dcls)
+        .expect("Must have a parameter_dcls according to the grammar");
+    let op_type_spec = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::op_type_spec)
+        .expect("Must have an op_type_spec according to the grammar");
+    writer.push_str("fn ");
+    generate_rust_source(identifier, writer);
+    writer.push('(');
+    generate_rust_source(parameter_dcls, writer);
+    writer.push(')');
+    generate_rust_source(op_type_spec, writer);
+    writer.push_str(";\n");
+}
+
+fn op_type_spec(pair: IdlPair, writer: &mut String) {
+    if let Some(type_spec) = pair.into_inner().find(|p| p.as_rule() == Rule::type_spec) {
+        writer.push_str("->");
+        generate_rust_source(type_spec, writer);
+    }
+}
+
+fn parameter_dcls(pair: IdlPair, writer: &mut String) {
+    for param_dcl in pair.into_inner().filter(|p| p.as_rule() == Rule::param_dcl) {
+        generate_rust_source(param_dcl, writer);
+    }
+}
+
+fn param_dcl(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+    let param_attribute = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::param_attribute)
+        .expect("Must have a param_attribute according to the grammar");
+    let type_spec = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::type_spec)
+        .expect("Must have a type_spec according to the grammar");
+    let simple_declarator = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::simple_declarator)
+        .expect("Must have a simple_declarator according to the grammar");
+
+    generate_rust_source(simple_declarator, writer);
+    writer.push(':');
+    generate_rust_source(param_attribute, writer);
+    generate_rust_source(type_spec, writer);
+    writer.push(',');
+}
+
+fn param_attribute(pair: IdlPair, writer: &mut String) {
+    match pair.as_str() {
+        "inout" | "out" => writer.push_str("&mut "),
+        "in" => writer.push('&'),
+        _ => panic!("Invalid option by grammar"),
+    }
+}
+
 fn simple_declarator(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn typedef_dcl(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to the grammar"),
+        writer,
+    )
+}
+
+fn type_declarator(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+    let type_spec = inner_pairs.clone().find(|p| {
+        p.as_rule() == Rule::template_type_spec
+            || p.as_rule() == Rule::constr_type_dcl
+            || p.as_rule() == Rule::simple_type_spec
+    }).expect("template_type_spec, constr_type_dcl or simple_type_spec must exist according to grammar");
+    let any_declarators = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::any_declarators)
+        .expect("Must have any_declarators according to grammar");
+    for any_declarator in any_declarators.into_inner() {
+        writer.push_str("pub type ");
+        generate_rust_source(any_declarator, writer);
+        writer.push('=');
+        generate_rust_source(type_spec.clone(), writer);
+        writer.push_str(";\n");
+    }
+}
+
+fn any_declarator(pair: IdlPair, writer: &mut String) {
     generate_rust_source(
         pair.into_inner()
             .next()
@@ -445,20 +617,12 @@ fn base_type_spec(pair: IdlPair, writer: &mut String) {
 }
 
 fn floating_pt_type(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
-}
-
-fn float(_pair: IdlPair, writer: &mut String) {
-    writer.push_str("f32");
-}
-
-fn double(_pair: IdlPair, writer: &mut String) {
-    writer.push_str("f64");
+    match pair.as_str() {
+        "float" => writer.push_str("f32"),
+        "double" => writer.push_str("f64"),
+        "long double" => unimplemented!("long double not supported in Rust"),
+        _ => panic!("Invalid option by grammar"),
+    }
 }
 
 fn integer_type(pair: IdlPair, writer: &mut String) {
@@ -468,6 +632,10 @@ fn integer_type(pair: IdlPair, writer: &mut String) {
             .expect("Must have an element according to the grammar"),
         writer,
     )
+}
+
+fn signed_tiny_int(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("i8");
 }
 
 fn signed_int(pair: IdlPair, writer: &mut String) {
@@ -489,6 +657,10 @@ fn signed_long_int(_pair: IdlPair, writer: &mut String) {
 
 fn signed_longlong_int(_pair: IdlPair, writer: &mut String) {
     writer.push_str("i64");
+}
+
+fn unsigned_tiny_int(_pair: IdlPair, writer: &mut String) {
+    writer.push_str("u8");
 }
 
 fn unsigned_int(pair: IdlPair, writer: &mut String) {
@@ -576,7 +748,14 @@ fn annotation_appl(pair: IdlPair, writer: &mut String) {
         .find(|p| p.as_rule() == Rule::scoped_name)
         .expect("Must have a scoped name according to the grammar");
 
-    generate_rust_source(scoped_name, writer);
+    let identifier = scoped_name
+        .into_inner()
+        .next()
+        .expect("Must have an identifier according to the grammar");
+
+    if identifier.as_str() == "key" {
+        writer.push_str("#[dust_dds(key)]");
+    }
 }
 
 fn scoped_name(pair: IdlPair, writer: &mut String) {
@@ -585,9 +764,42 @@ fn scoped_name(pair: IdlPair, writer: &mut String) {
         .next()
         .expect("Must have an identifier according to the grammar");
 
-    if identifier.as_str() == "key" {
-        writer.push_str("#[dust_dds(key)]");
-    }
+    writer.push_str(identifier.as_str());
+}
+
+fn const_dcl(pair: IdlPair, writer: &mut String) {
+    let inner_pairs = pair.into_inner();
+    let identifier = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::identifier)
+        .expect("Must have an identifier according to the grammar");
+
+    let const_type = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::const_type)
+        .expect("Must have a const_type according to the grammar");
+
+    let const_expr = inner_pairs
+        .clone()
+        .find(|p| p.as_rule() == Rule::const_expr)
+        .expect("Must have a const_expr according to the grammar");
+
+    writer.push_str("pub const ");
+    generate_rust_source(identifier, writer);
+    writer.push(':' );
+    generate_rust_source(const_type, writer);
+    writer.push('=');
+    generate_rust_source(const_expr, writer);
+    writer.push_str(";\n");
+}
+
+fn const_type(pair: IdlPair, writer: &mut String) {
+    generate_rust_source(
+        pair.into_inner()
+            .next()
+            .expect("Must have an element according to grammar"),
+        writer,
+    );
 }
 
 fn char_type(_pair: IdlPair, writer: &mut String) {
@@ -682,6 +894,66 @@ mod tests {
         println!("RESULT: {}", out);
         assert_eq!(
             "#[derive(Debug)]\npub enum Suits{Spades,Hearts,Diamonds,Clubs,}",
+            &out
+        );
+    }
+
+    #[test]
+    fn parse_const_with_literals() {
+        let mut out = String::new();
+        let p = IdlParser::parse(Rule::specification, r#"const string a = 'a';"#)
+            .unwrap()
+            .next()
+            .unwrap();
+
+        generate_rust_source(p, &mut out);
+        assert_eq!("pub const a:String='a';\n", &out);
+    }
+
+    #[test]
+    fn parse_typedef() {
+        let mut out = String::new();
+
+        let p = IdlParser::parse(Rule::typedef_dcl, r#"typedef long Name;"#)
+            .unwrap()
+            .next()
+            .unwrap();
+
+        generate_rust_source(p, &mut out);
+        assert_eq!("pub type Name=i32;\n", &out);
+    }
+
+    #[test]
+    fn parse_interface_export() {
+        let mut out = String::new();
+
+        let p = IdlParser::parse(Rule::export, r#"short op(out string s);"#)
+            .unwrap()
+            .next()
+            .unwrap();
+
+        generate_rust_source(p, &mut out);
+        assert_eq!("fn op(s:&mut String,)->i16;\n", &out);
+    }
+
+    #[test]
+    fn parse_interface() {
+        let mut out = String::new();
+
+        let p = IdlParser::parse(
+            Rule::interface_def,
+            "interface MyInterface {
+                void op(out string s, inout short a, in char u);
+                unsigned short sum(in unsigned short a, in unsigned short b);
+            };",
+        )
+        .unwrap()
+        .next()
+        .unwrap();
+
+        generate_rust_source(p, &mut out);
+        assert_eq!(
+            "pub trait MyInterface{fn op(s:&mut String,a:&mut i16,u:&char,);\nfn sum(a:&u16,b:&u16,)->u16;\n}\n",
             &out
         );
     }
