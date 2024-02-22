@@ -268,8 +268,8 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize<'_> for SimpleEnum {
-                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'_>) -> Result<Self, std::io::Error> {
+            impl<'__de> dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize<'__de> for SimpleEnum {
+                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
                     let discriminant: u16 = dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?;
 
                     match discriminant {
