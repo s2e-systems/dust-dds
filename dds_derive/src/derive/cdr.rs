@@ -1,44 +1,13 @@
+use super::enum_support::{get_enum_bitbound, read_enum_variant_discriminant_mapping, BitBound};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{DeriveInput, Index, Result, Fields, DataEnum, Ident, Expr, ExprLit, Lit};
-
-
-// The return of this function is a Vec instead of a HashMap so that the tests give
-// consistent results. Iterating over a HashMap gives different order of members every time.
-// Functionally shouldn't matter but the test has good value here so it is kept as Vec.
-fn read_enum_variant_discriminant_mapping(data_enum: &DataEnum) -> Vec<(Ident, usize)> {
-    let mut map = Vec::new();
-    let mut discriminant = 0;
-    for variant in data_enum.variants.iter() {
-        match variant.fields {
-            Fields::Unit => (),
-            _ => panic!("Only unit enums can be used when deriving CdrSerialize and CdrDeserialize"),
-        }
-        if let Some((_,discriminant_expr)) = &variant.discriminant {
-            match discriminant_expr {
-                Expr::Lit(ExprLit{lit,..}) => match lit {
-                    Lit::Int(lit_int) => discriminant = lit_int.base10_parse().expect("Integer should be verified by compiler"),
-                    _ => panic!("Only literal integer discrimimants are expected")
-                },
-                _ => panic!("Only literal discrimimants are expected"),
-            }
-        }
-        map.push((variant.ident.clone(), discriminant));
-        discriminant += 1;
-    }
-
-    map
-}
+use syn::{DeriveInput, Index, Result};
 
 fn get_discriminant_type(max_discriminant: &usize) -> TokenStream {
-    if max_discriminant >= &0 && max_discriminant <= &(u8::MAX as usize)  {
-        quote!{u8}
-    } else if max_discriminant > &(u8::MAX as usize) && max_discriminant <= &(u16::MAX as usize) {
-        quote!{u16}
-    } else if max_discriminant > &(u16::MAX as usize) && max_discriminant <= &(u32::MAX as usize) {
-        quote!{u32}
-    } else {
-        panic!("Enum discriminant value outside of supported range")
+    match get_enum_bitbound(max_discriminant) {
+        BitBound::Bit8 => quote! {u8},
+        BitBound::Bit16 => quote! {u16},
+        BitBound::Bit32 => quote! {u32},
     }
 }
 
@@ -80,13 +49,20 @@ pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
                 // Empty enum is the same as empty type. Do nothing
                 quote! {}
             } else {
-                let max_discriminant = discriminant_mapping.iter().map(|(_,v)|v).max().expect("Map contains at least a value");
+                let max_discriminant = discriminant_mapping
+                    .iter()
+                    .map(|(_, v)| v)
+                    .max()
+                    .expect("Map contains at least a value");
                 let discriminant_type = get_discriminant_type(max_discriminant);
 
-                let clauses: Vec<_> = discriminant_mapping.iter().map(|(v,d)| {
-                    let i = Index::from(*d);
-                    quote! {#ident::#v => #i,}
-                }).collect();
+                let clauses: Vec<_> = discriminant_mapping
+                    .iter()
+                    .map(|(v, d)| {
+                        let i = Index::from(*d);
+                        quote! {#ident::#v => #i,}
+                    })
+                    .collect();
 
                 quote! {
                     let discriminant : #discriminant_type = match self {
@@ -104,7 +80,7 @@ pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 }
             })
-        },
+        }
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",
@@ -114,27 +90,25 @@ pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
 
 pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
     let ident = &input.ident;
-    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let (_, type_generics, where_clause) = input.generics.split_for_impl();
+
+    // Create a '__de lifetime bound to all the lifetimes of the struct
+    let mut de_lifetime_param =
+        syn::LifetimeParam::new(syn::Lifetime::new("'__de", Span::call_site()));
+    for struct_lifetime in input.generics.lifetimes().cloned() {
+        de_lifetime_param.bounds.push(struct_lifetime.lifetime);
+    }
+
+    // Append the '__de lifetime to the impl generics of the struct
+    let mut generics = input.generics.clone();
+    generics.params = Some(syn::GenericParam::Lifetime(de_lifetime_param))
+        .into_iter()
+        .chain(generics.params)
+        .collect();
 
     match &input.data {
         syn::Data::Struct(data_struct) => {
             let mut struct_deserialization = quote!();
-
-
-            // Create a '__de lifetime bound to all the lifetimes of the struct
-            let mut de_lifetime_param =
-                syn::LifetimeParam::new(syn::Lifetime::new("'__de", Span::call_site()));
-            for struct_lifetime in input.generics.lifetimes().cloned() {
-                de_lifetime_param.bounds.push(struct_lifetime.lifetime);
-            }
-
-            // Append the '__de lifetime to the impl generics of the struct
-            let mut generics = input.generics.clone();
-            generics.params = Some(syn::GenericParam::Lifetime(de_lifetime_param))
-                .into_iter()
-                .chain(generics.params)
-                .collect();
-
 
             match data_struct.fields.is_empty() {
                 true => struct_deserialization.extend(quote! {Self}),
@@ -179,14 +153,21 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                 // Empty enum is the same as empty type. Do nothing
                 quote! {}
             } else {
-                let max_discriminant = discriminant_mapping.iter().map(|(_,v)|v).max().expect("Map contains at least a value");
+                let max_discriminant = discriminant_mapping
+                    .iter()
+                    .map(|(_, v)| v)
+                    .max()
+                    .expect("Map contains at least a value");
                 let discriminant_type = get_discriminant_type(max_discriminant);
 
-                let clauses: Vec<_> = discriminant_mapping.iter().map(|(v,d)| {
-                    let i = Index::from(*d);
-                    quote! {#i => Ok(#ident::#v),}
-                }).collect();
-                let error_msg = format!("Invalid value {{}} for discriminant of {}",ident);
+                let clauses: Vec<_> = discriminant_mapping
+                    .iter()
+                    .map(|(v, d)| {
+                        let i = Index::from(*d);
+                        quote! {#i => Ok(#ident::#v),}
+                    })
+                    .collect();
+                let error_msg = format!("Invalid value {{}} for discriminant of {}", ident);
 
                 quote! {
                     let discriminant : #discriminant_type = dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?;
@@ -202,13 +183,13 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             Ok(quote! {
-                impl #impl_generics dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize<'_> for #ident #type_generics #where_clause {
-                    fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'_>) -> Result<Self, std::io::Error> {
+                impl #generics dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize<'__de> for #ident #type_generics #where_clause {
+                    fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
                         #deserialize_enum
                     }
                 }
             })
-        },
+        }
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",

@@ -47,7 +47,7 @@ fn get_format(input: &DeriveInput) -> Result<Format> {
 
 pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
-        syn::Data::Struct(_data_struct) => {
+        syn::Data::Struct(_) | syn::Data::Enum(_) => {
             let format = get_format(input)?;
             let serialize_function = match format {
                 Format::CdrLe => quote! {
@@ -82,11 +82,7 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 }
             })
-        }
-        syn::Data::Enum(data_enum) => Err(syn::Error::new(
-            data_enum.enum_token.span,
-            "Enum not supported",
-        )),
+        },
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",
@@ -96,7 +92,7 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
 
 pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
-        syn::Data::Struct(_data_struct) => {
+        syn::Data::Struct(_) | syn::Data::Enum(_)=> {
             let format = get_format(input)?;
             let (_, type_generics, where_clause) = input.generics.split_for_impl();
 
@@ -134,11 +130,7 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 }
             })
-        }
-        syn::Data::Enum(data_enum) => Err(syn::Error::new(
-            data_enum.enum_token.span,
-            "Enum not supported",
-        )),
+        },
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",
