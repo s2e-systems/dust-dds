@@ -37,20 +37,21 @@ fn struct_has_key(data_struct: &DataStruct) -> Result<bool> {
 }
 
 pub fn expand_has_key(input: &DeriveInput) -> Result<TokenStream> {
+    let ident = &input.ident;
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
     match &input.data {
         syn::Data::Struct(data_struct) => {
             let has_key = struct_has_key(data_struct)?;
-            let ident = &input.ident;
-            let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
             Ok(quote!(
                 impl #impl_generics dust_dds::topic_definition::type_support::DdsHasKey for #ident #type_generics #where_clause {
                     const HAS_KEY: bool = #has_key;
                 }
             ))
         }
-        syn::Data::Enum(data_enum) => Err(syn::Error::new(
-            data_enum.enum_token.span,
-            "Enum not supported",
+        syn::Data::Enum(_data_enum) => Ok(quote!(
+            impl #impl_generics dust_dds::topic_definition::type_support::DdsHasKey for #ident #type_generics #where_clause {
+                const HAS_KEY: bool = false;
+            }
         )),
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
@@ -60,11 +61,10 @@ pub fn expand_has_key(input: &DeriveInput) -> Result<TokenStream> {
 }
 
 pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let ident = &input.ident;
     match &input.data {
         syn::Data::Struct(data_struct) => {
-            let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-            let ident = &input.ident;
-
             let has_key = struct_has_key(data_struct)?;
 
             let (key_holder_struct_definition, key_holder_struct_construction) = match has_key {
@@ -132,10 +132,21 @@ pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
                 };
             })
         }
-        syn::Data::Enum(data_enum) => Err(syn::Error::new(
-            data_enum.enum_token.span,
-            "Enum not supported",
-        )),
+        syn::Data::Enum(_data_enum) => Ok(quote! {
+            const _ : () = {
+                impl #impl_generics dust_dds::topic_definition::type_support::DdsKey for #ident #type_generics #where_clause {
+                    type Key = ();
+
+                    fn get_key(&self) -> dust_dds::infrastructure::error::DdsResult<Self::Key> {
+                        Ok(())
+                    }
+
+                    fn get_key_from_serialized_data(serialized_foo: &[u8]) -> dust_dds::infrastructure::error::DdsResult<Self::Key> {
+                        Ok(())
+                    }
+                }
+            };
+        }),
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",

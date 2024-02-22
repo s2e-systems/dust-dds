@@ -1,15 +1,57 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Index, Result};
+use syn::{DeriveInput, Index, Result, Fields, DataEnum, Ident, Expr, ExprLit, Lit};
+
+
+// The return of this function is a Vec instead of a HashMap so that the tests give
+// consistent results. Iterating over a HashMap gives different order of members every time.
+// Functionally shouldn't matter but the test has good value here so it is kept as Vec.
+fn read_enum_variant_discriminant_mapping(data_enum: &DataEnum) -> Vec<(Ident, usize)> {
+    let mut map = Vec::new();
+    let mut discriminant = 0;
+    for variant in data_enum.variants.iter() {
+        match variant.fields {
+            Fields::Unit => (),
+            _ => panic!("Only unit enums can be used when deriving CdrSerialize and CdrDeserialize"),
+        }
+        if let Some((_,discriminant_expr)) = &variant.discriminant {
+            match discriminant_expr {
+                Expr::Lit(ExprLit{lit,..}) => match lit {
+                    Lit::Int(lit_int) => discriminant = lit_int.base10_parse().expect("Integer should be verified by compiler"),
+                    _ => panic!("Only literal integer discrimimants are expected")
+                },
+                _ => panic!("Only literal discrimimants are expected"),
+            }
+        }
+        map.push((variant.ident.clone(), discriminant));
+        discriminant += 1;
+    }
+
+    map
+}
+
+fn get_discriminant_type(max_discriminant: &usize) -> TokenStream {
+    if max_discriminant >= &0 && max_discriminant <= &(u8::MAX as usize)  {
+        quote!{u8}
+    } else if max_discriminant > &(u8::MAX as usize) && max_discriminant <= &(u16::MAX as usize) {
+        quote!{u16}
+    } else if max_discriminant > &(u16::MAX as usize) && max_discriminant <= &(u32::MAX as usize) {
+        quote!{u32}
+    } else if max_discriminant > &(u32::MAX as usize) && max_discriminant <= &(u64::MAX as usize) {
+        quote!{u64}
+    } else {
+        panic!("Enum discriminant value outside of supported range")
+    }
+}
 
 pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
     let mut field_serialization = quote!();
 
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let ident = &input.ident;
+
     match &input.data {
         syn::Data::Struct(data_struct) => {
-            let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-            let ident = &input.ident;
-
             for (field_index, field) in data_struct.fields.iter().enumerate() {
                 match &field.ident {
                     Some(field_name) => {
@@ -32,13 +74,96 @@ pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
                 }
             })
         }
-        syn::Data::Enum(data_enum) => Err(syn::Error::new(
-            data_enum.enum_token.span,
-            "Enum not supported",
-        )),
+        syn::Data::Enum(data_enum) => {
+            // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using self as i64 would
+            // be consuming it.
+            let discriminant_mapping = read_enum_variant_discriminant_mapping(data_enum);
+            let serialize_enum = if discriminant_mapping.is_empty() {
+                // Empty enum is the same as empty type. Do nothing
+                quote! {}
+            } else {
+                let max_discriminant = discriminant_mapping.iter().map(|(_,v)|v).max().expect("Map contains at least a value");
+                let discriminant_type = get_discriminant_type(max_discriminant);
+
+
+                let clauses: Vec<_> = discriminant_mapping.iter().map(|(v,d)| {
+                    let i = Index::from(*d);
+                    quote! {#ident::#v => #i,}
+                }).collect();
+
+                quote! {
+                    let discriminant : #discriminant_type = match self {
+                        #(#clauses)*
+                    };
+
+                    dust_dds::serialized_payload::cdr::serialize::CdrSerialize::serialize(&discriminant, serializer)
+                }
+            };
+
+            Ok(quote! {
+                impl #impl_generics dust_dds::serialized_payload::cdr::serialize::CdrSerialize for #ident #type_generics #where_clause {
+                    fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::cdr::serializer::CdrSerializer) -> Result<(), std::io::Error> {
+                        #serialize_enum
+                    }
+                }
+            })
+        },
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use quote::ToTokens;
+    use syn::ItemImpl;
+
+    use super::*;
+
+    #[test]
+    fn simple_enum() {
+        let input = syn::parse2::<DeriveInput>(
+            "
+            enum SimpleEnum {
+                a=10,
+                b=2000,
+                c,
+            }
+        "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        let output_token_stream = expand_cdr_serialize(&input).unwrap();
+        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
+        let expected = syn::parse2::<ItemImpl>(
+            "
+            impl dust_dds::serialized_payload::cdr::serialize::CdrSerialize for SimpleEnum {
+                fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::cdr::serializer::CdrSerializer) -> Result<(), std::io::Error> {
+                    let discriminant: u16 = match self {
+                        SimpleEnum::a => 10,
+                        SimpleEnum::b => 2000,
+                        SimpleEnum::c => 2001,
+                    };
+
+                    dust_dds::serialized_payload::cdr::serialize::CdrSerialize::serialize(&discriminant, serializer)
+                }
+            }
+            "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            expected,
+            "\n R: {:?} \n \n L: {:?} \n ",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
     }
 }
