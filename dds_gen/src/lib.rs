@@ -5,7 +5,7 @@ mod generator;
 mod parser;
 
 pub fn compile_idl(idl_source: &str) -> Result<String, String> {
-    let parsed_idl = parser::IdlParser::parse(parser::Rule::specification, &idl_source)
+    let parsed_idl = parser::IdlParser::parse(parser::Rule::specification, idl_source)
         .map_err(|e| format!("Error parsing IDL string: {}", e))?
         .next()
         .expect("Must contain a specification");

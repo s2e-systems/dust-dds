@@ -533,7 +533,7 @@ fn param_dcl(pair: IdlPair, writer: &mut String) {
 fn param_attribute(pair: IdlPair, writer: &mut String) {
     match pair.as_str() {
         "inout" | "out" => writer.push_str("&mut "),
-        "in" => writer.push_str("&"),
+        "in" => writer.push('&'),
         _ => panic!("Invalid option by grammar"),
     }
 }
@@ -786,7 +786,7 @@ fn const_dcl(pair: IdlPair, writer: &mut String) {
 
     writer.push_str("pub const ");
     generate_rust_source(identifier, writer);
-    writer.push_str(":");
+    writer.push(':' );
     generate_rust_source(const_type, writer);
     writer.push('=');
     generate_rust_source(const_expr, writer);
