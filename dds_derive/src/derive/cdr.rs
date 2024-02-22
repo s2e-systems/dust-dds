@@ -37,8 +37,6 @@ fn get_discriminant_type(max_discriminant: &usize) -> TokenStream {
         quote!{u16}
     } else if max_discriminant > &(u16::MAX as usize) && max_discriminant <= &(u32::MAX as usize) {
         quote!{u32}
-    } else if max_discriminant > &(u32::MAX as usize) && max_discriminant <= &(u64::MAX as usize) {
-        quote!{u64}
     } else {
         panic!("Enum discriminant value outside of supported range")
     }
