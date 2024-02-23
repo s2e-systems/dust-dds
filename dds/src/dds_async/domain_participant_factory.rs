@@ -1,5 +1,3 @@
-use tokio::runtime::Runtime;
-
 use crate::{
     configuration::DustDdsConfiguration,
     domain::{
@@ -21,23 +19,17 @@ use super::domain_participant::DomainParticipantAsync;
 
 pub struct DomainParticipantFactoryAsync {
     domain_participant_factory_actor: Actor<DomainParticipantFactoryActor>,
-    runtime: Runtime,
+    runtime_handle: tokio::runtime::Handle,
 }
 
 impl DomainParticipantFactoryAsync {
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        self.runtime.handle()
-    }
-}
-
-impl DomainParticipantFactoryAsync {
-    pub fn new(runtime: Runtime) -> Self {
+    pub fn new(runtime_handle: tokio::runtime::Handle) -> Self {
         let domain_participant_factory_actor =
-            Actor::spawn(DomainParticipantFactoryActor::new(), runtime.handle());
+            Actor::spawn(DomainParticipantFactoryActor::new(), &runtime_handle);
 
         Self {
             domain_participant_factory_actor,
-            runtime,
+            runtime_handle,
         }
     }
 
@@ -50,7 +42,7 @@ impl DomainParticipantFactoryAsync {
     ) -> DdsResult<DomainParticipantAsync> {
         let listener = Box::new(a_listener);
         let status_kind = mask.to_vec();
-        let runtime_handle = self.runtime.handle().clone();
+        let runtime_handle = self.runtime_handle.clone();
         let participant_address = self
             .domain_participant_factory_actor
             .send_mail_and_await_reply(domain_participant_factory_actor::create_participant::new(
@@ -63,7 +55,7 @@ impl DomainParticipantFactoryAsync {
             .await?;
 
         let domain_participant =
-            DomainParticipantAsync::new(participant_address.clone(), self.runtime.handle().clone());
+            DomainParticipantAsync::new(participant_address.clone(), self.runtime_handle.clone());
 
         if self
             .get_qos()
@@ -96,7 +88,7 @@ impl DomainParticipantFactoryAsync {
                 domain_id,
             ))
             .await?
-            .map(|dp| DomainParticipantAsync::new(dp, self.runtime.handle().clone())))
+            .map(|dp| DomainParticipantAsync::new(dp, self.runtime_handle.clone())))
     }
 
     pub async fn set_default_participant_qos(

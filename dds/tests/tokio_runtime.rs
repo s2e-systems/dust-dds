@@ -1,13 +1,15 @@
 mod utils;
 use dust_dds::{
-    domain::domain_participant_factory::DomainParticipantFactory,
+    dds_async::{
+        domain_participant_factory::DomainParticipantFactoryAsync,
+        wait_set::{ConditionAsync, WaitSetAsync},
+    },
     infrastructure::{
         listeners::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::DdsType,
@@ -26,8 +28,10 @@ struct UserData {
 async fn dust_dds_should_run_inside_tokio_runtime() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let participant_factory = DomainParticipantFactoryAsync::new(tokio::runtime::Handle::current());
+    let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .await
         .unwrap();
     let topic = participant
         .create_topic::<UserData>(
@@ -37,10 +41,12 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
             NoOpListener::new(),
             NO_STATUS,
         )
+        .await
         .unwrap();
 
     let publisher = participant
         .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .await
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -56,10 +62,12 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
             NoOpListener::new(),
             NO_STATUS,
         )
+        .await
         .unwrap();
 
     let subscriber = participant
         .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .await
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -75,36 +83,42 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
             NoOpListener::new(),
             NO_STATUS,
         )
+        .await
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition().await.unwrap();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .await
         .unwrap();
 
-    let mut wait_set = WaitSet::new();
+    let mut wait_set = WaitSetAsync::new();
     wait_set
-        .attach_condition(Condition::StatusCondition(cond))
+        .attach_condition(ConditionAsync::StatusCondition(cond))
+        .await
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).await.unwrap();
 
     let data = UserData {
         id: 1,
         value: vec![8; 100],
     };
 
-    writer.write(&data, None).unwrap();
+    writer.write(&data, None).await.unwrap();
 
-    let cond = reader.get_statuscondition().unwrap();
+    let cond = reader.get_statuscondition().await.unwrap();
     cond.set_enabled_statuses(&[StatusKind::DataAvailable])
+        .await
         .unwrap();
-    let mut reader_wait_set = WaitSet::new();
+    let mut reader_wait_set = WaitSetAsync::new();
     reader_wait_set
-        .attach_condition(Condition::StatusCondition(cond))
+        .attach_condition(ConditionAsync::StatusCondition(cond))
+        .await
         .unwrap();
-    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).await.unwrap();
 
     let samples = reader
         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .await
         .unwrap();
 
     assert_eq!(samples.len(), 1);
