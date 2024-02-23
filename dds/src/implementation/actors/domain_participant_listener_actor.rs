@@ -1,6 +1,7 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
+    dds_async::{data_reader::DataReaderAsync, data_writer::DataWriterAsync},
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{
@@ -40,12 +41,12 @@ impl DomainParticipantListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_sample_rejected(
-                &DataReader::<()>::new(
+                &DataReader::new(DataReaderAsync::<()>::new(
                     reader_address,
                     subscriber_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -61,12 +62,12 @@ impl DomainParticipantListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_requested_incompatible_qos(
-                &DataReader::<()>::new(
+                &DataReader::new(DataReaderAsync::<()>::new(
                     reader_address,
                     subscriber_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -82,12 +83,12 @@ impl DomainParticipantListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_offered_incompatible_qos(
-                &DataWriter::<()>::new(
+                &DataWriter::new(DataWriterAsync::<()>::new(
                     writer_address,
                     publisher_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -103,12 +104,12 @@ impl DomainParticipantListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_publication_matched(
-                &DataWriter::<()>::new(
+                &DataWriter::new(DataWriterAsync::<()>::new(
                     writer_address,
                     publisher_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -124,12 +125,12 @@ impl DomainParticipantListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_requested_deadline_missed(
-                &DataReader::<()>::new(
+                &DataReader::new(DataReaderAsync::<()>::new(
                     reader_address,
                     subscriber_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -145,12 +146,12 @@ impl DomainParticipantListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_subscription_matched(
-                &DataReader::<()>::new(
+                &DataReader::new(DataReaderAsync::<()>::new(
                     reader_address,
                     subscriber_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -166,12 +167,12 @@ impl DomainParticipantListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_sample_lost(
-                &DataReader::<()>::new(
+                &DataReader::new(DataReaderAsync::<()>::new(
                     reader_address,
                     subscriber_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });

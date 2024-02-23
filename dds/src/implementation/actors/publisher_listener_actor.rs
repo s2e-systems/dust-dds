@@ -1,6 +1,7 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
+    dds_async::data_writer::DataWriterAsync,
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
     publication::{data_writer::DataWriter, publisher_listener::PublisherListener},
@@ -33,12 +34,12 @@ impl PublisherListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_offered_incompatible_qos(
-                &DataWriter::<()>::new(
+                &DataWriter::new(DataWriterAsync::<()>::new(
                     writer_address,
                     publisher_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -54,12 +55,12 @@ impl PublisherListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_publication_matched(
-                &DataWriter::<()>::new(
+                &DataWriter::new(DataWriterAsync::<()>::new(
                     writer_address,
                     publisher_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });

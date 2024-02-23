@@ -1,4 +1,5 @@
 use crate::{
+    dds_async::data_writer::DataWriterAsync,
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{
         LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -62,12 +63,12 @@ where
         status: LivelinessLostStatus,
     ) {
         self.on_liveliness_lost(
-            &DataWriter::new(
+            &DataWriter::new(DataWriterAsync::new(
                 writer_address,
                 publisher_address,
                 participant_address,
                 runtime_handle,
-            ),
+            )),
             status,
         );
     }
@@ -81,12 +82,12 @@ where
         status: OfferedDeadlineMissedStatus,
     ) {
         self.on_offered_deadline_missed(
-            &DataWriter::new(
+            &DataWriter::new(DataWriterAsync::new(
                 writer_address,
                 publisher_address,
                 participant_address,
                 runtime_handle,
-            ),
+            )),
             status,
         );
     }
@@ -100,12 +101,12 @@ where
         status: OfferedIncompatibleQosStatus,
     ) {
         self.on_offered_incompatible_qos(
-            &DataWriter::new(
+            &DataWriter::new(DataWriterAsync::new(
                 writer_address,
                 publisher_address,
                 participant_address,
                 runtime_handle,
-            ),
+            )),
             status,
         );
     }
@@ -119,12 +120,12 @@ where
         status: PublicationMatchedStatus,
     ) {
         self.on_publication_matched(
-            &DataWriter::new(
+            &DataWriter::new(DataWriterAsync::new(
                 writer_address,
                 publisher_address,
                 participant_address,
                 runtime_handle,
-            ),
+            )),
             status,
         )
     }

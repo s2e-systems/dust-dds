@@ -1,5 +1,4 @@
 use crate::{
-    domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
             data_reader_actor,
@@ -16,10 +15,12 @@ use crate::{
         status::{SampleLostStatus, StatusKind},
     },
     subscription::{
-        data_reader::DataReader, data_reader_listener::DataReaderListener,
-        subscriber_listener::SubscriberListener,
+        data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
-    topic_definition::topic::Topic,
+};
+
+use super::{
+    data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 
 pub struct SubscriberAsync {
@@ -50,13 +51,13 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub async fn create_datareader<Foo>(
         &self,
-        a_topic: &Topic,
+        a_topic: &TopicAsync,
         qos: QosKind<DataReaderQos>,
         a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<DataReader<Foo>> {
-        let type_name = a_topic.get_type_name()?;
-        let topic_name = a_topic.get_name()?;
+    ) -> DdsResult<DataReaderAsync<Foo>> {
+        let type_name = a_topic.get_type_name().await?;
+        let topic_name = a_topic.get_name().await?;
         let type_support = self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
@@ -102,7 +103,7 @@ impl SubscriberAsync {
             ))
             .await??;
 
-        let data_reader = DataReader::new(
+        let data_reader = DataReaderAsync::new(
             reader_address,
             self.subscriber_address.clone(),
             self.participant_address.clone(),
@@ -120,17 +121,24 @@ impl SubscriberAsync {
                 .entity_factory
                 .autoenable_created_entities
         {
-            data_reader.enable()?;
+            data_reader.enable().await?;
         }
 
         Ok(data_reader)
     }
 
     #[tracing::instrument(skip(self, a_datareader))]
-    pub async fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
-        let reader_handle = a_datareader.get_instance_handle()?;
+    pub async fn delete_datareader<Foo>(
+        &self,
+        a_datareader: &DataReaderAsync<Foo>,
+    ) -> DdsResult<()> {
+        let reader_handle = a_datareader.get_instance_handle().await?;
         if self.get_instance_handle().await?
-            != a_datareader.get_subscriber()?.get_instance_handle()?
+            != a_datareader
+                .get_subscriber()
+                .await?
+                .get_instance_handle()
+                .await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Data reader can only be deleted from its parent subscriber".to_string(),
@@ -152,7 +160,7 @@ impl SubscriberAsync {
     pub async fn lookup_datareader<Foo>(
         &self,
         topic_name: &str,
-    ) -> DdsResult<Option<DataReader<Foo>>> {
+    ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
         Ok(self
             .subscriber_address
             .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
@@ -160,7 +168,7 @@ impl SubscriberAsync {
             ))
             .await?
             .map(|reader_address| {
-                DataReader::new(
+                DataReaderAsync::new(
                     reader_address,
                     self.subscriber_address.clone(),
                     self.participant_address.clone(),
@@ -175,8 +183,8 @@ impl SubscriberAsync {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(
+    pub async fn get_participant(&self) -> DdsResult<DomainParticipantAsync> {
+        Ok(DomainParticipantAsync::new(
             self.participant_address.clone(),
             self.runtime_handle.clone(),
         ))

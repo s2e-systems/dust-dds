@@ -1,5 +1,4 @@
 use crate::{
-    domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
             data_writer_actor,
@@ -22,6 +21,8 @@ use crate::{
         type_support::{DdsKey, DdsSerialize},
     },
 };
+
+use super::domain_participant::DomainParticipantAsync;
 
 pub struct TopicAsync {
     topic_address: ActorAddress<TopicActor>,
@@ -58,8 +59,8 @@ impl TopicAsync {
 
 impl TopicAsync {
     #[tracing::instrument(skip(self))]
-    pub async fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(
+    pub async fn get_participant(&self) -> DdsResult<DomainParticipantAsync> {
+        Ok(DomainParticipantAsync::new(
             self.participant_address.clone(),
             self.runtime_handle.clone(),
         ))

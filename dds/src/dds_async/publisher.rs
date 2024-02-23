@@ -1,5 +1,4 @@
 use crate::{
-    domain::domain_participant::DomainParticipant,
     implementation::{
         actors::{
             domain_participant_actor::{self, DomainParticipantActor},
@@ -16,10 +15,12 @@ use crate::{
         time::Duration,
     },
     publication::{
-        data_writer::DataWriter, data_writer_listener::DataWriterListener,
-        publisher_listener::PublisherListener,
+        data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
-    topic_definition::topic::Topic,
+};
+
+use super::{
+    data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 
 pub struct PublisherAsync {
@@ -50,12 +51,12 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub async fn create_datawriter<Foo>(
         &self,
-        a_topic: &Topic,
+        a_topic: &TopicAsync,
         qos: QosKind<DataWriterQos>,
         a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<DataWriter<Foo>> {
-        let type_name = a_topic.get_type_name()?;
+    ) -> DdsResult<DataWriterAsync<Foo>> {
+        let type_name = a_topic.get_type_name().await?;
         let type_support = self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
@@ -91,8 +92,8 @@ impl PublisherAsync {
         let data_writer_address = self
             .publisher_address
             .send_mail_and_await_reply(publisher_actor::create_datawriter::new(
-                a_topic.get_type_name()?,
-                a_topic.get_name()?,
+                a_topic.get_type_name().await?,
+                a_topic.get_name().await?,
                 has_key,
                 data_max_size_serialized,
                 qos,
@@ -104,7 +105,7 @@ impl PublisherAsync {
             ))
             .await??;
 
-        let data_writer = DataWriter::new(
+        let data_writer = DataWriterAsync::new(
             data_writer_address,
             self.publisher_address.clone(),
             self.participant_address.clone(),
@@ -122,20 +123,27 @@ impl PublisherAsync {
                 .entity_factory
                 .autoenable_created_entities
         {
-            data_writer.enable()?
+            data_writer.enable().await?
         }
 
         Ok(data_writer)
     }
 
     #[tracing::instrument(skip(self, a_datawriter))]
-    pub async fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
-        let writer_handle = a_datawriter.get_instance_handle()?;
+    pub async fn delete_datawriter<Foo>(
+        &self,
+        a_datawriter: &DataWriterAsync<Foo>,
+    ) -> DdsResult<()> {
+        let writer_handle = a_datawriter.get_instance_handle().await?;
         if self
             .publisher_address
             .send_mail_and_await_reply(publisher_actor::get_instance_handle::new())
             .await?
-            != a_datawriter.get_publisher()?.get_instance_handle()?
+            != a_datawriter
+                .get_publisher()
+                .await?
+                .get_instance_handle()
+                .await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
@@ -157,7 +165,7 @@ impl PublisherAsync {
     pub async fn lookup_datawriter<Foo>(
         &self,
         topic_name: &str,
-    ) -> DdsResult<Option<DataWriter<Foo>>> {
+    ) -> DdsResult<Option<DataWriterAsync<Foo>>> {
         Ok(self
             .publisher_address
             .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
@@ -165,7 +173,7 @@ impl PublisherAsync {
             ))
             .await?
             .map(|dw| {
-                DataWriter::new(
+                DataWriterAsync::new(
                     dw,
                     self.publisher_address.clone(),
                     self.participant_address.clone(),
@@ -200,8 +208,8 @@ impl PublisherAsync {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(
+    pub async fn get_participant(&self) -> DdsResult<DomainParticipantAsync> {
+        Ok(DomainParticipantAsync::new(
             self.participant_address.clone(),
             self.runtime_handle.clone(),
         ))

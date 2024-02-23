@@ -23,14 +23,15 @@ use crate::{
         status::{StatusKind, NO_STATUS},
         time::{Duration, Time},
     },
-    publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
+    publication::publisher_listener::PublisherListener,
+    subscription::subscriber_listener::SubscriberListener,
     topic_definition::{
-        topic::Topic,
         topic_listener::TopicListener,
         type_support::{DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface},
     },
 };
+
+use super::{publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync};
 
 pub struct DomainParticipantAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
@@ -60,7 +61,7 @@ impl DomainParticipantAsync {
         qos: QosKind<PublisherQos>,
         a_listener: impl PublisherListener + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<Publisher> {
+    ) -> DdsResult<PublisherAsync> {
         let publisher_address = self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::create_publisher::new(
@@ -71,7 +72,7 @@ impl DomainParticipantAsync {
             ))
             .await?;
 
-        let publisher = Publisher::new(
+        let publisher = PublisherAsync::new(
             publisher_address,
             self.participant_address.clone(),
             self.runtime_handle.clone(),
@@ -87,19 +88,23 @@ impl DomainParticipantAsync {
                 .entity_factory
                 .autoenable_created_entities
         {
-            publisher.enable()?;
+            publisher.enable().await?;
         }
 
         Ok(publisher)
     }
 
     #[tracing::instrument(skip(self, a_publisher))]
-    pub async fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
+    pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
         if self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::get_instance_handle::new())
             .await?
-            != a_publisher.get_participant()?.get_instance_handle()?
+            != a_publisher
+                .get_participant()
+                .await?
+                .get_instance_handle()
+                .await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
@@ -109,7 +114,7 @@ impl DomainParticipantAsync {
         self.participant_address
             .send_mail_and_await_reply(
                 domain_participant_actor::delete_user_defined_publisher::new(
-                    a_publisher.get_instance_handle()?,
+                    a_publisher.get_instance_handle().await?,
                 ),
             )
             .await?
@@ -121,7 +126,7 @@ impl DomainParticipantAsync {
         qos: QosKind<SubscriberQos>,
         a_listener: impl SubscriberListener + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<Subscriber> {
+    ) -> DdsResult<SubscriberAsync> {
         let subscriber_address = self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::create_subscriber::new(
@@ -132,7 +137,7 @@ impl DomainParticipantAsync {
             ))
             .await?;
 
-        let subscriber = Subscriber::new(
+        let subscriber = SubscriberAsync::new(
             subscriber_address,
             self.participant_address.clone(),
             self.runtime_handle.clone(),
@@ -149,16 +154,20 @@ impl DomainParticipantAsync {
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber.enable()?;
+            subscriber.enable().await?;
         }
 
         Ok(subscriber)
     }
 
     #[tracing::instrument(skip(self, a_subscriber))]
-    pub async fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
+    pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         if self.get_instance_handle().await?
-            != a_subscriber.get_participant()?.get_instance_handle()?
+            != a_subscriber
+                .get_participant()
+                .await?
+                .get_instance_handle()
+                .await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
@@ -168,7 +177,7 @@ impl DomainParticipantAsync {
         self.participant_address
             .send_mail_and_await_reply(
                 domain_participant_actor::delete_user_defined_subscriber::new(
-                    a_subscriber.get_instance_handle()?,
+                    a_subscriber.get_instance_handle().await?,
                 ),
             )
             .await?
@@ -182,7 +191,7 @@ impl DomainParticipantAsync {
         qos: QosKind<TopicQos>,
         a_listener: impl TopicListener + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<Topic>
+    ) -> DdsResult<TopicAsync>
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
@@ -202,7 +211,7 @@ impl DomainParticipantAsync {
         a_listener: impl TopicListener + Send + 'static,
         mask: &[StatusKind],
         dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
-    ) -> DdsResult<Topic> {
+    ) -> DdsResult<TopicAsync> {
         self.participant_address
             .send_mail_and_await_reply(domain_participant_actor::register_type::new(
                 type_name.to_string(),
@@ -222,7 +231,7 @@ impl DomainParticipantAsync {
             ))
             .await?;
 
-        let topic = Topic::new(
+        let topic = TopicAsync::new(
             topic_address,
             self.participant_address.clone(),
             self.runtime_handle.clone(),
@@ -238,15 +247,21 @@ impl DomainParticipantAsync {
                 .entity_factory
                 .autoenable_created_entities
         {
-            topic.enable()?;
+            topic.enable().await?;
         }
 
         Ok(topic)
     }
 
     #[tracing::instrument(skip(self, a_topic))]
-    pub async fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
-        if self.get_instance_handle().await? != a_topic.get_participant()?.get_instance_handle()? {
+    pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
+        if self.get_instance_handle().await?
+            != a_topic
+                .get_participant()
+                .await?
+                .get_instance_handle()
+                .await?
+        {
             return Err(DdsError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant".to_string(),
             ));
@@ -266,11 +281,11 @@ impl DomainParticipantAsync {
                 if data_writer
                     .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
                     .await?
-                    == a_topic.get_type_name()?
+                    == a_topic.get_type_name().await?
                     && data_writer
                         .send_mail_and_await_reply(data_writer_actor::get_topic_name::new())
                         .await?
-                        == a_topic.get_name()?
+                        == a_topic.get_name().await?
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer".to_string(),
@@ -293,11 +308,11 @@ impl DomainParticipantAsync {
                 if data_reader
                     .send_mail_and_await_reply(data_reader_actor::get_type_name::new())
                     .await?
-                    == a_topic.get_type_name()?
+                    == a_topic.get_type_name().await?
                     && data_reader
                         .send_mail_and_await_reply(data_reader_actor::get_topic_name::new())
                         .await?
-                        == a_topic.get_name()?
+                        == a_topic.get_name().await?
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data reader".to_string(),
@@ -308,13 +323,17 @@ impl DomainParticipantAsync {
 
         self.participant_address
             .send_mail_and_await_reply(domain_participant_actor::delete_topic::new(
-                a_topic.get_instance_handle()?,
+                a_topic.get_instance_handle().await?,
             ))
             .await
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic>
+    pub async fn find_topic<Foo>(
+        &self,
+        topic_name: &str,
+        timeout: Duration,
+    ) -> DdsResult<TopicAsync>
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
@@ -333,7 +352,7 @@ impl DomainParticipantAsync {
                     .await?
                     == topic_name
                 {
-                    return Ok(Topic::new(
+                    return Ok(TopicAsync::new(
                         topic,
                         self.participant_address.clone(),
                         self.runtime_handle.clone(),
@@ -389,7 +408,10 @@ impl DomainParticipantAsync {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn lookup_topicdescription(&self, _topic_name: &str) -> DdsResult<Option<Topic>> {
+    pub async fn lookup_topicdescription(
+        &self,
+        _topic_name: &str,
+    ) -> DdsResult<Option<TopicAsync>> {
         todo!()
         // self.call_participant_method(|dp| {
         //     Ok(
@@ -404,8 +426,8 @@ impl DomainParticipantAsync {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        Ok(Subscriber::new(
+    pub async fn get_builtin_subscriber(&self) -> DdsResult<SubscriberAsync> {
+        Ok(SubscriberAsync::new(
             self.participant_address
                 .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
                 .await?,

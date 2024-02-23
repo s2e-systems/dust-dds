@@ -1,15 +1,6 @@
 use crate::{
+    dds_async::topic::TopicAsync,
     domain::domain_participant::DomainParticipant,
-    implementation::{
-        actors::{
-            data_writer_actor,
-            domain_participant_actor::{self, DomainParticipantActor},
-            publisher_actor,
-            topic_actor::{self, TopicActor},
-        },
-        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
-    },
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -19,31 +10,22 @@ use crate::{
     },
 };
 
-use super::{
-    topic_listener::TopicListener,
-    type_support::{DdsKey, DdsSerialize},
-};
+use super::topic_listener::TopicListener;
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
 pub struct Topic {
-    topic_address: ActorAddress<TopicActor>,
-    participant_address: ActorAddress<DomainParticipantActor>,
-    runtime_handle: tokio::runtime::Handle,
+    topic_async: TopicAsync,
 }
 
 impl Topic {
-    pub(crate) fn new(
-        topic_address: ActorAddress<TopicActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
-    ) -> Self {
-        Self {
-            topic_address,
-            participant_address,
-            runtime_handle,
-        }
+    pub(crate) fn new(topic_async: TopicAsync) -> Self {
+        Self { topic_async }
+    }
+
+    pub(crate) fn topic_async(&self) -> &TopicAsync {
+        &self.topic_async
     }
 }
 
@@ -51,8 +33,9 @@ impl Topic {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     #[tracing::instrument(skip(self))]
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        self.topic_address
-            .send_mail_and_await_reply_blocking(topic_actor::get_inconsistent_topic_status::new())?
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.get_inconsistent_topic_status())
     }
 }
 
@@ -61,24 +44,26 @@ impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        ))
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.get_participant())
+            .map(DomainParticipant::new)
     }
 
     /// The name of the type used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
     pub fn get_type_name(&self) -> DdsResult<String> {
-        self.topic_address
-            .send_mail_and_await_reply_blocking(topic_actor::get_type_name::new())
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.get_type_name())
     }
 
     /// The name used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
     pub fn get_name(&self) -> DdsResult<String> {
-        self.topic_address
-            .send_mail_and_await_reply_blocking(topic_actor::get_name::new())
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.get_name())
     }
 }
 
@@ -98,36 +83,17 @@ impl Topic {
     /// modified to match the current default for the Entity’s factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => self
-                .participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::default_topic_qos::new(),
-                )?,
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
-        };
-
-        if self
-            .topic_address
-            .send_mail_and_await_reply_blocking(topic_actor::is_enabled::new())?
-        {
-            self.topic_address
-                .send_mail_and_await_reply_blocking(topic_actor::get_qos::new())?
-                .check_immutability(&qos)?
-        }
-
-        self.topic_address
-            .send_mail_and_await_reply_blocking(topic_actor::set_qos::new(qos))
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        self.topic_address
-            .send_mail_and_await_reply_blocking(topic_actor::get_qos::new())
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.get_qos())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -135,9 +101,9 @@ impl Topic {
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.topic_address
-            .send_mail_and_await_reply_blocking(topic_actor::get_statuscondition::new())
-            .map(StatusCondition::new)
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.get_statuscondition())
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -148,7 +114,9 @@ impl Topic {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        todo!()
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -173,29 +141,17 @@ impl Topic {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self
-            .topic_address
-            .send_mail_and_await_reply_blocking(topic_actor::is_enabled::new())?
-        {
-            self.topic_address
-                .send_mail_and_await_reply_blocking(topic_actor::enable::new())?;
-
-            announce_topic(
-                &self.participant_address,
-                self.topic_address.send_mail_and_await_reply_blocking(
-                    topic_actor::as_discovered_topic_data::new(),
-                )?,
-            )?;
-        }
-
-        Ok(())
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.topic_address
-            .send_mail_and_await_reply_blocking(topic_actor::get_instance_handle::new())
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.get_instance_handle())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -204,46 +160,14 @@ impl Topic {
     /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
     /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
     /// will be removed.
-    #[tracing::instrument(skip(self, _a_listener))]
+    #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        _a_listener: impl TopicListener + Send + 'static,
-        _mask: &[StatusKind],
+        a_listener: impl TopicListener + Send + 'static,
+        mask: &[StatusKind],
     ) -> DdsResult<()> {
-        todo!()
+        self.topic_async
+            .runtime_handle()
+            .block_on(self.topic_async.set_listener(a_listener, mask))
     }
-}
-
-fn announce_topic(
-    domain_participant: &ActorAddress<DomainParticipantActor>,
-    discovered_topic_data: DiscoveredTopicData,
-) -> DdsResult<()> {
-    let mut serialized_data = Vec::new();
-    discovered_topic_data.serialize_data(&mut serialized_data)?;
-    let timestamp = domain_participant
-        .send_mail_and_await_reply_blocking(domain_participant_actor::get_current_time::new())?;
-    let builtin_publisher = domain_participant.send_mail_and_await_reply_blocking(
-        domain_participant_actor::get_builtin_publisher::new(),
-    )?;
-    let data_writer_list = builtin_publisher
-        .send_mail_and_await_reply_blocking(publisher_actor::data_writer_list::new())?;
-    for data_writer in data_writer_list {
-        if data_writer.send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
-            == Ok("DiscoveredTopicData".to_string())
-        {
-            data_writer.send_mail_and_await_reply_blocking(
-                data_writer_actor::write_w_timestamp::new(
-                    serialized_data,
-                    get_instance_handle_from_key(&discovered_topic_data.get_key()?)?,
-                    None,
-                    timestamp,
-                ),
-            )??;
-
-            domain_participant.send_mail_blocking(domain_participant_actor::send_message::new())?;
-            break;
-        }
-    }
-
-    Ok(())
 }

@@ -22,9 +22,11 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
-    topic_definition::{topic::Topic, type_support::DdsSerialize},
+    publication::data_writer_listener::DataWriterListener,
+    topic_definition::type_support::DdsSerialize,
 };
+
+use super::{publisher::PublisherAsync, topic::TopicAsync};
 
 pub struct DataWriterAsync<Foo> {
     writer_address: ActorAddress<DataWriterActor>,
@@ -410,8 +412,8 @@ impl<Foo> DataWriterAsync<Foo> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_topic(&self) -> DdsResult<Topic> {
-        Ok(Topic::new(
+    pub async fn get_topic(&self) -> DdsResult<TopicAsync> {
+        Ok(TopicAsync::new(
             self.topic_address().await,
             self.participant_address.clone(),
             self.runtime_handle.clone(),
@@ -419,8 +421,8 @@ impl<Foo> DataWriterAsync<Foo> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_publisher(&self) -> DdsResult<Publisher> {
-        Ok(Publisher::new(
+    pub async fn get_publisher(&self) -> DdsResult<PublisherAsync> {
+        Ok(PublisherAsync::new(
             self.publisher_address.clone(),
             self.participant_address.clone(),
             self.runtime_handle.clone(),

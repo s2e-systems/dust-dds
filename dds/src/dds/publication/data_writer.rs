@@ -1,21 +1,11 @@
-use std::{marker::PhantomData, time::Instant};
-
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::{
-        actors::{
-            data_writer_actor::{self, DataWriterActor},
-            domain_participant_actor::{self, DomainParticipantActor},
-            publisher_actor::{self, PublisherActor},
-            topic_actor::{self, TopicActor},
-        },
-        utils::actor::ActorAddress,
-    },
+    dds_async::data_writer::DataWriterAsync,
     infrastructure::{
         condition::StatusCondition,
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
-        qos::{DataWriterQos, QosKind, TopicQos},
+        qos::{DataWriterQos, QosKind},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, StatusKind,
@@ -29,62 +19,24 @@ use crate::{
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
 pub struct DataWriter<Foo> {
-    writer_address: ActorAddress<DataWriterActor>,
-    publisher_address: ActorAddress<PublisherActor>,
-    participant_address: ActorAddress<DomainParticipantActor>,
-    runtime_handle: tokio::runtime::Handle,
-    phantom: PhantomData<Foo>,
+    writer_async: DataWriterAsync<Foo>,
 }
 
 impl<Foo> Clone for DataWriter<Foo> {
     fn clone(&self) -> Self {
         Self {
-            writer_address: self.writer_address.clone(),
-            publisher_address: self.publisher_address.clone(),
-            participant_address: self.participant_address.clone(),
-            runtime_handle: self.runtime_handle.clone(),
-            phantom: self.phantom,
+            writer_async: self.writer_async.clone(),
         }
     }
 }
 
 impl<Foo> DataWriter<Foo> {
-    pub(crate) fn new(
-        writer_address: ActorAddress<DataWriterActor>,
-        publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
-    ) -> Self {
-        Self {
-            writer_address,
-            publisher_address,
-            participant_address,
-            runtime_handle,
-            phantom: PhantomData,
-        }
+    pub(crate) fn new(writer_async: DataWriterAsync<Foo>) -> Self {
+        Self { writer_async }
     }
 
-    fn topic_address(&self) -> ActorAddress<TopicActor> {
-        let user_defined_topic_list = self
-            .participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::get_user_defined_topic_list::new(),
-            )
-            .expect("should never fail");
-        for topic in user_defined_topic_list {
-            if topic.send_mail_and_await_reply_blocking(topic_actor::get_type_name::new())
-                == self
-                    .writer_address
-                    .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
-                && topic.send_mail_and_await_reply_blocking(topic_actor::get_name::new())
-                    == self
-                        .writer_address
-                        .send_mail_and_await_reply_blocking(data_writer_actor::get_topic_name::new())
-            {
-                return topic;
-            }
-        }
-        panic!("Should always exist");
+    pub(crate) fn writer_async(&self) -> &DataWriterAsync<Foo> {
+        &self.writer_async
     }
 }
 
@@ -108,26 +60,25 @@ where
     /// and specify no [`InstanceHandle`] to indicate that the *key* should be examined to identify the instance.
     #[tracing::instrument(skip(self, instance))]
     pub fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let timestamp = {
-            self.participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_current_time::new(),
-                )?
-        };
-        self.register_instance_w_timestamp(instance, timestamp)
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.register_instance(instance))
     }
 
     /// This operation performs the same function and return the same values as [`DataWriter::register_instance`] and can be used instead of
     /// [`DataWriter::register_instance`] in the cases where the application desires to specify the value for the `source_timestamp`.
     /// The `source_timestamp` potentially affects the relative order in which readers observe events from multiple writers.
     /// For details see [`DestinationOrderQosPolicy`](crate::infrastructure::qos_policy::DestinationOrderQosPolicy).
-    #[tracing::instrument(skip(self, _instance))]
+    #[tracing::instrument(skip(self, instance))]
     pub fn register_instance_w_timestamp(
         &self,
-        _instance: &Foo,
-        _timestamp: Time,
+        instance: &Foo,
+        timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
-        todo!()
+        self.writer_async.runtime_handle().block_on(
+            self.writer_async
+                .register_instance_w_timestamp(instance, timestamp),
+        )
     }
 
     /// This operation reverses the action of [`DataWriter::register_instance`]. It should only be called on an
@@ -164,13 +115,9 @@ where
         instance: &Foo,
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
-        let timestamp = {
-            self.participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_current_time::new(),
-                )?
-        };
-        self.unregister_instance_w_timestamp(instance, handle, timestamp)
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.unregister_instance(instance, handle))
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::unregister_instance`] and can
@@ -185,71 +132,21 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let type_name = self
-            .writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
-        let type_support = self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
-                type_name.clone(),
-            ))?
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
-        let has_key = type_support.has_key();
-        if has_key {
-            let instance_handle = match handle {
-                Some(h) => {
-                    if let Some(stored_handle) = self.lookup_instance(instance)? {
-                        if stored_handle == h {
-                            Ok(h)
-                        } else {
-                            Err(DdsError::PreconditionNotMet(
-                                "Handle does not match instance".to_string(),
-                            ))
-                        }
-                    } else {
-                        Err(DdsError::BadParameter)
-                    }
-                }
-                None => {
-                    if let Some(stored_handle) = self.lookup_instance(instance)? {
-                        Ok(stored_handle)
-                    } else {
-                        Err(DdsError::PreconditionNotMet(
-                            "Instance not registered with this DataWriter".to_string(),
-                        ))
-                    }
-                }
-            }?;
-
-            let mut serialized_foo = Vec::new();
-            instance.serialize_data(&mut serialized_foo)?;
-            let instance_serialized_key =
-                type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
-
-            self.writer_address.send_mail_and_await_reply_blocking(
-                data_writer_actor::unregister_instance_w_timestamp::new(
-                    instance_serialized_key,
-                    instance_handle,
-                    timestamp,
-                ),
-            )?
-        } else {
-            Err(DdsError::IllegalOperation)
-        }
+        self.writer_async.runtime_handle().block_on(
+            self.writer_async
+                .unregister_instance_w_timestamp(instance, handle, timestamp),
+        )
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an `handle`. The operation will only fill the
     /// fields that form the key inside the `key_holder` instance.
     /// This operation returns [`DdsError::BadParameter`](crate::infrastructure::error::DdsError) if the `handle` does not
     /// correspond to an existing data object known to the [`DataWriter`].
-    #[tracing::instrument(skip(self, _key_holder))]
-    pub fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
-        todo!()
+    #[tracing::instrument(skip(self, key_holder))]
+    pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_key_value(key_holder, handle))
     }
 
     /// This operation takes as a parameter an instance and returns an [`InstanceHandle`] that can be used in subsequent operations
@@ -259,28 +156,9 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let type_name = self
-            .writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
-        let type_support = self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
-                type_name.clone(),
-            ))?
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
-
-        let mut serialized_foo = Vec::new();
-        instance.serialize_data(&mut serialized_foo)?;
-        let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_foo)?;
-
-        self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::lookup_instance::new(instance_handle),
-        )?
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.lookup_instance(instance))
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -317,13 +195,9 @@ where
     /// chance of freeing the necessary resources. For example, if the only way to gain the necessary resources would be for the user to unregister an instance.
     #[tracing::instrument(skip(self, data))]
     pub fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = {
-            self.participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_current_time::new(),
-                )?
-        };
-        self.write_w_timestamp(data, handle, timestamp)
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.write(data, handle))
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::write`] and can
@@ -338,33 +212,9 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let type_name = self
-            .writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
-        let type_support = self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
-                type_name.clone(),
-            ))?
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
-
-        let mut serialized_data = Vec::new();
-        data.serialize_data(&mut serialized_data)?;
-        let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
-
-        self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::write_w_timestamp::new(serialized_data, key, handle, timestamp),
-        )??;
-
-        self.participant_address
-            .send_mail_blocking(domain_participant_actor::send_message::new())?;
-
-        Ok(())
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.write_w_timestamp(data, handle, timestamp))
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -381,13 +231,9 @@ where
     /// [`DdsError::OutOfResources`](crate::infrastructure::error::DdsError) under the same circumstances described for [`DataWriter::write`].
     #[tracing::instrument(skip(self, data))]
     pub fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = {
-            self.participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_current_time::new(),
-                )?
-        };
-        self.dispose_w_timestamp(data, handle, timestamp)
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.dispose(data, handle))
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::dispose`] and can
@@ -402,53 +248,10 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let instance_handle = match handle {
-            Some(h) => {
-                if let Some(stored_handle) = self.lookup_instance(data)? {
-                    if stored_handle == h {
-                        Ok(h)
-                    } else {
-                        Err(DdsError::PreconditionNotMet(
-                            "Handle does not match instance".to_string(),
-                        ))
-                    }
-                } else {
-                    Err(DdsError::BadParameter)
-                }
-            }
-            None => {
-                if let Some(stored_handle) = self.lookup_instance(data)? {
-                    Ok(stored_handle)
-                } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Instance not registered with this DataWriter".to_string(),
-                    ))
-                }
-            }
-        }?;
-
-        let type_name = self
-            .writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
-        let type_support = self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
-                type_name.clone(),
-            ))?
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
-
-        let mut serialized_foo = Vec::new();
-        data.serialize_data(&mut serialized_foo)?;
-        let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
-
-        self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::dispose_w_timestamp::new(key, instance_handle, timestamp),
-        )?
+        self.writer_async.runtime_handle().block_on(
+            self.writer_async
+                .dispose_w_timestamp(data, handle, timestamp),
+        )
     }
 }
 
@@ -463,63 +266,59 @@ impl<Foo> DataWriter<Foo> {
     /// Otherwise the operation will return immediately with [`Ok`].
     #[tracing::instrument(skip(self))]
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        let start_time = Instant::now();
-        while start_time.elapsed() < std::time::Duration::from(max_wait) {
-            if self.writer_address.send_mail_and_await_reply_blocking(
-                data_writer_actor::are_all_changes_acknowledge::new(),
-            )? {
-                return Ok(());
-            }
-            std::thread::sleep(std::time::Duration::from_millis(25));
-        }
-
-        Err(DdsError::Timeout)
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.wait_for_acknowledgments(max_wait))
     }
 
     /// This operation allows access to the [`LivelinessLostStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        todo!()
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_liveliness_lost_status())
     }
 
     /// This operation allows access to the [`OfferedDeadlineMissedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        todo!()
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_offered_deadline_missed_status())
     }
 
     /// This operation allows access to the [`OfferedIncompatibleQosStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        todo!()
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_offered_incompatible_qos_status())
     }
 
     /// This operation allows access to the [`PublicationMatchedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::get_publication_matched_status::new(),
-        )
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_publication_matched_status())
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     #[tracing::instrument(skip(self))]
     pub fn get_topic(&self) -> DdsResult<Topic> {
-        Ok(Topic::new(
-            self.topic_address(),
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        ))
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_topic())
+            .map(Topic::new)
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
-        Ok(Publisher::new(
-            self.publisher_address.clone(),
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        ))
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_publisher())
+            .map(Publisher::new)
     }
 
     /// This operation manually asserts the liveliness of the [`DataWriter`]. This is used in combination with the
@@ -532,7 +331,9 @@ impl<Foo> DataWriter<Foo> {
     /// if the application is not writing data regularly.
     #[tracing::instrument(skip(self))]
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        todo!()
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.assert_liveliness())
     }
 
     /// This operation retrieves information on a subscription that is currently “associated” with the [`DataWriter`]; that is, a subscription
@@ -546,11 +347,10 @@ impl<Foo> DataWriter<Foo> {
         &self,
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
-        self.writer_address
-            .send_mail_and_await_reply_blocking(
-                data_writer_actor::get_matched_subscription_data::new(subscription_handle),
-            )?
-            .ok_or(DdsError::BadParameter)
+        self.writer_async.runtime_handle().block_on(
+            self.writer_async
+                .get_matched_subscription_data(subscription_handle),
+        )
     }
 
     /// This operation retrieves the list of subscriptions currently “associated” with the [`DataWriter`]]; that is, subscriptions that have a
@@ -561,8 +361,9 @@ impl<Foo> DataWriter<Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the “DCPSSubscriptions” builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::get_matched_subscriptions::new())
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_matched_subscriptions())
     }
 }
 
@@ -582,67 +383,17 @@ impl<Foo> DataWriter<Foo> {
     /// modified to match the current default for the Entity’s factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        let q = match qos {
-            QosKind::Default => self.publisher_address.send_mail_and_await_reply_blocking(
-                publisher_actor::get_default_datawriter_qos::new(),
-            )?,
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
-        };
-        self.writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::set_qos::new(q))?;
-
-        if self
-            .writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::is_enabled::new())?
-        {
-            let type_name = self
-                .writer_address
-                .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
-            let type_support = self
-                .participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_type_support::new(type_name.clone()),
-                )?
-                .ok_or_else(|| {
-                    DdsError::PreconditionNotMet(format!(
-                        "Type with name {} not registered with parent domain participant",
-                        type_name
-                    ))
-                })?;
-            let discovered_writer_data = self.writer_address.send_mail_and_await_reply_blocking(
-                data_writer_actor::as_discovered_writer_data::new(
-                    TopicQos::default(),
-                    self.publisher_address
-                        .send_mail_and_await_reply_blocking(publisher_actor::get_qos::new())?,
-                    self.participant_address
-                        .send_mail_and_await_reply_blocking(
-                            domain_participant_actor::get_default_unicast_locator_list::new(),
-                        )?,
-                    self.participant_address
-                        .send_mail_and_await_reply_blocking(
-                            domain_participant_actor::get_default_multicast_locator_list::new(),
-                        )?,
-                    type_support.xml_type(),
-                ),
-            )?;
-            self.participant_address.send_mail_blocking(
-                domain_participant_actor::announce_created_or_modified_data_writer::new(
-                    discovered_writer_data,
-                ),
-            )?;
-        }
-
-        Ok(())
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        self.writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::get_qos::new())
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_qos())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -650,9 +401,9 @@ impl<Foo> DataWriter<Foo> {
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::get_statuscondition::new())
-            .map(StatusCondition::new)
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_statuscondition())
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -663,7 +414,9 @@ impl<Foo> DataWriter<Foo> {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        todo!()
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -688,56 +441,17 @@ impl<Foo> DataWriter<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self
-            .writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::is_enabled::new())?
-        {
-            let type_name = self
-                .writer_address
-                .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?;
-            let type_support = self
-                .participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_type_support::new(type_name.clone()),
-                )?
-                .ok_or_else(|| {
-                    DdsError::PreconditionNotMet(format!(
-                        "Type with name {} not registered with parent domain participant",
-                        type_name
-                    ))
-                })?;
-            self.writer_address
-                .send_mail_and_await_reply_blocking(data_writer_actor::enable::new())?;
-            let discovered_writer_data = self.writer_address.send_mail_and_await_reply_blocking(
-                data_writer_actor::as_discovered_writer_data::new(
-                    TopicQos::default(),
-                    self.publisher_address
-                        .send_mail_and_await_reply_blocking(publisher_actor::get_qos::new())?,
-                    self.participant_address
-                        .send_mail_and_await_reply_blocking(
-                            domain_participant_actor::get_default_unicast_locator_list::new(),
-                        )?,
-                    self.participant_address
-                        .send_mail_and_await_reply_blocking(
-                            domain_participant_actor::get_default_multicast_locator_list::new(),
-                        )?,
-                    type_support.xml_type(),
-                ),
-            )?;
-            self.participant_address.send_mail_blocking(
-                domain_participant_actor::announce_created_or_modified_data_writer::new(
-                    discovered_writer_data,
-                ),
-            )?;
-        }
-        Ok(())
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.writer_address
-            .send_mail_and_await_reply_blocking(data_writer_actor::get_instance_handle::new())
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.get_instance_handle())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -752,13 +466,9 @@ impl<Foo> DataWriter<Foo> {
         a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.writer_address.send_mail_and_await_reply_blocking(
-            data_writer_actor::set_listener::new(
-                Box::new(a_listener),
-                mask.to_vec(),
-                self.runtime_handle.clone(),
-            ),
-        )
+        self.writer_async
+            .runtime_handle()
+            .block_on(self.writer_async.set_listener(a_listener, mask))
     }
 }
 

@@ -29,15 +29,13 @@ use crate::{
         sample_info::{
             InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
         },
-        subscriber::Subscriber,
     },
-    topic_definition::{
-        topic::Topic,
-        type_support::{DdsKey, DdsSerialize},
-    },
+    topic_definition::type_support::{DdsKey, DdsSerialize},
 };
 
 use std::marker::PhantomData;
+
+use super::{subscriber::SubscriberAsync, topic::TopicAsync};
 
 pub struct DataReaderAsync<Foo> {
     reader_address: ActorAddress<DataReaderActor>,
@@ -345,8 +343,8 @@ impl<Foo> DataReaderAsync<Foo> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_topicdescription(&self) -> DdsResult<Topic> {
-        Ok(Topic::new(
+    pub async fn get_topicdescription(&self) -> DdsResult<TopicAsync> {
+        Ok(TopicAsync::new(
             self.topic_address().await,
             self.participant_address.clone(),
             self.runtime_handle.clone(),
@@ -354,8 +352,8 @@ impl<Foo> DataReaderAsync<Foo> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_subscriber(&self) -> DdsResult<Subscriber> {
-        Ok(Subscriber::new(
+    pub async fn get_subscriber(&self) -> DdsResult<SubscriberAsync> {
+        Ok(SubscriberAsync::new(
             self.subscriber_address.clone(),
             self.participant_address.clone(),
             self.runtime_handle.clone(),

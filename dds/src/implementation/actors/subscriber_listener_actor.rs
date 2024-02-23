@@ -1,6 +1,7 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
+    dds_async::{data_reader::DataReaderAsync, subscriber::SubscriberAsync},
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
@@ -35,11 +36,12 @@ impl SubscriberListenerActor {
         runtime_handle: tokio::runtime::Handle,
     ) {
         tokio::task::block_in_place(|| {
-            self.listener.on_data_on_readers(&Subscriber::new(
-                subscriber_address,
-                participant_address,
-                runtime_handle,
-            ))
+            self.listener
+                .on_data_on_readers(&Subscriber::new(SubscriberAsync::new(
+                    subscriber_address,
+                    participant_address,
+                    runtime_handle,
+                )))
         });
     }
 
@@ -53,12 +55,12 @@ impl SubscriberListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_sample_rejected(
-                &DataReader::<()>::new(
+                &DataReader::new(DataReaderAsync::<()>::new(
                     reader_address,
                     subscriber_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -74,12 +76,12 @@ impl SubscriberListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_requested_incompatible_qos(
-                &DataReader::<()>::new(
+                &DataReader::new(DataReaderAsync::<()>::new(
                     reader_address,
                     subscriber_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -95,12 +97,12 @@ impl SubscriberListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_requested_deadline_missed(
-                &DataReader::<()>::new(
+                &DataReader::new(DataReaderAsync::<()>::new(
                     reader_address,
                     subscriber_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -116,12 +118,12 @@ impl SubscriberListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_subscription_matched(
-                &DataReader::<()>::new(
+                &DataReader::new(DataReaderAsync::<()>::new(
                     reader_address,
                     subscriber_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });
@@ -137,12 +139,12 @@ impl SubscriberListenerActor {
     ) {
         tokio::task::block_in_place(|| {
             self.listener.on_sample_lost(
-                &DataReader::<()>::new(
+                &DataReader::new(DataReaderAsync::<()>::new(
                     reader_address,
                     subscriber_address,
                     participant_address,
                     runtime_handle,
-                ),
+                )),
                 status,
             )
         });

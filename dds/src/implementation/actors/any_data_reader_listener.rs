@@ -1,4 +1,5 @@
 use crate::{
+    dds_async::data_reader::DataReaderAsync,
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
@@ -82,12 +83,12 @@ where
         participant_address: ActorAddress<DomainParticipantActor>,
         runtime_handle: tokio::runtime::Handle,
     ) {
-        self.on_data_available(&DataReader::new(
+        self.on_data_available(&DataReader::new(DataReaderAsync::new(
             reader_address,
             subscriber_address,
             participant_address,
             runtime_handle,
-        ))
+        )))
     }
 
     fn trigger_on_sample_rejected(
@@ -99,12 +100,12 @@ where
         status: SampleRejectedStatus,
     ) {
         self.on_sample_rejected(
-            &DataReader::new(
+            &DataReader::new(DataReaderAsync::new(
                 reader_address,
                 subscriber_address,
                 participant_address,
                 runtime_handle,
-            ),
+            )),
             status,
         )
     }
@@ -118,12 +119,12 @@ where
         status: LivelinessChangedStatus,
     ) {
         self.on_liveliness_changed(
-            &DataReader::new(
+            &DataReader::new(DataReaderAsync::new(
                 reader_address,
                 subscriber_address,
                 participant_address,
                 runtime_handle,
-            ),
+            )),
             status,
         )
     }
@@ -137,12 +138,12 @@ where
         status: RequestedDeadlineMissedStatus,
     ) {
         self.on_requested_deadline_missed(
-            &DataReader::new(
+            &DataReader::new(DataReaderAsync::new(
                 reader_address,
                 subscriber_address,
                 participant_address,
                 runtime_handle,
-            ),
+            )),
             status,
         )
     }
@@ -156,12 +157,12 @@ where
         status: RequestedIncompatibleQosStatus,
     ) {
         self.on_requested_incompatible_qos(
-            &DataReader::new(
+            &DataReader::new(DataReaderAsync::new(
                 reader_address,
                 subscriber_address,
                 participant_address,
                 runtime_handle,
-            ),
+            )),
             status,
         )
     }
@@ -175,12 +176,12 @@ where
         status: SubscriptionMatchedStatus,
     ) {
         self.on_subscription_matched(
-            &DataReader::new(
+            &DataReader::new(DataReaderAsync::new(
                 reader_address,
                 subscriber_address,
                 participant_address,
                 runtime_handle,
-            ),
+            )),
             status,
         )
     }
@@ -194,12 +195,12 @@ where
         status: SampleLostStatus,
     ) {
         self.on_sample_lost(
-            &DataReader::new(
+            &DataReader::new(DataReaderAsync::new(
                 reader_address,
                 subscriber_address,
                 participant_address,
                 runtime_handle,
-            ),
+            )),
             status,
         )
     }

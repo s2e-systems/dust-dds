@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 use tracing::warn;
 
 pub type DomainId = i32;
@@ -18,7 +18,7 @@ pub type DomainId = i32;
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory(Mutex<DomainParticipantFactoryAsync>);
+pub struct DomainParticipantFactory(DomainParticipantFactoryAsync);
 
 impl DomainParticipantFactory {
     /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
@@ -37,9 +37,9 @@ impl DomainParticipantFactory {
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         self.0
-            .lock()
-            .unwrap()
-            .create_participant(domain_id, qos, a_listener, mask)
+            .runtime_handle()
+            .block_on(self.0.create_participant(domain_id, qos, a_listener, mask))
+            .map(DomainParticipant::new)
     }
 
     /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
@@ -47,7 +47,9 @@ impl DomainParticipantFactory {
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     #[tracing::instrument(skip(self, participant))]
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
-        self.0.lock().unwrap().delete_participant(participant)
+        self.0
+            .runtime_handle()
+            .block_on(self.0.delete_participant(participant.participant_async()))
     }
 
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
@@ -62,7 +64,7 @@ impl DomainParticipantFactory {
                 .thread_stack_size(4 * 1024 * 1024)
                 .build()
                 .expect("Failed to create Tokio runtime");
-            Self(Mutex::new(DomainParticipantFactoryAsync::new(runtime)))
+            Self(DomainParticipantFactoryAsync::new(runtime))
         })
     }
 
@@ -72,7 +74,11 @@ impl DomainParticipantFactory {
     /// specified which one.
     #[tracing::instrument(skip(self))]
     pub fn lookup_participant(&self, domain_id: DomainId) -> DdsResult<Option<DomainParticipant>> {
-        self.0.lock().unwrap().lookup_participant(domain_id)
+        Ok(self
+            .0
+            .runtime_handle()
+            .block_on(self.0.lookup_participant(domain_id))?
+            .map(DomainParticipant::new))
     }
 
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created
@@ -81,7 +87,9 @@ impl DomainParticipantFactory {
     /// return a [`DdsError::InconsistentPolicy`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_participant_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        self.0.lock().unwrap().set_default_participant_qos(qos)
+        self.0
+            .runtime_handle()
+            .block_on(self.0.set_default_participant_qos(qos))
     }
 
     /// This operation retrieves the default value of the [`DomainParticipantQos`], that is, the QoS policies which will be used for
@@ -91,7 +99,9 @@ impl DomainParticipantFactory {
     /// [`DomainParticipantFactory::set_default_participant_qos`], or else, if the call was never made, the default value of [`DomainParticipantQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.0.lock().unwrap().get_default_participant_qos()
+        self.0
+            .runtime_handle()
+            .block_on(self.0.get_default_participant_qos())
     }
 
     /// This operation sets the value of the [`DomainParticipantFactoryQos`] policies. These policies control the behavior of the object
@@ -101,24 +111,26 @@ impl DomainParticipantFactory {
     /// return a [`DdsError::InconsistentPolicy`].
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        self.0.lock().unwrap().set_qos(qos)
+        self.0.runtime_handle().block_on(self.0.set_qos(qos))
     }
 
     /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
-        self.0.lock().unwrap().get_qos()
+        self.0.runtime_handle().block_on(self.0.get_qos())
     }
 }
 
 impl DomainParticipantFactory {
     /// Set the configuration of the [`DomainParticipantFactory`] singleton
     pub fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
-        self.0.lock().unwrap().set_configuration(configuration)
+        self.0
+            .runtime_handle()
+            .block_on(self.0.set_configuration(configuration))
     }
 
     /// Get the current configuration of the [`DomainParticipantFactory`] singleton
     pub fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
-        self.0.lock().unwrap().get_configuration()
+        self.0.runtime_handle().block_on(self.0.get_configuration())
     }
 }

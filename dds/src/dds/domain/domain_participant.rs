@@ -1,22 +1,12 @@
-use std::time::Instant;
-
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    implementation::{
-        actors::{
-            data_reader_actor, data_writer_actor,
-            domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
-            publisher_actor, subscriber_actor, topic_actor,
-        },
-        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
-    },
+    dds_async::domain_participant::DomainParticipantAsync,
     infrastructure::{
         condition::StatusCondition,
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
-        listeners::NoOpListener,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
-        status::{StatusKind, NO_STATUS},
+        status::StatusKind,
         time::{Duration, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
@@ -24,13 +14,12 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface},
+        type_support::{DdsHasKey, DdsKey, DdsTypeXml, DynamicTypeInterface},
     },
 };
 
 use super::{
-    domain_participant_factory::{DomainId, DomainParticipantFactory},
-    domain_participant_listener::DomainParticipantListener,
+    domain_participant_factory::DomainId, domain_participant_listener::DomainParticipantListener,
 };
 
 /// The [`DomainParticipant`] represents the participation of the application on a communication plane that isolates applications running on the
@@ -53,19 +42,16 @@ use super::{
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
 
 pub struct DomainParticipant {
-    participant_address: ActorAddress<DomainParticipantActor>,
-    runtime_handle: tokio::runtime::Handle,
+    participant_async: DomainParticipantAsync,
 }
 
 impl DomainParticipant {
-    pub(crate) fn new(
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
-    ) -> Self {
-        Self {
-            participant_address,
-            runtime_handle,
-        }
+    pub(crate) fn new(participant_async: DomainParticipantAsync) -> Self {
+        Self { participant_async }
+    }
+
+    pub(crate) fn participant_async(&self) -> &DomainParticipantAsync {
+        &self.participant_async
     }
 }
 
@@ -84,33 +70,13 @@ impl DomainParticipant {
         a_listener: impl PublisherListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        let publisher_address = self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::create_publisher::new(
-                qos,
-                Box::new(a_listener),
-                mask.to_vec(),
-                self.runtime_handle.clone(),
-            ))?;
-
-        let publisher = Publisher::new(
-            publisher_address,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        );
-        if self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
-            && self
-                .participant_address
-                .send_mail_and_await_reply_blocking(domain_participant_actor::get_qos::new())?
-                .entity_factory
-                .autoenable_created_entities
-        {
-            publisher.enable()?;
-        }
-
-        Ok(publisher)
+        self.participant_async
+            .runtime_handle()
+            .block_on(
+                self.participant_async
+                    .create_publisher(qos, a_listener, mask),
+            )
+            .map(Publisher::new)
     }
 
     /// This operation deletes an existing [`Publisher`].
@@ -122,24 +88,10 @@ impl DomainParticipant {
     /// a PreconditionNotMet error.
     #[tracing::instrument(skip(self, a_publisher))]
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        if self
-            .participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::get_instance_handle::new(),
-            )?
-            != a_publisher.get_participant()?.get_instance_handle()?
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant".to_string(),
-            ));
-        }
-
-        self.participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::delete_user_defined_publisher::new(
-                    a_publisher.get_instance_handle()?,
-                ),
-            )?
+        self.participant_async.runtime_handle().block_on(
+            self.participant_async
+                .delete_publisher(a_publisher.publisher_async()),
+        )
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
@@ -157,36 +109,13 @@ impl DomainParticipant {
         a_listener: impl SubscriberListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        let subscriber_address = self
-            .participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::create_subscriber::new(
-                    qos,
-                    Box::new(a_listener),
-                    mask.to_vec(),
-                    self.runtime_handle.clone(),
-                ),
-            )?;
-
-        let subscriber = Subscriber::new(
-            subscriber_address,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        );
-
-        if self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
-            && self
-                .participant_address
-                .send_mail_and_await_reply_blocking(domain_participant_actor::get_qos::new())?
-                .entity_factory
-                .autoenable_created_entities
-        {
-            subscriber.enable()?;
-        }
-
-        Ok(subscriber)
+        self.participant_async
+            .runtime_handle()
+            .block_on(
+                self.participant_async
+                    .create_subscriber(qos, a_listener, mask),
+            )
+            .map(Subscriber::new)
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -197,18 +126,10 @@ impl DomainParticipant {
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_subscriber))]
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        if self.get_instance_handle()? != a_subscriber.get_participant()?.get_instance_handle()? {
-            return Err(DdsError::PreconditionNotMet(
-                "Subscriber can only be deleted from its parent participant".to_string(),
-            ));
-        }
-
-        self.participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::delete_user_defined_subscriber::new(
-                    a_subscriber.get_instance_handle()?,
-                ),
-            )?
+        self.participant_async.runtime_handle().block_on(
+            self.participant_async
+                .delete_subscriber(a_subscriber.subscriber_async()),
+        )
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
@@ -230,9 +151,13 @@ impl DomainParticipant {
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
-        let type_support = FooTypeSupport::new::<Foo>();
-
-        self.create_dynamic_topic(topic_name, type_name, qos, a_listener, mask, type_support)
+        self.participant_async
+            .runtime_handle()
+            .block_on(
+                self.participant_async
+                    .create_topic::<Foo>(topic_name, type_name, qos, a_listener, mask),
+            )
+            .map(Topic::new)
     }
 
     #[doc(hidden)]
@@ -246,41 +171,17 @@ impl DomainParticipant {
         mask: &[StatusKind],
         dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
     ) -> DdsResult<Topic> {
-        self.participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::register_type::new(
-                type_name.to_string(),
-                Box::new(dynamic_type_representation),
-            ))?;
-
-        let topic_address = self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::create_topic::new(
-                topic_name.to_string(),
-                type_name.to_string(),
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.create_dynamic_topic(
+                topic_name,
+                type_name,
                 qos,
-                Box::new(a_listener),
-                mask.to_vec(),
-                self.runtime_handle.clone(),
-            ))?;
-
-        let topic = Topic::new(
-            topic_address,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        );
-        if self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
-            && self
-                .participant_address
-                .send_mail_and_await_reply_blocking(domain_participant_actor::get_qos::new())?
-                .entity_factory
-                .autoenable_created_entities
-        {
-            topic.enable()?;
-        }
-
-        Ok(topic)
+                a_listener,
+                mask,
+                dynamic_type_representation,
+            ))
+            .map(Topic::new)
     }
 
     /// This operation deletes a [`Topic`].
@@ -291,61 +192,9 @@ impl DomainParticipant {
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_topic))]
     pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
-        if self.get_instance_handle()? != a_topic.get_participant()?.get_instance_handle()? {
-            return Err(DdsError::PreconditionNotMet(
-                "Topic can only be deleted from its parent participant".to_string(),
-            ));
-        }
-
-        for publisher in self
-            .participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::get_user_defined_publisher_list::new(),
-            )?
-        {
-            let data_writer_list = publisher
-                .send_mail_and_await_reply_blocking(publisher_actor::data_writer_list::new())?;
-            for data_writer in data_writer_list {
-                if data_writer
-                    .send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())?
-                    == a_topic.get_type_name()?
-                    && data_writer.send_mail_and_await_reply_blocking(
-                        data_writer_actor::get_topic_name::new(),
-                    )? == a_topic.get_name()?
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Topic still attached to some data writer".to_string(),
-                    ));
-                }
-            }
-        }
-
-        for subscriber in self
-            .participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::get_user_defined_subscriber_list::new(),
-            )?
-        {
-            let data_reader_list = subscriber
-                .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_list::new())?;
-            for data_reader in data_reader_list {
-                if data_reader
-                    .send_mail_and_await_reply_blocking(data_reader_actor::get_type_name::new())?
-                    == a_topic.get_type_name()?
-                    && data_reader.send_mail_and_await_reply_blocking(
-                        data_reader_actor::get_topic_name::new(),
-                    )? == a_topic.get_name()?
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Topic still attached to some data reader".to_string(),
-                    ));
-                }
-            }
-        }
-
-        self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::delete_topic::new(a_topic.get_instance_handle()?),
-        )
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.delete_topic(a_topic.topic_async()))
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
@@ -364,69 +213,13 @@ impl DomainParticipant {
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
-        let start_time = Instant::now();
-
-        while start_time.elapsed() < std::time::Duration::from(timeout) {
-            for topic in self
-                .participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_user_defined_topic_list::new(),
-                )?
-            {
-                if topic.send_mail_and_await_reply_blocking(topic_actor::get_name::new())?
-                    == topic_name
-                {
-                    return Ok(Topic::new(
-                        topic,
-                        self.participant_address.clone(),
-                        self.runtime_handle.clone(),
-                    ));
-                }
-            }
-
-            for discovered_topic_handle in self
-                .participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::discovered_topic_list::new(),
-                )?
-            {
-                if let Ok(discovered_topic_data) = self
-                    .participant_address
-                    .send_mail_and_await_reply_blocking(
-                        domain_participant_actor::discovered_topic_data::new(
-                            discovered_topic_handle,
-                        ),
-                    )?
-                {
-                    if discovered_topic_data.name() == topic_name {
-                        let qos = TopicQos {
-                            topic_data: discovered_topic_data.topic_data().clone(),
-                            durability: discovered_topic_data.durability().clone(),
-                            deadline: discovered_topic_data.deadline().clone(),
-                            latency_budget: discovered_topic_data.latency_budget().clone(),
-                            liveliness: discovered_topic_data.liveliness().clone(),
-                            reliability: discovered_topic_data.reliability().clone(),
-                            destination_order: discovered_topic_data.destination_order().clone(),
-                            history: discovered_topic_data.history().clone(),
-                            resource_limits: discovered_topic_data.resource_limits().clone(),
-                            transport_priority: discovered_topic_data.transport_priority().clone(),
-                            lifespan: discovered_topic_data.lifespan().clone(),
-                            ownership: discovered_topic_data.ownership().clone(),
-                        };
-                        let topic = self.create_topic::<Foo>(
-                            topic_name,
-                            discovered_topic_data.get_type_name(),
-                            QosKind::Specific(qos),
-                            NoOpListener::new(),
-                            NO_STATUS,
-                        )?;
-                        return Ok(topic);
-                    }
-                }
-            }
-        }
-
-        Err(DdsError::Timeout)
+        self.participant_async
+            .runtime_handle()
+            .block_on(
+                self.participant_async
+                    .find_topic::<Foo>(topic_name, timeout),
+            )
+            .map(Topic::new)
     }
 
     /// This operation gives access to an existing locally-created [`Topic`], based on its name and type. The
@@ -440,18 +233,12 @@ impl DomainParticipant {
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a [`Topic`], the operation succeeds and a [`None`] value is returned.
     #[tracing::instrument(skip(self))]
-    pub fn lookup_topicdescription(&self, _topic_name: &str) -> DdsResult<Option<Topic>> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     Ok(
-        //         crate::implementation::behavior::domain_participant::lookup_topicdescription(
-        //             dp,
-        //             topic_name,
-        //             Foo,
-        //         )?
-        //         .map(|x| Topic::new(TopicNodeKind::UserDefined(x))),
-        //     )
-        // })
+    pub fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<Topic>> {
+        Ok(self
+            .participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.lookup_topicdescription(topic_name))?
+            .map(Topic::new))
     }
 
     /// This operation allows access to the built-in [`Subscriber`]. Each [`DomainParticipant`] contains several built-in [`Topic`] objects as
@@ -460,14 +247,10 @@ impl DomainParticipant {
     /// objects.
     #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        Ok(Subscriber::new(
-            self.participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_built_in_subscriber::new(),
-                )?,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        ))
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_builtin_subscriber())
+            .map(Subscriber::new)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
@@ -483,16 +266,9 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
-        {
-            self.participant_address.send_mail_and_await_reply_blocking(
-                domain_participant_actor::ignore_participant::new(handle),
-            )
-        } else {
-            Err(DdsError::NotEnabled)
-        }
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.ignore_participant(handle))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote topic. This means it will locally ignore any
@@ -504,16 +280,9 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
-        {
-            self.participant_address.send_mail_and_await_reply_blocking(
-                domain_participant_actor::ignore_topic::new(handle),
-            )
-        } else {
-            Err(DdsError::NotEnabled)
-        }
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.ignore_topic(handle))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote publication; a publication is defined by
@@ -523,16 +292,9 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
-        {
-            self.participant_address.send_mail_and_await_reply_blocking(
-                domain_participant_actor::ignore_publication::new(handle),
-            )
-        } else {
-            Err(DdsError::NotEnabled)
-        }
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.ignore_publication(handle))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote subscription; a subscription is defined by
@@ -543,24 +305,18 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
-        {
-            self.participant_address.send_mail_and_await_reply_blocking(
-                domain_participant_actor::ignore_subscription::new(handle),
-            )
-        } else {
-            Err(DdsError::NotEnabled)
-        }
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.ignore_subscription(handle))
     }
 
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     #[tracing::instrument(skip(self))]
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        self.participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_domain_id::new())
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_domain_id())
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -575,72 +331,9 @@ impl DomainParticipant {
     /// contained entities.
     #[tracing::instrument(skip(self))]
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        for publisher in self
-            .participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::get_user_defined_publisher_list::new(),
-            )?
-        {
-            for data_writer in publisher
-                .send_mail_and_await_reply_blocking(publisher_actor::data_writer_list::new())?
-            {
-                publisher.send_mail_and_await_reply_blocking(
-                    publisher_actor::datawriter_delete::new(
-                        data_writer.send_mail_and_await_reply_blocking(
-                            data_writer_actor::get_instance_handle::new(),
-                        )?,
-                    ),
-                )?;
-            }
-            self.participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::delete_user_defined_publisher::new(
-                        publisher.send_mail_and_await_reply_blocking(
-                            publisher_actor::get_instance_handle::new(),
-                        )?,
-                    ),
-                )??;
-        }
-        for subscriber in self
-            .participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::get_user_defined_subscriber_list::new(),
-            )?
-        {
-            for data_reader in subscriber
-                .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_list::new())?
-            {
-                subscriber.send_mail_and_await_reply_blocking(
-                    subscriber_actor::data_reader_delete::new(
-                        data_reader.send_mail_and_await_reply_blocking(
-                            data_reader_actor::get_instance_handle::new(),
-                        )?,
-                    ),
-                )?;
-            }
-            self.participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::delete_user_defined_subscriber::new(
-                        subscriber.send_mail_and_await_reply_blocking(
-                            subscriber_actor::get_instance_handle::new(),
-                        )?,
-                    ),
-                )??;
-        }
-        for topic in self
-            .participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::get_user_defined_topic_list::new(),
-            )?
-        {
-            self.participant_address
-                .send_mail_and_await_reply_blocking(domain_participant_actor::delete_topic::new(
-                    topic.send_mail_and_await_reply_blocking(
-                        topic_actor::get_instance_handle::new(),
-                    )?,
-                ))?;
-        }
-        Ok(())
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.delete_contained_entities())
     }
 
     /// This operation manually asserts the liveliness of the [`DomainParticipant`]. This is used in combination
@@ -652,10 +345,9 @@ impl DomainParticipant {
     /// [`DomainParticipant`]. Consequently the use of this operation is only needed if the application is not writing data regularly.
     #[tracing::instrument(skip(self))]
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::assert_liveliness(dp)
-        // })
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.assert_liveliness())
     }
 
     /// This operation sets a default value of the Publisher QoS policies which will be used for newly created [`Publisher`] entities in the
@@ -666,13 +358,9 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the values the default values of [`PublisherQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => PublisherQos::default(),
-            QosKind::Specific(q) => q,
-        };
-        self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::set_default_publisher_qos::new(qos),
-        )
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.set_default_publisher_qos(qos))
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -681,9 +369,9 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::default_publisher_qos::new(),
-        )
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_default_publisher_qos())
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created [`Subscriber`] entities in the
@@ -694,14 +382,9 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the default values of [`SubscriberQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => SubscriberQos::default(),
-            QosKind::Specific(q) => q,
-        };
-
-        self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::set_default_subscriber_qos::new(qos),
-        )
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.set_default_subscriber_qos(qos))
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -710,9 +393,9 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_subscriber_qos()`], or else, if the call was never made, the default values of [`SubscriberQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::default_subscriber_qos::new(),
-        )
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_default_subscriber_qos())
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created [`Topic`] entities in the case
@@ -723,16 +406,9 @@ impl DomainParticipant {
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => TopicQos::default(),
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
-        };
-        self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::set_default_topic_qos::new(qos),
-        )
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.set_default_topic_qos(qos))
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created [`Topic`]
@@ -741,17 +417,18 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
     #[tracing::instrument(skip(self))]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        self.participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::default_topic_qos::new())
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_default_topic_qos())
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the [`DomainParticipant::ignore_participant()`] operation.
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::get_discovered_participants::new(),
-        )
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_discovered_participants())
     }
 
     /// This operation retrieves information on a [`DomainParticipant`] that has been discovered on the network. The participant must
@@ -763,18 +440,21 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_participant_data(
         &self,
-        _participant_handle: InstanceHandle,
+        participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
-        todo!()
+        self.participant_async.runtime_handle().block_on(
+            self.participant_async
+                .get_discovered_participant_data(participant_handle),
+        )
     }
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
     /// should be “ignored” by means of the [`DomainParticipant::ignore_topic()`] operation.
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::discovered_topic_list::new(),
-        )
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_discovered_topics())
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -788,10 +468,10 @@ impl DomainParticipant {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        self.participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::discovered_topic_data::new(topic_handle),
-            )?
+        self.participant_async.runtime_handle().block_on(
+            self.participant_async
+                .get_discovered_topic_data(topic_handle),
+        )
     }
 
     /// This operation checks whether or not the given `a_handle` represents an Entity that was created from the [`DomainParticipant`].
@@ -801,19 +481,19 @@ impl DomainParticipant {
     /// The instance handle for an Entity may be obtained from built-in topic data, from various statuses, or from the Entity operation
     /// `get_instance_handle`.
     #[tracing::instrument(skip(self))]
-    pub fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::contains_entity(dp, a_handle)
-        // })
+    pub fn contains_entity(&self, a_handle: InstanceHandle) -> DdsResult<bool> {
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.contains_entity(a_handle))
     }
 
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     #[tracing::instrument(skip(self))]
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        self.participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_current_time::new())
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_current_time())
     }
 }
 
@@ -833,22 +513,17 @@ impl DomainParticipant {
     /// modified to match the current default for the Entity’s factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => {
-                DomainParticipantFactory::get_instance().get_default_participant_qos()?
-            }
-            QosKind::Specific(q) => q,
-        };
-
-        self.participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::set_qos::new(qos))
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_qos::new())
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_qos())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -863,13 +538,9 @@ impl DomainParticipant {
         a_listener: impl DomainParticipantListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.participant_address.send_mail_and_await_reply_blocking(
-            domain_participant_actor::set_listener::new(
-                Box::new(a_listener),
-                mask.to_vec(),
-                self.runtime_handle.clone(),
-            ),
-        )
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.set_listener(a_listener, mask))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -877,7 +548,9 @@ impl DomainParticipant {
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        todo!()
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_statuscondition())
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -888,7 +561,9 @@ impl DomainParticipant {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        todo!()
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -913,116 +588,16 @@ impl DomainParticipant {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::is_enabled::new())?
-        {
-            self.participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_builtin_publisher::new(),
-                )?
-                .send_mail_and_await_reply_blocking(publisher_actor::enable::new())?;
-            self.participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_built_in_subscriber::new(),
-                )?
-                .send_mail_and_await_reply_blocking(subscriber_actor::enable::new())?;
-
-            for builtin_reader in self
-                .participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_built_in_subscriber::new(),
-                )?
-                .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_list::new())?
-            {
-                builtin_reader
-                    .send_mail_and_await_reply_blocking(data_reader_actor::enable::new())?;
-            }
-
-            for builtin_writer in self
-                .participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_builtin_publisher::new(),
-                )?
-                .send_mail_and_await_reply_blocking(publisher_actor::data_writer_list::new())?
-            {
-                builtin_writer
-                    .send_mail_and_await_reply_blocking(data_writer_actor::enable::new())?;
-            }
-
-            self.participant_address
-                .send_mail_and_await_reply_blocking(domain_participant_actor::enable::new())?;
-
-            let domain_participant_address = self.participant_address.clone();
-
-            // Spawn the task that regularly announces the domain participant
-            self.runtime_handle.spawn(async move {
-                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
-                loop {
-                    let r: DdsResult<()> = async {
-                        let builtin_publisher = domain_participant_address
-                            .send_mail_and_await_reply(domain_participant_actor::get_builtin_publisher::new())
-                            .await?;
-                        let data_writer_list = builtin_publisher
-                            .send_mail_and_await_reply(publisher_actor::data_writer_list::new())
-                            .await?;
-                        for data_writer in data_writer_list {
-                            if data_writer
-                                .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
-                                .await
-                                == Ok("SpdpDiscoveredParticipantData".to_string())
-                            {
-                                let spdp_discovered_participant_data = domain_participant_address
-                                    .send_mail_and_await_reply(
-                                        domain_participant_actor::as_spdp_discovered_participant_data::new(),
-                                    )
-                                    .await?;
-                                let mut serialized_data = Vec::new();
-                                spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
-
-                                let timestamp = domain_participant_address
-                                    .send_mail_and_await_reply(
-                                        domain_participant_actor::get_current_time::new(),
-                                    )
-                                    .await?;
-
-                                data_writer
-                                    .send_mail_and_await_reply(
-                                        data_writer_actor::write_w_timestamp::new(
-                                            serialized_data,
-                                            get_instance_handle_from_key(&spdp_discovered_participant_data.get_key()?)
-                                                .unwrap(),
-                                            None,
-                                            timestamp,
-                                        ),
-                                    )
-                                    .await??;
-
-
-                                domain_participant_address.send_mail(domain_participant_actor::send_message::new()).await?;
-                            }
-                        }
-
-                        Ok(())
-                    }
-                    .await;
-
-                    if r.is_err() {
-                        break;
-                    }
-
-                    interval.tick().await;
-                }
-            });
-        }
-
-        Ok(())
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_instance_handle::new())
+        self.participant_async
+            .runtime_handle()
+            .block_on(self.participant_async.get_instance_handle())
     }
 }
