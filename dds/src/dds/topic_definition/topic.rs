@@ -104,6 +104,7 @@ impl Topic {
         self.topic_async
             .runtime_handle()
             .block_on(self.topic_async.get_statuscondition())
+            .map(StatusCondition::new)
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose

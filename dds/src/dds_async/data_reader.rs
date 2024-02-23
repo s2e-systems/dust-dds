@@ -13,7 +13,6 @@ use crate::{
         utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, TopicQos},
@@ -35,7 +34,7 @@ use crate::{
 
 use std::marker::PhantomData;
 
-use super::{subscriber::SubscriberAsync, topic::TopicAsync};
+use super::{condition::StatusConditionAsync, subscriber::SubscriberAsync, topic::TopicAsync};
 
 pub struct DataReaderAsync<Foo> {
     reader_address: ActorAddress<DataReaderActor>,
@@ -471,11 +470,11 @@ impl<Foo> DataReaderAsync<Foo> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
         self.reader_address
             .send_mail_and_await_reply(data_reader_actor::get_statuscondition::new())
             .await
-            .map(StatusCondition::new)
+            .map(|c| StatusConditionAsync::new(c, self.runtime_handle.clone()))
     }
 
     #[tracing::instrument(skip(self))]

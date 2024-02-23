@@ -183,7 +183,8 @@ impl DomainParticipantFactoryActor {
             listener,
             status_kind,
             &runtime_handle,
-        );
+        )
+        .await;
         let participant_actor = Actor::spawn(domain_participant, &runtime_handle);
         let participant_address = participant_actor.address();
         self.domain_participant_list.insert(

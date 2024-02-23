@@ -10,7 +10,6 @@ use crate::{
         utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
     infrastructure::{
-        condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
         qos::{QosKind, TopicQos},
@@ -22,7 +21,7 @@ use crate::{
     },
 };
 
-use super::domain_participant::DomainParticipantAsync;
+use super::{condition::StatusConditionAsync, domain_participant::DomainParticipantAsync};
 
 pub struct TopicAsync {
     topic_address: ActorAddress<TopicActor>,
@@ -120,11 +119,11 @@ impl TopicAsync {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
         self.topic_address
             .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
             .await
-            .map(StatusCondition::new)
+            .map(|c| StatusConditionAsync::new(c, self.runtime_handle.clone()))
     }
 
     #[tracing::instrument(skip(self))]

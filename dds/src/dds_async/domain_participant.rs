@@ -15,7 +15,6 @@ use crate::{
         utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         listeners::NoOpListener,
@@ -31,7 +30,10 @@ use crate::{
     },
 };
 
-use super::{publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync};
+use super::{
+    condition::StatusConditionAsync, publisher::PublisherAsync, subscriber::SubscriberAsync,
+    topic::TopicAsync,
+};
 
 pub struct DomainParticipantAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
@@ -751,7 +753,7 @@ impl DomainParticipantAsync {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
         todo!()
     }
 

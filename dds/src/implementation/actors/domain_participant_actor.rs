@@ -243,7 +243,7 @@ pub struct DomainParticipantActor {
 
 impl DomainParticipantActor {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub async fn new(
         rtps_participant: RtpsParticipant,
         domain_id: DomainId,
         domain_tag: String,
@@ -402,31 +402,35 @@ impl DomainParticipantActor {
 
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
+            .send_mail_and_await_reply(subscriber_actor::data_reader_add::new(
                 InstanceHandle::new(spdp_builtin_participant_reader_guid.into()),
                 spdp_builtin_participant_reader,
             ))
+            .await
             .unwrap();
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
+            .send_mail_and_await_reply(subscriber_actor::data_reader_add::new(
                 InstanceHandle::new(sedp_builtin_topics_reader_guid.into()),
                 sedp_builtin_topics_reader,
             ))
+            .await
             .unwrap();
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
+            .send_mail_and_await_reply(subscriber_actor::data_reader_add::new(
                 InstanceHandle::new(sedp_builtin_publications_reader_guid.into()),
                 sedp_builtin_publications_reader,
             ))
+            .await
             .unwrap();
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply_blocking(subscriber_actor::data_reader_add::new(
+            .send_mail_and_await_reply(subscriber_actor::data_reader_add::new(
                 InstanceHandle::new(sedp_builtin_subscriptions_reader_guid.into()),
                 sedp_builtin_subscriptions_reader,
             ))
+            .await
             .unwrap();
 
         // Built-in publisher creation
@@ -464,9 +468,10 @@ impl DomainParticipantActor {
         {
             spdp_builtin_participant_writer
                 .address()
-                .send_mail_and_await_reply_blocking(data_writer_actor::reader_locator_add::new(
+                .send_mail_and_await_reply(data_writer_actor::reader_locator_add::new(
                     reader_locator,
                 ))
+                .await
                 .unwrap();
         }
 
@@ -540,31 +545,35 @@ impl DomainParticipantActor {
 
         builtin_publisher
             .address()
-            .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
+            .send_mail_and_await_reply(publisher_actor::datawriter_add::new(
                 InstanceHandle::new(spdp_builtin_participant_writer_guid.into()),
                 spdp_builtin_participant_writer,
             ))
+            .await
             .unwrap();
         builtin_publisher
             .address()
-            .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
+            .send_mail_and_await_reply(publisher_actor::datawriter_add::new(
                 InstanceHandle::new(sedp_builtin_topics_writer_guid.into()),
                 sedp_builtin_topics_writer_actor,
             ))
+            .await
             .unwrap();
         builtin_publisher
             .address()
-            .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
+            .send_mail_and_await_reply(publisher_actor::datawriter_add::new(
                 InstanceHandle::new(sedp_builtin_publications_writer_guid.into()),
                 sedp_builtin_publications_writer_actor,
             ))
+            .await
             .unwrap();
         builtin_publisher
             .address()
-            .send_mail_and_await_reply_blocking(publisher_actor::datawriter_add::new(
+            .send_mail_and_await_reply(publisher_actor::datawriter_add::new(
                 InstanceHandle::new(sedp_builtin_subscriptions_writer_guid.into()),
                 sedp_builtin_subscriptions_writer_actor,
             ))
+            .await
             .unwrap();
 
         let mut type_support_list: HashMap<String, Arc<dyn DynamicTypeInterface + Send + Sync>> =
@@ -854,17 +863,15 @@ impl DomainParticipantActor {
         for (_, user_defined_publisher) in self.user_defined_publisher_list.drain() {
             user_defined_publisher
                 .address()
-                .send_mail_and_await_reply_blocking(
-                    publisher_actor::delete_contained_entities::new(),
-                )?;
+                .send_mail_and_await_reply(publisher_actor::delete_contained_entities::new())
+                .await?;
         }
 
         for (_, user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
             user_defined_subscriber
                 .address()
-                .send_mail_and_await_reply_blocking(
-                    subscriber_actor::delete_contained_entities::new(),
-                )?;
+                .send_mail_and_await_reply(subscriber_actor::delete_contained_entities::new())
+                .await?;
         }
 
         self.topic_list.clear();

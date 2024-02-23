@@ -8,7 +8,6 @@ use crate::{
         utils::actor::ActorAddress,
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
@@ -20,7 +19,8 @@ use crate::{
 };
 
 use super::{
-    data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync, topic::TopicAsync,
+    condition::StatusConditionAsync, data_reader::DataReaderAsync,
+    domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 
 pub struct SubscriberAsync {
@@ -250,11 +250,11 @@ impl SubscriberAsync {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
         self.subscriber_address
             .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
             .await
-            .map(StatusCondition::new)
+            .map(|c| StatusConditionAsync::new(c, self.runtime_handle.clone()))
     }
 
     #[tracing::instrument(skip(self))]

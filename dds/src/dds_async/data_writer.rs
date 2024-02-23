@@ -12,7 +12,6 @@ use crate::{
         utils::actor::ActorAddress,
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind, TopicQos},
@@ -26,7 +25,7 @@ use crate::{
     topic_definition::type_support::DdsSerialize,
 };
 
-use super::{publisher::PublisherAsync, topic::TopicAsync};
+use super::{condition::StatusConditionAsync, publisher::PublisherAsync, topic::TopicAsync};
 
 pub struct DataWriterAsync<Foo> {
     writer_address: ActorAddress<DataWriterActor>,
@@ -534,11 +533,11 @@ impl<Foo> DataWriterAsync<Foo> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
         self.writer_address
             .send_mail_and_await_reply(data_writer_actor::get_statuscondition::new())
             .await
-            .map(StatusCondition::new)
+            .map(|c| StatusConditionAsync::new(c, self.runtime_handle.clone()))
     }
 
     #[tracing::instrument(skip(self))]

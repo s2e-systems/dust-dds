@@ -7,7 +7,6 @@ use crate::{
         utils::actor::ActorAddress,
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
@@ -20,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync, topic::TopicAsync,
+    condition::StatusConditionAsync, data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync, topic::TopicAsync
 };
 
 pub struct PublisherAsync {
@@ -285,7 +284,7 @@ impl PublisherAsync {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
         todo!()
     }
 
