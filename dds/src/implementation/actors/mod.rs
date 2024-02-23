@@ -5,7 +5,6 @@ pub mod data_reader_listener_actor;
 pub mod data_writer_actor;
 pub mod data_writer_listener_actor;
 pub mod domain_participant_actor;
-pub mod domain_participant_factory_actor;
 pub mod domain_participant_listener_actor;
 pub mod publisher_actor;
 pub mod publisher_listener_actor;

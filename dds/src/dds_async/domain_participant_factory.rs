@@ -15,7 +15,7 @@ use crate::{
         domain_participant_listener::DomainParticipantListener,
     },
     implementation::{
-        actors::domain_participant_actor,
+        actors::domain_participant_actor::{self, DomainParticipantActor},
         rtps::{
             participant::RtpsParticipant,
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -31,9 +31,7 @@ use crate::{
     },
 };
 
-use super::domain_participant_actor::DomainParticipantActor;
-
-pub struct DomainParticipantFactoryActor {
+pub struct DomainParticipantFactoryAsync {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
     domain_participant_counter: u32,
     qos: DomainParticipantFactoryQos,
@@ -42,19 +40,8 @@ pub struct DomainParticipantFactoryActor {
     runtime: Runtime,
 }
 
-impl Default for DomainParticipantFactoryActor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl DomainParticipantFactoryActor {
-    pub fn new() -> Self {
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .thread_stack_size(4 * 1024 * 1024)
-            .build()
-            .expect("Failed to create Tokio runtime");
+impl DomainParticipantFactoryAsync {
+    pub fn new(runtime: Runtime) -> Self {
         Self {
             domain_participant_list: HashMap::new(),
             domain_participant_counter: 0,

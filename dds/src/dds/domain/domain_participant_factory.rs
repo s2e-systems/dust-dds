@@ -1,8 +1,8 @@
 use super::domain_participant::DomainParticipant;
 use crate::{
     configuration::DustDdsConfiguration,
+    dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_listener::DomainParticipantListener,
-    implementation::actors::domain_participant_factory_actor::DomainParticipantFactoryActor,
     infrastructure::{
         error::DdsResult,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
@@ -18,7 +18,7 @@ pub type DomainId = i32;
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory(Mutex<DomainParticipantFactoryActor>);
+pub struct DomainParticipantFactory(Mutex<DomainParticipantFactoryAsync>);
 
 impl DomainParticipantFactory {
     /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
@@ -56,7 +56,14 @@ impl DomainParticipantFactory {
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
         static PARTICIPANT_FACTORY: OnceLock<DomainParticipantFactory> = OnceLock::new();
-        PARTICIPANT_FACTORY.get_or_init(|| Self(Mutex::new(DomainParticipantFactoryActor::new())))
+        PARTICIPANT_FACTORY.get_or_init(|| {
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .thread_stack_size(4 * 1024 * 1024)
+                .build()
+                .expect("Failed to create Tokio runtime");
+            Self(Mutex::new(DomainParticipantFactoryAsync::new(runtime)))
+        })
     }
 
     /// This operation retrieves a previously created [`DomainParticipant`] belonging to the specified domain_id. If no such
