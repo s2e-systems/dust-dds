@@ -291,33 +291,33 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn actor_increment() {
+    #[test]
+    fn actor_increment() {
         let runtime = Runtime::new().unwrap();
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle());
 
         assert_eq!(
-            actor
-                .address()
-                .send_mail_and_await_reply(increment::new(10))
-                .await
+            runtime
+                .block_on(
+                    actor
+                        .address()
+                        .send_mail_and_await_reply(increment::new(10))
+                )
                 .unwrap(),
             10
         )
     }
 
-    #[tokio::test]
-    async fn actor_already_deleted() {
+    #[test]
+    fn actor_already_deleted() {
         let runtime = Runtime::new().unwrap();
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle());
         let actor_address = actor.address().clone();
         std::mem::drop(actor);
         assert_eq!(
-            actor_address
-                .send_mail_and_await_reply(increment::new(10))
-                .await,
+            runtime.block_on(actor_address.send_mail_and_await_reply(increment::new(10))),
             Err(DdsError::AlreadyDeleted)
         );
     }
