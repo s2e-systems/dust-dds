@@ -54,7 +54,7 @@ impl WaitSetAsync {
                 }
             }
 
-            std::thread::sleep(std::time::Duration::from_millis(50));
+            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
         }
 
         Err(DdsError::Timeout)

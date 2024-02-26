@@ -378,7 +378,7 @@ impl<Foo> DataWriterAsync<Foo> {
             {
                 return Ok(());
             }
-            std::thread::sleep(std::time::Duration::from_millis(25));
+            tokio::time::sleep(tokio::time::Duration::from_millis(25)).await;
         }
 
         Err(DdsError::Timeout)
