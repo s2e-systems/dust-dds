@@ -42,16 +42,17 @@ impl WaitSetAsync {
         let start_time = Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(timeout) {
+            let mut finished = false;
+            let mut trigger_conditions = Vec::new();
             for condition in &self.conditions {
                 if condition.get_trigger_value().await? {
-                    let mut trigger_conditions = Vec::new();
-                    for condition in self.conditions.iter() {
-                        if condition.get_trigger_value().await.unwrap() {
-                            trigger_conditions.push(condition.clone())
-                        }
-                    }
-                    return Ok(trigger_conditions);
+                    trigger_conditions.push(condition.clone());
+                    finished = true;
                 }
+            }
+
+            if finished {
+                return Ok(trigger_conditions);
             }
 
             tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
