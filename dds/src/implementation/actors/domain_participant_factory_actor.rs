@@ -1,7 +1,10 @@
 use std::{
     collections::HashMap,
     net::{Ipv4Addr, SocketAddr},
-    sync::{Arc, Mutex, OnceLock},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, OnceLock,
+    },
 };
 
 use dust_dds_derive::actor_interface;
@@ -49,11 +52,9 @@ impl DomainParticipantFactoryActor {
     }
 
     fn get_unique_participant_id(&mut self) -> u32 {
-        static COUNTER: OnceLock<std::sync::Mutex<u32>> = OnceLock::new();
-        let mut c = COUNTER.get_or_init(|| Mutex::new(0)).lock().unwrap();
-        let unique_id = *c;
-        *c += 1;
-        unique_id
+        static COUNTER: OnceLock<AtomicU32> = OnceLock::new();
+        let c = COUNTER.get_or_init(|| AtomicU32::new(0));
+        c.fetch_add(1, Ordering::Acquire)
     }
 }
 
