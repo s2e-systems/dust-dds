@@ -33,7 +33,6 @@ use crate::{
 
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
-    domain_participant_counter: u32,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
@@ -43,17 +42,10 @@ impl DomainParticipantFactoryActor {
     pub fn new() -> Self {
         Self {
             domain_participant_list: HashMap::new(),
-            domain_participant_counter: 0,
             qos: DomainParticipantFactoryQos::default(),
             default_participant_qos: DomainParticipantQos::default(),
             configuration: DustDdsConfiguration::default(),
         }
-    }
-
-    fn get_unique_participant_id(&mut self) -> u32 {
-        let counter = self.domain_participant_counter;
-        self.domain_participant_counter += 1;
-        counter
     }
 }
 
@@ -85,7 +77,13 @@ impl DomainParticipantFactoryActor {
         }
 
         let app_id = std::process::id().to_ne_bytes();
-        let instance_id = self.get_unique_participant_id().to_ne_bytes();
+        // Use the immediate timestamp as instance_id to avoid clash when multiple async
+        // factories are used
+        let instance_id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| DdsError::Error(e.to_string()))?
+            .as_secs_f32()
+            .to_ne_bytes();
 
         #[rustfmt::skip]
         let guid_prefix = [
