@@ -1,8 +1,10 @@
-use std::time::Instant;
+use crate::{
+    dds_async::wait_set::{ConditionAsync, WaitSetAsync},
+    domain::domain_participant_factory::DomainParticipantFactory,
+    infrastructure::{error::DdsResult, time::Duration},
+};
 
-use crate::infrastructure::{error::DdsResult, time::Duration};
-
-use super::{condition::StatusCondition, error::DdsError};
+use super::condition::StatusCondition;
 
 /// Enumeration of the different Condition objects that can be associated with a [`WaitSet`].
 #[derive(Clone)]
@@ -23,7 +25,7 @@ impl Condition {
 /// wait on [`Condition`] objects associated with different [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) objects.
 #[derive(Default)]
 pub struct WaitSet {
-    conditions: Vec<Condition>,
+    waitset_async: WaitSetAsync,
 }
 
 impl WaitSet {
@@ -41,24 +43,16 @@ impl WaitSet {
     /// It is not allowed for more than one application thread to be waiting on the same [`WaitSet`]. If the wait operation is invoked on a
     /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`].
     pub fn wait(&self, timeout: Duration) -> DdsResult<Vec<Condition>> {
-        let start_time = Instant::now();
-
-        while start_time.elapsed() < std::time::Duration::from(timeout) {
-            for condition in &self.conditions {
-                if condition.get_trigger_value()? {
-                    return Ok(self
-                        .conditions
-                        .iter()
-                        .filter(|x| x.get_trigger_value().unwrap())
-                        .cloned()
-                        .collect());
+        Ok(DomainParticipantFactory::get_instance()
+            .runtime()
+            .block_on(self.waitset_async.wait(timeout))?
+            .into_iter()
+            .map(|c| match c {
+                ConditionAsync::StatusCondition(sc) => {
+                    Condition::StatusCondition(StatusCondition::new(sc))
                 }
-            }
-
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
-
-        Err(DdsError::Timeout)
+            })
+            .collect())
     }
 
     /// Attaches a [`Condition`] to the [`WaitSet`].
@@ -66,8 +60,16 @@ impl WaitSet {
     /// [`Condition`] has a `trigger_value` of [`true`], then attaching the condition will unblock the [`WaitSet`].
     /// Adding a [`Condition`] that is already attached to the [`WaitSet`] has no effect.
     pub fn attach_condition(&mut self, cond: Condition) -> DdsResult<()> {
-        self.conditions.push(cond);
-        Ok(())
+        match cond {
+            Condition::StatusCondition(sc) => {
+                DomainParticipantFactory::get_instance().runtime().block_on(
+                    self.waitset_async
+                        .attach_condition(ConditionAsync::StatusCondition(
+                            sc.condition_async().clone(),
+                        )),
+                )
+            }
+        }
     }
 
     /// Detaches a [`Condition`] from the [`WaitSet`].
@@ -78,6 +80,15 @@ impl WaitSet {
 
     /// This operation retrieves the list of attached conditions.
     pub fn get_conditions(&self) -> DdsResult<Vec<Condition>> {
-        Ok(self.conditions.clone())
+        Ok(DomainParticipantFactory::get_instance()
+            .runtime()
+            .block_on(self.waitset_async.get_conditions())?
+            .into_iter()
+            .map(|c| match c {
+                ConditionAsync::StatusCondition(sc) => {
+                    Condition::StatusCondition(StatusCondition::new(sc))
+                }
+            })
+            .collect())
     }
 }

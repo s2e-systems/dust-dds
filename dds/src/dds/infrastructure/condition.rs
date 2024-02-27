@@ -14,6 +14,10 @@ impl StatusCondition {
     pub(crate) fn new(condition_async: StatusConditionAsync) -> Self {
         Self { condition_async }
     }
+
+    pub(crate) fn condition_async(&self) -> &StatusConditionAsync {
+        &self.condition_async
+    }
 }
 
 impl StatusCondition {

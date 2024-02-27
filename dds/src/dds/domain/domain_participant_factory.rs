@@ -24,6 +24,12 @@ pub struct DomainParticipantFactory {
 }
 
 impl DomainParticipantFactory {
+    pub(crate) fn runtime(&self) -> &tokio::runtime::Runtime {
+        &self.runtime
+    }
+}
+
+impl DomainParticipantFactory {
     /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
     /// to join the Domain identified by the `domain_id` argument.
     /// If the specified QoS policies are not consistent, the operation will fail and no [`DomainParticipant`] will be created.
