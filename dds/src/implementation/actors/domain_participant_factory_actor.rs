@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     net::{Ipv4Addr, SocketAddr},
-    sync::Arc,
+    sync::{Arc, Mutex, OnceLock},
 };
 
 use dust_dds_derive::actor_interface;
@@ -47,6 +47,14 @@ impl DomainParticipantFactoryActor {
             configuration: DustDdsConfiguration::default(),
         }
     }
+
+    fn get_unique_participant_id(&mut self) -> u32 {
+        static COUNTER: OnceLock<std::sync::Mutex<u32>> = OnceLock::new();
+        let mut c = COUNTER.get_or_init(|| Mutex::new(0)).lock().unwrap();
+        let unique_id = *c;
+        *c += 1;
+        unique_id
+    }
 }
 
 #[actor_interface]
@@ -77,13 +85,7 @@ impl DomainParticipantFactoryActor {
         }
 
         let app_id = std::process::id().to_ne_bytes();
-        // Use the immediate timestamp as instance_id to avoid clash when multiple async
-        // factories are used
-        let instance_id = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|e| DdsError::Error(e.to_string()))?
-            .as_secs_f32()
-            .to_ne_bytes();
+        let instance_id = self.get_unique_participant_id().to_ne_bytes();
 
         #[rustfmt::skip]
         let guid_prefix = [
