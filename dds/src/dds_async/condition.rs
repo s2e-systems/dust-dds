@@ -29,12 +29,14 @@ impl StatusConditionAsync {
 }
 
 impl StatusConditionAsync {
+    #[tracing::instrument(skip(self))]
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
         self.address
             .send_mail_and_await_reply(status_condition_actor::get_enabled_statuses::new())
             .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
         self.address
             .send_mail_and_await_reply(status_condition_actor::set_enabled_statuses::new(
@@ -43,12 +45,14 @@ impl StatusConditionAsync {
             .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_entity(&self) {
         todo!()
     }
 }
 
 impl StatusConditionAsync {
+    #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
         self.address
             .send_mail_and_await_reply(status_condition_actor::get_trigger_value::new())

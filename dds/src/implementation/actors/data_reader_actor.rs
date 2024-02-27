@@ -1797,6 +1797,11 @@ impl DataReaderActor {
         if publication_builtin_topic_data.topic_name() == self.topic_name
             && publication_builtin_topic_data.get_type_name() == self.type_name
         {
+            tracing::trace!(
+                topic_name = self.topic_name,
+                type_name = self.type_name,
+                "Writer with matched topic and type found",
+            );
             let instance_handle =
                 get_instance_handle_from_key(&discovered_writer_data.get_key().unwrap()).unwrap();
             let incompatible_qos_policy_list = self

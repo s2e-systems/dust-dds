@@ -623,6 +623,11 @@ impl DataWriterActor {
             == self.type_name;
 
         if is_matched_topic_name && is_matched_type_name {
+            tracing::trace!(
+                topic_name = self.topic_name,
+                type_name = self.type_name,
+                "Reader with matched topic and type found",
+            );
             let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
                 &self.qos,
                 discovered_reader_data.subscription_builtin_topic_data(),

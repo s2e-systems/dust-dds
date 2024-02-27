@@ -58,7 +58,7 @@ impl WaitSetAsync {
                 return Ok(trigger_conditions);
             }
 
-            tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
         }
 
         Err(DdsError::Timeout)
