@@ -12,6 +12,7 @@ pub enum Condition {
     StatusCondition(StatusCondition),
 }
 impl Condition {
+    #[tracing::instrument(skip(self))]
     pub fn get_trigger_value(&self) -> DdsResult<bool> {
         match self {
             Condition::StatusCondition(c) => c.get_trigger_value(),
@@ -30,6 +31,7 @@ pub struct WaitSet {
 
 impl WaitSet {
     /// Create a new [`WaitSet`]
+    #[tracing::instrument]
     pub fn new() -> Self {
         Self::default()
     }
@@ -42,6 +44,7 @@ impl WaitSet {
     /// none of the attached [`Condition`] objects is [`true`], wait will return with [`DdsError::Timeout`].
     /// It is not allowed for more than one application thread to be waiting on the same [`WaitSet`]. If the wait operation is invoked on a
     /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`].
+    #[tracing::instrument(skip(self))]
     pub fn wait(&self, timeout: Duration) -> DdsResult<Vec<Condition>> {
         Ok(DomainParticipantFactory::get_instance()
             .runtime()
@@ -59,6 +62,7 @@ impl WaitSet {
     /// It is possible to attach a [`Condition`] on a WaitSet that is currently being waited upon (via the [`WaitSet::wait`] operation). In this case, if the
     /// [`Condition`] has a `trigger_value` of [`true`], then attaching the condition will unblock the [`WaitSet`].
     /// Adding a [`Condition`] that is already attached to the [`WaitSet`] has no effect.
+    #[tracing::instrument(skip(self, cond))]
     pub fn attach_condition(&mut self, cond: Condition) -> DdsResult<()> {
         match cond {
             Condition::StatusCondition(sc) => {
@@ -74,11 +78,13 @@ impl WaitSet {
 
     /// Detaches a [`Condition`] from the [`WaitSet`].
     /// If the [`Condition`] was not attached to the [`WaitSet`], the operation will return [`DdsError::PreconditionNotMet`].
+    #[tracing::instrument(skip(self, _cond))]
     pub fn detach_condition(&self, _cond: Condition) -> DdsResult<()> {
         todo!()
     }
 
     /// This operation retrieves the list of attached conditions.
+    #[tracing::instrument(skip(self))]
     pub fn get_conditions(&self) -> DdsResult<Vec<Condition>> {
         Ok(DomainParticipantFactory::get_instance()
             .runtime()

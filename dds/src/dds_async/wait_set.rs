@@ -12,6 +12,7 @@ pub enum ConditionAsync {
     StatusCondition(StatusConditionAsync),
 }
 impl ConditionAsync {
+    #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
         match self {
             ConditionAsync::StatusCondition(c) => c.get_trigger_value().await,
@@ -26,6 +27,7 @@ pub struct WaitSetAsync {
 
 impl WaitSetAsync {
     /// Create a new [`WaitSet`]
+    #[tracing::instrument]
     pub fn new() -> Self {
         Self::default()
     }
@@ -38,6 +40,7 @@ impl WaitSetAsync {
     /// none of the attached [`Condition`] objects is [`true`], wait will return with [`DdsError::Timeout`].
     /// It is not allowed for more than one application thread to be waiting on the same [`WaitSet`]. If the wait operation is invoked on a
     /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`].
+    #[tracing::instrument(skip(self))]
     pub async fn wait(&self, timeout: Duration) -> DdsResult<Vec<ConditionAsync>> {
         let start_time = Instant::now();
 
@@ -65,6 +68,7 @@ impl WaitSetAsync {
     /// It is possible to attach a [`Condition`] on a WaitSet that is currently being waited upon (via the [`WaitSet::wait`] operation). In this case, if the
     /// [`Condition`] has a `trigger_value` of [`true`], then attaching the condition will unblock the [`WaitSet`].
     /// Adding a [`Condition`] that is already attached to the [`WaitSet`] has no effect.
+    #[tracing::instrument(skip(self, cond))]
     pub async fn attach_condition(&mut self, cond: ConditionAsync) -> DdsResult<()> {
         self.conditions.push(cond);
         Ok(())
@@ -72,11 +76,13 @@ impl WaitSetAsync {
 
     /// Detaches a [`Condition`] from the [`WaitSet`].
     /// If the [`Condition`] was not attached to the [`WaitSet`], the operation will return [`DdsError::PreconditionNotMet`].
+    #[tracing::instrument(skip(self, _cond))]
     pub async fn detach_condition(&self, _cond: ConditionAsync) -> DdsResult<()> {
         todo!()
     }
 
     /// This operation retrieves the list of attached conditions.
+    #[tracing::instrument(skip(self))]
     pub async fn get_conditions(&self) -> DdsResult<Vec<ConditionAsync>> {
         Ok(self.conditions.clone())
     }
