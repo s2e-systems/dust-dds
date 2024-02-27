@@ -1093,6 +1093,10 @@ impl DomainParticipantActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
+        tracing::trace!(
+            rtps_message = ?message,
+            "Received metatraffic RTPS message"
+        );
         let reception_timestamp = self.get_current_time().await;
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         self.builtin_subscriber

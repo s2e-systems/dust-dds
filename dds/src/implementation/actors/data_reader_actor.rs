@@ -1127,6 +1127,7 @@ impl DataReaderActor {
                     runtime_handle.clone(),
                 );
 
+                tracing::debug!(cache_change = ?change, "Adding change to data reader history cache");
                 self.changes.push(change);
                 self.data_available_status_changed_flag = true;
 
