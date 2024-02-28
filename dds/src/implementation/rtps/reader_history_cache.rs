@@ -8,6 +8,7 @@ use super::{
     types::{ChangeKind, Guid},
 };
 
+#[derive(Debug)]
 pub struct RtpsReaderCacheChange {
     pub kind: ChangeKind,
     pub writer_guid: Guid,

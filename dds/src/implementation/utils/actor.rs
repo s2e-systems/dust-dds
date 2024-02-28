@@ -60,49 +60,6 @@ impl<A> ActorAddress<A> {
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
-    pub fn send_mail_and_await_reply_blocking<M>(&self, mail: M) -> DdsResult<M::Result>
-    where
-        A: MailHandler<M> + Send,
-        M: Mail + Send + 'static,
-        M::Result: Send,
-    {
-        let (response_sender, mut response_receiver) = tokio::sync::oneshot::channel();
-
-        let mut send_result = self
-            .sender
-            .try_send(Box::new(ReplyMail::new(mail, response_sender)));
-        // Try sending the mail until it succeeds. This is done instead of calling a tokio::task::block_in_place because this solution
-        // would be only valid when the runtime is multithreaded. For single threaded runtimes this would still cause a panic.
-        while let Err(receive_error) = send_result {
-            match receive_error {
-                tokio::sync::mpsc::error::TrySendError::Full(mail) => {
-                    send_result = self.sender.try_send(mail);
-                }
-
-                tokio::sync::mpsc::error::TrySendError::Closed(_) => {
-                    return Err(DdsError::AlreadyDeleted)
-                }
-            }
-        }
-
-        // Receive on a try_recv() loop checking for error instead of a call to recv() to avoid blocking the thread. This would not cause
-        // a Tokio runtime panic since it is using an std channel but it could cause a single-threaded runtime to hang and further tasks not
-        // being executed.
-        let mut receive_result = response_receiver.try_recv();
-        while let Err(receive_error) = receive_result {
-            match receive_error {
-                tokio::sync::oneshot::error::TryRecvError::Empty => {
-                    receive_result = response_receiver.try_recv();
-                }
-
-                tokio::sync::oneshot::error::TryRecvError::Closed => {
-                    return Err(DdsError::AlreadyDeleted)
-                }
-            }
-        }
-        Ok(receive_result.expect("Receive result should be Ok"))
-    }
-
     pub async fn send_mail<M>(&self, mail: M) -> DdsResult<()>
     where
         A: MailHandler<M> + Send,
@@ -113,29 +70,6 @@ impl<A> ActorAddress<A> {
             .send(Box::new(CommandMail::new(mail)))
             .await
             .map_err(|_| DdsError::AlreadyDeleted)
-    }
-
-    pub fn send_mail_blocking<M>(&self, mail: M) -> DdsResult<()>
-    where
-        A: MailHandler<M> + Send,
-        M: Mail + Send + 'static,
-        <M as Mail>::Result: Send,
-    {
-        let mut send_result = self.sender.try_send(Box::new(CommandMail::new(mail)));
-        // Try sending the mail until it succeeds. This is done instead of calling a tokio::task::block_in_place because this solution
-        // would be only valid when the runtime is multithreaded. For single threaded runtimes this would still cause a panic.
-        while let Err(error) = send_result {
-            match error {
-                tokio::sync::mpsc::error::TrySendError::Full(mail) => {
-                    send_result = self.sender.try_send(mail);
-                }
-
-                tokio::sync::mpsc::error::TrySendError::Closed(_) => {
-                    return Err(DdsError::AlreadyDeleted)
-                }
-            }
-        }
-        Ok(())
     }
 }
 
@@ -319,49 +253,6 @@ where
                 "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
             );
     }
-
-    pub fn send_mail_and_await_reply_blocking<M>(&self, mail: M) -> M::Result
-    where
-        A: MailHandler<M> + Send,
-        M: Mail + Send + 'static,
-        <M as Mail>::Result: Send,
-    {
-        let (response_sender, mut response_receiver) = tokio::sync::oneshot::channel();
-
-        let mut send_result = self
-            .sender
-            .try_send(Box::new(ReplyMail::new(mail, response_sender)));
-        // Try sending the mail until it succeeds. This is done instead of calling a tokio::task::block_in_place because this solution
-        // would be only valid when the runtime is multithreaded. For single threaded runtimes this would still cause a panic.
-        while let Err(receive_error) = send_result {
-            match receive_error {
-                tokio::sync::mpsc::error::TrySendError::Full(mail) => {
-                    send_result = self.sender.try_send(mail);
-                }
-
-                tokio::sync::mpsc::error::TrySendError::Closed(_) => {
-                    panic!("With actor object it should always be possible to send mail")
-                }
-            }
-        }
-
-        // Receive on a try_recv() loop checking for error instead of a call to recv() to avoid blocking the thread. This would not cause
-        // a Tokio runtime panic since it is using an std channel but it could cause a single-threaded runtime to hang and further tasks not
-        // being executed.
-        let mut receive_result = response_receiver.try_recv();
-        while let Err(receive_error) = receive_result {
-            match receive_error {
-                tokio::sync::oneshot::error::TryRecvError::Empty => {
-                    receive_result = response_receiver.try_recv();
-                }
-
-                tokio::sync::oneshot::error::TryRecvError::Closed => {
-                    panic!("With actor object there should always be a reply")
-                }
-            }
-        }
-        receive_result.expect("Receive result should be Ok")
-    }
 }
 
 impl<A> Drop for Actor<A> {
@@ -407,9 +298,12 @@ mod tests {
         let actor = Actor::spawn(my_data, runtime.handle());
 
         assert_eq!(
-            actor
-                .address()
-                .send_mail_and_await_reply_blocking(increment::new(10))
+            runtime
+                .block_on(
+                    actor
+                        .address()
+                        .send_mail_and_await_reply(increment::new(10))
+                )
                 .unwrap(),
             10
         )
@@ -423,7 +317,7 @@ mod tests {
         let actor_address = actor.address().clone();
         std::mem::drop(actor);
         assert_eq!(
-            actor_address.send_mail_and_await_reply_blocking(increment::new(10)),
+            runtime.block_on(actor_address.send_mail_and_await_reply(increment::new(10))),
             Err(DdsError::AlreadyDeleted)
         );
     }

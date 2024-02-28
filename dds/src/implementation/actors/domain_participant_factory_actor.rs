@@ -1,27 +1,30 @@
 use std::{
     collections::HashMap,
     net::{Ipv4Addr, SocketAddr},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, OnceLock,
+    },
 };
 
+use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
-use tokio::runtime::Runtime;
 
 use crate::{
     configuration::DustDdsConfiguration,
     domain::{
-        domain_participant::DomainParticipant, domain_participant_factory::DomainId,
+        domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
     },
     implementation::{
-        actors::domain_participant_actor,
+        actors::domain_participant_actor::{self, DomainParticipantActor},
         rtps::{
             participant::RtpsParticipant,
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
         rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
-        utils::actor::Actor,
+        utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -31,47 +34,40 @@ use crate::{
     },
 };
 
-use super::domain_participant_actor::DomainParticipantActor;
-
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
-    domain_participant_counter: u32,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
-    runtime: Runtime,
-}
-
-impl Default for DomainParticipantFactoryActor {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl DomainParticipantFactoryActor {
     pub fn new() -> Self {
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .thread_stack_size(4 * 1024 * 1024)
-            .build()
-            .expect("Failed to create Tokio runtime");
         Self {
             domain_participant_list: HashMap::new(),
-            domain_participant_counter: 0,
             qos: DomainParticipantFactoryQos::default(),
             default_participant_qos: DomainParticipantQos::default(),
             configuration: DustDdsConfiguration::default(),
-            runtime,
         }
     }
 
-    pub fn create_participant(
+    fn get_unique_participant_id(&mut self) -> u32 {
+        static COUNTER: OnceLock<AtomicU32> = OnceLock::new();
+        let c = COUNTER.get_or_init(|| AtomicU32::new(0));
+        c.fetch_add(1, Ordering::Acquire)
+    }
+}
+
+#[actor_interface]
+impl DomainParticipantFactoryActor {
+    async fn create_participant(
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: impl DomainParticipantListener + Send + 'static,
-        mask: &[StatusKind],
-    ) -> DdsResult<DomainParticipant> {
+        listener: Box<dyn DomainParticipantListener + Send>,
+        status_kind: Vec<StatusKind>,
+        runtime_handle: tokio::runtime::Handle,
+    ) -> DdsResult<ActorAddress<DomainParticipantActor>> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -177,9 +173,6 @@ impl DomainParticipantFactoryActor {
         );
         let participant_guid = rtps_participant.guid();
 
-        let listener = Box::new(a_listener);
-        let status_kind = mask.to_vec();
-
         let domain_participant = DomainParticipantActor::new(
             rtps_participant,
             domain_id,
@@ -190,21 +183,19 @@ impl DomainParticipantFactoryActor {
             udp_transport_write,
             listener,
             status_kind,
-            self.runtime.handle(),
-        );
-        let participant_actor = Actor::spawn(domain_participant, self.runtime.handle());
+            &runtime_handle,
+        )
+        .await;
+        let participant_actor = Actor::spawn(domain_participant, &runtime_handle);
         let participant_address = participant_actor.address();
         self.domain_participant_list.insert(
             InstanceHandle::new(participant_guid.into()),
             participant_actor,
         );
 
-        let domain_participant =
-            DomainParticipant::new(participant_address.clone(), self.runtime.handle().clone());
-
         let participant_address_clone = participant_address.clone();
-        let runtime_handle_clone = self.runtime.handle().clone();
-        self.runtime.spawn(async move {
+        let runtime_handle_clone = runtime_handle.clone();
+        runtime_handle.spawn(async move {
             let mut metatraffic_multicast_transport = UdpTransportRead::new(
                 get_multicast_socket(
                     DEFAULT_MULTICAST_LOCATOR_ADDRESS,
@@ -248,8 +239,8 @@ impl DomainParticipantFactoryActor {
         });
 
         let participant_address_clone = participant_address.clone();
-        let runtime_handle_clone = self.runtime.handle().clone();
-        self.runtime.spawn(async move {
+        let runtime_handle_clone = runtime_handle.clone();
+        runtime_handle.spawn(async move {
             let mut metatraffic_unicast_transport = UdpTransportRead::new(
                 tokio::net::UdpSocket::from_std(metattrafic_unicast_socket)
                     .expect("Should not fail to open metatraffic unicast transport socket"),
@@ -288,9 +279,9 @@ impl DomainParticipantFactoryActor {
             }
         });
 
-        let participant_address_clone = participant_address;
-        let runtime_handle_clone = self.runtime.handle().clone();
-        self.runtime.spawn(async move {
+        let participant_address_clone = participant_address.clone();
+        let runtime_handle_clone = runtime_handle.clone();
+        runtime_handle.spawn(async move {
             let mut default_unicast_transport = UdpTransportRead::new(
                 tokio::net::UdpSocket::from_std(default_unicast_socket)
                     .expect("Should not fail to open default unicast socket"),
@@ -313,17 +304,13 @@ impl DomainParticipantFactoryActor {
             }
         });
 
-        if self.qos.entity_factory.autoenable_created_entities {
-            domain_participant.enable()?;
-        }
-
-        Ok(domain_participant)
+        Ok(participant_address)
     }
 
-    pub fn delete_participant(&mut self, participant: &DomainParticipant) -> DdsResult<()> {
-        let handle = participant.get_instance_handle()?;
+    async fn delete_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         let is_participant_empty = self.domain_participant_list[&handle]
-            .send_mail_and_await_reply_blocking(domain_participant_actor::is_empty::new());
+            .send_mail_and_await_reply(domain_participant_actor::is_empty::new())
+            .await;
         if is_participant_empty {
             self.domain_participant_list.remove(&handle);
             Ok(())
@@ -334,19 +321,24 @@ impl DomainParticipantFactoryActor {
         }
     }
 
-    pub fn lookup_participant(&self, domain_id: DomainId) -> DdsResult<Option<DomainParticipant>> {
-        Ok(self
-            .domain_participant_list
-            .values()
-            .find(|dp| {
-                dp.send_mail_and_await_reply_blocking(
-                        domain_participant_actor::get_domain_id::new(),
-                    ) == domain_id
-            })
-            .map(|dp| DomainParticipant::new(dp.address(), self.runtime.handle().clone())))
+    async fn lookup_participant(
+        &self,
+        domain_id: DomainId,
+    ) -> DdsResult<Option<ActorAddress<DomainParticipantActor>>> {
+        for dp in self.domain_participant_list.values() {
+            if dp
+                .send_mail_and_await_reply(domain_participant_actor::get_domain_id::new())
+                .await
+                == domain_id
+            {
+                return Ok(Some(dp.address()));
+            }
+        }
+
+        Ok(None)
     }
 
-    pub fn set_default_participant_qos(
+    async fn set_default_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
     ) -> DdsResult<()> {
@@ -360,11 +352,11 @@ impl DomainParticipantFactoryActor {
         Ok(())
     }
 
-    pub fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
+    async fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
         Ok(self.default_participant_qos.clone())
     }
 
-    pub fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
+    async fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantFactoryQos::default(),
             QosKind::Specific(q) => q,
@@ -375,23 +367,17 @@ impl DomainParticipantFactoryActor {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
+    async fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
         Ok(self.qos.clone())
     }
 
-    pub fn set_configuration(&mut self, configuration: DustDdsConfiguration) -> DdsResult<()> {
+    async fn set_configuration(&mut self, configuration: DustDdsConfiguration) -> DdsResult<()> {
         self.configuration = configuration;
         Ok(())
     }
 
-    pub fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
+    async fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
         Ok(self.configuration.clone())
-    }
-
-    fn get_unique_participant_id(&mut self) -> u32 {
-        let counter = self.domain_participant_counter;
-        self.domain_participant_counter += 1;
-        counter
     }
 }
 

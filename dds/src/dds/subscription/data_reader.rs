@@ -1,51 +1,26 @@
 use crate::{
-    implementation::{
-        actors::{
-            data_reader_actor::{self, DataReaderActor},
-            data_writer_actor,
-            domain_participant_actor::{self, DomainParticipantActor},
-            publisher_actor,
-            subscriber_actor::{self, SubscriberActor},
-            topic_actor::{self, TopicActor},
-        },
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-        rtps::messages::submessage_elements::Data,
-        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
-    },
+    builtin_topics::PublicationBuiltinTopicData,
+    dds_async::data_reader::DataReaderAsync,
+    implementation::rtps::messages::submessage_elements::Data,
     infrastructure::{
-        error::DdsError,
+        condition::StatusCondition,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{QosKind, TopicQos},
-        status::StatusKind,
+        qos::{DataReaderQos, QosKind},
+        status::{
+            LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+            SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
+        },
         time::Duration,
     },
     subscription::data_reader_listener::DataReaderListener,
-    topic_definition::{
-        topic::Topic,
-        type_support::{DdsDeserialize, DdsKey, DdsSerialize},
-    },
-    {
-        builtin_topics::PublicationBuiltinTopicData,
-        infrastructure::{
-            condition::StatusCondition,
-            error::DdsResult,
-            qos::DataReaderQos,
-            status::{
-                LivelinessChangedStatus, RequestedDeadlineMissedStatus,
-                RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-                SubscriptionMatchedStatus,
-            },
-        },
-    },
+    topic_definition::{topic::Topic, type_support::DdsDeserialize},
 };
 
 use std::marker::PhantomData;
 
 use super::{
-    sample_info::{
-        InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
-        ANY_VIEW_STATE,
-    },
+    sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     subscriber::Subscriber,
 };
 
@@ -93,61 +68,23 @@ impl<Foo> Sample<Foo> {
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
 pub struct DataReader<Foo> {
-    reader_address: ActorAddress<DataReaderActor>,
-    subscriber_address: ActorAddress<SubscriberActor>,
-    participant_address: ActorAddress<DomainParticipantActor>,
-    runtime_handle: tokio::runtime::Handle,
-    phantom: PhantomData<Foo>,
+    reader_async: DataReaderAsync<Foo>,
 }
 
 impl<Foo> DataReader<Foo> {
-    pub(crate) fn new(
-        reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
-    ) -> Self {
-        Self {
-            reader_address,
-            subscriber_address,
-            participant_address,
-            runtime_handle,
-            phantom: PhantomData,
-        }
+    pub(crate) fn new(reader_async: DataReaderAsync<Foo>) -> Self {
+        Self { reader_async }
     }
 
-    fn topic_address(&self) -> ActorAddress<TopicActor> {
-        let user_defined_topic_list = self
-            .participant_address
-            .send_mail_and_await_reply_blocking(
-                domain_participant_actor::get_user_defined_topic_list::new(),
-            )
-            .expect("should never fail");
-        for topic in user_defined_topic_list {
-            if topic.send_mail_and_await_reply_blocking(topic_actor::get_type_name::new())
-                == self
-                    .reader_address
-                    .send_mail_and_await_reply_blocking(data_reader_actor::get_type_name::new())
-                && topic.send_mail_and_await_reply_blocking(topic_actor::get_name::new())
-                    == self
-                        .reader_address
-                        .send_mail_and_await_reply_blocking(data_reader_actor::get_topic_name::new())
-            {
-                return topic;
-            }
-        }
-        panic!("Should always exist");
+    pub(crate) fn reader_async(&self) -> &DataReaderAsync<Foo> {
+        &self.reader_async
     }
 }
 
 impl<Foo> Clone for DataReader<Foo> {
     fn clone(&self) -> Self {
         Self {
-            reader_address: self.reader_address.clone(),
-            subscriber_address: self.subscriber_address.clone(),
-            participant_address: self.participant_address.clone(),
-            runtime_handle: self.runtime_handle.clone(),
-            phantom: self.phantom,
+            reader_async: self.reader_async.clone(),
         }
     }
 }
@@ -201,20 +138,14 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples = self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::read::new(
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.read(
                 max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                None,
-            ),
-        )??;
-
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+                sample_states,
+                view_states,
+                instance_states,
+            ))
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. This operation uses the same
@@ -228,20 +159,14 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples = self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::take::new(
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.take(
                 max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                None,
-            ),
-        )??;
-
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+                sample_states,
+                view_states,
+                instance_states,
+            ))
     }
 
     /// This operation reads the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -253,19 +178,9 @@ impl<Foo> DataReader<Foo> {
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        let mut samples = {
-            self.reader_address.send_mail_and_await_reply_blocking(
-                data_reader_actor::read::new(
-                    1,
-                    vec![SampleStateKind::NotRead],
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                ),
-            )??
-        };
-        let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
-        Ok(Sample::new(data, sample_info))
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.read_next_sample())
     }
 
     /// This operation takes the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -277,17 +192,9 @@ impl<Foo> DataReader<Foo> {
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        let mut samples = self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::take::new(
-                1,
-                vec![SampleStateKind::NotRead],
-                ANY_VIEW_STATE.to_vec(),
-                ANY_INSTANCE_STATE.to_vec(),
-                None,
-            ),
-        )??;
-        let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
-        Ok(Sample::new(data, sample_info))
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.take_next_sample())
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The
@@ -307,19 +214,15 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples = self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::read::new(
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.read_instance(
                 max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                Some(a_handle),
-            ),
-        )??;
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+                a_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            ))
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The
@@ -339,19 +242,15 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples = self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::take::new(
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.take_instance(
                 max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                Some(a_handle),
-            ),
-        )??;
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+                a_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            ))
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`] where all the samples belong to a single instance.
@@ -386,19 +285,15 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples = self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::read_next_instance::new(
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.read_next_instance(
                 max_samples,
                 previous_handle,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-            ),
-        )??;
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+                sample_states,
+                view_states,
+                instance_states,
+            ))
     }
 
     /// This operation accesses a collection of [`Sample`] values from the [`DataReader`] and removes them from the [`DataReader`].
@@ -413,28 +308,26 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let samples = self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::take_next_instance::new(
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.take_next_instance(
                 max_samples,
                 previous_handle,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-            ),
-        )??;
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+                sample_states,
+                view_states,
+                instance_states,
+            ))
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an `handle`.
     /// The operation will only fill the fields that form the key inside the `key_holder` instance.
     /// This operation may return [`DdsError::BadParameter`](crate::infrastructure::error::DdsError)
     /// if the [`InstanceHandle`] `handle` does not correspond to an existing data object known to the [`DataReader`].
-    #[tracing::instrument(skip(self, _key_holder))]
-    pub fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
-        todo!()
+    #[tracing::instrument(skip(self, key_holder))]
+    pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_key_value(key_holder, handle))
     }
 
     /// This operation takes as a parameter an instance and returns an [`InstanceHandle`] handle
@@ -443,9 +336,11 @@ impl<Foo> DataReader<Foo> {
     /// key. This operation does not register the instance in question. If the instance has not
     /// been previously registered, or if for any other reason the Service is unable to provide
     /// an instance handle, the operation will succeed and return [`None`].
-    #[tracing::instrument(skip(self, _instance))]
-    pub fn lookup_instance(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        todo!()
+    #[tracing::instrument(skip(self, instance))]
+    pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.lookup_instance(instance))
     }
 }
 
@@ -453,13 +348,17 @@ impl<Foo> DataReader<Foo> {
     /// This operation allows access to the [`LivelinessChangedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
-        todo!()
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_liveliness_changed_status())
     }
 
     /// This operation allows access to the [`RequestedDeadlineMissedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
-        todo!()
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_requested_deadline_missed_status())
     }
 
     /// This operation allows access to the [`RequestedIncompatibleQosStatus`].
@@ -467,48 +366,52 @@ impl<Foo> DataReader<Foo> {
     pub fn get_requested_incompatible_qos_status(
         &self,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
-        todo!()
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_requested_incompatible_qos_status())
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        todo!()
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_sample_lost_status())
     }
 
     /// This operation allows access to the [`SampleRejectedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
-        todo!()
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_sample_rejected_status())
     }
 
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::get_subscription_matched_status::new(),
-        )
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_subscription_matched_status())
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
     pub fn get_topicdescription(&self) -> DdsResult<Topic> {
-        Ok(Topic::new(
-            self.topic_address(),
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        ))
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_topicdescription())
+            .map(Topic::new)
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
-        Ok(Subscriber::new(
-            self.subscriber_address.clone(),
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        ))
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_subscriber())
+            .map(Subscriber::new)
     }
 
     /// This operation blocks the calling thread until either all “historical” data is received, or else the
@@ -525,17 +428,9 @@ impl<Foo> DataReader<Foo> {
     /// data is received.
     #[tracing::instrument(skip(self))]
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
-        let start_time = std::time::Instant::now();
-
-        while start_time.elapsed() < std::time::Duration::from(max_wait) {
-            if self.reader_address.send_mail_and_await_reply_blocking(
-                data_reader_actor::is_historical_data_received::new(),
-            )?? {
-                return Ok(());
-            }
-        }
-
-        Err(DdsError::Timeout)
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.wait_for_historical_data(max_wait))
     }
 
     /// This operation retrieves information on a publication that is currently “associated” with the [`DataReader`];
@@ -550,9 +445,10 @@ impl<Foo> DataReader<Foo> {
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::get_matched_publication_data::new(publication_handle),
-        )?
+        self.reader_async.runtime_handle().block_on(
+            self.reader_async
+                .get_matched_publication_data(publication_handle),
+        )
     }
 
     /// This operation retrieves the list of publications currently “associated” with the [`DataReader`]; that is, publications that have a
@@ -563,8 +459,9 @@ impl<Foo> DataReader<Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.reader_address
-            .send_mail_and_await_reply_blocking(data_reader_actor::get_matched_publications::new())
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_matched_publications())
     }
 }
 
@@ -583,65 +480,17 @@ impl<Foo> DataReader<Foo> {
     /// modified to match the current default for the Entity’s factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        let q = match qos {
-            QosKind::Default => self.subscriber_address.send_mail_and_await_reply_blocking(
-                subscriber_actor::get_default_datareader_qos::new(),
-            )?,
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
-        };
-        self.reader_address
-            .send_mail_and_await_reply_blocking(data_reader_actor::set_qos::new(q))??;
-
-        if self
-            .reader_address
-            .send_mail_and_await_reply_blocking(data_reader_actor::is_enabled::new())?
-        {
-            let type_name = self
-                .reader_address
-                .send_mail_and_await_reply_blocking(data_reader_actor::get_type_name::new())?;
-            let type_support = self
-                .participant_address
-                .send_mail_and_await_reply_blocking(
-                    domain_participant_actor::get_type_support::new(type_name.clone()),
-                )?
-                .ok_or_else(|| {
-                    DdsError::PreconditionNotMet(format!(
-                        "Type with name {} not registered with parent domain participant",
-                        type_name
-                    ))
-                })?;
-            announce_data_reader(
-                &self.participant_address,
-                self.reader_address.send_mail_and_await_reply_blocking(
-                    data_reader_actor::as_discovered_reader_data::new(
-                        TopicQos::default(),
-                        self.subscriber_address
-                            .send_mail_and_await_reply_blocking(subscriber_actor::get_qos::new())?,
-                        self.participant_address
-                            .send_mail_and_await_reply_blocking(
-                                domain_participant_actor::get_default_unicast_locator_list::new(),
-                            )?,
-                        self.participant_address
-                            .send_mail_and_await_reply_blocking(
-                                domain_participant_actor::get_default_multicast_locator_list::new(),
-                            )?,
-                        type_support.xml_type(),
-                    ),
-                )?,
-            )?;
-        }
-
-        Ok(())
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        self.reader_address
-            .send_mail_and_await_reply_blocking(data_reader_actor::get_qos::new())
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_qos())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -649,8 +498,9 @@ impl<Foo> DataReader<Foo> {
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.reader_address
-            .send_mail_and_await_reply_blocking(data_reader_actor::get_statuscondition::new())
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_statuscondition())
             .map(StatusCondition::new)
     }
 
@@ -662,7 +512,9 @@ impl<Foo> DataReader<Foo> {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        todo!()
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -687,57 +539,17 @@ impl<Foo> DataReader<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        if !self
-            .reader_address
-            .send_mail_and_await_reply_blocking(data_reader_actor::is_enabled::new())?
-        {
-            self.reader_address
-                .send_mail_and_await_reply_blocking(data_reader_actor::enable::new())?;
-        }
-
-        let type_name = self
-            .reader_address
-            .send_mail_and_await_reply_blocking(data_reader_actor::get_type_name::new())?;
-        let type_support = self
-            .participant_address
-            .send_mail_and_await_reply_blocking(domain_participant_actor::get_type_support::new(
-                type_name.clone(),
-            ))?
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
-
-        announce_data_reader(
-            &self.participant_address,
-            self.reader_address.send_mail_and_await_reply_blocking(
-                data_reader_actor::as_discovered_reader_data::new(
-                    TopicQos::default(),
-                    self.subscriber_address
-                        .send_mail_and_await_reply_blocking(subscriber_actor::get_qos::new())?,
-                    self.participant_address
-                        .send_mail_and_await_reply_blocking(
-                            domain_participant_actor::get_default_unicast_locator_list::new(),
-                        )?,
-                    self.participant_address
-                        .send_mail_and_await_reply_blocking(
-                            domain_participant_actor::get_default_multicast_locator_list::new(),
-                        )?,
-                    type_support.xml_type(),
-                ),
-            )?,
-        )?;
-
-        Ok(())
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.reader_address
-            .send_mail_and_await_reply_blocking(data_reader_actor::get_instance_handle::new())
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.get_instance_handle())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -752,49 +564,11 @@ impl<Foo> DataReader<Foo> {
         a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.reader_address.send_mail_and_await_reply_blocking(
-            data_reader_actor::set_listener::new(
-                Box::new(a_listener),
-                mask.to_vec(),
-                self.runtime_handle.clone(),
-            ),
-        )
+        self.reader_async
+            .runtime_handle()
+            .block_on(self.reader_async.set_listener(a_listener, mask))
     }
 }
 pub trait AnyDataReader {}
-
-fn announce_data_reader(
-    domain_participant: &ActorAddress<DomainParticipantActor>,
-    discovered_reader_data: DiscoveredReaderData,
-) -> DdsResult<()> {
-    let mut serialized_data = Vec::new();
-    discovered_reader_data.serialize_data(&mut serialized_data)?;
-    let timestamp = domain_participant
-        .send_mail_and_await_reply_blocking(domain_participant_actor::get_current_time::new())?;
-
-    let builtin_publisher = domain_participant.send_mail_and_await_reply_blocking(
-        domain_participant_actor::get_builtin_publisher::new(),
-    )?;
-    let data_writer_list = builtin_publisher
-        .send_mail_and_await_reply_blocking(publisher_actor::data_writer_list::new())?;
-    for dw in data_writer_list {
-        if dw.send_mail_and_await_reply_blocking(data_writer_actor::get_type_name::new())
-            == Ok("DiscoveredReaderData".to_string())
-        {
-            let instance_handle = get_instance_handle_from_key(&discovered_reader_data.get_key()?)?;
-            dw.send_mail_and_await_reply_blocking(data_writer_actor::write_w_timestamp::new(
-                serialized_data,
-                instance_handle,
-                None,
-                timestamp,
-            ))??;
-
-            domain_participant.send_mail_blocking(domain_participant_actor::send_message::new())?;
-            break;
-        }
-    }
-
-    Ok(())
-}
 
 impl<Foo> AnyDataReader for DataReader<Foo> {}
