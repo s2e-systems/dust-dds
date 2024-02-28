@@ -26,8 +26,10 @@ use crate::{
     topic_definition::type_support::DdsHasKey,
 };
 
+/// Structure representing the instance handle (or key) of an entity.
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, Default)]
 pub struct BuiltInTopicKey {
+    /// InstanceHandle value as an array of 16 octets.
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
 
@@ -325,70 +327,88 @@ impl PublicationBuiltinTopicData {
         &self.key
     }
 
+    /// Get the key value of the parent participant of the discovered writer.
     pub fn participant_key(&self) -> &BuiltInTopicKey {
         &self.participant_key
     }
 
+    /// Get the name of the topic associated with the discovered writer.
     pub fn topic_name(&self) -> &str {
         &self.topic_name
     }
 
+    /// Get the name of the type associated with the discovered writer.
     pub fn get_type_name(&self) -> &str {
         &self.type_name
     }
 
+    /// Get the durability QoS policy of the discovered writer.
     pub fn durability(&self) -> &DurabilityQosPolicy {
         &self.durability
     }
 
+    /// Get the deadline QoS policy of the discovered writer.
     pub fn deadline(&self) -> &DeadlineQosPolicy {
         &self.deadline
     }
 
+    /// Get the latency budget QoS policy of the discovered writer.
     pub fn latency_budget(&self) -> &LatencyBudgetQosPolicy {
         &self.latency_budget
     }
 
+    /// Get the liveliness QoS policy of the discovered writer.
     pub fn liveliness(&self) -> &LivelinessQosPolicy {
         &self.liveliness
     }
 
+    /// Get the reliability QoS policy of the discovered writer.
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
         &self.reliability
     }
 
+    /// Get the lifespan QoS policy of the discovered writer.
     pub fn lifespan(&self) -> &LifespanQosPolicy {
         &self.lifespan
     }
 
+    /// Get the user data QoS policy of the discovered writer.
     pub fn user_data(&self) -> &UserDataQosPolicy {
         &self.user_data
     }
 
+    /// Get the ownership QoS policy of the discovered writer.
     pub fn ownership(&self) -> &OwnershipQosPolicy {
         &self.ownership
     }
 
+    /// Get the destination order QoS policy of the discovered writer.
     pub fn destination_order(&self) -> &DestinationOrderQosPolicy {
         &self.destination_order
     }
 
+    /// Get the presentation QoS policy of the discovered writer.
     pub fn presentation(&self) -> &PresentationQosPolicy {
         &self.presentation
     }
 
+    /// Get the partition QoS policy of the discovered writer.
     pub fn partition(&self) -> &PartitionQosPolicy {
         &self.partition
     }
 
+    /// Get the topic data QoS policy of the topic associated with the discovered writer.
     pub fn topic_data(&self) -> &TopicDataQosPolicy {
         &self.topic_data
     }
 
+    /// Get the group data QoS policy of the discovered writer.
     pub fn group_data(&self) -> &GroupDataQosPolicy {
         &self.group_data
     }
 
+    /// Get the XML type representation of the discovered writer.
+    /// Note: This is only available if matched with a DustDDS reader which transmits this information as part of the discovery.
     pub fn xml_type(&self) -> &str {
         &self.xml_type
     }
@@ -492,70 +512,88 @@ impl SubscriptionBuiltinTopicData {
         &self.key
     }
 
+    /// Get the key value of the parent participant of the discovered reader.
     pub fn participant_key(&self) -> &BuiltInTopicKey {
         &self.participant_key
     }
 
+    /// Get the name of the topic associated with the discovered reader.
     pub fn topic_name(&self) -> &str {
         &self.topic_name
     }
 
+    /// Get the name of the type associated with the discovered reader.
     pub fn get_type_name(&self) -> &str {
         &self.type_name
     }
 
+    /// Get the durability QoS policy of the discovered reader.
     pub fn durability(&self) -> &DurabilityQosPolicy {
         &self.durability
     }
 
+    /// Get the deadline QoS policy of the discovered reader.
     pub fn deadline(&self) -> &DeadlineQosPolicy {
         &self.deadline
     }
 
+    /// Get the latency budget QoS policy of the discovered reader.
     pub fn latency_budget(&self) -> &LatencyBudgetQosPolicy {
         &self.latency_budget
     }
 
+    /// Get the liveliness QoS policy of the discovered reader.
     pub fn liveliness(&self) -> &LivelinessQosPolicy {
         &self.liveliness
     }
 
+    /// Get the reliability QoS policy of the discovered reader.
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
         &self.reliability
     }
 
+    /// Get the ownership QoS policy of the discovered reader.
     pub fn ownership(&self) -> &OwnershipQosPolicy {
         &self.ownership
     }
 
+    /// Get the destination order QoS policy of the discovered reader.
     pub fn destination_order(&self) -> &DestinationOrderQosPolicy {
         &self.destination_order
     }
 
+    /// Get the user data QoS policy of the discovered reader.
     pub fn user_data(&self) -> &UserDataQosPolicy {
         &self.user_data
     }
 
+    /// Get the time based filter QoS policy of the discovered reader.
     pub fn time_based_filter(&self) -> &TimeBasedFilterQosPolicy {
         &self.time_based_filter
     }
 
+    /// Get the presentation QoS policy of the discovered reader.
     pub fn presentation(&self) -> &PresentationQosPolicy {
         &self.presentation
     }
 
+    /// Get the partition QoS policy of the discovered reader.
     pub fn partition(&self) -> &PartitionQosPolicy {
         &self.partition
     }
 
+    /// Get the topic data QoS policy of the topic associated with the discovered reader.
     pub fn topic_data(&self) -> &TopicDataQosPolicy {
         &self.topic_data
     }
 
+    /// Get the group data QoS policy of the discovered reader.
     pub fn group_data(&self) -> &GroupDataQosPolicy {
         &self.group_data
     }
 
+    /// Get the XML type representation of the discovered reader.
+    /// Note: This is only available if matched with a DustDDS writer which transmits this information as part of the discovery.
     pub fn xml_type(&self) -> &str {
         &self.xml_type
     }
