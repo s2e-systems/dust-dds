@@ -388,7 +388,7 @@ mod tests {
 
     #[test]
     fn serialize_char_array() {
-        let v = [`A', 'B', 'C', 'D', 'E`];
+        let v = ['A', 'B', 'C', 'D', 'E'];
         assert_eq!(
             serialize_be::<_>(&v).unwrap(),
             vec![0x41, 0x42, 0x43, 0x44, 0x45]
@@ -702,7 +702,7 @@ mod tests {
 
     #[test]
     fn serialize_char_sequence() {
-        let v = vec![`A', 'B', 'C', 'D', 'E`];
+        let v = vec!['A', 'B', 'C', 'D', 'E'];
         assert_eq!(
             serialize_be::<_>(&v).unwrap(),
             vec![
