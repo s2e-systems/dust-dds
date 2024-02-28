@@ -27,7 +27,7 @@ use crate::{
 
 use super::{condition::StatusConditionAsync, publisher::PublisherAsync, topic::TopicAsync};
 
-/// Async version of ['DataWriter'](crate::publication::data_writer::DataWriter).
+/// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<Foo> {
     writer_address: ActorAddress<DataWriterActor>,
     publisher_address: ActorAddress<PublisherActor>,
@@ -101,7 +101,7 @@ impl<Foo> DataWriterAsync<Foo>
 where
     Foo: DdsSerialize,
 {
-    /// Async version of ['register_instance'](crate::publication::data_writer::DataWriter::register_instance).
+    /// Async version of [`register_instance`](crate::publication::data_writer::DataWriter::register_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let timestamp = {
@@ -113,7 +113,7 @@ where
             .await
     }
 
-    /// Async version of ['register_instance_w_timestamp'](crate::publication::data_writer::DataWriter::register_instance_w_timestamp).
+    /// Async version of [`register_instance_w_timestamp`](crate::publication::data_writer::DataWriter::register_instance_w_timestamp).
     #[tracing::instrument(skip(self, _instance))]
     pub async fn register_instance_w_timestamp(
         &self,
@@ -123,7 +123,7 @@ where
         todo!()
     }
 
-    /// Async version of ['unregister_instance'](crate::publication::data_writer::DataWriter::unregister_instance).
+    /// Async version of [`unregister_instance`](crate::publication::data_writer::DataWriter::unregister_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn unregister_instance(
         &self,
@@ -139,7 +139,7 @@ where
             .await
     }
 
-    /// Async version of ['unregister_instance_w_timestamp'](crate::publication::data_writer::DataWriter::unregister_instance_w_timestamp).
+    /// Async version of [`unregister_instance_w_timestamp`](crate::publication::data_writer::DataWriter::unregister_instance_w_timestamp).
     #[tracing::instrument(skip(self, instance))]
     pub async fn unregister_instance_w_timestamp(
         &self,
@@ -207,7 +207,7 @@ where
         }
     }
 
-    /// Async version of ['get_key_value'](crate::publication::data_writer::DataWriter::get_key_value).
+    /// Async version of [`get_key_value`](crate::publication::data_writer::DataWriter::get_key_value).
     #[tracing::instrument(skip(self, _key_holder))]
     pub async fn get_key_value(
         &self,
@@ -217,7 +217,7 @@ where
         todo!()
     }
 
-    /// Async version of ['lookup_instance'](crate::publication::data_writer::DataWriter::lookup_instance).
+    /// Async version of [`lookup_instance`](crate::publication::data_writer::DataWriter::lookup_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let type_name = self
@@ -246,7 +246,7 @@ where
             .await?
     }
 
-    /// Async version of ['write'](crate::publication::data_writer::DataWriter::write).
+    /// Async version of [`write`](crate::publication::data_writer::DataWriter::write).
     #[tracing::instrument(skip(self, data))]
     pub async fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = {
@@ -257,7 +257,7 @@ where
         self.write_w_timestamp(data, handle, timestamp).await
     }
 
-    /// Async version of ['write_w_timestamp'](crate::publication::data_writer::DataWriter::write_w_timestamp).
+    /// Async version of [`write_w_timestamp`](crate::publication::data_writer::DataWriter::write_w_timestamp).
     #[tracing::instrument(skip(self, data))]
     pub async fn write_w_timestamp(
         &self,
@@ -302,7 +302,7 @@ where
         Ok(())
     }
 
-    /// Async version of ['dispose'](crate::publication::data_writer::DataWriter::dispose).
+    /// Async version of [`dispose`](crate::publication::data_writer::DataWriter::dispose).
     #[tracing::instrument(skip(self, data))]
     pub async fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = {
@@ -313,7 +313,7 @@ where
         self.dispose_w_timestamp(data, handle, timestamp).await
     }
 
-    /// Async version of ['dispose_w_timestamp'](crate::publication::data_writer::DataWriter::dispose_w_timestamp).
+    /// Async version of [`dispose_w_timestamp`](crate::publication::data_writer::DataWriter::dispose_w_timestamp).
     #[tracing::instrument(skip(self, data))]
     pub async fn dispose_w_timestamp(
         &self,
@@ -378,7 +378,7 @@ where
 }
 
 impl<Foo> DataWriterAsync<Foo> {
-    /// Async version of ['wait_for_acknowledgments'](crate::publication::data_writer::DataWriter::wait_for_acknowledgments).
+    /// Async version of [`wait_for_acknowledgments`](crate::publication::data_writer::DataWriter::wait_for_acknowledgments).
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         let start_time = Instant::now();
@@ -396,13 +396,13 @@ impl<Foo> DataWriterAsync<Foo> {
         Err(DdsError::Timeout)
     }
 
-    /// Async version of ['get_liveliness_lost_status'](crate::publication::data_writer::DataWriter::get_liveliness_lost_status).
+    /// Async version of [`get_liveliness_lost_status`](crate::publication::data_writer::DataWriter::get_liveliness_lost_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
         todo!()
     }
 
-    /// Async version of ['get_offered_deadline_missed_status'](crate::publication::data_writer::DataWriter::get_offered_deadline_missed_status).
+    /// Async version of [`get_offered_deadline_missed_status`](crate::publication::data_writer::DataWriter::get_offered_deadline_missed_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_offered_deadline_missed_status(
         &self,
@@ -410,7 +410,7 @@ impl<Foo> DataWriterAsync<Foo> {
         todo!()
     }
 
-    /// Async version of ['get_offered_incompatible_qos_status'](crate::publication::data_writer::DataWriter::get_offered_incompatible_qos_status).
+    /// Async version of [`get_offered_incompatible_qos_status`](crate::publication::data_writer::DataWriter::get_offered_incompatible_qos_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_offered_incompatible_qos_status(
         &self,
@@ -418,7 +418,7 @@ impl<Foo> DataWriterAsync<Foo> {
         todo!()
     }
 
-    /// Async version of ['get_publication_matched_status'](crate::publication::data_writer::DataWriter::get_publication_matched_status).
+    /// Async version of [`get_publication_matched_status`](crate::publication::data_writer::DataWriter::get_publication_matched_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         self.writer_address
@@ -426,7 +426,7 @@ impl<Foo> DataWriterAsync<Foo> {
             .await
     }
 
-    /// Async version of ['get_topic'](crate::publication::data_writer::DataWriter::get_topic).
+    /// Async version of [`get_topic`](crate::publication::data_writer::DataWriter::get_topic).
     #[tracing::instrument(skip(self))]
     pub async fn get_topic(&self) -> DdsResult<TopicAsync> {
         Ok(TopicAsync::new(
@@ -436,7 +436,7 @@ impl<Foo> DataWriterAsync<Foo> {
         ))
     }
 
-    /// Async version of ['get_publisher'](crate::publication::data_writer::DataWriter::get_publisher).
+    /// Async version of [`get_publisher`](crate::publication::data_writer::DataWriter::get_publisher).
     #[tracing::instrument(skip(self))]
     pub async fn get_publisher(&self) -> DdsResult<PublisherAsync> {
         Ok(PublisherAsync::new(
@@ -446,13 +446,13 @@ impl<Foo> DataWriterAsync<Foo> {
         ))
     }
 
-    /// Async version of ['assert_liveliness'](crate::publication::data_writer::DataWriter::assert_liveliness).
+    /// Async version of [`assert_liveliness`](crate::publication::data_writer::DataWriter::assert_liveliness).
     #[tracing::instrument(skip(self))]
     pub async fn assert_liveliness(&self) -> DdsResult<()> {
         todo!()
     }
 
-    /// Async version of ['get_matched_subscription_data'](crate::publication::data_writer::DataWriter::get_matched_subscription_data).
+    /// Async version of [`get_matched_subscription_data`](crate::publication::data_writer::DataWriter::get_matched_subscription_data).
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_subscription_data(
         &self,
@@ -466,7 +466,7 @@ impl<Foo> DataWriterAsync<Foo> {
             .ok_or(DdsError::BadParameter)
     }
 
-    /// Async version of ['get_matched_subscriptions'](crate::publication::data_writer::DataWriter::get_matched_subscriptions).
+    /// Async version of [`get_matched_subscriptions`](crate::publication::data_writer::DataWriter::get_matched_subscriptions).
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.writer_address
@@ -476,7 +476,7 @@ impl<Foo> DataWriterAsync<Foo> {
 }
 
 impl<Foo> DataWriterAsync<Foo> {
-    /// Async version of ['set_qos'](crate::publication::data_writer::DataWriter::set_qos).
+    /// Async version of [`set_qos`](crate::publication::data_writer::DataWriter::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let q = match qos {
@@ -547,7 +547,7 @@ impl<Foo> DataWriterAsync<Foo> {
         Ok(())
     }
 
-    /// Async version of ['get_qos'](crate::publication::data_writer::DataWriter::get_qos).
+    /// Async version of [`get_qos`](crate::publication::data_writer::DataWriter::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataWriterQos> {
         self.writer_address
@@ -555,7 +555,7 @@ impl<Foo> DataWriterAsync<Foo> {
             .await
     }
 
-    /// Async version of ['get_statuscondition'](crate::publication::data_writer::DataWriter::get_statuscondition).
+    /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
         self.writer_address
@@ -564,13 +564,13 @@ impl<Foo> DataWriterAsync<Foo> {
             .map(|c| StatusConditionAsync::new(c, self.runtime_handle.clone()))
     }
 
-    /// Async version of ['get_status_changes'](crate::publication::data_writer::DataWriter::get_status_changes).
+    /// Async version of [`get_status_changes`](crate::publication::data_writer::DataWriter::get_status_changes).
     #[tracing::instrument(skip(self))]
     pub async fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
     }
 
-    /// Async version of ['enable'](crate::publication::data_writer::DataWriter::enable).
+    /// Async version of [`enable`](crate::publication::data_writer::DataWriter::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         if !self
@@ -628,7 +628,7 @@ impl<Foo> DataWriterAsync<Foo> {
         Ok(())
     }
 
-    /// Async version of ['get_instance_handle'](crate::publication::data_writer::DataWriter::get_instance_handle).
+    /// Async version of [`get_instance_handle`](crate::publication::data_writer::DataWriter::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.writer_address
@@ -636,7 +636,7 @@ impl<Foo> DataWriterAsync<Foo> {
             .await
     }
 
-    /// Async version of ['set_listener'](crate::publication::data_writer::DataWriter::set_listener).
+    /// Async version of [`set_listener`](crate::publication::data_writer::DataWriter::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,

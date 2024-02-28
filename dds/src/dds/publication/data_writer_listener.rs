@@ -5,7 +5,7 @@ use crate::infrastructure::status::{
 
 use super::data_writer::DataWriter;
 
-/// This trait represents a listener object which can be associated with the ['DataWriter'] entity.
+/// This trait represents a listener object which can be associated with the [`DataWriter`] entity.
 pub trait DataWriterListener {
     /// Type of the DataWriter with which this Listener will be associated.
     type Foo;

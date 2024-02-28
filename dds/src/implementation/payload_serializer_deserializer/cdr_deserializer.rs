@@ -429,7 +429,7 @@ mod tests {
 
     #[test]
     fn deserialize_char_array() {
-        let v = ['A', 'B', 'C', 'D', 'E'];
+        let v = [`A', 'B', 'C', 'D', 'E`];
         assert_eq!(
             deserialize_be::<[char; 5]>(&[0x41, 0x42, 0x43, 0x44, 0x45]).unwrap(),
             v

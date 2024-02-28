@@ -45,7 +45,7 @@ impl From<BuiltInTopicKey> for [u8; 16] {
     }
 }
 
-/// Structure representing a discovered ['DomainParticipant'](crate::domain::domain_participant::DomainParticipant).
+/// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
@@ -77,7 +77,7 @@ impl DdsHasKey for ParticipantBuiltinTopicData {
     const HAS_KEY: bool = true;
 }
 
-/// Structure representing a discovered ['Topic'](crate::topic_definition::topic::Topic).
+/// Structure representing a discovered [`Topic`](crate::topic_definition::topic::Topic).
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
@@ -233,7 +233,7 @@ impl DdsHasKey for TopicBuiltinTopicData {
     const HAS_KEY: bool = true;
 }
 
-/// Structure representing a discovered ['DataWriter'](crate::publication::data_writer::DataWriter).
+/// Structure representing a discovered [`DataWriter`](crate::publication::data_writer::DataWriter).
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
@@ -418,7 +418,7 @@ impl DdsHasKey for PublicationBuiltinTopicData {
     const HAS_KEY: bool = true;
 }
 
-/// Structure representing a discovered ['DataReader'](crate::subscription::data_reader::DataReader).
+/// Structure representing a discovered [`DataReader`](crate::subscription::data_reader::DataReader).
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]

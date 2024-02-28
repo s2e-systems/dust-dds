@@ -7,14 +7,14 @@ use crate::infrastructure::{
 
 use super::condition::StatusConditionAsync;
 
-/// Async version of ['Condition'](crate::infrastructure::wait_set::Condition).
+/// Async version of [`Condition`](crate::infrastructure::wait_set::Condition).
 #[derive(Clone)]
 pub enum ConditionAsync {
     /// Status condition variant
     StatusCondition(StatusConditionAsync),
 }
 impl ConditionAsync {
-    /// Async version of ['get_trigger_value'](crate::infrastructure::wait_set::Condition::get_trigger_value).
+    /// Async version of [`get_trigger_value`](crate::infrastructure::wait_set::Condition::get_trigger_value).
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
         match self {
@@ -23,7 +23,7 @@ impl ConditionAsync {
     }
 }
 
-/// Async version of ['WaitSet'](crate::infrastructure::wait_set::WaitSet).
+/// Async version of [`WaitSet`](crate::infrastructure::wait_set::WaitSet).
 #[derive(Default)]
 pub struct WaitSetAsync {
     conditions: Vec<ConditionAsync>,
@@ -36,7 +36,7 @@ impl WaitSetAsync {
         Self::default()
     }
 
-    /// Async version of ['wait'](crate::infrastructure::wait_set::WaitSet::wait).
+    /// Async version of [`wait`](crate::infrastructure::wait_set::WaitSet::wait).
     #[tracing::instrument(skip(self))]
     pub async fn wait(&self, timeout: Duration) -> DdsResult<Vec<ConditionAsync>> {
         let start_time = Instant::now();
@@ -61,20 +61,20 @@ impl WaitSetAsync {
         Err(DdsError::Timeout)
     }
 
-    /// Async version of ['attach_condition'](crate::infrastructure::wait_set::WaitSet::attach_condition).
+    /// Async version of [`attach_condition`](crate::infrastructure::wait_set::WaitSet::attach_condition).
     #[tracing::instrument(skip(self, cond))]
     pub async fn attach_condition(&mut self, cond: ConditionAsync) -> DdsResult<()> {
         self.conditions.push(cond);
         Ok(())
     }
 
-    /// Async version of ['detach_condition'](crate::infrastructure::wait_set::WaitSet::detach_condition).
+    /// Async version of [`detach_condition`](crate::infrastructure::wait_set::WaitSet::detach_condition).
     #[tracing::instrument(skip(self, _cond))]
     pub async fn detach_condition(&self, _cond: ConditionAsync) -> DdsResult<()> {
         todo!()
     }
 
-    /// Async version of ['get_conditions'](crate::infrastructure::wait_set::WaitSet::get_conditions).
+    /// Async version of [`get_conditions`](crate::infrastructure::wait_set::WaitSet::get_conditions).
     #[tracing::instrument(skip(self))]
     pub async fn get_conditions(&self) -> DdsResult<Vec<ConditionAsync>> {
         Ok(self.conditions.clone())

@@ -5,7 +5,7 @@ use crate::infrastructure::status::{
 
 use super::{data_reader::AnyDataReader, subscriber::Subscriber};
 
-/// This trait represents a listener object which can be associated with the ['Subscriber'](super::publisher::Publisher) entity.
+/// This trait represents a listener object which can be associated with the [`Subscriber`](super::subscriber::Subscriber) entity.
 pub trait SubscriberListener {
     /// Method that is called when any reader belonging to this subcriber reports new data available. This method is triggered before the on_data_available method.
     fn on_data_on_readers(&mut self, _the_subscriber: &Subscriber) {}

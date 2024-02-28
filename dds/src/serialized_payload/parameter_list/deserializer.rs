@@ -1,7 +1,7 @@
 use crate::serialized_payload::cdr::deserialize::CdrDeserialize;
 
 /// A trait representing an object with the capability of deserializing a value from a CDR parameter list format.
-/// The parameters of a CDR Parameter List must be themselves ['CdrDeserialize'].
+/// The parameters of a CDR Parameter List must be themselves [`CdrDeserialize`].
 pub trait ParameterListDeserializer<'de> {
     /// Method to deserialize a parameter without default.
     fn read<T>(&self, id: i16) -> Result<T, std::io::Error>

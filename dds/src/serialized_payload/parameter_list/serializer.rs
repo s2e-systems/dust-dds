@@ -3,7 +3,7 @@ use crate::serialized_payload::cdr::serialize::CdrSerialize;
 pub use dust_dds_derive::ParameterListDeserialize;
 
 /// A trait representing an object with the capability of serializing a value into a CDR parameter list format.
-/// All the parameters of a CDR Parameter List must be themselves ['CdrSerialize'].
+/// All the parameters of a CDR Parameter List must be themselves [`CdrSerialize`].
 pub trait ParameterListSerializer {
     /// Method to serialize a parameter without default.
     fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>

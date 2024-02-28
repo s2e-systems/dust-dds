@@ -21,6 +21,6 @@ pub mod subscription;
 /// by the application to define topics and attach qos policies.
 pub mod topic_definition;
 
-/// Contains the ['DustDdsConfiguration'](crate::configuration::DustDdsConfiguration) struct that allow configuring the runtime options
+/// Contains the [`DustDdsConfiguration`](crate::configuration::DustDdsConfiguration) struct that allow configuring the runtime options
 /// of the DustDDS systems
 pub mod configuration;

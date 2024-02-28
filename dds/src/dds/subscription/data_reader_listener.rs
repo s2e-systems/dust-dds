@@ -5,7 +5,7 @@ use crate::infrastructure::status::{
 
 use super::data_reader::DataReader;
 
-/// This trait represents a listener object which can be associated with the ['DataReader'] entity.
+/// This trait represents a listener object which can be associated with the [`DataReader`] entity.
 pub trait DataReaderListener {
     /// Type of the DataReader with which this Listener will be associated.
     type Foo;

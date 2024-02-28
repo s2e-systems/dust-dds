@@ -2,43 +2,43 @@ use super::deserialize::CdrDeserialize;
 
 /// A trait representing an object with the capability of deserializing a value from a CDR format.
 pub trait CdrDeserializer<'de> {
-    /// Deserialize a ['bool'] value.
+    /// Deserialize a [`bool`] value.
     fn deserialize_bool(&mut self) -> Result<bool, std::io::Error>;
 
-    /// Deserialize an ['i8'] value.
+    /// Deserialize an [`i8`] value.
     fn deserialize_i8(&mut self) -> Result<i8, std::io::Error>;
 
-    /// Deserialize an ['i16'] value.
+    /// Deserialize an [`i16`] value.
     fn deserialize_i16(&mut self) -> Result<i16, std::io::Error>;
 
-    /// Deserialize an ['i32'] value.
+    /// Deserialize an [`i32`] value.
     fn deserialize_i32(&mut self) -> Result<i32, std::io::Error>;
 
-    /// Deserialize an ['i64'] value.
+    /// Deserialize an [`i64`] value.
     fn deserialize_i64(&mut self) -> Result<i64, std::io::Error>;
 
-    /// Deserialize a ['u8'] value.
+    /// Deserialize a [`u8`] value.
     fn deserialize_u8(&mut self) -> Result<u8, std::io::Error>;
 
-    /// Deserialize a ['u16'] value.
+    /// Deserialize a [`u16`] value.
     fn deserialize_u16(&mut self) -> Result<u16, std::io::Error>;
 
-    /// Deserialize a ['u32'] value.
+    /// Deserialize a [`u32`] value.
     fn deserialize_u32(&mut self) -> Result<u32, std::io::Error>;
 
-    /// Deserialize a ['u64'] value.
+    /// Deserialize a [`u64`] value.
     fn deserialize_u64(&mut self) -> Result<u64, std::io::Error>;
 
-    /// Deserialize an ['f32'] value.
+    /// Deserialize an [`f32`] value.
     fn deserialize_f32(&mut self) -> Result<f32, std::io::Error>;
 
-    /// Deserialize an ['f64'] value.
+    /// Deserialize an [`f64`] value.
     fn deserialize_f64(&mut self) -> Result<f64, std::io::Error>;
 
-    /// Deserialize a ['char'] value.
+    /// Deserialize a [`char`] value.
     fn deserialize_char(&mut self) -> Result<char, std::io::Error>;
 
-    /// Deserialize a ['String'] value.
+    /// Deserialize a [`String`] value.
     fn deserialize_string(&mut self) -> Result<String, std::io::Error>;
 
     /// Deserialize a variable sized sequence of values.

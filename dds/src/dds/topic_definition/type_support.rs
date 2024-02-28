@@ -86,12 +86,12 @@ pub trait DdsDeserialize<'de>: Sized {
 }
 
 /// This trait defines the key associated with the type. The key is used to identify different instances of the type.
-/// The returned key object must implement ['CdrSerialize'] and ['CdrDeserialize'] since CDR is the format always
+/// The returned key object must implement [`CdrSerialize`] and [`CdrDeserialize`] since CDR is the format always
 /// used to transmit the key information on the wire and this can not be modified by the user.
 ///
 /// ## Derivable
 ///
-/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement ['CdrSerialize'] and ['CdrDeserialize']
+/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement [`CdrSerialize`] and [`CdrDeserialize`]
 ///
 pub trait DdsKey {
     /// Type representing the key for the type in which this trait is implemented

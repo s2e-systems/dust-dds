@@ -65,7 +65,7 @@ pub struct Duration {
 }
 
 impl Duration {
-    /// Construct a new ['Duration'] with the corresponding seconds and nanoseconds.
+    /// Construct a new [`Duration`] with the corresponding seconds and nanoseconds.
     pub const fn new(sec: i32, nanosec: u32) -> Self {
         let sec = sec + (nanosec / 1_000_000_000) as i32;
         let nanosec = nanosec % 1_000_000_000;
@@ -119,7 +119,7 @@ pub struct Time {
 }
 
 impl Time {
-    /// Create a new ['Time'] with a number of seconds and nanoseconds
+    /// Create a new [`Time`] with a number of seconds and nanoseconds
     pub const fn new(sec: i32, nanosec: u32) -> Self {
         let sec = sec + (nanosec / 1_000_000_000) as i32;
         let nanosec = nanosec % 1_000_000_000;

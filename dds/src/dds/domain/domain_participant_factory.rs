@@ -55,8 +55,8 @@ impl DomainParticipantFactory {
     }
 
     /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
-    /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
-    /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
+    /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError::PreconditionNotMet) is returned. If the
+    /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`](crate::infrastructure::error::DdsError::AlreadyDeleted).
     #[tracing::instrument(skip(self, participant))]
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         self.runtime.block_on(
@@ -100,7 +100,7 @@ impl DomainParticipantFactory {
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created
     /// [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`DomainParticipantFactory::create_participant`] operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return a [`DdsError::InconsistentPolicy`].
+    /// return a [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError::InconsistentPolicy).
     #[tracing::instrument(skip(self))]
     pub fn set_default_participant_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         self.runtime.block_on(
@@ -124,7 +124,7 @@ impl DomainParticipantFactory {
     /// a factory for entities.
     /// Note that despite having QoS, the [`DomainParticipantFactory`] is not an Entity.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return a [`DdsError::InconsistentPolicy`].
+    /// return a [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError::InconsistentPolicy).
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
         self.runtime

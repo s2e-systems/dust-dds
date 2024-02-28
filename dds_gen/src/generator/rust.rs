@@ -373,11 +373,11 @@ fn member(pair: IdlPair, writer: &mut String) {
                     .expect("Identifier must exist according to grammar");
                 generate_rust_source(identifier, writer);
                 writer.push(':');
-                writer.push('[');
+                writer.push('[`);
                 generate_rust_source(type_spec.clone(), writer);
                 writer.push(';');
                 generate_rust_source(fixed_array_size, writer);
-                writer.push(']');
+                writer.push(`]');
             }
             Rule::simple_declarator => {
                 generate_rust_source(array_or_simple_declarator, writer);

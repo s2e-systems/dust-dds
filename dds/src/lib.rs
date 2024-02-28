@@ -2,10 +2,10 @@
 #![forbid(missing_docs)]
 #![doc = include_str!("../README.md")]
 mod dds;
-/// Module containing the traits and classes needed to represent types in the formats defined in the RTPS standard
+/// Contains the traits and classes needed to represent types in the formats defined in the RTPS standard
 pub mod serialized_payload;
 pub use dds::*;
-/// Module containing the async API
+/// Contains the async version of the DDS API.
 pub mod dds_async;
 mod implementation;
 

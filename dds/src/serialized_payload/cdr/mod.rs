@@ -1,8 +1,8 @@
-/// Module containing the trait for the CDR Deserialize.
+/// Contains the trait for the CDR Deserialize.
 pub mod deserialize;
-/// Module containing the trait for the CDR Deserializer.
+/// Contains the trait for the CDR Deserializer.
 pub mod deserializer;
-/// Module containing the trait for the CDR Serialize.
+/// Contains the trait for the CDR Serialize.
 pub mod serialize;
-/// Module containing the trait for the CDR Serializer.
+/// Contains the trait for the CDR Serializer.
 pub mod serializer;
