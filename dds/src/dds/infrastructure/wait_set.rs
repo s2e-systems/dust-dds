@@ -9,10 +9,12 @@ use super::condition::StatusCondition;
 /// Enumeration of the different Condition objects that can be associated with a [`WaitSet`].
 #[derive(Clone)]
 pub enum Condition {
+    /// Status condition variant
     StatusCondition(StatusCondition),
 }
 impl Condition {
     #[tracing::instrument(skip(self))]
+    /// This operation retrieves the trigger_value of the Condition.
     pub fn get_trigger_value(&self) -> DdsResult<bool> {
         match self {
             Condition::StatusCondition(c) => c.get_trigger_value(),

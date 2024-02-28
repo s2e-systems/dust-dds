@@ -26,7 +26,7 @@ impl DustDdsConfiguration {
         self.fragment_size
     }
 
-    // Receive buffer size used for UDP socket. ['None'] means the OS default value
+    /// Receive buffer size used for UDP socket. ['None'] means the OS default value
     pub fn udp_receive_buffer_size(&self) -> Option<usize> {
         self.udp_receive_buffer_size
     }

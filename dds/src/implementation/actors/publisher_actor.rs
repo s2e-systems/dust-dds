@@ -21,7 +21,7 @@ use crate::{
         utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         qos_policy::PartitionQosPolicy,
@@ -412,5 +412,15 @@ impl PublisherActor {
             || is_any_name_matched
             || is_any_received_regex_matched_with_partition_qos
             || is_any_local_regex_matched_with_received_partition_qos
+    }
+}
+
+impl PublisherQos {
+    fn check_immutability(&self, other: &Self) -> DdsResult<()> {
+        if self.presentation != other.presentation {
+            Err(DdsError::ImmutablePolicy)
+        } else {
+            Ok(())
+        }
     }
 }

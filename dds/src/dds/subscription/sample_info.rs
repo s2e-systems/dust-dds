@@ -27,7 +27,7 @@ pub enum ViewStateKind {
 /// Special constant containing a list of all the view states.
 pub const ANY_VIEW_STATE: &[ViewStateKind] = &[ViewStateKind::New, ViewStateKind::NotNew];
 
-// Enumeration of the possible instance states
+/// Enumeration of the possible instance states
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum InstanceStateKind {
     /// This value indicates that  (a) samples have been received for the instance, (b) there are live [`DataWriter`](crate::publication::data_writer::DataWriter)

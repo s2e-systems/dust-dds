@@ -43,6 +43,7 @@ impl From<BuiltInTopicKey> for [u8; 16] {
     }
 }
 
+/// Structure representing a discovered ['DomainParticipant'](crate::domain::domain_participant::DomainParticipant).
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
@@ -55,14 +56,16 @@ pub struct ParticipantBuiltinTopicData {
 }
 
 impl ParticipantBuiltinTopicData {
-    pub fn new(key: BuiltInTopicKey, user_data: UserDataQosPolicy) -> Self {
+    pub(crate) fn new(key: BuiltInTopicKey, user_data: UserDataQosPolicy) -> Self {
         Self { key, user_data }
     }
 
+    /// Get the key value of the discovered participant.
     pub fn key(&self) -> &BuiltInTopicKey {
         &self.key
     }
 
+    /// Get the user data value of the discovered participant.
     pub fn user_data(&self) -> &UserDataQosPolicy {
         &self.user_data
     }
@@ -72,6 +75,7 @@ impl DdsHasKey for ParticipantBuiltinTopicData {
     const HAS_KEY: bool = true;
 }
 
+/// Structure representing a discovered ['Topic'](crate::topic_definition::topic::Topic).
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
@@ -111,7 +115,7 @@ pub struct TopicBuiltinTopicData {
 
 impl TopicBuiltinTopicData {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         key: BuiltInTopicKey,
         name: String,
         type_name: String,
@@ -147,62 +151,77 @@ impl TopicBuiltinTopicData {
         }
     }
 
+    /// Get the key value of the discovered topic.
     pub fn key(&self) -> &BuiltInTopicKey {
         &self.key
     }
 
+    /// Get the name of the discovered topic.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Get the type name of the discovered topic.
     pub fn get_type_name(&self) -> &str {
         &self.type_name
     }
 
+    /// Get the durability QoS policy of the discovered topic.
     pub fn durability(&self) -> &DurabilityQosPolicy {
         &self.durability
     }
 
+    /// Get the deadline QoS policy of the discovered topic.
     pub fn deadline(&self) -> &DeadlineQosPolicy {
         &self.deadline
     }
 
+    /// Get the latency budget QoS policy of the discovered topic.
     pub fn latency_budget(&self) -> &LatencyBudgetQosPolicy {
         &self.latency_budget
     }
 
+    /// Get the liveliness QoS policy of the discovered topic.
     pub fn liveliness(&self) -> &LivelinessQosPolicy {
         &self.liveliness
     }
 
+    /// Get the reliability QoS policy of the discovered topic.
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
         &self.reliability
     }
 
+    /// Get the transport priority QoS policy of the discovered topic.
     pub fn transport_priority(&self) -> &TransportPriorityQosPolicy {
         &self.transport_priority
     }
 
+    /// Get the lifespan QoS policy of the discovered topic.
     pub fn lifespan(&self) -> &LifespanQosPolicy {
         &self.lifespan
     }
 
+    /// Get the destination order QoS policy of the discovered topic.
     pub fn destination_order(&self) -> &DestinationOrderQosPolicy {
         &self.destination_order
     }
 
+    /// Get the history QoS policy of the discovered topic.
     pub fn history(&self) -> &HistoryQosPolicy {
         &self.history
     }
 
+    /// Get the resource limits QoS policy of the discovered topic.
     pub fn resource_limits(&self) -> &ResourceLimitsQosPolicy {
         &self.resource_limits
     }
 
+    /// Get the ownership QoS policy of the discovered topic.
     pub fn ownership(&self) -> &OwnershipQosPolicy {
         &self.ownership
     }
 
+    /// Get the topic data QoS policy of the discovered topic.
     pub fn topic_data(&self) -> &TopicDataQosPolicy {
         &self.topic_data
     }
@@ -212,6 +231,7 @@ impl DdsHasKey for TopicBuiltinTopicData {
     const HAS_KEY: bool = true;
 }
 
+/// Structure representing a discovered ['DataWriter'](crate::publication::data_writer::DataWriter).
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
@@ -258,7 +278,7 @@ pub struct PublicationBuiltinTopicData {
 
 impl PublicationBuiltinTopicData {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         key: BuiltInTopicKey,
         participant_key: BuiltInTopicKey,
         topic_name: String,
@@ -300,6 +320,7 @@ impl PublicationBuiltinTopicData {
         }
     }
 
+    /// Get the key value of the discovered writer.
     pub fn key(&self) -> &BuiltInTopicKey {
         &self.key
     }
@@ -377,6 +398,7 @@ impl DdsHasKey for PublicationBuiltinTopicData {
     const HAS_KEY: bool = true;
 }
 
+/// Structure representing a discovered ['DataReader'](crate::subscription::data_reader::DataReader).
 #[derive(
     Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
@@ -423,7 +445,7 @@ pub struct SubscriptionBuiltinTopicData {
 
 impl SubscriptionBuiltinTopicData {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         key: BuiltInTopicKey,
         participant_key: BuiltInTopicKey,
         topic_name: String,
@@ -465,6 +487,7 @@ impl SubscriptionBuiltinTopicData {
         }
     }
 
+    /// Get the key value of the discovered reader.
     pub fn key(&self) -> &BuiltInTopicKey {
         &self.key
     }

@@ -48,6 +48,7 @@ impl<'de, Foo> Sample<Foo>
 where
     Foo: DdsDeserialize<'de>,
 {
+    /// Get the Foo value associated with this sample.
     pub fn data(&'de self) -> DdsResult<Foo> {
         match self.data.as_ref() {
             Some(data) => Ok(Foo::deserialize_data(data.as_ref())?),
@@ -57,6 +58,7 @@ where
 }
 
 impl<Foo> Sample<Foo> {
+    /// Get the sample info associated with this sample.
     pub fn sample_info(&self) -> SampleInfo {
         self.sample_info.clone()
     }
@@ -569,6 +571,9 @@ impl<Foo> DataReader<Foo> {
             .block_on(self.reader_async.set_listener(a_listener, mask))
     }
 }
+
+/// Trait representing a generic data reader. This trait is not meant to be implemented by the user and is used
+/// to represent a generic DataReader (i.e. without Foo) type on the listeners.
 pub trait AnyDataReader {}
 
 impl<Foo> AnyDataReader for DataReader<Foo> {}

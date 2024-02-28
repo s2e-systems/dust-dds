@@ -473,6 +473,8 @@ impl<Foo> DataWriter<Foo> {
     }
 }
 
+/// Trait representing a generic data writer. This trait is not meant to be implemented by the user and is used
+/// to represent a generic DataWriter (i.e. without Foo) type on the listeners.
 pub trait AnyDataWriter {}
 
 impl<Foo> AnyDataWriter for DataWriter<Foo> {}

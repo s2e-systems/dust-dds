@@ -13,6 +13,7 @@ use crate::{
 use std::sync::OnceLock;
 use tracing::warn;
 
+/// DomainId type alias
 pub type DomainId = i32;
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
@@ -66,7 +67,6 @@ impl DomainParticipantFactory {
 
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
-    /// The pre-defined value [`struct@THE_PARTICIPANT_FACTORY`] can also be used as an alias for the singleton factory returned by this operation.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
         static PARTICIPANT_FACTORY: OnceLock<DomainParticipantFactory> = OnceLock::new();

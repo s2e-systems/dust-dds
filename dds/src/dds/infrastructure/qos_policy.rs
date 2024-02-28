@@ -7,11 +7,15 @@ use crate::{
         serializer::CdrSerializer,
     },
 };
-
+/// QosPolicyId type alias
 pub type QosPolicyId = i32;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+/// Enumeration representing a Length which be either limited or unlimited.
 pub enum Length {
+    /// Unlimited length.
     Unlimited,
+    /// Limited length with the corresponding associated value.
     Limited(u32),
 }
 
@@ -108,6 +112,7 @@ impl PartialOrd<Length> for usize {
 /// Sub clause 2.2.3, Supported QoS provides the list of all QosPolicy, their meaning, characteristics and possible values, as well
 /// as the concrete Entity to which they apply.
 pub trait QosPolicy {
+    /// Get the name of the QoS policy
     fn name(&self) -> &str;
 }
 
@@ -132,33 +137,56 @@ const TRANSPORTPRIORITY_QOS_POLICY_NAME: &str = "TransportPriority";
 const GROUPDATA_QOS_POLICY_NAME: &str = "GroupData";
 const LIFESPAN_QOS_POLICY_NAME: &str = "Lifespan";
 
+/// QosPolicy Id representing an invalid QoS policy
 pub const INVALID_QOS_POLICY_ID: QosPolicyId = 0;
+/// Id for the UserDataQosPolicy
 pub const USERDATA_QOS_POLICY_ID: QosPolicyId = 1;
+/// Id for the DurabilityQosPolicy
 pub const DURABILITY_QOS_POLICY_ID: QosPolicyId = 2;
+/// Id for the PresentationQosPolicy
 pub const PRESENTATION_QOS_POLICY_ID: QosPolicyId = 3;
+/// Id for the DeadlineQosPolicy
 pub const DEADLINE_QOS_POLICY_ID: QosPolicyId = 4;
+/// Id for the LatencyBudgetQosPolicy
 pub const LATENCYBUDGET_QOS_POLICY_ID: QosPolicyId = 5;
+/// Id for the OwnershipQosPolicy
 pub const OWNERSHIP_QOS_POLICY_ID: QosPolicyId = 6;
+/// Id for the LivelinessQosPolicy
 pub const LIVELINESS_QOS_POLICY_ID: QosPolicyId = 8;
+/// Id for the TimeBasedFilterQosPolicy
 pub const TIMEBASEDFILTER_QOS_POLICY_ID: QosPolicyId = 9;
+/// Id for the PartitionQosPolicy
 pub const PARTITION_QOS_POLICY_ID: QosPolicyId = 10;
+/// Id for the ReliabilityQosPolicy
 pub const RELIABILITY_QOS_POLICY_ID: QosPolicyId = 11;
+/// Id for the DestinationOrderQosPolicy
 pub const DESTINATIONORDER_QOS_POLICY_ID: QosPolicyId = 12;
+/// Id for the HistoryQosPolicy
 pub const HISTORY_QOS_POLICY_ID: QosPolicyId = 13;
+/// Id for the ResourceLimitsQosPolicy
 pub const RESOURCELIMITS_QOS_POLICY_ID: QosPolicyId = 14;
+/// Id for the EntityFactoryQosPolicy
 pub const ENTITYFACTORY_QOS_POLICY_ID: QosPolicyId = 15;
+/// Id for the WriterDataLifecycleQosPolicy
 pub const WRITERDATALIFECYCLE_QOS_POLICY_ID: QosPolicyId = 16;
+/// Id for the ReaderDataLifecycleQosPolicy
 pub const READERDATALIFECYCLE_QOS_POLICY_ID: QosPolicyId = 17;
+/// Id for the TopicDataQosPolicy
 pub const TOPICDATA_QOS_POLICY_ID: QosPolicyId = 18;
+/// Id for the GroupDataQosPolicy
 pub const GROUPDATA_QOS_POLICY_ID: QosPolicyId = 19;
+/// Id for the TransportPriorityQosPolicy
 pub const TRANSPORTPRIORITY_QOS_POLICY_ID: QosPolicyId = 20;
+/// Id for the LifespanQosPolicy
 pub const LIFESPAN_QOS_POLICY_ID: QosPolicyId = 21;
+/// Id for the DurabilityServiceQosPolicy
 pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 
 /// This policy allows the application to attach additional information to the created Entity objects such that when
 /// a remote application discovers their existence it can access that information and use it for its own purposes.
 #[derive(Debug, Default, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct UserDataQosPolicy {
+    /// User data value
     pub value: Vec<u8>,
 }
 
@@ -172,6 +200,7 @@ impl QosPolicy for UserDataQosPolicy {
 /// remote application discovers their existence it can examine the information and use it in an application-defined way.
 #[derive(Debug, Default, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct TopicDataQosPolicy {
+    /// Topic data value
     pub value: Vec<u8>,
 }
 
@@ -189,6 +218,7 @@ impl QosPolicy for TopicDataQosPolicy {
 /// means of the built-in topics.
 #[derive(Debug, Default, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct GroupDataQosPolicy {
+    /// Group data value
     pub value: Vec<u8>,
 }
 
@@ -209,6 +239,7 @@ impl QosPolicy for GroupDataQosPolicy {
 /// This mapping would then be used by the infrastructure when propagating the data written by the [`DataWriter`](crate::publication::data_writer::DataWriter).
 #[derive(Debug, Default, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct TransportPriorityQosPolicy {
+    /// Transport priority value
     pub value: i32,
 }
 
@@ -233,6 +264,7 @@ impl QosPolicy for TransportPriorityQosPolicy {
 /// computation of the ‘expiration time.’
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct LifespanQosPolicy {
+    /// Lifespan duration
     pub duration: DurationKind,
 }
 
@@ -251,8 +283,11 @@ impl Default for LifespanQosPolicy {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+/// Enumeration representing the different types of Durability QoS policies.
 pub enum DurabilityQosPolicyKind {
+    /// Volatile durability QoS policy
     Volatile,
+    /// TransientLocal durability QoS policy
     TransientLocal,
 }
 
@@ -310,6 +345,7 @@ impl PartialOrd for DurabilityQosPolicyKind {
 /// that *Volatile < TransientLocal*.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize)]
 pub struct DurabilityQosPolicy {
+    /// DurabilityQosPolicy kind to be used for this policy
     pub kind: DurabilityQosPolicyKind,
 }
 
@@ -328,8 +364,11 @@ impl Default for DurabilityQosPolicy {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+/// Enumeration representing the different types of Presentation QoS policy access scope.
 pub enum PresentationQosPolicyAccessScopeKind {
+    /// Access scope per instance
     Instance,
+    /// Access scope per topic
     Topic,
 }
 
@@ -413,8 +452,11 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 /// 3. Requested ordered_access is FALSE, or else both offered and requested ordered _access are TRUE.
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct PresentationQosPolicy {
+    /// Presentation access scope kind to be used for this policy
     pub access_scope: PresentationQosPolicyAccessScopeKind,
+    /// Coherent access value
     pub coherent_access: bool,
+    /// Ordered access value
     pub ordered_access: bool,
 }
 
@@ -450,6 +492,7 @@ impl Default for PresentationQosPolicy {
 /// to be consistent the settings must be such that *deadline period >= minimum_separation*.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize)]
 pub struct DeadlineQosPolicy {
+    /// Deadline period value
     pub period: DurationKind,
 }
 
@@ -475,6 +518,7 @@ impl Default for DeadlineQosPolicy {
 /// requested duration* is true.
 #[derive(PartialOrd, PartialEq, Eq, Debug, Clone, CdrSerialize, CdrDeserialize)]
 pub struct LatencyBudgetQosPolicy {
+    /// Latency budget duration value
     pub duration: DurationKind,
 }
 
@@ -492,8 +536,10 @@ impl Default for LatencyBudgetQosPolicy {
     }
 }
 
+/// Enumeration representing the different types of Ownership QoS policies.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum OwnershipQosPolicyKind {
+    /// Shared ownership QoS policy
     Shared,
 }
 
@@ -530,6 +576,7 @@ impl<'de> CdrDeserialize<'de> for OwnershipQosPolicyKind {
 
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct OwnershipQosPolicy {
+    /// Kind of ownership QoS associated with this policy
     pub kind: OwnershipQosPolicyKind,
 }
 
@@ -547,10 +594,14 @@ impl Default for OwnershipQosPolicy {
     }
 }
 
+/// Enumeration representing the different types of Liveliness QoS policies.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LivelinessQosPolicyKind {
+    /// Automatic liveliness
     Automatic,
+    /// Manual by participant liveliness
     ManualByParticipant,
+    /// Manual by topic liveliness
     ManualByTopic,
 }
 
@@ -629,7 +680,9 @@ impl PartialOrd for LivelinessQosPolicyKind {
 /// Listeners and WaitSets are notified within a [`LivelinessQosPolicy::lease_duration`] from the time the liveliness changed.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize)]
 pub struct LivelinessQosPolicy {
+    /// Kind of liveliness QoS associated with this policy
     pub kind: LivelinessQosPolicyKind,
+    /// Liveliness duration
     pub lease_duration: DurationKind,
 }
 
@@ -672,6 +725,7 @@ impl Default for LivelinessQosPolicy {
 /// two QoS policies to be consistent they must verify that *[`DeadlineQosPolicy::period`] >= [`TimeBasedFilterQosPolicy::minimum_separation`]*.
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct TimeBasedFilterQosPolicy {
+    /// Minimum separation between samples
     pub minimum_separation: DurationKind,
 }
 
@@ -712,6 +766,7 @@ impl Default for TimeBasedFilterQosPolicy {
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
 #[derive(Debug, PartialEq, Eq, Clone, Default, CdrSerialize, CdrDeserialize)]
 pub struct PartitionQosPolicy {
+    /// Name of the partition
     pub name: Vec<String>,
 }
 
@@ -721,9 +776,12 @@ impl QosPolicy for PartitionQosPolicy {
     }
 }
 
+/// Enumeration representing the different types of reliability QoS policies.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ReliabilityQosPolicyKind {
+    /// Best-effort reliability.
     BestEffort,
+    /// Reliable reliability.
     Reliable,
 }
 
@@ -796,7 +854,9 @@ impl PartialOrd for ReliabilityQosPolicyKind {
 /// that *BestEffort < Reliable*.
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct ReliabilityQosPolicy {
+    /// Kind of reliability QoS
     pub kind: ReliabilityQosPolicyKind,
+    /// Maximum blocking time to block. This only applies when kind is set to [`ReliabilityQosPolicyKind::Reliable`]
     pub max_blocking_time: DurationKind,
 }
 
@@ -813,21 +873,25 @@ impl PartialOrd for ReliabilityQosPolicy {
 }
 
 // default for Reliability is differnet for reader and writer, hence
-// add here as constants
+// added here as constants
 const DEFAULT_MAX_BLOCKING_TIME: Duration = Duration::new(0, 100);
-pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS: ReliabilityQosPolicy =
+pub(crate) const DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS: ReliabilityQosPolicy =
     ReliabilityQosPolicy {
         kind: ReliabilityQosPolicyKind::BestEffort,
         max_blocking_time: DurationKind::Finite(DEFAULT_MAX_BLOCKING_TIME),
     };
-pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolicy = ReliabilityQosPolicy {
-    kind: ReliabilityQosPolicyKind::Reliable,
-    max_blocking_time: DurationKind::Finite(DEFAULT_MAX_BLOCKING_TIME),
-};
+pub(crate) const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolicy =
+    ReliabilityQosPolicy {
+        kind: ReliabilityQosPolicyKind::Reliable,
+        max_blocking_time: DurationKind::Finite(DEFAULT_MAX_BLOCKING_TIME),
+    };
 
+/// Enumeration representing the different types of destination order QoS policies.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum DestinationOrderQosPolicyKind {
+    /// Ordered by reception timestamp.
     ByReceptionTimestamp,
+    /// Ordered by source timestamp.
     BySourceTimestamp,
 }
 
@@ -884,6 +948,7 @@ impl PartialOrd for DestinationOrderQosPolicyKind {
 /// ordered such that *DestinationOrderQosPolicyKind::ByReceptionTimestamp < DestinationOrderQosPolicyKind::BySourceTimestamp*.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize)]
 pub struct DestinationOrderQosPolicy {
+    /// Kind of destination order QoS associated with this policy.
     pub kind: DestinationOrderQosPolicyKind,
 }
 
@@ -901,9 +966,12 @@ impl Default for DestinationOrderQosPolicy {
     }
 }
 
+/// Enumeration representing the different types of history QoS policies.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum HistoryQosPolicyKind {
+    /// Keep number of samples indicated by the associated value.
     KeepLast(i32),
+    /// Keep all samples.
     KeepAll,
 }
 
@@ -953,6 +1021,7 @@ impl<'de> CdrDeserialize<'de> for HistoryQosPolicyKind {
 /// QoS to be consistent, they must verify that *depth <= max_samples_per_instance*.
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct HistoryQosPolicy {
+    /// Kind of history QoS associated with this policy.
     pub kind: HistoryQosPolicyKind,
 }
 
@@ -991,8 +1060,11 @@ impl Default for HistoryQosPolicy {
 /// that *HistoryQosPolicy depth <= [`ResourceLimitsQosPolicy::max_samples_per_instance`]*.
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct ResourceLimitsQosPolicy {
+    /// Maximum number of samples limit.
     pub max_samples: Length,
+    /// Maximum number of instances limit.
     pub max_instances: Length,
+    /// Maximum number of samples per instance limit.
     pub max_samples_per_instance: Length,
 }
 
@@ -1026,6 +1098,7 @@ impl Default for ResourceLimitsQosPolicy {
 /// on newly created entities.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct EntityFactoryQosPolicy {
+    /// Value of auto-enable created entities.
     pub autoenable_created_entities: bool,
 }
 
@@ -1061,6 +1134,7 @@ impl Default for EntityFactoryQosPolicy {
 /// [`DataWriter`](crate::publication::data_writer::DataWriter) is deleted.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterDataLifecycleQosPolicy {
+    /// Value of auto-dispose unregistered instances.
     pub autodispose_unregistered_instances: bool,
 }
 
@@ -1100,7 +1174,9 @@ impl Default for WriterDataLifecycleQosPolicy {
 /// samples for the instance.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderDataLifecycleQosPolicy {
+    /// Time duration to auto purge samples with no writer.
     pub autopurge_nowriter_samples_delay: DurationKind,
+    /// Time duration to auto purge disposed samples.
     pub autopurge_disposed_samples_delay: DurationKind,
 }
 

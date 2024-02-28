@@ -11,9 +11,12 @@ use crate::{
     topic_definition::topic_listener::TopicListener,
 };
 
+/// This struct implements the listener traits for all entities and can be used as a convinience when the entity
+/// does not need the listener operations.
 pub struct NoOpListener<Foo = ()>(PhantomData<Foo>);
 
 impl<Foo> NoOpListener<Foo> {
+    /// NoOpListener constructor
     pub const fn new() -> Self {
         Self(PhantomData)
     }
