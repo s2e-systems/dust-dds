@@ -2,7 +2,7 @@ use crate::infrastructure::error::{DdsError, DdsResult};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// This struct specifies the high-level configuration for the DustDDS library. The configuration can be set for use by the
-/// [`dust_dds::domain::domain_participant_factory::DomainParticipantFactory::set_configuration`] method.
+/// [`DomainParticipantFactory::set_configuration`](dust_dds::domain::domain_participant_factory::DomainParticipantFactory::set_configuration) method.
 pub struct DustDdsConfiguration {
     domain_tag: String,
     interface_name: Option<String>,
