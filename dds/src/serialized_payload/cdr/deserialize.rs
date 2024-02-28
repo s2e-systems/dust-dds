@@ -2,7 +2,9 @@ pub use dust_dds_derive::CdrDeserialize;
 
 use super::deserializer::CdrDeserializer;
 
+/// A trait representing a structure that can be deserialized from a CDR format.
 pub trait CdrDeserialize<'de>: Sized {
+    /// Method to deserialize this value using the given deserializer.
     fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error>;
 }
 

@@ -23,6 +23,7 @@ use crate::{
 
 use super::{condition::StatusConditionAsync, domain_participant::DomainParticipantAsync};
 
+/// Async version of ['Topic'](crate::topic_definition::topic::Topic).
 pub struct TopicAsync {
     topic_address: ActorAddress<TopicActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
@@ -48,6 +49,7 @@ impl TopicAsync {
 }
 
 impl TopicAsync {
+    /// Async version of ['get_inconsistent_topic_status'](crate::topic_definition::topic::Topic::get_inconsistent_topic_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         self.topic_address
@@ -57,6 +59,7 @@ impl TopicAsync {
 }
 
 impl TopicAsync {
+    /// Async version of ['get_participant'](crate::topic_definition::topic::Topic::get_participant).
     #[tracing::instrument(skip(self))]
     pub async fn get_participant(&self) -> DdsResult<DomainParticipantAsync> {
         Ok(DomainParticipantAsync::new(
@@ -65,6 +68,7 @@ impl TopicAsync {
         ))
     }
 
+    /// Async version of ['get_type_name'](crate::topic_definition::topic::Topic::get_type_name).
     #[tracing::instrument(skip(self))]
     pub async fn get_type_name(&self) -> DdsResult<String> {
         self.topic_address
@@ -72,6 +76,7 @@ impl TopicAsync {
             .await
     }
 
+    /// Async version of ['get_name'](crate::topic_definition::topic::Topic::get_name).
     #[tracing::instrument(skip(self))]
     pub async fn get_name(&self) -> DdsResult<String> {
         self.topic_address
@@ -81,6 +86,7 @@ impl TopicAsync {
 }
 
 impl TopicAsync {
+    /// Async version of ['set_qos'](crate::topic_definition::topic::Topic::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
@@ -111,6 +117,7 @@ impl TopicAsync {
             .await
     }
 
+    /// Async version of ['get_qos'](crate::topic_definition::topic::Topic::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
         self.topic_address
@@ -118,6 +125,7 @@ impl TopicAsync {
             .await
     }
 
+    /// Async version of ['get_statuscondition'](crate::topic_definition::topic::Topic::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
         self.topic_address
@@ -126,11 +134,13 @@ impl TopicAsync {
             .map(|c| StatusConditionAsync::new(c, self.runtime_handle.clone()))
     }
 
+    /// Async version of ['get_status_changes'](crate::topic_definition::topic::Topic::get_status_changes).
     #[tracing::instrument(skip(self))]
     pub async fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
     }
 
+    /// Async version of ['enable'](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         if !self
@@ -154,6 +164,7 @@ impl TopicAsync {
         Ok(())
     }
 
+    /// Async version of ['get_instance_handle'](crate::topic_definition::topic::Topic::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.topic_address
@@ -161,6 +172,7 @@ impl TopicAsync {
             .await
     }
 
+    /// Async version of ['set_listener'](crate::topic_definition::topic::Topic::set_listener).
     #[tracing::instrument(skip(self, _a_listener))]
     pub async fn set_listener(
         &self,

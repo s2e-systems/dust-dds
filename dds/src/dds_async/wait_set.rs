@@ -7,11 +7,14 @@ use crate::infrastructure::{
 
 use super::condition::StatusConditionAsync;
 
+/// Async version of ['Condition'](crate::infrastructure::wait_set::Condition).
 #[derive(Clone)]
 pub enum ConditionAsync {
+    /// Status condition variant
     StatusCondition(StatusConditionAsync),
 }
 impl ConditionAsync {
+    /// Async version of ['get_trigger_value'](crate::infrastructure::wait_set::Condition::get_trigger_value).
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
         match self {
@@ -20,26 +23,20 @@ impl ConditionAsync {
     }
 }
 
+/// Async version of ['WaitSet'](crate::infrastructure::wait_set::WaitSet).
 #[derive(Default)]
 pub struct WaitSetAsync {
     conditions: Vec<ConditionAsync>,
 }
 
 impl WaitSetAsync {
-    /// Create a new [`WaitSet`]
+    /// Create a new [`WaitSetAsync`]
     #[tracing::instrument]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// This operation allows an application thread to wait for the occurrence of certain conditions. If none of the conditions attached
-    /// to the [`WaitSet`] have a `trigger_value` of [`true`], the wait operation will block suspending the calling thread.
-    /// The operation returns the list of all the attached conditions that have a `trigger_value` of [`true`] (i.e., the conditions
-    /// that unblocked the wait).
-    /// This operation takes a `timeout` argument that specifies the maximum duration for the wait. It this duration is exceeded and
-    /// none of the attached [`Condition`] objects is [`true`], wait will return with [`DdsError::Timeout`].
-    /// It is not allowed for more than one application thread to be waiting on the same [`WaitSet`]. If the wait operation is invoked on a
-    /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`].
+    /// Async version of ['wait'](crate::infrastructure::wait_set::WaitSet::wait).
     #[tracing::instrument(skip(self))]
     pub async fn wait(&self, timeout: Duration) -> DdsResult<Vec<ConditionAsync>> {
         let start_time = Instant::now();
@@ -64,24 +61,20 @@ impl WaitSetAsync {
         Err(DdsError::Timeout)
     }
 
-    /// Attaches a [`Condition`] to the [`WaitSet`].
-    /// It is possible to attach a [`Condition`] on a WaitSet that is currently being waited upon (via the [`WaitSet::wait`] operation). In this case, if the
-    /// [`Condition`] has a `trigger_value` of [`true`], then attaching the condition will unblock the [`WaitSet`].
-    /// Adding a [`Condition`] that is already attached to the [`WaitSet`] has no effect.
+    /// Async version of ['attach_condition'](crate::infrastructure::wait_set::WaitSet::attach_condition).
     #[tracing::instrument(skip(self, cond))]
     pub async fn attach_condition(&mut self, cond: ConditionAsync) -> DdsResult<()> {
         self.conditions.push(cond);
         Ok(())
     }
 
-    /// Detaches a [`Condition`] from the [`WaitSet`].
-    /// If the [`Condition`] was not attached to the [`WaitSet`], the operation will return [`DdsError::PreconditionNotMet`].
+    /// Async version of ['detach_condition'](crate::infrastructure::wait_set::WaitSet::detach_condition).
     #[tracing::instrument(skip(self, _cond))]
     pub async fn detach_condition(&self, _cond: ConditionAsync) -> DdsResult<()> {
         todo!()
     }
 
-    /// This operation retrieves the list of attached conditions.
+    /// Async version of ['get_conditions'](crate::infrastructure::wait_set::WaitSet::get_conditions).
     #[tracing::instrument(skip(self))]
     pub async fn get_conditions(&self) -> DdsResult<Vec<ConditionAsync>> {
         Ok(self.conditions.clone())
