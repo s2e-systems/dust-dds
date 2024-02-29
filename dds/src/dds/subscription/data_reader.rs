@@ -339,7 +339,7 @@ impl<Foo> DataReader<Foo> {
     /// been previously registered, or if for any other reason the Service is unable to provide
     /// an instance handle, the operation will succeed and return [`None`].
     #[tracing::instrument(skip(self, instance))]
-    pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub fn lookup_instance(&self, instance: &Foo) -> Option<InstanceHandle> {
         self.reader_async
             .runtime_handle()
             .block_on(self.reader_async.lookup_instance(instance))
@@ -400,20 +400,22 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topicdescription(&self) -> DdsResult<Topic> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_topicdescription())
-            .map(Topic::new)
+    pub fn get_topicdescription(&self) -> Topic {
+        Topic::new(
+            self.reader_async
+                .runtime_handle()
+                .block_on(self.reader_async.get_topicdescription()),
+        )
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_subscriber())
-            .map(Subscriber::new)
+    pub fn get_subscriber(&self) -> Subscriber {
+        Subscriber::new(
+            self.reader_async
+                .runtime_handle()
+                .block_on(self.reader_async.get_subscriber()),
+        )
     }
 
     /// This operation blocks the calling thread until either all “historical” data is received, or else the

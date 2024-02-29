@@ -310,7 +310,7 @@ impl<Foo> DataReaderAsync<Foo> {
 
     /// Async version of [`lookup_instance`](crate::subscription::data_reader::DataReader::lookup_instance).
     #[tracing::instrument(skip(self, _instance))]
-    pub async fn lookup_instance(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub async fn lookup_instance(&self, _instance: &Foo) -> Option<InstanceHandle> {
         todo!()
     }
 }
@@ -360,22 +360,22 @@ impl<Foo> DataReaderAsync<Foo> {
 
     /// Async version of [`get_topicdescription`](crate::subscription::data_reader::DataReader::get_topicdescription).
     #[tracing::instrument(skip(self))]
-    pub async fn get_topicdescription(&self) -> DdsResult<TopicAsync> {
-        Ok(TopicAsync::new(
+    pub async fn get_topicdescription(&self) -> TopicAsync {
+        TopicAsync::new(
             self.topic_address().await,
             self.participant_address.clone(),
             self.runtime_handle.clone(),
-        ))
+        )
     }
 
     /// Async version of [`get_subscriber`](crate::subscription::data_reader::DataReader::get_subscriber).
     #[tracing::instrument(skip(self))]
-    pub async fn get_subscriber(&self) -> DdsResult<SubscriberAsync> {
-        Ok(SubscriberAsync::new(
+    pub async fn get_subscriber(&self) -> SubscriberAsync {
+        SubscriberAsync::new(
             self.subscriber_address.clone(),
             self.participant_address.clone(),
             self.runtime_handle.clone(),
-        ))
+        )
     }
 
     /// Async version of [`wait_for_historical_data`](crate::subscription::data_reader::DataReader::wait_for_historical_data).
