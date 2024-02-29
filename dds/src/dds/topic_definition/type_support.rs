@@ -51,6 +51,7 @@ pub trait DynamicTypeInterface {
 /// This trait can be automatically derived. If the struct has any field marked `#[dust_dds(key)]`
 /// then HAS_KEY will be set to 'true' otherwise will be set to 'false'.
 pub trait DdsHasKey {
+    /// Constant indicating whether the associated type has a key or not.
     const HAS_KEY: bool;
 }
 
@@ -65,6 +66,7 @@ pub trait DdsHasKey {
 /// The format to be used for serializing can be selected by applying the '#[dust_dds(format = ...)]' attribute to the container.
 /// Available format options are "CDR_LE", "CDR_BE", "PL_CDR_LE" and "PL_CDR_BE".
 pub trait DdsSerialize {
+    /// Method to serialize the instance of the type into the provided writer.
     fn serialize_data(&self, writer: impl std::io::Write) -> DdsResult<()>;
 }
 
@@ -79,22 +81,26 @@ pub trait DdsSerialize {
 /// The format to be used for deserializing can be selected by applying the '#[dust_dds(format = ...)]' attribute to the container.
 /// Available format options are "CDR_LE", "CDR_BE", "PL_CDR_LE" and "PL_CDR_BE".
 pub trait DdsDeserialize<'de>: Sized {
+    /// Method to deserialize the bytes into an instance of the type.
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self>;
 }
 
 /// This trait defines the key associated with the type. The key is used to identify different instances of the type.
-/// The returned key object must implement ['CdrSerialize'] and ['CdrDeserialize'] since CDR is the format always
+/// The returned key object must implement [`CdrSerialize`] and [`CdrDeserialize`] since CDR is the format always
 /// used to transmit the key information on the wire and this can not be modified by the user.
 ///
 /// ## Derivable
 ///
-/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement ['CdrSerialize'] and ['CdrDeserialize']
+/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement [`CdrSerialize`] and [`CdrDeserialize`]
 ///
 pub trait DdsKey {
+    /// Type representing the key for the type in which this trait is implemented
     type Key: CdrSerialize + for<'de> CdrDeserialize<'de>;
 
+    /// Method to get the key from an instance of the type.
     fn get_key(&self) -> DdsResult<Self::Key>;
 
+    /// Method to get the key from a serialized instance of the type.
     fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key>;
 }
 
@@ -106,6 +112,7 @@ pub trait DdsKey {
 ///
 /// This trait can be automatically derived for every DustDDS supported type.
 pub trait DdsTypeXml {
+    /// Method to get the XML representation of a type.
     fn get_type_xml() -> Option<String>;
 }
 

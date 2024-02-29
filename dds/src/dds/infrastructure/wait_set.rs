@@ -9,10 +9,12 @@ use super::condition::StatusCondition;
 /// Enumeration of the different Condition objects that can be associated with a [`WaitSet`].
 #[derive(Clone)]
 pub enum Condition {
+    /// Status condition variant
     StatusCondition(StatusCondition),
 }
 impl Condition {
     #[tracing::instrument(skip(self))]
+    /// This operation retrieves the trigger_value of the Condition.
     pub fn get_trigger_value(&self) -> DdsResult<bool> {
         match self {
             Condition::StatusCondition(c) => c.get_trigger_value(),
@@ -41,9 +43,9 @@ impl WaitSet {
     /// The operation returns the list of all the attached conditions that have a `trigger_value` of [`true`] (i.e., the conditions
     /// that unblocked the wait).
     /// This operation takes a `timeout` argument that specifies the maximum duration for the wait. It this duration is exceeded and
-    /// none of the attached [`Condition`] objects is [`true`], wait will return with [`DdsError::Timeout`].
+    /// none of the attached [`Condition`] objects is [`true`], wait will return with [`DdsError::Timeout`](crate::infrastructure::error::DdsError::Timeout).
     /// It is not allowed for more than one application thread to be waiting on the same [`WaitSet`]. If the wait operation is invoked on a
-    /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`].
+    /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError::PreconditionNotMet).
     #[tracing::instrument(skip(self))]
     pub fn wait(&self, timeout: Duration) -> DdsResult<Vec<Condition>> {
         Ok(DomainParticipantFactory::get_instance()
@@ -77,7 +79,7 @@ impl WaitSet {
     }
 
     /// Detaches a [`Condition`] from the [`WaitSet`].
-    /// If the [`Condition`] was not attached to the [`WaitSet`], the operation will return [`DdsError::PreconditionNotMet`].
+    /// If the [`Condition`] was not attached to the [`WaitSet`], the operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError::PreconditionNotMet).
     #[tracing::instrument(skip(self, _cond))]
     pub fn detach_condition(&self, _cond: Condition) -> DdsResult<()> {
         todo!()

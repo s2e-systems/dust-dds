@@ -64,11 +64,16 @@ pub struct SampleLostStatus {
     pub total_count_change: i32,
 }
 
+/// Enumeration for the kind of sample rejected kind
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum SampleRejectedStatusKind {
+    /// Sample not rejected
     NotRejected,
+    /// Sample was rejected because the limit of instances configured in the associated QoS was reached
     RejectedByInstancesLimit,
+    /// Sample was rejected because the limit of samples configured in the associated QoS was reached
     RejectedBySamplesLimit,
+    /// Sample was rejected because the limit of samples per instance configured in the associated QoS was reached
     RejectedBySamplesPerInstanceLimit,
 }
 
@@ -168,7 +173,9 @@ pub struct RequestedDeadlineMissedStatus {
 /// Structure associating the QosPolicyId and the number of time it appeared in the related communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct QosPolicyCount {
+    /// The id code for the represented QoS policy
     pub policy_id: QosPolicyId,
+    /// The number of times this QoS policy has appeared in the associated status
     pub count: i32,
 }
 
@@ -229,8 +236,8 @@ pub struct PublicationMatchedStatus {
     /// The number of DataReaders currently matched to the concerned
     /// DataWriter.
     pub current_count: i32,
-    // The change in current_count since the last time the listener was called
-    // or the status was read.
+    /// The change in current_count since the last time the listener was called
+    /// or the status was read.
     pub current_count_change: i32,
 }
 

@@ -5,9 +5,12 @@ use crate::serialized_payload::cdr::{
     serializer::CdrSerializer,
 };
 
+/// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum DurationKind {
+    /// Finite duration with the corresponding associated value
     Finite(Duration),
+    /// Infinite duration
     Infinite,
 }
 
@@ -54,6 +57,7 @@ impl PartialOrd<DurationKind> for DurationKind {
     }
 }
 
+/// Structure representing a time interval with a nanosecond resolution.
 #[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, CdrSerialize, CdrDeserialize)]
 pub struct Duration {
     sec: i32,
@@ -61,6 +65,7 @@ pub struct Duration {
 }
 
 impl Duration {
+    /// Construct a new [`Duration`] with the corresponding seconds and nanoseconds.
     pub const fn new(sec: i32, nanosec: u32) -> Self {
         let sec = sec + (nanosec / 1_000_000_000) as i32;
         let nanosec = nanosec % 1_000_000_000;
@@ -106,6 +111,7 @@ impl From<Duration> for std::time::Duration {
     }
 }
 
+/// Structure representing a time in Unix Epoch with a nanosecond resolution.
 #[derive(Clone, PartialEq, Debug, Copy, PartialOrd, Eq, Ord)]
 pub struct Time {
     sec: i32,
@@ -113,16 +119,19 @@ pub struct Time {
 }
 
 impl Time {
+    /// Create a new [`Time`] with a number of seconds and nanoseconds
     pub const fn new(sec: i32, nanosec: u32) -> Self {
         let sec = sec + (nanosec / 1_000_000_000) as i32;
         let nanosec = nanosec % 1_000_000_000;
         Self { sec, nanosec }
     }
 
+    /// Get the number of seconds contained by this time
     pub const fn sec(&self) -> i32 {
         self.sec
     }
 
+    /// Get the number of nanoseconds contained by this time
     pub const fn nanosec(&self) -> u32 {
         self.nanosec
     }

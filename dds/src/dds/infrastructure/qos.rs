@@ -19,57 +19,69 @@ use super::{
 /// QoS policies applicable to the [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory)
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct DomainParticipantFactoryQos {
+    /// Value of the entity factory QoS policy.
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
 /// Enumeration representing the kind of Qos to be used
 #[derive(Debug)]
 pub enum QosKind<T> {
+    /// Default QoS variant
     Default,
+    /// Specific QoS variant
     Specific(T),
 }
 
 /// QoS policies applicable to the [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant)
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct DomainParticipantQos {
+    /// Value of the user data QoS policy.
     pub user_data: UserDataQosPolicy,
+    /// Value of the entity factory QoS policy.
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
 /// QoS policies applicable to the [`Publisher`](crate::publication::publisher::Publisher)
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct PublisherQos {
+    /// Value of the presentation QoS policy.
     pub presentation: PresentationQosPolicy,
+    /// Value of the partition QoS policy.
     pub partition: PartitionQosPolicy,
+    /// Value of the group data QoS policy.
     pub group_data: GroupDataQosPolicy,
+    /// Value of the entity factory QoS policy.
     pub entity_factory: EntityFactoryQosPolicy,
-}
-
-impl PublisherQos {
-    pub fn check_immutability(&self, other: &Self) -> DdsResult<()> {
-        if self.presentation != other.presentation {
-            Err(DdsError::ImmutablePolicy)
-        } else {
-            Ok(())
-        }
-    }
 }
 
 /// QoS policies applicable to the [`DataWriter`](crate::publication::data_writer::DataWriter)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataWriterQos {
+    /// Value of the durability QoS policy.
     pub durability: DurabilityQosPolicy,
+    /// Value of the deadline QoS policy.
     pub deadline: DeadlineQosPolicy,
+    /// Value of the latency budget QoS policy.
     pub latency_budget: LatencyBudgetQosPolicy,
+    /// Value of the liveliness QoS policy.
     pub liveliness: LivelinessQosPolicy,
+    /// Value of the reliability QoS policy.
     pub reliability: ReliabilityQosPolicy,
+    /// Value of the destination order QoS policy.
     pub destination_order: DestinationOrderQosPolicy,
+    /// Value of the history QoS policy.
     pub history: HistoryQosPolicy,
+    /// Value of the resource limits QoS policy.
     pub resource_limits: ResourceLimitsQosPolicy,
+    /// Value of the transport priority QoS policy.
     pub transport_priority: TransportPriorityQosPolicy,
+    /// Value of the lifespan QoS policy.
     pub lifespan: LifespanQosPolicy,
+    /// Value of the user_data QoS policy.
     pub user_data: UserDataQosPolicy,
+    /// Value of the ownership QoS policy.
     pub ownership: OwnershipQosPolicy,
+    /// Value of the writer data lifecycle QoS policy.
     pub writer_data_lifecycle: WriterDataLifecycleQosPolicy,
 }
 
@@ -100,7 +112,7 @@ impl Default for DataWriterQos {
 }
 
 impl DataWriterQos {
-    pub fn is_consistent(&self) -> DdsResult<()> {
+    pub(crate) fn is_consistent(&self) -> DdsResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instanc
         if self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
@@ -121,7 +133,7 @@ impl DataWriterQos {
         }
     }
 
-    pub fn check_immutability(&self, other: &Self) -> DdsResult<()> {
+    pub(crate) fn _check_immutability(&self, other: &Self) -> DdsResult<()> {
         if self.durability != other.durability
             || self.liveliness != other.liveliness
             || self.reliability != other.reliability
@@ -140,14 +152,18 @@ impl DataWriterQos {
 /// QoS policies applicable to the [`Subscriber`](crate::subscription::subscriber::Subscriber)
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct SubscriberQos {
+    /// Value of the presentation QoS policy.
     pub presentation: PresentationQosPolicy,
+    /// Value of the partition QoS policy.
     pub partition: PartitionQosPolicy,
+    /// Value of the group data QoS policy.
     pub group_data: GroupDataQosPolicy,
+    /// Value of the entity factory QoS policy.
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
 impl SubscriberQos {
-    pub fn check_immutability(&self, other: &Self) -> DdsResult<()> {
+    pub(crate) fn check_immutability(&self, other: &Self) -> DdsResult<()> {
         if self.presentation != other.presentation {
             Err(DdsError::ImmutablePolicy)
         } else {
@@ -159,17 +175,29 @@ impl SubscriberQos {
 /// QoS policies applicable to the [`DataReader`](crate::subscription::data_reader::DataReader)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataReaderQos {
+    /// Value of the durability QoS policy.
     pub durability: DurabilityQosPolicy,
+    /// Value of the deadline QoS policy.
     pub deadline: DeadlineQosPolicy,
+    /// Value of the latency budget QoS policy.
     pub latency_budget: LatencyBudgetQosPolicy,
+    /// Value of the liveliness QoS policy.
     pub liveliness: LivelinessQosPolicy,
+    /// Value of the reliability QoS policy.
     pub reliability: ReliabilityQosPolicy,
+    /// Value of the destination order QoS policy.
     pub destination_order: DestinationOrderQosPolicy,
+    /// Value of the history QoS policy.
     pub history: HistoryQosPolicy,
+    /// Value of the resource limits QoS policy.
     pub resource_limits: ResourceLimitsQosPolicy,
+    /// Value of the user data QoS policy.
     pub user_data: UserDataQosPolicy,
+    /// Value of the ownership QoS policy.
     pub ownership: OwnershipQosPolicy,
+    /// Value of the time based filter QoS policy.
     pub time_based_filter: TimeBasedFilterQosPolicy,
+    /// Value of the reader data lifecycle QoS policy.
     pub reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
 }
 
@@ -199,7 +227,7 @@ impl Default for DataReaderQos {
 }
 
 impl DataReaderQos {
-    pub fn is_consistent(&self) -> DdsResult<()> {
+    pub(crate) fn is_consistent(&self) -> DdsResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
@@ -226,7 +254,7 @@ impl DataReaderQos {
         Ok(())
     }
 
-    pub fn check_immutability(&self, other: &Self) -> DdsResult<()> {
+    pub(crate) fn check_immutability(&self, other: &Self) -> DdsResult<()> {
         if self.durability != other.durability
             || self.liveliness != other.liveliness
             || self.reliability != other.reliability
@@ -245,17 +273,29 @@ impl DataReaderQos {
 /// QoS policies applicable to the [`Topic`](crate::topic_definition::topic::Topic)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TopicQos {
+    /// Value of the topic data QoS policy.
     pub topic_data: TopicDataQosPolicy,
+    /// Value of the durability QoS policy.
     pub durability: DurabilityQosPolicy,
+    /// Value of the deadline QoS policy.
     pub deadline: DeadlineQosPolicy,
+    /// Value of the latency budget QoS policy.
     pub latency_budget: LatencyBudgetQosPolicy,
+    /// Value of the liveliness QoS policy.
     pub liveliness: LivelinessQosPolicy,
+    /// Value of the reliability QoS policy.
     pub reliability: ReliabilityQosPolicy,
+    /// Value of the destination order QoS policy.
     pub destination_order: DestinationOrderQosPolicy,
+    /// Value of the history QoS policy.
     pub history: HistoryQosPolicy,
+    /// Value of the resource limits QoS policy.
     pub resource_limits: ResourceLimitsQosPolicy,
+    /// Value of the transport priority QoS policy.
     pub transport_priority: TransportPriorityQosPolicy,
+    /// Value of the lifespan QoS policy.
     pub lifespan: LifespanQosPolicy,
+    /// Value of the ownership QoS policy.
     pub ownership: OwnershipQosPolicy,
 }
 
@@ -285,7 +325,7 @@ impl Default for TopicQos {
 }
 
 impl TopicQos {
-    pub fn is_consistent(&self) -> DdsResult<()> {
+    pub(crate) fn is_consistent(&self) -> DdsResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
@@ -306,7 +346,7 @@ impl TopicQos {
         }
     }
 
-    pub fn check_immutability(&self, other: &Self) -> DdsResult<()> {
+    pub(crate) fn check_immutability(&self, other: &Self) -> DdsResult<()> {
         if self.durability != other.durability
             || self.liveliness != other.liveliness
             || self.reliability != other.reliability

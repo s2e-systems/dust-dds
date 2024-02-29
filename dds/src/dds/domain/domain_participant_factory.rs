@@ -13,6 +13,7 @@ use crate::{
 use std::sync::OnceLock;
 use tracing::warn;
 
+/// DomainId type alias
 pub type DomainId = i32;
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
@@ -54,8 +55,8 @@ impl DomainParticipantFactory {
     }
 
     /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
-    /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
-    /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
+    /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError::PreconditionNotMet) is returned. If the
+    /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`](crate::infrastructure::error::DdsError::AlreadyDeleted).
     #[tracing::instrument(skip(self, participant))]
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         self.runtime.block_on(
@@ -66,7 +67,6 @@ impl DomainParticipantFactory {
 
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
-    /// The pre-defined value [`struct@THE_PARTICIPANT_FACTORY`] can also be used as an alias for the singleton factory returned by this operation.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
         static PARTICIPANT_FACTORY: OnceLock<DomainParticipantFactory> = OnceLock::new();
@@ -100,7 +100,7 @@ impl DomainParticipantFactory {
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created
     /// [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`DomainParticipantFactory::create_participant`] operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return a [`DdsError::InconsistentPolicy`].
+    /// return a [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError::InconsistentPolicy).
     #[tracing::instrument(skip(self))]
     pub fn set_default_participant_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         self.runtime.block_on(
@@ -124,7 +124,7 @@ impl DomainParticipantFactory {
     /// a factory for entities.
     /// Note that despite having QoS, the [`DomainParticipantFactory`] is not an Entity.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return a [`DdsError::InconsistentPolicy`].
+    /// return a [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError::InconsistentPolicy).
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
         self.runtime

@@ -2,7 +2,9 @@ pub use dust_dds_derive::CdrSerialize;
 
 use super::serializer::CdrSerializer;
 
+/// A trait representing a structure that can be serialized into a CDR format.
 pub trait CdrSerialize {
+    /// Method to serialize this value using the given serializer.
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error>;
 }
 

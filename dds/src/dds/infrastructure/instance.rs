@@ -3,6 +3,7 @@
 pub struct InstanceHandle([u8; 16]);
 
 impl InstanceHandle {
+    /// InstanceHandle constructor
     pub fn new(bytes: [u8; 16]) -> Self {
         InstanceHandle(bytes)
     }

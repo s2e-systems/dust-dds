@@ -35,6 +35,7 @@ use super::{
     topic::TopicAsync,
 };
 
+/// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 pub struct DomainParticipantAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
     runtime_handle: tokio::runtime::Handle,
@@ -57,6 +58,7 @@ impl DomainParticipantAsync {
 }
 
 impl DomainParticipantAsync {
+    /// Async version of [`create_publisher`](crate::domain::domain_participant::DomainParticipant::create_publisher).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn create_publisher(
         &self,
@@ -96,6 +98,7 @@ impl DomainParticipantAsync {
         Ok(publisher)
     }
 
+    /// Async version of [`delete_publisher`](crate::domain::domain_participant::DomainParticipant::delete_publisher).
     #[tracing::instrument(skip(self, a_publisher))]
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
         if self
@@ -122,6 +125,7 @@ impl DomainParticipantAsync {
             .await?
     }
 
+    /// Async version of [`create_subscriber`](crate::domain::domain_participant::DomainParticipant::create_subscriber).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn create_subscriber(
         &self,
@@ -162,6 +166,7 @@ impl DomainParticipantAsync {
         Ok(subscriber)
     }
 
+    /// Async version of [`delete_subscriber`](crate::domain::domain_participant::DomainParticipant::delete_subscriber).
     #[tracing::instrument(skip(self, a_subscriber))]
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         if self.get_instance_handle().await?
@@ -185,6 +190,7 @@ impl DomainParticipantAsync {
             .await?
     }
 
+    /// Async version of [`create_topic`](crate::domain::domain_participant::DomainParticipant::create_topic).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn create_topic<Foo>(
         &self,
@@ -255,6 +261,7 @@ impl DomainParticipantAsync {
         Ok(topic)
     }
 
+    /// Async version of [`delete_topic`](crate::domain::domain_participant::DomainParticipant::delete_topic).
     #[tracing::instrument(skip(self, a_topic))]
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
         if self.get_instance_handle().await?
@@ -330,6 +337,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).
     #[tracing::instrument(skip(self))]
     pub async fn find_topic<Foo>(
         &self,
@@ -409,6 +417,7 @@ impl DomainParticipantAsync {
         Err(DdsError::Timeout)
     }
 
+    /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
     #[tracing::instrument(skip(self))]
     pub async fn lookup_topicdescription(
         &self,
@@ -427,6 +436,7 @@ impl DomainParticipantAsync {
         // })
     }
 
+    /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
     #[tracing::instrument(skip(self))]
     pub async fn get_builtin_subscriber(&self) -> DdsResult<SubscriberAsync> {
         Ok(SubscriberAsync::new(
@@ -438,6 +448,7 @@ impl DomainParticipantAsync {
         ))
     }
 
+    /// Async version of [`ignore_participant`](crate::domain::domain_participant::DomainParticipant::ignore_participant).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
         if self
@@ -455,6 +466,7 @@ impl DomainParticipantAsync {
         }
     }
 
+    /// Async version of [`ignore_topic`](crate::domain::domain_participant::DomainParticipant::ignore_topic).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
         if self
@@ -470,6 +482,7 @@ impl DomainParticipantAsync {
         }
     }
 
+    /// Async version of [`ignore_publication`](crate::domain::domain_participant::DomainParticipant::ignore_publication).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
         if self
@@ -487,6 +500,7 @@ impl DomainParticipantAsync {
         }
     }
 
+    /// Async version of [`ignore_subscription`](crate::domain::domain_participant::DomainParticipant::ignore_subscription).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
         if self
@@ -504,6 +518,7 @@ impl DomainParticipantAsync {
         }
     }
 
+    /// Async version of [`get_domain_id`](crate::domain::domain_participant::DomainParticipant::get_domain_id).
     #[tracing::instrument(skip(self))]
     pub async fn get_domain_id(&self) -> DdsResult<DomainId> {
         self.participant_address
@@ -511,6 +526,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`delete_contained_entities`](crate::domain::domain_participant::DomainParticipant::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
         for publisher in self
@@ -595,6 +611,7 @@ impl DomainParticipantAsync {
         Ok(())
     }
 
+    /// Async version of [`assert_liveliness`](crate::domain::domain_participant::DomainParticipant::assert_liveliness).
     #[tracing::instrument(skip(self))]
     pub async fn assert_liveliness(&self) -> DdsResult<()> {
         todo!()
@@ -603,6 +620,7 @@ impl DomainParticipantAsync {
         // })
     }
 
+    /// Async version of [`set_default_publisher_qos`](crate::domain::domain_participant::DomainParticipant::set_default_publisher_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         let qos = match qos {
@@ -616,6 +634,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`get_default_publisher_qos`](crate::domain::domain_participant::DomainParticipant::get_default_publisher_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
         self.participant_address
@@ -623,6 +642,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`set_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::set_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let qos = match qos {
@@ -637,6 +657,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`get_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::get_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
         self.participant_address
@@ -644,6 +665,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`set_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::set_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
@@ -658,6 +680,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`get_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::get_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
         self.participant_address
@@ -665,6 +688,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`get_discovered_participants`](crate::domain::domain_participant::DomainParticipant::get_discovered_participants).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.participant_address
@@ -672,6 +696,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`get_discovered_participant_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_participant_data).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_participant_data(
         &self,
@@ -680,6 +705,7 @@ impl DomainParticipantAsync {
         todo!()
     }
 
+    /// Async version of [`get_discovered_topics`](crate::domain::domain_participant::DomainParticipant::get_discovered_topics).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.participant_address
@@ -687,6 +713,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`get_discovered_topic_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_topic_data).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_topic_data(
         &self,
@@ -699,6 +726,7 @@ impl DomainParticipantAsync {
             .await?
     }
 
+    /// Async version of [`contains_entity`](crate::domain::domain_participant::DomainParticipant::contains_entity).
     #[tracing::instrument(skip(self))]
     pub async fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
         todo!()
@@ -707,6 +735,8 @@ impl DomainParticipantAsync {
         // })
     }
 
+
+    /// Async version of [`get_current_time`](crate::domain::domain_participant::DomainParticipant::get_current_time).
     #[tracing::instrument(skip(self))]
     pub async fn get_current_time(&self) -> DdsResult<Time> {
         self.participant_address
@@ -716,6 +746,7 @@ impl DomainParticipantAsync {
 }
 
 impl DomainParticipantAsync {
+    /// Async version of [`set_qos`](crate::domain::domain_participant::DomainParticipant::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         let qos = match qos {
@@ -730,6 +761,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`get_qos`](crate::domain::domain_participant::DomainParticipant::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
         self.participant_address
@@ -737,6 +769,7 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`set_listener`](crate::domain::domain_participant::DomainParticipant::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
@@ -752,16 +785,19 @@ impl DomainParticipantAsync {
             .await
     }
 
+    /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
         todo!()
     }
 
+    /// Async version of [`get_status_changes`](crate::domain::domain_participant::DomainParticipant::get_status_changes).
     #[tracing::instrument(skip(self))]
     pub async fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
     }
 
+    /// Async version of [`enable`](crate::domain::domain_participant::DomainParticipant::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         if !self
@@ -874,7 +910,7 @@ impl DomainParticipantAsync {
         Ok(())
     }
 
-    /// This operation returns the [`InstanceHandle`] that represents the Entity.
+    /// Async version of [`get_instance_handle`](crate::domain::domain_participant::DomainParticipant::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.participant_address

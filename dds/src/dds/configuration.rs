@@ -2,7 +2,7 @@ use crate::infrastructure::error::{DdsError, DdsResult};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// This struct specifies the high-level configuration for the DustDDS library. The configuration can be set for use by the
-/// [`dust_dds::domain::domain_participant_factory::DomainParticipantFactory::set_configuration`] method.
+/// [`DomainParticipantFactory::set_configuration`](dust_dds::domain::domain_participant_factory::DomainParticipantFactory::set_configuration) method.
 pub struct DustDdsConfiguration {
     domain_tag: String,
     interface_name: Option<String>,
@@ -26,7 +26,7 @@ impl DustDdsConfiguration {
         self.fragment_size
     }
 
-    // Receive buffer size used for UDP socket. ['None'] means the OS default value
+    /// Receive buffer size used for UDP socket. [`None`] means the OS default value
     pub fn udp_receive_buffer_size(&self) -> Option<usize> {
         self.udp_receive_buffer_size
     }
@@ -43,7 +43,7 @@ impl Default for DustDdsConfiguration {
     }
 }
 
-/// Builder for the ['DustDdsConfiguration']
+/// Builder for the [`DustDdsConfiguration`]
 #[derive(Default)]
 pub struct DustDdsConfigurationBuilder {
     configuration: DustDdsConfiguration,
@@ -88,7 +88,7 @@ impl DustDdsConfigurationBuilder {
         self
     }
 
-    /// Set the value of the SO_RCVBUF option on the UDP socket. ['None'] corresponds to the OS default
+    /// Set the value of the SO_RCVBUF option on the UDP socket. [`None`] corresponds to the OS default
     pub fn udp_receive_buffer_size(mut self, udp_receive_buffer_size: Option<usize>) -> Self {
         self.configuration.udp_receive_buffer_size = udp_receive_buffer_size;
         self
