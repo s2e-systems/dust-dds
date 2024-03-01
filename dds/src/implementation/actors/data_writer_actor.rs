@@ -1032,15 +1032,7 @@ impl DataWriterActor {
         {
             let status = self.get_publication_matched_status().await;
             publisher_publication_matched_listener
-                .send_mail(
-                    publisher_listener_actor::trigger_on_publication_matched::new(
-                        data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        runtime_handle,
-                        status,
-                    ),
-                )
+                .send_mail(publisher_listener_actor::trigger_on_publication_matched::new(status))
                 .await
                 .expect("Listener should exist");
         } else if let Some(participant_publication_matched_listener) =
@@ -1049,13 +1041,7 @@ impl DataWriterActor {
             let status = self.get_publication_matched_status().await;
             participant_publication_matched_listener
                 .send_mail(
-                    domain_participant_listener_actor::trigger_on_publication_matched::new(
-                        data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        runtime_handle,
-                        status,
-                    ),
+                    domain_participant_listener_actor::trigger_on_publication_matched::new(status),
                 )
                 .await
                 .expect("Listener should exist");
@@ -1101,13 +1087,7 @@ impl DataWriterActor {
             let status = self.get_offered_incompatible_qos_status().await;
             offered_incompatible_qos_publisher_listener
                 .send_mail(
-                    publisher_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        runtime_handle,
-                        status,
-                    ),
+                    publisher_listener_actor::trigger_on_offered_incompatible_qos::new(status),
                 )
                 .await
                 .expect("Listener should exist");
@@ -1118,10 +1098,6 @@ impl DataWriterActor {
             offered_incompatible_qos_participant_listener
                 .send_mail(
                     domain_participant_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        runtime_handle,
                         status,
                     ),
                 )

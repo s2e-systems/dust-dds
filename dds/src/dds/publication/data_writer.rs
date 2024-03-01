@@ -477,4 +477,4 @@ impl<Foo> DataWriter<Foo> {
 /// to represent a generic DataWriter (i.e. without Foo) type on the listeners.
 pub trait AnyDataWriter {}
 
-impl<Foo> AnyDataWriter for DataWriter<Foo> {}
+impl AnyDataWriter for () {}

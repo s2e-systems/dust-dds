@@ -576,4 +576,4 @@ impl<Foo> DataReader<Foo> {
 /// to represent a generic DataReader (i.e. without Foo) type on the listeners.
 pub trait AnyDataReader {}
 
-impl<Foo> AnyDataReader for DataReader<Foo> {}
+impl AnyDataReader for () {}

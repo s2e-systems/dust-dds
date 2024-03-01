@@ -724,25 +724,13 @@ impl DataReaderActor {
             let status = self.get_sample_lost_status();
             subscriber_listener_address
                 .send_mail(subscriber_listener_actor::trigger_on_sample_lost::new(
-                    data_reader_address.clone(),
-                    subscriber_address.clone(),
-                    participant_address.clone(),
-                    runtime_handle.clone(),
                     status,
                 ))
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             participant_listener_address
-                .send_mail(
-                    domain_participant_listener_actor::trigger_on_sample_lost::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                        runtime_handle.clone(),
-                        status,
-                    ),
-                )
+                .send_mail(domain_participant_listener_actor::trigger_on_sample_lost::new(status))
                 .await?;
         }
 
@@ -789,28 +777,14 @@ impl DataReaderActor {
         } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
             subscriber_listener_address
-                .send_mail(
-                    subscriber_listener_actor::trigger_on_subscription_matched::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                        runtime_handle.clone(),
-                        status,
-                    ),
-                )
+                .send_mail(subscriber_listener_actor::trigger_on_subscription_matched::new(status))
                 .await
                 .expect("Subscriber is guaranteed to exist");
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
             participant_listener_address
                 .send_mail(
-                    domain_participant_listener_actor::trigger_on_subscription_matched::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                        runtime_handle.clone(),
-                        status,
-                    ),
+                    domain_participant_listener_actor::trigger_on_subscription_matched::new(status),
                 )
                 .await
                 .expect("Participant is guaranteed to exist");
@@ -860,10 +834,6 @@ impl DataReaderActor {
 
             subscriber_listener_address
                 .send_mail(subscriber_listener_actor::trigger_on_sample_rejected::new(
-                    data_reader_address.clone(),
-                    subscriber_address.clone(),
-                    participant_address.clone(),
-                    runtime_handle.clone(),
                     status,
                 ))
                 .await?;
@@ -871,13 +841,7 @@ impl DataReaderActor {
             let status = self.get_sample_rejected_status();
             participant_listener_address
                 .send_mail(
-                    domain_participant_listener_actor::trigger_on_sample_rejected::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                        runtime_handle.clone(),
-                        status,
-                    ),
+                    domain_participant_listener_actor::trigger_on_sample_rejected::new(status),
                 )
                 .await?;
         }
@@ -931,13 +895,7 @@ impl DataReaderActor {
             let status = self.get_requested_incompatible_qos_status();
             subscriber_listener_address
                 .send_mail(
-                    subscriber_listener_actor::trigger_on_requested_incompatible_qos::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                        runtime_handle.clone(),
-                        status,
-                    ),
+                    subscriber_listener_actor::trigger_on_requested_incompatible_qos::new(status),
                 )
                 .await
                 .expect("Subscriber listener should exist");
@@ -946,10 +904,6 @@ impl DataReaderActor {
             participant_listener_address
                 .send_mail(
                     domain_participant_listener_actor::trigger_on_requested_incompatible_qos::new(
-                        data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
-                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -1445,10 +1399,6 @@ impl DataReaderActor {
                             subscriber_listener_address
                                 .send_mail(
                                     subscriber_listener_actor::trigger_on_requested_deadline_missed::new(
-                                    data_reader_address.clone(),
-                                    subscriber_address.clone(),
-                                    participant_address.clone(),
-                                    runtime_handle.clone(),
                                     status,
                                 ),
                             )
@@ -1461,10 +1411,6 @@ impl DataReaderActor {
                                 .await?;
                             participant_listener_address.send_mail(
                                     domain_participant_listener_actor::trigger_on_requested_deadline_missed::new(
-                                    data_reader_address.clone(),
-                                    subscriber_address.clone(),
-                                    participant_address.clone(),
-                                    runtime_handle.clone(),
                                     status,
                                 ),
                             )
