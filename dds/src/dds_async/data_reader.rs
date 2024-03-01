@@ -428,9 +428,6 @@ impl<Foo> DataReaderAsync<Foo> {
                 q
             }
         };
-        self.reader_address
-            .send_mail_and_await_reply(data_reader_actor::set_qos::new(q))
-            .await??;
 
         if self
             .reader_address
@@ -453,6 +450,12 @@ impl<Foo> DataReaderAsync<Foo> {
                         type_name
                     ))
                 })?;
+            let current_qos = self.get_qos().await?;
+            q.check_immutability(&current_qos)?;
+            self.reader_address
+                .send_mail_and_await_reply(data_reader_actor::set_qos::new(q))
+                .await?;
+
             let discovered_reader_data = self
                 .reader_address
                 .send_mail_and_await_reply(data_reader_actor::as_discovered_reader_data::new(
@@ -479,6 +482,10 @@ impl<Foo> DataReaderAsync<Foo> {
                         discovered_reader_data,
                     ),
                 )
+                .await?;
+        } else {
+            self.reader_address
+                .send_mail_and_await_reply(data_reader_actor::set_qos::new(q))
                 .await?;
         }
 

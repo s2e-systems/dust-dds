@@ -1649,15 +1649,8 @@ impl DataReaderActor {
         InstanceHandle::new(self.rtps_reader.guid().into())
     }
 
-    async fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
-        if self.enabled {
-            self.qos.check_immutability(&qos)?;
-        }
-
-        qos.is_consistent()?;
+    async fn set_qos(&mut self, qos: DataReaderQos) {
         self.qos = qos;
-
-        Ok(())
     }
 
     async fn get_qos(&self) -> DataReaderQos {
