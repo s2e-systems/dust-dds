@@ -3,14 +3,11 @@ use crate::{
     implementation::{
         actors::{
             data_reader_actor::{self, DataReaderActor},
-            data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
-            publisher_actor,
             subscriber_actor::{self, SubscriberActor},
             topic_actor::{self, TopicActor},
         },
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
+        utils::actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -29,7 +26,6 @@ use crate::{
             InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
         },
     },
-    topic_definition::type_support::{DdsKey, DdsSerialize},
 };
 
 use std::marker::PhantomData;
@@ -457,29 +453,33 @@ impl<Foo> DataReaderAsync<Foo> {
                         type_name
                     ))
                 })?;
-            announce_data_reader(
-                &self.participant_address,
-                self.reader_address
-                    .send_mail_and_await_reply(data_reader_actor::as_discovered_reader_data::new(
-                        TopicQos::default(),
-                        self.subscriber_address
-                            .send_mail_and_await_reply(subscriber_actor::get_qos::new())
-                            .await?,
-                        self.participant_address
-                            .send_mail_and_await_reply(
-                                domain_participant_actor::get_default_unicast_locator_list::new(),
-                            )
-                            .await?,
-                        self.participant_address
-                            .send_mail_and_await_reply(
-                                domain_participant_actor::get_default_multicast_locator_list::new(),
-                            )
-                            .await?,
-                        type_support.xml_type(),
-                    ))
-                    .await?,
-            )
-            .await?;
+            let discovered_reader_data = self
+                .reader_address
+                .send_mail_and_await_reply(data_reader_actor::as_discovered_reader_data::new(
+                    TopicQos::default(),
+                    self.subscriber_address
+                        .send_mail_and_await_reply(subscriber_actor::get_qos::new())
+                        .await?,
+                    self.participant_address
+                        .send_mail_and_await_reply(
+                            domain_participant_actor::get_default_unicast_locator_list::new(),
+                        )
+                        .await?,
+                    self.participant_address
+                        .send_mail_and_await_reply(
+                            domain_participant_actor::get_default_multicast_locator_list::new(),
+                        )
+                        .await?,
+                    type_support.xml_type(),
+                ))
+                .await?;
+            self.participant_address
+                .send_mail(
+                    domain_participant_actor::announce_created_or_modified_data_reader::new(
+                        discovered_reader_data,
+                    ),
+                )
+                .await?;
         }
 
         Ok(())
@@ -519,28 +519,26 @@ impl<Foo> DataReaderAsync<Foo> {
             self.reader_address
                 .send_mail_and_await_reply(data_reader_actor::enable::new())
                 .await?;
-        }
 
-        let type_name = self
-            .reader_address
-            .send_mail_and_await_reply(data_reader_actor::get_type_name::new())
-            .await?;
-        let type_support = self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
-                type_name.clone(),
-            ))
-            .await?
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
+            let type_name = self
+                .reader_address
+                .send_mail_and_await_reply(data_reader_actor::get_type_name::new())
+                .await?;
+            let type_support = self
+                .participant_address
+                .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
+                    type_name.clone(),
                 ))
-            })?;
+                .await?
+                .ok_or_else(|| {
+                    DdsError::PreconditionNotMet(format!(
+                        "Type with name {} not registered with parent domain participant",
+                        type_name
+                    ))
+                })?;
 
-        announce_data_reader(
-            &self.participant_address,
-            self.reader_address
+            let discovered_reader_data = self
+                .reader_address
                 .send_mail_and_await_reply(data_reader_actor::as_discovered_reader_data::new(
                     TopicQos::default(),
                     self.subscriber_address
@@ -558,10 +556,15 @@ impl<Foo> DataReaderAsync<Foo> {
                         .await?,
                     type_support.xml_type(),
                 ))
-                .await?,
-        )
-        .await?;
-
+                .await?;
+            self.participant_address
+                .send_mail(
+                    domain_participant_actor::announce_created_or_modified_data_reader::new(
+                        discovered_reader_data,
+                    ),
+                )
+                .await?;
+        }
         Ok(())
     }
 
@@ -588,45 +591,4 @@ impl<Foo> DataReaderAsync<Foo> {
             ))
             .await
     }
-}
-
-async fn announce_data_reader(
-    domain_participant: &ActorAddress<DomainParticipantActor>,
-    discovered_reader_data: DiscoveredReaderData,
-) -> DdsResult<()> {
-    let mut serialized_data = Vec::new();
-    discovered_reader_data.serialize_data(&mut serialized_data)?;
-    let timestamp = domain_participant
-        .send_mail_and_await_reply(domain_participant_actor::get_current_time::new())
-        .await?;
-
-    let builtin_publisher = domain_participant
-        .send_mail_and_await_reply(domain_participant_actor::get_builtin_publisher::new())
-        .await?;
-    let data_writer_list = builtin_publisher
-        .send_mail_and_await_reply(publisher_actor::data_writer_list::new())
-        .await?;
-    for dw in data_writer_list {
-        if dw
-            .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
-            .await
-            == Ok("DiscoveredReaderData".to_string())
-        {
-            let instance_handle = get_instance_handle_from_key(&discovered_reader_data.get_key()?)?;
-            dw.send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
-                serialized_data,
-                instance_handle,
-                None,
-                timestamp,
-            ))
-            .await??;
-
-            domain_participant
-                .send_mail(domain_participant_actor::send_message::new())
-                .await?;
-            break;
-        }
-    }
-
-    Ok(())
 }

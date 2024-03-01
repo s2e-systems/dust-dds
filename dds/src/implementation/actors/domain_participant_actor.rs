@@ -1209,6 +1209,42 @@ impl DomainParticipantActor {
                 .await
                 .expect("Shouldn't fail to send to built-in data writer")
                 .expect("Shouldn't fail to write to built-in data writer");
+
+            self.send_message().await;
+        }
+    }
+
+    async fn announce_created_or_modified_data_reader(
+        &self,
+        discovered_reader_data: DiscoveredReaderData,
+    ) {
+        if let Some(sedp_subscriptions_announcer) = self
+            .builtin_publisher
+            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
+                DCPS_SUBSCRIPTION.to_string(),
+            ))
+            .await
+        {
+            let timestamp = self.get_current_time().await;
+            let mut serialized_data = Vec::new();
+            discovered_reader_data
+                .serialize_data(&mut serialized_data)
+                .expect("Shouldn't fail to serialize builtin type");
+            let instance_handle =
+                get_instance_handle_from_key(&discovered_reader_data.get_key().unwrap())
+                    .expect("Shouldn't fail to serialize key of builtin type");
+            sedp_subscriptions_announcer
+                .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
+                    serialized_data,
+                    instance_handle,
+                    None,
+                    timestamp,
+                ))
+                .await
+                .expect("Shouldn't fail to send to built-in data writer")
+                .expect("Shouldn't fail to write to built-in data writer");
+
+            self.send_message().await;
         }
     }
 
@@ -1231,7 +1267,11 @@ impl DomainParticipantActor {
                     writer_handle,
                     timestamp,
                 ))
-                .await?
+                .await??;
+
+            self.send_message().await;
+
+            Ok(())
         } else {
             Ok(())
         }
@@ -1284,7 +1324,11 @@ impl DomainParticipantActor {
                     reader_handle,
                     timestamp,
                 ))
-                .await?
+                .await??;
+
+            self.send_message().await;
+
+            Ok(())
         } else {
             Ok(())
         }
