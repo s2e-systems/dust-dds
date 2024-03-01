@@ -95,6 +95,52 @@ impl<Foo> DataWriterAsync<Foo> {
         }
         panic!("Should always exist");
     }
+
+    async fn announce_writer(&self) -> DdsResult<()> {
+        let type_name = self
+            .writer_address
+            .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
+            .await?;
+        let type_support = self
+            .participant_address
+            .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
+                type_name.clone(),
+            ))
+            .await?
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(format!(
+                    "Type with name {} not registered with parent domain participant",
+                    type_name
+                ))
+            })?;
+        let discovered_writer_data = self
+            .writer_address
+            .send_mail_and_await_reply(data_writer_actor::as_discovered_writer_data::new(
+                TopicQos::default(),
+                self.publisher_address
+                    .send_mail_and_await_reply(publisher_actor::get_qos::new())
+                    .await?,
+                self.participant_address
+                    .send_mail_and_await_reply(
+                        domain_participant_actor::get_default_unicast_locator_list::new(),
+                    )
+                    .await?,
+                self.participant_address
+                    .send_mail_and_await_reply(
+                        domain_participant_actor::get_default_multicast_locator_list::new(),
+                    )
+                    .await?,
+                type_support.xml_type(),
+            ))
+            .await?;
+        self.participant_address
+            .send_mail(
+                domain_participant_actor::announce_created_or_modified_data_writer::new(
+                    discovered_writer_data,
+                ),
+            )
+            .await
+    }
 }
 
 impl<Foo> DataWriterAsync<Foo>
@@ -490,57 +536,23 @@ impl<Foo> DataWriterAsync<Foo> {
                 q
             }
         };
-        self.writer_address
-            .send_mail_and_await_reply(data_writer_actor::set_qos::new(q))
-            .await?;
 
         if self
             .writer_address
             .send_mail_and_await_reply(data_writer_actor::is_enabled::new())
             .await?
         {
-            let type_name = self
-                .writer_address
-                .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
+            let current_qos = self.get_qos().await?;
+            q.check_immutability(&current_qos)?;
+
+            self.writer_address
+                .send_mail_and_await_reply(data_writer_actor::set_qos::new(q))
                 .await?;
-            let type_support = self
-                .participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
-                    type_name.clone(),
-                ))
-                .await?
-                .ok_or_else(|| {
-                    DdsError::PreconditionNotMet(format!(
-                        "Type with name {} not registered with parent domain participant",
-                        type_name
-                    ))
-                })?;
-            let discovered_writer_data = self
-                .writer_address
-                .send_mail_and_await_reply(data_writer_actor::as_discovered_writer_data::new(
-                    TopicQos::default(),
-                    self.publisher_address
-                        .send_mail_and_await_reply(publisher_actor::get_qos::new())
-                        .await?,
-                    self.participant_address
-                        .send_mail_and_await_reply(
-                            domain_participant_actor::get_default_unicast_locator_list::new(),
-                        )
-                        .await?,
-                    self.participant_address
-                        .send_mail_and_await_reply(
-                            domain_participant_actor::get_default_multicast_locator_list::new(),
-                        )
-                        .await?,
-                    type_support.xml_type(),
-                ))
-                .await?;
-            self.participant_address
-                .send_mail(
-                    domain_participant_actor::announce_created_or_modified_data_writer::new(
-                        discovered_writer_data,
-                    ),
-                )
+
+            self.announce_writer().await?;
+        } else {
+            self.writer_address
+                .send_mail_and_await_reply(data_writer_actor::set_qos::new(q))
                 .await?;
         }
 
@@ -578,52 +590,11 @@ impl<Foo> DataWriterAsync<Foo> {
             .send_mail_and_await_reply(data_writer_actor::is_enabled::new())
             .await?
         {
-            let type_name = self
-                .writer_address
-                .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
-                .await?;
-            let type_support = self
-                .participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
-                    type_name.clone(),
-                ))
-                .await?
-                .ok_or_else(|| {
-                    DdsError::PreconditionNotMet(format!(
-                        "Type with name {} not registered with parent domain participant",
-                        type_name
-                    ))
-                })?;
             self.writer_address
                 .send_mail_and_await_reply(data_writer_actor::enable::new())
                 .await?;
-            let discovered_writer_data = self
-                .writer_address
-                .send_mail_and_await_reply(data_writer_actor::as_discovered_writer_data::new(
-                    TopicQos::default(),
-                    self.publisher_address
-                        .send_mail_and_await_reply(publisher_actor::get_qos::new())
-                        .await?,
-                    self.participant_address
-                        .send_mail_and_await_reply(
-                            domain_participant_actor::get_default_unicast_locator_list::new(),
-                        )
-                        .await?,
-                    self.participant_address
-                        .send_mail_and_await_reply(
-                            domain_participant_actor::get_default_multicast_locator_list::new(),
-                        )
-                        .await?,
-                    type_support.xml_type(),
-                ))
-                .await?;
-            self.participant_address
-                .send_mail(
-                    domain_participant_actor::announce_created_or_modified_data_writer::new(
-                        discovered_writer_data,
-                    ),
-                )
-                .await?;
+
+            self.announce_writer().await?;
         }
         Ok(())
     }

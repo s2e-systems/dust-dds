@@ -133,7 +133,7 @@ impl DataWriterQos {
         }
     }
 
-    pub(crate) fn _check_immutability(&self, other: &Self) -> DdsResult<()> {
+    pub(crate) fn check_immutability(&self, other: &Self) -> DdsResult<()> {
         if self.durability != other.durability
             || self.liveliness != other.liveliness
             || self.reliability != other.reliability
