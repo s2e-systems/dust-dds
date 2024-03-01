@@ -4,6 +4,7 @@ use crate::{
             data_reader_actor,
             domain_participant_actor::{self, DomainParticipantActor},
             subscriber_actor::{self, SubscriberActor},
+            topic_actor,
         },
         utils::actor::ActorAddress,
     },
@@ -58,8 +59,8 @@ impl SubscriberAsync {
         a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DataReaderAsync<Foo>> {
-        let type_name = a_topic.get_type_name().await?;
-        let topic_name = a_topic.get_name().await?;
+        let type_name = a_topic.get_type_name().await;
+        let topic_name = a_topic.get_name().await;
         let type_support = self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
@@ -110,7 +111,7 @@ impl SubscriberAsync {
             reader_address,
             self.subscriber_address.clone(),
             self.participant_address.clone(),
-            a_topic.topic_address().clone(),
+            a_topic.clone(),
             self.runtime_handle.clone(),
         );
 
@@ -174,6 +175,16 @@ impl SubscriberAsync {
             ))
             .await?
         {
+            let type_name = topic_address
+                .send_mail_and_await_reply(topic_actor::get_type_name::new())
+                .await?;
+            let topic = TopicAsync::new(
+                topic_address,
+                self.participant_address.clone(),
+                topic_name.to_string(),
+                type_name,
+                self.runtime_handle.clone(),
+            );
             Ok(self
                 .subscriber_address
                 .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
@@ -185,7 +196,7 @@ impl SubscriberAsync {
                         reader_address,
                         self.subscriber_address.clone(),
                         self.participant_address.clone(),
-                        topic_address,
+                        topic,
                         self.runtime_handle.clone(),
                     )
                 }))

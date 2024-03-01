@@ -37,6 +37,7 @@ use super::{
     domain_participant_actor::DomainParticipantActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
     publisher_listener_actor::PublisherListenerActor,
+    topic_actor::TopicActor,
 };
 
 pub struct PublisherActor {
@@ -86,6 +87,7 @@ impl PublisherActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         runtime_handle: tokio::runtime::Handle,
+        topic_address: ActorAddress<TopicActor>,
     ) -> DdsResult<ActorAddress<DataWriterActor>> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
@@ -130,6 +132,7 @@ impl PublisherActor {
             mask,
             qos,
             &runtime_handle,
+            topic_address,
         );
         let data_writer_actor = Actor::spawn(data_writer, &runtime_handle);
         let data_writer_address = data_writer_actor.address();

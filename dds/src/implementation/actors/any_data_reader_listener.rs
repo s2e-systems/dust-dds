@@ -1,5 +1,5 @@
 use crate::{
-    dds_async::data_reader::DataReaderAsync,
+    dds_async::{data_reader::DataReaderAsync, topic::TopicAsync},
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
@@ -10,7 +10,7 @@ use crate::{
 
 use super::{
     data_reader_actor::DataReaderActor, domain_participant_actor::DomainParticipantActor,
-    subscriber_actor::SubscriberActor, topic_actor::TopicActor,
+    subscriber_actor::SubscriberActor,
 };
 
 pub trait AnyDataReaderListener {
@@ -19,7 +19,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
     );
     fn trigger_on_sample_rejected(
@@ -27,7 +27,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     );
@@ -37,7 +37,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: LivelinessChangedStatus,
     );
@@ -46,7 +46,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: RequestedDeadlineMissedStatus,
     );
@@ -55,7 +55,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: RequestedIncompatibleQosStatus,
     );
@@ -64,7 +64,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: SubscriptionMatchedStatus,
     );
@@ -73,7 +73,7 @@ pub trait AnyDataReaderListener {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: SampleLostStatus,
     );
@@ -88,14 +88,14 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
     ) {
         self.on_data_available(&DataReader::new(DataReaderAsync::new(
             reader_address,
             subscriber_address,
             participant_address,
-            topic_address,
+            topic,
             runtime_handle,
         )))
     }
@@ -105,7 +105,7 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     ) {
@@ -114,7 +114,7 @@ where
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
             )),
             status,
@@ -126,7 +126,7 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: LivelinessChangedStatus,
     ) {
@@ -135,7 +135,7 @@ where
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
             )),
             status,
@@ -147,7 +147,7 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: RequestedDeadlineMissedStatus,
     ) {
@@ -156,7 +156,7 @@ where
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
             )),
             status,
@@ -168,7 +168,7 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: RequestedIncompatibleQosStatus,
     ) {
@@ -177,7 +177,7 @@ where
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
             )),
             status,
@@ -189,7 +189,7 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: SubscriptionMatchedStatus,
     ) {
@@ -198,7 +198,7 @@ where
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
             )),
             status,
@@ -210,7 +210,7 @@ where
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: SampleLostStatus,
     ) {
@@ -219,7 +219,7 @@ where
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
             )),
             status,

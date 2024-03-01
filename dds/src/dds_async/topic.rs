@@ -24,9 +24,12 @@ use crate::{
 use super::{condition::StatusConditionAsync, domain_participant::DomainParticipantAsync};
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
+#[derive(Clone)]
 pub struct TopicAsync {
     topic_address: ActorAddress<TopicActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
+    type_name: String,
+    topic_name: String,
     runtime_handle: tokio::runtime::Handle,
 }
 
@@ -34,11 +37,15 @@ impl TopicAsync {
     pub(crate) fn new(
         topic_address: ActorAddress<TopicActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        type_name: String,
+        topic_name: String,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             topic_address,
             participant_address,
+            type_name,
+            topic_name,
             runtime_handle,
         }
     }
@@ -65,27 +72,23 @@ impl TopicAsync {
 impl TopicAsync {
     /// Async version of [`get_participant`](crate::topic_definition::topic::Topic::get_participant).
     #[tracing::instrument(skip(self))]
-    pub async fn get_participant(&self) -> DdsResult<DomainParticipantAsync> {
-        Ok(DomainParticipantAsync::new(
+    pub async fn get_participant(&self) -> DomainParticipantAsync {
+        DomainParticipantAsync::new(
             self.participant_address.clone(),
             self.runtime_handle.clone(),
-        ))
+        )
     }
 
     /// Async version of [`get_type_name`](crate::topic_definition::topic::Topic::get_type_name).
     #[tracing::instrument(skip(self))]
-    pub async fn get_type_name(&self) -> DdsResult<String> {
-        self.topic_address
-            .send_mail_and_await_reply(topic_actor::get_type_name::new())
-            .await
+    pub async fn get_type_name(&self) -> String {
+        self.type_name.clone()
     }
 
     /// Async version of [`get_name`](crate::topic_definition::topic::Topic::get_name).
     #[tracing::instrument(skip(self))]
-    pub async fn get_name(&self) -> DdsResult<String> {
-        self.topic_address
-            .send_mail_and_await_reply(topic_actor::get_name::new())
-            .await
+    pub async fn get_name(&self) -> String {
+        self.topic_name.clone()
     }
 }
 

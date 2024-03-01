@@ -305,20 +305,22 @@ impl<Foo> DataWriter<Foo> {
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topic(&self) -> DdsResult<Topic> {
-        self.writer_async
-            .runtime_handle()
-            .block_on(self.writer_async.get_topic())
-            .map(Topic::new)
+    pub fn get_topic(&self) -> Topic {
+        Topic::new(
+            self.writer_async
+                .runtime_handle()
+                .block_on(self.writer_async.get_topic()),
+        )
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_publisher(&self) -> DdsResult<Publisher> {
-        self.writer_async
-            .runtime_handle()
-            .block_on(self.writer_async.get_publisher())
-            .map(Publisher::new)
+    pub fn get_publisher(&self) -> Publisher {
+        Publisher::new(
+            self.writer_async
+                .runtime_handle()
+                .block_on(self.writer_async.get_publisher()),
+        )
     }
 
     /// This operation manually asserts the liveliness of the [`DataWriter`]. This is used in combination with the

@@ -161,7 +161,6 @@ fn data_writer_get_topic_should_return_same_topic_as_used_for_creation() {
         .unwrap();
 
     assert!(
-        writer.get_topic().unwrap().get_instance_handle().unwrap()
-            == topic.get_instance_handle().unwrap()
+        writer.get_topic().get_instance_handle().unwrap() == topic.get_instance_handle().unwrap()
     );
 }

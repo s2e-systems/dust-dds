@@ -1,5 +1,6 @@
 use crate::{
-    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
+    dds_async::topic::TopicAsync,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -47,8 +48,9 @@ use crate::{
         },
     },
     infrastructure::{
+        error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
-        qos::{PublisherQos, TopicQos},
+        qos::{DataWriterQos, PublisherQos, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID,
@@ -59,18 +61,10 @@ use crate::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
-        time::DurationKind,
+        time::{Duration, DurationKind, Time},
     },
     serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsKey,
-    {
-        builtin_topics::SubscriptionBuiltinTopicData,
-        infrastructure::{
-            error::{DdsError, DdsResult},
-            qos::DataWriterQos,
-            time::{Duration, Time},
-        },
-    },
 };
 use dust_dds_derive::actor_interface;
 use std::{
@@ -86,6 +80,7 @@ use super::{
     publisher_actor::PublisherActor,
     publisher_listener_actor::{self, PublisherListenerActor},
     status_condition_actor::{self, StatusConditionActor},
+    topic_actor::TopicActor,
 };
 
 struct MatchedSubscriptions {
@@ -233,6 +228,7 @@ pub struct DataWriterActor {
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
+    topic_address: ActorAddress<TopicActor>,
 }
 
 impl DataWriterActor {
@@ -245,6 +241,7 @@ impl DataWriterActor {
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
         handle: &tokio::runtime::Handle,
+        topic_address: ActorAddress<TopicActor>,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let listener = Actor::spawn(DataWriterListenerActor::new(listener), handle);
@@ -263,6 +260,7 @@ impl DataWriterActor {
             writer_cache: WriterHistoryCache::new(),
             qos,
             registered_instance_list: HashSet::new(),
+            topic_address,
         }
     }
 
@@ -1021,7 +1019,14 @@ impl DataWriterActor {
                     data_writer_listener_actor::trigger_on_publication_matched::new(
                         data_writer_address,
                         publisher_address,
-                        participant_address,
+                        participant_address.clone(),
+                        TopicAsync::new(
+                            self.topic_address.clone(),
+                            participant_address,
+                            self.type_name.clone(),
+                            self.topic_name.clone(),
+                            runtime_handle.clone(),
+                        ),
                         runtime_handle,
                         status,
                     ),
@@ -1075,7 +1080,14 @@ impl DataWriterActor {
                     data_writer_listener_actor::trigger_on_offered_incompatible_qos::new(
                         data_writer_address,
                         publisher_address,
-                        participant_address,
+                        participant_address.clone(),
+                        TopicAsync::new(
+                            self.topic_address.clone(),
+                            participant_address,
+                            self.type_name.clone(),
+                            self.topic_name.clone(),
+                            runtime_handle.clone(),
+                        ),
                         runtime_handle,
                         status,
                     ),

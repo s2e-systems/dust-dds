@@ -9,6 +9,7 @@ use tracing::debug;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
+    dds_async::topic::TopicAsync,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -359,7 +360,13 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
-                    self.topic_address.clone(),
+                    TopicAsync::new(
+                        self.topic_address.clone(),
+                        participant_address.clone(),
+                        self.type_name.clone(),
+                        self.topic_name.clone(),
+                        runtime_handle.clone(),
+                    ),
                     runtime_handle.clone(),
                 ))
                 .await;
@@ -721,7 +728,13 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
-                    self.topic_address.clone(),
+                    TopicAsync::new(
+                        self.topic_address.clone(),
+                        participant_address.clone(),
+                        self.type_name.clone(),
+                        self.topic_name.clone(),
+                        runtime_handle.clone(),
+                    ),
                     runtime_handle.clone(),
                     status,
                 ))
@@ -774,8 +787,14 @@ impl DataReaderActor {
                     data_reader_listener_actor::trigger_on_subscription_matched::new(
                         data_reader_address,
                         subscriber_address,
-                        participant_address,
-                        self.topic_address.clone(),
+                        participant_address.clone(),
+                        TopicAsync::new(
+                            self.topic_address.clone(),
+                            participant_address,
+                            self.type_name.clone(),
+                            self.topic_name.clone(),
+                            runtime_handle.clone(),
+                        ),
                         runtime_handle.clone(),
                         status,
                     ),
@@ -832,7 +851,13 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
-                    self.topic_address.clone(),
+                    TopicAsync::new(
+                        self.topic_address.clone(),
+                        participant_address.clone(),
+                        self.type_name.clone(),
+                        self.topic_name.clone(),
+                        runtime_handle.clone(),
+                    ),
                     runtime_handle.clone(),
                     status,
                 ))
@@ -894,7 +919,13 @@ impl DataReaderActor {
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
-                        self.topic_address.clone(),
+                        TopicAsync::new(
+                            self.topic_address.clone(),
+                            participant_address.clone(),
+                            self.type_name.clone(),
+                            self.topic_name.clone(),
+                            runtime_handle.clone(),
+                        ),
                         runtime_handle.clone(),
                         status,
                     ),
@@ -1364,6 +1395,8 @@ impl DataReaderActor {
             let participant_listener_address = participant_mask_listener.0.clone();
             let participant_listener_mask = participant_mask_listener.1.clone();
             let topic_address = self.topic_address.clone();
+            let type_name = self.type_name.clone();
+            let topic_name = self.topic_name.clone();
             let deadline_missed_task = tokio::spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
@@ -1395,7 +1428,13 @@ impl DataReaderActor {
                                     data_reader_address.clone(),
                                     subscriber_address.clone(),
                                     participant_address.clone(),
-                                    topic_address.clone(),
+                                    TopicAsync::new(
+                                        topic_address.clone(),
+                                        participant_address.clone(),
+                                        type_name.clone(),
+                                        topic_name.clone(),
+                                        runtime_handle.clone(),
+                                    ),
                                     runtime_handle.clone(),
                                     status,
                                 ),

@@ -1,6 +1,7 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
+    dds_async::topic::TopicAsync,
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
@@ -11,7 +12,6 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
     domain_participant_actor::DomainParticipantActor, subscriber_actor::SubscriberActor,
-    topic_actor::TopicActor,
 };
 
 pub struct DataReaderListenerActor {
@@ -31,7 +31,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
     ) {
         tokio::task::block_in_place(|| {
@@ -39,7 +39,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
             )
         });
@@ -50,7 +50,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     ) {
@@ -59,7 +59,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
                 status,
             )
@@ -71,7 +71,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: SampleLostStatus,
     ) {
@@ -80,7 +80,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
                 status,
             )
@@ -92,7 +92,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: RequestedIncompatibleQosStatus,
     ) {
@@ -101,7 +101,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
                 status,
             )
@@ -113,7 +113,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: SubscriptionMatchedStatus,
     ) {
@@ -122,7 +122,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
                 status,
             )
@@ -134,7 +134,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: RequestedDeadlineMissedStatus,
     ) {
@@ -143,7 +143,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
-                topic_address,
+                topic,
                 runtime_handle,
                 status,
             )

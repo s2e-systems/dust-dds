@@ -7,7 +7,6 @@ use crate::{
             data_writer_actor::{self, DataWriterActor},
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
-            topic_actor::{self, TopicActor},
         },
         utils::actor::ActorAddress,
     },
@@ -32,6 +31,7 @@ pub struct DataWriterAsync<Foo> {
     writer_address: ActorAddress<DataWriterActor>,
     publisher_address: ActorAddress<PublisherActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
+    topic: TopicAsync,
     runtime_handle: tokio::runtime::Handle,
     phantom: PhantomData<Foo>,
 }
@@ -42,6 +42,7 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
             writer_address: self.writer_address.clone(),
             publisher_address: self.publisher_address.clone(),
             participant_address: self.participant_address.clone(),
+            topic: self.topic.clone(),
             runtime_handle: self.runtime_handle.clone(),
             phantom: self.phantom,
         }
@@ -53,12 +54,14 @@ impl<Foo> DataWriterAsync<Foo> {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             writer_address,
             publisher_address,
             participant_address,
+            topic,
             runtime_handle,
             phantom: PhantomData,
         }
@@ -66,34 +69,6 @@ impl<Foo> DataWriterAsync<Foo> {
 
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
         &self.runtime_handle
-    }
-
-    async fn topic_address(&self) -> ActorAddress<TopicActor> {
-        let user_defined_topic_list = self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_user_defined_topic_list::new())
-            .await
-            .expect("should never fail");
-        for topic in user_defined_topic_list {
-            if topic
-                .send_mail_and_await_reply(topic_actor::get_type_name::new())
-                .await
-                == self
-                    .writer_address
-                    .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
-                    .await
-                && topic
-                    .send_mail_and_await_reply(topic_actor::get_name::new())
-                    .await
-                    == self
-                        .writer_address
-                        .send_mail_and_await_reply(data_writer_actor::get_topic_name::new())
-                        .await
-            {
-                return topic;
-            }
-        }
-        panic!("Should always exist");
     }
 
     async fn announce_writer(&self) -> DdsResult<()> {
@@ -474,22 +449,18 @@ impl<Foo> DataWriterAsync<Foo> {
 
     /// Async version of [`get_topic`](crate::publication::data_writer::DataWriter::get_topic).
     #[tracing::instrument(skip(self))]
-    pub async fn get_topic(&self) -> DdsResult<TopicAsync> {
-        Ok(TopicAsync::new(
-            self.topic_address().await,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        ))
+    pub async fn get_topic(&self) -> TopicAsync {
+        self.topic.clone()
     }
 
     /// Async version of [`get_publisher`](crate::publication::data_writer::DataWriter::get_publisher).
     #[tracing::instrument(skip(self))]
-    pub async fn get_publisher(&self) -> DdsResult<PublisherAsync> {
-        Ok(PublisherAsync::new(
+    pub async fn get_publisher(&self) -> PublisherAsync {
+        PublisherAsync::new(
             self.publisher_address.clone(),
             self.participant_address.clone(),
             self.runtime_handle.clone(),
-        ))
+        )
     }
 
     /// Async version of [`assert_liveliness`](crate::publication::data_writer::DataWriter::assert_liveliness).

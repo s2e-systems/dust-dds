@@ -1,5 +1,5 @@
 use crate::{
-    dds_async::data_writer::DataWriterAsync,
+    dds_async::{data_writer::DataWriterAsync, topic::TopicAsync},
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{
         LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -20,6 +20,7 @@ pub trait AnyDataWriterListener {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: LivelinessLostStatus,
     );
@@ -29,6 +30,7 @@ pub trait AnyDataWriterListener {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: OfferedDeadlineMissedStatus,
     );
@@ -37,6 +39,7 @@ pub trait AnyDataWriterListener {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: OfferedIncompatibleQosStatus,
     );
@@ -45,6 +48,7 @@ pub trait AnyDataWriterListener {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: PublicationMatchedStatus,
     );
@@ -59,6 +63,7 @@ where
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: LivelinessLostStatus,
     ) {
@@ -67,6 +72,7 @@ where
                 writer_address,
                 publisher_address,
                 participant_address,
+                topic,
                 runtime_handle,
             )),
             status,
@@ -78,6 +84,7 @@ where
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: OfferedDeadlineMissedStatus,
     ) {
@@ -86,6 +93,7 @@ where
                 writer_address,
                 publisher_address,
                 participant_address,
+                topic,
                 runtime_handle,
             )),
             status,
@@ -97,6 +105,7 @@ where
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: OfferedIncompatibleQosStatus,
     ) {
@@ -105,6 +114,7 @@ where
                 writer_address,
                 publisher_address,
                 participant_address,
+                topic,
                 runtime_handle,
             )),
             status,
@@ -116,6 +126,7 @@ where
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: PublicationMatchedStatus,
     ) {
@@ -124,6 +135,7 @@ where
                 writer_address,
                 publisher_address,
                 participant_address,
+                topic,
                 runtime_handle,
             )),
             status,

@@ -216,6 +216,7 @@ pub struct DomainParticipantActor {
     qos: DomainParticipantQos,
     builtin_subscriber: Actor<SubscriberActor>,
     builtin_publisher: Actor<PublisherActor>,
+    builtin_topic_list: Vec<Actor<TopicActor>>,
     user_defined_subscriber_list: HashMap<InstanceHandle, Actor<SubscriberActor>>,
     user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
@@ -474,6 +475,7 @@ impl DomainParticipantActor {
                 vec![],
                 spdp_writer_qos,
                 handle,
+                spdp_topic_participant.address(),
             ),
             handle,
         );
@@ -514,6 +516,7 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos.clone(),
             handle,
+            sedp_topic_topics.address(),
         );
         let sedp_builtin_topics_writer_actor = Actor::spawn(sedp_builtin_topics_writer, handle);
 
@@ -527,6 +530,7 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos.clone(),
             handle,
+            sedp_topic_publications.address(),
         );
         let sedp_builtin_publications_writer_actor =
             Actor::spawn(sedp_builtin_publications_writer, handle);
@@ -541,6 +545,7 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos,
             handle,
+            sedp_topic_subscriptions.address(),
         );
         let sedp_builtin_subscriptions_writer_actor =
             Actor::spawn(sedp_builtin_subscriptions_writer, handle);
@@ -613,23 +618,12 @@ impl DomainParticipantActor {
 
         let type_support_actor = Actor::spawn(TypeSupportActor::new(type_support_list), handle);
 
-        let mut topic_list = HashMap::new();
-        topic_list.insert(
-            InstanceHandle::new(spdp_topic_guid.into()),
+        let builtin_topic_list = vec![
             spdp_topic_participant,
-        );
-        topic_list.insert(
-            InstanceHandle::new(sedp_topic_topics_guid.into()),
             sedp_topic_topics,
-        );
-        topic_list.insert(
-            InstanceHandle::new(sedp_topic_publications_guid.into()),
             sedp_topic_publications,
-        );
-        topic_list.insert(
-            InstanceHandle::new(sedp_topic_subscriptions_guid.into()),
             sedp_topic_subscriptions,
-        );
+        ];
 
         Self {
             rtps_participant,
@@ -638,13 +632,14 @@ impl DomainParticipantActor {
             qos: domain_participant_qos,
             builtin_subscriber,
             builtin_publisher,
+            builtin_topic_list,
             user_defined_subscriber_list: HashMap::new(),
             user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list: HashMap::new(),
             user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
-            topic_list,
+            topic_list: HashMap::new(),
             user_defined_topic_counter: 0,
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: 0,
@@ -765,7 +760,11 @@ impl DomainParticipantActor {
         &self,
         topic_name: String,
     ) -> Option<ActorAddress<TopicActor>> {
-        for topic in self.topic_list.values() {
+        for topic in self
+            .builtin_topic_list
+            .iter()
+            .chain(self.topic_list.values())
+        {
             if topic
                 .send_mail_and_await_reply(topic_actor::get_name::new())
                 .await

@@ -43,16 +43,17 @@ impl Topic {
 impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.get_participant())
-            .map(DomainParticipant::new)
+    pub fn get_participant(&self) -> DomainParticipant {
+        DomainParticipant::new(
+            self.topic_async
+                .runtime_handle()
+                .block_on(self.topic_async.get_participant()),
+        )
     }
 
     /// The name of the type used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> DdsResult<String> {
+    pub fn get_type_name(&self) -> String {
         self.topic_async
             .runtime_handle()
             .block_on(self.topic_async.get_type_name())
@@ -60,7 +61,7 @@ impl Topic {
 
     /// The name used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> DdsResult<String> {
+    pub fn get_name(&self) -> String {
         self.topic_async
             .runtime_handle()
             .block_on(self.topic_async.get_name())

@@ -242,6 +242,8 @@ impl DomainParticipantAsync {
         let topic = TopicAsync::new(
             topic_address,
             self.participant_address.clone(),
+            type_name.to_string(),
+            topic_name.to_string(),
             self.runtime_handle.clone(),
         );
         if self
@@ -267,7 +269,7 @@ impl DomainParticipantAsync {
         if self.get_instance_handle().await?
             != a_topic
                 .get_participant()
-                .await?
+                .await
                 .get_instance_handle()
                 .await?
         {
@@ -290,11 +292,11 @@ impl DomainParticipantAsync {
                 if data_writer
                     .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
                     .await?
-                    == a_topic.get_type_name().await?
+                    == a_topic.get_type_name().await
                     && data_writer
                         .send_mail_and_await_reply(data_writer_actor::get_topic_name::new())
                         .await?
-                        == a_topic.get_name().await?
+                        == a_topic.get_name().await
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer".to_string(),
@@ -317,11 +319,11 @@ impl DomainParticipantAsync {
                 if data_reader
                     .send_mail_and_await_reply(data_reader_actor::get_type_name::new())
                     .await?
-                    == a_topic.get_type_name().await?
+                    == a_topic.get_type_name().await
                     && data_reader
                         .send_mail_and_await_reply(data_reader_actor::get_topic_name::new())
                         .await?
-                        == a_topic.get_name().await?
+                        == a_topic.get_name().await
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data reader".to_string(),
@@ -362,9 +364,14 @@ impl DomainParticipantAsync {
                     .await?
                     == topic_name
                 {
+                    let type_name = topic
+                        .send_mail_and_await_reply(topic_actor::get_type_name::new())
+                        .await?;
                     return Ok(TopicAsync::new(
                         topic,
                         self.participant_address.clone(),
+                        type_name,
+                        topic_name.to_string(),
                         self.runtime_handle.clone(),
                     ));
                 }
@@ -734,7 +741,6 @@ impl DomainParticipantAsync {
         //     crate::implementation::behavior::domain_participant::contains_entity(dp, a_handle)
         // })
     }
-
 
     /// Async version of [`get_current_time`](crate::domain::domain_participant::DomainParticipant::get_current_time).
     #[tracing::instrument(skip(self))]

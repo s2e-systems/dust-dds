@@ -1,6 +1,7 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
+    dds_async::topic::TopicAsync,
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
@@ -27,6 +28,7 @@ impl DataWriterListenerActor {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: OfferedIncompatibleQosStatus,
     ) {
@@ -35,6 +37,7 @@ impl DataWriterListenerActor {
                 writer_address,
                 publisher_address,
                 participant_address,
+                topic,
                 runtime_handle,
                 status,
             )
@@ -46,6 +49,7 @@ impl DataWriterListenerActor {
         writer_address: ActorAddress<DataWriterActor>,
         publisher_address: ActorAddress<PublisherActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
         status: PublicationMatchedStatus,
     ) {
@@ -54,6 +58,7 @@ impl DataWriterListenerActor {
                 writer_address,
                 publisher_address,
                 participant_address,
+                topic,
                 runtime_handle,
                 status,
             )

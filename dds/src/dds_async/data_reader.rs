@@ -5,7 +5,6 @@ use crate::{
             data_reader_actor::{self, DataReaderActor},
             domain_participant_actor::{self, DomainParticipantActor},
             subscriber_actor::{self, SubscriberActor},
-            topic_actor::TopicActor,
         },
         utils::actor::ActorAddress,
     },
@@ -37,7 +36,7 @@ pub struct DataReaderAsync<Foo> {
     reader_address: ActorAddress<DataReaderActor>,
     subscriber_address: ActorAddress<SubscriberActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
-    topic_address: ActorAddress<TopicActor>,
+    topic: TopicAsync,
     runtime_handle: tokio::runtime::Handle,
     phantom: PhantomData<Foo>,
 }
@@ -47,14 +46,14 @@ impl<Foo> DataReaderAsync<Foo> {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        topic_address: ActorAddress<TopicActor>,
+        topic: TopicAsync,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             reader_address,
             subscriber_address,
             participant_address,
-            topic_address,
+            topic,
             runtime_handle,
             phantom: PhantomData,
         }
@@ -117,7 +116,7 @@ impl<Foo> Clone for DataReaderAsync<Foo> {
             reader_address: self.reader_address.clone(),
             subscriber_address: self.subscriber_address.clone(),
             participant_address: self.participant_address.clone(),
-            topic_address: self.topic_address.clone(),
+            topic: self.topic.clone(),
             runtime_handle: self.runtime_handle.clone(),
             phantom: self.phantom,
         }
@@ -379,11 +378,7 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_topicdescription`](crate::subscription::data_reader::DataReader::get_topicdescription).
     #[tracing::instrument(skip(self))]
     pub async fn get_topicdescription(&self) -> TopicAsync {
-        TopicAsync::new(
-            self.topic_address.clone(),
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        )
+        self.topic.clone()
     }
 
     /// Async version of [`get_subscriber`](crate::subscription::data_reader::DataReader::get_subscriber).
