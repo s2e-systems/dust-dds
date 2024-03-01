@@ -9,6 +9,7 @@ use super::{
     data_reader_actor::{self, DataReaderActor},
     domain_participant_actor::DomainParticipantActor,
     subscriber_listener_actor::SubscriberListenerActor,
+    topic_actor::TopicActor,
     type_support_actor::TypeSupportActor,
 };
 use crate::{
@@ -98,6 +99,7 @@ impl SubscriberActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         runtime_handle: tokio::runtime::Handle,
+        topic_address: ActorAddress<TopicActor>,
     ) -> DdsResult<ActorAddress<DataReaderActor>> {
         let qos = match qos {
             QosKind::Default => self.default_data_reader_qos.clone(),
@@ -148,6 +150,7 @@ impl SubscriberActor {
             a_listener,
             status_kind,
             &runtime_handle,
+            topic_address,
         );
 
         let reader_actor = Actor::spawn(data_reader, &runtime_handle);

@@ -102,6 +102,7 @@ impl SubscriberAsync {
                 default_unicast_locator_list,
                 default_multicast_locator_list,
                 self.runtime_handle.clone(),
+                a_topic.topic_address().clone(),
             ))
             .await??;
 
@@ -109,6 +110,7 @@ impl SubscriberAsync {
             reader_address,
             self.subscriber_address.clone(),
             self.participant_address.clone(),
+            a_topic.topic_address().clone(),
             self.runtime_handle.clone(),
         );
 
@@ -139,7 +141,7 @@ impl SubscriberAsync {
         if self.get_instance_handle().await?
             != a_datareader
                 .get_subscriber()
-                .await?
+                .await
                 .get_instance_handle()
                 .await?
         {
@@ -165,20 +167,31 @@ impl SubscriberAsync {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
-        Ok(self
-            .subscriber_address
-            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
+        if let Some(topic_address) = self
+            .participant_address
+            .send_mail_and_await_reply(domain_participant_actor::lookup_topicdescription::new(
                 topic_name.to_string(),
             ))
             .await?
-            .map(|reader_address| {
-                DataReaderAsync::new(
-                    reader_address,
-                    self.subscriber_address.clone(),
-                    self.participant_address.clone(),
-                    self.runtime_handle.clone(),
-                )
-            }))
+        {
+            Ok(self
+                .subscriber_address
+                .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
+                    topic_name.to_string(),
+                ))
+                .await?
+                .map(|reader_address| {
+                    DataReaderAsync::new(
+                        reader_address,
+                        self.subscriber_address.clone(),
+                        self.participant_address.clone(),
+                        topic_address,
+                        self.runtime_handle.clone(),
+                    )
+                }))
+        } else {
+            Err(DdsError::BadParameter)
+        }
     }
 
     /// Async version of [`notify_datareaders`](crate::subscription::subscriber::Subscriber::notify_datareaders).

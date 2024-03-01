@@ -11,6 +11,7 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
     domain_participant_actor::DomainParticipantActor, subscriber_actor::SubscriberActor,
+    topic_actor::TopicActor,
 };
 
 pub struct DataReaderListenerActor {
@@ -30,6 +31,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic_address: ActorAddress<TopicActor>,
         runtime_handle: tokio::runtime::Handle,
     ) {
         tokio::task::block_in_place(|| {
@@ -37,6 +39,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                topic_address,
                 runtime_handle,
             )
         });
@@ -47,6 +50,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic_address: ActorAddress<TopicActor>,
         runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     ) {
@@ -55,6 +59,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                topic_address,
                 runtime_handle,
                 status,
             )
@@ -66,6 +71,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic_address: ActorAddress<TopicActor>,
         runtime_handle: tokio::runtime::Handle,
         status: SampleLostStatus,
     ) {
@@ -74,6 +80,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                topic_address,
                 runtime_handle,
                 status,
             )
@@ -85,6 +92,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic_address: ActorAddress<TopicActor>,
         runtime_handle: tokio::runtime::Handle,
         status: RequestedIncompatibleQosStatus,
     ) {
@@ -93,6 +101,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                topic_address,
                 runtime_handle,
                 status,
             )
@@ -104,6 +113,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic_address: ActorAddress<TopicActor>,
         runtime_handle: tokio::runtime::Handle,
         status: SubscriptionMatchedStatus,
     ) {
@@ -112,6 +122,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                topic_address,
                 runtime_handle,
                 status,
             )
@@ -123,6 +134,7 @@ impl DataReaderListenerActor {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic_address: ActorAddress<TopicActor>,
         runtime_handle: tokio::runtime::Handle,
         status: RequestedDeadlineMissedStatus,
     ) {
@@ -131,6 +143,7 @@ impl DataReaderListenerActor {
                 reader_address,
                 subscriber_address,
                 participant_address,
+                topic_address,
                 runtime_handle,
                 status,
             )

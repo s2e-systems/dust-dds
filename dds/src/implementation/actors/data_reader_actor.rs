@@ -79,6 +79,7 @@ use super::{
     status_condition_actor::{self, StatusConditionActor},
     subscriber_actor::SubscriberActor,
     subscriber_listener_actor::{self, SubscriberListenerActor},
+    topic_actor::TopicActor,
     type_support_actor::{self, TypeSupportActor},
 };
 
@@ -262,6 +263,7 @@ pub struct DataReaderActor {
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, tokio::task::AbortHandle>,
+    topic_address: ActorAddress<TopicActor>,
 }
 
 impl DataReaderActor {
@@ -274,6 +276,7 @@ impl DataReaderActor {
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
+        topic_address: ActorAddress<TopicActor>,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let listener = Actor::spawn(DataReaderListenerActor::new(listener), handle);
@@ -303,6 +306,7 @@ impl DataReaderActor {
             qos,
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
+            topic_address,
         }
     }
 
@@ -355,6 +359,7 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
+                    self.topic_address.clone(),
                     runtime_handle.clone(),
                 ))
                 .await;
@@ -716,6 +721,7 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
+                    self.topic_address.clone(),
                     runtime_handle.clone(),
                     status,
                 ))
@@ -769,6 +775,7 @@ impl DataReaderActor {
                         data_reader_address,
                         subscriber_address,
                         participant_address,
+                        self.topic_address.clone(),
                         runtime_handle.clone(),
                         status,
                     ),
@@ -825,6 +832,7 @@ impl DataReaderActor {
                     data_reader_address.clone(),
                     subscriber_address.clone(),
                     participant_address.clone(),
+                    self.topic_address.clone(),
                     runtime_handle.clone(),
                     status,
                 ))
@@ -886,6 +894,7 @@ impl DataReaderActor {
                         data_reader_address.clone(),
                         subscriber_address.clone(),
                         participant_address.clone(),
+                        self.topic_address.clone(),
                         runtime_handle.clone(),
                         status,
                     ),
@@ -1354,6 +1363,7 @@ impl DataReaderActor {
             let subscriber_listener_mask = subscriber_mask_listener.1.clone();
             let participant_listener_address = participant_mask_listener.0.clone();
             let participant_listener_mask = participant_mask_listener.1.clone();
+            let topic_address = self.topic_address.clone();
             let deadline_missed_task = tokio::spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
@@ -1385,6 +1395,7 @@ impl DataReaderActor {
                                     data_reader_address.clone(),
                                     subscriber_address.clone(),
                                     participant_address.clone(),
+                                    topic_address.clone(),
                                     runtime_handle.clone(),
                                     status,
                                 ),

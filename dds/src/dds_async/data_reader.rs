@@ -5,7 +5,7 @@ use crate::{
             data_reader_actor::{self, DataReaderActor},
             domain_participant_actor::{self, DomainParticipantActor},
             subscriber_actor::{self, SubscriberActor},
-            topic_actor::{self, TopicActor},
+            topic_actor::TopicActor,
         },
         utils::actor::ActorAddress,
     },
@@ -37,6 +37,7 @@ pub struct DataReaderAsync<Foo> {
     reader_address: ActorAddress<DataReaderActor>,
     subscriber_address: ActorAddress<SubscriberActor>,
     participant_address: ActorAddress<DomainParticipantActor>,
+    topic_address: ActorAddress<TopicActor>,
     runtime_handle: tokio::runtime::Handle,
     phantom: PhantomData<Foo>,
 }
@@ -46,12 +47,14 @@ impl<Foo> DataReaderAsync<Foo> {
         reader_address: ActorAddress<DataReaderActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
+        topic_address: ActorAddress<TopicActor>,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             reader_address,
             subscriber_address,
             participant_address,
+            topic_address,
             runtime_handle,
             phantom: PhantomData,
         }
@@ -59,34 +62,6 @@ impl<Foo> DataReaderAsync<Foo> {
 
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
         &self.runtime_handle
-    }
-
-    async fn topic_address(&self) -> ActorAddress<TopicActor> {
-        let user_defined_topic_list = self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_user_defined_topic_list::new())
-            .await
-            .expect("should never fail");
-        for topic in user_defined_topic_list {
-            if topic
-                .send_mail_and_await_reply(topic_actor::get_type_name::new())
-                .await
-                == self
-                    .reader_address
-                    .send_mail_and_await_reply(data_reader_actor::get_type_name::new())
-                    .await
-                && topic
-                    .send_mail_and_await_reply(topic_actor::get_name::new())
-                    .await
-                    == self
-                        .reader_address
-                        .send_mail_and_await_reply(data_reader_actor::get_topic_name::new())
-                        .await
-            {
-                return topic;
-            }
-        }
-        panic!("Should always exist");
     }
 
     async fn announce_reader(&self) -> DdsResult<()> {
@@ -142,6 +117,7 @@ impl<Foo> Clone for DataReaderAsync<Foo> {
             reader_address: self.reader_address.clone(),
             subscriber_address: self.subscriber_address.clone(),
             participant_address: self.participant_address.clone(),
+            topic_address: self.topic_address.clone(),
             runtime_handle: self.runtime_handle.clone(),
             phantom: self.phantom,
         }
@@ -402,22 +378,22 @@ impl<Foo> DataReaderAsync<Foo> {
 
     /// Async version of [`get_topicdescription`](crate::subscription::data_reader::DataReader::get_topicdescription).
     #[tracing::instrument(skip(self))]
-    pub async fn get_topicdescription(&self) -> DdsResult<TopicAsync> {
-        Ok(TopicAsync::new(
-            self.topic_address().await,
+    pub async fn get_topicdescription(&self) -> TopicAsync {
+        TopicAsync::new(
+            self.topic_address.clone(),
             self.participant_address.clone(),
             self.runtime_handle.clone(),
-        ))
+        )
     }
 
     /// Async version of [`get_subscriber`](crate::subscription::data_reader::DataReader::get_subscriber).
     #[tracing::instrument(skip(self))]
-    pub async fn get_subscriber(&self) -> DdsResult<SubscriberAsync> {
-        Ok(SubscriberAsync::new(
+    pub async fn get_subscriber(&self) -> SubscriberAsync {
+        SubscriberAsync::new(
             self.subscriber_address.clone(),
             self.participant_address.clone(),
             self.runtime_handle.clone(),
-        ))
+        )
     }
 
     /// Async version of [`wait_for_historical_data`](crate::subscription::data_reader::DataReader::wait_for_historical_data).

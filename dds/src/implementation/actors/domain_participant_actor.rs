@@ -260,41 +260,53 @@ impl DomainParticipantActor {
 
         let spdp_topic_entity_id = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
         let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
-        let _spdp_topic_participant = TopicActor::new(
-            spdp_topic_guid,
-            TopicQos::default(),
-            "SpdpDiscoveredParticipantData".to_string(),
-            DCPS_PARTICIPANT,
+        let spdp_topic_participant = Actor::spawn(
+            TopicActor::new(
+                spdp_topic_guid,
+                TopicQos::default(),
+                "SpdpDiscoveredParticipantData".to_string(),
+                DCPS_PARTICIPANT,
+                handle,
+            ),
             handle,
         );
 
         let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
-        let sedp_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
-        let _sedp_topic_topics = TopicActor::new(
-            sedp_topics_guid,
-            TopicQos::default(),
-            "DiscoveredTopicData".to_string(),
-            DCPS_TOPIC,
+        let sedp_topic_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
+        let sedp_topic_topics = Actor::spawn(
+            TopicActor::new(
+                sedp_topic_topics_guid,
+                TopicQos::default(),
+                "DiscoveredTopicData".to_string(),
+                DCPS_TOPIC,
+                handle,
+            ),
             handle,
         );
 
         let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
-        let sedp_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
-        let _sedp_topic_publications = TopicActor::new(
-            sedp_publications_guid,
-            TopicQos::default(),
-            "DiscoveredWriterData".to_string(),
-            DCPS_PUBLICATION,
+        let sedp_topic_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
+        let sedp_topic_publications = Actor::spawn(
+            TopicActor::new(
+                sedp_topic_publications_guid,
+                TopicQos::default(),
+                "DiscoveredWriterData".to_string(),
+                DCPS_PUBLICATION,
+                handle,
+            ),
             handle,
         );
 
-        let sedp_subscriptions_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
-        let sedp_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
-        let _sedp_topic_subscriptions = TopicActor::new(
-            sedp_subscriptions_guid,
-            TopicQos::default(),
-            "DiscoveredReaderData".to_string(),
-            DCPS_SUBSCRIPTION,
+        let sedp_subscriptions_entity_id = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
+        let sedp_topic_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
+        let sedp_topic_subscriptions = Actor::spawn(
+            TopicActor::new(
+                sedp_topic_subscriptions_guid,
+                TopicQos::default(),
+                "DiscoveredReaderData".to_string(),
+                DCPS_SUBSCRIPTION,
+                handle,
+            ),
             handle,
         );
 
@@ -323,6 +335,7 @@ impl DomainParticipantActor {
                 Box::new(NoOpListener::<SpdpDiscoveredParticipantData>::new()),
                 vec![],
                 handle,
+                spdp_topic_participant.address(),
             ),
             handle,
         );
@@ -352,6 +365,7 @@ impl DomainParticipantActor {
                 Box::new(NoOpListener::<DiscoveredTopicData>::new()),
                 vec![],
                 handle,
+                sedp_topic_topics.address(),
             ),
             handle,
         );
@@ -367,6 +381,7 @@ impl DomainParticipantActor {
                 Box::new(NoOpListener::<DiscoveredWriterData>::new()),
                 vec![],
                 handle,
+                sedp_topic_publications.address(),
             ),
             handle,
         );
@@ -382,6 +397,7 @@ impl DomainParticipantActor {
                 Box::new(NoOpListener::<DiscoveredReaderData>::new()),
                 vec![],
                 handle,
+                sedp_topic_subscriptions.address(),
             ),
             handle,
         );
@@ -597,6 +613,24 @@ impl DomainParticipantActor {
 
         let type_support_actor = Actor::spawn(TypeSupportActor::new(type_support_list), handle);
 
+        let mut topic_list = HashMap::new();
+        topic_list.insert(
+            InstanceHandle::new(spdp_topic_guid.into()),
+            spdp_topic_participant,
+        );
+        topic_list.insert(
+            InstanceHandle::new(sedp_topic_topics_guid.into()),
+            sedp_topic_topics,
+        );
+        topic_list.insert(
+            InstanceHandle::new(sedp_topic_publications_guid.into()),
+            sedp_topic_publications,
+        );
+        topic_list.insert(
+            InstanceHandle::new(sedp_topic_subscriptions_guid.into()),
+            sedp_topic_subscriptions,
+        );
+
         Self {
             rtps_participant,
             domain_id,
@@ -610,7 +644,7 @@ impl DomainParticipantActor {
             user_defined_publisher_list: HashMap::new(),
             user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
-            topic_list: HashMap::new(),
+            topic_list,
             user_defined_topic_counter: 0,
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: 0,
@@ -725,6 +759,22 @@ impl DomainParticipantActor {
             .insert(InstanceHandle::new(guid.into()), topic_actor);
 
         topic_address
+    }
+
+    async fn lookup_topicdescription(
+        &self,
+        topic_name: String,
+    ) -> Option<ActorAddress<TopicActor>> {
+        for topic in self.topic_list.values() {
+            if topic
+                .send_mail_and_await_reply(topic_actor::get_name::new())
+                .await
+                == topic_name
+            {
+                return Some(topic.address());
+            }
+        }
+        None
     }
 
     async fn get_default_unicast_locator_list(&self) -> Vec<Locator> {

@@ -43,6 +43,10 @@ impl TopicAsync {
         }
     }
 
+    pub(crate) fn topic_address(&self) -> &ActorAddress<TopicActor> {
+        &self.topic_address
+    }
+
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
         &self.runtime_handle
     }
