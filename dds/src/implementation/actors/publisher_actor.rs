@@ -5,6 +5,7 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use crate::{
+    dds_async::domain_participant::DomainParticipantAsync,
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
@@ -34,7 +35,6 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
-    domain_participant_actor::DomainParticipantActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
     publisher_listener_actor::PublisherListenerActor,
     topic_actor::TopicActor,
@@ -274,14 +274,13 @@ impl PublisherActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant: DomainParticipantAsync,
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-        runtime_handle: tokio::runtime::Handle,
     ) {
         if self.is_partition_matched(
             discovered_reader_data
@@ -311,13 +310,12 @@ impl PublisherActor {
                         default_multicast_locator_list.clone(),
                         data_writer_address,
                         publisher_address.clone(),
-                        participant_address.clone(),
+                        participant.clone(),
                         self.qos.clone(),
                         publisher_publication_matched_listener,
                         participant_publication_matched_listener.clone(),
                         offered_incompatible_qos_publisher_listener,
                         offered_incompatible_qos_participant_listener.clone(),
-                        runtime_handle.clone(),
                     ))
                     .await;
             }
@@ -328,11 +326,10 @@ impl PublisherActor {
         &self,
         discovered_reader_handle: InstanceHandle,
         publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant: DomainParticipantAsync,
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-        runtime_handle: tokio::runtime::Handle,
     ) {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
@@ -347,10 +344,9 @@ impl PublisherActor {
                     discovered_reader_handle,
                     data_writer_address,
                     publisher_address.clone(),
-                    participant_address.clone(),
+                    participant.clone(),
                     publisher_publication_matched_listener,
                     participant_publication_matched_listener.clone(),
-                    runtime_handle.clone(),
                 ))
                 .await;
         }

@@ -240,10 +240,7 @@ impl PublisherAsync {
     /// Async version of [`get_participant`](crate::publication::publisher::Publisher::get_participant).
     #[tracing::instrument(skip(self))]
     pub async fn get_participant(&self) -> DomainParticipantAsync {
-        DomainParticipantAsync::new(
-            self.participant.participant_address().clone(),
-            self.participant.runtime_handle().clone(),
-        )
+        self.participant.clone()
     }
 
     /// Async version of [`delete_contained_entities`](crate::publication::publisher::Publisher::delete_contained_entities).

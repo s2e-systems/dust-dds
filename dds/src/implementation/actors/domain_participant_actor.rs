@@ -3,6 +3,7 @@ use tracing::warn;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    dds_async::domain_participant::DomainParticipantAsync,
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -1139,8 +1140,7 @@ impl DomainParticipantActor {
     async fn process_metatraffic_rtps_message(
         &self,
         message: RtpsMessageRead,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         tracing::trace!(
             rtps_message = ?message,
@@ -1152,11 +1152,10 @@ impl DomainParticipantActor {
             .send_mail_and_await_reply(subscriber_actor::process_rtps_message::new(
                 message.clone(),
                 reception_timestamp,
-                participant_address.clone(),
                 self.builtin_subscriber.address(),
+                participant,
                 participant_mask_listener,
                 self.type_support_actor.address(),
-                runtime_handle,
             ))
             .await?;
 
@@ -1170,8 +1169,7 @@ impl DomainParticipantActor {
     async fn process_user_defined_rtps_message(
         &self,
         message: RtpsMessageRead,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        participant: DomainParticipantAsync,
     ) {
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         for user_defined_subscriber_address in self
@@ -1183,11 +1181,10 @@ impl DomainParticipantActor {
                 .send_mail(subscriber_actor::process_rtps_message::new(
                     message.clone(),
                     self.get_current_time().await,
-                    participant_address.clone(),
                     user_defined_subscriber_address.clone(),
+                    participant.clone(),
                     participant_mask_listener.clone(),
                     self.type_support_actor.address(),
-                    runtime_handle.clone(),
                 ))
                 .await
                 .expect("Should not fail to send command");
@@ -1326,18 +1323,11 @@ impl DomainParticipantActor {
         }
     }
 
-    async fn process_builtin_discovery(
-        &mut self,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
-    ) {
+    async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) {
         self.process_spdp_participant_discovery().await;
-        self.process_sedp_publications_discovery(
-            participant_address.clone(),
-            runtime_handle.clone(),
-        )
-        .await;
-        self.process_sedp_subscriptions_discovery(participant_address, runtime_handle.clone())
+        self.process_sedp_publications_discovery(participant.clone())
+            .await;
+        self.process_sedp_subscriptions_discovery(participant.clone())
             .await;
         self.process_sedp_topics_discovery().await;
     }
@@ -1770,11 +1760,7 @@ impl DomainParticipantActor {
         }
     }
 
-    async fn process_sedp_publications_discovery(
-        &mut self,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
-    ) {
+    async fn process_sedp_publications_discovery(&mut self, participant: DomainParticipantAsync) {
         if let Some(sedp_publications_detector) = self
             .builtin_subscriber
             .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
@@ -1806,8 +1792,7 @@ impl DomainParticipantActor {
                                 Ok(discovered_writer_data) => {
                                     self.add_matched_writer(
                                         discovered_writer_data,
-                                        participant_address.clone(),
-                                        runtime_handle.clone(),
+                                        participant.clone(),
                                     )
                                     .await;
                                 }
@@ -1820,8 +1805,7 @@ impl DomainParticipantActor {
                         InstanceStateKind::NotAliveDisposed => {
                             self.remove_matched_writer(
                                 discovered_writer_sample_info.instance_handle,
-                                participant_address.clone(),
-                                runtime_handle.clone(),
+                                participant.clone(),
                             )
                             .await
                         }
@@ -1837,8 +1821,7 @@ impl DomainParticipantActor {
     async fn add_matched_writer(
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        participant: DomainParticipantAsync,
     ) {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
             Guid::new(
@@ -1884,9 +1867,8 @@ impl DomainParticipantActor {
                             default_unicast_locator_list.clone(),
                             default_multicast_locator_list.clone(),
                             subscriber_address,
-                            participant_address.clone(),
+                            participant.clone(),
                             participant_mask_listener,
-                            runtime_handle.clone(),
                         ))
                         .await;
                 }
@@ -1953,8 +1935,7 @@ impl DomainParticipantActor {
     async fn remove_matched_writer(
         &self,
         discovered_writer_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        participant: DomainParticipantAsync,
     ) {
         for subscriber in self.user_defined_subscriber_list.values() {
             let subscriber_address = subscriber.address();
@@ -1963,19 +1944,14 @@ impl DomainParticipantActor {
                 .send_mail_and_await_reply(subscriber_actor::remove_matched_writer::new(
                     discovered_writer_handle,
                     subscriber_address,
-                    participant_address.clone(),
+                    participant.clone(),
                     participant_mask_listener,
-                    runtime_handle.clone(),
                 ))
                 .await;
         }
     }
 
-    async fn process_sedp_subscriptions_discovery(
-        &mut self,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
-    ) {
+    async fn process_sedp_subscriptions_discovery(&mut self, participant: DomainParticipantAsync) {
         if let Some(sedp_subscriptions_detector) = self
             .builtin_subscriber
             .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
@@ -2007,8 +1983,7 @@ impl DomainParticipantActor {
                                 Ok(discovered_reader_data) => {
                                     self.add_matched_reader(
                                         discovered_reader_data,
-                                        participant_address.clone(),
-                                        runtime_handle.clone(),
+                                        participant.clone(),
                                     )
                                     .await;
                                 }
@@ -2021,8 +1996,7 @@ impl DomainParticipantActor {
                         InstanceStateKind::NotAliveDisposed => {
                             self.remove_matched_reader(
                                 discovered_reader_sample_info.instance_handle,
-                                participant_address.clone(),
-                                runtime_handle.clone(),
+                                participant.clone(),
                             )
                             .await
                         }
@@ -2038,8 +2012,7 @@ impl DomainParticipantActor {
     async fn add_matched_reader(
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        participant: DomainParticipantAsync,
     ) {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
             Guid::new(
@@ -2102,10 +2075,9 @@ impl DomainParticipantActor {
                             default_unicast_locator_list.clone(),
                             default_multicast_locator_list.clone(),
                             publisher_address,
-                            participant_address.clone(),
+                            participant.clone(),
                             participant_publication_matched_listener,
                             offered_incompatible_qos_participant_listener,
-                            runtime_handle.clone(),
                         ))
                         .await;
                 }
@@ -2173,8 +2145,7 @@ impl DomainParticipantActor {
     async fn remove_matched_reader(
         &self,
         discovered_reader_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        participant: DomainParticipantAsync,
     ) {
         for publisher in self.user_defined_publisher_list.values() {
             let publisher_address = publisher.address();
@@ -2188,9 +2159,8 @@ impl DomainParticipantActor {
                 .send_mail_and_await_reply(publisher_actor::remove_matched_reader::new(
                     discovered_reader_handle,
                     publisher_address,
-                    participant_address.clone(),
+                    participant.clone(),
                     participant_publication_matched_listener,
-                    runtime_handle.clone(),
                 ))
                 .await;
         }

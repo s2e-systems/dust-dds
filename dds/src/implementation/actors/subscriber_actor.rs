@@ -7,12 +7,12 @@ use tracing::warn;
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_actor::{self, DataReaderActor},
-    domain_participant_actor::DomainParticipantActor,
     subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
     type_support_actor::TypeSupportActor,
 };
 use crate::{
+    dds_async::domain_participant::DomainParticipantAsync,
     implementation::{
         actors::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
@@ -280,14 +280,13 @@ impl SubscriberActor {
         &self,
         message: RtpsMessageRead,
         reception_timestamp: Time,
-        participant_address: ActorAddress<DomainParticipantActor>,
         subscriber_address: ActorAddress<SubscriberActor>,
+        participant: DomainParticipantAsync,
         participant_mask_listener: (
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
         type_support_actor_address: ActorAddress<TypeSupportActor>,
-        runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
 
@@ -298,12 +297,11 @@ impl SubscriberActor {
                     reception_timestamp,
                     data_reader_address.clone(),
                     subscriber_address.clone(),
-                    participant_address.clone(),
+                    participant.clone(),
                     self.status_condition.address().clone(),
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
                     type_support_actor_address.clone(),
-                    runtime_handle.clone(),
                 ))
                 .await??;
         }
@@ -317,12 +315,11 @@ impl SubscriberActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant: DomainParticipantAsync,
         participant_mask_listener: (
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        runtime_handle: tokio::runtime::Handle,
     ) {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data().partition()) {
             for data_reader in self.data_reader_list.values() {
@@ -336,11 +333,10 @@ impl SubscriberActor {
                         default_multicast_locator_list.clone(),
                         data_reader_address,
                         subscriber_address.clone(),
-                        participant_address.clone(),
+                        participant.clone(),
                         subscriber_qos,
                         subscriber_mask_listener,
                         participant_mask_listener.clone(),
-                        runtime_handle.clone(),
                     ))
                     .await;
             }
@@ -351,12 +347,11 @@ impl SubscriberActor {
         &self,
         discovered_writer_handle: InstanceHandle,
         subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant: DomainParticipantAsync,
         participant_mask_listener: (
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        runtime_handle: tokio::runtime::Handle,
     ) {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
@@ -366,10 +361,9 @@ impl SubscriberActor {
                     discovered_writer_handle,
                     data_reader_address,
                     subscriber_address.clone(),
-                    participant_address.clone(),
+                    participant.clone(),
                     subscriber_mask_listener,
                     participant_mask_listener.clone(),
-                    runtime_handle.clone(),
                 ))
                 .await;
         }
