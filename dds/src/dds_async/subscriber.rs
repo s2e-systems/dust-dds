@@ -25,27 +25,33 @@ use super::{
 };
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
+#[derive(Clone)]
 pub struct SubscriberAsync {
     subscriber_address: ActorAddress<SubscriberActor>,
-    participant_address: ActorAddress<DomainParticipantActor>,
-    runtime_handle: tokio::runtime::Handle,
+    participant: DomainParticipantAsync,
 }
 
 impl SubscriberAsync {
     pub(crate) fn new(
         subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             subscriber_address,
-            participant_address,
-            runtime_handle,
+            participant,
         }
     }
 
+    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+        &self.participant.participant_address()
+    }
+
+    pub(crate) fn subscriber_address(&self) -> &ActorAddress<SubscriberActor> {
+        &self.subscriber_address
+    }
+
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.runtime_handle
+        &self.participant.runtime_handle()
     }
 }
 
@@ -62,7 +68,7 @@ impl SubscriberAsync {
         let type_name = a_topic.get_type_name().await;
         let topic_name = a_topic.get_name().await;
         let type_support = self
-            .participant_address
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))
@@ -77,13 +83,13 @@ impl SubscriberAsync {
         let listener = Box::new(a_listener);
 
         let default_unicast_locator_list = self
-            .participant_address
+            .participant_address()
             .send_mail_and_await_reply(
                 domain_participant_actor::get_default_unicast_locator_list::new(),
             )
             .await?;
         let default_multicast_locator_list = self
-            .participant_address
+            .participant_address()
             .send_mail_and_await_reply(
                 domain_participant_actor::get_default_unicast_locator_list::new(),
             )
@@ -102,18 +108,12 @@ impl SubscriberAsync {
                 mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
-                self.runtime_handle.clone(),
+                self.runtime_handle().clone(),
                 a_topic.topic_address().clone(),
             ))
             .await??;
 
-        let data_reader = DataReaderAsync::new(
-            reader_address,
-            self.subscriber_address.clone(),
-            self.participant_address.clone(),
-            a_topic.clone(),
-            self.runtime_handle.clone(),
-        );
+        let data_reader = DataReaderAsync::new(reader_address, self.clone(), a_topic.clone());
 
         if self
             .subscriber_address
@@ -155,7 +155,7 @@ impl SubscriberAsync {
             .send_mail_and_await_reply(subscriber_actor::data_reader_delete::new(reader_handle))
             .await?;
 
-        self.participant_address
+        self.participant_address()
             .send_mail_and_await_reply(domain_participant_actor::announce_deleted_data_reader::new(
                 reader_handle,
             ))
@@ -169,7 +169,7 @@ impl SubscriberAsync {
         topic_name: &str,
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
         if let Some(topic_address) = self
-            .participant_address
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::lookup_topicdescription::new(
                 topic_name.to_string(),
             ))
@@ -180,10 +180,9 @@ impl SubscriberAsync {
                 .await?;
             let topic = TopicAsync::new(
                 topic_address,
-                self.participant_address.clone(),
                 topic_name.to_string(),
                 type_name,
-                self.runtime_handle.clone(),
+                self.participant.clone(),
             );
             Ok(self
                 .subscriber_address
@@ -191,15 +190,7 @@ impl SubscriberAsync {
                     topic_name.to_string(),
                 ))
                 .await?
-                .map(|reader_address| {
-                    DataReaderAsync::new(
-                        reader_address,
-                        self.subscriber_address.clone(),
-                        self.participant_address.clone(),
-                        topic,
-                        self.runtime_handle.clone(),
-                    )
-                }))
+                .map(|reader_address| DataReaderAsync::new(reader_address, self.clone(), topic)))
         } else {
             Err(DdsError::BadParameter)
         }
@@ -214,10 +205,7 @@ impl SubscriberAsync {
     /// Async version of [`get_participant`](crate::subscription::subscriber::Subscriber::get_participant).
     #[tracing::instrument(skip(self))]
     pub async fn get_participant(&self) -> DomainParticipantAsync {
-        DomainParticipantAsync::new(
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        )
+        self.participant.clone()
     }
 
     /// Async version of [`get_sample_lost_status`](crate::subscription::subscriber::Subscriber::get_sample_lost_status).
@@ -282,7 +270,7 @@ impl SubscriberAsync {
             .send_mail_and_await_reply(subscriber_actor::set_listener::new(
                 Box::new(a_listener),
                 mask.to_vec(),
-                self.runtime_handle.clone(),
+                self.runtime_handle().clone(),
             ))
             .await
     }
@@ -293,7 +281,7 @@ impl SubscriberAsync {
         self.subscriber_address
             .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
             .await
-            .map(|c| StatusConditionAsync::new(c, self.runtime_handle.clone()))
+            .map(|c| StatusConditionAsync::new(c, self.runtime_handle().clone()))
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::subscriber::Subscriber::get_status_changes).

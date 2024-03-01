@@ -27,26 +27,23 @@ use super::{condition::StatusConditionAsync, domain_participant::DomainParticipa
 #[derive(Clone)]
 pub struct TopicAsync {
     topic_address: ActorAddress<TopicActor>,
-    participant_address: ActorAddress<DomainParticipantActor>,
     type_name: String,
     topic_name: String,
-    runtime_handle: tokio::runtime::Handle,
+    participant: DomainParticipantAsync,
 }
 
 impl TopicAsync {
     pub(crate) fn new(
         topic_address: ActorAddress<TopicActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
         type_name: String,
         topic_name: String,
-        runtime_handle: tokio::runtime::Handle,
+        participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             topic_address,
-            participant_address,
             type_name,
             topic_name,
-            runtime_handle,
+            participant,
         }
     }
 
@@ -54,8 +51,12 @@ impl TopicAsync {
         &self.topic_address
     }
 
+    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+        &self.participant.participant_address()
+    }
+
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.runtime_handle
+        &self.participant.runtime_handle()
     }
 }
 
@@ -73,10 +74,7 @@ impl TopicAsync {
     /// Async version of [`get_participant`](crate::topic_definition::topic::Topic::get_participant).
     #[tracing::instrument(skip(self))]
     pub async fn get_participant(&self) -> DomainParticipantAsync {
-        DomainParticipantAsync::new(
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        )
+        self.participant.clone()
     }
 
     /// Async version of [`get_type_name`](crate::topic_definition::topic::Topic::get_type_name).
@@ -98,7 +96,7 @@ impl TopicAsync {
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => {
-                self.participant_address
+                self.participant_address()
                     .send_mail_and_await_reply(domain_participant_actor::default_topic_qos::new())
                     .await?
             }
@@ -138,7 +136,7 @@ impl TopicAsync {
         self.topic_address
             .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
             .await
-            .map(|c| StatusConditionAsync::new(c, self.runtime_handle.clone()))
+            .map(|c| StatusConditionAsync::new(c, self.runtime_handle().clone()))
     }
 
     /// Async version of [`get_status_changes`](crate::topic_definition::topic::Topic::get_status_changes).
@@ -160,7 +158,7 @@ impl TopicAsync {
                 .await?;
 
             announce_topic(
-                &self.participant_address,
+                &self.participant_address(),
                 self.topic_address
                     .send_mail_and_await_reply(topic_actor::as_discovered_topic_data::new())
                     .await?,

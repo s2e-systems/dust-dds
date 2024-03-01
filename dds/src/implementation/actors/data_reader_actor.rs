@@ -9,7 +9,9 @@ use tracing::debug;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    dds_async::topic::TopicAsync,
+    dds_async::{
+        domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync, topic::TopicAsync,
+    },
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -350,24 +352,32 @@ impl DataReaderActor {
             subscriber_listener_address
                 .send_mail(subscriber_listener_actor::trigger_on_data_on_readers::new(
                     subscriber_address.clone(),
-                    participant_address.clone(),
-                    runtime_handle.clone(),
+                    DomainParticipantAsync::new(
+                        participant_address.clone(),
+                        runtime_handle.clone(),
+                    ),
                 ))
                 .await?;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
             self.listener
                 .send_mail(data_reader_listener_actor::trigger_on_data_available::new(
                     data_reader_address.clone(),
-                    subscriber_address.clone(),
-                    participant_address.clone(),
+                    SubscriberAsync::new(
+                        subscriber_address.clone(),
+                        DomainParticipantAsync::new(
+                            participant_address.clone(),
+                            runtime_handle.clone(),
+                        ),
+                    ),
                     TopicAsync::new(
                         self.topic_address.clone(),
-                        participant_address.clone(),
                         self.type_name.clone(),
                         self.topic_name.clone(),
-                        runtime_handle.clone(),
+                        DomainParticipantAsync::new(
+                            participant_address.clone(),
+                            runtime_handle.clone(),
+                        ),
                     ),
-                    runtime_handle.clone(),
                 ))
                 .await;
         }
@@ -726,16 +736,22 @@ impl DataReaderActor {
             self.listener
                 .send_mail(data_reader_listener_actor::trigger_on_sample_lost::new(
                     data_reader_address.clone(),
-                    subscriber_address.clone(),
-                    participant_address.clone(),
+                    SubscriberAsync::new(
+                        subscriber_address.clone(),
+                        DomainParticipantAsync::new(
+                            participant_address.clone(),
+                            runtime_handle.clone(),
+                        ),
+                    ),
                     TopicAsync::new(
                         self.topic_address.clone(),
-                        participant_address.clone(),
                         self.type_name.clone(),
                         self.topic_name.clone(),
-                        runtime_handle.clone(),
+                        DomainParticipantAsync::new(
+                            participant_address.clone(),
+                            runtime_handle.clone(),
+                        ),
                     ),
-                    runtime_handle.clone(),
                     status,
                 ))
                 .await;
@@ -786,16 +802,22 @@ impl DataReaderActor {
                 .send_mail(
                     data_reader_listener_actor::trigger_on_subscription_matched::new(
                         data_reader_address,
-                        subscriber_address,
-                        participant_address.clone(),
+                        SubscriberAsync::new(
+                            subscriber_address.clone(),
+                            DomainParticipantAsync::new(
+                                participant_address.clone(),
+                                runtime_handle.clone(),
+                            ),
+                        ),
                         TopicAsync::new(
                             self.topic_address.clone(),
-                            participant_address,
                             self.type_name.clone(),
                             self.topic_name.clone(),
-                            runtime_handle.clone(),
+                            DomainParticipantAsync::new(
+                                participant_address.clone(),
+                                runtime_handle.clone(),
+                            ),
                         ),
-                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -849,16 +871,22 @@ impl DataReaderActor {
             self.listener
                 .send_mail(data_reader_listener_actor::trigger_on_sample_rejected::new(
                     data_reader_address.clone(),
-                    subscriber_address.clone(),
-                    participant_address.clone(),
+                    SubscriberAsync::new(
+                        subscriber_address.clone(),
+                        DomainParticipantAsync::new(
+                            participant_address.clone(),
+                            runtime_handle.clone(),
+                        ),
+                    ),
                     TopicAsync::new(
                         self.topic_address.clone(),
-                        participant_address.clone(),
                         self.type_name.clone(),
                         self.topic_name.clone(),
-                        runtime_handle.clone(),
+                        DomainParticipantAsync::new(
+                            participant_address.clone(),
+                            runtime_handle.clone(),
+                        ),
                     ),
-                    runtime_handle.clone(),
                     status,
                 ))
                 .await;
@@ -917,16 +945,22 @@ impl DataReaderActor {
                 .send_mail(
                     data_reader_listener_actor::trigger_on_requested_incompatible_qos::new(
                         data_reader_address.clone(),
-                        subscriber_address.clone(),
-                        participant_address.clone(),
+                        SubscriberAsync::new(
+                            subscriber_address.clone(),
+                            DomainParticipantAsync::new(
+                                participant_address.clone(),
+                                runtime_handle.clone(),
+                            ),
+                        ),
                         TopicAsync::new(
                             self.topic_address.clone(),
-                            participant_address.clone(),
                             self.type_name.clone(),
                             self.topic_name.clone(),
-                            runtime_handle.clone(),
+                            DomainParticipantAsync::new(
+                                participant_address.clone(),
+                                runtime_handle.clone(),
+                            ),
                         ),
-                        runtime_handle.clone(),
                         status,
                     ),
                 )
@@ -1426,16 +1460,22 @@ impl DataReaderActor {
                                 .send_mail(
                                     data_reader_listener_actor::trigger_on_requested_deadline_missed::new(
                                     data_reader_address.clone(),
-                                    subscriber_address.clone(),
-                                    participant_address.clone(),
+                                    SubscriberAsync::new(
+                                        subscriber_address.clone(),
+                                        DomainParticipantAsync::new(
+                                            participant_address.clone(),
+                                            runtime_handle.clone(),
+                                        ),
+                                    ),
                                     TopicAsync::new(
                                         topic_address.clone(),
-                                        participant_address.clone(),
                                         type_name.clone(),
                                         topic_name.clone(),
-                                        runtime_handle.clone(),
+                                        DomainParticipantAsync::new(
+                                            participant_address.clone(),
+                                            runtime_handle.clone(),
+                                        ),
                                     ),
-                                    runtime_handle.clone(),
                                     status,
                                 ),
                             )

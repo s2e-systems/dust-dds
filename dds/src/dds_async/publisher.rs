@@ -25,27 +25,33 @@ use super::{
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
+#[derive(Clone)]
 pub struct PublisherAsync {
     publisher_address: ActorAddress<PublisherActor>,
-    participant_address: ActorAddress<DomainParticipantActor>,
-    runtime_handle: tokio::runtime::Handle,
+    participant: DomainParticipantAsync,
 }
 
 impl PublisherAsync {
     pub(crate) fn new(
         publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             publisher_address,
-            participant_address,
-            runtime_handle,
+            participant,
         }
     }
 
+    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+        &self.participant.participant_address()
+    }
+
+    pub(crate) fn publisher_address(&self) -> &ActorAddress<PublisherActor> {
+        &self.publisher_address
+    }
+
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.runtime_handle
+        &self.participant.runtime_handle()
     }
 }
 
@@ -61,7 +67,8 @@ impl PublisherAsync {
     ) -> DdsResult<DataWriterAsync<Foo>> {
         let type_name = a_topic.get_type_name().await;
         let type_support = self
-            .participant_address
+            .participant
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))
@@ -74,19 +81,22 @@ impl PublisherAsync {
             })?;
 
         let default_unicast_locator_list = self
-            .participant_address
+            .participant
+            .participant_address()
             .send_mail_and_await_reply(
                 domain_participant_actor::get_default_unicast_locator_list::new(),
             )
             .await?;
         let default_multicast_locator_list = self
-            .participant_address
+            .participant
+            .participant_address()
             .send_mail_and_await_reply(
                 domain_participant_actor::get_default_multicast_locator_list::new(),
             )
             .await?;
         let data_max_size_serialized = self
-            .participant_address
+            .participant
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::data_max_size_serialized::new())
             .await?;
 
@@ -104,18 +114,12 @@ impl PublisherAsync {
                 mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
-                self.runtime_handle.clone(),
+                self.participant.runtime_handle().clone(),
                 a_topic.topic_address().clone(),
             ))
             .await??;
 
-        let data_writer = DataWriterAsync::new(
-            data_writer_address,
-            self.publisher_address.clone(),
-            self.participant_address.clone(),
-            a_topic.clone(),
-            self.runtime_handle.clone(),
-        );
+        let data_writer = DataWriterAsync::new(data_writer_address, self.clone(), a_topic.clone());
 
         if self
             .publisher_address
@@ -160,7 +164,8 @@ impl PublisherAsync {
             .send_mail_and_await_reply(publisher_actor::datawriter_delete::new(writer_handle))
             .await?;
 
-        self.participant_address
+        self.participant
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::announce_deleted_data_writer::new(
                 writer_handle,
             ))
@@ -174,7 +179,8 @@ impl PublisherAsync {
         topic_name: &str,
     ) -> DdsResult<Option<DataWriterAsync<Foo>>> {
         if let Some(topic_address) = self
-            .participant_address
+            .participant
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::lookup_topicdescription::new(
                 topic_name.to_string(),
             ))
@@ -185,10 +191,9 @@ impl PublisherAsync {
                 .await?;
             let topic = TopicAsync::new(
                 topic_address,
-                self.participant_address.clone(),
                 topic_name.to_string(),
                 type_name,
-                self.runtime_handle.clone(),
+                self.participant.clone(),
             );
             Ok(self
                 .publisher_address
@@ -196,15 +201,7 @@ impl PublisherAsync {
                     topic_name.to_string(),
                 ))
                 .await?
-                .map(|dw| {
-                    DataWriterAsync::new(
-                        dw,
-                        self.publisher_address.clone(),
-                        self.participant_address.clone(),
-                        topic,
-                        self.runtime_handle.clone(),
-                    )
-                }))
+                .map(|dw| DataWriterAsync::new(dw, self.clone(), topic)))
         } else {
             Err(DdsError::BadParameter)
         }
@@ -244,8 +241,8 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_participant(&self) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
+            self.participant.participant_address().clone(),
+            self.participant.runtime_handle().clone(),
         )
     }
 
@@ -320,7 +317,7 @@ impl PublisherAsync {
             .send_mail_and_await_reply(publisher_actor::set_listener::new(
                 Box::new(a_listener),
                 mask.to_vec(),
-                self.runtime_handle.clone(),
+                self.participant.runtime_handle().clone(),
             ))
             .await
     }

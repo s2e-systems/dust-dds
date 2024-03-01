@@ -1,7 +1,7 @@
 use dust_dds_derive::actor_interface;
 
 use crate::{
-    dds_async::subscriber::SubscriberAsync,
+    dds_async::{domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync},
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
@@ -10,7 +10,7 @@ use crate::{
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
 };
 
-use super::{domain_participant_actor::DomainParticipantActor, subscriber_actor::SubscriberActor};
+use super::subscriber_actor::SubscriberActor;
 
 pub struct SubscriberListenerActor {
     listener: Box<dyn SubscriberListener + Send>,
@@ -27,15 +27,13 @@ impl SubscriberListenerActor {
     async fn trigger_on_data_on_readers(
         &mut self,
         subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        participant: DomainParticipantAsync,
     ) {
         tokio::task::block_in_place(|| {
             self.listener
                 .on_data_on_readers(&Subscriber::new(SubscriberAsync::new(
                     subscriber_address,
-                    participant_address,
-                    runtime_handle,
+                    participant,
                 )))
         });
     }

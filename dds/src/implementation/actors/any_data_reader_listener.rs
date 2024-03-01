@@ -1,5 +1,5 @@
 use crate::{
-    dds_async::{data_reader::DataReaderAsync, topic::TopicAsync},
+    dds_async::{data_reader::DataReaderAsync, subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
@@ -8,73 +8,56 @@ use crate::{
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
 };
 
-use super::{
-    data_reader_actor::DataReaderActor, domain_participant_actor::DomainParticipantActor,
-    subscriber_actor::SubscriberActor,
-};
+use super::data_reader_actor::DataReaderActor;
 
 pub trait AnyDataReaderListener {
     fn trigger_on_data_available(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
     );
     fn trigger_on_sample_rejected(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     );
     #[allow(dead_code)]
     fn trigger_on_liveliness_changed(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: LivelinessChangedStatus,
     );
     fn trigger_on_requested_deadline_missed(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: RequestedDeadlineMissedStatus,
     );
     fn trigger_on_requested_incompatible_qos(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: RequestedIncompatibleQosStatus,
     );
     fn trigger_on_subscription_matched(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: SubscriptionMatchedStatus,
     );
     fn trigger_on_sample_lost(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: SampleLostStatus,
     );
 }
@@ -86,37 +69,25 @@ where
     fn trigger_on_data_available(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
     ) {
         self.on_data_available(&DataReader::new(DataReaderAsync::new(
             reader_address,
-            subscriber_address,
-            participant_address,
+            subscriber,
             topic,
-            runtime_handle,
         )))
     }
 
     fn trigger_on_sample_rejected(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: SampleRejectedStatus,
     ) {
         self.on_sample_rejected(
-            &DataReader::new(DataReaderAsync::new(
-                reader_address,
-                subscriber_address,
-                participant_address,
-                topic,
-                runtime_handle,
-            )),
+            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
             status,
         )
     }
@@ -124,20 +95,12 @@ where
     fn trigger_on_liveliness_changed(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: LivelinessChangedStatus,
     ) {
         self.on_liveliness_changed(
-            &DataReader::new(DataReaderAsync::new(
-                reader_address,
-                subscriber_address,
-                participant_address,
-                topic,
-                runtime_handle,
-            )),
+            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
             status,
         )
     }
@@ -145,20 +108,12 @@ where
     fn trigger_on_requested_deadline_missed(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: RequestedDeadlineMissedStatus,
     ) {
         self.on_requested_deadline_missed(
-            &DataReader::new(DataReaderAsync::new(
-                reader_address,
-                subscriber_address,
-                participant_address,
-                topic,
-                runtime_handle,
-            )),
+            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
             status,
         )
     }
@@ -166,20 +121,12 @@ where
     fn trigger_on_requested_incompatible_qos(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: RequestedIncompatibleQosStatus,
     ) {
         self.on_requested_incompatible_qos(
-            &DataReader::new(DataReaderAsync::new(
-                reader_address,
-                subscriber_address,
-                participant_address,
-                topic,
-                runtime_handle,
-            )),
+            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
             status,
         )
     }
@@ -187,20 +134,12 @@ where
     fn trigger_on_subscription_matched(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: SubscriptionMatchedStatus,
     ) {
         self.on_subscription_matched(
-            &DataReader::new(DataReaderAsync::new(
-                reader_address,
-                subscriber_address,
-                participant_address,
-                topic,
-                runtime_handle,
-            )),
+            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
             status,
         )
     }
@@ -208,20 +147,12 @@ where
     fn trigger_on_sample_lost(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber: SubscriberAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
         status: SampleLostStatus,
     ) {
         self.on_sample_lost(
-            &DataReader::new(DataReaderAsync::new(
-                reader_address,
-                subscriber_address,
-                participant_address,
-                topic,
-                runtime_handle,
-            )),
+            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
             status,
         )
     }

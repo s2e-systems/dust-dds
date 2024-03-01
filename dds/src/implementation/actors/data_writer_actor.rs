@@ -1,6 +1,8 @@
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    dds_async::topic::TopicAsync,
+    dds_async::{
+        domain_participant::DomainParticipantAsync, publisher::PublisherAsync, topic::TopicAsync,
+    },
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -1018,16 +1020,22 @@ impl DataWriterActor {
                 .send_mail(
                     data_writer_listener_actor::trigger_on_publication_matched::new(
                         data_writer_address,
-                        publisher_address,
-                        participant_address.clone(),
+                        PublisherAsync::new(
+                            publisher_address,
+                            DomainParticipantAsync::new(
+                                participant_address.clone(),
+                                runtime_handle.clone(),
+                            ),
+                        ),
                         TopicAsync::new(
                             self.topic_address.clone(),
-                            participant_address,
                             self.type_name.clone(),
                             self.topic_name.clone(),
-                            runtime_handle.clone(),
+                            DomainParticipantAsync::new(
+                                participant_address.clone(),
+                                runtime_handle.clone(),
+                            ),
                         ),
-                        runtime_handle,
                         status,
                     ),
                 )
@@ -1079,16 +1087,19 @@ impl DataWriterActor {
                 .send_mail(
                     data_writer_listener_actor::trigger_on_offered_incompatible_qos::new(
                         data_writer_address,
-                        publisher_address,
-                        participant_address.clone(),
+                        PublisherAsync::new(
+                            publisher_address,
+                            DomainParticipantAsync::new(
+                                participant_address.clone(),
+                                runtime_handle.clone(),
+                            ),
+                        ),
                         TopicAsync::new(
                             self.topic_address.clone(),
-                            participant_address,
                             self.type_name.clone(),
                             self.topic_name.clone(),
-                            runtime_handle.clone(),
+                            DomainParticipantAsync::new(participant_address, runtime_handle),
                         ),
-                        runtime_handle,
                         status,
                     ),
                 )

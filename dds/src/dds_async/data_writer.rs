@@ -29,10 +29,8 @@ use super::{condition::StatusConditionAsync, publisher::PublisherAsync, topic::T
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<Foo> {
     writer_address: ActorAddress<DataWriterActor>,
-    publisher_address: ActorAddress<PublisherActor>,
-    participant_address: ActorAddress<DomainParticipantActor>,
+    publisher: PublisherAsync,
     topic: TopicAsync,
-    runtime_handle: tokio::runtime::Handle,
     phantom: PhantomData<Foo>,
 }
 
@@ -40,10 +38,8 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
             writer_address: self.writer_address.clone(),
-            publisher_address: self.publisher_address.clone(),
-            participant_address: self.participant_address.clone(),
+            publisher: self.publisher.clone(),
             topic: self.topic.clone(),
-            runtime_handle: self.runtime_handle.clone(),
             phantom: self.phantom,
         }
     }
@@ -52,23 +48,27 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
 impl<Foo> DataWriterAsync<Foo> {
     pub(crate) fn new(
         writer_address: ActorAddress<DataWriterActor>,
-        publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher: PublisherAsync,
         topic: TopicAsync,
-        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             writer_address,
-            publisher_address,
-            participant_address,
+            publisher,
             topic,
-            runtime_handle,
             phantom: PhantomData,
         }
     }
 
+    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+        self.publisher.participant_address()
+    }
+
+    pub(crate) fn publisher_address(&self) -> &ActorAddress<PublisherActor> {
+        self.publisher.publisher_address()
+    }
+
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.runtime_handle
+        self.publisher.runtime_handle()
     }
 
     async fn announce_writer(&self) -> DdsResult<()> {
@@ -77,7 +77,7 @@ impl<Foo> DataWriterAsync<Foo> {
             .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
             .await?;
         let type_support = self
-            .participant_address
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))
@@ -92,15 +92,15 @@ impl<Foo> DataWriterAsync<Foo> {
             .writer_address
             .send_mail_and_await_reply(data_writer_actor::as_discovered_writer_data::new(
                 TopicQos::default(),
-                self.publisher_address
+                self.publisher_address()
                     .send_mail_and_await_reply(publisher_actor::get_qos::new())
                     .await?,
-                self.participant_address
+                self.participant_address()
                     .send_mail_and_await_reply(
                         domain_participant_actor::get_default_unicast_locator_list::new(),
                     )
                     .await?,
-                self.participant_address
+                self.participant_address()
                     .send_mail_and_await_reply(
                         domain_participant_actor::get_default_multicast_locator_list::new(),
                     )
@@ -108,7 +108,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 type_support.xml_type(),
             ))
             .await?;
-        self.participant_address
+        self.participant_address()
             .send_mail(
                 domain_participant_actor::announce_created_or_modified_data_writer::new(
                     discovered_writer_data,
@@ -126,7 +126,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub async fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let timestamp = {
-            self.participant_address
+            self.participant_address()
                 .send_mail_and_await_reply(domain_participant_actor::get_current_time::new())
                 .await?
         };
@@ -152,7 +152,7 @@ where
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
         let timestamp = {
-            self.participant_address
+            self.participant_address()
                 .send_mail_and_await_reply(domain_participant_actor::get_current_time::new())
                 .await?
         };
@@ -173,7 +173,7 @@ where
             .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
             .await?;
         let type_support = self
-            .participant_address
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))
@@ -246,7 +246,7 @@ where
             .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
             .await?;
         let type_support = self
-            .participant_address
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))
@@ -271,7 +271,7 @@ where
     #[tracing::instrument(skip(self, data))]
     pub async fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = {
-            self.participant_address
+            self.participant_address()
                 .send_mail_and_await_reply(domain_participant_actor::get_current_time::new())
                 .await?
         };
@@ -291,7 +291,7 @@ where
             .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
             .await?;
         let type_support = self
-            .participant_address
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))
@@ -316,7 +316,7 @@ where
             ))
             .await??;
 
-        self.participant_address
+        self.participant_address()
             .send_mail(domain_participant_actor::send_message::new())
             .await?;
 
@@ -327,7 +327,7 @@ where
     #[tracing::instrument(skip(self, data))]
     pub async fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = {
-            self.participant_address
+            self.participant_address()
                 .send_mail_and_await_reply(domain_participant_actor::get_current_time::new())
                 .await?
         };
@@ -372,7 +372,7 @@ where
             .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
             .await?;
         let type_support = self
-            .participant_address
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))
@@ -456,11 +456,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_publisher`](crate::publication::data_writer::DataWriter::get_publisher).
     #[tracing::instrument(skip(self))]
     pub async fn get_publisher(&self) -> PublisherAsync {
-        PublisherAsync::new(
-            self.publisher_address.clone(),
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        )
+        self.publisher.clone()
     }
 
     /// Async version of [`assert_liveliness`](crate::publication::data_writer::DataWriter::assert_liveliness).
@@ -498,7 +494,7 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let q = match qos {
             QosKind::Default => {
-                self.publisher_address
+                self.publisher_address()
                     .send_mail_and_await_reply(publisher_actor::get_default_datawriter_qos::new())
                     .await?
             }
@@ -544,7 +540,7 @@ impl<Foo> DataWriterAsync<Foo> {
         self.writer_address
             .send_mail_and_await_reply(data_writer_actor::get_statuscondition::new())
             .await
-            .map(|c| StatusConditionAsync::new(c, self.runtime_handle.clone()))
+            .map(|c| StatusConditionAsync::new(c, self.runtime_handle().clone()))
     }
 
     /// Async version of [`get_status_changes`](crate::publication::data_writer::DataWriter::get_status_changes).
@@ -589,7 +585,7 @@ impl<Foo> DataWriterAsync<Foo> {
             .send_mail_and_await_reply(data_writer_actor::set_listener::new(
                 Box::new(a_listener),
                 mask.to_vec(),
-                self.runtime_handle.clone(),
+                self.runtime_handle().clone(),
             ))
             .await
     }

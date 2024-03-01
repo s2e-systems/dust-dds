@@ -36,6 +36,7 @@ use super::{
 };
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
+#[derive(Clone)]
 pub struct DomainParticipantAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
     runtime_handle: tokio::runtime::Handle,
@@ -50,6 +51,10 @@ impl DomainParticipantAsync {
             participant_address,
             runtime_handle,
         }
+    }
+
+    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+        &self.participant_address
     }
 
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
@@ -76,11 +81,7 @@ impl DomainParticipantAsync {
             ))
             .await?;
 
-        let publisher = PublisherAsync::new(
-            publisher_address,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        );
+        let publisher = PublisherAsync::new(publisher_address, self.clone());
         if self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
@@ -143,11 +144,7 @@ impl DomainParticipantAsync {
             ))
             .await?;
 
-        let subscriber = SubscriberAsync::new(
-            subscriber_address,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        );
+        let subscriber = SubscriberAsync::new(subscriber_address, self.clone());
 
         if self
             .participant_address
@@ -241,10 +238,9 @@ impl DomainParticipantAsync {
 
         let topic = TopicAsync::new(
             topic_address,
-            self.participant_address.clone(),
             type_name.to_string(),
             topic_name.to_string(),
-            self.runtime_handle.clone(),
+            self.clone(),
         );
         if self
             .participant_address
@@ -369,10 +365,9 @@ impl DomainParticipantAsync {
                         .await?;
                     return Ok(TopicAsync::new(
                         topic,
-                        self.participant_address.clone(),
                         type_name,
                         topic_name.to_string(),
-                        self.runtime_handle.clone(),
+                        self.clone(),
                     ));
                 }
             }
@@ -450,8 +445,7 @@ impl DomainParticipantAsync {
             self.participant_address
                 .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
                 .await?,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
+            self.clone(),
         ))
     }
 
