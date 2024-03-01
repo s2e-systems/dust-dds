@@ -107,7 +107,7 @@ impl DomainParticipantAsync {
             .await?
             != a_publisher
                 .get_participant()
-                .await?
+                .await
                 .get_instance_handle()
                 .await?
         {
@@ -172,7 +172,7 @@ impl DomainParticipantAsync {
         if self.get_instance_handle().await?
             != a_subscriber
                 .get_participant()
-                .await?
+                .await
                 .get_instance_handle()
                 .await?
         {

@@ -27,7 +27,7 @@ fn get_subscriber_parent_participant() {
         .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    let subscriber_parent_participant = subscriber.get_participant().unwrap();
+    let subscriber_parent_participant = subscriber.get_participant();
 
     assert_eq!(
         participant.get_instance_handle(),

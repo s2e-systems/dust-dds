@@ -242,11 +242,11 @@ impl PublisherAsync {
 
     /// Async version of [`get_participant`](crate::publication::publisher::Publisher::get_participant).
     #[tracing::instrument(skip(self))]
-    pub async fn get_participant(&self) -> DdsResult<DomainParticipantAsync> {
-        Ok(DomainParticipantAsync::new(
+    pub async fn get_participant(&self) -> DomainParticipantAsync {
+        DomainParticipantAsync::new(
             self.participant_address.clone(),
             self.runtime_handle.clone(),
-        ))
+        )
     }
 
     /// Async version of [`delete_contained_entities`](crate::publication::publisher::Publisher::delete_contained_entities).

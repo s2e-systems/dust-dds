@@ -109,11 +109,12 @@ impl Subscriber {
 
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        self.subscriber_async
-            .runtime_handle()
-            .block_on(self.subscriber_async.get_participant())
-            .map(DomainParticipant::new)
+    pub fn get_participant(&self) -> DomainParticipant {
+        DomainParticipant::new(
+            self.subscriber_async
+                .runtime_handle()
+                .block_on(self.subscriber_async.get_participant()),
+        )
     }
 
     /// This operation allows access to the [`SampleLostStatus`].

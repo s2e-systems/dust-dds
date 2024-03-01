@@ -167,11 +167,12 @@ impl Publisher {
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        self.publisher_async
-            .runtime_handle()
-            .block_on(self.publisher_async.get_participant())
-            .map(DomainParticipant::new)
+    pub fn get_participant(&self) -> DomainParticipant {
+        DomainParticipant::new(
+            self.publisher_async
+                .runtime_handle()
+                .block_on(self.publisher_async.get_participant()),
+        )
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.

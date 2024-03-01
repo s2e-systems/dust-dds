@@ -213,11 +213,11 @@ impl SubscriberAsync {
 
     /// Async version of [`get_participant`](crate::subscription::subscriber::Subscriber::get_participant).
     #[tracing::instrument(skip(self))]
-    pub async fn get_participant(&self) -> DdsResult<DomainParticipantAsync> {
-        Ok(DomainParticipantAsync::new(
+    pub async fn get_participant(&self) -> DomainParticipantAsync {
+        DomainParticipantAsync::new(
             self.participant_address.clone(),
             self.runtime_handle.clone(),
-        ))
+        )
     }
 
     /// Async version of [`get_sample_lost_status`](crate::subscription::subscriber::Subscriber::get_sample_lost_status).
