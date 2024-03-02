@@ -547,11 +547,8 @@ impl DomainParticipant {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_statuscondition())
-            .map(StatusCondition::new)
+    pub fn get_statuscondition(&self) -> StatusCondition {
+        StatusCondition::new(self.participant_async.get_statuscondition())
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose

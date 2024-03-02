@@ -193,8 +193,14 @@ impl DomainParticipantFactoryActor {
             InstanceHandle::new(participant_guid.into()),
             participant_actor,
         );
-        let participant =
-            DomainParticipantAsync::new(participant_address.clone(), runtime_handle.clone());
+        let status_condition = participant_address
+            .send_mail_and_await_reply(domain_participant_actor::get_statuscondition::new())
+            .await?;
+        let participant = DomainParticipantAsync::new(
+            participant_address.clone(),
+            status_condition.clone(),
+            runtime_handle.clone(),
+        );
 
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();

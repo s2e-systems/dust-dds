@@ -89,10 +89,11 @@ use std::{
 };
 
 use super::{
-    data_reader_actor::{self},
+    data_reader_actor,
     data_writer_actor::{self, DataWriterActor},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     publisher_actor::{self, PublisherActor},
+    status_condition_actor::StatusConditionActor,
     subscriber_actor, topic_actor,
     type_support_actor::{self, TypeSupportActor},
 };
@@ -241,6 +242,7 @@ pub struct DomainParticipantActor {
     listener: Actor<DomainParticipantListenerActor>,
     status_kind: Vec<StatusKind>,
     type_support_actor: Actor<TypeSupportActor>,
+    status_condition: Actor<StatusConditionActor>,
 }
 
 impl DomainParticipantActor {
@@ -681,6 +683,7 @@ impl DomainParticipantActor {
             listener: Actor::spawn(DomainParticipantListenerActor::new(listener), handle),
             status_kind,
             type_support_actor,
+            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
         }
     }
 }
@@ -1417,6 +1420,10 @@ impl DomainParticipantActor {
         self.type_support_actor
             .send_mail_and_await_reply(type_support_actor::get_type_support::new(type_name))
             .await
+    }
+
+    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
     }
 }
 

@@ -5,7 +5,10 @@ use crate::{
         domain_participant_listener::DomainParticipantListener,
     },
     implementation::{
-        actors::domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
+        actors::{
+            domain_participant_actor,
+            domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
+        },
         utils::actor::Actor,
     },
     infrastructure::{
@@ -60,9 +63,14 @@ impl DomainParticipantFactoryAsync {
                 runtime_handle,
             ))
             .await?;
-
-        let domain_participant =
-            DomainParticipantAsync::new(participant_address.clone(), self.runtime_handle.clone());
+        let status_condition = participant_address
+            .send_mail_and_await_reply(domain_participant_actor::get_statuscondition::new())
+            .await?;
+        let domain_participant = DomainParticipantAsync::new(
+            participant_address.clone(),
+            status_condition,
+            self.runtime_handle.clone(),
+        );
 
         if self
             .get_qos()
@@ -91,13 +99,24 @@ impl DomainParticipantFactoryAsync {
         &self,
         domain_id: DomainId,
     ) -> DdsResult<Option<DomainParticipantAsync>> {
-        Ok(self
+        if let Some(dp) = self
             .domain_participant_factory_actor
             .send_mail_and_await_reply(domain_participant_factory_actor::lookup_participant::new(
                 domain_id,
             ))
             .await?
-            .map(|dp| DomainParticipantAsync::new(dp, self.runtime_handle.clone())))
+        {
+            let status_condition = dp
+                .send_mail_and_await_reply(domain_participant_actor::get_statuscondition::new())
+                .await?;
+            Ok(Some(DomainParticipantAsync::new(
+                dp,
+                status_condition,
+                self.runtime_handle.clone(),
+            )))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Async version of [`set_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_default_participant_qos).

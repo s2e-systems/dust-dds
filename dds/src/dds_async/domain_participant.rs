@@ -10,7 +10,9 @@ use crate::{
         actors::{
             data_reader_actor, data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
-            publisher_actor, subscriber_actor, topic_actor,
+            publisher_actor,
+            status_condition_actor::StatusConditionActor,
+            subscriber_actor, topic_actor,
         },
         utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
@@ -39,16 +41,19 @@ use super::{
 #[derive(Clone)]
 pub struct DomainParticipantAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
     runtime_handle: tokio::runtime::Handle,
 }
 
 impl DomainParticipantAsync {
     pub(crate) fn new(
         participant_address: ActorAddress<DomainParticipantActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             participant_address,
+            status_condition_address,
             runtime_handle,
         }
     }
@@ -798,8 +803,11 @@ impl DomainParticipantAsync {
 
     /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
-        todo!()
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.runtime_handle.clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::domain::domain_participant::DomainParticipant::get_status_changes).
