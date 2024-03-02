@@ -106,11 +106,7 @@ impl DomainParticipantAsync {
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::get_instance_handle::new())
             .await?
-            != a_publisher
-                .get_participant()
-                .await
-                .get_instance_handle()
-                .await?
+            != a_publisher.get_participant().get_instance_handle().await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
@@ -167,11 +163,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_subscriber))]
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         if self.get_instance_handle().await?
-            != a_subscriber
-                .get_participant()
-                .await
-                .get_instance_handle()
-                .await?
+            != a_subscriber.get_participant().get_instance_handle().await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),

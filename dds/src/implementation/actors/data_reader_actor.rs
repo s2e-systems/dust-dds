@@ -9,9 +9,7 @@ use tracing::debug;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    dds_async::{
-        domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync, topic::TopicAsync,
-    },
+    dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -80,7 +78,6 @@ use super::{
     domain_participant_actor::ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
     status_condition_actor::{self, StatusConditionActor},
-    subscriber_actor::SubscriberActor,
     subscriber_listener_actor::{self, SubscriberListenerActor},
     topic_actor::TopicActor,
     type_support_actor::{self, TypeSupportActor},
@@ -267,7 +264,6 @@ pub struct DataReaderActor {
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, tokio::task::AbortHandle>,
-
 }
 
 impl DataReaderActor {
@@ -329,8 +325,7 @@ impl DataReaderActor {
     async fn on_data_available(
         &self,
         data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant: &DomainParticipantAsync,
+        subscriber: &SubscriberAsync,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
             ActorAddress<SubscriberListenerActor>,
@@ -351,20 +346,21 @@ impl DataReaderActor {
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             subscriber_listener_address
                 .send_mail(subscriber_listener_actor::trigger_on_data_on_readers::new(
-                    subscriber_address.clone(),
-                    participant.clone(),
+                    subscriber.subscriber_address().clone(),
+                    subscriber.get_participant(),
                 ))
                 .await?;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
+            let participant = subscriber.get_participant();
             self.listener
                 .send_mail(data_reader_listener_actor::trigger_on_data_available::new(
                     data_reader_address.clone(),
-                    SubscriberAsync::new(subscriber_address.clone(), participant.clone()),
+                    subscriber.clone(),
                     TopicAsync::new(
                         self.topic_address.clone(),
                         self.type_name.clone(),
                         self.topic_name.clone(),
-                        participant.clone(),
+                        participant,
                     ),
                 ))
                 .await;
@@ -381,8 +377,7 @@ impl DataReaderActor {
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant: &DomainParticipantAsync,
+        subscriber: &SubscriberAsync,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
@@ -408,8 +403,7 @@ impl DataReaderActor {
                             writer_proxy.lost_changes_update(sequence_number);
                             self.on_sample_lost(
                                 data_reader_address,
-                                subscriber_address,
-                                participant,
+                                subscriber,
                                 subscriber_mask_listener,
                                 participant_mask_listener,
                             )
@@ -428,8 +422,7 @@ impl DataReaderActor {
                                 self.add_change(
                                     change,
                                     data_reader_address,
-                                    subscriber_address,
-                                    participant,
+                                    subscriber,
                                     subscriber_status_condition,
                                     subscriber_mask_listener,
                                     participant_mask_listener,
@@ -467,8 +460,7 @@ impl DataReaderActor {
                                 self.add_change(
                                     change,
                                     data_reader_address,
-                                    subscriber_address,
-                                    participant,
+                                    subscriber,
                                     subscriber_status_condition,
                                     subscriber_mask_listener,
                                     participant_mask_listener,
@@ -509,8 +501,7 @@ impl DataReaderActor {
                 self.add_change(
                     change,
                     data_reader_address,
-                    subscriber_address,
-                    participant,
+                    subscriber,
                     subscriber_status_condition,
                     subscriber_mask_listener,
                     participant_mask_listener,
@@ -533,8 +524,7 @@ impl DataReaderActor {
         source_timestamp: Option<Time>,
         reception_timestamp: Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant: &DomainParticipantAsync,
+        subscriber: &SubscriberAsync,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
@@ -560,8 +550,7 @@ impl DataReaderActor {
                     source_timestamp,
                     reception_timestamp,
                     data_reader_address,
-                    subscriber_address,
-                    participant,
+                    subscriber,
                     subscriber_status_condition,
                     subscriber_mask_listener,
                     participant_mask_listener,
@@ -693,8 +682,7 @@ impl DataReaderActor {
     async fn on_sample_lost(
         &mut self,
         data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant: &DomainParticipantAsync,
+        subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
             ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
@@ -716,12 +704,12 @@ impl DataReaderActor {
             self.listener
                 .send_mail(data_reader_listener_actor::trigger_on_sample_lost::new(
                     data_reader_address.clone(),
-                    SubscriberAsync::new(subscriber_address.clone(), participant.clone()),
+                    subscriber.clone(),
                     TopicAsync::new(
                         self.topic_address.clone(),
                         self.type_name.clone(),
                         self.topic_name.clone(),
-                        participant.clone(),
+                        subscriber.get_participant(),
                     ),
                     status,
                 ))
@@ -748,8 +736,7 @@ impl DataReaderActor {
         &mut self,
         instance_handle: InstanceHandle,
         data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant: DomainParticipantAsync,
+        subscriber: SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
             ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
@@ -772,12 +759,12 @@ impl DataReaderActor {
                 .send_mail(
                     data_reader_listener_actor::trigger_on_subscription_matched::new(
                         data_reader_address,
-                        SubscriberAsync::new(subscriber_address.clone(), participant.clone()),
+                        subscriber.clone(),
                         TopicAsync::new(
                             self.topic_address.clone(),
                             self.type_name.clone(),
                             self.topic_name.clone(),
-                            participant.clone(),
+                            subscriber.get_participant(),
                         ),
                         status,
                     ),
@@ -806,8 +793,7 @@ impl DataReaderActor {
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
         data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant: &DomainParticipantAsync,
+        subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
             ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
@@ -831,12 +817,12 @@ impl DataReaderActor {
             self.listener
                 .send_mail(data_reader_listener_actor::trigger_on_sample_rejected::new(
                     data_reader_address.clone(),
-                    SubscriberAsync::new(subscriber_address.clone(), participant.clone()),
+                    subscriber.clone(),
                     TopicAsync::new(
                         self.topic_address.clone(),
                         self.type_name.clone(),
                         self.topic_name.clone(),
-                        participant.clone(),
+                        subscriber.get_participant(),
                     ),
                     status,
                 ))
@@ -866,8 +852,7 @@ impl DataReaderActor {
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
         data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant: &DomainParticipantAsync,
+        subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
             ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
@@ -895,12 +880,12 @@ impl DataReaderActor {
                 .send_mail(
                     data_reader_listener_actor::trigger_on_requested_incompatible_qos::new(
                         data_reader_address.clone(),
-                        SubscriberAsync::new(subscriber_address.clone(), participant.clone()),
+                        subscriber.clone(),
                         TopicAsync::new(
                             self.topic_address.clone(),
                             self.type_name.clone(),
                             self.topic_name.clone(),
-                            participant.clone(),
+                            subscriber.get_participant(),
                         ),
                         status,
                     ),
@@ -1016,8 +1001,7 @@ impl DataReaderActor {
         &mut self,
         change: RtpsReaderCacheChange,
         data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber_address: &ActorAddress<SubscriberActor>,
-        participant: &DomainParticipantAsync,
+        subscriber: &SubscriberAsync,
         subscriber_status_condition: &ActorAddress<StatusConditionActor>,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
@@ -1031,8 +1015,7 @@ impl DataReaderActor {
                     change.instance_handle,
                     SampleRejectedStatusKind::RejectedBySamplesLimit,
                     data_reader_address,
-                    subscriber_address,
-                    participant,
+                    subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
@@ -1042,8 +1025,7 @@ impl DataReaderActor {
                     change.instance_handle,
                     SampleRejectedStatusKind::RejectedByInstancesLimit,
                     data_reader_address,
-                    subscriber_address,
-                    participant,
+                    subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
@@ -1053,8 +1035,7 @@ impl DataReaderActor {
                     change.instance_handle,
                     SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
                     data_reader_address,
-                    subscriber_address,
-                    participant,
+                    subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
@@ -1085,8 +1066,7 @@ impl DataReaderActor {
                 self.start_deadline_missed_task(
                     change.instance_handle,
                     data_reader_address.clone(),
-                    subscriber_address.clone(),
-                    participant.clone(),
+                    subscriber.clone(),
                     subscriber_mask_listener,
                     participant_mask_listener,
                 );
@@ -1115,8 +1095,7 @@ impl DataReaderActor {
 
                 self.on_data_available(
                     data_reader_address,
-                    subscriber_address,
-                    participant,
+                    subscriber,
                     subscriber_status_condition,
                     subscriber_mask_listener,
                 )
@@ -1334,8 +1313,7 @@ impl DataReaderActor {
         &mut self,
         change_instance_handle: InstanceHandle,
         data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant: DomainParticipantAsync,
+        subscriber: SubscriberAsync,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
             ActorAddress<DomainParticipantListenerActor>,
@@ -1394,15 +1372,12 @@ impl DataReaderActor {
                                 .send_mail(
                                     data_reader_listener_actor::trigger_on_requested_deadline_missed::new(
                                     data_reader_address.clone(),
-                                    SubscriberAsync::new(
-                                        subscriber_address.clone(),
-                                        participant.clone(),
-                                    ),
+                                    subscriber.clone(),
                                     TopicAsync::new(
                                         topic_address.clone(),
                                         type_name.clone(),
                                         topic_name.clone(),
-                                        participant.clone(),
+                                        subscriber.get_participant(),
                                     ),
                                     status,
                                 ),
@@ -1741,8 +1716,7 @@ impl DataReaderActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant: DomainParticipantAsync,
+        subscriber: SubscriberAsync,
         subscriber_qos: SubscriberQos,
         subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
@@ -1821,8 +1795,7 @@ impl DataReaderActor {
                         self.on_subscription_matched(
                             instance_handle,
                             data_reader_address,
-                            subscriber_address,
-                            participant,
+                            subscriber,
                             &subscriber_mask_listener,
                             &participant_mask_listener,
                         )
@@ -1832,8 +1805,7 @@ impl DataReaderActor {
                         self.on_subscription_matched(
                             instance_handle,
                             data_reader_address,
-                            subscriber_address,
-                            participant,
+                            subscriber,
                             &subscriber_mask_listener,
                             &participant_mask_listener,
                         )
@@ -1845,8 +1817,7 @@ impl DataReaderActor {
                 self.on_requested_incompatible_qos(
                     incompatible_qos_policy_list,
                     &data_reader_address,
-                    &subscriber_address,
-                    &participant,
+                    &subscriber,
                     &subscriber_mask_listener,
                     &participant_mask_listener,
                 )
@@ -1860,8 +1831,7 @@ impl DataReaderActor {
         &mut self,
         discovered_writer_handle: InstanceHandle,
         data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant: DomainParticipantAsync,
+        subscriber: SubscriberAsync,
         subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
             ActorAddress<DomainParticipantListenerActor>,
@@ -1877,8 +1847,7 @@ impl DataReaderActor {
             self.on_subscription_matched(
                 discovered_writer_handle,
                 data_reader_address,
-                subscriber_address,
-                participant,
+                subscriber,
                 &subscriber_mask_listener,
                 &participant_mask_listener,
             )
@@ -1900,8 +1869,7 @@ impl DataReaderActor {
         message: RtpsMessageRead,
         reception_timestamp: Time,
         data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber_address: ActorAddress<SubscriberActor>,
-        participant: DomainParticipantAsync,
+        subscriber: SubscriberAsync,
         subscriber_status_condition: ActorAddress<StatusConditionActor>,
         subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
@@ -1933,8 +1901,7 @@ impl DataReaderActor {
                         message_receiver.source_timestamp(),
                         reception_timestamp,
                         &data_reader_address,
-                        &subscriber_address,
-                        &participant,
+                        &subscriber,
                         &subscriber_status_condition,
                         &subscriber_mask_listener,
                         &participant_mask_listener,
@@ -1949,8 +1916,7 @@ impl DataReaderActor {
                         message_receiver.source_timestamp(),
                         reception_timestamp,
                         &data_reader_address,
-                        &subscriber_address,
-                        &participant,
+                        &subscriber,
                         &subscriber_status_condition,
                         &subscriber_mask_listener,
                         &participant_mask_listener,

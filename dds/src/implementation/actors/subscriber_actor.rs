@@ -12,7 +12,7 @@ use super::{
     type_support_actor::TypeSupportActor,
 };
 use crate::{
-    dds_async::domain_participant::DomainParticipantAsync,
+    dds_async::{domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync},
     implementation::{
         actors::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
@@ -296,8 +296,7 @@ impl SubscriberActor {
                     message.clone(),
                     reception_timestamp,
                     data_reader_address.clone(),
-                    subscriber_address.clone(),
-                    participant.clone(),
+                    SubscriberAsync::new(subscriber_address.clone(), participant.clone()),
                     self.status_condition.address().clone(),
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
@@ -332,8 +331,7 @@ impl SubscriberActor {
                         default_unicast_locator_list.clone(),
                         default_multicast_locator_list.clone(),
                         data_reader_address,
-                        subscriber_address.clone(),
-                        participant.clone(),
+                        SubscriberAsync::new(subscriber_address.clone(), participant.clone()),
                         subscriber_qos,
                         subscriber_mask_listener,
                         participant_mask_listener.clone(),
@@ -360,8 +358,7 @@ impl SubscriberActor {
                 .send_mail_and_await_reply(data_reader_actor::remove_matched_writer::new(
                     discovered_writer_handle,
                     data_reader_address,
-                    subscriber_address.clone(),
-                    participant.clone(),
+                    SubscriberAsync::new(subscriber_address.clone(), participant.clone()),
                     subscriber_mask_listener,
                     participant_mask_listener.clone(),
                 ))

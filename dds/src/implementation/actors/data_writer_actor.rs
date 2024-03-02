@@ -1,8 +1,6 @@
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    dds_async::{
-        domain_participant::DomainParticipantAsync, publisher::PublisherAsync, topic::TopicAsync,
-    },
+    dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -78,7 +76,6 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_listener_actor::{self, DataWriterListenerActor},
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
-    publisher_actor::PublisherActor,
     publisher_listener_actor::{self, PublisherListenerActor},
     status_condition_actor::{self, StatusConditionActor},
     topic_actor::TopicActor,
@@ -599,8 +596,7 @@ impl DataWriterActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         data_writer_address: ActorAddress<DataWriterActor>,
-        publisher_address: ActorAddress<PublisherActor>,
-        participant: DomainParticipantAsync,
+        publisher: PublisherAsync,
         publisher_qos: PublisherQos,
         publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
         participant_publication_matched_listener: Option<
@@ -721,8 +717,7 @@ impl DataWriterActor {
                     );
                     self.on_publication_matched(
                         data_writer_address,
-                        publisher_address,
-                        participant,
+                        publisher,
                         publisher_publication_matched_listener,
                         participant_publication_matched_listener,
                     )
@@ -733,8 +728,7 @@ impl DataWriterActor {
                     .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
                 self.on_offered_incompatible_qos(
                     data_writer_address,
-                    publisher_address,
-                    participant,
+                    publisher,
                     offered_incompatible_qos_publisher_listener,
                     offered_incompatible_qos_participant_listener,
                 )
@@ -748,8 +742,7 @@ impl DataWriterActor {
         &mut self,
         discovered_reader_handle: InstanceHandle,
         data_writer_address: ActorAddress<DataWriterActor>,
-        publisher_address: ActorAddress<PublisherActor>,
-        participant: DomainParticipantAsync,
+        publisher: PublisherAsync,
         publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
@@ -766,8 +759,7 @@ impl DataWriterActor {
 
             self.on_publication_matched(
                 data_writer_address,
-                publisher_address,
-                participant,
+                publisher,
                 publisher_publication_matched_listener,
                 participant_publication_matched_listener,
             )
@@ -995,8 +987,7 @@ impl DataWriterActor {
     async fn on_publication_matched(
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
-        publisher_address: ActorAddress<PublisherActor>,
-        participant: DomainParticipantAsync,
+        publisher: PublisherAsync,
         publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
@@ -1009,16 +1000,17 @@ impl DataWriterActor {
             .await;
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
+            let participant = publisher.get_participant();
             self.listener
                 .send_mail(
                     data_writer_listener_actor::trigger_on_publication_matched::new(
                         data_writer_address,
-                        PublisherAsync::new(publisher_address, participant.clone()),
+                        publisher,
                         TopicAsync::new(
                             self.topic_address.clone(),
                             self.type_name.clone(),
                             self.topic_name.clone(),
-                            participant.clone(),
+                            participant,
                         ),
                         status,
                     ),
@@ -1048,8 +1040,7 @@ impl DataWriterActor {
     async fn on_offered_incompatible_qos(
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
-        publisher_address: ActorAddress<PublisherActor>,
-        participant: DomainParticipantAsync,
+        publisher: PublisherAsync,
         offered_incompatible_qos_publisher_listener: Option<ActorAddress<PublisherListenerActor>>,
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
@@ -1065,17 +1056,17 @@ impl DataWriterActor {
             .contains(&StatusKind::OfferedIncompatibleQos)
         {
             let status = self.get_offered_incompatible_qos_status().await;
-
+            let participant = publisher.get_participant();
             self.listener
                 .send_mail(
                     data_writer_listener_actor::trigger_on_offered_incompatible_qos::new(
                         data_writer_address,
-                        PublisherAsync::new(publisher_address, participant.clone()),
+                        publisher,
                         TopicAsync::new(
                             self.topic_address.clone(),
                             self.type_name.clone(),
                             self.topic_name.clone(),
-                            participant.clone(),
+                            participant,
                         ),
                         status,
                     ),

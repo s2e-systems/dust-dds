@@ -239,7 +239,7 @@ impl PublisherAsync {
 
     /// Async version of [`get_participant`](crate::publication::publisher::Publisher::get_participant).
     #[tracing::instrument(skip(self))]
-    pub async fn get_participant(&self) -> DomainParticipantAsync {
+    pub fn get_participant(&self) -> DomainParticipantAsync {
         self.participant.clone()
     }
 

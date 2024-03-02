@@ -5,7 +5,7 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use crate::{
-    dds_async::domain_participant::DomainParticipantAsync,
+    dds_async::{domain_participant::DomainParticipantAsync, publisher::PublisherAsync},
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
@@ -309,8 +309,7 @@ impl PublisherActor {
                         default_unicast_locator_list.clone(),
                         default_multicast_locator_list.clone(),
                         data_writer_address,
-                        publisher_address.clone(),
-                        participant.clone(),
+                        PublisherAsync::new(publisher_address.clone(), participant.clone()),
                         self.qos.clone(),
                         publisher_publication_matched_listener,
                         participant_publication_matched_listener.clone(),
@@ -343,8 +342,7 @@ impl PublisherActor {
                 .send_mail_and_await_reply(data_writer_actor::remove_matched_reader::new(
                     discovered_reader_handle,
                     data_writer_address,
-                    publisher_address.clone(),
-                    participant.clone(),
+                    PublisherAsync::new(publisher_address.clone(), participant.clone()),
                     publisher_publication_matched_listener,
                     participant_publication_matched_listener.clone(),
                 ))
