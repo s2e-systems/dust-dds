@@ -401,21 +401,13 @@ impl<Foo> DataReader<Foo> {
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
     pub fn get_topicdescription(&self) -> Topic {
-        Topic::new(
-            self.reader_async
-                .runtime_handle()
-                .block_on(self.reader_async.get_topicdescription()),
-        )
+        Topic::new(self.reader_async.get_topicdescription())
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_subscriber(&self) -> Subscriber {
-        Subscriber::new(
-            self.reader_async
-                .runtime_handle()
-                .block_on(self.reader_async.get_subscriber()),
-        )
+        Subscriber::new(self.reader_async.get_subscriber())
     }
 
     /// This operation blocks the calling thread until either all “historical” data is received, or else the

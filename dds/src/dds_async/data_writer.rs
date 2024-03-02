@@ -449,13 +449,13 @@ impl<Foo> DataWriterAsync<Foo> {
 
     /// Async version of [`get_topic`](crate::publication::data_writer::DataWriter::get_topic).
     #[tracing::instrument(skip(self))]
-    pub async fn get_topic(&self) -> TopicAsync {
+    pub fn get_topic(&self) -> TopicAsync {
         self.topic.clone()
     }
 
     /// Async version of [`get_publisher`](crate::publication::data_writer::DataWriter::get_publisher).
     #[tracing::instrument(skip(self))]
-    pub async fn get_publisher(&self) -> PublisherAsync {
+    pub fn get_publisher(&self) -> PublisherAsync {
         self.publisher.clone()
     }
 

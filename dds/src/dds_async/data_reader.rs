@@ -377,13 +377,13 @@ impl<Foo> DataReaderAsync<Foo> {
 
     /// Async version of [`get_topicdescription`](crate::subscription::data_reader::DataReader::get_topicdescription).
     #[tracing::instrument(skip(self))]
-    pub async fn get_topicdescription(&self) -> TopicAsync {
+    pub fn get_topicdescription(&self) -> TopicAsync {
         self.topic.clone()
     }
 
     /// Async version of [`get_subscriber`](crate::subscription::data_reader::DataReader::get_subscriber).
     #[tracing::instrument(skip(self))]
-    pub async fn get_subscriber(&self) -> SubscriberAsync {
+    pub fn get_subscriber(&self) -> SubscriberAsync {
         self.subscriber.clone()
     }
 

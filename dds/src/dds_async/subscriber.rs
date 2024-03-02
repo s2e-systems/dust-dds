@@ -65,8 +65,8 @@ impl SubscriberAsync {
         a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DataReaderAsync<Foo>> {
-        let type_name = a_topic.get_type_name().await;
-        let topic_name = a_topic.get_name().await;
+        let type_name = a_topic.get_type_name();
+        let topic_name = a_topic.get_name();
         let type_support = self
             .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
@@ -140,11 +140,7 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         let reader_handle = a_datareader.get_instance_handle().await?;
         if self.get_instance_handle().await?
-            != a_datareader
-                .get_subscriber()
-                .await
-                .get_instance_handle()
-                .await?
+            != a_datareader.get_subscriber().get_instance_handle().await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Data reader can only be deleted from its parent subscriber".to_string(),

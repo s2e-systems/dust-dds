@@ -65,7 +65,7 @@ impl PublisherAsync {
         a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriterAsync<Foo>> {
-        let type_name = a_topic.get_type_name().await;
+        let type_name = a_topic.get_type_name();
         let type_support = self
             .participant
             .participant_address()
@@ -105,8 +105,8 @@ impl PublisherAsync {
         let data_writer_address = self
             .publisher_address
             .send_mail_and_await_reply(publisher_actor::create_datawriter::new(
-                a_topic.get_type_name().await,
-                a_topic.get_name().await,
+                a_topic.get_type_name(),
+                a_topic.get_name(),
                 has_key,
                 data_max_size_serialized,
                 qos,
@@ -149,11 +149,7 @@ impl PublisherAsync {
             .publisher_address
             .send_mail_and_await_reply(publisher_actor::get_instance_handle::new())
             .await?
-            != a_datawriter
-                .get_publisher()
-                .await
-                .get_instance_handle()
-                .await?
+            != a_datawriter.get_publisher().get_instance_handle().await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),

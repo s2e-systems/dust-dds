@@ -255,11 +255,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_topic))]
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
         if self.get_instance_handle().await?
-            != a_topic
-                .get_participant()
-                .await
-                .get_instance_handle()
-                .await?
+            != a_topic.get_participant().get_instance_handle().await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant".to_string(),
@@ -280,11 +276,11 @@ impl DomainParticipantAsync {
                 if data_writer
                     .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
                     .await?
-                    == a_topic.get_type_name().await
+                    == a_topic.get_type_name()
                     && data_writer
                         .send_mail_and_await_reply(data_writer_actor::get_topic_name::new())
                         .await?
-                        == a_topic.get_name().await
+                        == a_topic.get_name()
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer".to_string(),
@@ -307,11 +303,11 @@ impl DomainParticipantAsync {
                 if data_reader
                     .send_mail_and_await_reply(data_reader_actor::get_type_name::new())
                     .await?
-                    == a_topic.get_type_name().await
+                    == a_topic.get_type_name()
                     && data_reader
                         .send_mail_and_await_reply(data_reader_actor::get_topic_name::new())
                         .await?
-                        == a_topic.get_name().await
+                        == a_topic.get_name()
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data reader".to_string(),
