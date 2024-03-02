@@ -1005,6 +1005,7 @@ impl DataWriterActor {
                 .send_mail(
                     data_writer_listener_actor::trigger_on_publication_matched::new(
                         data_writer_address,
+                        self.status_condition.address(),
                         publisher,
                         TopicAsync::new(
                             self.topic_address.clone(),
@@ -1061,6 +1062,7 @@ impl DataWriterActor {
                 .send_mail(
                     data_writer_listener_actor::trigger_on_offered_incompatible_qos::new(
                         data_writer_address,
+                        self.status_condition.address(),
                         publisher,
                         TopicAsync::new(
                             self.topic_address.clone(),

@@ -8,18 +8,20 @@ use crate::{
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
 };
 
-use super::data_reader_actor::DataReaderActor;
+use super::{data_reader_actor::DataReaderActor, status_condition_actor::StatusConditionActor};
 
 pub trait AnyDataReaderListener {
     fn trigger_on_data_available(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     );
     fn trigger_on_sample_rejected(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: SampleRejectedStatus,
@@ -28,6 +30,7 @@ pub trait AnyDataReaderListener {
     fn trigger_on_liveliness_changed(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: LivelinessChangedStatus,
@@ -35,6 +38,7 @@ pub trait AnyDataReaderListener {
     fn trigger_on_requested_deadline_missed(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: RequestedDeadlineMissedStatus,
@@ -42,6 +46,7 @@ pub trait AnyDataReaderListener {
     fn trigger_on_requested_incompatible_qos(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: RequestedIncompatibleQosStatus,
@@ -49,6 +54,7 @@ pub trait AnyDataReaderListener {
     fn trigger_on_subscription_matched(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: SubscriptionMatchedStatus,
@@ -56,6 +62,7 @@ pub trait AnyDataReaderListener {
     fn trigger_on_sample_lost(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: SampleLostStatus,
@@ -69,11 +76,13 @@ where
     fn trigger_on_data_available(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     ) {
         self.on_data_available(&DataReader::new(DataReaderAsync::new(
             reader_address,
+            status_condition_address,
             subscriber,
             topic,
         )))
@@ -82,12 +91,18 @@ where
     fn trigger_on_sample_rejected(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: SampleRejectedStatus,
     ) {
         self.on_sample_rejected(
-            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
+            &DataReader::new(DataReaderAsync::new(
+                reader_address,
+                status_condition_address,
+                subscriber,
+                topic,
+            )),
             status,
         )
     }
@@ -95,12 +110,18 @@ where
     fn trigger_on_liveliness_changed(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: LivelinessChangedStatus,
     ) {
         self.on_liveliness_changed(
-            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
+            &DataReader::new(DataReaderAsync::new(
+                reader_address,
+                status_condition_address,
+                subscriber,
+                topic,
+            )),
             status,
         )
     }
@@ -108,12 +129,18 @@ where
     fn trigger_on_requested_deadline_missed(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: RequestedDeadlineMissedStatus,
     ) {
         self.on_requested_deadline_missed(
-            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
+            &DataReader::new(DataReaderAsync::new(
+                reader_address,
+                status_condition_address,
+                subscriber,
+                topic,
+            )),
             status,
         )
     }
@@ -121,12 +148,18 @@ where
     fn trigger_on_requested_incompatible_qos(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: RequestedIncompatibleQosStatus,
     ) {
         self.on_requested_incompatible_qos(
-            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
+            &DataReader::new(DataReaderAsync::new(
+                reader_address,
+                status_condition_address,
+                subscriber,
+                topic,
+            )),
             status,
         )
     }
@@ -134,12 +167,18 @@ where
     fn trigger_on_subscription_matched(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: SubscriptionMatchedStatus,
     ) {
         self.on_subscription_matched(
-            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
+            &DataReader::new(DataReaderAsync::new(
+                reader_address,
+                status_condition_address,
+                subscriber,
+                topic,
+            )),
             status,
         )
     }
@@ -147,12 +186,18 @@ where
     fn trigger_on_sample_lost(
         &mut self,
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
         status: SampleLostStatus,
     ) {
         self.on_sample_lost(
-            &DataReader::new(DataReaderAsync::new(reader_address, subscriber, topic)),
+            &DataReader::new(DataReaderAsync::new(
+                reader_address,
+                status_condition_address,
+                subscriber,
+                topic,
+            )),
             status,
         )
     }

@@ -4,6 +4,7 @@ use crate::{
         actors::{
             data_reader_actor::{self, DataReaderActor},
             domain_participant_actor::{self, DomainParticipantActor},
+            status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
         },
         utils::actor::ActorAddress,
@@ -34,6 +35,7 @@ use super::{condition::StatusConditionAsync, subscriber::SubscriberAsync, topic:
 /// Async version of [`DataReader`](crate::subscription::data_reader::DataReader).
 pub struct DataReaderAsync<Foo> {
     reader_address: ActorAddress<DataReaderActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
     subscriber: SubscriberAsync,
     topic: TopicAsync,
     phantom: PhantomData<Foo>,
@@ -42,11 +44,13 @@ pub struct DataReaderAsync<Foo> {
 impl<Foo> DataReaderAsync<Foo> {
     pub(crate) fn new(
         reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     ) -> Self {
         Self {
             reader_address,
+            status_condition_address,
             subscriber,
             topic,
             phantom: PhantomData,
@@ -116,6 +120,7 @@ impl<Foo> Clone for DataReaderAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
             reader_address: self.reader_address.clone(),
+            status_condition_address: self.status_condition_address.clone(),
             subscriber: self.subscriber.clone(),
             topic: self.topic.clone(),
             phantom: self.phantom,
@@ -473,11 +478,11 @@ impl<Foo> DataReaderAsync<Foo> {
 
     /// Async version of [`get_statuscondition`](crate::subscription::data_reader::DataReader::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
-        self.reader_address
-            .send_mail_and_await_reply(data_reader_actor::get_statuscondition::new())
-            .await
-            .map(|c| StatusConditionAsync::new(c, self.runtime_handle().clone()))
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.runtime_handle().clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::data_reader::DataReader::get_status_changes).

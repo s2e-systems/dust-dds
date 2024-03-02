@@ -44,7 +44,7 @@ fn writer_discovers_reader_in_same_participant() {
     let _data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_writer.get_statuscondition().unwrap();
+    let cond = data_writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -84,7 +84,7 @@ fn deleted_readers_are_disposed_from_writer() {
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_writer.get_statuscondition().unwrap();
+    let cond = data_writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -129,7 +129,7 @@ fn updated_readers_are_announced_to_writer() {
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_writer.get_statuscondition().unwrap();
+    let cond = data_writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -186,7 +186,7 @@ fn reader_discovers_writer_in_same_participant() {
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_reader.get_statuscondition().unwrap();
+    let cond = data_reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
 
@@ -226,7 +226,7 @@ fn deleted_writers_are_disposed_from_reader() {
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_reader.get_statuscondition().unwrap();
+    let cond = data_reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
 
@@ -271,7 +271,7 @@ fn updated_writers_are_announced_to_reader() {
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_reader.get_statuscondition().unwrap();
+    let cond = data_reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
 
@@ -344,7 +344,7 @@ fn two_participants_should_get_subscription_matched() {
     let _data_reader = subscriber
         .create_datareader::<UserType>(&topic2, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_writer.get_statuscondition().unwrap();
+    let cond = data_writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -467,7 +467,7 @@ fn reader_discovers_disposed_writer_same_participant() {
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_reader.get_statuscondition().unwrap();
+    let cond = data_reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
 
@@ -534,7 +534,7 @@ fn publisher_and_subscriber_different_partition_not_matched() {
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_reader.get_statuscondition().unwrap();
+    let cond = data_reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
 
@@ -577,7 +577,7 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond_data_writer = data_writer.get_statuscondition().unwrap();
+    let cond_data_writer = data_writer.get_statuscondition();
     cond_data_writer
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
@@ -598,7 +598,7 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond_data_reader = data_reader.get_statuscondition().unwrap();
+    let cond_data_reader = data_reader.get_statuscondition();
     cond_data_reader
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
@@ -648,7 +648,7 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond_data_writer = data_writer.get_statuscondition().unwrap();
+    let cond_data_writer = data_writer.get_statuscondition();
     cond_data_writer
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
@@ -669,7 +669,7 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond_data_reader = data_reader.get_statuscondition().unwrap();
+    let cond_data_reader = data_reader.get_statuscondition();
     cond_data_reader
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
@@ -719,7 +719,7 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
     let data_writer = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond_data_writer = data_writer.get_statuscondition().unwrap();
+    let cond_data_writer = data_writer.get_statuscondition();
     cond_data_writer
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
@@ -740,7 +740,7 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
     let data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond_data_reader = data_reader.get_statuscondition().unwrap();
+    let cond_data_reader = data_reader.get_statuscondition();
     cond_data_reader
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
@@ -786,7 +786,7 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
     let _data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_writer.get_statuscondition().unwrap();
+    let cond = data_writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -799,7 +799,7 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
     let data_writer2 = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let dw2_cond = data_writer2.get_statuscondition().unwrap();
+    let dw2_cond = data_writer2.get_statuscondition();
     dw2_cond
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
@@ -839,7 +839,7 @@ fn reader_matched_to_already_existing_writer_with_matched_reader() {
     let _data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let cond = data_writer.get_statuscondition().unwrap();
+    let cond = data_writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -852,7 +852,7 @@ fn reader_matched_to_already_existing_writer_with_matched_reader() {
     let data_reader2 = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let dr2_cond = data_reader2.get_statuscondition().unwrap();
+    let dr2_cond = data_reader2.get_statuscondition();
     dr2_cond
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();

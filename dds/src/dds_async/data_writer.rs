@@ -7,6 +7,7 @@ use crate::{
             data_writer_actor::{self, DataWriterActor},
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
+            status_condition_actor::StatusConditionActor,
         },
         utils::actor::ActorAddress,
     },
@@ -29,6 +30,7 @@ use super::{condition::StatusConditionAsync, publisher::PublisherAsync, topic::T
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<Foo> {
     writer_address: ActorAddress<DataWriterActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
     publisher: PublisherAsync,
     topic: TopicAsync,
     phantom: PhantomData<Foo>,
@@ -38,6 +40,7 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
             writer_address: self.writer_address.clone(),
+            status_condition_address: self.status_condition_address.clone(),
             publisher: self.publisher.clone(),
             topic: self.topic.clone(),
             phantom: self.phantom,
@@ -48,11 +51,13 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
 impl<Foo> DataWriterAsync<Foo> {
     pub(crate) fn new(
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
     ) -> Self {
         Self {
             writer_address,
+            status_condition_address,
             publisher,
             topic,
             phantom: PhantomData,
@@ -536,11 +541,11 @@ impl<Foo> DataWriterAsync<Foo> {
 
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
-        self.writer_address
-            .send_mail_and_await_reply(data_writer_actor::get_statuscondition::new())
-            .await
-            .map(|c| StatusConditionAsync::new(c, self.runtime_handle().clone()))
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.runtime_handle().clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::publication::data_writer::DataWriter::get_status_changes).

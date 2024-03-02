@@ -112,8 +112,15 @@ impl SubscriberAsync {
                 a_topic.topic_address().clone(),
             ))
             .await??;
-
-        let data_reader = DataReaderAsync::new(reader_address, self.clone(), a_topic.clone());
+        let status_condition = reader_address
+            .send_mail_and_await_reply(data_reader_actor::get_statuscondition::new())
+            .await?;
+        let data_reader = DataReaderAsync::new(
+            reader_address,
+            status_condition,
+            self.clone(),
+            a_topic.clone(),
+        );
 
         if self
             .subscriber_address
@@ -180,13 +187,25 @@ impl SubscriberAsync {
                 type_name,
                 self.participant.clone(),
             );
-            Ok(self
+            if let Some(dr) = self
                 .subscriber_address
                 .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
                     topic_name.to_string(),
                 ))
                 .await?
-                .map(|reader_address| DataReaderAsync::new(reader_address, self.clone(), topic)))
+            {
+                let status_condition = dr
+                    .send_mail_and_await_reply(data_reader_actor::get_statuscondition::new())
+                    .await?;
+                Ok(Some(DataReaderAsync::new(
+                    dr,
+                    status_condition,
+                    self.clone(),
+                    topic,
+                )))
+            } else {
+                Ok(None)
+            }
         } else {
             Err(DdsError::BadParameter)
         }

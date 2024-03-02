@@ -83,7 +83,7 @@ fn foo_with_lifetime_should_read_and_write() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -178,7 +178,7 @@ fn foo_with_non_consecutive_key_should_read_and_write() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -324,7 +324,7 @@ fn foo_with_specialized_type_support_should_read_and_write() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -425,7 +425,7 @@ fn foo_enumerator_should_read_and_write() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 

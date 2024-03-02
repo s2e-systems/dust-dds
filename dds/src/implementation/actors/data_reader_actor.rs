@@ -355,6 +355,7 @@ impl DataReaderActor {
             self.listener
                 .send_mail(data_reader_listener_actor::trigger_on_data_available::new(
                     data_reader_address.clone(),
+                    self.status_condition.address(),
                     subscriber.clone(),
                     TopicAsync::new(
                         self.topic_address.clone(),
@@ -704,6 +705,7 @@ impl DataReaderActor {
             self.listener
                 .send_mail(data_reader_listener_actor::trigger_on_sample_lost::new(
                     data_reader_address.clone(),
+                    self.status_condition.address(),
                     subscriber.clone(),
                     TopicAsync::new(
                         self.topic_address.clone(),
@@ -759,6 +761,7 @@ impl DataReaderActor {
                 .send_mail(
                     data_reader_listener_actor::trigger_on_subscription_matched::new(
                         data_reader_address,
+                        self.status_condition.address(),
                         subscriber.clone(),
                         TopicAsync::new(
                             self.topic_address.clone(),
@@ -817,6 +820,7 @@ impl DataReaderActor {
             self.listener
                 .send_mail(data_reader_listener_actor::trigger_on_sample_rejected::new(
                     data_reader_address.clone(),
+                    self.status_condition.address(),
                     subscriber.clone(),
                     TopicAsync::new(
                         self.topic_address.clone(),
@@ -880,6 +884,7 @@ impl DataReaderActor {
                 .send_mail(
                     data_reader_listener_actor::trigger_on_requested_incompatible_qos::new(
                         data_reader_address.clone(),
+                        self.status_condition.address(),
                         subscriber.clone(),
                         TopicAsync::new(
                             self.topic_address.clone(),
@@ -1343,6 +1348,7 @@ impl DataReaderActor {
             let topic_address = self.topic_address.clone();
             let type_name = self.type_name.clone();
             let topic_name = self.topic_name.clone();
+            let status_condition_address = self.status_condition.address();
             let deadline_missed_task = tokio::spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
@@ -1372,6 +1378,7 @@ impl DataReaderActor {
                                 .send_mail(
                                     data_reader_listener_actor::trigger_on_requested_deadline_missed::new(
                                     data_reader_address.clone(),
+                                    status_condition_address.clone(),
                                     subscriber.clone(),
                                     TopicAsync::new(
                                         topic_address.clone(),

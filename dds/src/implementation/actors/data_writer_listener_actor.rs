@@ -6,7 +6,10 @@ use crate::{
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
 
-use super::{any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor};
+use super::{
+    any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
+    status_condition_actor::StatusConditionActor,
+};
 
 pub struct DataWriterListenerActor {
     listener: Box<dyn AnyDataWriterListener + Send + 'static>,
@@ -23,6 +26,7 @@ impl DataWriterListenerActor {
     async fn trigger_on_offered_incompatible_qos(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedIncompatibleQosStatus,
@@ -30,6 +34,7 @@ impl DataWriterListenerActor {
         tokio::task::block_in_place(|| {
             self.listener.trigger_on_offered_incompatible_qos(
                 writer_address,
+                status_condition_address,
                 publisher,
                 topic,
                 status,
@@ -40,13 +45,19 @@ impl DataWriterListenerActor {
     async fn trigger_on_publication_matched(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: PublicationMatchedStatus,
     ) {
         tokio::task::block_in_place(|| {
-            self.listener
-                .trigger_on_publication_matched(writer_address, publisher, topic, status)
+            self.listener.trigger_on_publication_matched(
+                writer_address,
+                status_condition_address,
+                publisher,
+                topic,
+                status,
+            )
         });
     }
 }

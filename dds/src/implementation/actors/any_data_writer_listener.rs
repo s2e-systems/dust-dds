@@ -8,13 +8,14 @@ use crate::{
     publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
 };
 
-use super::data_writer_actor::DataWriterActor;
+use super::{data_writer_actor::DataWriterActor, status_condition_actor::StatusConditionActor};
 
 pub trait AnyDataWriterListener {
     #[allow(dead_code)]
     fn trigger_on_liveliness_lost(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: LivelinessLostStatus,
@@ -23,6 +24,7 @@ pub trait AnyDataWriterListener {
     fn trigger_on_offered_deadline_missed(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedDeadlineMissedStatus,
@@ -30,6 +32,7 @@ pub trait AnyDataWriterListener {
     fn trigger_on_offered_incompatible_qos(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedIncompatibleQosStatus,
@@ -37,6 +40,7 @@ pub trait AnyDataWriterListener {
     fn trigger_on_publication_matched(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: PublicationMatchedStatus,
@@ -50,12 +54,18 @@ where
     fn trigger_on_liveliness_lost(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: LivelinessLostStatus,
     ) {
         self.on_liveliness_lost(
-            &DataWriter::new(DataWriterAsync::new(writer_address, publisher, topic)),
+            &DataWriter::new(DataWriterAsync::new(
+                writer_address,
+                status_condition_address,
+                publisher,
+                topic,
+            )),
             status,
         );
     }
@@ -63,12 +73,18 @@ where
     fn trigger_on_offered_deadline_missed(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedDeadlineMissedStatus,
     ) {
         self.on_offered_deadline_missed(
-            &DataWriter::new(DataWriterAsync::new(writer_address, publisher, topic)),
+            &DataWriter::new(DataWriterAsync::new(
+                writer_address,
+                status_condition_address,
+                publisher,
+                topic,
+            )),
             status,
         );
     }
@@ -76,12 +92,18 @@ where
     fn trigger_on_offered_incompatible_qos(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedIncompatibleQosStatus,
     ) {
         self.on_offered_incompatible_qos(
-            &DataWriter::new(DataWriterAsync::new(writer_address, publisher, topic)),
+            &DataWriter::new(DataWriterAsync::new(
+                writer_address,
+                status_condition_address,
+                publisher,
+                topic,
+            )),
             status,
         );
     }
@@ -89,12 +111,18 @@ where
     fn trigger_on_publication_matched(
         &mut self,
         writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: PublicationMatchedStatus,
     ) {
         self.on_publication_matched(
-            &DataWriter::new(DataWriterAsync::new(writer_address, publisher, topic)),
+            &DataWriter::new(DataWriterAsync::new(
+                writer_address,
+                status_condition_address,
+                publisher,
+                topic,
+            )),
             status,
         )
     }

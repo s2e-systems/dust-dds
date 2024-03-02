@@ -1,6 +1,7 @@
 use crate::{
     implementation::{
         actors::{
+            data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
             topic_actor,
@@ -118,8 +119,15 @@ impl PublisherAsync {
                 a_topic.topic_address().clone(),
             ))
             .await??;
-
-        let data_writer = DataWriterAsync::new(data_writer_address, self.clone(), a_topic.clone());
+        let status_condition = data_writer_address
+            .send_mail_and_await_reply(data_writer_actor::get_statuscondition::new())
+            .await?;
+        let data_writer = DataWriterAsync::new(
+            data_writer_address,
+            status_condition,
+            self.clone(),
+            a_topic.clone(),
+        );
 
         if self
             .publisher_address
@@ -191,13 +199,25 @@ impl PublisherAsync {
                 type_name,
                 self.participant.clone(),
             );
-            Ok(self
+            if let Some(dw) = self
                 .publisher_address
                 .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
                     topic_name.to_string(),
                 ))
                 .await?
-                .map(|dw| DataWriterAsync::new(dw, self.clone(), topic)))
+            {
+                let status_condition = dw
+                    .send_mail_and_await_reply(data_writer_actor::get_statuscondition::new())
+                    .await?;
+                Ok(Some(DataWriterAsync::new(
+                    dw,
+                    status_condition,
+                    self.clone(),
+                    topic,
+                )))
+            } else {
+                Ok(None)
+            }
         } else {
             Err(DdsError::BadParameter)
         }

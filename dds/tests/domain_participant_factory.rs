@@ -193,7 +193,7 @@ fn all_objects_are_dropped() {
             )
             .unwrap();
 
-        let cond = writer.get_statuscondition().unwrap();
+        let cond = writer.get_statuscondition();
         cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
             .unwrap();
 
