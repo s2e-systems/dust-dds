@@ -43,7 +43,7 @@ impl PublisherAsync {
     }
 
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
-        &self.participant.participant_address()
+        self.participant.participant_address()
     }
 
     pub(crate) fn publisher_address(&self) -> &ActorAddress<PublisherActor> {
@@ -51,7 +51,7 @@ impl PublisherAsync {
     }
 
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.participant.runtime_handle()
+        self.participant.runtime_handle()
     }
 }
 

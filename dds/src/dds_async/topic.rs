@@ -52,11 +52,11 @@ impl TopicAsync {
     }
 
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
-        &self.participant.participant_address()
+        self.participant.participant_address()
     }
 
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.participant.runtime_handle()
+        self.participant.runtime_handle()
     }
 }
 
@@ -158,7 +158,7 @@ impl TopicAsync {
                 .await?;
 
             announce_topic(
-                &self.participant_address(),
+                self.participant_address(),
                 self.topic_address
                     .send_mail_and_await_reply(topic_actor::as_discovered_topic_data::new())
                     .await?,
