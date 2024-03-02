@@ -227,9 +227,12 @@ impl DomainParticipantAsync {
                 self.runtime_handle.clone(),
             ))
             .await?;
-
+        let topic_status_condition = topic_address
+            .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+            .await?;
         let topic = TopicAsync::new(
             topic_address,
+            topic_status_condition,
             type_name.to_string(),
             topic_name.to_string(),
             self.clone(),
@@ -351,8 +354,12 @@ impl DomainParticipantAsync {
                     let type_name = topic
                         .send_mail_and_await_reply(topic_actor::get_type_name::new())
                         .await?;
+                    let topic_status_condition = topic
+                        .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                        .await?;
                     return Ok(TopicAsync::new(
                         topic,
+                        topic_status_condition,
                         type_name,
                         topic_name.to_string(),
                         self.clone(),

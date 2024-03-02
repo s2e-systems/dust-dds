@@ -24,6 +24,10 @@ impl StatusConditionAsync {
         }
     }
 
+    pub(crate) fn address(&self) -> &ActorAddress<StatusConditionActor> {
+        &self.address
+    }
+
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
         &self.runtime_handle
     }

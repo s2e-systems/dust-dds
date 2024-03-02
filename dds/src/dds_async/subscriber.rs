@@ -110,6 +110,7 @@ impl SubscriberAsync {
                 default_multicast_locator_list,
                 self.runtime_handle().clone(),
                 a_topic.topic_address().clone(),
+                a_topic.get_statuscondition().address().clone(),
             ))
             .await??;
         let status_condition = reader_address
@@ -181,8 +182,12 @@ impl SubscriberAsync {
             let type_name = topic_address
                 .send_mail_and_await_reply(topic_actor::get_type_name::new())
                 .await?;
+            let topic_status_condition = topic_address
+                .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                .await?;
             let topic = TopicAsync::new(
                 topic_address,
+                topic_status_condition,
                 topic_name.to_string(),
                 type_name,
                 self.participant.clone(),

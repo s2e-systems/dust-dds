@@ -227,6 +227,7 @@ pub struct DataWriterActor {
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
     topic_address: ActorAddress<TopicActor>,
+    topic_status_condition_address: ActorAddress<StatusConditionActor>,
 }
 
 impl DataWriterActor {
@@ -240,6 +241,7 @@ impl DataWriterActor {
         qos: DataWriterQos,
         handle: &tokio::runtime::Handle,
         topic_address: ActorAddress<TopicActor>,
+        topic_status_condition_address: ActorAddress<StatusConditionActor>,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let listener = Actor::spawn(DataWriterListenerActor::new(listener), handle);
@@ -259,6 +261,7 @@ impl DataWriterActor {
             qos,
             registered_instance_list: HashSet::new(),
             topic_address,
+            topic_status_condition_address,
         }
     }
 
@@ -1009,6 +1012,7 @@ impl DataWriterActor {
                         publisher,
                         TopicAsync::new(
                             self.topic_address.clone(),
+                            self.topic_status_condition_address.clone(),
                             self.type_name.clone(),
                             self.topic_name.clone(),
                             participant,
@@ -1066,6 +1070,7 @@ impl DataWriterActor {
                         publisher,
                         TopicAsync::new(
                             self.topic_address.clone(),
+                            self.topic_status_condition_address.clone(),
                             self.type_name.clone(),
                             self.topic_name.clone(),
                             participant,

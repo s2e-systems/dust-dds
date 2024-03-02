@@ -4,6 +4,7 @@ use crate::{
             data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor,
+            status_condition_actor::StatusConditionActor,
             topic_actor::{self, TopicActor},
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
@@ -27,6 +28,7 @@ use super::{condition::StatusConditionAsync, domain_participant::DomainParticipa
 #[derive(Clone)]
 pub struct TopicAsync {
     topic_address: ActorAddress<TopicActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync,
@@ -35,12 +37,14 @@ pub struct TopicAsync {
 impl TopicAsync {
     pub(crate) fn new(
         topic_address: ActorAddress<TopicActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         type_name: String,
         topic_name: String,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             topic_address,
+            status_condition_address,
             type_name,
             topic_name,
             participant,
@@ -132,11 +136,11 @@ impl TopicAsync {
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
-        self.topic_address
-            .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-            .await
-            .map(|c| StatusConditionAsync::new(c, self.runtime_handle().clone()))
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.runtime_handle().clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::topic_definition::topic::Topic::get_status_changes).

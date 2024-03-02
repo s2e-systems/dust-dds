@@ -100,6 +100,7 @@ impl SubscriberActor {
         default_multicast_locator_list: Vec<Locator>,
         runtime_handle: tokio::runtime::Handle,
         topic_address: ActorAddress<TopicActor>,
+        topic_status_condition: ActorAddress<StatusConditionActor>,
     ) -> DdsResult<ActorAddress<DataReaderActor>> {
         let qos = match qos {
             QosKind::Default => self.default_data_reader_qos.clone(),
@@ -151,6 +152,7 @@ impl SubscriberActor {
             status_kind,
             &runtime_handle,
             topic_address,
+            topic_status_condition,
         );
 
         let reader_actor = Actor::spawn(data_reader, &runtime_handle);

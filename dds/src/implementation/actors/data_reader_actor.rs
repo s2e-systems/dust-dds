@@ -264,6 +264,7 @@ pub struct DataReaderActor {
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, tokio::task::AbortHandle>,
+    topic_status_condition_address: ActorAddress<StatusConditionActor>,
 }
 
 impl DataReaderActor {
@@ -277,6 +278,7 @@ impl DataReaderActor {
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
         topic_address: ActorAddress<TopicActor>,
+        topic_status_condition_address: ActorAddress<StatusConditionActor>,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let listener = Actor::spawn(DataReaderListenerActor::new(listener), handle);
@@ -307,6 +309,7 @@ impl DataReaderActor {
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
             topic_address,
+            topic_status_condition_address,
         }
     }
 
@@ -359,6 +362,7 @@ impl DataReaderActor {
                     subscriber.clone(),
                     TopicAsync::new(
                         self.topic_address.clone(),
+                        self.topic_status_condition_address.clone(),
                         self.type_name.clone(),
                         self.topic_name.clone(),
                         participant,
@@ -709,6 +713,7 @@ impl DataReaderActor {
                     subscriber.clone(),
                     TopicAsync::new(
                         self.topic_address.clone(),
+                        self.topic_status_condition_address.clone(),
                         self.type_name.clone(),
                         self.topic_name.clone(),
                         subscriber.get_participant(),
@@ -765,6 +770,7 @@ impl DataReaderActor {
                         subscriber.clone(),
                         TopicAsync::new(
                             self.topic_address.clone(),
+                            self.topic_status_condition_address.clone(),
                             self.type_name.clone(),
                             self.topic_name.clone(),
                             subscriber.get_participant(),
@@ -824,6 +830,7 @@ impl DataReaderActor {
                     subscriber.clone(),
                     TopicAsync::new(
                         self.topic_address.clone(),
+                        self.topic_status_condition_address.clone(),
                         self.type_name.clone(),
                         self.topic_name.clone(),
                         subscriber.get_participant(),
@@ -888,6 +895,7 @@ impl DataReaderActor {
                         subscriber.clone(),
                         TopicAsync::new(
                             self.topic_address.clone(),
+                            self.topic_status_condition_address.clone(),
                             self.type_name.clone(),
                             self.topic_name.clone(),
                             subscriber.get_participant(),
@@ -1349,6 +1357,7 @@ impl DataReaderActor {
             let type_name = self.type_name.clone();
             let topic_name = self.topic_name.clone();
             let status_condition_address = self.status_condition.address();
+            let topic_status_condition_address = self.topic_status_condition_address.clone();
             let deadline_missed_task = tokio::spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
@@ -1382,6 +1391,7 @@ impl DataReaderActor {
                                     subscriber.clone(),
                                     TopicAsync::new(
                                         topic_address.clone(),
+                                        topic_status_condition_address.clone(),
                                         type_name.clone(),
                                         topic_name.clone(),
                                         subscriber.get_participant(),

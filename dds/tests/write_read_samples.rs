@@ -1766,7 +1766,7 @@ fn inconsistent_topic_status_condition() {
         )
         .unwrap();
 
-    let status_cond = topic_best_effort.get_statuscondition().unwrap();
+    let status_cond = topic_best_effort.get_statuscondition();
     status_cond
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();

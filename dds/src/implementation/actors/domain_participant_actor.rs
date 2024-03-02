@@ -338,6 +338,9 @@ impl DomainParticipantActor {
                 vec![],
                 handle,
                 spdp_topic_participant.address(),
+                spdp_topic_participant
+                    .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                    .await,
             ),
             handle,
         );
@@ -368,6 +371,9 @@ impl DomainParticipantActor {
                 vec![],
                 handle,
                 sedp_topic_topics.address(),
+                sedp_topic_topics
+                    .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                    .await,
             ),
             handle,
         );
@@ -384,6 +390,9 @@ impl DomainParticipantActor {
                 vec![],
                 handle,
                 sedp_topic_publications.address(),
+                sedp_topic_publications
+                    .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                    .await,
             ),
             handle,
         );
@@ -400,6 +409,9 @@ impl DomainParticipantActor {
                 vec![],
                 handle,
                 sedp_topic_subscriptions.address(),
+                sedp_topic_subscriptions
+                    .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                    .await,
             ),
             handle,
         );
@@ -477,6 +489,9 @@ impl DomainParticipantActor {
                 spdp_writer_qos,
                 handle,
                 spdp_topic_participant.address(),
+                spdp_topic_participant
+                    .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                    .await,
             ),
             handle,
         );
@@ -518,6 +533,9 @@ impl DomainParticipantActor {
             sedp_writer_qos.clone(),
             handle,
             sedp_topic_topics.address(),
+            sedp_topic_topics
+                .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                .await,
         );
         let sedp_builtin_topics_writer_actor = Actor::spawn(sedp_builtin_topics_writer, handle);
 
@@ -532,6 +550,9 @@ impl DomainParticipantActor {
             sedp_writer_qos.clone(),
             handle,
             sedp_topic_publications.address(),
+            sedp_topic_publications
+                .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                .await,
         );
         let sedp_builtin_publications_writer_actor =
             Actor::spawn(sedp_builtin_publications_writer, handle);
@@ -547,6 +568,9 @@ impl DomainParticipantActor {
             sedp_writer_qos,
             handle,
             sedp_topic_subscriptions.address(),
+            sedp_topic_subscriptions
+                .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                .await,
         );
         let sedp_builtin_subscriptions_writer_actor =
             Actor::spawn(sedp_builtin_subscriptions_writer, handle);
