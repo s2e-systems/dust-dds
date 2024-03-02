@@ -3,6 +3,7 @@ use crate::{
         actors::{
             data_reader_actor,
             domain_participant_actor::{self, DomainParticipantActor},
+            status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
             topic_actor,
         },
@@ -28,16 +29,19 @@ use super::{
 #[derive(Clone)]
 pub struct SubscriberAsync {
     subscriber_address: ActorAddress<SubscriberActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
     participant: DomainParticipantAsync,
 }
 
 impl SubscriberAsync {
     pub(crate) fn new(
         subscriber_address: ActorAddress<SubscriberActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             subscriber_address,
+            status_condition_address,
             participant,
         }
     }
@@ -297,11 +301,11 @@ impl SubscriberAsync {
 
     /// Async version of [`get_statuscondition`](crate::subscription::subscriber::Subscriber::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
-        self.subscriber_address
-            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
-            .await
-            .map(|c| StatusConditionAsync::new(c, self.runtime_handle().clone()))
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.runtime_handle().clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::subscriber::Subscriber::get_status_changes).

@@ -349,8 +349,7 @@ impl DataReaderActor {
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             subscriber_listener_address
                 .send_mail(subscriber_listener_actor::trigger_on_data_on_readers::new(
-                    subscriber.subscriber_address().clone(),
-                    subscriber.get_participant(),
+                    subscriber.clone(),
                 ))
                 .await?;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {

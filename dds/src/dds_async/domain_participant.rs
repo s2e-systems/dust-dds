@@ -80,8 +80,10 @@ impl DomainParticipantAsync {
                 self.runtime_handle.clone(),
             ))
             .await?;
-
-        let publisher = PublisherAsync::new(publisher_address, self.clone());
+        let status_condition = publisher_address
+            .send_mail_and_await_reply(publisher_actor::get_statuscondition::new())
+            .await?;
+        let publisher = PublisherAsync::new(publisher_address, status_condition, self.clone());
         if self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
@@ -140,7 +142,15 @@ impl DomainParticipantAsync {
             ))
             .await?;
 
-        let subscriber = SubscriberAsync::new(subscriber_address, self.clone());
+        let subscriber_status_condition = subscriber_address
+            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
+            .await?;
+
+        let subscriber = SubscriberAsync::new(
+            subscriber_address,
+            subscriber_status_condition,
+            self.clone(),
+        );
 
         if self
             .participant_address
@@ -436,10 +446,16 @@ impl DomainParticipantAsync {
     /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
     #[tracing::instrument(skip(self))]
     pub async fn get_builtin_subscriber(&self) -> DdsResult<SubscriberAsync> {
+        let builtin_subscriber = self
+            .participant_address
+            .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
+            .await?;
+        let subscriber_status_condition = builtin_subscriber
+            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
+            .await?;
         Ok(SubscriberAsync::new(
-            self.participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
-                .await?,
+            builtin_subscriber,
+            subscriber_status_condition,
             self.clone(),
         ))
     }

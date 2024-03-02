@@ -50,6 +50,7 @@ pub struct PublisherActor {
     default_datawriter_qos: DataWriterQos,
     listener: Actor<PublisherListenerActor>,
     status_kind: Vec<StatusKind>,
+    status_condition: Actor<StatusConditionActor>,
 }
 
 impl PublisherActor {
@@ -69,6 +70,7 @@ impl PublisherActor {
             default_datawriter_qos: DataWriterQos::default(),
             listener: Actor::spawn(PublisherListenerActor::new(listener), handle),
             status_kind,
+            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
         }
     }
 }
@@ -312,7 +314,11 @@ impl PublisherActor {
                         default_unicast_locator_list.clone(),
                         default_multicast_locator_list.clone(),
                         data_writer_address,
-                        PublisherAsync::new(publisher_address.clone(), participant.clone()),
+                        PublisherAsync::new(
+                            publisher_address.clone(),
+                            self.status_condition.address(),
+                            participant.clone(),
+                        ),
                         self.qos.clone(),
                         publisher_publication_matched_listener,
                         participant_publication_matched_listener.clone(),
@@ -345,12 +351,20 @@ impl PublisherActor {
                 .send_mail_and_await_reply(data_writer_actor::remove_matched_reader::new(
                     discovered_reader_handle,
                     data_writer_address,
-                    PublisherAsync::new(publisher_address.clone(), participant.clone()),
+                    PublisherAsync::new(
+                        publisher_address.clone(),
+                        self.status_condition.address(),
+                        participant.clone(),
+                    ),
                     publisher_publication_matched_listener,
                     participant_publication_matched_listener.clone(),
                 ))
                 .await;
         }
+    }
+
+    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
     }
 
     async fn set_listener(

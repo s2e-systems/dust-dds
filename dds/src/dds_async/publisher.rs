@@ -4,6 +4,7 @@ use crate::{
             data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
+            status_condition_actor::StatusConditionActor,
             topic_actor,
         },
         utils::actor::ActorAddress,
@@ -29,16 +30,19 @@ use super::{
 #[derive(Clone)]
 pub struct PublisherAsync {
     publisher_address: ActorAddress<PublisherActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
     participant: DomainParticipantAsync,
 }
 
 impl PublisherAsync {
     pub(crate) fn new(
         publisher_address: ActorAddress<PublisherActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             publisher_address,
+            status_condition_address,
             participant,
         }
     }
@@ -342,8 +346,11 @@ impl PublisherAsync {
 
     /// Async version of [`get_statuscondition`](crate::publication::publisher::Publisher::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
-        todo!()
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.participant.runtime_handle().clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::publication::publisher::Publisher::get_status_changes).
