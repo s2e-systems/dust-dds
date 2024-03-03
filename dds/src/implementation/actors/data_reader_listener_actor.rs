@@ -4,8 +4,8 @@ use crate::{
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::utils::actor::ActorAddress,
     infrastructure::status::{
-        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-        SampleRejectedStatus, SubscriptionMatchedStatus,
+        LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+        SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
 };
 
@@ -24,117 +24,34 @@ impl DataReaderListenerActor {
     }
 }
 
+pub enum DataReaderListenerOperation {
+    OnDataAvailable,
+    OnSampleRejected(SampleRejectedStatus),
+    _OnLivelinessChanged(LivelinessChangedStatus),
+    OnRequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    OnRequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    OnSubscriptionMatched(SubscriptionMatchedStatus),
+    OnSampleLost(SampleLostStatus),
+}
+
 #[actor_interface]
 impl DataReaderListenerActor {
-    async fn trigger_on_data_available(
+    async fn call_listener_function(
         &mut self,
+        listener_operation: DataReaderListenerOperation,
         reader_address: ActorAddress<DataReaderActor>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     ) {
         tokio::task::block_in_place(|| {
-            self.listener.trigger_on_data_available(
+            self.listener.call_listener_function(
+                listener_operation,
                 reader_address,
                 status_condition_address,
                 subscriber,
                 topic,
-            )
-        });
-    }
-
-    async fn trigger_on_sample_rejected(
-        &mut self,
-        reader_address: ActorAddress<DataReaderActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        subscriber: SubscriberAsync,
-        topic: TopicAsync,
-        status: SampleRejectedStatus,
-    ) {
-        tokio::task::block_in_place(|| {
-            self.listener.trigger_on_sample_rejected(
-                reader_address,
-                status_condition_address,
-                subscriber,
-                topic,
-                status,
-            )
-        });
-    }
-
-    async fn trigger_on_sample_lost(
-        &mut self,
-        reader_address: ActorAddress<DataReaderActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        subscriber: SubscriberAsync,
-        topic: TopicAsync,
-        status: SampleLostStatus,
-    ) {
-        tokio::task::block_in_place(|| {
-            self.listener.trigger_on_sample_lost(
-                reader_address,
-                status_condition_address,
-                subscriber,
-                topic,
-                status,
             )
         })
-    }
-
-    async fn trigger_on_requested_incompatible_qos(
-        &mut self,
-        reader_address: ActorAddress<DataReaderActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        subscriber: SubscriberAsync,
-        topic: TopicAsync,
-        status: RequestedIncompatibleQosStatus,
-    ) {
-        tokio::task::block_in_place(|| {
-            self.listener.trigger_on_requested_incompatible_qos(
-                reader_address,
-                status_condition_address,
-                subscriber,
-                topic,
-                status,
-            )
-        });
-    }
-
-    async fn trigger_on_subscription_matched(
-        &mut self,
-        reader_address: ActorAddress<DataReaderActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        subscriber: SubscriberAsync,
-        topic: TopicAsync,
-        status: SubscriptionMatchedStatus,
-    ) {
-        tokio::task::block_in_place(|| {
-            self.listener.trigger_on_subscription_matched(
-                reader_address,
-                status_condition_address,
-                subscriber,
-                topic,
-                status,
-            )
-        });
-    }
-
-    async fn trigger_on_requested_deadline_missed(
-        &mut self,
-        reader_address: ActorAddress<DataReaderActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        subscriber: SubscriberAsync,
-        topic: TopicAsync,
-        status: RequestedDeadlineMissedStatus,
-    ) {
-        tokio::task::block_in_place(|| {
-            self.listener.trigger_on_requested_deadline_missed(
-                reader_address,
-                status_condition_address,
-                subscriber,
-                topic,
-                status,
-            )
-        });
     }
 }

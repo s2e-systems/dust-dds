@@ -74,7 +74,7 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    data_reader_listener_actor::{self, DataReaderListenerActor},
+    data_reader_listener_actor::{self, DataReaderListenerActor, DataReaderListenerOperation},
     domain_participant_actor::ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
     status_condition_actor::{self, StatusConditionActor},
@@ -355,7 +355,8 @@ impl DataReaderActor {
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
             let participant = subscriber.get_participant();
             self.listener
-                .send_mail(data_reader_listener_actor::trigger_on_data_available::new(
+                .send_mail(data_reader_listener_actor::call_listener_function::new(
+                    DataReaderListenerOperation::OnDataAvailable,
                     data_reader_address.clone(),
                     self.status_condition.address(),
                     subscriber.clone(),
@@ -706,7 +707,8 @@ impl DataReaderActor {
         if self.status_kind.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             self.listener
-                .send_mail(data_reader_listener_actor::trigger_on_sample_lost::new(
+                .send_mail(data_reader_listener_actor::call_listener_function::new(
+                    DataReaderListenerOperation::OnSampleLost(status),
                     data_reader_address.clone(),
                     self.status_condition.address(),
                     subscriber.clone(),
@@ -717,7 +719,6 @@ impl DataReaderActor {
                         self.topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                    status,
                 ))
                 .await;
         } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
@@ -762,21 +763,19 @@ impl DataReaderActor {
         if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
             self.listener
-                .send_mail(
-                    data_reader_listener_actor::trigger_on_subscription_matched::new(
-                        data_reader_address,
-                        self.status_condition.address(),
-                        subscriber.clone(),
-                        TopicAsync::new(
-                            self.topic_address.clone(),
-                            self.topic_status_condition_address.clone(),
-                            self.type_name.clone(),
-                            self.topic_name.clone(),
-                            subscriber.get_participant(),
-                        ),
-                        status,
+                .send_mail(data_reader_listener_actor::call_listener_function::new(
+                    DataReaderListenerOperation::OnSubscriptionMatched(status),
+                    data_reader_address,
+                    self.status_condition.address(),
+                    subscriber.clone(),
+                    TopicAsync::new(
+                        self.topic_address.clone(),
+                        self.topic_status_condition_address.clone(),
+                        self.type_name.clone(),
+                        self.topic_name.clone(),
+                        subscriber.get_participant(),
                     ),
-                )
+                ))
                 .await;
         } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
@@ -823,7 +822,8 @@ impl DataReaderActor {
             let status = self.get_sample_rejected_status();
 
             self.listener
-                .send_mail(data_reader_listener_actor::trigger_on_sample_rejected::new(
+                .send_mail(data_reader_listener_actor::call_listener_function::new(
+                    DataReaderListenerOperation::OnSampleRejected(status),
                     data_reader_address.clone(),
                     self.status_condition.address(),
                     subscriber.clone(),
@@ -834,7 +834,6 @@ impl DataReaderActor {
                         self.topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                    status,
                 ))
                 .await;
         } else if subscriber_listener_mask.contains(&StatusKind::SampleRejected) {
@@ -887,21 +886,19 @@ impl DataReaderActor {
             let status = self.get_requested_incompatible_qos_status();
 
             self.listener
-                .send_mail(
-                    data_reader_listener_actor::trigger_on_requested_incompatible_qos::new(
-                        data_reader_address.clone(),
-                        self.status_condition.address(),
-                        subscriber.clone(),
-                        TopicAsync::new(
-                            self.topic_address.clone(),
-                            self.topic_status_condition_address.clone(),
-                            self.type_name.clone(),
-                            self.topic_name.clone(),
-                            subscriber.get_participant(),
-                        ),
-                        status,
+                .send_mail(data_reader_listener_actor::call_listener_function::new(
+                    DataReaderListenerOperation::OnRequestedIncompatibleQos(status),
+                    data_reader_address.clone(),
+                    self.status_condition.address(),
+                    subscriber.clone(),
+                    TopicAsync::new(
+                        self.topic_address.clone(),
+                        self.topic_status_condition_address.clone(),
+                        self.type_name.clone(),
+                        self.topic_name.clone(),
+                        subscriber.get_participant(),
                     ),
-                )
+                ))
                 .await;
         } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
@@ -1384,7 +1381,8 @@ impl DataReaderActor {
 
                             reader_listener_address
                                 .send_mail(
-                                    data_reader_listener_actor::trigger_on_requested_deadline_missed::new(
+                                    data_reader_listener_actor::call_listener_function::new(
+                                    DataReaderListenerOperation::OnRequestedDeadlineMissed(status),
                                     data_reader_address.clone(),
                                     status_condition_address.clone(),
                                     subscriber.clone(),
@@ -1395,7 +1393,6 @@ impl DataReaderActor {
                                         topic_name.clone(),
                                         subscriber.get_participant(),
                                     ),
-                                    status,
                                 ),
                             )
                             .await?;
