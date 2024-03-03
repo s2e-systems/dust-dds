@@ -199,6 +199,7 @@ impl DomainParticipantFactoryActor {
         let participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition.clone(),
+            domain_id,
             runtime_handle.clone(),
         );
 

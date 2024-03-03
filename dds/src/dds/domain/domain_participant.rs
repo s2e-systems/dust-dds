@@ -313,10 +313,8 @@ impl DomainParticipant {
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     #[tracing::instrument(skip(self))]
-    pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_domain_id())
+    pub fn get_domain_id(&self) -> DomainId {
+        self.participant_async.get_domain_id()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,

@@ -69,6 +69,7 @@ impl DomainParticipantFactoryAsync {
         let domain_participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition,
+            domain_id,
             self.runtime_handle.clone(),
         );
 
@@ -112,6 +113,7 @@ impl DomainParticipantFactoryAsync {
             Ok(Some(DomainParticipantAsync::new(
                 dp,
                 status_condition,
+                domain_id,
                 self.runtime_handle.clone(),
             )))
         } else {

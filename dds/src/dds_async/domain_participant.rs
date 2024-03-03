@@ -42,6 +42,7 @@ use super::{
 pub struct DomainParticipantAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
     status_condition_address: ActorAddress<StatusConditionActor>,
+    domain_id: DomainId,
     runtime_handle: tokio::runtime::Handle,
 }
 
@@ -49,11 +50,13 @@ impl DomainParticipantAsync {
     pub(crate) fn new(
         participant_address: ActorAddress<DomainParticipantActor>,
         status_condition_address: ActorAddress<StatusConditionActor>,
+        domain_id: DomainId,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             participant_address,
             status_condition_address,
+            domain_id,
             runtime_handle,
         }
     }
@@ -537,10 +540,8 @@ impl DomainParticipantAsync {
 
     /// Async version of [`get_domain_id`](crate::domain::domain_participant::DomainParticipant::get_domain_id).
     #[tracing::instrument(skip(self))]
-    pub async fn get_domain_id(&self) -> DdsResult<DomainId> {
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_domain_id::new())
-            .await
+    pub fn get_domain_id(&self) -> DomainId {
+        self.domain_id
     }
 
     /// Async version of [`delete_contained_entities`](crate::domain::domain_participant::DomainParticipant::delete_contained_entities).
