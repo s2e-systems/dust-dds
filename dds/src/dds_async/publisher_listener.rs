@@ -8,7 +8,7 @@ use crate::{
     publication::data_writer::AnyDataWriter,
 };
 
-/// This trait represents a listener object which can be associated with the [`Publisher`](super::publisher::Publisher) entity.
+/// This trait represents a listener object which can be associated with the [`PublisherAsync`](super::publisher::Publisher) entity.
 pub trait PublisherListenerAsync {
     /// Method that is called when any writer belonging to this publisher reports a liveliness lost status.
     fn on_liveliness_lost(
