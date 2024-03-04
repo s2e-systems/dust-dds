@@ -4,6 +4,7 @@ use crate::{
     dds_async::{
         data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync,
         data_writer::DataWriterAsync, data_writer_listener::DataWriterListenerAsync,
+        publisher_listener::PublisherListenerAsync,
     },
     infrastructure::status::{
         LivelinessChangedStatus, LivelinessLostStatus, OfferedDeadlineMissedStatus,
@@ -11,7 +12,11 @@ use crate::{
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
         SubscriptionMatchedStatus,
     },
-    publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
+    publication::{
+        data_writer::{AnyDataWriter, DataWriter},
+        data_writer_listener::DataWriterListener,
+        publisher_listener::PublisherListener,
+    },
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
 };
 
@@ -20,6 +25,47 @@ pub(crate) struct ListenerSyncToAsync<T>(T);
 impl<T> ListenerSyncToAsync<T> {
     pub fn new(listener: T) -> Self {
         Self(listener)
+    }
+}
+
+impl<T> PublisherListenerAsync for ListenerSyncToAsync<T>
+where
+    T: PublisherListener,
+{
+    fn on_liveliness_lost(
+        &mut self,
+        the_writer: &dyn AnyDataWriter,
+        status: LivelinessLostStatus,
+    ) -> impl Future<Output = ()> + Send {
+        tokio::task::block_in_place(|| self.0.on_liveliness_lost(the_writer, status));
+        async {}
+    }
+
+    fn on_offered_deadline_missed(
+        &mut self,
+        the_writer: &dyn AnyDataWriter,
+        status: OfferedDeadlineMissedStatus,
+    ) -> impl Future<Output = ()> + Send {
+        tokio::task::block_in_place(|| self.0.on_offered_deadline_missed(the_writer, status));
+        async {}
+    }
+
+    fn on_offered_incompatible_qos(
+        &mut self,
+        the_writer: &dyn AnyDataWriter,
+        status: OfferedIncompatibleQosStatus,
+    ) -> impl Future<Output = ()> + Send {
+        tokio::task::block_in_place(|| self.0.on_offered_incompatible_qos(the_writer, status));
+        async {}
+    }
+
+    fn on_publication_matched(
+        &mut self,
+        the_writer: &dyn AnyDataWriter,
+        status: PublicationMatchedStatus,
+    ) -> impl Future<Output = ()> + Send {
+        tokio::task::block_in_place(|| self.0.on_publication_matched(the_writer, status));
+        async {}
     }
 }
 

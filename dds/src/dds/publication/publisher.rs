@@ -266,9 +266,10 @@ impl Publisher {
         a_listener: impl PublisherListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.publisher_async
-            .runtime_handle()
-            .block_on(self.publisher_async.set_listener(a_listener, mask))
+        self.publisher_async.runtime_handle().block_on(
+            self.publisher_async
+                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
+        )
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

@@ -24,7 +24,6 @@ use crate::{
         status::{StatusKind, NO_STATUS},
         time::{Duration, Time},
     },
-    publication::publisher_listener::PublisherListener,
     subscription::subscriber_listener::SubscriberListener,
     topic_definition::{
         topic_listener::TopicListener,
@@ -33,8 +32,8 @@ use crate::{
 };
 
 use super::{
-    condition::StatusConditionAsync, publisher::PublisherAsync, subscriber::SubscriberAsync,
-    topic::TopicAsync,
+    condition::StatusConditionAsync, publisher::PublisherAsync,
+    publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync, topic::TopicAsync,
 };
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
@@ -76,7 +75,7 @@ impl DomainParticipantAsync {
     pub async fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: impl PublisherListener + Send + 'static,
+        a_listener: impl PublisherListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
         let publisher_address = self

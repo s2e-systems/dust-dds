@@ -16,13 +16,12 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    publication::publisher_listener::PublisherListener,
 };
 
 use super::{
     condition::StatusConditionAsync, data_writer::DataWriterAsync,
     data_writer_listener::DataWriterListenerAsync, domain_participant::DomainParticipantAsync,
-    topic::TopicAsync,
+    publisher_listener::PublisherListenerAsync, topic::TopicAsync,
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
@@ -331,7 +330,7 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl PublisherListener + Send + 'static,
+        a_listener: impl PublisherListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.publisher_address

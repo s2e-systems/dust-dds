@@ -1,6 +1,7 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dds_async::domain_participant::DomainParticipantAsync,
+    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -72,10 +73,11 @@ impl DomainParticipant {
     ) -> DdsResult<Publisher> {
         self.participant_async
             .runtime_handle()
-            .block_on(
-                self.participant_async
-                    .create_publisher(qos, a_listener, mask),
-            )
+            .block_on(self.participant_async.create_publisher(
+                qos,
+                ListenerSyncToAsync::new(a_listener),
+                mask,
+            ))
             .map(Publisher::new)
     }
 

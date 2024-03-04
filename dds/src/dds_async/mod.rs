@@ -14,6 +14,8 @@ pub mod domain_participant;
 pub mod domain_participant_factory;
 /// Classes related to the async publisher.
 pub mod publisher;
+/// Classes related to the async publisher listener.
+pub mod publisher_listener;
 /// Classes related to the async subscriber.
 pub mod subscriber;
 /// Classes related to the async topic.
