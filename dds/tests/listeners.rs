@@ -656,7 +656,7 @@ fn on_data_available_listener() {
 
     impl DataReaderListener for DataAvailableListener {
         type Foo = MyData;
-        fn on_data_available(&mut self, _the_reader: &DataReader<MyData>) {
+        fn on_data_available(&mut self, _the_reader: DataReader<MyData>) {
             self.sender.send(()).unwrap();
         }
     }
@@ -848,7 +848,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
 
     impl DataReaderListener for DataAvailableListener {
         type Foo = MyData;
-        fn on_data_available(&mut self, _the_reader: &DataReader<MyData>) {
+        fn on_data_available(&mut self, _the_reader: DataReader<MyData>) {
             self.sender.send(()).unwrap();
         }
     }
@@ -948,7 +948,7 @@ fn participant_deadline_missed_listener() {
         type Foo = MyData;
         fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: &DataReader<MyData>,
+            _the_reader: DataReader<MyData>,
             status: RequestedDeadlineMissedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1049,7 +1049,7 @@ fn participant_sample_rejected_listener() {
         type Foo = MyData;
         fn on_sample_rejected(
             &mut self,
-            _the_reader: &DataReader<MyData>,
+            _the_reader: DataReader<MyData>,
             status: SampleRejectedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1164,7 +1164,7 @@ fn participant_subscription_matched_listener() {
         type Foo = MyData;
         fn on_subscription_matched(
             &mut self,
-            _the_reader: &DataReader<MyData>,
+            _the_reader: DataReader<MyData>,
             status: SubscriptionMatchedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1255,7 +1255,7 @@ fn participant_requested_incompatible_qos_listener() {
         type Foo = MyData;
         fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: &DataReader<MyData>,
+            _the_reader: DataReader<MyData>,
             status: RequestedIncompatibleQosStatus,
         ) {
             self.sender.send(status).unwrap();
