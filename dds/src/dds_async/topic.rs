@@ -4,6 +4,7 @@ use crate::{
             data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor,
+            status_condition_actor::StatusConditionActor,
             topic_actor::{self, TopicActor},
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
@@ -24,27 +25,42 @@ use crate::{
 use super::{condition::StatusConditionAsync, domain_participant::DomainParticipantAsync};
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
+#[derive(Clone)]
 pub struct TopicAsync {
     topic_address: ActorAddress<TopicActor>,
-    participant_address: ActorAddress<DomainParticipantActor>,
-    runtime_handle: tokio::runtime::Handle,
+    status_condition_address: ActorAddress<StatusConditionActor>,
+    type_name: String,
+    topic_name: String,
+    participant: DomainParticipantAsync,
 }
 
 impl TopicAsync {
     pub(crate) fn new(
         topic_address: ActorAddress<TopicActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        status_condition_address: ActorAddress<StatusConditionActor>,
+        type_name: String,
+        topic_name: String,
+        participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             topic_address,
-            participant_address,
-            runtime_handle,
+            status_condition_address,
+            type_name,
+            topic_name,
+            participant,
         }
     }
 
+    pub(crate) fn topic_address(&self) -> &ActorAddress<TopicActor> {
+        &self.topic_address
+    }
+
+    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+        self.participant.participant_address()
+    }
+
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.runtime_handle
+        self.participant.runtime_handle()
     }
 }
 
@@ -61,27 +77,20 @@ impl TopicAsync {
 impl TopicAsync {
     /// Async version of [`get_participant`](crate::topic_definition::topic::Topic::get_participant).
     #[tracing::instrument(skip(self))]
-    pub async fn get_participant(&self) -> DdsResult<DomainParticipantAsync> {
-        Ok(DomainParticipantAsync::new(
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        ))
+    pub fn get_participant(&self) -> DomainParticipantAsync {
+        self.participant.clone()
     }
 
     /// Async version of [`get_type_name`](crate::topic_definition::topic::Topic::get_type_name).
     #[tracing::instrument(skip(self))]
-    pub async fn get_type_name(&self) -> DdsResult<String> {
-        self.topic_address
-            .send_mail_and_await_reply(topic_actor::get_type_name::new())
-            .await
+    pub fn get_type_name(&self) -> String {
+        self.type_name.clone()
     }
 
     /// Async version of [`get_name`](crate::topic_definition::topic::Topic::get_name).
     #[tracing::instrument(skip(self))]
-    pub async fn get_name(&self) -> DdsResult<String> {
-        self.topic_address
-            .send_mail_and_await_reply(topic_actor::get_name::new())
-            .await
+    pub fn get_name(&self) -> String {
+        self.topic_name.clone()
     }
 }
 
@@ -91,7 +100,7 @@ impl TopicAsync {
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => {
-                self.participant_address
+                self.participant_address()
                     .send_mail_and_await_reply(domain_participant_actor::default_topic_qos::new())
                     .await?
             }
@@ -127,11 +136,11 @@ impl TopicAsync {
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
-        self.topic_address
-            .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-            .await
-            .map(|c| StatusConditionAsync::new(c, self.runtime_handle.clone()))
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.runtime_handle().clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::topic_definition::topic::Topic::get_status_changes).
@@ -153,7 +162,7 @@ impl TopicAsync {
                 .await?;
 
             announce_topic(
-                &self.participant_address,
+                self.participant_address(),
                 self.topic_address
                     .send_mail_and_await_reply(topic_actor::as_discovered_topic_data::new())
                     .await?,

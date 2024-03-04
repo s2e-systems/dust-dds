@@ -59,7 +59,7 @@ fn main() {
         )
         .unwrap();
 
-    let reader_cond = reader.get_statuscondition().unwrap();
+    let reader_cond = reader.get_statuscondition();
     reader_cond
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();

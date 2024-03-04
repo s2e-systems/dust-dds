@@ -313,10 +313,8 @@ impl DomainParticipant {
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     #[tracing::instrument(skip(self))]
-    pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_domain_id())
+    pub fn get_domain_id(&self) -> DomainId {
+        self.participant_async.get_domain_id()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -547,11 +545,8 @@ impl DomainParticipant {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_statuscondition())
-            .map(StatusCondition::new)
+    pub fn get_statuscondition(&self) -> StatusCondition {
+        StatusCondition::new(self.participant_async.get_statuscondition())
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose

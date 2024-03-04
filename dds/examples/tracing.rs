@@ -87,7 +87,7 @@ fn main() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -104,7 +104,7 @@ fn main() {
 
     writer.write(&data, None).unwrap();
 
-    let cond = reader.get_statuscondition().unwrap();
+    let cond = reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::DataAvailable])
         .unwrap();
     let mut reader_wait_set = WaitSet::new();

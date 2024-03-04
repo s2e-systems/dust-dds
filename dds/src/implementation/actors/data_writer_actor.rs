@@ -1,5 +1,6 @@
 use crate::{
-    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
+    dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -47,8 +48,9 @@ use crate::{
         },
     },
     infrastructure::{
+        error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
-        qos::{PublisherQos, TopicQos},
+        qos::{DataWriterQos, PublisherQos, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID,
@@ -59,18 +61,10 @@ use crate::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
-        time::DurationKind,
+        time::{Duration, DurationKind, Time},
     },
     serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsKey,
-    {
-        builtin_topics::SubscriptionBuiltinTopicData,
-        infrastructure::{
-            error::{DdsError, DdsResult},
-            qos::DataWriterQos,
-            time::{Duration, Time},
-        },
-    },
 };
 use dust_dds_derive::actor_interface;
 use std::{
@@ -81,11 +75,10 @@ use std::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_listener_actor::{self, DataWriterListenerActor},
-    domain_participant_actor::DomainParticipantActor,
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
-    publisher_actor::PublisherActor,
     publisher_listener_actor::{self, PublisherListenerActor},
     status_condition_actor::{self, StatusConditionActor},
+    topic_actor::TopicActor,
 };
 
 struct MatchedSubscriptions {
@@ -233,6 +226,8 @@ pub struct DataWriterActor {
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
+    topic_address: ActorAddress<TopicActor>,
+    topic_status_condition_address: ActorAddress<StatusConditionActor>,
 }
 
 impl DataWriterActor {
@@ -245,6 +240,8 @@ impl DataWriterActor {
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
         handle: &tokio::runtime::Handle,
+        topic_address: ActorAddress<TopicActor>,
+        topic_status_condition_address: ActorAddress<StatusConditionActor>,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let listener = Actor::spawn(DataWriterListenerActor::new(listener), handle);
@@ -263,6 +260,8 @@ impl DataWriterActor {
             writer_cache: WriterHistoryCache::new(),
             qos,
             registered_instance_list: HashSet::new(),
+            topic_address,
+            topic_status_condition_address,
         }
     }
 
@@ -600,8 +599,7 @@ impl DataWriterActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         data_writer_address: ActorAddress<DataWriterActor>,
-        publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher: PublisherAsync,
         publisher_qos: PublisherQos,
         publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
         participant_publication_matched_listener: Option<
@@ -611,7 +609,6 @@ impl DataWriterActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-        runtime_handle: tokio::runtime::Handle,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
@@ -723,11 +720,9 @@ impl DataWriterActor {
                     );
                     self.on_publication_matched(
                         data_writer_address,
-                        publisher_address,
-                        participant_address,
+                        publisher,
                         publisher_publication_matched_listener,
                         participant_publication_matched_listener,
-                        runtime_handle,
                     )
                     .await;
                 }
@@ -736,11 +731,9 @@ impl DataWriterActor {
                     .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
                 self.on_offered_incompatible_qos(
                     data_writer_address,
-                    publisher_address,
-                    participant_address,
+                    publisher,
                     offered_incompatible_qos_publisher_listener,
                     offered_incompatible_qos_participant_listener,
-                    runtime_handle,
                 )
                 .await;
             }
@@ -752,13 +745,11 @@ impl DataWriterActor {
         &mut self,
         discovered_reader_handle: InstanceHandle,
         data_writer_address: ActorAddress<DataWriterActor>,
-        publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher: PublisherAsync,
         publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-        runtime_handle: tokio::runtime::Handle,
     ) {
         if let Some(r) = self
             .get_matched_subscription_data(discovered_reader_handle)
@@ -771,11 +762,9 @@ impl DataWriterActor {
 
             self.on_publication_matched(
                 data_writer_address,
-                publisher_address,
-                participant_address,
+                publisher,
                 publisher_publication_matched_listener,
                 participant_publication_matched_listener,
-                runtime_handle,
             )
             .await;
         }
@@ -1001,13 +990,11 @@ impl DataWriterActor {
     async fn on_publication_matched(
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
-        publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher: PublisherAsync,
         publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-        runtime_handle: tokio::runtime::Handle,
     ) {
         self.status_condition
             .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
@@ -1016,13 +1003,20 @@ impl DataWriterActor {
             .await;
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
+            let participant = publisher.get_participant();
             self.listener
                 .send_mail(
                     data_writer_listener_actor::trigger_on_publication_matched::new(
                         data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        runtime_handle,
+                        self.status_condition.address(),
+                        publisher,
+                        TopicAsync::new(
+                            self.topic_address.clone(),
+                            self.topic_status_condition_address.clone(),
+                            self.type_name.clone(),
+                            self.topic_name.clone(),
+                            participant,
+                        ),
                         status,
                     ),
                 )
@@ -1032,15 +1026,7 @@ impl DataWriterActor {
         {
             let status = self.get_publication_matched_status().await;
             publisher_publication_matched_listener
-                .send_mail(
-                    publisher_listener_actor::trigger_on_publication_matched::new(
-                        data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        runtime_handle,
-                        status,
-                    ),
-                )
+                .send_mail(publisher_listener_actor::trigger_on_publication_matched::new(status))
                 .await
                 .expect("Listener should exist");
         } else if let Some(participant_publication_matched_listener) =
@@ -1049,13 +1035,7 @@ impl DataWriterActor {
             let status = self.get_publication_matched_status().await;
             participant_publication_matched_listener
                 .send_mail(
-                    domain_participant_listener_actor::trigger_on_publication_matched::new(
-                        data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        runtime_handle,
-                        status,
-                    ),
+                    domain_participant_listener_actor::trigger_on_publication_matched::new(status),
                 )
                 .await
                 .expect("Listener should exist");
@@ -1065,13 +1045,11 @@ impl DataWriterActor {
     async fn on_offered_incompatible_qos(
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
-        publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher: PublisherAsync,
         offered_incompatible_qos_publisher_listener: Option<ActorAddress<PublisherListenerActor>>,
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-        runtime_handle: tokio::runtime::Handle,
     ) {
         self.status_condition
             .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
@@ -1083,14 +1061,20 @@ impl DataWriterActor {
             .contains(&StatusKind::OfferedIncompatibleQos)
         {
             let status = self.get_offered_incompatible_qos_status().await;
-
+            let participant = publisher.get_participant();
             self.listener
                 .send_mail(
                     data_writer_listener_actor::trigger_on_offered_incompatible_qos::new(
                         data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        runtime_handle,
+                        self.status_condition.address(),
+                        publisher,
+                        TopicAsync::new(
+                            self.topic_address.clone(),
+                            self.topic_status_condition_address.clone(),
+                            self.type_name.clone(),
+                            self.topic_name.clone(),
+                            participant,
+                        ),
                         status,
                     ),
                 )
@@ -1101,13 +1085,7 @@ impl DataWriterActor {
             let status = self.get_offered_incompatible_qos_status().await;
             offered_incompatible_qos_publisher_listener
                 .send_mail(
-                    publisher_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        runtime_handle,
-                        status,
-                    ),
+                    publisher_listener_actor::trigger_on_offered_incompatible_qos::new(status),
                 )
                 .await
                 .expect("Listener should exist");
@@ -1118,10 +1096,6 @@ impl DataWriterActor {
             offered_incompatible_qos_participant_listener
                 .send_mail(
                     domain_participant_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        data_writer_address,
-                        publisher_address,
-                        participant_address,
-                        runtime_handle,
                         status,
                     ),
                 )

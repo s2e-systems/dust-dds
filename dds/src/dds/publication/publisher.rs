@@ -167,11 +167,8 @@ impl Publisher {
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        self.publisher_async
-            .runtime_handle()
-            .block_on(self.publisher_async.get_participant())
-            .map(DomainParticipant::new)
+    pub fn get_participant(&self) -> DomainParticipant {
+        DomainParticipant::new(self.publisher_async.get_participant())
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.
@@ -277,11 +274,8 @@ impl Publisher {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.publisher_async
-            .runtime_handle()
-            .block_on(self.publisher_async.get_statuscondition())
-            .map(StatusCondition::new)
+    pub fn get_statuscondition(&self) -> StatusCondition {
+        StatusCondition::new(self.publisher_async.get_statuscondition())
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose

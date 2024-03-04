@@ -5,6 +5,7 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use crate::{
+    dds_async::{domain_participant::DomainParticipantAsync, publisher::PublisherAsync},
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
@@ -34,9 +35,10 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
-    domain_participant_actor::DomainParticipantActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
     publisher_listener_actor::PublisherListenerActor,
+    status_condition_actor::StatusConditionActor,
+    topic_actor::TopicActor,
 };
 
 pub struct PublisherActor {
@@ -48,6 +50,7 @@ pub struct PublisherActor {
     default_datawriter_qos: DataWriterQos,
     listener: Actor<PublisherListenerActor>,
     status_kind: Vec<StatusKind>,
+    status_condition: Actor<StatusConditionActor>,
 }
 
 impl PublisherActor {
@@ -67,6 +70,7 @@ impl PublisherActor {
             default_datawriter_qos: DataWriterQos::default(),
             listener: Actor::spawn(PublisherListenerActor::new(listener), handle),
             status_kind,
+            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
         }
     }
 }
@@ -86,6 +90,8 @@ impl PublisherActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         runtime_handle: tokio::runtime::Handle,
+        topic_address: ActorAddress<TopicActor>,
+        topic_status_condition: ActorAddress<StatusConditionActor>,
     ) -> DdsResult<ActorAddress<DataWriterActor>> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
@@ -130,6 +136,8 @@ impl PublisherActor {
             mask,
             qos,
             &runtime_handle,
+            topic_address,
+            topic_status_condition,
         );
         let data_writer_actor = Actor::spawn(data_writer, &runtime_handle);
         let data_writer_address = data_writer_actor.address();
@@ -271,14 +279,13 @@ impl PublisherActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant: DomainParticipantAsync,
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-        runtime_handle: tokio::runtime::Handle,
     ) {
         if self.is_partition_matched(
             discovered_reader_data
@@ -307,14 +314,16 @@ impl PublisherActor {
                         default_unicast_locator_list.clone(),
                         default_multicast_locator_list.clone(),
                         data_writer_address,
-                        publisher_address.clone(),
-                        participant_address.clone(),
+                        PublisherAsync::new(
+                            publisher_address.clone(),
+                            self.status_condition.address(),
+                            participant.clone(),
+                        ),
                         self.qos.clone(),
                         publisher_publication_matched_listener,
                         participant_publication_matched_listener.clone(),
                         offered_incompatible_qos_publisher_listener,
                         offered_incompatible_qos_participant_listener.clone(),
-                        runtime_handle.clone(),
                     ))
                     .await;
             }
@@ -325,11 +334,10 @@ impl PublisherActor {
         &self,
         discovered_reader_handle: InstanceHandle,
         publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant: DomainParticipantAsync,
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-        runtime_handle: tokio::runtime::Handle,
     ) {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
@@ -343,14 +351,20 @@ impl PublisherActor {
                 .send_mail_and_await_reply(data_writer_actor::remove_matched_reader::new(
                     discovered_reader_handle,
                     data_writer_address,
-                    publisher_address.clone(),
-                    participant_address.clone(),
+                    PublisherAsync::new(
+                        publisher_address.clone(),
+                        self.status_condition.address(),
+                        participant.clone(),
+                    ),
                     publisher_publication_matched_listener,
                     participant_publication_matched_listener.clone(),
-                    runtime_handle.clone(),
                 ))
                 .await;
         }
+    }
+
+    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
     }
 
     async fn set_listener(

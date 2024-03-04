@@ -1,8 +1,11 @@
 use crate::{
     implementation::{
         actors::{
+            data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
+            status_condition_actor::StatusConditionActor,
+            topic_actor,
         },
         utils::actor::ActorAddress,
     },
@@ -24,27 +27,36 @@ use super::{
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
+#[derive(Clone)]
 pub struct PublisherAsync {
     publisher_address: ActorAddress<PublisherActor>,
-    participant_address: ActorAddress<DomainParticipantActor>,
-    runtime_handle: tokio::runtime::Handle,
+    status_condition_address: ActorAddress<StatusConditionActor>,
+    participant: DomainParticipantAsync,
 }
 
 impl PublisherAsync {
     pub(crate) fn new(
         publisher_address: ActorAddress<PublisherActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        runtime_handle: tokio::runtime::Handle,
+        status_condition_address: ActorAddress<StatusConditionActor>,
+        participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             publisher_address,
-            participant_address,
-            runtime_handle,
+            status_condition_address,
+            participant,
         }
     }
 
+    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+        self.participant.participant_address()
+    }
+
+    pub(crate) fn publisher_address(&self) -> &ActorAddress<PublisherActor> {
+        &self.publisher_address
+    }
+
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.runtime_handle
+        self.participant.runtime_handle()
     }
 }
 
@@ -58,9 +70,10 @@ impl PublisherAsync {
         a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriterAsync<Foo>> {
-        let type_name = a_topic.get_type_name().await?;
+        let type_name = a_topic.get_type_name();
         let type_support = self
-            .participant_address
+            .participant
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::get_type_support::new(
                 type_name.clone(),
             ))
@@ -73,19 +86,22 @@ impl PublisherAsync {
             })?;
 
         let default_unicast_locator_list = self
-            .participant_address
+            .participant
+            .participant_address()
             .send_mail_and_await_reply(
                 domain_participant_actor::get_default_unicast_locator_list::new(),
             )
             .await?;
         let default_multicast_locator_list = self
-            .participant_address
+            .participant
+            .participant_address()
             .send_mail_and_await_reply(
                 domain_participant_actor::get_default_multicast_locator_list::new(),
             )
             .await?;
         let data_max_size_serialized = self
-            .participant_address
+            .participant
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::data_max_size_serialized::new())
             .await?;
 
@@ -94,8 +110,8 @@ impl PublisherAsync {
         let data_writer_address = self
             .publisher_address
             .send_mail_and_await_reply(publisher_actor::create_datawriter::new(
-                a_topic.get_type_name().await?,
-                a_topic.get_name().await?,
+                a_topic.get_type_name(),
+                a_topic.get_name(),
                 has_key,
                 data_max_size_serialized,
                 qos,
@@ -103,15 +119,19 @@ impl PublisherAsync {
                 mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
-                self.runtime_handle.clone(),
+                self.participant.runtime_handle().clone(),
+                a_topic.topic_address().clone(),
+                a_topic.get_statuscondition().address().clone(),
             ))
             .await??;
-
+        let status_condition = data_writer_address
+            .send_mail_and_await_reply(data_writer_actor::get_statuscondition::new())
+            .await?;
         let data_writer = DataWriterAsync::new(
             data_writer_address,
-            self.publisher_address.clone(),
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
+            status_condition,
+            self.clone(),
+            a_topic.clone(),
         );
 
         if self
@@ -142,11 +162,7 @@ impl PublisherAsync {
             .publisher_address
             .send_mail_and_await_reply(publisher_actor::get_instance_handle::new())
             .await?
-            != a_datawriter
-                .get_publisher()
-                .await?
-                .get_instance_handle()
-                .await?
+            != a_datawriter.get_publisher().get_instance_handle().await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
@@ -157,7 +173,8 @@ impl PublisherAsync {
             .send_mail_and_await_reply(publisher_actor::datawriter_delete::new(writer_handle))
             .await?;
 
-        self.participant_address
+        self.participant
+            .participant_address()
             .send_mail_and_await_reply(domain_participant_actor::announce_deleted_data_writer::new(
                 writer_handle,
             ))
@@ -170,20 +187,49 @@ impl PublisherAsync {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<DataWriterAsync<Foo>>> {
-        Ok(self
-            .publisher_address
-            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
+        if let Some(topic_address) = self
+            .participant
+            .participant_address()
+            .send_mail_and_await_reply(domain_participant_actor::lookup_topicdescription::new(
                 topic_name.to_string(),
             ))
             .await?
-            .map(|dw| {
-                DataWriterAsync::new(
+        {
+            let type_name = topic_address
+                .send_mail_and_await_reply(topic_actor::get_type_name::new())
+                .await?;
+            let topic_status_condition = topic_address
+                .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                .await?;
+            let topic = TopicAsync::new(
+                topic_address,
+                topic_status_condition,
+                topic_name.to_string(),
+                type_name,
+                self.participant.clone(),
+            );
+            if let Some(dw) = self
+                .publisher_address
+                .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
+                    topic_name.to_string(),
+                ))
+                .await?
+            {
+                let status_condition = dw
+                    .send_mail_and_await_reply(data_writer_actor::get_statuscondition::new())
+                    .await?;
+                Ok(Some(DataWriterAsync::new(
                     dw,
-                    self.publisher_address.clone(),
-                    self.participant_address.clone(),
-                    self.runtime_handle.clone(),
-                )
-            }))
+                    status_condition,
+                    self.clone(),
+                    topic,
+                )))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Err(DdsError::BadParameter)
+        }
     }
 
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::suspend_publications).
@@ -218,11 +264,8 @@ impl PublisherAsync {
 
     /// Async version of [`get_participant`](crate::publication::publisher::Publisher::get_participant).
     #[tracing::instrument(skip(self))]
-    pub async fn get_participant(&self) -> DdsResult<DomainParticipantAsync> {
-        Ok(DomainParticipantAsync::new(
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        ))
+    pub fn get_participant(&self) -> DomainParticipantAsync {
+        self.participant.clone()
     }
 
     /// Async version of [`delete_contained_entities`](crate::publication::publisher::Publisher::delete_contained_entities).
@@ -296,15 +339,18 @@ impl PublisherAsync {
             .send_mail_and_await_reply(publisher_actor::set_listener::new(
                 Box::new(a_listener),
                 mask.to_vec(),
-                self.runtime_handle.clone(),
+                self.participant.runtime_handle().clone(),
             ))
             .await
     }
 
     /// Async version of [`get_statuscondition`](crate::publication::publisher::Publisher::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
-        todo!()
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.participant.runtime_handle().clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::publication::publisher::Publisher::get_status_changes).

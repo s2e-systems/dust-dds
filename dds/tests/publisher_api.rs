@@ -27,7 +27,7 @@ fn get_publisher_parent_participant() {
         .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    let publisher_parent_participant = publisher.get_participant().unwrap();
+    let publisher_parent_participant = publisher.get_participant();
 
     assert_eq!(
         participant.get_instance_handle(),
@@ -161,7 +161,6 @@ fn data_writer_get_topic_should_return_same_topic_as_used_for_creation() {
         .unwrap();
 
     assert!(
-        writer.get_topic().unwrap().get_instance_handle().unwrap()
-            == topic.get_instance_handle().unwrap()
+        writer.get_topic().get_instance_handle().unwrap() == topic.get_instance_handle().unwrap()
     );
 }

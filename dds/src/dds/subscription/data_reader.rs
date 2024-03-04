@@ -400,20 +400,14 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topicdescription(&self) -> DdsResult<Topic> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_topicdescription())
-            .map(Topic::new)
+    pub fn get_topicdescription(&self) -> Topic {
+        Topic::new(self.reader_async.get_topicdescription())
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_subscriber())
-            .map(Subscriber::new)
+    pub fn get_subscriber(&self) -> Subscriber {
+        Subscriber::new(self.reader_async.get_subscriber())
     }
 
     /// This operation blocks the calling thread until either all “historical” data is received, or else the
@@ -499,11 +493,8 @@ impl<Foo> DataReader<Foo> {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_statuscondition())
-            .map(StatusCondition::new)
+    pub fn get_statuscondition(&self) -> StatusCondition {
+        StatusCondition::new(self.reader_async.get_statuscondition())
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -576,4 +567,4 @@ impl<Foo> DataReader<Foo> {
 /// to represent a generic DataReader (i.e. without Foo) type on the listeners.
 pub trait AnyDataReader {}
 
-impl<Foo> AnyDataReader for DataReader<Foo> {}
+impl AnyDataReader for () {}

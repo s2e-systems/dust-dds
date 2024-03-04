@@ -10,7 +10,9 @@ use crate::{
         actors::{
             data_reader_actor, data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
-            publisher_actor, subscriber_actor, topic_actor,
+            publisher_actor,
+            status_condition_actor::StatusConditionActor,
+            subscriber_actor, topic_actor,
         },
         utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
@@ -36,20 +38,31 @@ use super::{
 };
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
+#[derive(Clone)]
 pub struct DomainParticipantAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
+    domain_id: DomainId,
     runtime_handle: tokio::runtime::Handle,
 }
 
 impl DomainParticipantAsync {
     pub(crate) fn new(
         participant_address: ActorAddress<DomainParticipantActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
+        domain_id: DomainId,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             participant_address,
+            status_condition_address,
+            domain_id,
             runtime_handle,
         }
+    }
+
+    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+        &self.participant_address
     }
 
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
@@ -75,12 +88,10 @@ impl DomainParticipantAsync {
                 self.runtime_handle.clone(),
             ))
             .await?;
-
-        let publisher = PublisherAsync::new(
-            publisher_address,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
-        );
+        let status_condition = publisher_address
+            .send_mail_and_await_reply(publisher_actor::get_statuscondition::new())
+            .await?;
+        let publisher = PublisherAsync::new(publisher_address, status_condition, self.clone());
         if self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
@@ -105,11 +116,7 @@ impl DomainParticipantAsync {
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::get_instance_handle::new())
             .await?
-            != a_publisher
-                .get_participant()
-                .await?
-                .get_instance_handle()
-                .await?
+            != a_publisher.get_participant().get_instance_handle().await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
@@ -143,10 +150,14 @@ impl DomainParticipantAsync {
             ))
             .await?;
 
+        let subscriber_status_condition = subscriber_address
+            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
+            .await?;
+
         let subscriber = SubscriberAsync::new(
             subscriber_address,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
+            subscriber_status_condition,
+            self.clone(),
         );
 
         if self
@@ -170,11 +181,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_subscriber))]
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         if self.get_instance_handle().await?
-            != a_subscriber
-                .get_participant()
-                .await?
-                .get_instance_handle()
-                .await?
+            != a_subscriber.get_participant().get_instance_handle().await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
@@ -238,11 +245,15 @@ impl DomainParticipantAsync {
                 self.runtime_handle.clone(),
             ))
             .await?;
-
+        let topic_status_condition = topic_address
+            .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+            .await?;
         let topic = TopicAsync::new(
             topic_address,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
+            topic_status_condition,
+            type_name.to_string(),
+            topic_name.to_string(),
+            self.clone(),
         );
         if self
             .participant_address
@@ -265,11 +276,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_topic))]
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
         if self.get_instance_handle().await?
-            != a_topic
-                .get_participant()
-                .await?
-                .get_instance_handle()
-                .await?
+            != a_topic.get_participant().get_instance_handle().await?
         {
             return Err(DdsError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant".to_string(),
@@ -290,11 +297,11 @@ impl DomainParticipantAsync {
                 if data_writer
                     .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
                     .await?
-                    == a_topic.get_type_name().await?
+                    == a_topic.get_type_name()
                     && data_writer
                         .send_mail_and_await_reply(data_writer_actor::get_topic_name::new())
                         .await?
-                        == a_topic.get_name().await?
+                        == a_topic.get_name()
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer".to_string(),
@@ -317,11 +324,11 @@ impl DomainParticipantAsync {
                 if data_reader
                     .send_mail_and_await_reply(data_reader_actor::get_type_name::new())
                     .await?
-                    == a_topic.get_type_name().await?
+                    == a_topic.get_type_name()
                     && data_reader
                         .send_mail_and_await_reply(data_reader_actor::get_topic_name::new())
                         .await?
-                        == a_topic.get_name().await?
+                        == a_topic.get_name()
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data reader".to_string(),
@@ -362,10 +369,18 @@ impl DomainParticipantAsync {
                     .await?
                     == topic_name
                 {
+                    let type_name = topic
+                        .send_mail_and_await_reply(topic_actor::get_type_name::new())
+                        .await?;
+                    let topic_status_condition = topic
+                        .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
+                        .await?;
                     return Ok(TopicAsync::new(
                         topic,
-                        self.participant_address.clone(),
-                        self.runtime_handle.clone(),
+                        topic_status_condition,
+                        type_name,
+                        topic_name.to_string(),
+                        self.clone(),
                     ));
                 }
             }
@@ -439,12 +454,17 @@ impl DomainParticipantAsync {
     /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
     #[tracing::instrument(skip(self))]
     pub async fn get_builtin_subscriber(&self) -> DdsResult<SubscriberAsync> {
+        let builtin_subscriber = self
+            .participant_address
+            .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
+            .await?;
+        let subscriber_status_condition = builtin_subscriber
+            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
+            .await?;
         Ok(SubscriberAsync::new(
-            self.participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
-                .await?,
-            self.participant_address.clone(),
-            self.runtime_handle.clone(),
+            builtin_subscriber,
+            subscriber_status_condition,
+            self.clone(),
         ))
     }
 
@@ -520,10 +540,8 @@ impl DomainParticipantAsync {
 
     /// Async version of [`get_domain_id`](crate::domain::domain_participant::DomainParticipant::get_domain_id).
     #[tracing::instrument(skip(self))]
-    pub async fn get_domain_id(&self) -> DdsResult<DomainId> {
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_domain_id::new())
-            .await
+    pub fn get_domain_id(&self) -> DomainId {
+        self.domain_id
     }
 
     /// Async version of [`delete_contained_entities`](crate::domain::domain_participant::DomainParticipant::delete_contained_entities).
@@ -735,7 +753,6 @@ impl DomainParticipantAsync {
         // })
     }
 
-
     /// Async version of [`get_current_time`](crate::domain::domain_participant::DomainParticipant::get_current_time).
     #[tracing::instrument(skip(self))]
     pub async fn get_current_time(&self) -> DdsResult<Time> {
@@ -787,8 +804,11 @@ impl DomainParticipantAsync {
 
     /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub async fn get_statuscondition(&self) -> DdsResult<StatusConditionAsync> {
-        todo!()
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.runtime_handle.clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::domain::domain_participant::DomainParticipant::get_status_changes).

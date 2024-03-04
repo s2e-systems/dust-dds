@@ -13,6 +13,7 @@ use socket2::Socket;
 
 use crate::{
     configuration::DustDdsConfiguration,
+    dds_async::domain_participant::DomainParticipantAsync,
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -192,9 +193,18 @@ impl DomainParticipantFactoryActor {
             InstanceHandle::new(participant_guid.into()),
             participant_actor,
         );
+        let status_condition = participant_address
+            .send_mail_and_await_reply(domain_participant_actor::get_statuscondition::new())
+            .await?;
+        let participant = DomainParticipantAsync::new(
+            participant_address.clone(),
+            status_condition.clone(),
+            domain_id,
+            runtime_handle.clone(),
+        );
 
         let participant_address_clone = participant_address.clone();
-        let runtime_handle_clone = runtime_handle.clone();
+        let participant_clone = participant.clone();
         runtime_handle.spawn(async move {
             let mut metatraffic_multicast_transport = UdpTransportRead::new(
                 get_multicast_socket(
@@ -209,8 +219,7 @@ impl DomainParticipantFactoryActor {
                     .send_mail_and_await_reply(
                         domain_participant_actor::process_metatraffic_rtps_message::new(
                             message,
-                            participant_address_clone.clone(),
-                            runtime_handle_clone.clone(),
+                            participant_clone.clone(),
                         ),
                     )
                     .await;
@@ -221,8 +230,7 @@ impl DomainParticipantFactoryActor {
                 let r = participant_address_clone
                     .send_mail_and_await_reply(
                         domain_participant_actor::process_builtin_discovery::new(
-                            participant_address_clone.clone(),
-                            runtime_handle_clone.clone(),
+                            participant_clone.clone(),
                         ),
                     )
                     .await;
@@ -239,7 +247,7 @@ impl DomainParticipantFactoryActor {
         });
 
         let participant_address_clone = participant_address.clone();
-        let runtime_handle_clone = runtime_handle.clone();
+        let participant_clone = participant.clone();
         runtime_handle.spawn(async move {
             let mut metatraffic_unicast_transport = UdpTransportRead::new(
                 tokio::net::UdpSocket::from_std(metattrafic_unicast_socket)
@@ -252,16 +260,14 @@ impl DomainParticipantFactoryActor {
                         .send_mail_and_await_reply(
                             domain_participant_actor::process_metatraffic_rtps_message::new(
                                 message,
-                                participant_address_clone.clone(),
-                                runtime_handle_clone.clone(),
+                                participant_clone.clone(),
                             ),
                         )
                         .await??;
                     participant_address_clone
                         .send_mail_and_await_reply(
                             domain_participant_actor::process_builtin_discovery::new(
-                                participant_address_clone.clone(),
-                                runtime_handle_clone.clone(),
+                                participant_clone.clone(),
                             ),
                         )
                         .await?;
@@ -280,7 +286,7 @@ impl DomainParticipantFactoryActor {
         });
 
         let participant_address_clone = participant_address.clone();
-        let runtime_handle_clone = runtime_handle.clone();
+        let participant_clone = participant.clone();
         runtime_handle.spawn(async move {
             let mut default_unicast_transport = UdpTransportRead::new(
                 tokio::net::UdpSocket::from_std(default_unicast_socket)
@@ -292,8 +298,7 @@ impl DomainParticipantFactoryActor {
                     .send_mail(
                         domain_participant_actor::process_user_defined_rtps_message::new(
                             message,
-                            participant_address_clone.clone(),
-                            runtime_handle_clone.clone(),
+                            participant_clone.clone(),
                         ),
                     )
                     .await;

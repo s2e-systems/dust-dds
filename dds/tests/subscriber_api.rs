@@ -27,7 +27,7 @@ fn get_subscriber_parent_participant() {
         .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    let subscriber_parent_participant = subscriber.get_participant().unwrap();
+    let subscriber_parent_participant = subscriber.get_participant();
 
     assert_eq!(
         participant.get_instance_handle(),
@@ -161,11 +161,7 @@ fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creatio
         .unwrap();
 
     assert!(
-        reader
-            .get_topicdescription()
-            .unwrap()
-            .get_instance_handle()
-            .unwrap()
+        reader.get_topicdescription().get_instance_handle().unwrap()
             == topic.get_instance_handle().unwrap()
     );
 }

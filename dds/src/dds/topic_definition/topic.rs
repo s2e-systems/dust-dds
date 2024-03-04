@@ -43,27 +43,20 @@ impl Topic {
 impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.get_participant())
-            .map(DomainParticipant::new)
+    pub fn get_participant(&self) -> DomainParticipant {
+        DomainParticipant::new(self.topic_async.get_participant())
     }
 
     /// The name of the type used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> DdsResult<String> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.get_type_name())
+    pub fn get_type_name(&self) -> String {
+        self.topic_async.get_type_name()
     }
 
     /// The name used to create the [`Topic`]
     #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> DdsResult<String> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.get_name())
+    pub fn get_name(&self) -> String {
+        self.topic_async.get_name()
     }
 }
 
@@ -100,11 +93,8 @@ impl Topic {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.get_statuscondition())
-            .map(StatusCondition::new)
+    pub fn get_statuscondition(&self) -> StatusCondition {
+        StatusCondition::new(self.topic_async.get_statuscondition())
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose

@@ -50,7 +50,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
         .create_datareader::<KeyedData>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -94,7 +94,7 @@ pub fn best_effort_read_only(c: &mut Criterion) {
         .create_datareader::<KeyedData>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -158,14 +158,14 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
             &[StatusKind::DataAvailable],
         )
         .unwrap();
-    let reader_cond = reader.get_statuscondition().unwrap();
+    let reader_cond = reader.get_statuscondition();
     let publisher = participant
         .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer = publisher
         .create_datawriter(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let writer_cond = writer.get_statuscondition().unwrap();
+    let writer_cond = writer.get_statuscondition();
     writer_cond
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
@@ -245,14 +245,14 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
             &[StatusKind::DataAvailable],
         )
         .unwrap();
-    let reader_cond = reader.get_statuscondition().unwrap();
+    let reader_cond = reader.get_statuscondition();
     let publisher = participant
         .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
     let writer = publisher
         .create_datawriter(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let writer_cond = writer.get_statuscondition().unwrap();
+    let writer_cond = writer.get_statuscondition();
     writer_cond
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();

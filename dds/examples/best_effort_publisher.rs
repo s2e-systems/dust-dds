@@ -40,7 +40,7 @@ fn main() {
     let writer = publisher
         .create_datawriter(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
-    let writer_cond = writer.get_statuscondition().unwrap();
+    let writer_cond = writer.get_statuscondition();
     writer_cond
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();

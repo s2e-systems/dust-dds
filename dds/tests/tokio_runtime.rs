@@ -86,7 +86,7 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
         .await
         .unwrap();
 
-    let cond = writer.get_statuscondition().await.unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .await
         .unwrap();
@@ -105,7 +105,7 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
 
     writer.write(&data, None).await.unwrap();
 
-    let cond = reader.get_statuscondition().await.unwrap();
+    let cond = reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::DataAvailable])
         .await
         .unwrap();

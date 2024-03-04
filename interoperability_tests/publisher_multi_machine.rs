@@ -61,7 +61,7 @@ fn main() {
             NO_STATUS,
         )
         .unwrap();
-    let writer_cond = writer.get_statuscondition().unwrap();
+    let writer_cond = writer.get_statuscondition();
     writer_cond
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();

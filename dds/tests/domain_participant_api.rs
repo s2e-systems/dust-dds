@@ -663,7 +663,7 @@ fn get_discovery_data_from_builtin_reader() {
         .unwrap();
 
     // Wait for reader to be matched to data writer
-    let cond = data_writer.get_statuscondition().unwrap();
+    let cond = data_writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -674,7 +674,7 @@ fn get_discovery_data_from_builtin_reader() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     // Wait for the writer to be matched to data reader
-    let cond = data_reader.get_statuscondition().unwrap();
+    let cond = data_reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
 
@@ -804,7 +804,7 @@ fn ignore_publication() {
         .unwrap();
 
     // Readers and writers from ignored participant should never match
-    let cond = reader.get_statuscondition().unwrap();
+    let cond = reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
 
@@ -876,7 +876,7 @@ fn ignore_subscription() {
         .unwrap();
 
     // Readers and writers from ignored participant should never match
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 

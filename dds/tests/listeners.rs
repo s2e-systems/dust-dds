@@ -125,7 +125,7 @@ fn deadline_missed_listener() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -241,7 +241,7 @@ fn sample_rejected_listener() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -719,7 +719,7 @@ fn on_data_available_listener() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -812,7 +812,7 @@ fn data_on_readers_listener() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -919,7 +919,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -1015,7 +1015,7 @@ fn participant_deadline_missed_listener() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -1127,7 +1127,7 @@ fn participant_sample_rejected_listener() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -1605,7 +1605,7 @@ fn subscriber_deadline_missed_listener() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
@@ -1719,7 +1719,7 @@ fn subscriber_sample_rejected_listener() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
+    let cond = writer.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
