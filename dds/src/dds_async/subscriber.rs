@@ -15,14 +15,13 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
-    subscription::{
-        data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
-    },
+    subscription::subscriber_listener::SubscriberListener,
 };
 
 use super::{
     condition::StatusConditionAsync, data_reader::DataReaderAsync,
-    domain_participant::DomainParticipantAsync, topic::TopicAsync,
+    data_reader_listener::DataReaderListenerAsync, domain_participant::DomainParticipantAsync,
+    topic::TopicAsync,
 };
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
@@ -66,7 +65,7 @@ impl SubscriberAsync {
         &self,
         a_topic: &TopicAsync,
         qos: QosKind<DataReaderQos>,
-        a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
+        a_listener: impl DataReaderListenerAsync<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DataReaderAsync<Foo>> {
         let type_name = a_topic.get_type_name();

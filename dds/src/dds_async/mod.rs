@@ -2,6 +2,8 @@
 pub mod condition;
 /// Classes related to the async data reader.
 pub mod data_reader;
+/// Classes related to the async data reader.
+pub mod data_reader_listener;
 /// Classes related to the async data writer.
 pub mod data_writer;
 /// Classes related to the async domain participant.

@@ -12,7 +12,8 @@ use crate::{
 };
 
 use super::{
-    data_reader::DataReader, data_reader_listener::DataReaderListener,
+    data_reader::DataReader,
+    data_reader_listener::{DataReaderListener, DataReaderListenerSync},
     subscriber_listener::SubscriberListener,
 };
 
@@ -65,7 +66,7 @@ impl Subscriber {
             .block_on(self.subscriber_async.create_datareader::<Foo>(
                 a_topic.topic_async(),
                 qos,
-                a_listener,
+                DataReaderListenerSync::new(a_listener),
                 mask,
             ))
             .map(DataReader::new)

@@ -20,6 +20,7 @@ use crate::{
 use std::marker::PhantomData;
 
 use super::{
+    data_reader_listener::DataReaderListenerSync,
     sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     subscriber::Subscriber,
 };
@@ -557,9 +558,10 @@ impl<Foo> DataReader<Foo> {
         a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.set_listener(a_listener, mask))
+        self.reader_async.runtime_handle().block_on(
+            self.reader_async
+                .set_listener(DataReaderListenerSync::new(a_listener), mask),
+        )
     }
 }
 

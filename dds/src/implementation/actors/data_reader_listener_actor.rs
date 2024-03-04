@@ -44,14 +44,14 @@ impl DataReaderListenerActor {
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.call_listener_function(
+        self.listener
+            .call_listener_function(
                 listener_operation,
                 reader_address,
                 status_condition_address,
                 subscriber,
                 topic,
             )
-        })
+            .await
     }
 }

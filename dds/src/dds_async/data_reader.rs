@@ -21,7 +21,6 @@ use crate::{
     },
     subscription::{
         data_reader::Sample,
-        data_reader_listener::DataReaderListener,
         sample_info::{
             InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
         },
@@ -30,7 +29,10 @@ use crate::{
 
 use std::marker::PhantomData;
 
-use super::{condition::StatusConditionAsync, subscriber::SubscriberAsync, topic::TopicAsync};
+use super::{
+    condition::StatusConditionAsync, data_reader_listener::DataReaderListenerAsync,
+    subscriber::SubscriberAsync, topic::TopicAsync,
+};
 
 /// Async version of [`DataReader`](crate::subscription::data_reader::DataReader).
 pub struct DataReaderAsync<Foo> {
@@ -520,7 +522,7 @@ impl<Foo> DataReaderAsync<Foo> {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
+        a_listener: impl DataReaderListenerAsync<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_address
