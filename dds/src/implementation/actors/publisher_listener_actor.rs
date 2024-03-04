@@ -12,65 +12,85 @@ use crate::{
 };
 
 pub trait PublisherListenerAsyncDyn {
-    fn on_liveliness_lost(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
-        _status: LivelinessLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+    fn on_liveliness_lost<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: LivelinessLostStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b;
 
-    fn on_offered_deadline_missed(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
-        _status: OfferedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+    fn on_offered_deadline_missed<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: OfferedDeadlineMissedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b;
 
-    fn on_offered_incompatible_qos(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
-        _status: OfferedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+    fn on_offered_incompatible_qos<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: OfferedIncompatibleQosStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b;
 
-    fn on_publication_matched(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
-        _status: PublicationMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+    fn on_publication_matched<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: PublicationMatchedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b;
 }
 
 impl<T> PublisherListenerAsyncDyn for T
 where
-    T: PublisherListenerAsync,
+    T: PublisherListenerAsync + Send,
 {
-    fn on_liveliness_lost(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
-        _status: LivelinessLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        todo!()
+    fn on_liveliness_lost<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: LivelinessLostStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(async { self.on_liveliness_lost(the_writer, status).await })
     }
 
-    fn on_offered_deadline_missed(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
-        _status: OfferedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        todo!()
+    fn on_offered_deadline_missed<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: OfferedDeadlineMissedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(async { self.on_offered_deadline_missed(the_writer, status).await })
     }
 
-    fn on_offered_incompatible_qos(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
-        _status: OfferedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        todo!()
+    fn on_offered_incompatible_qos<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: OfferedIncompatibleQosStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(async { self.on_offered_incompatible_qos(the_writer, status).await })
     }
 
-    fn on_publication_matched(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
-        _status: PublicationMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        todo!()
+    fn on_publication_matched<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: PublicationMatchedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(async { self.on_publication_matched(the_writer, status).await })
     }
 }
 
