@@ -1,7 +1,9 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dds_async::data_reader::DataReaderAsync,
-    implementation::rtps::messages::submessage_elements::Data,
+    implementation::{
+        rtps::messages::submessage_elements::Data, utils::sync_listener::ListenerSyncToAsync,
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -20,7 +22,6 @@ use crate::{
 use std::marker::PhantomData;
 
 use super::{
-    data_reader_listener::DataReaderListenerSync,
     sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     subscriber::Subscriber,
 };
@@ -560,7 +561,7 @@ impl<Foo> DataReader<Foo> {
     ) -> DdsResult<()> {
         self.reader_async.runtime_handle().block_on(
             self.reader_async
-                .set_listener(DataReaderListenerSync::new(a_listener), mask),
+                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
         )
     }
 }

@@ -121,7 +121,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     }
     impl DataReaderListener for Listener {
         type Foo = KeyedData;
-        fn on_data_available(&mut self, the_reader: &DataReader<KeyedData>) {
+        fn on_data_available(&mut self, the_reader: DataReader<KeyedData>) {
             the_reader
                 .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
                 .ok();
@@ -208,7 +208,7 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     }
     impl DataReaderListener for Listener {
         type Foo = LargeKeyedData;
-        fn on_data_available(&mut self, the_reader: &DataReader<LargeKeyedData>) {
+        fn on_data_available(&mut self, the_reader: DataReader<LargeKeyedData>) {
             the_reader
                 .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
                 .ok();

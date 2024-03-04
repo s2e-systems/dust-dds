@@ -1,6 +1,7 @@
 use crate::{
     dds_async::subscriber::SubscriberAsync,
     domain::domain_participant::DomainParticipant,
+    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -12,8 +13,7 @@ use crate::{
 };
 
 use super::{
-    data_reader::DataReader,
-    data_reader_listener::{DataReaderListener, DataReaderListenerSync},
+    data_reader::DataReader, data_reader_listener::DataReaderListener,
     subscriber_listener::SubscriberListener,
 };
 
@@ -66,7 +66,7 @@ impl Subscriber {
             .block_on(self.subscriber_async.create_datareader::<Foo>(
                 a_topic.topic_async(),
                 qos,
-                DataReaderListenerSync::new(a_listener),
+                ListenerSyncToAsync::new(a_listener),
                 mask,
             ))
             .map(DataReader::new)
