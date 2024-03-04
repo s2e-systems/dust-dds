@@ -744,7 +744,7 @@ fn data_on_readers_listener() {
     }
 
     impl SubscriberListener for DataOnReadersListener {
-        fn on_data_on_readers(&mut self, _the_subscriber: &Subscriber) {
+        fn on_data_on_readers(&mut self, _the_subscriber: Subscriber) {
             self.sender.send(()).unwrap();
         }
     }
@@ -837,7 +837,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     }
 
     impl SubscriberListener for DataOnReadersListener {
-        fn on_data_on_readers(&mut self, _the_subscriber: &Subscriber) {
+        fn on_data_on_readers(&mut self, _the_subscriber: Subscriber) {
             self.sender.send(()).unwrap();
         }
     }

@@ -113,10 +113,11 @@ impl DomainParticipant {
     ) -> DdsResult<Subscriber> {
         self.participant_async
             .runtime_handle()
-            .block_on(
-                self.participant_async
-                    .create_subscriber(qos, a_listener, mask),
-            )
+            .block_on(self.participant_async.create_subscriber(
+                qos,
+                ListenerSyncToAsync::new(a_listener),
+                mask,
+            ))
             .map(Subscriber::new)
     }
 

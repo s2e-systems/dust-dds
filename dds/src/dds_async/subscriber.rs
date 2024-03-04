@@ -15,13 +15,12 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
-    subscription::subscriber_listener::SubscriberListener,
 };
 
 use super::{
     condition::StatusConditionAsync, data_reader::DataReaderAsync,
     data_reader_listener::DataReaderListenerAsync, domain_participant::DomainParticipantAsync,
-    topic::TopicAsync,
+    subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
 };
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
@@ -286,7 +285,7 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl SubscriberListener + Send + 'static,
+        a_listener: impl SubscriberListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.subscriber_address

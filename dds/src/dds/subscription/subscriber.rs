@@ -212,9 +212,10 @@ impl Subscriber {
         a_listener: impl SubscriberListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.subscriber_async
-            .runtime_handle()
-            .block_on(self.subscriber_async.set_listener(a_listener, mask))
+        self.subscriber_async.runtime_handle().block_on(
+            self.subscriber_async
+                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
+        )
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

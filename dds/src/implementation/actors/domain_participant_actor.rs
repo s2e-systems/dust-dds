@@ -65,12 +65,8 @@ use crate::{
         status::StatusKind,
         time::{Duration, DurationKind, Time, DURATION_ZERO},
     },
-    subscription::{
-        sample_info::{
-            InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-        },
-        subscriber_listener::SubscriberListener,
+    subscription::sample_info::{
+        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     topic_definition::{
         topic_listener::TopicListener,
@@ -94,7 +90,9 @@ use super::{
     publisher_actor::{self, PublisherActor},
     publisher_listener_actor::PublisherListenerAsyncDyn,
     status_condition_actor::StatusConditionActor,
-    subscriber_actor, topic_actor,
+    subscriber_actor,
+    subscriber_listener_actor::SubscriberListenerAsyncDyn,
+    topic_actor,
     type_support_actor::{self, TypeSupportActor},
 };
 
@@ -725,7 +723,7 @@ impl DomainParticipantActor {
     async fn create_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        a_listener: Box<dyn SubscriberListener + Send>,
+        a_listener: Box<dyn SubscriberListenerAsyncDyn + Send>,
         mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<SubscriberActor> {

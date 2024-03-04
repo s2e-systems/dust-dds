@@ -24,7 +24,6 @@ use crate::{
         status::{StatusKind, NO_STATUS},
         time::{Duration, Time},
     },
-    subscription::subscriber_listener::SubscriberListener,
     topic_definition::{
         topic_listener::TopicListener,
         type_support::{DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface},
@@ -33,7 +32,8 @@ use crate::{
 
 use super::{
     condition::StatusConditionAsync, publisher::PublisherAsync,
-    publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync, topic::TopicAsync,
+    publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
+    subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
 };
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
@@ -136,7 +136,7 @@ impl DomainParticipantAsync {
     pub async fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: impl SubscriberListener + Send + 'static,
+        a_listener: impl SubscriberListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync> {
         let subscriber_address = self

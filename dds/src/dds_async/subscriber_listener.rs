@@ -15,7 +15,7 @@ pub trait SubscriberListenerAsync {
     /// Method that is called when any reader belonging to this subcriber reports new data available. This method is triggered before the on_data_available method.
     fn on_data_on_readers(
         &mut self,
-        _the_subscriber: &SubscriberAsync,
+        _the_subscriber: SubscriberAsync,
     ) -> impl Future<Output = ()> + Send {
         async {}
     }
