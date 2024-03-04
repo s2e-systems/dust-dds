@@ -21,11 +21,13 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    publication::data_writer_listener::DataWriterListener,
     topic_definition::type_support::DdsSerialize,
 };
 
-use super::{condition::StatusConditionAsync, publisher::PublisherAsync, topic::TopicAsync};
+use super::{
+    condition::StatusConditionAsync, data_writer_listener::DataWriterListenerAsync,
+    publisher::PublisherAsync, topic::TopicAsync,
+};
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<Foo> {
@@ -583,7 +585,7 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
+        a_listener: impl DataWriterListenerAsync<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_address

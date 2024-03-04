@@ -1941,7 +1941,7 @@ fn data_writer_publication_matched_listener() {
         type Foo = MyData;
         fn on_publication_matched(
             &mut self,
-            _the_reader: &DataWriter<MyData>,
+            _the_reader: DataWriter<MyData>,
             status: PublicationMatchedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -2034,7 +2034,7 @@ fn data_writer_offered_incompatible_qos_listener() {
 
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_reader: &DataWriter<MyData>,
+            _the_reader: DataWriter<MyData>,
             status: OfferedIncompatibleQosStatus,
         ) {
             self.sender.send(status).unwrap();

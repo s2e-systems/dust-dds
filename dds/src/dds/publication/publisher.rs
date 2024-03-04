@@ -1,6 +1,7 @@
 use crate::{
     dds_async::publisher::PublisherAsync,
     domain::domain_participant::DomainParticipant,
+    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -63,7 +64,7 @@ impl Publisher {
             .block_on(self.publisher_async.create_datawriter::<Foo>(
                 a_topic.topic_async(),
                 qos,
-                a_listener,
+                ListenerSyncToAsync::new(a_listener),
                 mask,
             ))
             .map(DataWriter::new)

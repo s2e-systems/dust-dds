@@ -16,14 +16,13 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    publication::{
-        data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
-    },
+    publication::publisher_listener::PublisherListener,
 };
 
 use super::{
     condition::StatusConditionAsync, data_writer::DataWriterAsync,
-    domain_participant::DomainParticipantAsync, topic::TopicAsync,
+    data_writer_listener::DataWriterListenerAsync, domain_participant::DomainParticipantAsync,
+    topic::TopicAsync,
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
@@ -67,7 +66,7 @@ impl PublisherAsync {
         &self,
         a_topic: &TopicAsync,
         qos: QosKind<DataWriterQos>,
-        a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
+        a_listener: impl DataWriterListenerAsync<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriterAsync<Foo>> {
         let type_name = a_topic.get_type_name();
